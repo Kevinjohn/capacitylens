@@ -143,12 +143,12 @@ describe("SchedulerToolbar filter panel", () => {
   });
 });
 
-describe("SchedulerToolbar filter ordering", () => {
-  const optionNames = (label: string) => {
-    fireEvent.keyDown(screen.getByRole("combobox", { name: label }), { key: "ArrowDown" });
-    return screen.getAllByRole("option").map((option) => option.textContent);
-  };
+function optionNames(label: string) {
+  fireEvent.keyDown(screen.getByRole("combobox", { name: label }), { key: "ArrowDown" });
+  return screen.getAllByRole("option").map((option) => option.textContent);
+}
 
+describe("SchedulerToolbar filter ordering", () => {
   it("orders search, lenses, tentative visibility, draw mode, unallocated, and Clear", () => {
     useStore.getState().addDiscipline({ name: "Design", color: "#111", sortOrder: 0 });
     const client = useStore.getState().addClient({ name: "Queen Consolidated", color: "#222" });
@@ -158,7 +158,8 @@ describe("SchedulerToolbar filter ordering", () => {
     render(<SchedulerToolbar />);
     showFilters();
 
-    const filterbar = document.getElementById("scheduler-filters")!;
+    const filterbar = document.getElementById("scheduler-filters");
+    if (!filterbar) throw new Error("Expected the scheduler filters container.");
     const controls = [
       screen.getByRole("textbox", { name: "Search people" }),
       screen.getByRole("combobox", { name: "Filter by discipline" }),
@@ -194,7 +195,9 @@ describe("SchedulerToolbar filter ordering", () => {
 
     expect(screen.queryByRole("combobox", { name: "Filter by discipline" })).not.toBeInTheDocument();
   });
+});
 
+describe("SchedulerToolbar discipline and client ordering", () => {
   it("follows the scheduler discipline order rather than alphabetising disciplines", () => {
     useStore.getState().addDiscipline({ name: "Design", color: "#111", sortOrder: 0 });
     useStore.getState().addDiscipline({ name: "Account Management", color: "#222", sortOrder: 2 });
@@ -220,7 +223,9 @@ describe("SchedulerToolbar filter ordering", () => {
 
     expect(optionNames("Filter by client")).toEqual(["All clients", "Internal", "LexCorp", "Queen Consolidated"]);
   });
+});
 
+describe("SchedulerToolbar project and activity ordering", () => {
   it("pins Internal-owned projects before alphabetically ordered external projects", () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
     useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
@@ -314,7 +319,7 @@ describe("SchedulerToolbar history errors", () => {
   });
 });
 
-describe("SchedulerToolbar Clear filter button", () => {
+describe("SchedulerToolbar Clear filter presentation", () => {
   it("keeps Clear Filters visible, quiet and disabled when no filters are set", () => {
     render(<SchedulerToolbar />);
     showFilters();
@@ -365,7 +370,9 @@ describe("SchedulerToolbar Clear filter button", () => {
     expect(clear).toHaveAttribute("data-variant", "outline");
     expect(clear.querySelector("svg")).toBeNull();
   });
+});
 
+describe("SchedulerToolbar Clear filter concurrency", () => {
   it("Clear cancels a pending search debounce so a cleared term cannot reappear", async () => {
     const user = userEvent.setup();
     // A non-search filter is active so Clear Filters is enabled before the debounce.
@@ -434,14 +441,14 @@ describe("SchedulerToolbar Clear filter button", () => {
   });
 });
 
-describe("SchedulerToolbar Activities filter (standalone lens)", () => {
-  // Seed one internal + one all-projects activity so the Activities dropdown renders (it covers only the
-  // project-less kinds; project-specific activities are reached via the Projects dropdown).
-  const seedLensActivities = () => ({
-    internal: useStore.getState().addActivity({ name: "Admin", kind: "internal" }),
-    repeatable: useStore.getState().addActivity({ name: "Design", kind: "repeatable" }),
-  });
+// Seed one internal + one all-projects activity so the Activities dropdown renders (it covers only the
+// project-less kinds; project-specific activities are reached via the Projects dropdown).
+const seedLensActivities = () => ({
+  internal: useStore.getState().addActivity({ name: "Admin", kind: "internal" }),
+  repeatable: useStore.getState().addActivity({ name: "Design", kind: "repeatable" }),
+});
 
+describe("SchedulerToolbar Activities filter (standalone lens)", () => {
   it("renders the Activities dropdown with grouped Internal / All projects options", async () => {
     seedLensActivities();
     render(<SchedulerToolbar />);
@@ -488,7 +495,9 @@ describe("SchedulerToolbar Activities filter (standalone lens)", () => {
     expect(useStore.getState().ui.filters.activityId).toBeNull();
     expect(useStore.getState().ui.filters.clientId).toBeNull();
   });
+});
 
+describe("SchedulerToolbar activity and project lens interaction", () => {
   it("selecting a project clears an active activity lens (mutual exclusion both ways)", async () => {
     const user = userEvent.setup();
     const { repeatable } = seedLensActivities();

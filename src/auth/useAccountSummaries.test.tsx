@@ -55,7 +55,7 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-describe("fetchAccountSummaries — response classification", () => {
+function createBasicResponseClassificationTests() {
   it('a genuine empty array -> [] (the real "no accounts" answer)', async () => {
     vi.stubGlobal(
       "fetch",
@@ -88,12 +88,14 @@ describe("fetchAccountSummaries — response classification", () => {
         json(200, [
           { id: "a1", name: "Studio A", role: "owner" },
           { id: "a1", name: "Studio A", role: "viewer" },
+          { bogus: true },
         ]),
       ),
     );
 
     await expect(fetchAccountSummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("duplicate account identities"));
+    expect(useStore.getState().notice).toEqual({ message: m.picker_accounts_incomplete(), tone: "warning" });
   });
 
   it("does not mark a cached active slice online merely because the company directory responds", async () => {
@@ -121,7 +123,9 @@ describe("fetchAccountSummaries — response classification", () => {
 
     expect(readOfflineStateSnapshot().readOnly).toBe(false);
   });
+}
 
+function createCachedResponseClassificationTests() {
   it("does not mark a live active slice read-only when only the company directory falls back to cache", async () => {
     const savedAt = Date.parse("2026-07-17T10:00:00.000Z");
     useStore.setState({ activeAccountId: "a1" });
@@ -181,7 +185,9 @@ describe("fetchAccountSummaries — response classification", () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("unrecognized role"), row);
     expect(cacheAccountSummaries).not.toHaveBeenCalled();
   });
+}
 
+function createMalformedResponseClassificationTests() {
   it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {
     // The regression this pins: [null] used to map/filter to [], which the hook treated as a genuine
     // empty list and blanked the picker — contradicting the "[] is reserved for a genuine empty
@@ -194,6 +200,7 @@ describe("fetchAccountSummaries — response classification", () => {
     );
     await expect(fetchAccountSummaries()).resolves.toBeNull();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("dropped 1 malformed"), [null]);
+    expect(useStore.getState().notice).toEqual({ message: m.picker_accounts_incomplete(), tone: "warning" });
   });
 
   it('an id-only row is malformed too: [{"id":"a"}] -> null, not []', async () => {
@@ -224,7 +231,9 @@ describe("fetchAccountSummaries — response classification", () => {
     );
     await expect(fetchAccountSummaries()).resolves.toBeNull();
   });
+}
 
+function createFallbackResponseClassificationTests() {
   it("refuses a cached directory when a caller requires authoritative reconciliation", async () => {
     vi.mocked(readCachedAccountSummaries).mockClear();
     vi.stubGlobal(
@@ -249,9 +258,16 @@ describe("fetchAccountSummaries — response classification", () => {
 
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("offline account list could not be read"), cacheError);
   });
+}
+
+describe("fetchAccountSummaries — response classification", () => {
+  createBasicResponseClassificationTests();
+  createCachedResponseClassificationTests();
+  createMalformedResponseClassificationTests();
+  createFallbackResponseClassificationTests();
 });
 
-describe("refreshAccountSummaries — shared request ordering", () => {
+function createOrderedRefreshTests() {
   it("returns an active user to the picker when a live directory no longer contains that company", async () => {
     useStore.setState({ activeAccountId: "a1" });
     vi.stubGlobal(
@@ -311,7 +327,9 @@ describe("refreshAccountSummaries — shared request ordering", () => {
     expect(useStore.getState().activeAccountId).toBe("new");
     expect(useStore.getState().notice).toBeNull();
   });
+}
 
+function createMutationRefreshTests() {
   it("does not let an in-flight response overwrite a later direct list mutation", async () => {
     const response = deferred<Response>();
     vi.stubGlobal(
@@ -343,7 +361,9 @@ describe("refreshAccountSummaries — shared request ordering", () => {
     expect(useStore.getState().activeAccountId).toBe("created");
     expect(useStore.getState().notice).toBeNull();
   });
+}
 
+function createCompletenessRefreshTests() {
   it("publishes valid rows from an incomplete directory without treating the dropped active row as revoked", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     useStore.setState({ activeAccountId: "active" });
@@ -376,6 +396,12 @@ describe("refreshAccountSummaries — shared request ordering", () => {
 
     expect(useStore.getState().accountSummariesComplete).toBe(true);
   });
+}
+
+describe("refreshAccountSummaries — shared request ordering", () => {
+  createOrderedRefreshTests();
+  createMutationRefreshTests();
+  createCompletenessRefreshTests();
 });
 
 /** Mounts the hook bare — it renders nothing; the observable effect is on the store. */
@@ -384,7 +410,7 @@ function HookHost() {
   return null;
 }
 
-describe("useAccountSummaries — a malformed 200 leaves the existing list alone", () => {
+function createYieldingHookTest() {
   it("yields active-account reads when the permission provider owns that generation", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -400,7 +426,9 @@ describe("useAccountSummaries — a malformed 200 leaves the existing list alone
     expect(fetchMock).not.toHaveBeenCalled();
     view.unmount();
   });
+}
 
+function createMalformedHookTests() {
   it("store.accountSummaries is preserved when /api/accounts 200s with a non-array body", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {}); // silence the expected breadcrumb
     const existing = [{ id: "a1", name: "Studio A", role: "owner" as const }];
@@ -425,7 +453,9 @@ describe("useAccountSummaries — a malformed 200 leaves the existing list alone
     });
     expect(useStore.getState().accountSummaries).toEqual(existing); // untouched — not blanked to []
   });
+}
 
+function createMembershipHookTest() {
   it("store.accountSummaries is preserved when /api/accounts 200s with an all-malformed array ([null])", async () => {
     // Same stance as the non-array case above, via the all-rows-dropped -> null path: an array of
     // junk must not read as "no accounts" and blank the picker.
@@ -467,4 +497,10 @@ describe("useAccountSummaries — a malformed 200 leaves the existing list alone
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
+}
+
+describe("useAccountSummaries — a malformed 200 leaves the existing list alone", () => {
+  createYieldingHookTest();
+  createMalformedHookTests();
+  createMembershipHookTest();
 });

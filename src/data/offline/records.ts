@@ -37,33 +37,12 @@ async function get<T>(key: string): Promise<CachedRecord<T> | null> {
       await deleteKey(key);
       return null;
     }
-    const savedAt = record.savedAt;
-    const age = typeof savedAt === "number" ? Date.now() - savedAt : Number.NaN;
-    if (
-      record.key === key &&
-      typeof savedAt === "number" &&
-      Number.isFinite(savedAt) &&
-      age >= 0 &&
-      age <= MAX_AGE_MS &&
-      record.version === 1 &&
-      isArrayBuffer(record.iv) &&
-      isArrayBuffer(record.ciphertext)
-    ) {
+    if (isValidEncryptedRecord(record, key)) {
       try {
-        const encryptionKey = await readOrCreateDeviceKey(db);
-        const plaintext = await assertWebCrypto().subtle.decrypt(
-          {
-            name: "AES-GCM",
-            iv: record.iv,
-            additionalData: buildAssociatedData(key, savedAt),
-            tagLength: 128,
-          },
-          encryptionKey,
-          record.ciphertext,
-        );
+        const plaintext = await decryptRecord(db, record);
         return {
           key,
-          savedAt,
+          savedAt: record.savedAt,
           value: JSON.parse(new TextDecoder().decode(plaintext)) as T,
         };
       } catch (error) {
@@ -75,6 +54,42 @@ async function get<T>(key: string): Promise<CachedRecord<T> | null> {
   } finally {
     db.close();
   }
+}
+
+type ValidEncryptedRecord = Record<string, unknown> & {
+  key: string;
+  savedAt: number;
+  version: 1;
+  iv: ArrayBuffer;
+  ciphertext: ArrayBuffer;
+};
+
+function isValidEncryptedRecord(record: Record<string, unknown>, key: string): record is ValidEncryptedRecord {
+  const age = typeof record.savedAt === "number" ? Date.now() - record.savedAt : Number.NaN;
+  return (
+    record.key === key &&
+    typeof record.savedAt === "number" &&
+    Number.isFinite(record.savedAt) &&
+    age >= 0 &&
+    age <= MAX_AGE_MS &&
+    record.version === 1 &&
+    isArrayBuffer(record.iv) &&
+    isArrayBuffer(record.ciphertext)
+  );
+}
+
+async function decryptRecord(db: IDBDatabase, record: ValidEncryptedRecord): Promise<ArrayBuffer> {
+  const encryptionKey = await readOrCreateDeviceKey(db);
+  return assertWebCrypto().subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: record.iv,
+      additionalData: buildAssociatedData(record.key, record.savedAt),
+      tagLength: 128,
+    },
+    encryptionKey,
+    record.ciphertext,
+  );
 }
 
 /** IndexedDB may deserialize an ArrayBuffer in a different JavaScript realm (notably in tests and

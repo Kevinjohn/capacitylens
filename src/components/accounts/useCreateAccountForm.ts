@@ -191,7 +191,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       errorField,
       errorId,
       clear,
-      tzSelectOptions: timeZoneSelectOptions,
+      timeZoneSelectOptions,
       weekStartSelectOptions,
     },
     submit,

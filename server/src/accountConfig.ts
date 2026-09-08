@@ -103,6 +103,163 @@ export interface ResolvedAccountEnvironment {
   profile: AccountDeploymentProfile | null;
 }
 
+type AccountEnvironment = Record<string, string | undefined>;
+
+function resolveAliases(source: AccountEnvironment, warn: (message: string) => void): AccountEnvironment {
+  const environment = { ...source };
+  for (const [canonical, legacy] of Object.entries(ALIASES)) {
+    const canonicalValue = parseConfiguredValue(canonical, source[canonical]);
+    const legacyValue = parseConfiguredValue(legacy, source[legacy]);
+    if (
+      canonicalValue !== undefined &&
+      legacyValue !== undefined &&
+      normalizeSettingForComparison(canonical, canonicalValue) !== normalizeSettingForComparison(canonical, legacyValue)
+    ) {
+      throw new AccountConfigError(
+        `${canonical} conflicts with its legacy alias ${legacy}; refusing to choose a security posture.`,
+      );
+    }
+    const resolvedValue = canonicalValue ?? legacyValue;
+    if (resolvedValue === undefined) {
+      delete environment[canonical];
+      delete environment[legacy];
+      continue;
+    }
+    if (legacyValue !== undefined) warnLegacyAlias({ source, legacy, canonical, warn });
+    environment[canonical] = normalizeSettingForComparison(canonical, resolvedValue);
+    environment[legacy] = environment[canonical];
+  }
+  return environment;
+}
+
+function readDeploymentProfile(source: AccountEnvironment): AccountDeploymentProfile | null {
+  const rawProfile = source.SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE?.trim();
+  const profile = rawProfile === undefined || rawProfile === "" ? null : rawProfile;
+  if (profile !== null && !isAccountDeploymentProfile(profile)) {
+    throw new AccountConfigError(
+      "SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE must be self-hosted-password, self-hosted-mixed, self-hosted-sso-only, or hosted-oidc-only.",
+    );
+  }
+  return profile;
+}
+
+const EXTERNAL_IDENTITY_KEYS = [
+  "CAPACITYLENS_SSO_CLIENT_ID",
+  "CAPACITYLENS_SSO_CLIENT_SECRET",
+  "CAPACITYLENS_SSO_DISCOVERY_URL",
+  "CAPACITYLENS_SSO_ISSUER",
+  "CAPACITYLENS_SSO_AUTHORIZATION_URL",
+  "CAPACITYLENS_SSO_TOKEN_URL",
+  "CAPACITYLENS_SSO_SCOPES",
+  "CAPACITYLENS_SSO_PROVIDER_ID",
+  "CAPACITYLENS_SSO_LABEL",
+  "CAPACITYLENS_SSO_BOOTSTRAP_EMAILS",
+  "CAPACITYLENS_GOOGLE_CLIENT_ID",
+  "CAPACITYLENS_GOOGLE_CLIENT_SECRET",
+  "CAPACITYLENS_MICROSOFT_CLIENT_ID",
+  "CAPACITYLENS_MICROSOFT_CLIENT_SECRET",
+  "CAPACITYLENS_MICROSOFT_TENANT_ID",
+  "CAPACITYLENS_GITHUB_CLIENT_ID",
+  "CAPACITYLENS_GITHUB_CLIENT_SECRET",
+] as const;
+
+function hasConfiguredKey(environment: AccountEnvironment, keys: readonly string[]): boolean {
+  return keys.some((key) => environment[key] !== undefined);
+}
+
+function assertStrictOidcMaterial(environment: AccountEnvironment, message: string): void {
+  const requiredKeys = [
+    "CAPACITYLENS_SSO_CLIENT_ID",
+    "CAPACITYLENS_SSO_CLIENT_SECRET",
+    "CAPACITYLENS_SSO_DISCOVERY_URL",
+    "CAPACITYLENS_SSO_ISSUER",
+  ];
+  if (!requiredKeys.every((key) => environment[key])) throw new AccountConfigError(message);
+}
+
+function assertHostedPasswordConfigurationAbsent(environment: AccountEnvironment, source: AccountEnvironment): void {
+  const passwordKeys = ["CAPACITYLENS_SETUP_TOKEN", "CAPACITYLENS_REQUIRE_MFA", "CAPACITYLENS_PASSWORD_BREACH_CHECK"];
+  if (
+    hasConfiguredKey(environment, passwordKeys) ||
+    source.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD ||
+    source.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1"
+  ) {
+    throw new AccountConfigError("The hosted-oidc-only deployment profile refuses password-account configuration.");
+  }
+}
+
+function assertHostedProfile(environment: AccountEnvironment, source: AccountEnvironment): void {
+  const clientKeys = ["CAPACITYLENS_SSO_CLIENT_ID", "CAPACITYLENS_SSO_CLIENT_SECRET"];
+  if (!clientKeys.every((key) => environment[key])) {
+    throw new AccountConfigError("The hosted-oidc-only deployment profile requires an OIDC client id and secret.");
+  }
+  const discoveryKeys = ["CAPACITYLENS_SSO_DISCOVERY_URL", "CAPACITYLENS_SSO_ISSUER"];
+  if (!discoveryKeys.every((key) => environment[key])) {
+    throw new AccountConfigError(
+      "The hosted-oidc-only deployment profile requires an explicit OIDC issuer and discovery metadata.",
+    );
+  }
+  const scopes = (environment.CAPACITYLENS_SSO_SCOPES ?? "openid profile email").split(/\s+/);
+  const missingScopes = ["openid", "profile", "email"].filter((scope) => !scopes.includes(scope));
+  if (missingScopes.length > 0) {
+    throw new AccountConfigError(
+      `The hosted-oidc-only deployment profile requires the ${missingScopes.join(", ")} scope${missingScopes.length === 1 ? "" : "s"}.`,
+    );
+  }
+  const socialProviderKeys = EXTERNAL_IDENTITY_KEYS.slice(10);
+  if (hasConfiguredKey(environment, socialProviderKeys)) {
+    throw new AccountConfigError(
+      "The hosted-oidc-only deployment profile accepts only the configured strict OIDC provider.",
+    );
+  }
+  if (environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
+    throw new AccountConfigError("The hosted-oidc-only deployment profile forbids open signup.");
+  }
+  assertHostedPasswordConfigurationAbsent(environment, source);
+}
+
+function assertProfileMode(profile: AccountDeploymentProfile, environment: AccountEnvironment): void {
+  const capabilities = ACCOUNT_PROFILE_CAPABILITIES[profile];
+  const requiredMode = capabilities.passwordSignIn ? "password" : "sso";
+  if (environment.CAPACITYLENS_AUTH === requiredMode) return;
+  throw new AccountConfigError(
+    capabilities.hosted
+      ? "The hosted-oidc-only deployment profile requires SMALLSASS_ACCOUNT_MODE=sso; hosted password accounts are prohibited."
+      : `The ${profile} deployment profile requires SMALLSASS_ACCOUNT_MODE=${requiredMode}.`,
+  );
+}
+
+function assertProfileProviderPolicy(profile: AccountDeploymentProfile, environment: AccountEnvironment): void {
+  const capabilities = ACCOUNT_PROFILE_CAPABILITIES[profile];
+  if (!capabilities.strictOidc) {
+    if (hasConfiguredKey(environment, EXTERNAL_IDENTITY_KEYS)) {
+      throw new AccountConfigError("The self-hosted-password profile does not permit external identity providers.");
+    }
+    return;
+  }
+  assertStrictOidcMaterial(environment, `${profile} requires a strict OIDC client, issuer, and discovery document.`);
+  if (!capabilities.passwordSignIn && environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
+    throw new AccountConfigError("The SSO-only deployment profile forbids open signup.");
+  }
+}
+
+function assertDeploymentProfile(
+  profile: AccountDeploymentProfile | null,
+  environment: AccountEnvironment,
+  source: AccountEnvironment,
+): void {
+  if (profile === null) return;
+  const capabilities = ACCOUNT_PROFILE_CAPABILITIES[profile];
+  assertProfileMode(profile, environment);
+  if (capabilities.hosted) assertHostedProfile(environment, source);
+  assertProfileProviderPolicy(profile, environment);
+  if (environment.CAPACITYLENS_SSO_AUTHORIZATION_URL || environment.CAPACITYLENS_SSO_TOKEN_URL) {
+    throw new AccountConfigError(
+      "Named account profiles require discovery; explicit OIDC endpoint overrides are not accepted.",
+    );
+  }
+}
+
 /** Resolve canonical family configuration and legacy aliases exactly once at composition time. */
 export function resolveAccountEnvironment(
   source: Record<string, string | undefined>,
@@ -115,148 +272,14 @@ export function resolveAccountEnvironment(
   if (resolvedAccountEnvironments.has(source)) {
     return { env: source, profile: resolvedAccountEnvironments.get(source) ?? null };
   }
-  const environment = { ...source };
   const warn =
     options.warn ??
     ((message: string) => {
       if (source.NODE_ENV !== "test") console.warn(message);
     });
-  for (const [canonical, legacy] of Object.entries(ALIASES)) {
-    // Compose commonly materializes unset interpolation as an empty string. Treat that as absent
-    // so an empty canonical placeholder cannot conflict with (or erase) a real compatibility
-    // alias supplied by an existing deployment.
-    const canonicalValue = parseConfiguredValue(canonical, source[canonical]);
-    const legacyValue = parseConfiguredValue(legacy, source[legacy]);
-    if (canonicalValue !== undefined && legacyValue !== undefined) {
-      if (
-        normalizeSettingForComparison(canonical, canonicalValue) !==
-        normalizeSettingForComparison(canonical, legacyValue)
-      ) {
-        throw new AccountConfigError(
-          `${canonical} conflicts with its legacy alias ${legacy}; refusing to choose a security posture.`,
-        );
-      }
-      warnLegacyAlias({ source, legacy, canonical, warn });
-      environment[canonical] = normalizeSettingForComparison(canonical, canonicalValue);
-      environment[legacy] = environment[canonical];
-    } else if (canonicalValue !== undefined) {
-      environment[canonical] = normalizeSettingForComparison(canonical, canonicalValue);
-      environment[legacy] = environment[canonical];
-    } else if (legacyValue !== undefined) {
-      warnLegacyAlias({ source, legacy, canonical, warn });
-      environment[canonical] = normalizeSettingForComparison(canonical, legacyValue);
-      environment[legacy] = environment[canonical];
-    } else {
-      delete environment[canonical];
-      delete environment[legacy];
-    }
-  }
-
-  const rawProfile = source.SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE?.trim();
-  const profile = rawProfile === undefined || rawProfile === "" ? null : rawProfile;
-  if (profile !== null && !isAccountDeploymentProfile(profile)) {
-    throw new AccountConfigError(
-      "SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE must be self-hosted-password, self-hosted-mixed, self-hosted-sso-only, or hosted-oidc-only.",
-    );
-  }
-
-  const capabilities = profile === null ? null : ACCOUNT_PROFILE_CAPABILITIES[profile];
-  if (capabilities) {
-    const requiredMode = capabilities.passwordSignIn ? "password" : "sso";
-    if (environment.CAPACITYLENS_AUTH !== requiredMode) {
-      throw new AccountConfigError(
-        capabilities.hosted
-          ? "The hosted-oidc-only deployment profile requires SMALLSASS_ACCOUNT_MODE=sso; hosted password accounts are prohibited."
-          : `The ${profile} deployment profile requires SMALLSASS_ACCOUNT_MODE=${requiredMode}.`,
-      );
-    }
-  }
-
-  if (capabilities?.hosted) {
-    if (!environment.CAPACITYLENS_SSO_CLIENT_ID || !environment.CAPACITYLENS_SSO_CLIENT_SECRET) {
-      throw new AccountConfigError("The hosted-oidc-only deployment profile requires an OIDC client id and secret.");
-    }
-    if (!environment.CAPACITYLENS_SSO_DISCOVERY_URL || !environment.CAPACITYLENS_SSO_ISSUER) {
-      throw new AccountConfigError(
-        "The hosted-oidc-only deployment profile requires an explicit OIDC issuer and discovery metadata.",
-      );
-    }
-    const scopes = (environment.CAPACITYLENS_SSO_SCOPES ?? "openid profile email").split(/\s+/);
-    const missingScopes = ["openid", "profile", "email"].filter((scope) => !scopes.includes(scope));
-    if (missingScopes.length > 0) {
-      throw new AccountConfigError(
-        `The hosted-oidc-only deployment profile requires the ${missingScopes.join(", ")} scope${missingScopes.length === 1 ? "" : "s"}.`,
-      );
-    }
-    if (
-      environment.CAPACITYLENS_GOOGLE_CLIENT_ID ||
-      environment.CAPACITYLENS_GOOGLE_CLIENT_SECRET ||
-      environment.CAPACITYLENS_MICROSOFT_CLIENT_ID ||
-      environment.CAPACITYLENS_MICROSOFT_CLIENT_SECRET ||
-      environment.CAPACITYLENS_MICROSOFT_TENANT_ID ||
-      environment.CAPACITYLENS_GITHUB_CLIENT_ID ||
-      environment.CAPACITYLENS_GITHUB_CLIENT_SECRET
-    ) {
-      throw new AccountConfigError(
-        "The hosted-oidc-only deployment profile accepts only the configured strict OIDC provider.",
-      );
-    }
-    if (environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
-      throw new AccountConfigError("The hosted-oidc-only deployment profile forbids open signup.");
-    }
-    if (
-      environment.CAPACITYLENS_SETUP_TOKEN ||
-      environment.CAPACITYLENS_REQUIRE_MFA ||
-      environment.CAPACITYLENS_PASSWORD_BREACH_CHECK ||
-      source.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD ||
-      source.CAPACITYLENS_CREATE_ADMIN_ADMIN === "1"
-    ) {
-      throw new AccountConfigError("The hosted-oidc-only deployment profile refuses password-account configuration.");
-    }
-  }
-  if (
-    capabilities !== null &&
-    !capabilities.strictOidc &&
-    (environment.CAPACITYLENS_SSO_CLIENT_ID ||
-      environment.CAPACITYLENS_SSO_CLIENT_SECRET ||
-      environment.CAPACITYLENS_SSO_DISCOVERY_URL ||
-      environment.CAPACITYLENS_SSO_ISSUER ||
-      environment.CAPACITYLENS_SSO_AUTHORIZATION_URL ||
-      environment.CAPACITYLENS_SSO_TOKEN_URL ||
-      environment.CAPACITYLENS_SSO_SCOPES ||
-      environment.CAPACITYLENS_SSO_PROVIDER_ID ||
-      environment.CAPACITYLENS_SSO_LABEL ||
-      environment.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS ||
-      environment.CAPACITYLENS_GOOGLE_CLIENT_ID ||
-      environment.CAPACITYLENS_GOOGLE_CLIENT_SECRET ||
-      environment.CAPACITYLENS_MICROSOFT_CLIENT_ID ||
-      environment.CAPACITYLENS_MICROSOFT_CLIENT_SECRET ||
-      environment.CAPACITYLENS_MICROSOFT_TENANT_ID ||
-      environment.CAPACITYLENS_GITHUB_CLIENT_ID ||
-      environment.CAPACITYLENS_GITHUB_CLIENT_SECRET)
-  ) {
-    throw new AccountConfigError("The self-hosted-password profile does not permit external identity providers.");
-  }
-  if (capabilities?.strictOidc && !capabilities.hosted) {
-    if (
-      !environment.CAPACITYLENS_SSO_CLIENT_ID ||
-      !environment.CAPACITYLENS_SSO_CLIENT_SECRET ||
-      !environment.CAPACITYLENS_SSO_DISCOVERY_URL ||
-      !environment.CAPACITYLENS_SSO_ISSUER
-    ) {
-      throw new AccountConfigError(`${profile} requires a strict OIDC client, issuer, and discovery document.`);
-    }
-    if (!capabilities.passwordSignIn) {
-      if (environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
-        throw new AccountConfigError("The SSO-only deployment profile forbids open signup.");
-      }
-    }
-  }
-  if (profile !== null && (environment.CAPACITYLENS_SSO_AUTHORIZATION_URL || environment.CAPACITYLENS_SSO_TOKEN_URL)) {
-    throw new AccountConfigError(
-      "Named account profiles require discovery; explicit OIDC endpoint overrides are not accepted.",
-    );
-  }
+  const environment = resolveAliases(source, warn);
+  const profile = readDeploymentProfile(source);
+  assertDeploymentProfile(profile, environment, source);
 
   resolvedAccountEnvironments.set(environment, profile);
   return { env: environment, profile };

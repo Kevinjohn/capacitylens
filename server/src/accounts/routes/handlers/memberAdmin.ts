@@ -1,7 +1,30 @@
+import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
+
+function createAuthenticationRequiredError() {
+  return new AccountContractError({
+    code: "AUTHENTICATION_REQUIRED",
+    message: "Sign in to continue.",
+    retryable: false,
+  });
+}
+
+function requireAccountActor(req: FastifyRequest) {
+  if (!req.accountActor) throw createAuthenticationRequiredError();
+  return req.accountActor;
+}
+
+function requireAuthenticatedUser(req: FastifyRequest) {
+  if (!req.user) throw createAuthenticationRequiredError();
+  return req.user;
+}
+
+function requireAuthenticatedPrincipal(req: FastifyRequest) {
+  return { actor: requireAccountActor(req), user: requireAuthenticatedUser(req) };
+}
 
 export async function listMembers(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
@@ -19,9 +42,10 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
   // the shape is honest and nothing crashes. The UI is hidden in OFF, so this is belt-and-braces.
   if (authMode === "off") return { members: [], signInTrackingEnabled: false };
   try {
+    const actor = requireAccountActor(req);
     const tracking = memberSignInTracking.snapshot(accountId);
     const directory = await accountFlows.listMemberDirectory({
-      actor: req.accountActor!,
+      actor,
       workspaceId: accountId,
     });
     const projection = memberReadProjection(
@@ -61,15 +85,16 @@ export async function setMemberSignInTracking(req: FastifyRequest, reply: Fastif
     return reply.code(400).send({ error: "enabled must be a boolean." });
   }
   try {
+    const actor = requireAccountActor(req);
     const result = memberSignInTracking.set({
       workspaceId: accountId,
-      actorPrincipalId: req.accountActor!.principalId,
+      actorPrincipalId: actor.principalId,
       enabled: body.enabled,
     });
     if (result.changed) {
       audit(reply, {
         ts: new Date().toISOString(),
-        userId: req.accountActor!.principalId,
+        userId: actor.principalId,
         accountId,
         action: "memberSignInTrackingChange",
         entity: "account",
@@ -104,8 +129,9 @@ export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply,
   const nextRole = body.role;
   if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers" })) return;
   try {
+    const { actor, user } = requireAuthenticatedPrincipal(req);
     const changed = await accountAdminPort.changeMemberRole({
-      actor: req.accountActor!,
+      actor,
       workspaceId: accountId,
       targetPrincipalId: userId,
       nextRole,
@@ -116,7 +142,7 @@ export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply,
       result: changed,
       record: {
         ts: new Date().toISOString(),
-        userId: req.user!.id,
+        userId: user.id,
         accountId,
         action: "memberRole",
         entity: "membership",
@@ -152,8 +178,9 @@ export async function changeMemberStatus(req: FastifyRequest, reply: FastifyRepl
   const nextStatus = body.status;
   if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers" })) return;
   try {
+    const { actor, user } = requireAuthenticatedPrincipal(req);
     const changed = await accountAdminPort.changeMemberStatus({
-      actor: req.accountActor!,
+      actor,
       workspaceId: accountId,
       targetPrincipalId: userId,
       nextStatus,
@@ -164,7 +191,7 @@ export async function changeMemberStatus(req: FastifyRequest, reply: FastifyRepl
       result: changed,
       record: {
         ts: new Date().toISOString(),
-        userId: req.user!.id,
+        userId: user.id,
         accountId,
         action: "memberStatus",
         entity: "membership",
@@ -193,8 +220,9 @@ export async function removeMember(req: FastifyRequest, reply: FastifyReply, con
   };
   if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers" })) return;
   try {
+    const { actor, user } = requireAuthenticatedPrincipal(req);
     const removed = await accountAdminPort.removeMember({
-      actor: req.accountActor!,
+      actor,
       workspaceId: accountId,
       targetPrincipalId: userId,
       command: accountCommand(req),
@@ -204,7 +232,7 @@ export async function removeMember(req: FastifyRequest, reply: FastifyReply, con
       result: removed,
       record: {
         ts: new Date().toISOString(),
-        userId: req.user!.id,
+        userId: user.id,
         accountId,
         action: "memberRemove",
         entity: "membership",
@@ -235,9 +263,10 @@ export async function transferOwnership(req: FastifyRequest, reply: FastifyReply
   const toUserId = body.toUserId;
   if (!authorizeMemberMutation({ req, reply, accountId, action: "transferOwnership" })) return;
   try {
+    const { actor, user } = requireAuthenticatedPrincipal(req);
     const now = new Date().toISOString();
     const transferred = await accountAdminPort.transferOwnership({
-      actor: req.accountActor!,
+      actor,
       workspaceId: accountId,
       targetPrincipalId: toUserId,
       command: accountCommand(req),
@@ -247,7 +276,7 @@ export async function transferOwnership(req: FastifyRequest, reply: FastifyReply
       result: transferred,
       record: {
         ts: now,
-        userId: req.user!.id,
+        userId: user.id,
         accountId,
         action: "ownershipTransfer",
         entity: "membership",

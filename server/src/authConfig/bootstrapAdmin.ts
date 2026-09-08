@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import { getMigrations } from "better-auth/db/migration";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { cleanText } from "@capacitylens/shared/lib/strings";
@@ -80,10 +81,10 @@ export async function runAuthMigrations(auth: Auth): Promise<void> {
   }
   // A fresh database reaches application v25 before Better Auth creates `account`; install the
   // composite uniqueness backstop now that the provider-owned table is guaranteed to exist.
-  const database = auth.options.database;
-  if (database && typeof database === "object" && "prepare" in database) {
-    ensureFederatedIdentitySchema(database as Db);
-    assertFederatedIdentitySchemaCurrent(database as Db);
+  const database: unknown = auth.options.database;
+  if (database instanceof DatabaseSync) {
+    ensureFederatedIdentitySchema(database);
+    assertFederatedIdentitySchemaCurrent(database);
   }
 }
 
@@ -95,9 +96,28 @@ interface AuthSchemaMigrationPlan {
 /** Inspect Better Auth's pinned desired schema without executing its DDL. Production startup folds
  * this into the same pre-migration snapshot decision as app-owned migrations. */
 export async function planAuthSchemaMigrations(auth: Auth): Promise<AuthSchemaMigrationPlan> {
-  const plan = await getMigrations(auth.options);
+  const plan: unknown = await getMigrations(auth.options);
+  if (!isAuthSchemaMigrationPlan(plan)) {
+    throw new Error("Better Auth returned an invalid schema migration plan");
+  }
   const tables = [...plan.toBeCreated.map((entry) => entry.table), ...plan.toBeAdded.map((entry) => entry.table)];
   return { pending: tables.length > 0, tables: [...new Set(tables)] };
+}
+
+function isAuthSchemaMigrationPlan(
+  value: unknown,
+): value is { toBeCreated: Array<{ table: string }>; toBeAdded: Array<{ table: string }> } {
+  if (!value || typeof value !== "object" || !("toBeCreated" in value) || !("toBeAdded" in value)) return false;
+  return isMigrationTableList(value.toBeCreated) && isMigrationTableList(value.toBeAdded);
+}
+
+function isMigrationTableList(value: unknown): value is Array<{ table: string }> {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (entry: unknown) => entry && typeof entry === "object" && "table" in entry && typeof entry.table === "string",
+    )
+  );
 }
 
 // ── First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1) ────
@@ -111,16 +131,125 @@ export async function planAuthSchemaMigrations(auth: Auth): Promise<AuthSchemaMi
 const BOOTSTRAP_ADMIN_NAME = "admin";
 export const BOOTSTRAP_ADMIN_EMAIL = "admin@admin.admin";
 
-// Bind facade-owned policy without importing the facade at runtime.
-export function createBootstrapAdminFactory({
-  AuthConfigError,
-  countUsers,
-  isSqliteConstraintCollision,
-}: {
+type BootstrapLog = (line: string) => void;
+
+interface BootstrapAdminDependencies {
   AuthConfigError: typeof AuthFacade.AuthConfigError;
   countUsers: typeof AuthFacade.countUsers;
   isSqliteConstraintCollision: (sqlite: { code?: unknown; errcode?: unknown }) => boolean;
-}) {
+}
+
+interface BootstrapAdminInput {
+  auth: Auth | null;
+  db: Db;
+  log: BootstrapLog;
+  mode: AccountMode;
+}
+
+type BootstrapAdminResult = { kind: "created" } | { kind: "skipped" };
+
+function readBootstrapPassword(AuthConfigError: typeof AuthFacade.AuthConfigError): string {
+  const password = process.env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD;
+  if (!password) {
+    throw new AuthConfigError(
+      "--create-owner-admin-admin requires CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD so the initial credential remains recoverable if startup output fails.",
+    );
+  }
+  if (passwordLengthFailure(password)) {
+    throw new AuthConfigError(
+      `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must be ${MIN_PASSWORD_LENGTH}..${MAX_PASSWORD_LENGTH} characters.`,
+    );
+  }
+  return password;
+}
+
+function createBootstrapClaim({
+  AuthConfigError,
+  db,
+  isSqliteConstraintCollision,
+}: {
+  AuthConfigError: typeof AuthFacade.AuthConfigError;
+  db: Db;
+  isSqliteConstraintCollision: BootstrapAdminDependencies["isSqliteConstraintCollision"];
+}): string {
+  const claimToken = randomBytes(24).toString("base64url");
+  try {
+    db.prepare(`INSERT INTO capacitylens_bootstrap_claim (id, claimedAt, claimToken) VALUES (1, ?, ?)`).run(
+      new Date().toISOString(),
+      claimToken,
+    );
+  } catch (error) {
+    if (!isBootstrapClaimCollision({ error, isSqliteConstraintCollision })) throw error;
+    throw new AuthConfigError(
+      "--create-owner-admin-admin could not acquire the first-owner claim because setup is already in progress; retry startup after the active setup completes or its five-minute crash lease expires.",
+    );
+  }
+  return claimToken;
+}
+
+function isBootstrapClaimCollision({
+  error,
+  isSqliteConstraintCollision,
+}: Pick<BootstrapAdminDependencies, "isSqliteConstraintCollision"> & { error: unknown }): boolean {
+  if (!error || typeof error !== "object") return false;
+  return (
+    isSqliteConstraintCollision(error) ||
+    ("message" in error &&
+      typeof error.message === "string" &&
+      /unique constraint failed.*capacitylens_bootstrap_claim/i.test(error.message))
+  );
+}
+
+function buildBootstrapCreatedMessage(): string {
+  const content = [
+    "A bootstrap owner credential was just created:",
+    `    email:    ${BOOTSTRAP_ADMIN_EMAIL}`,
+    "Use the operator-supplied CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD, sign in, and change it via",
+    "Team & access → Reset password. Then remove",
+    "the --create-owner-admin-admin flag / CAPACITYLENS_CREATE_ADMIN_ADMIN env.",
+  ];
+  const width = Math.max(...content.map((line) => line.length));
+  return [
+    "",
+    `  ╔${"═".repeat(width + 4)}╗`,
+    ...content.map((line) => `  ║  ${line.padEnd(width)}  ║`),
+    `  ╚${"═".repeat(width + 4)}╝`,
+    "",
+  ].join("\n");
+}
+
+async function createBootstrapAdminResult(
+  dependencies: BootstrapAdminDependencies,
+  input: BootstrapAdminInput,
+): Promise<BootstrapAdminResult> {
+  const { AuthConfigError, countUsers, isSqliteConstraintCollision } = dependencies;
+  const { auth, db, log, mode } = input;
+  if (mode !== "password" || !auth) {
+    throw new AuthConfigError(
+      `--create-owner-admin-admin (CAPACITYLENS_CREATE_ADMIN_ADMIN=1) creates an email+password credential, which is meaningless when SMALLSASS_ACCOUNT_MODE is '${mode}'. Set SMALLSASS_ACCOUNT_MODE=password, or drop the flag.`,
+    );
+  }
+  if (countUsers(db) > 0) {
+    log("capacitylens-server: --create-owner-admin-admin skipped: users already exist");
+    return { kind: "skipped" };
+  }
+  const password = readBootstrapPassword(AuthConfigError);
+  const claimToken = createBootstrapClaim({ AuthConfigError, db, isSqliteConstraintCollision });
+  try {
+    if (countUsers(db) > 0) {
+      log("capacitylens-server: --create-owner-admin-admin skipped: users already exist");
+      return { kind: "skipped" };
+    }
+    await auth.createCredentialUser({ email: BOOTSTRAP_ADMIN_EMAIL, name: BOOTSTRAP_ADMIN_NAME, password });
+  } finally {
+    db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken);
+  }
+  log(buildBootstrapCreatedMessage());
+  return { kind: "created" };
+}
+
+// Bind facade-owned policy without importing the facade at runtime.
+export function createBootstrapAdminFactory(dependencies: BootstrapAdminDependencies) {
   /**
    * Create the bootstrap owner account when — and only
    * when — the Better Auth `user` table has ZERO rows. Called at boot from index.ts, after
@@ -145,92 +274,10 @@ export function createBootstrapAdminFactory({
    * @throws AuthConfigError when mode is not 'password' (boot must refuse, not limp on).
    */
   async function createBootstrapAdmin(
-    db: Db,
-    mode: AccountMode,
-    auth: Auth | null,
-    log: (line: string) => void = console.log,
+    ...[db, mode, auth, log = console.log]: [Db, AccountMode, Auth | null, BootstrapLog?]
   ): Promise<"created" | "skipped"> {
-    if (mode !== "password" || !auth) {
-      throw new AuthConfigError(
-        `--create-owner-admin-admin (CAPACITYLENS_CREATE_ADMIN_ADMIN=1) creates an email+password credential, which is meaningless when SMALLSASS_ACCOUNT_MODE is '${mode}'. Set SMALLSASS_ACCOUNT_MODE=password, or drop the flag.`,
-      );
-    }
-    if (countUsers(db) > 0) {
-      // Not an error: the flag is a first-run bootstrap, and this run isn't the first. One line so
-      // the operator can see the flag was noticed, then boot continues untouched.
-      log("capacitylens-server: --create-owner-admin-admin skipped: users already exist");
-      return "skipped";
-    }
-    // Bypass the public sign-up route for this bootstrap write. createCredentialUser commits the user
-    // and credential link in one SQLite transaction, so a partial write cannot leave a
-    // credential-less user that strands bootstrap.
-    // The password must be retained by the invoking operator or secret manager before this process
-    // starts. Generating it here would create an unrecoverable post-commit window if stdout or the
-    // process failed before disclosure. createCredentialUser still applies the ordinary length,
-    // breach, context-word and hashing policy.
-    const bootstrapPassword = process.env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD;
-    if (!bootstrapPassword) {
-      throw new AuthConfigError(
-        "--create-owner-admin-admin requires CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD so the initial credential remains recoverable if startup output fails.",
-      );
-    }
-    if (passwordLengthFailure(bootstrapPassword)) {
-      throw new AuthConfigError(
-        `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must be ${MIN_PASSWORD_LENGTH}..${MAX_PASSWORD_LENGTH} characters.`,
-      );
-    }
-    const claimToken = randomBytes(24).toString("base64url");
-    try {
-      db.prepare(`INSERT INTO capacitylens_bootstrap_claim (id, claimedAt, claimToken) VALUES (1, ?, ?)`).run(
-        new Date().toISOString(),
-        claimToken,
-      );
-    } catch (error) {
-      const sqlite = error as { code?: unknown; errcode?: unknown; message?: unknown };
-      const collision =
-        isSqliteConstraintCollision(sqlite) ||
-        (typeof sqlite.message === "string" &&
-          /unique constraint failed.*capacitylens_bootstrap_claim/i.test(sqlite.message));
-      if (!collision) throw error;
-      throw new AuthConfigError(
-        "--create-owner-admin-admin could not acquire the first-owner claim because setup is already in progress; retry startup after the active setup completes or its five-minute crash lease expires.",
-      );
-    }
-    try {
-      // The durable singleton claim is acquired before hashing, so overlapping processes cannot both
-      // pass the empty-user predicate and race the fixed bootstrap email inside separate transactions.
-      if (countUsers(db) > 0) {
-        log("capacitylens-server: --create-owner-admin-admin skipped: users already exist");
-        return "skipped";
-      }
-      await auth.createCredentialUser({
-        email: BOOTSTRAP_ADMIN_EMAIL,
-        name: BOOTSTRAP_ADMIN_NAME,
-        password: bootstrapPassword,
-      });
-    } finally {
-      db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken);
-    }
-    // Confirm creation without copying the operator-managed password into process logs. The frame is
-    // measured from the content (not hand-padded) so a future wording tweak can't skew the box.
-    const content = [
-      "A bootstrap owner credential was just created:",
-      `    email:    ${BOOTSTRAP_ADMIN_EMAIL}`,
-      "Use the operator-supplied CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD, sign in, and change it via",
-      "Team & access → Reset password. Then remove",
-      "the --create-owner-admin-admin flag / CAPACITYLENS_CREATE_ADMIN_ADMIN env.",
-    ];
-    const width = Math.max(...content.map((line) => line.length));
-    log(
-      [
-        "",
-        `  ╔${"═".repeat(width + 4)}╗`,
-        ...content.map((line) => `  ║  ${line.padEnd(width)}  ║`),
-        `  ╚${"═".repeat(width + 4)}╝`,
-        "",
-      ].join("\n"),
-    );
-    return "created";
+    const result = await createBootstrapAdminResult(dependencies, { auth, db, log, mode });
+    return result.kind;
   }
 
   return createBootstrapAdmin;

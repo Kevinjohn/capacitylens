@@ -195,7 +195,8 @@ async function appWithAuth(
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
+  if (!auth) throw new Error("Expected password authentication to be configured.");
+  await runAuthMigrations(auth);
   return {
     app: createApp(db, { authMode: mode, auth, ...(securityLog === undefined ? {} : { securityLog }) }),
     db,
@@ -227,6 +228,276 @@ const readInactive = (app: FastifyInstance, accountId: string, cookie?: string) 
     url: `/api/state?accountId=${accountId}&includeInactive=1`,
     headers: cookie ? { cookie } : {},
   });
+
+interface ErrorResponseBody {
+  code: string | undefined;
+  error: string;
+}
+
+function isUnknownRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function readErrorResponseBody(response: unknown): ErrorResponseBody {
+  if (!isUnknownRecord(response) || typeof response.body !== "string") {
+    throw new Error("Expected a lifecycle response.");
+  }
+  const body: unknown = JSON.parse(response.body);
+  if (
+    !isUnknownRecord(body) ||
+    typeof body.error !== "string" ||
+    (body.code !== undefined && typeof body.code !== "string")
+  ) {
+    throw new Error("Expected a lifecycle error response body.");
+  }
+  return { code: body.code, error: body.error };
+}
+
+interface LifecycleStateIds {
+  clients: string[];
+  projects: string[];
+  phases: string[];
+  activities: string[];
+  allocations: string[];
+  resources: string[];
+}
+
+function readEntityIds(body: Record<string, unknown>, entity: keyof LifecycleStateIds): string[] {
+  const rows = body[entity];
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected lifecycle state ${entity} rows.`);
+  }
+  return rows.map((row) => {
+    if (!isUnknownRecord(row) || typeof row.id !== "string") {
+      throw new Error(`Expected lifecycle state ${entity} rows with string ids.`);
+    }
+    return row.id;
+  });
+}
+
+function readResponseBodyRecord(response: unknown): Record<string, unknown> {
+  if (!isUnknownRecord(response) || typeof response.body !== "string") {
+    throw new Error("Expected a lifecycle response.");
+  }
+  const body: unknown = JSON.parse(response.body);
+  if (!isUnknownRecord(body)) {
+    throw new Error("Expected a lifecycle state response body.");
+  }
+  return body;
+}
+
+function readLifecycleStateIds(response: unknown): LifecycleStateIds {
+  const body = readResponseBodyRecord(response);
+  return {
+    clients: readEntityIds(body, "clients"),
+    projects: readEntityIds(body, "projects"),
+    phases: readEntityIds(body, "phases"),
+    activities: readEntityIds(body, "activities"),
+    allocations: readEntityIds(body, "allocations"),
+    resources: readEntityIds(body, "resources"),
+  };
+}
+
+interface SurvivorResource {
+  id: string;
+  updatedAt: string;
+  projectId?: string;
+}
+
+interface SurvivorState {
+  projectIds: string[];
+  resources: SurvivorResource[];
+}
+
+function readSurvivorState(response: unknown): SurvivorState {
+  const body = readResponseBodyRecord(response);
+  const resources = body.resources;
+  if (!Array.isArray(resources)) {
+    throw new Error("Expected lifecycle state resource rows.");
+  }
+  return {
+    projectIds: readEntityIds(body, "projects"),
+    resources: resources.map((resource) => {
+      if (
+        !isUnknownRecord(resource) ||
+        typeof resource.id !== "string" ||
+        typeof resource.updatedAt !== "string" ||
+        (resource.projectId !== undefined && typeof resource.projectId !== "string")
+      ) {
+        throw new Error("Expected lifecycle survivor resources with valid revisions and project ids.");
+      }
+      return {
+        id: resource.id,
+        updatedAt: resource.updatedAt,
+        ...(resource.projectId === undefined ? {} : { projectId: resource.projectId }),
+      };
+    }),
+  };
+}
+
+interface DeletedResourceResponse {
+  name: string;
+  deletedAt: string;
+  archivedAt: string;
+}
+
+interface DeletedRevisionResponse {
+  archivedAt: string;
+  deletedAt: string;
+  updatedAt: string;
+}
+
+function readDeletedResource(value: unknown): DeletedResourceResponse {
+  if (
+    !isUnknownRecord(value) ||
+    typeof value.name !== "string" ||
+    typeof value.deletedAt !== "string" ||
+    typeof value.archivedAt !== "string"
+  ) {
+    throw new Error("Expected a deleted lifecycle resource.");
+  }
+  return { name: value.name, deletedAt: value.deletedAt, archivedAt: value.archivedAt };
+}
+
+function readDeletedResourceResponse(response: unknown): DeletedResourceResponse {
+  return readDeletedResource(readResponseBodyRecord(response));
+}
+
+function readDeletedRevisionResponse(response: unknown): DeletedRevisionResponse {
+  const body = readResponseBodyRecord(response);
+  return {
+    archivedAt: readRequiredString(body, "archivedAt"),
+    deletedAt: readRequiredString(body, "deletedAt"),
+    updatedAt: readRequiredString(body, "updatedAt"),
+  };
+}
+
+function readEntityRecord(body: Record<string, unknown>, entity: string, id: string): Record<string, unknown> {
+  const rows = body[entity];
+  if (!Array.isArray(rows)) {
+    throw new Error(`Expected lifecycle state ${entity} rows.`);
+  }
+  for (const row of rows) {
+    const candidate: unknown = row;
+    if (isUnknownRecord(candidate) && candidate.id === id) {
+      return candidate;
+    }
+  }
+  throw new Error(`Expected lifecycle state ${entity} row ${id}.`);
+}
+
+function readRequiredString(record: Record<string, unknown>, property: string): string {
+  const value = record[property];
+  if (typeof value !== "string") {
+    throw new Error(`Expected lifecycle state ${property} to be a string.`);
+  }
+  return value;
+}
+
+function readDependentNote(
+  db: Db,
+  table: "allocations" | "timeOff",
+  id: string,
+): { note: string | null; updatedAt: string } {
+  const row: unknown = db.prepare(`SELECT note, updatedAt FROM ${table} WHERE id = ?`).get(id);
+  if (!isUnknownRecord(row)) throw new Error(`Expected dependent ${table} row ${id}.`);
+  const note = row.note;
+  const updatedAt = row.updatedAt;
+  if ((note !== null && typeof note !== "string") || typeof updatedAt !== "string") {
+    throw new Error(`Expected dependent ${table} row ${id} note and revision.`);
+  }
+  return { note, updatedAt };
+}
+
+async function submitDescendantWrites(app: FastifyInstance) {
+  const beneathArchivedProject = await call(app, {
+    method: "POST",
+    url: "/api/phases",
+    payload: phase("ph-new", "a1", "p-archived"),
+  });
+  const beneathDeletedClient = await call(app, {
+    method: "POST",
+    url: "/api/activities",
+    payload: activity({
+      id: "act-new",
+      accountId: "a1",
+      projectId: "p-under-deleted-client",
+      phaseId: "ph-existing",
+    }),
+  });
+  const updateBeneathDeletedClient = await call(app, {
+    method: "PATCH",
+    url: "/api/phases/ph-existing",
+    payload: { name: "Invisible update" },
+  });
+  const updateBeneathArchivedProject = await call(app, {
+    method: "PATCH",
+    url: "/api/phases/ph-under-archived",
+    payload: { name: "Invisible immediate-parent update" },
+  });
+  const updatePlaceholderBeneathDeletedProject = await call(app, {
+    method: "PATCH",
+    url: "/api/resources/placeholder-under-deleted-project",
+    payload: { role: "Invisible placeholder update" },
+  });
+  return {
+    beneathArchivedProject,
+    beneathDeletedClient,
+    updateBeneathDeletedClient,
+    updateBeneathArchivedProject,
+    updatePlaceholderBeneathDeletedProject,
+  };
+}
+
+const SENTINEL_NAME = "SENTINEL_PERSON_NAME_XYZ";
+
+function registerSentinelObfuscationTest(): void {
+  it("archive→delete a resource scrubs name server-side; sentinel appears nowhere in the read body", async () => {
+    const { app, db } = await appWithAuth();
+    const d = emptyAppData() as unknown as Record<string, unknown[]>;
+    d.accounts = [account("a1")];
+    d.resources = [person("rSent", "a1", { name: SENTINEL_NAME })];
+    insertAll(db, d as unknown as AppData);
+
+    const { cookie, userId } = await signUp(app, "obfuscate@capacitylens.dev");
+    upsertMember(db, {
+      accountId: "a1",
+      userId,
+      role: "admin",
+      status: "active",
+      createdAt: TS,
+    });
+
+    expect(
+      (await lifecycleAction({ app, entity: "resources", id: "rSent", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    const del = await lifecycleAction({
+      app,
+      entity: "resources",
+      id: "rSent",
+      action: "delete",
+      accountId: "a1",
+      cookie,
+    });
+    expect(del.statusCode).toBe(200);
+    expect(readDeletedResourceResponse(del).name).toMatch(/^Removed person #/);
+    expect(del.body).not.toContain(SENTINEL_NAME);
+
+    const after = await readInactive(app, "a1", cookie);
+    expect(after.statusCode).toBe(200);
+    const row = readDeletedResourceState(after, "rSent");
+    expect(row.name).toMatch(/^Removed person #/);
+    expect(row.deletedAt).toBeTruthy();
+    expect(row.archivedAt).toBeTruthy();
+    expect(after.body).not.toContain(SENTINEL_NAME);
+  });
+}
+
+function readDeletedResourceState(response: unknown, id: string): DeletedResourceResponse {
+  const resource = readEntityRecord(readResponseBodyRecord(response), "resources", id);
+  return readDeletedResource(resource);
+}
 
 // One built-in Internal client whose id is captured so the built-in-guard test can target it (its id is
 // random per buildInternalClient call, so it MUST be built once and reused — not rebuilt at assert time).
@@ -292,7 +563,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
     ).toBe(403);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(403);
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("editor of a1: archive/unarchive → 2xx; irreversible delete/purge and read-inactive → 403", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -324,7 +597,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
     ).toBe(403);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(403);
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it.each(["admin", "owner"] as const)("%s of a1: every lifecycle route + read-inactive → 2xx", async (role) => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -355,7 +630,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
     ).toBe(204);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(200);
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("non-member (signed in, no membership): every lifecycle route + read-inactive → 403", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -379,7 +656,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
     ).toBe(403);
     expect((await readInactive(app, "a1", cookie)).statusCode).toBe(403);
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   it("requires a fresh admin session for read-inactive while ordinary state remains readable", async () => {
     const events: Array<Record<string, unknown>> = [];
     const { app, db } = await appWithAuth((event) => events.push(event));
@@ -417,7 +696,9 @@ describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
       }),
     );
   });
+});
 
+describe("P2.5a lifecycle — auth-on 403 permission matrix", () => {
   // The freshness deadline is INCLUSIVE (`>=` in authorize()): a session exactly at the bound is
   // stale. The bound is pinned here at millisecond precision — the coarse 16-minute test above
   // proves the wiring, these prove the operator.
@@ -473,10 +754,13 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("invalid_transition");
-    expect(res.json().error).toMatch(/must be archived first/);
+    const body = readErrorResponseBody(res);
+    expect(body.code).toBe("invalid_transition");
+    expect(body.error).toMatch(/must be archived first/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("archive on an already-archived row → 409", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -498,10 +782,13 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("already_inactive");
-    expect(res.json().error).toMatch(/already archived/);
+    const body = readErrorResponseBody(res);
+    expect(body.code).toBe("already_inactive");
+    expect(body.error).toMatch(/already archived/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("unarchive on an ACTIVE row → 409 (nothing to undo)", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -523,10 +810,13 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("invalid_transition");
-    expect(res.json().error).toMatch(/not archived/);
+    const body = readErrorResponseBody(res);
+    expect(body.code).toBe("invalid_transition");
+    expect(body.error).toMatch(/not archived/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("purge on a tombstone aged < 30 days → 409", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -548,9 +838,11 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().error).toMatch(/at least 30 days old/);
+    expect(readErrorResponseBody(res).error).toMatch(/at least 30 days old/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("purge on a NON-tombstone (archived) row → 409", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -572,9 +864,11 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().error).toMatch(/soft-deleted tombstone/);
+    expect(readErrorResponseBody(res).error).toMatch(/soft-deleted tombstone/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("unarchive on a soft-deleted tombstone → 409 (a tombstone must not resurrect to active)", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -598,9 +892,11 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().error).toMatch(/not archived/);
+    expect(readErrorResponseBody(res).error).toMatch(/not archived/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("unarchives and repairs an archived legacy row with a malformed deletion tombstone", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -631,7 +927,9 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       deletedAt: null,
     });
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("delete on a soft-deleted tombstone → 409 (no re-delete; softDelete requires archived)", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -654,9 +952,11 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       cookie,
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().error).toMatch(/must be archived first/);
+    expect(readErrorResponseBody(res).error).toMatch(/must be archived first/);
   });
+});
 
+describe("P2.5a lifecycle — interlock 409s (illegal transitions / preconditions)", () => {
   it("unknown lifecycle entity → 404; missing accountId → 400; missing row → 404", async () => {
     const { app, db } = await appWithAuth();
     seedStates(db);
@@ -722,14 +1022,14 @@ describe("P2.5a lifecycle — purge cascade removes the row + its descendants", 
     // Read the FULL (admin) slice and confirm the client AND its whole subtree are GONE.
     const after = await readInactive(app, "a1", cookie);
     expect(after.statusCode).toBe(200);
-    const body = after.json();
-    expect(body.clients.map((c: { id: string }) => c.id)).not.toContain("cTree");
-    expect(body.projects.map((p: { id: string }) => p.id)).not.toContain("pTree");
-    expect(body.phases.map((p: { id: string }) => p.id)).not.toContain("phTree");
-    expect(body.activities.map((a: { id: string }) => a.id)).not.toContain("actTree");
-    expect(body.allocations.map((a: { id: string }) => a.id)).not.toContain("alTree");
+    const ids = readLifecycleStateIds(after);
+    expect(ids.clients).not.toContain("cTree");
+    expect(ids.projects).not.toContain("pTree");
+    expect(ids.phases).not.toContain("phTree");
+    expect(ids.activities).not.toContain("actTree");
+    expect(ids.allocations).not.toContain("alTree");
     // The resource itself is unbound, not deleted (the cascade only drops the activity's allocations).
-    expect(body.resources.map((r: { id: string }) => r.id)).toContain("rTree");
+    expect(ids.resources).toContain("rTree");
   });
 });
 
@@ -780,65 +1080,23 @@ describe("P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds
         .statusCode,
     ).toBe(204);
 
-    const body = (await readInactive(app, "a1", cookie)).json();
-    expect(body.projects.map((p: { id: string }) => p.id)).not.toContain("pBound");
-    const phBound = body.resources.find((r: { id: string }) => r.id === "phBound");
+    const state = readSurvivorState(await readInactive(app, "a1", cookie));
+    expect(state.projectIds).not.toContain("pBound");
+    const phBound = state.resources.find((resource) => resource.id === "phBound");
+    if (!phBound) throw new Error("Expected the unbound placeholder to survive the purge.");
     // Survivor: unbound from the purged project AND re-stamped after its future, non-canonical
     // offset revision. This proves purge ordering is chronological rather than lexical.
     expect(phBound.projectId ?? null).toBeNull();
     expect(Date.parse(phBound.updatedAt)).toBeGreaterThan(Date.parse(futureOffsetRevision));
     // Untouched by the cascade → its revision must NOT be gratuitously bumped.
-    const rFree = body.resources.find((r: { id: string }) => r.id === "rFree");
+    const rFree = state.resources.find((resource) => resource.id === "rFree");
+    if (!rFree) throw new Error("Expected the unrelated resource to survive the purge.");
     expect(rFree.updatedAt).toBe(TS);
   });
 });
 
 describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 carry-forward)", () => {
-  const SENTINEL_NAME = "SENTINEL_PERSON_NAME_XYZ";
-
-  it("archive→delete a resource scrubs name server-side; sentinel appears nowhere in the read body", async () => {
-    const { app, db } = await appWithAuth();
-    const d = emptyAppData() as unknown as Record<string, unknown[]>;
-    d.accounts = [account("a1")];
-    d.resources = [person("rSent", "a1", { name: SENTINEL_NAME })];
-    insertAll(db, d as unknown as AppData);
-
-    const { cookie, userId } = await signUp(app, "obfuscate@capacitylens.dev");
-    upsertMember(db, {
-      accountId: "a1",
-      userId,
-      role: "admin",
-      status: "active",
-      createdAt: TS,
-    });
-
-    expect(
-      (await lifecycleAction({ app, entity: "resources", id: "rSent", action: "archive", accountId: "a1", cookie }))
-        .statusCode,
-    ).toBe(200);
-    const del = await lifecycleAction({
-      app,
-      entity: "resources",
-      id: "rSent",
-      action: "delete",
-      accountId: "a1",
-      cookie,
-    });
-    expect(del.statusCode).toBe(200);
-    // The route's own response already carries the scrubbed name.
-    expect(del.json().name).toMatch(/^Removed person #/);
-    expect(del.body).not.toContain(SENTINEL_NAME);
-
-    // The PERSISTED row (read back with includeInactive=1) is scrubbed, and the sentinel string never
-    // serializes anywhere in the raw response body — proof the scrub is server-side, not a client hide.
-    const after = await readInactive(app, "a1", cookie);
-    expect(after.statusCode).toBe(200);
-    const row = after.json().resources.find((r: { id: string }) => r.id === "rSent");
-    expect(row.name).toMatch(/^Removed person #/);
-    expect(row.deletedAt).toBeTruthy(); // the tombstone is set…
-    expect(row.archivedAt).toBeTruthy(); // …and archivedAt (set by the prior archive) is preserved.
-    expect(after.body).not.toContain(SENTINEL_NAME);
-  });
+  registerSentinelObfuscationTest();
 
   it("re-stamps only dependent rows whose notes are scrubbed, without moving future revisions backwards", async () => {
     const futureRevision = "2099-01-01T00:00:00.000Z";
@@ -887,21 +1145,16 @@ describe("P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 ca
       (await lifecycleAction({ app, entity: "resources", id: "rNotes", action: "delete", accountId: "a1" })).statusCode,
     ).toBe(200);
 
-    const dependent = (table: "allocations" | "timeOff", id: string) =>
-      db.prepare(`SELECT note, updatedAt FROM ${table} WHERE id = ?`).get(id) as {
-        note: string | null;
-        updatedAt: string;
-      };
-    expect(dependent("allocations", "alNoted")).toEqual({
+    expect(readDependentNote(db, "allocations", "alNoted")).toEqual({
       note: null,
       updatedAt: "2099-01-01T00:00:00.001Z",
     });
-    expect(dependent("allocations", "alPlain")).toEqual({ note: null, updatedAt: TS });
-    expect(dependent("timeOff", "toNoted")).toEqual({
+    expect(readDependentNote(db, "allocations", "alPlain")).toEqual({ note: null, updatedAt: TS });
+    expect(readDependentNote(db, "timeOff", "toNoted")).toEqual({
       note: null,
       updatedAt: "2099-01-01T00:00:00.001Z",
     });
-    expect(dependent("timeOff", "toPlain")).toEqual({ note: null, updatedAt: TS });
+    expect(readDependentNote(db, "timeOff", "toPlain")).toEqual({ note: null, updatedAt: TS });
   });
 });
 
@@ -920,8 +1173,9 @@ describe("P2.5a lifecycle — built-in Internal client cannot be archived/delete
 
     const res = await lifecycleAction({ app, entity: "clients", id: INTERNAL.id, action, accountId: "a1", cookie });
     expect(res.statusCode).toBe(409);
-    expect(res.json().code).toBe("protected_entity");
-    expect(res.json().error).toMatch(/built-in Internal client/);
+    const body = readErrorResponseBody(res);
+    expect(body.code).toBe("protected_entity");
+    expect(body.error).toMatch(/built-in Internal client/);
   });
 });
 
@@ -968,11 +1222,7 @@ describe("P2.5a lifecycle — OFF mode is allow-all (the #1 invariant)", () => {
       accountId: "a1",
     });
     expect(response.statusCode).toBe(200);
-    const deleted = response.json() as {
-      archivedAt: string;
-      deletedAt: string;
-      updatedAt: string;
-    };
+    const deleted = readDeletedRevisionResponse(response);
     expect(deleted.deletedAt >= futureArchive).toBe(true);
     expect(deleted.updatedAt >= deleted.deletedAt).toBe(true);
   });
@@ -1043,16 +1293,16 @@ describe("P2.5a lifecycle — targeted writes preserve unrelated siblings", () =
     // Admin read (includeInactive=1) so the inactive siblings are visible to assert against.
     const after = await readInactive(app, "a1");
     expect(after.statusCode).toBe(200);
-    const body = after.json();
-    const byId = (id: string) => body.resources.find((r: { id: string }) => r.id === id);
+    const body = readResponseBodyRecord(after);
+    const resourceById = (id: string) => readEntityRecord(body, "resources", id);
 
     // (a) the unrelated archived sibling still carries its archivedAt.
-    expect(byId("rArc").archivedAt).toBe(TS);
+    expect(readRequiredString(resourceById("rArc"), "archivedAt")).toBe(TS);
     // (b) the unrelated tombstone still carries its deletedAt.
-    expect(byId("rDel").deletedAt).toBe(THIRTY_ONE_DAYS_AGO);
+    expect(readRequiredString(resourceById("rDel"), "deletedAt")).toBe(THIRTY_ONE_DAYS_AGO);
     // (c) the time-off note survives the unrelated lifecycle write.
-    const to = body.timeOff.find((t: { id: string }) => t.id === "to1");
-    expect(to.note).toBe(TIMEOFF_NOTE);
+    const timeOff = readEntityRecord(body, "timeOff", "to1");
+    expect(readRequiredString(timeOff, "note")).toBe(TIMEOFF_NOTE);
   });
 });
 
@@ -1091,7 +1341,9 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     // No value leak: the sentinel name never reaches the audit line.
     expect(readFileSync(file, "utf8")).not.toContain(SENTINEL);
   });
+});
 
+describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
   it("a resource soft-delete audits its row and cascaded note scrubs without leaking values", async () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-lc-audit-del-"));
     const file = join(dir, "audit.jsonl");
@@ -1153,7 +1405,9 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
     expect(readFileSync(file, "utf8")).not.toContain(SENTINEL);
     expect(readFileSync(file, "utf8")).not.toContain(NOTE_SENTINEL);
   });
+});
 
+describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
   it("records privacy-safe per-table counts for an irreversible purge cascade", async () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-lc-audit-purge-"));
     const file = join(dir, "audit.jsonl");
@@ -1195,6 +1449,29 @@ describe("P2.5a lifecycle — audit line (file sink, OFF mode)", () => {
   });
 });
 
+const offAppWith = (data: Partial<Record<string, unknown[]>>): { app: FastifyInstance; db: Db } => {
+  const db = openDb(":memory:");
+  const app = createApp(db, { optimisticConcurrency: false });
+  insertAll(db, { ...emptyAppData(), ...data } as unknown as AppData);
+  return { app, db };
+};
+
+interface RowByIdInput {
+  app: FastifyInstance;
+  entity: "resources" | "clients";
+  accountId: string;
+  id: string;
+}
+
+const rowById = async ({ app, entity, accountId, id }: RowByIdInput) => {
+  const res = await readInactive(app, accountId); // includeInactive so a (wrongly) tombstoned row still shows
+  expect(res.statusCode).toBe(200);
+  const body = readResponseBodyRecord(res);
+  const rows = body[entity];
+  if (!Array.isArray(rows)) throw new Error(`Expected lifecycle state ${entity} rows.`);
+  return rows.find((row): row is Record<string, unknown> => isUnknownRecord(row) && row.id === id);
+};
+
 describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   // Two integrity guards keeping the GENERIC write path (POST/PUT/PATCH/batch) from bypassing the
   // dedicated lifecycle routes: (1) sanitizeWrite PINS archivedAt/deletedAt to the stored row, so a
@@ -1204,27 +1481,6 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
   // row — there is no un-delete route anywhere), and (2) validateWrite refuses to convert the built-in
   // Internal client back to a regular one. OFF mode is used (authorize is a no-op there), so these prove
   // the SANITIZE/VALIDATE layer itself, independent of the auth gate.
-
-  const offAppWith = (data: Partial<Record<string, unknown[]>>): { app: FastifyInstance; db: Db } => {
-    const db = openDb(":memory:");
-    const app = createApp(db, { optimisticConcurrency: false });
-    insertAll(db, { ...emptyAppData(), ...data } as unknown as AppData);
-    return { app, db };
-  };
-
-  interface RowByIdInput {
-    app: FastifyInstance;
-    entity: "resources" | "clients";
-    accountId: string;
-    id: string;
-  }
-
-  const rowById = async ({ app, entity, accountId, id }: RowByIdInput) => {
-    const res = await readInactive(app, accountId); // includeInactive so a (wrongly) tombstoned row still shows
-    expect(res.statusCode).toBe(200);
-    return (res.json()[entity] as Array<{ id: string }>).find((e) => e.id === id) as
-      Record<string, unknown> | undefined;
-  };
 
   it("PATCH cannot set deletedAt/archivedAt on a resource (stripped; row stays active)", async () => {
     const { app } = offAppWith({
@@ -1248,9 +1504,11 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       method: "GET",
       url: "/api/state?accountId=a1",
     });
-    expect((active.json().resources as Array<{ id: string }>).some((r) => r.id === "r1")).toBe(true);
+    expect(readEntityIds(readResponseBodyRecord(active), "resources")).toContain("r1");
   });
+});
 
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("PUT cannot set deletedAt on a client (stripped)", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1264,7 +1522,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(res.statusCode).toBe(200);
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: "c1" }))?.deletedAt).toBeUndefined();
   });
+});
 
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("PATCH {builtin:false} on the Internal client → 400 (cannot un-flag the singleton)", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1290,6 +1550,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
   // The OTHER direction of the pin (regression: the strip used to be blind, so an unrelated edit on a
   // tombstoned row NULLed the tombstone and resurrected the row). archive/delete set the tombstone via
   // the dedicated route; a subsequent generic edit must leave it intact.
+});
+
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("PATCH of an unrelated field on an ARCHIVED resource preserves the tombstone (no resurrection)", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1314,9 +1577,11 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       method: "GET",
       url: "/api/state?accountId=a1",
     });
-    expect((active.json().resources as Array<{ id: string }>).some((r) => r.id === "r1")).toBe(false);
+    expect(readEntityIds(readResponseBodyRecord(active), "resources")).not.toContain("r1");
   });
+});
 
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("rejects a generic PATCH of a soft-deleted client", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],
@@ -1347,9 +1612,11 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       method: "GET",
       url: "/api/state?accountId=a1",
     });
-    expect((active.json().clients as Array<{ id: string }>).some((c) => c.id === "c1")).toBe(false);
+    expect(readEntityIds(readResponseBodyRecord(active), "clients")).not.toContain("c1");
   });
+});
 
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("rejects replacing the generated Internal client with a soft-deleted legacy row", async () => {
     const legacy = client("legacy-internal", "a1");
     const { app } = offAppWith({
@@ -1371,13 +1638,15 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/remain active/i);
+    expect(readRequiredString(readResponseBodyRecord(res), "error")).toMatch(/remain active/i);
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: INTERNAL.id }))?.builtin).toBe(true);
     const retainedLegacy = await rowById({ app, entity: "clients", accountId: "a1", id: legacy.id });
     expect(retainedLegacy?.builtin).toBeUndefined();
     expect(typeof retainedLegacy?.deletedAt).toBe("string");
   });
+});
 
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("atomically rejects a batch replacement built from an archived legacy row", async () => {
     const legacy = client("legacy-internal", "a1");
     const ordinary = client("ordinary", "a1");
@@ -1411,14 +1680,16 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     });
 
     expect(res.statusCode).toBe(400);
-    expect(res.json().error).toMatch(/remain active/i);
+    expect(readRequiredString(readResponseBodyRecord(res), "error")).toMatch(/remain active/i);
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: INTERNAL.id }))?.builtin).toBe(true);
     const retainedLegacy = await rowById({ app, entity: "clients", accountId: "a1", id: legacy.id });
     expect(retainedLegacy?.builtin).toBeUndefined();
     expect(typeof retainedLegacy?.archivedAt).toBe("string");
     expect((await rowById({ app, entity: "clients", accountId: "a1", id: ordinary.id }))?.name).toBe(ordinary.name);
   });
+});
 
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("rejects direct descendant writes beneath archived or transitively deleted ancestors", async () => {
     const { app, db } = offAppWith({
       accounts: [account("a1")],
@@ -1436,43 +1707,20 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       resources: [person("placeholder-under-deleted-project", "a1", { kind: "placeholder", projectId: "p-deleted" })],
     });
 
-    const beneathArchivedProject = await call(app, {
-      method: "POST",
-      url: "/api/phases",
-      payload: phase("ph-new", "a1", "p-archived"),
-    });
-    const beneathDeletedClient = await call(app, {
-      method: "POST",
-      url: "/api/activities",
-      payload: activity({
-        id: "act-new",
-        accountId: "a1",
-        projectId: "p-under-deleted-client",
-        phaseId: "ph-existing",
-      }),
-    });
-    const updateBeneathDeletedClient = await call(app, {
-      method: "PATCH",
-      url: "/api/phases/ph-existing",
-      payload: { name: "Invisible update" },
-    });
-    const updateBeneathArchivedProject = await call(app, {
-      method: "PATCH",
-      url: "/api/phases/ph-under-archived",
-      payload: { name: "Invisible immediate-parent update" },
-    });
-    const updatePlaceholderBeneathDeletedProject = await call(app, {
-      method: "PATCH",
-      url: "/api/resources/placeholder-under-deleted-project",
-      payload: { role: "Invisible placeholder update" },
-    });
+    const {
+      beneathArchivedProject,
+      beneathDeletedClient,
+      updateBeneathDeletedClient,
+      updateBeneathArchivedProject,
+      updatePlaceholderBeneathDeletedProject,
+    } = await submitDescendantWrites(app);
 
     expect(beneathArchivedProject.statusCode).toBe(400);
     expect(beneathDeletedClient.statusCode).toBe(400);
     expect(updateBeneathDeletedClient.statusCode).toBe(400);
     expect(updateBeneathArchivedProject.statusCode).toBe(400);
     expect(updatePlaceholderBeneathDeletedProject.statusCode).toBe(400);
-    expect(updatePlaceholderBeneathDeletedProject.json().error).toBe(
+    expect(readRequiredString(readResponseBodyRecord(updatePlaceholderBeneathDeletedProject), "error")).toBe(
       "Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.",
     );
     expect(db.prepare(`SELECT id FROM phases WHERE id = 'ph-new'`).get()).toBeUndefined();
@@ -1483,7 +1731,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
       role: "Designer",
     });
   });
+});
 
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("atomically rejects batch updates beneath an archived ancestor", async () => {
     const { app, db } = offAppWith({
       accounts: [account("a1")],
@@ -1523,7 +1773,9 @@ describe("P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect(db.prepare(`SELECT name FROM phases WHERE id = 'ph1'`).get()).toEqual({ name: "Phase 1" });
     expect(db.prepare(`SELECT id FROM activities WHERE id = 'act-batch'`).get()).toBeUndefined();
   });
+});
 
+describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {
   it("PUT and batch-PUT with a body that OMITS the tombstone do not clear an existing one", async () => {
     const { app } = offAppWith({
       accounts: [account("a1")],

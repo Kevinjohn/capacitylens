@@ -69,12 +69,12 @@ export function createCapacitySource({
     if (isExternalResource(resource)) {
       return {
         tracked: false,
-        timeOffOn: () => NO_TIME_OFF,
-        capacityOnDay: buildEmptyDayCapacity,
-        allocationCountOn: () => 0,
-        timeOffCountOn: () => 0,
-        utilizationOver: () => 0,
-        overOn: () => false,
+        listTimeOffOn: () => NO_TIME_OFF,
+        getCapacityOnDay: buildEmptyDayCapacity,
+        getAllocationCountOn: () => 0,
+        getTimeOffCountOn: () => 0,
+        resolveUtilizationOver: () => 0,
+        isOverOn: () => false,
       };
     }
     // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
@@ -86,7 +86,7 @@ export function createCapacitySource({
     const allocationsByDate = bucketByCoveredDate(capacityAllocations, capacityDates);
     const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, capacityDates);
     const capacityByDate = new Map<ISODate, DayCapacity>();
-    const capacityOnDay = (date: ISODate): DayCapacity => {
+    const getCapacityOnDay = (date: ISODate): DayCapacity => {
       const cached = capacityByDate.get(date);
       if (cached) return cached;
       // A date outside `capacityDates` has no bucket to read (an empty bucket and "not
@@ -112,20 +112,20 @@ export function createCapacitySource({
       capacityByDate.set(date, computed);
       return computed;
     };
-    const timeOffOn = (date: ISODate) =>
+    const listTimeOffOn = (date: ISODate) =>
       capacityDateSet.has(date) ? (personalTimeOffByDate.get(date) ?? NO_TIME_OFF) : rowTimeOff;
     return {
       tracked: true,
-      timeOffOn,
-      capacityOnDay,
-      allocationCountOn: (date) => allocationsByDate.get(date)?.length ?? 0,
-      timeOffCountOn: (date) =>
-        timeOffOn(date).length +
+      listTimeOffOn,
+      getCapacityOnDay,
+      getAllocationCountOn: (date) => allocationsByDate.get(date)?.length ?? 0,
+      getTimeOffCountOn: (date) =>
+        listTimeOffOn(date).length +
         (capacityDateSet.has(date)
           ? (closuresByDate.get(date)?.length ?? 0)
           : closures.filter((closure) => closure.startDate <= date && closure.endDate >= date).length),
-      utilizationOver: (dates) => resolveUtilizationFromCapacity(dates.map(capacityOnDay)),
-      overOn: (dates) => dates.some((date) => capacityOnDay(date).over),
+      resolveUtilizationOver: (dates) => resolveUtilizationFromCapacity(dates.map(getCapacityOnDay)),
+      isOverOn: (dates) => dates.some((date) => getCapacityOnDay(date).over),
     };
   };
 

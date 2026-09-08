@@ -1,5 +1,13 @@
 import { AccountContractError, retryAfterSeconds } from "@capacitylens/shared/account/errors";
 
+function authorityDenialMessage(reason: string, action: "issue-password-reset" | "revoke-sessions"): string {
+  if (reason === "target-not-member") return "The target is not a member of this installation.";
+  if (action === "issue-password-reset") {
+    return "This member belongs to another account where you lack password-reset authority.";
+  }
+  return "You lack session-revocation authority for this identity.";
+}
+
 export function createAuthorityDenial(
   reason: string,
   action: "issue-password-reset" | "revoke-sessions",
@@ -7,12 +15,7 @@ export function createAuthorityDenial(
 ): AccountContractError {
   return new AccountContractError({
     code: reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
-    message:
-      reason === "target-not-member"
-        ? "The target is not a member of this installation."
-        : action === "issue-password-reset"
-          ? "This member belongs to another account where you lack password-reset authority."
-          : "You lack session-revocation authority for this identity.",
+    message: authorityDenialMessage(reason, action),
     retryable: false,
     ...(commandId === undefined ? {} : { commandId }),
   });

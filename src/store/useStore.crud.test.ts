@@ -32,14 +32,16 @@ const personDraft = makeResourceDraft({ name: "Person", role: "Dev", color: "#1"
 const unflaggedDraft = { ...personDraft };
 delete unflaggedDraft.isFavourite;
 
-describe("store CRUD covers every entity", () => {
+function registerStoreCrudEntity1(): void {
   it("accounts: update", () => {
     const account = requireValue(s().data.accounts[0], "account");
     s().updateAccount(account.id, { name: "Renamed company" });
     expect(s().data.accounts[0]?.name).toBe("Renamed company");
     expectRevisionAdvanced(account, requireValue(s().data.accounts[0], "updated account"));
   });
+}
 
+function registerStoreCrudEntity2(): void {
   it("accounts: defaults, stores and validates company working days", () => {
     const account = requireValue(s().data.accounts[0], "account");
     s().updateAccount(account.id, { workingDays: [1, 3, 5] });
@@ -73,7 +75,9 @@ describe("store CRUD covers every entity", () => {
     s().redo();
     expect(s().data.accounts[0]?.workingDays).toEqual([2, 4]);
   });
+}
 
+function registerStoreCrudEntity3(): void {
   it("disciplines: add / update / delete", () => {
     const d = s().addDiscipline({ name: "Design", color: "#1", sortOrder: 0 });
     s().updateDiscipline(d.id, { name: "Design 2" });
@@ -86,13 +90,18 @@ describe("store CRUD covers every entity", () => {
   // Clients/projects/resources have NO immediate hard-delete action — removal goes through the
   // Active → Archived → Soft-deleted → Purged lifecycle (see useStore.lifecycle.test.ts). These
   // cover the add/update half of their CRUD; the lifecycle suite covers their removal.
+}
+
+function registerStoreCrudEntity4(): void {
   it("clients: add / update", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     s().updateClient(c.id, { name: "Acme 2" });
     expect(s().data.clients[0]?.name).toBe("Acme 2");
     expectRevisionAdvanced(c, requireValue(s().data.clients[0], "updated client"));
   });
+}
 
+function registerStoreCrudEntity5(): void {
   it("projects: add / update", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -100,7 +109,9 @@ describe("store CRUD covers every entity", () => {
     expect(s().data.projects[0]?.name).toBe("P2");
     expectRevisionAdvanced(p, requireValue(s().data.projects[0], "updated project"));
   });
+}
 
+function registerStoreCrudEntity6(): void {
   it("rejects private clients and projects without a usable code name", () => {
     expect(() => s().addClient({ name: "Secret", color: "#1", isPrivate: true })).toThrow(
       /private client requires a code name/i,
@@ -120,7 +131,9 @@ describe("store CRUD covers every entity", () => {
     expect(s().data.clients).toHaveLength(1);
     expect(s().data.projects).toHaveLength(0);
   });
+}
 
+function registerStoreCrudEntity7(): void {
   it("phases: add / update / delete (activities survive)", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -136,9 +149,16 @@ describe("store CRUD covers every entity", () => {
     expectRevisionAdvanced(ph, requireValue(s().data.phases[0], "updated phase"));
     s().deletePhase(ph.id);
     expect(s().data.phases).toHaveLength(0);
-    expect(s().data.activities.find((x) => x.id === t.id)!.phaseId).toBeUndefined();
+    expect(
+      requireValue(
+        s().data.activities.find((x) => x.id === t.id),
+        "activity",
+      ).phaseId,
+    ).toBeUndefined();
   });
+}
 
+function registerStoreCrudEntity8(): void {
   it("activities: add / update / delete", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -149,14 +169,18 @@ describe("store CRUD covers every entity", () => {
     s().deleteActivity(t.id);
     expect(s().data.activities).toHaveLength(0);
   });
+}
 
+function registerStoreCrudEntity9(): void {
   it("activities: a general (no-project) activity can be added without a projectId", () => {
     const t = s().addActivity({ name: "Admin", kind: "repeatable" });
     expect(t.projectId).toBeUndefined();
     expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
     expect(s().data.activities[0]?.name).toBe("Admin");
   });
+}
 
+function registerStoreCrudEntity10(): void {
   it("activities: a project-specific activity converts to all-projects by clearing its project + kind together", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -165,7 +189,9 @@ describe("store CRUD covers every entity", () => {
     expect(s().data.activities[0]?.kind).toBe("repeatable");
     expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
   });
+}
 
+function registerStoreCrudEntity11(): void {
   it("activities: kind ⇆ projectId coherence is enforced — clearing a project activity’s project alone throws", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -179,7 +205,9 @@ describe("store CRUD covers every entity", () => {
       /cannot belong to a project/i,
     );
   });
+}
 
+function registerStoreCrudEntity12(): void {
   it("activities: moving out of repeatable atomically clears allocation attribution", () => {
     const resource = s().addResource({ ...personDraft });
     const client = s().addClient({ name: "Acme", color: "#1" });
@@ -197,11 +225,16 @@ describe("store CRUD covers every entity", () => {
 
     s().updateActivity(activity.id, { kind: "internal" });
     expect(s().data.activities.find((row) => row.id === activity.id)?.kind).toBe("internal");
-    const cleared = s().data.allocations.find((row) => row.id === allocation.id)!;
+    const cleared = requireValue(
+      s().data.allocations.find((row) => row.id === allocation.id),
+      "cleared allocation",
+    );
     expect(cleared).not.toHaveProperty("projectId");
     expectRevisionAdvanced(allocation, cleared);
   });
+}
 
+function registerStoreCrudEntity13(): void {
   it("updateActivity validates the MERGED row, not the raw patch (partial phase/project patches)", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p1 = s().addProject({ name: "P1", clientId: c.id, color: "#2" });
@@ -224,14 +257,18 @@ describe("store CRUD covers every entity", () => {
     expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(/phase/i);
     expect(s().data.activities[0]?.projectId).toBe(p1.id); // unchanged — the bad patch didn't land
   });
+}
 
+function registerStoreCrudEntity14(): void {
   it("resources: add / update", () => {
     const r = s().addResource({ ...personDraft });
     s().updateResource(r.id, { role: "Lead" });
     expect(s().data.resources[0]?.role).toBe("Lead");
     expectRevisionAdvanced(r, requireValue(s().data.resources[0], "updated resource"));
   });
+}
 
+function registerStoreCrudEntity15(): void {
   it("resources: defaults legacy people and forces placeholders to Studio engagement", () => {
     const legacyPersonDraft = { ...personDraft };
     delete legacyPersonDraft.engagement;
@@ -255,7 +292,9 @@ describe("store CRUD covers every entity", () => {
     s().updateResource(personToPlaceholder.id, { kind: "placeholder", projectId: project.id });
     expect(s().data.resources.find((resource) => resource.id === personToPlaceholder.id)?.engagement).toBe("studio");
   });
+}
 
+function registerStoreCrudEntity16(): void {
   it("resources: favourite updates are account data and undoable", () => {
     const resource = s().addResource({ ...unflaggedDraft });
 
@@ -265,7 +304,9 @@ describe("store CRUD covers every entity", () => {
     s().undo();
     expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("isFavourite");
   });
+}
 
+function registerStoreCrudEntity17(): void {
   it("resources: a viewer cannot change an account favourite", () => {
     const resource = s().addResource({ ...unflaggedDraft });
 
@@ -275,7 +316,9 @@ describe("store CRUD covers every entity", () => {
     expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("isFavourite");
     expect(s().notice).toMatchObject({ tone: "error" });
   });
+}
 
+function registerStoreCrudEntity18(): void {
   it("allocations: add / update / delete", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -298,7 +341,9 @@ describe("store CRUD covers every entity", () => {
     s().deleteAllocation(a.id);
     expect(s().data.allocations).toHaveLength(0);
   });
+}
 
+function registerStoreCrudEntity19(): void {
   it("time off: add / update / delete", () => {
     const r = s().addResource({ ...personDraft });
     const to = s().addTimeOff({
@@ -313,7 +358,9 @@ describe("store CRUD covers every entity", () => {
     s().deleteTimeOff(to.id);
     expect(s().data.timeOff).toHaveLength(0);
   });
+}
 
+function registerStoreCrudEntity20(): void {
   it("company closure: add / update / delete with range validation", () => {
     expect(() => s().addClosure({ name: "  ", startDate: "2026-12-24", endDate: "2026-12-25" })).toThrow(
       expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }),
@@ -330,6 +377,29 @@ describe("store CRUD covers every entity", () => {
     s().deleteClosure(closure.id);
     expect(s().data.closures).toHaveLength(0);
   });
+}
+
+describe("store CRUD covers every entity", () => {
+  registerStoreCrudEntity1();
+  registerStoreCrudEntity2();
+  registerStoreCrudEntity3();
+  registerStoreCrudEntity4();
+  registerStoreCrudEntity5();
+  registerStoreCrudEntity6();
+  registerStoreCrudEntity7();
+  registerStoreCrudEntity8();
+  registerStoreCrudEntity9();
+  registerStoreCrudEntity10();
+  registerStoreCrudEntity11();
+  registerStoreCrudEntity12();
+  registerStoreCrudEntity13();
+  registerStoreCrudEntity14();
+  registerStoreCrudEntity15();
+  registerStoreCrudEntity16();
+  registerStoreCrudEntity17();
+  registerStoreCrudEntity18();
+  registerStoreCrudEntity19();
+  registerStoreCrudEntity20();
 });
 
 describe("store UI + history extras", () => {
@@ -430,7 +500,12 @@ describe("allocation integrity at the store boundary", () => {
       status: "confirmed",
     });
     expect(() => s().updateAllocation(a.id, { activityId: t2.id })).toThrow(/placeholder.*bound project/i);
-    expect(s().data.allocations.find((x) => x.id === a.id)!.activityId).toBe(t1.id);
+    expect(
+      requireValue(
+        s().data.allocations.find((x) => x.id === a.id),
+        "allocation",
+      ).activityId,
+    ).toBe(t1.id);
   });
 
   it("addAllocation rejects dangling resource/activity references", () => {
@@ -448,15 +523,15 @@ describe("allocation integrity at the store boundary", () => {
   });
 });
 
-describe("date-range + reference guards at the store boundary", () => {
-  const seedAlloc = () => {
-    const c = s().addClient({ name: "Acme", color: "#111111" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#222222" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource({ ...personDraft });
-    return { r, t };
-  };
+const seedAlloc = () => {
+  const c = s().addClient({ name: "Acme", color: "#111111" });
+  const p = s().addProject({ name: "P", clientId: c.id, color: "#222222" });
+  const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
+  const r = s().addResource({ ...personDraft });
+  return { r, t };
+};
 
+function registerDateRangeGuard1(): void {
   it("addAllocation rejects an empty or reversed date range", () => {
     const { r, t } = seedAlloc();
     expect(() =>
@@ -481,7 +556,9 @@ describe("date-range + reference guards at the store boundary", () => {
     ).toThrow(/end date cannot be before the start date/i);
     expect(s().data.allocations).toHaveLength(0);
   });
+}
 
+function registerDateRangeGuard2(): void {
   it("clamps allocation hoursPerDay to a real working day (<= 24) on add and update", () => {
     const { r, t } = seedAlloc();
     const a = s().addAllocation({
@@ -496,7 +573,9 @@ describe("date-range + reference guards at the store boundary", () => {
     s().updateAllocation(a.id, { hoursPerDay: 99 });
     expect(s().data.allocations[0]?.hoursPerDay).toBe(24); // and on update (e.g. a drag-resize rescale)
   });
+}
 
+function registerDateRangeGuard3(): void {
   it("updateAllocation allows a note/status-only patch (validates the effective range, not the patch)", () => {
     const { r, t } = seedAlloc();
     const a = s().addAllocation({
@@ -515,7 +594,9 @@ describe("date-range + reference guards at the store boundary", () => {
     );
     expect(s().data.allocations[0]?.endDate).toBe("2026-06-03");
   });
+}
 
+function registerDateRangeGuard4(): void {
   it("addTimeOff rejects a dangling resource and a reversed range", () => {
     const r = s().addResource({ ...personDraft });
     expect(() =>
@@ -536,7 +617,9 @@ describe("date-range + reference guards at the store boundary", () => {
     ).toThrow(/end date cannot be before the start date/i);
     expect(s().data.timeOff).toHaveLength(0);
   });
+}
 
+function registerDateRangeGuard5(): void {
   it("addResource / updateResource reject an empty working-days set", () => {
     expect(() => s().addResource({ ...personDraft, workingDays: [] })).toThrow(/at least one working day/i);
     const r = s().addResource({ ...personDraft });
@@ -544,7 +627,9 @@ describe("date-range + reference guards at the store boundary", () => {
     // A patch that doesn't touch workingDays is unaffected.
     expect(() => s().updateResource(r.id, { name: "Renamed" })).not.toThrow();
   });
+}
 
+function registerDateRangeGuard6(): void {
   it("requires half days to be a unique subset of the working week", () => {
     expect(() => s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [3] })).toThrow(
       /half days must be.*contained/i,
@@ -554,7 +639,9 @@ describe("date-range + reference guards at the store boundary", () => {
     expect(() => s().updateResource(resource.id, { workingDays: [1] })).toThrow(/half days must be.*contained/i);
     expect(() => s().updateResource(resource.id, { halfDays: [2, 2] })).toThrow(/half days must be unique/i);
   });
+}
 
+function registerDateRangeGuard7(): void {
   it("normalizes placeholder working patterns on add and update", () => {
     const client = s().addClient({ name: "Wayne Enterprises", color: "#737373" });
     const project = s().addProject({ name: "Watchtower", clientId: client.id, color: "#737373" });
@@ -573,7 +660,9 @@ describe("date-range + reference guards at the store boundary", () => {
       halfDays: [],
     });
   });
+}
 
+function registerDateRangeGuard8(): void {
   it("clamps resource workingHoursPerDay to (0, 24] on add and update (0/junk → 8, >24 → 24)", () => {
     // The store is the last line for the resource path too (the form caps it, but a non-form
     // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is NOT legal for a
@@ -589,9 +678,16 @@ describe("date-range + reference guards at the store boundary", () => {
     });
     expect(zero.workingHoursPerDay).toBe(8);
     s().updateResource(over.id, { workingHoursPerDay: NaN });
-    expect(s().data.resources.find((r) => r.id === over.id)!.workingHoursPerDay).toBe(8); // junk → 8
+    expect(
+      requireValue(
+        s().data.resources.find((r) => r.id === over.id),
+        "resource",
+      ).workingHoursPerDay,
+    ).toBe(8); // junk → 8
   });
+}
 
+function registerDateRangeGuard9(): void {
   it("importData replaces the active account slice and is undoable via ⌘Z", () => {
     s().addClient({ name: "Keep", color: "#111111" });
     s().setFilters({
@@ -639,13 +735,28 @@ describe("date-range + reference guards at the store boundary", () => {
     s().undo();
     expect(s().data.clients.map((c) => c.name)).toEqual(["Keep"]); // undo restores the pre-import slice
   });
+}
 
+function registerDateRangeGuard10(): void {
   it("importData refuses a zero-record import (no silent wipe)", () => {
     s().addClient({ name: "Keep", color: "#111111" });
     const summary = s().importData(emptyAppData());
     expect(summary.imported).toBe(0);
     expect(s().data.clients.map((c) => c.name)).toEqual(["Keep"]); // untouched
   });
+}
+
+describe("date-range + reference guards at the store boundary", () => {
+  registerDateRangeGuard1();
+  registerDateRangeGuard2();
+  registerDateRangeGuard3();
+  registerDateRangeGuard4();
+  registerDateRangeGuard5();
+  registerDateRangeGuard6();
+  registerDateRangeGuard7();
+  registerDateRangeGuard8();
+  registerDateRangeGuard9();
+  registerDateRangeGuard10();
 });
 
 // The store re-validates the EFFECTIVE MERGED row on every update*, exactly as the SQLite server's
@@ -655,21 +766,21 @@ describe("date-range + reference guards at the store boundary", () => {
 // — otherwise it succeeds locally and 400s on the server, diverging local and synced state. The
 // invalid states below can't be CREATED through add* (they'd be rejected), so they're built directly
 // via replaceAll to mimic legacy/kind-flipped data already in the store.
-describe("update* re-validates the merged row so the store + server agree", () => {
-  const TS = "2026-05-01T00:00:00.000Z";
+const TS = "2026-05-01T00:00:00.000Z";
 
-  const externalResource = (id: string): Resource =>
-    makeResource({
-      id,
-      accountId: DEFAULT_ACCOUNT_ID,
-      createdAt: TS,
-      updatedAt: TS,
-      kind: "external",
-      name: "Outsource Co",
-      role: "Overflow",
-      color: "#333333",
-    });
+const externalResource = (id: string): Resource =>
+  makeResource({
+    id,
+    accountId: DEFAULT_ACCOUNT_ID,
+    createdAt: TS,
+    updatedAt: TS,
+    kind: "external",
+    name: "Outsource Co",
+    role: "Overflow",
+    color: "#333333",
+  });
 
+function registerMergedRow1(): void {
   it("a normal-resource note/date-only updateAllocation + updateTimeOff still succeed (no false reject)", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -700,7 +811,9 @@ describe("update* re-validates the merged row so the store + server agree", () =
     expect(() => s().updateTimeOff(to.id, { startDate: "2026-06-09" })).not.toThrow();
     expect(s().data.timeOff[0]?.type).toBe("sick");
   });
+}
 
+function registerMergedRow2(): void {
   it("a note-only updateAllocation on an external resource carrying a non-zero load now THROWS (matches the server)", () => {
     const ext = externalResource("ext-1");
     const alloc: Allocation = {
@@ -740,7 +853,9 @@ describe("update* re-validates the merged row so the store + server agree", () =
     // Atomic failure: the bad patch did NOT land (the producer threw before `set`).
     expect(requireValue(s().data.allocations[0], "allocation")).not.toHaveProperty("note");
   });
+}
 
+function registerMergedRow3(): void {
   it("a date-only updateTimeOff on an external resource now THROWS (matches the server)", () => {
     const ext = externalResource("ext-2");
     const timeOff: TimeOff = {
@@ -766,6 +881,9 @@ describe("update* re-validates the merged row so the store + server agree", () =
   // The merged-row rule is a property of the SHARED update path (updateOwned), not of the three
   // actions that happened to need it first — so it must hold for a table whose patch carries no
   // ref/date field at all. A rename is the most harmless-looking patch there is.
+}
+
+function registerMergedRow4(): void {
   it("a name-only updateResource on an external resource that still carries a loaded allocation THROWS", () => {
     const ext = externalResource("ext-3");
     const data: AppData = makeAppData({
@@ -804,6 +922,13 @@ describe("update* re-validates the merged row so the store + server agree", () =
     );
     expect(s().data.resources[0]?.name).toBe("Outsource Co"); // unchanged — atomic failure
   });
+}
+
+describe("update* re-validates the merged row so the store + server agree", () => {
+  registerMergedRow1();
+  registerMergedRow2();
+  registerMergedRow3();
+  registerMergedRow4();
 });
 
 // Flipping a resource's kind to 'external' AFTER it already owns loaded work / time-off would orphan
@@ -817,12 +942,12 @@ describe("update* re-validates the merged row so the store + server agree", () =
 // colour snaps to its NEAREST preset (not a fixed fallback), and a REJECTED write (the P1.12
 // viewer no-op) must not silently substitute a colour onto an entity that was never persisted —
 // the rejection is surfaced via the store's existing notice mechanism instead.
-describe("colour snapping: shared helper, nearest-preset (not fixed fallback), never silent on reject", () => {
-  // #7cd9e4 is not a preset; its nearest preset is #7adae3 (distance 6 — see shared/lib/color.test.ts,
-  // which pins the same fixture against the full palette).
-  const NON_PRESET = "#7cd9e4";
-  const NEAREST_PRESET = "#7adae3";
+// #7cd9e4 is not a preset; its nearest preset is #7adae3 (distance 6 — see shared/lib/color.test.ts,
+// which pins the same fixture against the full palette).
+const NON_PRESET = "#7cd9e4";
+const NEAREST_PRESET = "#7adae3";
 
+function registerColourSnap1(): void {
   it("addClient / addProject / addDiscipline / addResource snap a non-preset colour to its nearest preset", () => {
     const client = s().addClient({ name: "Acme", color: NON_PRESET });
     expect(client.color).toBe(NEAREST_PRESET);
@@ -848,7 +973,9 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
     });
     expect(resource.color).toBe(NEAREST_PRESET);
   });
+}
 
+function registerColourSnap2(): void {
   it("updateClient / updateProject / updateDiscipline / updateResource / updateAccount snap a non-preset colour on patch", () => {
     const client = s().addClient({ name: "Acme", color: "#1" });
     s().updateClient(client.id, { color: NON_PRESET });
@@ -879,7 +1006,9 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
     s().updateAccount(DEFAULT_ACCOUNT_ID, { color: NON_PRESET });
     expect(s().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)?.color).toBe(NEAREST_PRESET);
   });
+}
 
+function registerColourSnap3(): void {
   it("an external resource keeps NEUTRAL_COLOR (the one deliberate non-preset exception) instead of snapping", () => {
     const NEUTRAL_COLOR = "#9ca3af";
     const ext = s().addResource({
@@ -896,6 +1025,9 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
   // normalized — a permanent, un-fixable client/server diff that also broke `===` swatch-picker
   // comparisons. snapColor must always route through snapToPresetColor, whose palette branch already
   // returns the normalized form (see shared/src/lib/color.ts).
+}
+
+function registerColourSnap4(): void {
   it("a preset colour with stray whitespace/casing is stored normalized, not verbatim", () => {
     const RAW = "  #E02727  ";
     const NORMALIZED = "#e02727";
@@ -908,13 +1040,17 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
     // PRESET_COLORS succeed.
     expect(PRESET_COLORS).toContain(stored);
   });
+}
 
+function registerColourSnap5(): void {
   it("a colourless patch leaves the stored colour untouched", () => {
     const client = s().addClient({ name: "Acme", color: NON_PRESET });
     s().updateClient(client.id, { name: "Acme 2" });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
   });
+}
 
+function registerColourSnap6(): void {
   it("a REJECTED add (viewer no-op) does NOT snap the colour and does NOT persist — the rejection surfaces via notice, not a silent repair", () => {
     s().setActiveRole("viewer");
     const returned = s().addClient({ name: "Acme", color: NON_PRESET });
@@ -926,7 +1062,9 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
     // the store silently changed on their behalf for a write that never actually happened.
     expect(returned.color).toBe(NON_PRESET);
   });
+}
 
+function registerColourSnap7(): void {
   it("a REJECTED update (viewer no-op) does not touch the stored colour", () => {
     const client = s().addClient({ name: "Acme", color: NON_PRESET });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
@@ -936,9 +1074,19 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
     expect(s().notice).toMatchObject({ tone: "error" });
   });
+}
+
+describe("colour snapping: shared helper, nearest-preset (not fixed fallback), never silent on reject", () => {
+  registerColourSnap1();
+  registerColourSnap2();
+  registerColourSnap3();
+  registerColourSnap4();
+  registerColourSnap5();
+  registerColourSnap6();
+  registerColourSnap7();
 });
 
-describe("updateResource rejects a kind-flip-to-external that would orphan dependents", () => {
+function registerExternalFlip1(): void {
   it("flipping a person with a loaded allocation to external THROWS and does not mutate", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -958,7 +1106,9 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
     );
     expect(s().data.resources[0]?.kind).toBe("person"); // atomic failure — the flip did NOT land
   });
+}
 
+function registerExternalFlip2(): void {
   it("flipping a person with time off to external THROWS", () => {
     const r = s().addResource({ ...personDraft });
     s().addTimeOff({
@@ -973,7 +1123,9 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
     );
     expect(s().data.resources[0]?.kind).toBe("person");
   });
+}
 
+function registerExternalFlip3(): void {
   it("flipping a person with NO dependents (or only a zero-load allocation) to external SUCCEEDS", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -1001,7 +1153,9 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
     expect(() => s().updateResource(z.id, { kind: "external" })).not.toThrow();
     expect(s().data.resources.find((r) => r.id === z.id)?.kind).toBe("external");
   });
+}
 
+function registerExternalFlip4(): void {
   it("editing an external resource’s OTHER fields (name) with no dependents still SUCCEEDS", () => {
     const ext = s().addResource({
       ...personDraft,
@@ -1011,6 +1165,13 @@ describe("updateResource rejects a kind-flip-to-external that would orphan depen
     expect(() => s().updateResource(ext.id, { name: "Outsource Co" })).not.toThrow();
     expect(s().data.resources.find((r) => r.id === ext.id)?.name).toBe("Outsource Co");
   });
+}
+
+describe("updateResource rejects a kind-flip-to-external that would orphan dependents", () => {
+  registerExternalFlip1();
+  registerExternalFlip2();
+  registerExternalFlip3();
+  registerExternalFlip4();
 });
 
 describe("parent edits cannot invalidate existing placeholder allocations", () => {

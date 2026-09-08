@@ -16,10 +16,15 @@ import { useEffect, useState } from "react";
  *  not been crossed. */
 const MAX_TIMEOUT_DELAY = 2_147_483_647;
 
+interface DeadlineClockInput {
+  pickNextDeadline: (clock: number) => number | null;
+  readNow: () => number;
+}
+
 /**
  * A clock (ms since epoch) that advances once, just after the next deadline passes.
  *
- * Initially `Date.now()` at mount. `pickNext` is asked, on every render, which deadline matters next
+ * Initially `readNow()` at mount. `pickNextDeadline` is asked, on every render, which deadline matters next
  * GIVEN THE CLOCK THE HOOK IS ABOUT TO RETURN; while it answers non-null the hook arms a single
  * timeout for that instant, and when the timeout fires the clock is re-read and the component
  * re-renders. Any `now`-derived state (expired / purgeable / "in 3 days") is therefore recomputed
@@ -32,7 +37,7 @@ const MAX_TIMEOUT_DELAY = 2_147_483_647;
  * against a clock the caller holds separately makes each hook's state the other's input — the
  * circularity both call sites had grown independently.
  *
- * `pickNext` does NOT need to be stable, and inline arrows are the expected call shape: the effect
+ * `pickNextDeadline` does NOT need to be stable, and inline arrows are the expected call shape: the effect
  * depends on the picked INSTANT, not on the function, so a new closure every render arms nothing new.
  * It must be pure — it runs during render, possibly more than once.
  *
@@ -45,12 +50,13 @@ const MAX_TIMEOUT_DELAY = 2_147_483_647;
  * throttled, so a deadline can be observed late after a long sleep. That is the behaviour both call
  * sites ship today and changing it is a product decision, not a refactor.
  *
- * @param pickNext - given the current clock, the next deadline as ms since epoch, or `null` if none.
+ * @param input.pickNextDeadline - given the current clock, the next deadline as ms since epoch, or `null` if none.
+ * @param input.readNow - reads the current time as ms since epoch.
  * @returns the current clock value; re-read (causing a re-render) just after that deadline passes.
  */
-export function useDeadlineClock(pickNext: (clock: number) => number | null): number {
-  const [clock, setClock] = useState(Date.now);
-  const nextAt = pickNext(clock);
+export function useDeadlineClock({ pickNextDeadline, readNow }: DeadlineClockInput): number {
+  const [clock, setClock] = useState(readNow);
+  const nextAt = pickNextDeadline(clock);
 
   useEffect(() => {
     if (nextAt === null) return;
@@ -61,18 +67,18 @@ export function useDeadlineClock(pickNext: (clock: number) => number | null): nu
       // zero-delay timer that re-renders without any state change).
       timer = window.setTimeout(
         () => {
-          if (Date.now() <= nextAt) {
+          if (readNow() <= nextAt) {
             arm(); // clamped (or an early-firing timer): the deadline is still ahead, wait out the rest
             return;
           }
-          setClock(Date.now());
+          setClock(readNow());
         },
-        Math.min(nextAt - Date.now() + 1, MAX_TIMEOUT_DELAY),
+        Math.min(nextAt - readNow() + 1, MAX_TIMEOUT_DELAY),
       );
     };
     arm();
     return () => window.clearTimeout(timer);
-  }, [nextAt]);
+  }, [nextAt, readNow]);
 
   return clock;
 }

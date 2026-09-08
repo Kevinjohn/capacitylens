@@ -22,20 +22,7 @@ const SELECT_VALUE_PREFIX = "__capacitylens_option__:";
 const encodeSelectValue = (value: string): string => `${SELECT_VALUE_PREFIX}${value}`;
 const decodeSelectValue = (value: string): string => value.slice(SELECT_VALUE_PREFIX.length);
 
-export function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  placeholder,
-  disabled,
-  invalid,
-  required,
-  describedById,
-  ariaLabel,
-  testId,
-  layout = "stacked",
-}: {
+type SelectFieldProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -49,12 +36,12 @@ export function SelectField({
   testId?: string;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
-}) {
-  const id = useId();
-  const markDirty = useMarkFormDirty();
-  const selectedOption = options.find((option) => option.value === value);
-  const unresolvedValue = value !== "" && selectedOption === undefined;
-  const optionGroups = options.reduce<Array<{ key?: string; label?: string; options: Option[] }>>((groups, option) => {
+};
+
+type OptionGroup = { key?: string; label?: string; options: Option[] };
+
+function buildOptionGroups(options: Option[]): OptionGroup[] {
+  return options.reduce<OptionGroup[]>((groups, option) => {
     const previous = groups.at(-1);
     const key = option.groupKey ?? option.groupLabel;
     if (previous && previous.key === key) previous.options.push(option);
@@ -66,10 +53,55 @@ export function SelectField({
       });
     return groups;
   }, []);
+}
+
+function SelectFieldOptions({ optionGroups }: { optionGroups: OptionGroup[] }) {
+  return optionGroups.map((group, index) => (
+    <SelectGroup key={`${group.key ?? "ungrouped"}-${index}`}>
+      {group.label && <SelectLabel>{group.label}</SelectLabel>}
+      {group.options.map((option) => (
+        <Fragment key={option.value}>
+          {option.separatorBefore && <SelectSeparator />}
+          <SelectItem
+            value={encodeSelectValue(option.value)}
+            data-value={option.value}
+            {...(option.disabled !== undefined ? { disabled: option.disabled } : {})}
+          >
+            {option.label}
+          </SelectItem>
+        </Fragment>
+      ))}
+    </SelectGroup>
+  ));
+}
+
+function trueOrUndefined(value: boolean | undefined): true | undefined {
+  return value ? true : undefined;
+}
+
+export function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  invalid,
+  required,
+  describedById,
+  ariaLabel,
+  testId,
+  layout = "stacked",
+}: SelectFieldProps) {
+  const id = useId();
+  const markDirty = useMarkFormDirty();
+  const selectedOption = options.find((option) => option.value === value);
+  const unresolvedValue = value !== "" && selectedOption === undefined;
+  const optionGroups = buildOptionGroups(options);
   return (
     <Field
-      data-invalid={invalid || undefined}
-      data-disabled={disabled || undefined}
+      data-invalid={trueOrUndefined(invalid)}
+      data-disabled={trueOrUndefined(disabled)}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
@@ -86,8 +118,8 @@ export function SelectField({
         <SelectTrigger
           id={id}
           className="w-full"
-          aria-required={required || undefined}
-          aria-invalid={invalid || undefined}
+          aria-required={trueOrUndefined(required)}
+          aria-invalid={trueOrUndefined(invalid)}
           aria-describedby={invalid ? describedById : undefined}
           aria-label={ariaLabel}
           data-testid={testId}
@@ -95,23 +127,7 @@ export function SelectField({
           <SelectValue placeholder={placeholder}>{selectedOption?.label ?? placeholder ?? value}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {optionGroups.map((group, index) => (
-            <SelectGroup key={`${group.key ?? "ungrouped"}-${index}`}>
-              {group.label && <SelectLabel>{group.label}</SelectLabel>}
-              {group.options.map((o) => (
-                <Fragment key={o.value}>
-                  {o.separatorBefore && <SelectSeparator />}
-                  <SelectItem
-                    value={encodeSelectValue(o.value)}
-                    data-value={o.value}
-                    {...(o.disabled !== undefined ? { disabled: o.disabled } : {})}
-                  >
-                    {o.label}
-                  </SelectItem>
-                </Fragment>
-              ))}
-            </SelectGroup>
-          ))}
+          <SelectFieldOptions optionGroups={optionGroups} />
         </SelectContent>
       </Select>
     </Field>

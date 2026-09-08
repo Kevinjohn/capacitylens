@@ -24,6 +24,18 @@ import { assertTenantRelationshipIntegrityCurrent } from "../tenantIntegrity";
 import { assertBootstrapClaimCurrent } from "../bootstrapClaim";
 import { assertTenantEntityIndexesCurrent } from "../tenantIndexes";
 import { statementCaches } from "./statementCache";
+
+type AttemptResult = { kind: "success" } | { kind: "failure"; error: unknown };
+
+function attempt(action: () => void): AttemptResult {
+  try {
+    action();
+    return { kind: "success" };
+  } catch (error) {
+    return { kind: "failure", error };
+  }
+}
+
 /** Open/configure the SQLite handle without creating or migrating application tables. Production
  * startup uses this seam to inspect the migration plan and take its rollback snapshot first. */
 export function openDbConnection(path: string): Db {
@@ -47,19 +59,17 @@ export function openDbConnection(path: string): Db {
   return db;
 }
 
-/** Apply every pending migration and finish configuring an already-open handle. Each version step
- * owns one BEGIN IMMEDIATE transaction and advances user_version inside that same commit. */
-export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationHooks = {}): DatabaseMigrationPlan {
-  const plan = planDatabaseMigrations(db);
-  if (!plan.fresh) {
-    const quickCheck = db.prepare("PRAGMA quick_check").all() as Array<{
-      quick_check?: string;
-    }>;
-    if (quickCheck.length !== 1 || quickCheck[0]?.quick_check !== "ok") {
-      throw new Error(`Database quick integrity check failed before migration (${quickCheck.length} result row(s)).`);
-    }
+function assertQuickCheckBeforeMigration(db: Db, fresh: boolean): void {
+  if (fresh) return;
+  const quickCheck = db.prepare("PRAGMA quick_check").all() as Array<{
+    quick_check?: string;
+  }>;
+  if (quickCheck.length !== 1 || quickCheck[0]?.quick_check !== "ok") {
+    throw new Error(`Database quick integrity check failed before migration (${quickCheck.length} result row(s)).`);
   }
+}
 
+function configureDatabaseForMigration(db: Db, path: string): void {
   db.exec("PRAGMA journal_mode = WAL;");
   const journalMode = String(
     (db.prepare("PRAGMA journal_mode").get() as { journal_mode?: unknown }).journal_mode ?? "",
@@ -75,125 +85,132 @@ export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationH
   if (synchronous !== 2) {
     throw new Error(`SQLite synchronous durability policy is ${synchronous}; expected FULL (2).`);
   }
-  db.exec("PRAGMA foreign_keys = OFF;");
-  // Holds the FIRST failure inside the guarded region so a failing cleanup PRAGMA in the finally
-  // block can never mask it; if the body succeeded, a cleanup failure surfaces on its own.
-  const initErrorRef: { error?: unknown } = {};
-  let bodyFailed = false;
-  try {
-    try {
-      for (const pending of plan.migrations) {
-        const migration = DATABASE_MIGRATIONS.find((candidate) => candidate.version === pending.version);
-        if (!migration) throw new Error(`Missing database migration implementation for v${pending.version}.`);
-        let afterCommit: (() => void) | undefined;
-        tx(
-          db,
-          () => {
-            // Planning is deliberately read-only and happens before BEGIN IMMEDIATE so startup can take a
-            // rollback snapshot first. Another same-version process may therefore finish this step while
-            // this handle waits for SQLite's writer lock. Re-read only AFTER acquiring that lock and
-            // validate the winner's immutable ledger before treating its commit as our clean no-op.
-            const currentVersion = pragmaNumber(db, "user_version");
-            if (currentVersion >= migration.version) {
-              if (currentVersion > DB_SCHEMA_VERSION) {
-                throw new Error(
-                  `Database schema version ${currentVersion} is newer than this server supports (${DB_SCHEMA_VERSION}); refusing a downgrade.`,
-                );
-              }
-              assertMigrationHistory(db, currentVersion);
-              return;
-            }
-            db.exec(MIGRATION_HISTORY_SQL);
-            assertMigrationHistoryTable(db);
-            afterCommit = migration.up(db) ?? undefined;
-            const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
-            if (fkViolations.length > 0) {
-              throw new Error(
-                `Database migration v${migration.version} (${migration.name}) left ${fkViolations.length} foreign-key violation(s).`,
-              );
-            }
-            db.prepare(
-              `INSERT INTO ${DATABASE_MIGRATION_TABLE} (version, name, checksum, appliedAt) VALUES (?, ?, ?, ?)`,
-            ).run(migration.version, migration.name, migration.checksum, new Date().toISOString());
-            db.exec(`PRAGMA application_id = ${CAPACITYLENS_APPLICATION_ID}`);
-            db.exec(`PRAGMA user_version = ${migration.version}`);
-            hooks.beforeCommit?.({
-              version: migration.version,
-              name: migration.name,
-              checksum: migration.checksum,
-            });
-          },
-          "immediate",
+}
+
+function applyMigration(db: Db, pendingVersion: number, hooks: DatabaseMigrationHooks): void {
+  const migration = DATABASE_MIGRATIONS.find((candidate) => candidate.version === pendingVersion);
+  if (!migration) throw new Error(`Missing database migration implementation for v${pendingVersion}.`);
+  let afterCommit: (() => void) | undefined;
+  tx(
+    db,
+    () => {
+      // Planning is deliberately read-only and happens before BEGIN IMMEDIATE so startup can take a
+      // rollback snapshot first. Another same-version process may therefore finish this step while
+      // this handle waits for SQLite's writer lock. Re-read only AFTER acquiring that lock and
+      // validate the winner's immutable ledger before treating its commit as our clean no-op.
+      const currentVersion = pragmaNumber(db, "user_version");
+      if (currentVersion >= migration.version) {
+        if (currentVersion > DB_SCHEMA_VERSION) {
+          throw new Error(
+            `Database schema version ${currentVersion} is newer than this server supports (${DB_SCHEMA_VERSION}); refusing a downgrade.`,
+          );
+        }
+        assertMigrationHistory(db, currentVersion);
+        return;
+      }
+      db.exec(MIGRATION_HISTORY_SQL);
+      assertMigrationHistoryTable(db);
+      afterCommit = migration.up(db) ?? undefined;
+      const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
+      if (fkViolations.length > 0) {
+        throw new Error(
+          `Database migration v${migration.version} (${migration.name}) left ${fkViolations.length} foreign-key violation(s).`,
         );
-        afterCommit?.();
       }
+      db.prepare(
+        `INSERT INTO ${DATABASE_MIGRATION_TABLE} (version, name, checksum, appliedAt) VALUES (?, ?, ?, ?)`,
+      ).run(migration.version, migration.name, migration.checksum, new Date().toISOString());
+      db.exec(`PRAGMA application_id = ${CAPACITYLENS_APPLICATION_ID}`);
+      db.exec(`PRAGMA user_version = ${migration.version}`);
+      hooks.beforeCommit?.({
+        version: migration.version,
+        name: migration.name,
+        checksum: migration.checksum,
+      });
+    },
+    "immediate",
+  );
+  afterCommit?.();
+}
 
-      // Control tables are an idempotent every-boot repair boundary, not only a v8 migration helper.
-      // Reserve the writer before inspecting them so a concurrent process cannot race the repair.
-      tx(
-        db,
-        () => {
-          ensureControlTables(db);
-          repairEmptyAccountWorkingDays(db);
-        },
-        "immediate",
-      );
+function initializeSchema(db: Db, plan: DatabaseMigrationPlan, hooks: DatabaseMigrationHooks): void {
+  for (const pending of plan.migrations) applyMigration(db, pending.version, hooks);
 
-      assertSchemaCurrent(db);
-      assertControlTablesCurrent(db);
-      assertMemberSignInTrackingSchemaCurrent(db);
-      assertSingleOwnerControlPlaneCurrent(db);
-      assertAccountBoundaryStateCurrent(db);
-      assertAuditOutboxCurrent(db);
-      assertSyncOrderingCurrent(db);
-      assertTenantRelationshipIntegrityCurrent(db);
-      assertBootstrapClaimCurrent(db);
-      assertTenantEntityIndexesCurrent(db);
-      assertMigrationHistory(db, DB_SCHEMA_VERSION);
-      if (pragmaNumber(db, "user_version") !== DB_SCHEMA_VERSION) {
-        throw new Error(`Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`);
-      }
-      if (pragmaNumber(db, "application_id") !== CAPACITYLENS_APPLICATION_ID) {
-        throw new Error("Database migration did not stamp the CapacityLens application_id.");
-      }
-    } catch (initError) {
-      bodyFailed = true;
-      throw initError;
-    }
-  } finally {
-    // This handle may be retained by migration tooling after a surfaced failure. Never leave its
-    // connection-scoped integrity enforcement disabled merely because initialization did not finish.
-    // A cleanup PRAGMA failure on a broken connection must never MASK the original init failure,
-    // so it is recorded here and rethrown below only when the body itself had succeeded.
-    try {
-      db.exec("PRAGMA foreign_keys = ON;");
-    } catch (pragmaError) {
-      if (!bodyFailed) initErrorRef.error = pragmaError;
-    }
+  // Control tables are an idempotent every-boot repair boundary, not only a v8 migration helper.
+  // Reserve the writer before inspecting them so a concurrent process cannot race the repair.
+  tx(
+    db,
+    () => {
+      ensureControlTables(db);
+      repairEmptyAccountWorkingDays(db);
+    },
+    "immediate",
+  );
+
+  assertSchemaCurrent(db);
+  assertControlTablesCurrent(db);
+  assertMemberSignInTrackingSchemaCurrent(db);
+  assertSingleOwnerControlPlaneCurrent(db);
+  assertAccountBoundaryStateCurrent(db);
+  assertAuditOutboxCurrent(db);
+  assertSyncOrderingCurrent(db);
+  assertTenantRelationshipIntegrityCurrent(db);
+  assertBootstrapClaimCurrent(db);
+  assertTenantEntityIndexesCurrent(db);
+  assertMigrationHistory(db, DB_SCHEMA_VERSION);
+  if (pragmaNumber(db, "user_version") !== DB_SCHEMA_VERSION) {
+    throw new Error(`Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`);
   }
-
-  if (initErrorRef.error !== undefined) {
-    throw initErrorRef.error instanceof Error
-      ? initErrorRef.error
-      : new Error("Database initialization failed with a non-Error value.", { cause: initErrorRef.error });
+  if (pragmaNumber(db, "application_id") !== CAPACITYLENS_APPLICATION_ID) {
+    throw new Error("Database migration did not stamp the CapacityLens application_id.");
   }
+}
 
+function initializeWithForeignKeysDisabled(db: Db, initialize: () => void): void {
+  db.exec("PRAGMA foreign_keys = OFF;");
+  const initialization = attempt(initialize);
+  // This handle may be retained by migration tooling after a surfaced failure. Never leave its
+  // connection-scoped integrity enforcement disabled merely because initialization did not finish.
+  // A cleanup PRAGMA failure on a broken connection must never MASK the original init failure.
+  const cleanup = attempt(() => db.exec("PRAGMA foreign_keys = ON;"));
+  if (initialization.kind === "failure") throw initialization.error;
+  if (cleanup.kind === "failure") {
+    throw cleanup.error instanceof Error
+      ? cleanup.error
+      : new Error("Database initialization failed with a non-Error value.", { cause: cleanup.error });
+  }
+}
+
+function assertForeignKeyIntegrity(db: Db): void {
   const fkViolations = db.prepare("PRAGMA foreign_key_check").all();
   if (fkViolations.length > 0) {
     throw new Error(`Database foreign-key integrity check failed (${fkViolations.length} violation(s)).`);
   }
-  if (path !== ":memory:") {
-    try {
-      // Schema setup normally creates the WAL/SHM sidecars after the first chmod above. Pin every
-      // file in the SQLite set before returning the live handle; process.umask(0077) protects any
-      // sidecar SQLite later recreates in the server process.
-      for (const file of [path, `${path}-wal`, `${path}-shm`, `${path}-journal`]) {
-        if (existsSync(file)) chmodSync(file, 0o600);
-      }
-    } catch (cause) {
-      throw new Error(`Could not restrict SQLite file permissions at "${path}".`, { cause });
+}
+
+function restrictDatabaseFilePermissions(path: string): void {
+  if (path === ":memory:") return;
+  try {
+    // Schema setup normally creates the WAL/SHM sidecars after the first chmod above. Pin every
+    // file in the SQLite set before returning the live handle; process.umask(0077) protects any
+    // sidecar SQLite later recreates in the server process.
+    for (const file of [path, `${path}-wal`, `${path}-shm`, `${path}-journal`]) {
+      if (existsSync(file)) chmodSync(file, 0o600);
     }
+  } catch (cause) {
+    throw new Error(`Could not restrict SQLite file permissions at "${path}".`, { cause });
   }
+}
+
+/** Apply every pending migration and finish configuring an already-open handle. Each version step
+ * owns one BEGIN IMMEDIATE transaction and advances user_version inside that same commit. */
+export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationHooks = {}): DatabaseMigrationPlan {
+  const plan = planDatabaseMigrations(db);
+  assertQuickCheckBeforeMigration(db, plan.fresh);
+  configureDatabaseForMigration(db, path);
+  initializeWithForeignKeysDisabled(db, () => initializeSchema(db, plan, hooks));
+  assertForeignKeyIntegrity(db);
+  restrictDatabaseFilePermissions(path);
   // initializeOpenDb is the only schema-change boundary (migrations + ALTERs happen only here).
   // node:sqlite Statement objects freeze their column set at prepare time, so any statement cached
   // while migrations were still running (e.g. migration 8's loadState call, prepared while the

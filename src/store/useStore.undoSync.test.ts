@@ -22,7 +22,7 @@ function undoOps(afterDelete: AppData) {
   return diffOps(afterDelete, useStore.getState().data);
 }
 
-describe("undo emits synchronization revisions for cascade-restored bindings", () => {
+function registerUndoSyncPart1(): void {
   it("re-stamps an undo whose content is identical but stored revision changed", () => {
     useStore.getState().replaceAll(
       makeAppData({
@@ -57,7 +57,9 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
     expect(() => useStore.getState().undo()).not.toThrow();
     expect(useStore.getState().data.clients).toHaveLength(75_000);
   });
+}
 
+function registerUndoSyncPart2(): void {
   it("restores an activity phaseId with an activity PUT", () => {
     useStore.getState().replaceAll(
       makeAppData({
@@ -118,7 +120,9 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
     expect(ops).toContainEqual(expect.objectContaining({ method: "PUT", table: "resources", id: "r1" }));
     expect(useStore.getState().data.resources[0]?.disciplineId).toBe("d1");
   });
+}
 
+function registerUndoSyncPart3(): void {
   it("keeps a placeholder projectId removed after project purge and emits no undo sync", () => {
     useStore.getState().replaceAll(
       makeAppData({
@@ -160,7 +164,9 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
     expect(ops).toEqual([]);
     expect(requireValue(useStore.getState().data.resources[0], "resource")).not.toHaveProperty("projectId");
   });
+}
 
+function registerUndoSyncPart4(): void {
   it("keeps a placeholder projectId removed after client purge and emits no undo sync", () => {
     useStore.getState().replaceAll(
       makeAppData({
@@ -209,4 +215,11 @@ describe("undo emits synchronization revisions for cascade-restored bindings", (
     expect(ops).toEqual([]);
     expect(requireValue(useStore.getState().data.resources[0], "resource")).not.toHaveProperty("projectId");
   });
+}
+
+describe("undo emits synchronization revisions for cascade-restored bindings", () => {
+  registerUndoSyncPart1();
+  registerUndoSyncPart2();
+  registerUndoSyncPart3();
+  registerUndoSyncPart4();
 });

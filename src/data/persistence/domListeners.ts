@@ -12,11 +12,50 @@ interface AttachDomListenersInput {
   serverMode: boolean;
 }
 
+const REFRESH_MIN_INTERVAL_MS = 30_000;
+const VISIBLE_REFRESH_INTERVAL_MS = 60_000;
+
+function createActiveSliceRefresh({ store, owner, refresh, serverMode }: AttachDomListenersInput): () => void {
+  const { refreshActive, startAuthoritativeReload } = refresh;
+  return () => {
+    if (owner.current.disposed || !serverMode) return;
+    const id = store.getState().activeAccountId;
+    if (id === null) return;
+    if (owner.current.authoritativeReloadRequiredFor === id) {
+      startAuthoritativeReload(id);
+      return;
+    }
+    const refreshThrottled =
+      Date.now() - owner.current.lastRefreshAt <= REFRESH_MIN_INTERVAL_MS &&
+      owner.current.pending === null &&
+      !owner.current.inFlightSave &&
+      !owner.current.failedSinceSuccess;
+    if (refreshThrottled || owner.current.focusRefreshInFlight) return;
+    owner.update({ focusRefreshInFlight: true });
+    void refreshActive(id, { abortIfSaveFailed: true })
+      .then((outcome) => {
+        if (outcome.kind === "reloaded") owner.update({ lastRefreshAt: Date.now() });
+      })
+      .finally(() => owner.update({ focusRefreshInFlight: false }));
+  };
+}
+
+interface DomHandlers {
+  pagehide: () => void;
+  online: () => void;
+  focus: () => void;
+  visibilitychange: () => void;
+}
+
+function toggleDomListeners(action: "addEventListener" | "removeEventListener", handlers: DomHandlers) {
+  window[action]("pagehide", handlers.pagehide);
+  window[action]("online", handlers.online);
+  window[action]("focus", handlers.focus);
+  document[action]("visibilitychange", handlers.visibilitychange);
+}
+
 export function attachDomListeners({ store, owner, writes, refresh, serverMode }: AttachDomListenersInput) {
   const { retryStrandedWrite, flushOnUnload, flushWhileAlive } = writes;
-  const { refreshActive, startAuthoritativeReload } = refresh;
-  const REFRESH_MIN_INTERVAL_MS = 30_000;
-  const VISIBLE_REFRESH_INTERVAL_MS = 60_000;
   // The debounce window can outlive the tab. `pagehide` is the reliable close/navigate signal
   // (including bfcache) and uses keepalive; `visibilitychange → hidden` covers ordinary tab switches
   // and mobile lifecycle changes through the normal serialized save path. The unacknowledged snapshot
@@ -30,37 +69,7 @@ export function attachDomListeners({ store, owner, writes, refresh, serverMode }
   // every account); SKIP when there's no active account (on the picker — nothing to refresh); and
   // THROTTLE to REFRESH_MIN_INTERVAL_MS. Unsaved-edit safety is INHERENT — refreshActive flushes
   // pending + awaits inFlightSave BEFORE loadAll, so the user's edits POST first (last-writer-wins).
-  const maybeRefreshActiveSlice = () => {
-    if (owner.current.disposed) return;
-    if (!serverMode) return;
-    const id = store.getState().activeAccountId;
-    if (id === null) return; // on the picker — nothing to refresh
-    if (owner.current.authoritativeReloadRequiredFor === id) {
-      startAuthoritativeReload(id);
-      return;
-    }
-    const now = Date.now();
-    // The interval suppresses redundant reads only. A pending/failed write still needs the focus
-    // recovery path immediately so it can flush before reloading or retry without waiting 30s.
-    if (
-      now - owner.current.lastRefreshAt <= REFRESH_MIN_INTERVAL_MS &&
-      owner.current.pending === null &&
-      !owner.current.inFlightSave &&
-      !owner.current.failedSinceSuccess
-    )
-      return;
-    if (owner.current.focusRefreshInFlight) return;
-    owner.update({ focusRefreshInFlight: true });
-    void refreshActive(id, { abortIfSaveFailed: true })
-      .then((outcome) => {
-        // Only a real server reload consumes the throttle. Skipped attempts (failed-save guard,
-        // superseded owner) remain immediately recoverable on the next focus/online event.
-        if (outcome.kind === "reloaded") owner.update({ lastRefreshAt: Date.now() });
-      })
-      .finally(() => {
-        owner.update({ focusRefreshInFlight: false });
-      }); // a focus refresh must never clobber failed-save edits
-  };
+  const maybeRefreshActiveSlice = createActiveSliceRefresh({ store, owner, writes, refresh, serverMode });
 
   const onPageHide = () => flushOnUnload();
   const onVisibility = () => {
@@ -80,12 +89,8 @@ export function attachDomListeners({ store, owner, writes, refresh, serverMode }
     maybeRefreshActiveSlice();
   };
   const canListen = typeof window !== "undefined";
-  if (canListen) {
-    window.addEventListener("pagehide", onPageHide);
-    window.addEventListener("online", onOnline);
-    window.addEventListener("focus", onFocus);
-    document.addEventListener("visibilitychange", onVisibility);
-  }
+  const handlers = { pagehide: onPageHide, online: onOnline, focus: onFocus, visibilitychange: onVisibility };
+  if (canListen) toggleDomListeners("addEventListener", handlers);
   // A continuously focused tab emits neither focus nor visibility events. Poll only while visible
   // in server mode so multi-writer sessions converge without waiting for their next conflicting
   // edit. The ordinary refresh throttle still coalesces this with a recent focus-triggered load.
@@ -97,12 +102,7 @@ export function attachDomListeners({ store, owner, writes, refresh, serverMode }
       : null;
 
   return () => {
-    if (canListen) {
-      window.removeEventListener("pagehide", onPageHide);
-      window.removeEventListener("online", onOnline);
-      window.removeEventListener("focus", onFocus);
-      document.removeEventListener("visibilitychange", onVisibility);
-    }
+    if (canListen) toggleDomListeners("removeEventListener", handlers);
     if (visibleRefreshTimer) clearInterval(visibleRefreshTimer);
   };
 }

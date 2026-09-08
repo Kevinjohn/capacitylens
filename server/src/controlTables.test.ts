@@ -207,7 +207,7 @@ describe("listMembersForAccount", () => {
   });
 });
 
-describe("single-Owner control-plane migration", () => {
+const registerSingleOwnerMigrationDuplicateTests = () => {
   it("detects duplicate active Owners and rejects unused Owner invitations", () => {
     const duplicates = freshDb();
     duplicates.exec(`
@@ -224,6 +224,9 @@ describe("single-Owner control-plane migration", () => {
     createInvite(pendingInvite, invite({ id: "owner-invite", role: "owner" }));
     expect(() => assertSingleOwnerControlPlaneV10(pendingInvite)).toThrow(/unused Owner invite/);
   });
+};
+
+const registerSingleOwnerMigrationRetentionTest = () => {
   it("retains the oldest Owner, demotes co-owners, revokes live Owner invites and prevents recurrence", () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "owner-later", role: "owner", createdAt: "2026-01-02T00:00:00.000Z" }));
@@ -258,7 +261,9 @@ describe("single-Owner control-plane migration", () => {
     expect(() => upsertMember(db, member({ userId: "owner-third", role: "owner" }))).toThrow(/unique/i);
     expect(() => migrateSingleOwnerControlPlaneV10(db)).not.toThrow();
   });
+};
 
+const registerSingleOwnerMigrationOwnerlessRepairTest = () => {
   it("repairs an ownerless member-bearing account by promoting its highest-tier active member", () => {
     const db = freshDb();
     // Create the auth verification table before the first membership write so the per-handle table
@@ -285,7 +290,9 @@ describe("single-Owner control-plane migration", () => {
     expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow();
     expect(() => migrateOwnerlessControlPlaneV11(db)).not.toThrow();
   });
+};
 
+const registerSingleOwnerMigrationAdminPromotionTest = () => {
   it("promotes the highest-tier member (admin) over an OLDER viewer, via the non-elevated warn path", () => {
     // The security fix: an older viewer must NOT be silently escalated to Owner when a more-privileged
     // member exists. The (younger) admin is promoted; the older viewer is left untouched.
@@ -320,7 +327,9 @@ describe("single-Owner control-plane migration", () => {
     expect(warnLines[0]).toContain("acc-1");
     expect(warnLines[0]).toContain("new-admin");
   });
+};
 
+const registerSingleOwnerMigrationEditorPromotionTest = () => {
   it("promotes an editor when the account has no admin (editor over viewers)", () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "a-viewer", role: "viewer", createdAt: "2026-01-01T00:00:00.000Z" }));
@@ -348,7 +357,9 @@ describe("single-Owner control-plane migration", () => {
     expect(errorLines[0]).toContain("b-editor");
     expect(errorLines[0]).toContain("editor");
   });
+};
 
+const registerSingleOwnerMigrationViewerFallbackTest = () => {
   it("an all-viewers account still gets exactly one Owner (documented fallback) and warns LOUDLY", () => {
     // Nobody outranks a viewer here, so the exactly-one-Owner invariant forces a viewer promotion
     // rather than bricking startup. That last-resort escalation MUST be loud (below-admin → error).
@@ -376,7 +387,9 @@ describe("single-Owner control-plane migration", () => {
     expect(errorLines[0]).toContain("v-early");
     expect(errorLines[0]).toContain("viewer");
   });
+};
 
+const registerSingleOwnerMigrationTieBreakTest = () => {
   it("breaks a same-tier tie by earliest membership (createdAt, then userId)", () => {
     const db = freshDb();
     upsertMember(db, member({ userId: "admin-b", role: "admin", createdAt: "2026-01-02T00:00:00.000Z" }));
@@ -397,7 +410,9 @@ describe("single-Owner control-plane migration", () => {
     expect(getMemberRole(db, "acc-1", "admin-c")).toBe("admin");
     expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow();
   });
+};
 
+const registerSingleOwnerMigrationCeremonyScopeTest = () => {
   it("v14 revokes ceremonies for EVERY active member — the demoted non-owners v12 (owners-only) left outstanding", () => {
     const db = freshDb();
     db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`);
@@ -431,7 +446,9 @@ describe("single-Owner control-plane migration", () => {
     expect(getMemberRole(db, "acc-1", "kept-owner")).toBe("owner");
     expect(getMemberRole(db, "acc-1", "demoted-admin")).toBe("admin");
   });
+};
 
+const registerSingleOwnerMigrationLateAuthTest = () => {
   it("starts revoking ceremonies when Better Auth creates its table after an earlier absent probe", () => {
     const db = freshDb();
     // Existing auth-off databases run application migrations before Better Auth creates its own
@@ -446,7 +463,9 @@ describe("single-Owner control-plane migration", () => {
 
     expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([]);
   });
+};
 
+const registerSingleOwnerMigrationOwnerlessAssertionTest = () => {
   it("rejects a member-bearing account with no active Owner after migration", () => {
     const db = freshDb();
     migrateSingleOwnerControlPlaneV10(db);
@@ -454,7 +473,9 @@ describe("single-Owner control-plane migration", () => {
 
     expect(() => assertSingleOwnerControlPlaneCurrent(db)).toThrow(/has 0 active Owners/);
   });
+};
 
+const registerSingleOwnerMigrationIndexAssertionTest = () => {
   it("rejects a same-named partial unique index over the wrong column or predicate", () => {
     const db = freshDb();
     db.exec(`
@@ -465,6 +486,20 @@ describe("single-Owner control-plane migration", () => {
 
     expect(() => assertSingleOwnerControlPlaneCurrent(db)).toThrow(/invalid definition/);
   });
+};
+
+describe("single-Owner control-plane migration", () => {
+  registerSingleOwnerMigrationDuplicateTests();
+  registerSingleOwnerMigrationRetentionTest();
+  registerSingleOwnerMigrationOwnerlessRepairTest();
+  registerSingleOwnerMigrationAdminPromotionTest();
+  registerSingleOwnerMigrationEditorPromotionTest();
+  registerSingleOwnerMigrationViewerFallbackTest();
+  registerSingleOwnerMigrationTieBreakTest();
+  registerSingleOwnerMigrationCeremonyScopeTest();
+  registerSingleOwnerMigrationLateAuthTest();
+  registerSingleOwnerMigrationOwnerlessAssertionTest();
+  registerSingleOwnerMigrationIndexAssertionTest();
 });
 
 describe("removeMember", () => {
@@ -506,7 +541,9 @@ describe("createInvite / getInvite — non-secret id (P1.11)", () => {
     const id = newInviteId();
     expect(id.length).toBeGreaterThan(0);
     createInvite(db, invite({ token: "tok-a", id }));
-    expect(getInvite(db, "tok-a")!.id).toBe(id);
+    const stored = getInvite(db, "tok-a");
+    if (stored === null) throw new Error("expected the created invite to be readable");
+    expect(stored.id).toBe(id);
   });
 
   it("newInviteId mints distinct ids", () => {
@@ -561,18 +598,18 @@ describe("listInvitesForAccount", () => {
     createInvite(db, invite({ token: "tok-open", id: "inv-open" })); // still unused
     const list = listInvitesForAccount(db, "acc-1");
     expect(list.map((i) => i.id).sort()).toEqual(["inv-open", "inv-used"]);
-    expect(list.find((i) => i.id === "inv-used")!.usedAt).toBe(TS);
+    const usedInvite = list.find((i) => i.id === "inv-used");
+    if (usedInvite === undefined) throw new Error("expected the used invite to be listed");
+    expect(usedInvite.usedAt).toBe(TS);
   });
 });
 
-describe("pruneInvites", () => {
-  const TS_EXPIRED = "2000-01-01T00:00:00.000Z";
-
+const registerInviteExpiryPruneTests = (tsExpired: string) => {
   it("deletes expired-unused links while retaining recent used history and live invites", () => {
     const db = freshDb();
     createInvite(db, invite({ token: "tok-live", id: "inv-live" })); // unused, future expiry
-    createInvite(db, invite({ token: "tok-used", id: "inv-used", usedAt: TS, expiresAt: TS_EXPIRED })); // used + expired
-    createInvite(db, invite({ token: "tok-dead", id: "inv-dead", expiresAt: TS_EXPIRED })); // unused + expired → dead link
+    createInvite(db, invite({ token: "tok-used", id: "inv-used", usedAt: TS, expiresAt: tsExpired })); // used + expired
+    createInvite(db, invite({ token: "tok-dead", id: "inv-dead", expiresAt: tsExpired })); // unused + expired → dead link
 
     expect(pruneInvites(db)).toBe(1); // only the dead unused link is removed
     expect(getInvite(db, "tok-dead")).toBeNull();
@@ -606,7 +643,9 @@ describe("pruneInvites", () => {
     expect(getInvite(db, "tok-malformed")).toBeNull();
     expect(getInvite(db, "tok-offset-live")).not.toBeNull();
   });
+};
 
+const registerInviteRetentionPruneTest = () => {
   it("enforces age and per-account count bounds with deterministic ties and tenant isolation", () => {
     const db = freshDb();
     const now = Date.parse("2027-01-01T00:00:00.000Z");
@@ -660,6 +699,12 @@ describe("pruneInvites", () => {
         .sort(),
     ).toEqual(["boundary", "live"]);
   });
+};
+
+describe("pruneInvites", () => {
+  const TS_EXPIRED = "2000-01-01T00:00:00.000Z";
+  registerInviteExpiryPruneTests(TS_EXPIRED);
+  registerInviteRetentionPruneTest();
 });
 
 describe("revokeInvite", () => {

@@ -1,15 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Config, Driver } from "driver.js";
 import { m } from "@/i18n";
 import { TOUR_ANCHORS } from "./tourAnchors";
 
 // driver.js itself is loaded lazily inside startTour (see the file header comment in tour.ts), so
 // the mock only needs to cover the dynamic `import("driver.js")`, not a static import binding.
-const driverMock = vi.hoisted(() => vi.fn());
+const driverMock = vi.hoisted(() => vi.fn<(options?: Config) => Driver>());
 vi.mock("driver.js", () => ({ driver: driverMock }));
 
 import { startTour } from "./tour";
 
-const expectedSteps = [
+const expectedSteps: NonNullable<Config["steps"]> = [
   { element: TOUR_ANCHORS[0], popover: { title: m.tour_grid_title(), description: m.tour_grid_desc() } },
   { element: TOUR_ANCHORS[1], popover: { title: m.tour_toolbar_title(), description: m.tour_toolbar_desc() } },
   {
@@ -25,33 +26,64 @@ const expectedSteps = [
     popover: { title: m.tour_settings_title(), description: m.tour_settings_desc(), side: "right" },
   },
 ];
+function getDriverConfig(): Config {
+  const config = driverMock.mock.calls[0]?.[0];
+  if (!config) throw new Error("driver mock was not called with a config");
+  return config;
+}
 
-describe("startTour", () => {
-  let driveSpy: ReturnType<typeof vi.fn>;
+function getFirstExpectedStep(): NonNullable<Config["steps"]>[number] {
+  const step = expectedSteps[0];
+  if (!step) throw new Error("tour test steps are unexpectedly empty");
+  return step;
+}
 
-  beforeEach(() => {
-    document.body.className = "";
-    driveSpy = vi.fn();
-    driverMock.mockReset().mockReturnValue({ drive: driveSpy, destroy: vi.fn() });
-  });
+function unexpectedDriverCall(): never {
+  throw new Error("unexpected driver call");
+}
 
-  afterEach(() => {
-    document.body.className = "";
-    vi.restoreAllMocks();
-  });
+function createDriverStub(drive: () => void, destroy: () => void): Driver {
+  return {
+    isActive: unexpectedDriverCall,
+    refresh: unexpectedDriverCall,
+    drive,
+    setConfig: unexpectedDriverCall,
+    setSteps: unexpectedDriverCall,
+    getConfig: unexpectedDriverCall,
+    getState: unexpectedDriverCall,
+    getActiveIndex: unexpectedDriverCall,
+    isFirstStep: unexpectedDriverCall,
+    isLastStep: unexpectedDriverCall,
+    getActiveStep: unexpectedDriverCall,
+    getActiveElement: unexpectedDriverCall,
+    getPreviousElement: unexpectedDriverCall,
+    getPreviousStep: unexpectedDriverCall,
+    getNextStep: unexpectedDriverCall,
+    moveNext: unexpectedDriverCall,
+    movePrevious: unexpectedDriverCall,
+    moveTo: unexpectedDriverCall,
+    hasNextStep: unexpectedDriverCall,
+    hasPreviousStep: unexpectedDriverCall,
+    highlight: unexpectedDriverCall,
+    destroy,
+  };
+}
 
+let driveSpy: ReturnType<typeof vi.fn<() => void>>;
+
+function registerConfigurationTests() {
   it("builds the five spotlight steps from the shared anchors and translated copy, in order", async () => {
     await startTour();
 
     expect(driverMock).toHaveBeenCalledOnce();
-    const config = driverMock.mock.calls[0]?.[0];
+    const config = getDriverConfig();
     expect(config.steps).toEqual(expectedSteps);
   });
 
   it("configures progress display and nav copy through the Paraglide messages", async () => {
     await startTour();
 
-    const config = driverMock.mock.calls[0]?.[0];
+    const config = getDriverConfig();
     expect(config.showProgress).toBe(true);
     expect(config.progressText).toBe(m.tour_progress({ step: "{{current}}", total: "{{total}}" }));
     expect(config.nextBtnText).toBe(m.tour_next());
@@ -62,19 +94,27 @@ describe("startTour", () => {
   it("keeps spotlighted elements inert so a stray click can't navigate away mid-tour", async () => {
     await startTour();
 
-    const config = driverMock.mock.calls[0]?.[0];
+    const config = getDriverConfig();
     expect(config.disableActiveInteraction).toBe(true);
   });
+}
 
+function registerNavigationTests() {
   it("hands teardown ownership to driver.js's own destroy through onDestroyStarted", async () => {
     const promise = startTour();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const config = driverMock.mock.calls[0]?.[0];
-    const activeTour = { destroy: vi.fn() };
-    config.onDestroyStarted(undefined, undefined, { driver: activeTour });
+    const config = getDriverConfig();
+    const destroySpy = vi.fn();
+    const activeTour = createDriverStub(vi.fn(), destroySpy);
+    config.onDestroyStarted?.(undefined, getFirstExpectedStep(), {
+      config,
+      state: {},
+      driver: activeTour,
+      index: undefined,
+    });
 
-    expect(activeTour.destroy).toHaveBeenCalledOnce();
+    expect(destroySpy).toHaveBeenCalledOnce();
     await promise;
   });
 
@@ -83,7 +123,9 @@ describe("startTour", () => {
 
     expect(driveSpy).toHaveBeenCalledOnce();
   });
+}
 
+function registerLifecycleTests() {
   it("resolves once driven, when the body never carried the driver-active class", async () => {
     const disconnectSpy = vi.spyOn(MutationObserver.prototype, "disconnect");
 
@@ -132,4 +174,21 @@ describe("startTour", () => {
 
     await expect(startTour()).rejects.toBe(failure);
   });
+}
+
+describe("startTour", () => {
+  beforeEach(() => {
+    document.body.className = "";
+    driveSpy = vi.fn<() => void>();
+    driverMock.mockReset().mockReturnValue(createDriverStub(driveSpy, vi.fn()));
+  });
+
+  afterEach(() => {
+    document.body.className = "";
+    vi.restoreAllMocks();
+  });
+
+  registerConfigurationTests();
+  registerNavigationTests();
+  registerLifecycleTests();
 });

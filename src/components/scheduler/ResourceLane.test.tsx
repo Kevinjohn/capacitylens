@@ -63,8 +63,8 @@ const makeBar = (): BarLayout => ({
 });
 
 function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {}) {
-  const onEdit = vi.fn();
-  const onDraw = vi.fn();
+  const onEdit = vi.fn<NonNullable<Parameters<typeof ResourceLane>[0]["onEdit"]>>();
+  const onDraw = vi.fn<NonNullable<Parameters<typeof ResourceLane>[0]["onDraw"]>>();
 
   render(
     <ResourceLane
@@ -88,7 +88,7 @@ function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {})
   return { onEdit, onDraw };
 }
 
-describe("ResourceLane rendering", () => {
+describe("ResourceLane day rendering", () => {
   it("renders an unavailable-day marker for the unavailable day", () => {
     renderLane();
     expect(screen.getByTestId("unavailable-day")).toBeInTheDocument();
@@ -152,7 +152,9 @@ describe("ResourceLane rendering", () => {
     expect(block.compareDocumentPosition(marker) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(marker.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+});
 
+describe("ResourceLane allocation rendering", () => {
   // The render-layer boundary mirroring the pure-fn boundary: a day that is at-or-under
   // capacity carries `over: false`, so NO over-marker / red background renders for it.
   it("does NOT render an over-marker when no day is over (at-or-under capacity)", () => {
@@ -187,7 +189,7 @@ describe("ResourceLane rendering", () => {
   });
 });
 
-describe("ResourceLane draw interaction", () => {
+describe("ResourceLane draw availability", () => {
   it("keeps the hover add hint and click creation active across the full half-day cell", () => {
     const { onDraw } = renderLane({ bars: [], timeOff: [] });
     const lane = screen.getByTestId("resource-lane");
@@ -250,7 +252,9 @@ describe("ResourceLane draw interaction", () => {
     fireEvent.pointerMove(lane, { clientX: 60, pointerType: "mouse" });
     expect(screen.getByTestId("day-add-hint")).toBeInTheDocument();
   });
+});
 
+describe("ResourceLane draw spans", () => {
   it("allows a span to cross a blocked date when it starts on an allowed date", () => {
     const { onDraw } = renderLane({
       bars: [],
@@ -282,7 +286,9 @@ describe("ResourceLane draw interaction", () => {
 
     expect(onDraw).toHaveBeenCalledWith("r1", "2026-06-01", "2026-06-03");
   });
+});
 
+describe("ResourceLane draw coordinates", () => {
   it("calls onDraw with ISO date strings after pointerDown on the lane and document pointerup", () => {
     const { onDraw } = renderLane();
     const lane = screen.getByTestId("resource-lane");
@@ -321,7 +327,9 @@ describe("ResourceLane draw interaction", () => {
     expect(startDate).toBe("2026-06-01");
     expect(endDate).toBe("2026-06-03");
   });
+});
 
+describe("ResourceLane draw clicks", () => {
   it("treats a bare click (no movement) as a single-day allocation on the clicked day", () => {
     const { onDraw } = renderLane();
     const lane = screen.getByTestId("resource-lane");

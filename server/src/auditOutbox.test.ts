@@ -32,7 +32,7 @@ const lines = (file: string): Array<Record<string, unknown>> =>
         .map((line) => JSON.parse(line) as Record<string, unknown>)
     : [];
 
-describe("durable audit outbox", () => {
+const registerStartupPage = (): void => {
   it("bounds synchronous application startup to one outbox page", async () => {
     const db = openDb(":memory:");
     for (let index = 0; index < AUDIT_DRAIN_PAGE_SIZE + 1; index += 1) {
@@ -44,12 +44,17 @@ describe("durable audit outbox", () => {
     });
 
     expect(appendMany).toHaveBeenCalledOnce();
-    expect(appendMany.mock.calls[0]![0]).toHaveLength(AUDIT_DRAIN_PAGE_SIZE);
+    const startupBatch = appendMany.mock.calls.at(0)?.[0];
+    expect(startupBatch).toBeDefined();
+    if (startupBatch === undefined) throw new Error("startup audit batch was not captured");
+    expect(startupBatch).toHaveLength(AUDIT_DRAIN_PAGE_SIZE);
     expect(readPendingAuditCount(db)).toBe(1);
     await app.close();
     db.close();
   });
+};
 
+const registerApiRestart = (): void => {
   it("recovers an API mutation whose first process could not deliver its audit record", async () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-api-restart-"));
     const dbPath = join(dir, "capacitylens.db");
@@ -85,19 +90,24 @@ describe("durable audit outbox", () => {
       audit: createFileAuditSink(auditPath, vi.fn()),
     });
     expect(readPendingAuditCount(recoveredDb)).toBe(0);
-    expect(lines(auditPath)).toEqual([
-      expect.objectContaining({ action: "create", entity: "accounts", id: "account-1" }),
-      expect.objectContaining({
-        action: "workspace.provisioned",
-        outcome: "success",
-        workspaceId: "account-1",
-        auditId: expect.any(String),
-      }),
-    ]);
+    const recoveredLines = lines(auditPath);
+    expect(recoveredLines).toHaveLength(2);
+    expect(recoveredLines[0]).toMatchObject({ action: "create", entity: "accounts", id: "account-1" });
+    const provisioned = recoveredLines[1];
+    expect(provisioned).toBeDefined();
+    if (provisioned === undefined) throw new Error("workspace provisioning audit was not recovered");
+    expect(provisioned).toMatchObject({
+      action: "workspace.provisioned",
+      outcome: "success",
+      workspaceId: "account-1",
+    });
+    expect(typeof provisioned.auditId).toBe("string");
     await recoveredApp.close();
     recoveredDb.close();
   });
+};
 
+const registerCommittedMutation = (): void => {
   it("recovers a committed mutation event after the database closes before delivery", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-outbox-"));
     const dbPath = join(dir, "capacitylens.db");
@@ -118,7 +128,9 @@ describe("durable audit outbox", () => {
     recovered.close();
     expect(lines(auditPath)).toEqual([expect.objectContaining({ auditId: "audit-recovery-1", id: "project-1" })]);
   });
+};
 
+const registerFailedMutation = (): void => {
   it("rolls the audit row back with a failed mutation transaction", () => {
     const db = openDb(":memory:");
     expect(() =>
@@ -130,7 +142,9 @@ describe("durable audit outbox", () => {
     expect(readPendingAuditCount(db)).toBe(0);
     db.close();
   });
+};
 
+const registerReplay = (): void => {
   it("replays idempotently after fsynced JSONL delivery but before outbox deletion", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-replay-"));
     const file = join(dir, "audit.jsonl");
@@ -146,7 +160,9 @@ describe("durable audit outbox", () => {
     expect(lines(file)).toHaveLength(1);
     db.close();
   });
+};
 
+const registerFsyncRetry = (): void => {
   it("retains a rediscovered row until a retry re-establishes file durability", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-fsync-retry-"));
     const file = join(dir, "audit.jsonl");
@@ -178,7 +194,9 @@ describe("durable audit outbox", () => {
     expect(syncFile).toHaveBeenCalledTimes(4);
     db.close();
   });
+};
 
+const registerSingleRecord = (): void => {
   it("retains the oldest row when the sink fails", () => {
     const db = openDb(":memory:");
     enqueueAudit(db, record(), "audit-retained-1");
@@ -188,7 +206,9 @@ describe("durable audit outbox", () => {
     expect(readPendingAuditCount(db)).toBe(1);
     db.close();
   });
+};
 
+const registerBatchRecords = (): void => {
   it("delivers a committed outbox page through the sink's batch durability boundary", () => {
     const db = openDb(":memory:");
     enqueueAudit(db, record(), "audit-batch-1");
@@ -198,12 +218,17 @@ describe("durable audit outbox", () => {
 
     expect(drainAuditOutbox(db, sink)).toBe(true);
     expect(appendMany).toHaveBeenCalledOnce();
-    expect(appendMany.mock.calls[0]![0].map((entry) => entry.auditId)).toEqual(["audit-batch-1", "audit-batch-2"]);
+    const deliveredBatch = appendMany.mock.calls.at(0)?.[0];
+    expect(deliveredBatch).toBeDefined();
+    if (deliveredBatch === undefined) throw new Error("audit batch was not captured");
+    expect(deliveredBatch.map((entry) => entry.auditId)).toEqual(["audit-batch-1", "audit-batch-2"]);
     expect(sink.append).not.toHaveBeenCalled();
     expect(readPendingAuditCount(db)).toBe(0);
     db.close();
   });
+};
 
+const registerMalformedPayload = (): void => {
   it("retains a parseable malformed payload instead of delivering and deleting it", () => {
     const db = openDb(":memory:");
     db.prepare(`INSERT INTO capacitylens_audit_outbox (id, payload, createdAt) VALUES (?, ?, ?)`).run(
@@ -218,7 +243,9 @@ describe("durable audit outbox", () => {
     expect(readPendingAuditCount(db)).toBe(1);
     db.close();
   });
+};
 
+const registerInvalidUnionSemantics = (): void => {
   it.each([
     { ...record(), ts: "not-a-time" },
     { ...record(), action: "invented-action" },
@@ -252,7 +279,9 @@ describe("durable audit outbox", () => {
     expect(readPendingAuditCount(db)).toBe(1);
     db.close();
   });
+};
 
+const registerMasqueradeFields = (): void => {
   it("accepts action-specific masquerade audit fields and rejects mismatched fields", () => {
     const common = {
       id: "account-event-1",
@@ -290,7 +319,9 @@ describe("durable audit outbox", () => {
     ).toBe(false);
     expect(isAuditEntry({ ...common, action: "identity.sessions_revoked", reason: "sign_out" })).toBe(false);
   });
+};
 
+const registerFailedRecord = (): void => {
   it("retains the failed record and every later record while removing delivered predecessors", () => {
     const db = openDb(":memory:");
     enqueueAudit(db, { ...record(), id: "project-1" }, "audit-batch-1");
@@ -322,7 +353,9 @@ describe("durable audit outbox", () => {
     expect(readPendingAuditCount(db)).toBe(0);
     db.close();
   });
+};
 
+const registerUnterminatedTail = (): void => {
   it("truncates an unterminated tail before replaying its retained outbox row", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-tail-"));
     const file = join(dir, "audit.jsonl");
@@ -336,9 +369,25 @@ describe("durable audit outbox", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("unterminated tail"));
     db.close();
   });
+};
+
+describe("durable audit outbox", () => {
+  registerStartupPage();
+  registerApiRestart();
+  registerCommittedMutation();
+  registerFailedMutation();
+  registerReplay();
+  registerFsyncRetry();
+  registerSingleRecord();
+  registerBatchRecords();
+  registerMalformedPayload();
+  registerInvalidUnionSemantics();
+  registerMasqueradeFields();
+  registerFailedRecord();
+  registerUnterminatedTail();
 });
 
-describe("audit recovery corruption surfacing", () => {
+const registerCorruptLines = (): void => {
   it("latches degraded health when recovery finds a complete malformed line", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-corrupt-line-"));
     const file = join(dir, "audit.jsonl");
@@ -358,11 +407,15 @@ describe("audit recovery corruption surfacing", () => {
         auditId: "a-3",
       },
     ];
-    expect(sink.appendMany!(delivered)).toBe(true); // append still succeeds (safe replay direction)
+    const appendMany = sink.appendMany;
+    if (appendMany === undefined) throw new Error("file sink does not support batch append");
+    expect(appendMany(delivered)).toBe(true); // append still succeeds (safe replay direction)
     expect(sink.degraded).toBe(true); // corruption is now surfaced, not silently accepted
     expect(errors.join("\n")).toMatch(/malformed JSONL line/);
   });
+};
 
+const registerMissingAuditId = (): void => {
   it("skips a well-formed line without an auditId silently — it is not corruption", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-no-id-"));
     const file = join(dir, "audit.jsonl");
@@ -384,7 +437,9 @@ describe("audit recovery corruption surfacing", () => {
     expect(sink.degraded).toBe(false); // parseable line: no suppression, but not degradation
     expect(errors).toHaveLength(0);
   });
+};
 
+const registerHealthyGeneration = (): void => {
   it("does not latch degraded for a healthy prior generation", () => {
     const dir = mkdtempSync(join(tmpdir(), "capacitylens-audit-healthy-"));
     const file = join(dir, "audit.jsonl");
@@ -406,6 +461,12 @@ describe("audit recovery corruption surfacing", () => {
     expect(sink.degraded).toBe(false);
     expect(errors).toHaveLength(0);
   });
+};
+
+describe("audit recovery corruption surfacing", () => {
+  registerCorruptLines();
+  registerMissingAuditId();
+  registerHealthyGeneration();
 });
 
 describe("stream sink retry idempotence", () => {
@@ -423,19 +484,23 @@ describe("stream sink retry idempotence", () => {
   it("does not re-emit a record it already delivered when the outbox retries", () => {
     const lines: string[] = [];
     const sink = createStreamAuditSink((line) => lines.push(line));
-    expect(sink.appendMany!([entry("x-1"), entry("x-2")])).toBe(true);
+    const appendMany = sink.appendMany;
+    if (appendMany === undefined) throw new Error("stream sink does not support batch append");
+    expect(appendMany([entry("x-1"), entry("x-2")])).toBe(true);
     expect(lines).toHaveLength(2);
     // Retry of the same delivery (e.g. a sibling file sink failed on the first pass):
-    expect(sink.appendMany!([entry("x-1"), entry("x-2")])).toBe(true);
+    expect(appendMany([entry("x-1"), entry("x-2")])).toBe(true);
     expect(lines).toHaveLength(2); // no amplification
   });
 
   it("emits distinct new records after deduped retries", () => {
     const lines: string[] = [];
     const sink = createStreamAuditSink((line) => lines.push(line));
-    sink.appendMany!([entry("y-1")]);
-    sink.appendMany!([entry("y-1")]); // retry — skipped
-    sink.appendMany!([entry("y-2")]); // fresh record — emitted
+    const appendMany = sink.appendMany;
+    if (appendMany === undefined) throw new Error("stream sink does not support batch append");
+    appendMany([entry("y-1")]);
+    appendMany([entry("y-1")]); // retry — skipped
+    appendMany([entry("y-2")]); // fresh record — emitted
     expect(lines).toHaveLength(2);
   });
 });

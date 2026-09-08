@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MembersSection } from "./MembersSection";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
@@ -8,6 +8,7 @@ import { useStore } from "../../store/useStore";
 import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
 import { m } from "@/i18n";
+import { useTeamDirectory } from "./useTeamDirectory";
 
 interface ConfirmMemberActionInput {
   user: User;
@@ -146,6 +147,42 @@ function mockApi(members: RawMember[] | { status: number } = [], overrides: Reco
   });
 }
 
+function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
+  let trackingEnabled = false;
+  const members: RawMember[] = [
+    { userId: "me", role: "owner", isSelf: true },
+    { userId: "ed", name: "Clark Kent", email: "clark@example.test", role: "editor" },
+  ];
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    const endpoint = String(url);
+    if (endpoint.endsWith("/member-sign-in-tracking") && init?.method === "PUT") {
+      trackingEnabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
+      return jsonResponse({ enabled: trackingEnabled });
+    }
+    if (endpoint.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
+      // Not routed through rawMember: mayRevokeSessions defaults to true here (not rawMember's
+      // false), and signInConfirmed is computed from the live trackingEnabled toggle rather than
+      // being a static per-member default.
+      return jsonResponse({
+        signInTrackingEnabled: trackingEnabled,
+        members: members.map((member) => ({
+          status: "active",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          name: null,
+          email: `${member.userId}@x.io`,
+          isSelf: false,
+          mayResetPassword: false,
+          mayRevokeSessions: true,
+          ...member,
+          signInConfirmed: trackingEnabled ? member.isSelf === true : null,
+        })),
+      });
+    }
+    if (endpoint.endsWith("/invites")) return jsonResponse({ invites: [] });
+    return new Response(null, { status: 204 });
+  });
+}
+
 const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
   authMode: "password",
   user: { id: "me", email: "me@x.io" },
@@ -165,6 +202,16 @@ function renderSection(authOverrides: Partial<AuthContextValue> = {}) {
 }
 
 type User = ReturnType<typeof userEvent.setup>;
+
+function requireValue<T>(value: T | undefined, context: string): T {
+  if (value === undefined) throw new Error(`Expected ${context}`);
+  return value;
+}
+
+function requireCallback(value: (() => void) | null, context: string): () => void {
+  if (value === null) throw new Error(`Expected ${context}`);
+  return value;
+}
 
 /** Row actions moved behind the row's gear popover (#175). Open it; the popover renders in a
  *  PORTAL, so its items are reachable from `screen`, never from `within(row)`. */
@@ -197,7 +244,10 @@ async function saveRoleVia(user: User, row: HTMLElement, option: string): Promis
 }
 
 async function findMemberRow(email: RegExp): Promise<HTMLElement> {
-  return (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(email))!;
+  return requireValue(
+    (await screen.findAllByTestId("member-row")).find((candidate) => within(candidate).queryByText(email)),
+    `a member row matching ${email}`,
+  );
 }
 
 async function confirmMemberAction({ user, row, testId, confirmationName }: ConfirmMemberActionInput): Promise<void> {
@@ -210,6 +260,70 @@ const ownerAndEditor: RawMember[] = [
   { userId: "me", role: "admin", isSelf: true, mayRevokeSessions: true },
   { userId: "ed", role: "editor", mayResetPassword: true, mayRevokeSessions: true },
 ];
+
+const soleOwnerAndEditor: RawMember[] = [
+  { userId: "me", role: "owner", isSelf: true },
+  { userId: "ed", role: "editor" },
+];
+
+const accessibleNameMembers: RawMember[] = [
+  { userId: "me", role: "owner", isSelf: true },
+  {
+    userId: "alice",
+    name: "Barbara Gordon",
+    email: "alice@example.test",
+    role: "editor",
+    mayResetPassword: true,
+    mayRevokeSessions: true,
+  },
+  {
+    userId: "bob",
+    name: "James Gordon",
+    email: "bob@example.test",
+    role: "viewer",
+    mayResetPassword: true,
+    mayRevokeSessions: true,
+  },
+];
+
+const accessibleMemberNames = [
+  ["Barbara Gordon", "Barbara Gordon (alice@example.test)"],
+  ["James Gordon", "James Gordon (bob@example.test)"],
+] as const;
+
+interface AccessibleMemberControlsInput {
+  user: User;
+  rows: HTMLElement[];
+  name: string;
+  member: string;
+}
+
+async function expectAccessibleMemberControls({
+  user,
+  rows,
+  name,
+  member,
+}: AccessibleMemberControlsInput): Promise<void> {
+  // Both row affordances name their subject, so a screen reader never hears a bare "Edit".
+  expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
+
+  const row = requireValue(
+    rows.find((candidate) => within(candidate).queryByText(name)),
+    `the ${name} row in the members table`,
+  );
+  await openMemberMenu(user, row);
+  for (const action of [
+    `Reset password for ${member}`,
+    `Revoke sessions for ${member}`,
+    `Disable ${member}`,
+    `Archive ${member}`,
+    `Remove ${member}`,
+  ]) {
+    expect(screen.getByRole("button", { name: action })).toBeInTheDocument();
+  }
+  await user.keyboard("{Escape}");
+}
 
 function stubPageReload(): ReturnType<typeof vi.fn> {
   const reload = vi.fn();
@@ -240,43 +354,7 @@ afterEach(() => {
 });
 
 describe("MembersSection — self-gate", () => {
-  it("hides the previous account directory while the next account is authorizing", async () => {
-    const nextAccountId = "acc_second";
-    let resolveNextMembers: ((response: Response) => void) | undefined;
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
-      const target = String(url);
-      const isRead = !init || init.method === undefined || init.method === "GET";
-      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
-        return jsonResponse({
-          members: [rawMember({ userId: "first-owner", role: "owner", email: "first@example.test", isSelf: true })],
-        });
-      }
-      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
-        return await new Promise<Response>((resolve) => {
-          resolveNextMembers = resolve;
-        });
-      }
-      if (target.endsWith("/invites") && isRead) {
-        return jsonResponse({ invites: [] });
-      }
-      throw new Error(`Unexpected request: ${target}`);
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    renderSection();
-    expect(await screen.findByText("first@example.test")).toBeInTheDocument();
-
-    act(() => useStore.setState({ activeAccountId: nextAccountId }));
-    expect(screen.queryByText("first@example.test")).not.toBeInTheDocument();
-
-    await act(async () => {
-      resolveNextMembers?.(
-        jsonResponse({
-          members: [rawMember({ userId: "second-owner", role: "owner", email: "second@example.test", isSelf: true })],
-        }),
-      );
-    });
-    expect(await screen.findByText("second@example.test")).toBeInTheDocument();
-  });
+  registerAccountTransitionTest();
 
   it("defers privileged directory reads while offline and refreshes them on recovery", async () => {
     const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
@@ -333,6 +411,115 @@ describe("MembersSection — self-gate", () => {
     expect(memberReads).toBe(3);
   });
 
+  registerSelfGateDisplayTests();
+});
+
+describe("MembersSection — directory error retention", () => {
+  it("clears the authorized directory snapshot when a same-account refresh loses access", async () => {
+    const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
+    let memberReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([...members], {
+        "GET /members": () => {
+          memberReads += 1;
+          return memberReads === 1
+            ? jsonResponse({ signInTrackingEnabled: false, members: members.map((member) => rawMember(member)) })
+            : jsonResponse({ error: "Forbidden" }, 403);
+        },
+      }),
+    );
+    const fail = vi.fn();
+
+    const { result } = renderHook(() =>
+      useTeamDirectory({
+        enabled: true,
+        activeAccountId: DEFAULT_ACCOUNT_ID,
+        offlineReadOnly: false,
+        fail,
+      }),
+    );
+    await waitFor(() => expect(result.current.directory.kind).toBe("ready"));
+
+    act(() => result.current.reload());
+
+    await waitFor(() => expect(result.current.directory.kind).toBe("error"));
+    expect(result.current.directory).toMatchObject({
+      kind: "error",
+      accountId: DEFAULT_ACCOUNT_ID,
+      content: { kind: "unavailable" },
+    });
+  });
+});
+
+describe("MembersSection — transient directory state", () => {
+  it("retains the authorized directory snapshot across a transient same-account failure", async () => {
+    const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
+    let memberReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([...members], {
+        "GET /members": () => {
+          memberReads += 1;
+          return memberReads === 1
+            ? jsonResponse({ signInTrackingEnabled: false, members: members.map((member) => rawMember(member)) })
+            : jsonResponse({ error: "Unavailable" }, 503);
+        },
+      }),
+    );
+    const fail = vi.fn();
+
+    const { result } = renderHook(() =>
+      useTeamDirectory({
+        enabled: true,
+        activeAccountId: DEFAULT_ACCOUNT_ID,
+        offlineReadOnly: false,
+        fail,
+      }),
+    );
+    await waitFor(() => expect(result.current.directory.kind).toBe("ready"));
+    const readyDirectory = result.current.directory;
+    if (readyDirectory.kind !== "ready") throw new Error("Expected an authorized directory fixture.");
+
+    act(() => result.current.reload());
+
+    await waitFor(() => expect(result.current.directory.kind).toBe("error"));
+    expect(result.current.directory).toMatchObject({
+      kind: "error",
+      accountId: DEFAULT_ACCOUNT_ID,
+      content: { kind: "authorized", snapshot: readyDirectory.snapshot },
+    });
+  });
+});
+
+describe("MembersSection — retained authorization behavior", () => {
+  it("retains authorization across a transient member refresh failure", async () => {
+    const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
+    let memberReads = 0;
+    const fetchMock = mockApi([...members], {
+      "GET /members": () => {
+        memberReads += 1;
+        if (memberReads === 2) return jsonResponse({ error: "Unavailable" }, 503);
+        if (memberReads === 3) return jsonResponse({ error: "Forbidden" }, 403);
+        return jsonResponse({ signInTrackingEnabled: false, members: members.map((member) => rawMember(member)) });
+      },
+      "PUT /member-sign-in-tracking": () => jsonResponse({ enabled: true }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderSection();
+    expect(await screen.findByTestId("member-row")).toHaveTextContent("me@x.io");
+    await user.click(screen.getByTestId("member-sign-in-tracking"));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Unavailable");
+
+    await user.click(screen.getByRole("button", { name: m.settings_members_retry() }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_members_err_access_changed());
+    expect(memberReads).toBe(3);
+  });
+});
+
+function registerSelfGateDisplayTests(): void {
   it("renders nothing when authMode is off", () => {
     vi.stubGlobal("fetch", mockApi([]));
     const { container } = render(
@@ -378,7 +565,47 @@ describe("MembersSection — self-gate", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not load invites (503).");
     expect(screen.queryByText("Could not load members (503).")).not.toBeInTheDocument();
   });
-});
+}
+
+function registerAccountTransitionTest(): void {
+  it("hides the previous account directory while the next account is authorizing", async () => {
+    const nextAccountId = "acc_second";
+    let resolveNextMembers: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url);
+      const isRead = !init || init.method === undefined || init.method === "GET";
+      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
+        return jsonResponse({
+          members: [rawMember({ userId: "first-owner", role: "owner", email: "first@example.test", isSelf: true })],
+        });
+      }
+      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
+        return await new Promise<Response>((resolve) => {
+          resolveNextMembers = resolve;
+        });
+      }
+      if (target.endsWith("/invites") && isRead) {
+        return jsonResponse({ invites: [] });
+      }
+      throw new Error(`Unexpected request: ${target}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    expect(await screen.findByText("first@example.test")).toBeInTheDocument();
+
+    act(() => useStore.setState({ activeAccountId: nextAccountId }));
+    expect(screen.queryByText("first@example.test")).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveNextMembers?.(
+        jsonResponse({
+          members: [rawMember({ userId: "second-owner", role: "owner", email: "second@example.test", isSelf: true })],
+        }),
+      );
+    });
+    expect(await screen.findByText("second@example.test")).toBeInTheDocument();
+  });
+}
 
 describe("MembersSection — admin affordances", () => {
   const members: RawMember[] = [
@@ -387,6 +614,17 @@ describe("MembersSection — admin affordances", () => {
     { userId: "theeditor", role: "editor" },
   ];
 
+  registerAdminInviteTests(members);
+  registerAdminInviteLinkTests(members);
+  registerAdminMemberControlTests(members);
+  registerAdminConfirmationTests(members);
+  registerAdminSessionTests(members);
+  registerAdminSelfActionTests();
+  registerAdminRoleChangeTests(members);
+  registerAdminProjectionTests(members);
+});
+
+function registerAdminInviteTests(members: RawMember[]): void {
   it("does NOT offer the owner option in the invite role picker", async () => {
     vi.stubGlobal("fetch", mockApi(members));
     renderSection();
@@ -430,7 +668,9 @@ describe("MembersSection — admin affordances", () => {
     expect(email).toHaveAttribute("aria-invalid", "true");
     expect(error).toHaveTextContent(m.identity_err_email());
   });
+}
 
+function registerAdminInviteLinkTests(members: RawMember[]): void {
   it("keeps an existing write-once invite link when a later submit fails validation", async () => {
     const user = userEvent.setup();
     let created = false;
@@ -473,14 +713,15 @@ describe("MembersSection — admin affordances", () => {
       ),
     ).toHaveLength(1);
   });
+}
 
+function registerAdminMemberControlTests(members: RawMember[]): void {
   it("shows no role control + no Remove on an OWNER row (admin can't touch an owner)", async () => {
     vi.stubGlobal("fetch", mockApi(members));
     renderSection();
     await screen.findByTestId("members-section");
 
-    const rows = await screen.findAllByTestId("member-row");
-    const ownerRow = rows.find((r) => within(r).queryByText(/theowner@x\.io/))!;
+    const ownerRow = await findMemberRow(/theowner@x\.io/);
     expect(ownerRow).toBeTruthy();
     // No pencil on the owner row for an admin, and no gear either: with reset/revoke/status/remove
     // all forbidden against an Owner the menu has nothing left to offer, so it is not rendered.
@@ -488,7 +729,7 @@ describe("MembersSection — admin affordances", () => {
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
 
     // The editor row, by contrast, IS manageable by the admin.
-    const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
     expect(within(editorRow).getByTestId("member-edit")).toBeInTheDocument();
     await chooseMemberAction(userEvent.setup(), editorRow, "member-remove");
     expect(screen.getByRole("alertdialog")).toBeInTheDocument();
@@ -498,10 +739,9 @@ describe("MembersSection — admin affordances", () => {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", mockApi(members));
     renderSection();
-    const rows = await screen.findAllByTestId("member-row");
-    const selfRow = rows.find((row) => within(row).queryByText(/me@x\.io/))!;
-    const ownerRow = rows.find((row) => within(row).queryByText(/theowner@x\.io/))!;
-    const editorRow = rows.find((row) => within(row).queryByText(/theeditor@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
+    const ownerRow = await findMemberRow(/theowner@x\.io/);
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     expect(within(selfRow).queryByTestId("member-masquerade")).not.toBeInTheDocument();
     expect(within(ownerRow).getByTestId("member-masquerade")).toBeInTheDocument();
@@ -513,15 +753,15 @@ describe("MembersSection — admin affordances", () => {
     await user.click(within(dialog).getByRole("button", { name: "Start masquerade" }));
     expect(accountTransitionMocks.startMasquerade).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID, "theowner");
   });
+}
 
+function registerAdminConfirmationTests(members: RawMember[]): void {
   it("names the member and waits for confirmation before sending removal", async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi(members);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, "member-remove");
 
@@ -551,9 +791,7 @@ describe("MembersSection — admin affordances", () => {
     const fetchMock = mockApi(actionableMembers);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, testId);
 
@@ -562,7 +800,9 @@ describe("MembersSection — admin affordances", () => {
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET")).toEqual([]);
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
   });
+}
 
+function registerAdminSessionTests(members: RawMember[]): void {
   it("uses the message catalogue for session revocation controls and success notices", async () => {
     const user = userEvent.setup();
     const actionableMembers = members.map((member) =>
@@ -570,9 +810,7 @@ describe("MembersSection — admin affordances", () => {
     );
     vi.stubGlobal("fetch", mockApi(actionableMembers));
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
     await openMemberMenu(user, editorRow);
     const revokeButton = screen.getByTestId("member-revoke-sessions");
 
@@ -599,9 +837,7 @@ describe("MembersSection — admin affordances", () => {
       }),
     );
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await chooseMemberAction(user, editorRow, "member-revoke-sessions");
     await user.click(
@@ -612,7 +848,9 @@ describe("MembersSection — admin affordances", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_members_err_revoke_sessions({ status: 400 }));
   });
+}
 
+function registerAdminSelfActionTests(): void {
   it("spells out access and reload consequences for self-targeted actions", async () => {
     const user = userEvent.setup();
     const selfMembers: RawMember[] = [
@@ -621,7 +859,7 @@ describe("MembersSection — admin affordances", () => {
     ];
     vi.stubGlobal("fetch", mockApi(selfMembers));
     renderSection();
-    const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
 
     await chooseMemberAction(user, selfRow, "member-remove");
     expect(within(screen.getByRole("alertdialog")).getByText(/return to the company picker/i)).toBeInTheDocument();
@@ -634,15 +872,16 @@ describe("MembersSection — admin affordances", () => {
     await chooseMemberAction(user, selfRow, "member-revoke-sessions");
     expect(within(screen.getByRole("alertdialog")).getByText(/this browser.*reload into sign-in/i)).toBeInTheDocument();
   });
+}
 
+function registerAdminRoleChangeTests(members: RawMember[]): void {
   it("explains and confirms a role change before sending it", async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi(members);
     vi.stubGlobal("fetch", fetchMock);
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection();
-    const rows = await screen.findAllByTestId("member-row");
-    const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await user.click(within(editorRow).getByTestId("member-edit"));
     const dialog = await screen.findByRole("dialog");
@@ -663,7 +902,9 @@ describe("MembersSection — admin affordances", () => {
     );
     expect(useStore.getState().membershipRevision).toBe(revisionBefore);
   });
+}
 
+function registerAdminProjectionTests(members: RawMember[]): void {
   it("announces and marks the section busy while a member action is in flight", async () => {
     const user = userEvent.setup();
     let releasePatch!: () => void;
@@ -672,9 +913,7 @@ describe("MembersSection — admin affordances", () => {
     });
     vi.stubGlobal("fetch", mockApi(members, { "PATCH /members/theeditor": () => patchResponse }));
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/theeditor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/theeditor@x\.io/);
 
     await saveRoleVia(user, editorRow, "Viewer");
 
@@ -695,7 +934,7 @@ describe("MembersSection — admin affordances", () => {
     const revisionBefore = useStore.getState().membershipRevision;
     renderSection({ refreshAuth });
 
-    const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
     await saveRoleVia(user, selfRow, "Editor");
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
@@ -712,69 +951,31 @@ describe("MembersSection — admin affordances", () => {
     });
     renderSection();
 
-    const selfRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
     await saveRoleVia(user, selfRow, "Editor");
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
     expect(useStore.getState().notice?.message).toMatch(/could not be safely refreshed/i);
   });
-});
+}
 
 describe("MembersSection — owner affordances", () => {
   it("gives every member-row control a unique member-scoped accessible name", async () => {
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true },
-      {
-        userId: "alice",
-        name: "Barbara Gordon",
-        email: "alice@example.test",
-        role: "editor",
-        mayResetPassword: true,
-        mayRevokeSessions: true,
-      },
-      {
-        userId: "bob",
-        name: "James Gordon",
-        email: "bob@example.test",
-        role: "viewer",
-        mayResetPassword: true,
-        mayRevokeSessions: true,
-      },
-    ];
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal("fetch", mockApi(accessibleNameMembers));
     renderSection();
     await screen.findByTestId("members-section");
 
     const user = userEvent.setup();
     const rows = screen.getAllByTestId("member-row");
-    for (const member of ["Barbara Gordon (alice@example.test)", "James Gordon (bob@example.test)"]) {
-      // Both row affordances name their subject, so a screen reader never hears a bare "Edit".
-      expect(screen.getByRole("button", { name: `Edit ${member}` })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: `More actions for ${member}` })).toBeInTheDocument();
-
-      const row = rows.find((candidate) => within(candidate).queryByText(member.split(" (")[0]!))!;
-      await openMemberMenu(user, row);
-      for (const action of [
-        `Reset password for ${member}`,
-        `Revoke sessions for ${member}`,
-        `Disable ${member}`,
-        `Archive ${member}`,
-        `Remove ${member}`,
-      ]) {
-        expect(screen.getByRole("button", { name: action })).toBeInTheDocument();
-      }
-      await user.keyboard("{Escape}");
+    for (const [name, member] of accessibleMemberNames) {
+      await expectAccessibleMemberControls({ user, rows, name, member });
     }
     expect(screen.queryByRole("button", { name: "Remove" })).not.toBeInTheDocument();
   });
 
   it("never offers Owner as an ordinary role, even to the Owner", async () => {
     const user = userEvent.setup();
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true },
-      { userId: "ed", role: "editor" },
-    ];
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal("fetch", mockApi(soleOwnerAndEditor));
     renderSection();
     await screen.findByTestId("members-section");
 
@@ -782,8 +983,7 @@ describe("MembersSection — owner affordances", () => {
     expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    const rows = await screen.findAllByTestId("member-row");
-    const editorRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const editorRow = await findMemberRow(/ed@x\.io/);
     await user.click(within(editorRow).getByTestId("member-edit"));
     const dialog = await screen.findByRole("dialog");
     fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
@@ -791,16 +991,11 @@ describe("MembersSection — owner affordances", () => {
   });
 
   it("keeps the single Owner outside ordinary role and removal controls", async () => {
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true }, // the only owner
-      { userId: "ed", role: "editor" },
-    ];
-    vi.stubGlobal("fetch", mockApi(members));
+    vi.stubGlobal("fetch", mockApi(soleOwnerAndEditor));
     renderSection();
     await screen.findByTestId("members-section");
 
-    const rows = await screen.findAllByTestId("member-row");
-    const soleOwnerRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!;
+    const soleOwnerRow = await findMemberRow(/me@x\.io/);
     expect(within(soleOwnerRow).getByTestId("member-role")).toHaveTextContent(m.settings_member_sole_owner_protected());
     // No pencil (the role is not editable) and no gear: nothing in it would be permitted.
     expect(within(soleOwnerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
@@ -817,12 +1012,22 @@ describe("MembersSection — member lifecycle", () => {
     { userId: "ed", role: "editor" },
   ];
 
+  registerLifecycleStatusTests(lifecycleMembers);
+  registerLifecycleVisibilityTests();
+  registerLifecycleDisclosureTests();
+  registerLifecyclePermissionTests(lifecycleMembers);
+  registerLifecycleTrackingTests();
+  registerLifecycleReconciliationTests();
+  registerLifecycleConcurrencyTests();
+});
+
+function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
   it("never offers a transfer-ownership control on any row", async () => {
     vi.stubGlobal("fetch", mockApi(lifecycleMembers));
     renderSection();
     await screen.findByTestId("members-section");
 
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
     await openMemberMenu(userEvent.setup(), edRow);
     expect(screen.queryByTestId("member-make-owner")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /transfer ownership/i })).not.toBeInTheDocument();
@@ -836,7 +1041,7 @@ describe("MembersSection — member lifecycle", () => {
     const fetchMock = mockApi(lifecycleMembers);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
 
     await chooseMemberAction(user, edRow, testId);
     const dialog = screen.getByRole("alertdialog");
@@ -855,7 +1060,9 @@ describe("MembersSection — member lifecycle", () => {
     );
     await waitFor(() => expect(useStore.getState().notice?.message).toBe(m.settings_members_status_changed()));
   });
+}
 
+function registerLifecycleVisibilityTests(): void {
   it("badges a non-active member and offers restore INSTEAD of disable/archive", async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi([
@@ -865,7 +1072,7 @@ describe("MembersSection — member lifecycle", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     await openInactiveGroup(user);
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
     // A non-active member must stay REACHABLE and legible, or the state is unreversible.
     expect(within(edRow).getByTestId("member-status")).toHaveTextContent(m.settings_member_status_disabled());
 
@@ -894,7 +1101,7 @@ describe("MembersSection — member lifecycle", () => {
     );
     renderSection();
     await openInactiveGroup(user);
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
 
     // A role change writes status: "active", so offering the pencil here would turn "edit their role"
     // into a silent reinstatement. Restore is the only way back, and it is its own audited action.
@@ -907,7 +1114,9 @@ describe("MembersSection — member lifecycle", () => {
     expect(screen.getByTestId("member-revoke-sessions")).toBeInTheDocument();
     expect(screen.getByTestId("member-remove")).toBeInTheDocument();
   });
+}
 
+function registerLifecycleDisclosureTests(): void {
   it("keeps non-active members out of the main table and behind a collapsed disclosure", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
@@ -957,7 +1166,9 @@ describe("MembersSection — member lifecycle", () => {
     await screen.findByTestId("members-table");
     expect(screen.queryByTestId("members-inactive-toggle")).not.toBeInTheDocument();
   });
+}
 
+function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
   it("offers no status action against the Owner or against yourself", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
@@ -968,7 +1179,7 @@ describe("MembersSection — member lifecycle", () => {
       ]),
     );
     renderSection();
-    const selfRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/me@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
 
     // Self-suspension would be an unrecoverable in-app lockout; the Owner is protected because the
     // single-active-Owner invariant keys on role='owner' AND status='active'.
@@ -977,7 +1188,7 @@ describe("MembersSection — member lifecycle", () => {
     expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    const ownerRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/owner@x\.io/))!;
+    const ownerRow = await findMemberRow(/owner@x\.io/);
     expect(within(ownerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
   });
 
@@ -990,7 +1201,7 @@ describe("MembersSection — member lifecycle", () => {
       }),
     );
     renderSection();
-    const edRow = (await screen.findAllByTestId("member-row")).find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const edRow = await findMemberRow(/ed@x\.io/);
 
     await chooseMemberAction(user, edRow, "member-disable");
     await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /disable/i }));
@@ -998,7 +1209,9 @@ describe("MembersSection — member lifecycle", () => {
     expect(await screen.findByText("Forbidden.")).toBeInTheDocument();
     expect(useStore.getState().notice?.message).not.toBe(m.settings_members_status_changed());
   });
+}
 
+function registerLifecycleTrackingTests(): void {
   it("renders only coarse sign-in confirmation when the owner has enabled it", async () => {
     vi.stubGlobal(
       "fetch",
@@ -1008,9 +1221,8 @@ describe("MembersSection — member lifecycle", () => {
       ]),
     );
     renderSection();
-    const rows = await screen.findAllByTestId("member-row");
-    const selfRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!;
-    const edRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!;
+    const selfRow = await findMemberRow(/me@x\.io/);
+    const edRow = await findMemberRow(/ed@x\.io/);
 
     expect(within(selfRow).getByTestId("member-sign-in-confirmed")).toHaveTextContent(
       m.settings_member_sign_in_confirmed(),
@@ -1023,44 +1235,7 @@ describe("MembersSection — member lifecycle", () => {
 
   it("lets only the owner opt in and keeps edit then settings in separate right-hand columns", async () => {
     const user = userEvent.setup();
-    let trackingEnabled = false;
-    const members: RawMember[] = [
-      { userId: "me", role: "owner", isSelf: true },
-      { userId: "ed", name: "Clark Kent", email: "clark@example.test", role: "editor" },
-    ];
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (url: string, init?: RequestInit) => {
-        const endpoint = String(url);
-        if (endpoint.endsWith("/member-sign-in-tracking") && init?.method === "PUT") {
-          trackingEnabled = (JSON.parse(String(init.body)) as { enabled: boolean }).enabled;
-          return jsonResponse({ enabled: trackingEnabled });
-        }
-        if (endpoint.endsWith("/members") && (!init || init.method === undefined || init.method === "GET")) {
-          // Not routed through rawMember: mayRevokeSessions defaults to true here (not rawMember's
-          // false), and signInConfirmed is computed from the live trackingEnabled toggle rather than
-          // being a static per-member default.
-          return jsonResponse({
-            signInTrackingEnabled: trackingEnabled,
-            members: members.map((member) => ({
-              status: "active",
-              createdAt: "2026-01-01T00:00:00.000Z",
-              name: null,
-              email: `${member.userId}@x.io`,
-              isSelf: false,
-              mayResetPassword: false,
-              mayRevokeSessions: true,
-              ...member,
-              signInConfirmed: trackingEnabled ? member.isSelf === true : null,
-            })),
-          });
-        }
-        if (endpoint.endsWith("/invites")) {
-          return jsonResponse({ invites: [] });
-        }
-        return new Response(null, { status: 204 });
-      }),
-    );
+    vi.stubGlobal("fetch", makeSignInTrackingApi());
     renderSection();
 
     const tracking = await screen.findByTestId("member-sign-in-tracking");
@@ -1084,15 +1259,20 @@ describe("MembersSection — member lifecycle", () => {
       m.settings_member_col_edit(),
       m.settings_member_col_settings(),
     ]);
-    const editorRow = within(table)
-      .getAllByTestId("member-row")
-      .find((row) => within(row).queryByText("Clark Kent"))!;
+    const editorRow = requireValue(
+      within(table)
+        .getAllByTestId("member-row")
+        .find((row) => within(row).queryByText("Clark Kent")),
+      "the Clark Kent row in the members table",
+    );
     const cells = within(editorRow).getAllByRole("cell");
     expect(cells).toHaveLength(5);
-    expect(within(cells[3]!).getByTestId("member-edit")).toBeInTheDocument();
-    expect(within(cells[4]!).getByTestId("member-menu")).toBeInTheDocument();
+    expect(within(requireValue(cells[3], "the edit cell")).getByTestId("member-edit")).toBeInTheDocument();
+    expect(within(requireValue(cells[4], "the settings cell")).getByTestId("member-menu")).toBeInTheDocument();
   });
+}
 
+function registerLifecycleReconciliationTests(): void {
   it("reconciles an unknown self-demotion even after member reads become forbidden", async () => {
     const user = userEvent.setup();
     let mutationDispatched = false;
@@ -1128,7 +1308,7 @@ describe("MembersSection — member lifecycle", () => {
     renderSection({ refreshAuth });
     await screen.findByTestId("members-section");
 
-    const self = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/me@x\.io/))!;
+    const self = await findMemberRow(/me@x\.io/);
     await saveRoleVia(user, self, "Editor");
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1));
@@ -1138,7 +1318,9 @@ describe("MembersSection — member lifecycle", () => {
     expect(useStore.getState().notice?.message).toMatch(/Your access was refreshed; verify the result/i);
     expect(useStore.getState().notice?.message).not.toMatch(/Reload the page/i);
   });
+}
 
+function registerLifecycleConcurrencyTests(): void {
   it("permits only one member mutation while an action is in flight", async () => {
     let release: (() => void) | null = null;
     const reads = mockApi([
@@ -1155,7 +1337,7 @@ describe("MembersSection — member lifecycle", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) => within(row).queryByText(/ed@x\.io/))!;
+    const editorRow = await findMemberRow(/ed@x\.io/);
 
     const user = userEvent.setup();
     await chooseMemberAction(user, editorRow, "member-disable");
@@ -1171,12 +1353,22 @@ describe("MembersSection — member lifecycle", () => {
     const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== "GET");
     expect(mutations).toHaveLength(1);
     expect(String(mutations[0]?.[0])).toContain("/status");
-    release!();
+    requireCallback(release, "the pending member mutation release callback")();
     await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3));
   });
-});
+}
 
 describe("MembersSection — mutation failure reconciliation", () => {
+  registerSelfMutationFailureTests();
+  registerAccountSwitchMutationTests();
+  registerLateReconciliationTests();
+  registerThrownMutationTests();
+  registerRoleFailureTests();
+  registerRemovalFailureTests();
+  registerStatusFailureTests();
+});
+
+function registerSelfMutationFailureTests(): void {
   it("closes the company when a successful self-role change cannot refresh account access", async () => {
     vi.stubGlobal(
       "fetch",
@@ -1207,7 +1399,9 @@ describe("MembersSection — mutation failure reconciliation", () => {
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
     expect(useStore.getState().notice).toBeNull();
   });
+}
 
+function registerAccountSwitchMutationTests(): void {
   it("reports an authoritative reload failure after an unknown non-self mutation", async () => {
     let mutationSent = false;
     vi.stubGlobal(
@@ -1250,7 +1444,9 @@ describe("MembersSection — mutation failure reconciliation", () => {
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
     expect(useStore.getState().notice).toBeNull();
   });
+}
 
+function registerLateReconciliationTests(): void {
   it("does not publish an unknown reconcile whose member reread switches accounts", async () => {
     const nextAccountId = "acc_second";
     let mutationSent = false;
@@ -1289,7 +1485,9 @@ describe("MembersSection — mutation failure reconciliation", () => {
     expect(useStore.getState().notice?.message).toBe(m.settings_members_role_updated());
     expect(useStore.getState().notice?.tone).not.toBe("error");
   });
+}
 
+function registerThrownMutationTests(): void {
   it("does not close a newly selected company for a late self-mutation failure", async () => {
     const nextAccountId = "acc_second";
     let finish!: (response: Response) => void;
@@ -1347,7 +1545,9 @@ describe("MembersSection — mutation failure reconciliation", () => {
     await waitFor(() => expect(memberReads).toBeGreaterThanOrEqual(2));
     expect(screen.getByTestId("member-sign-in-tracking")).not.toBeChecked();
   });
+}
 
+function registerRoleFailureTests(): void {
   it.each([
     { status: 503, body: { error: "Uncertain." }, expected: /unknown outcome/i, reconciles: true },
     { status: 403, body: { error: "Role forbidden." }, expected: /Role forbidden\./, reconciles: false },
@@ -1375,7 +1575,9 @@ describe("MembersSection — mutation failure reconciliation", () => {
       expect(memberReads).toBe(reconciles ? 2 : 1);
     },
   );
+}
 
+function registerRemovalFailureTests(): void {
   it.each([
     { status: 503, body: { error: "Uncertain." }, expected: /unknown outcome/i, reconciles: true },
     {
@@ -1413,7 +1615,9 @@ describe("MembersSection — mutation failure reconciliation", () => {
       expect(memberReads).toBe(reconciles ? 2 : 1);
     },
   );
+}
 
+function registerStatusFailureTests(): void {
   it("reconciles a 503 status change without claiming success", async () => {
     vi.stubGlobal(
       "fetch",
@@ -1450,7 +1654,7 @@ describe("MembersSection — mutation failure reconciliation", () => {
 
     await expectNotice(/unknown outcome.*status connection lost.*reloaded/i);
   });
-});
+}
 
 describe("MembersSection — password reset and session failures", () => {
   async function requestReset(): Promise<void> {
@@ -1462,6 +1666,11 @@ describe("MembersSection — password reset and session failures", () => {
     });
   }
 
+  registerPasswordResetFailureTests(requestReset);
+  registerSessionFailureTests();
+});
+
+function registerPasswordResetFailureTests(requestReset: () => Promise<void>): void {
   it.each([
     [503, jsonResponse({ error: "Uncertain." }, 503), /reset-token request had an unknown outcome/i],
     [200, new Response("not-json", { status: 200 }), /one-time value was lost/i],
@@ -1500,7 +1709,9 @@ describe("MembersSection — password reset and session failures", () => {
     await expectNotice(/unknown outcome.*reset transport lost/i);
     expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument();
   });
+}
 
+function registerSessionFailureTests(): void {
   it.each([
     { status: 503, self: false, reloads: false, expected: /unknown outcome/i },
     { status: 503, self: true, reloads: true, expected: null },
@@ -1555,9 +1766,26 @@ describe("MembersSection — password reset and session failures", () => {
     if (!self) await expectNotice(/unknown outcome.*session transport lost/i);
     else expect(useStore.getState().notice).toBeNull();
   });
-});
+}
 
 describe("MembersSection — invite mint", () => {
+  registerInviteCopyControlTests();
+  registerInviteMintTests();
+  registerInviteAccountTransitionTests();
+  registerInviteClipboardTransitionTests();
+  registerInviteDeadlineTests();
+  registerInviteReloadTests();
+  registerInviteMutationTransitionTests();
+  registerInviteReconciliationTests();
+  registerInviteValidationTests();
+  registerInviteCreationFailureTests();
+  registerInviteRevokeFailureTests();
+  registerInviteLinkReconciliationTests();
+  registerInviteMissingLinkReconciliationTests();
+  registerInviteClipboardFailureTests();
+});
+
+function registerInviteCopyControlTests(): void {
   it("distinguishes reset-link and invitation-link copy controls when both are visible", async () => {
     const user = userEvent.setup();
     const members: RawMember[] = [
@@ -1572,9 +1800,7 @@ describe("MembersSection — invite mint", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
 
-    const editorRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/editor@x\.io/),
-    )!;
+    const editorRow = await findMemberRow(/editor@x\.io/);
     await chooseMemberAction(user, editorRow, "member-reset-password");
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -1610,7 +1836,9 @@ describe("MembersSection — invite mint", () => {
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
     expect(screen.getByTestId("invite-role-summary")).toHaveTextContent(/Read-only schedule access/);
   });
+}
 
+function registerInviteMintTests(): void {
   it("shows the invite link ONCE on a 201, built from the returned token", async () => {
     const user = userEvent.setup();
     // Creating an invite fires a fire-and-forget reloadInvites() right after, whose result feeds
@@ -1652,7 +1880,9 @@ describe("MembersSection — invite mint", () => {
     await waitFor(() => expect(invitesReads).toBeGreaterThanOrEqual(2));
     expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
   });
+}
 
+function registerInviteAccountTransitionTests(): void {
   it("discards account-local bearer links and controls immediately when the account changes", async () => {
     const nextAccountId = "acc_second";
     let minted: Record<string, unknown>[] = [];
@@ -1696,7 +1926,9 @@ describe("MembersSection — invite mint", () => {
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
     expect(screen.queryByTestId("invite-submit")).not.toBeInTheDocument();
   });
+}
 
+function registerInviteClipboardTransitionTests(): void {
   it("does not publish a late clipboard result into a different account", async () => {
     const nextAccountId = "acc_second";
     let finishCopy: (() => void) | undefined;
@@ -1748,7 +1980,9 @@ describe("MembersSection — invite mint", () => {
 
     expect(useStore.getState().notice?.message ?? "").not.toMatch(/copied/i);
   });
+}
 
+function registerInviteDeadlineTests(): void {
   it("renders outstanding invite expiry on the viewer local calendar date", async () => {
     const expiresAt = "2026-12-01T00:00:00.000Z";
     const localDate = vi.spyOn(Date.prototype, "toLocaleDateString").mockReturnValue("LOCAL INVITE DATE");
@@ -1809,7 +2043,9 @@ describe("MembersSection — invite mint", () => {
     expect(screen.getByText(/expired/i)).toBeInTheDocument();
     expect(screen.queryByTestId("invite-revoke")).not.toBeInTheDocument();
   });
+}
 
+function registerInviteReloadTests(): void {
   it("keeps the last authoritative invite list when a same-account invite reload fails", async () => {
     const existingInvite = {
       id: "inv-existing",
@@ -1838,7 +2074,9 @@ describe("MembersSection — invite mint", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Invite reload failed.");
     expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument();
   });
+}
 
+function registerInviteMutationTransitionTests(): void {
   it("ignores a late unknown mutation outcome after the user has switched accounts", async () => {
     const nextAccountId = "acc_second";
     let resolveCreate: ((response: Response) => void) | undefined;
@@ -1882,7 +2120,9 @@ describe("MembersSection — invite mint", () => {
     expect(screen.queryByText(/first account outcome is unknown/i)).not.toBeInTheDocument();
     expect(useStore.getState().notice?.message ?? "").not.toMatch(/unknown outcome/i);
   });
+}
 
+function registerInviteReconciliationTests(): void {
   it("removes the write-once link when its invite is revoked", async () => {
     const user = userEvent.setup();
     const invite = {
@@ -1915,7 +2155,9 @@ describe("MembersSection — invite mint", () => {
 
     await waitFor(() => expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument());
   });
+}
 
+function registerInviteValidationTests(): void {
   it("refuses a malformed token response instead of constructing an undefined link", async () => {
     const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }], {
       "POST /api/invites": () => jsonResponse({ role: "editor" }, 201),
@@ -1943,7 +2185,9 @@ describe("MembersSection — invite mint", () => {
     expect(field).toHaveAttribute("aria-describedby", alert.id);
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
+}
 
+function registerInviteCreationFailureTests(): void {
   it.each([
     { status: 503, body: { error: "Invite uncertain." }, expected: /unknown outcome.*reloaded/i, fieldError: false },
     { status: 403, body: { error: "Invite forbidden." }, expected: /Invite forbidden\./, fieldError: true },
@@ -1964,7 +2208,10 @@ describe("MembersSection — invite mint", () => {
       if (fieldError) expect(alert).toHaveTextContent(expected);
       else await expectNotice(expected);
       expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
-      if (fieldError) expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", alert!.id);
+      if (fieldError) {
+        if (alert === null) throw new Error("Expected the invitation field error");
+        expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", alert.id);
+      }
     },
   );
 
@@ -1982,7 +2229,9 @@ describe("MembersSection — invite mint", () => {
     await expectNotice(/unknown outcome.*invite transport lost.*reloaded/i);
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });
+}
 
+function registerInviteRevokeFailureTests(): void {
   it.each([
     { status: 503, body: { error: "Revoke uncertain." }, expected: /unknown outcome.*reloaded/i, reconciles: true },
     { status: 403, body: { error: "Revoke forbidden." }, expected: /Revoke forbidden\./, reconciles: false },
@@ -2046,7 +2295,9 @@ describe("MembersSection — invite mint", () => {
     await expectNotice(/unknown outcome.*revoke transport lost.*reloaded/i);
     expect(inviteReads).toBe(2);
   });
+}
 
+function registerInviteLinkReconciliationTests(): void {
   it("keeps invite A's minted link when invite B is revoked", async () => {
     const inviteA = {
       id: "invite-a",
@@ -2078,12 +2329,14 @@ describe("MembersSection — invite mint", () => {
     await userEvent.setup().click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
     const revokeButtons = await screen.findAllByTestId("invite-revoke");
-    await userEvent.setup().click(revokeButtons[1]!);
+    await userEvent.setup().click(requireValue(revokeButtons[1], "the second invitation revoke button"));
 
     await waitFor(() => expect(screen.queryByText(/b@example\.test/)).not.toBeInTheDocument());
     expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
   });
+}
 
+function registerInviteMissingLinkReconciliationTests(): void {
   it("removes a minted link when an unknown-outcome authoritative list omits it", async () => {
     const minted = {
       id: "invite-a",
@@ -2118,7 +2371,9 @@ describe("MembersSection — invite mint", () => {
 
     await waitFor(() => expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument());
   });
+}
 
+function registerInviteClipboardFailureTests(): void {
   it.each(["missing", "rejected"])("reports copy failure when clipboard is %s", async (kind) => {
     const user = userEvent.setup();
     if (kind === "missing") {
@@ -2143,10 +2398,10 @@ describe("MembersSection — invite mint", () => {
       expect(useStore.getState().notice).toMatchObject({ message: m.settings_members_copy_failed(), tone: "error" }),
     );
   });
-});
+}
 
 describe("MembersSection — SSO cutover repair", () => {
-  const providers: AuthContextValue["providers"] = [
+  const providers: NonNullable<AuthContextValue["providers"]> = [
     { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false },
   ];
   const directory = [
@@ -2183,6 +2438,20 @@ describe("MembersSection — SSO cutover repair", () => {
     return mockApi(directory, { "GET /sso-readiness": () => jsonResponse(ssoReadiness(linked, reason)) });
   }
 
+  registerSsoDraftTests(directory);
+  registerSsoReadinessRefreshTests(directory, providers, ssoReadiness);
+  registerSsoEmailRepairTests(providers, ssoFetch);
+  registerSsoEmailValidationTests(providers, ssoFetch);
+  registerSsoRefusedEmailTest(directory, providers, ssoReadiness);
+  registerSsoSelfEmailRepairTests(directory, providers, ssoReadiness);
+  registerSsoLinkRepairTests(directory, providers, ssoReadiness);
+  registerSsoLinkFailureTest(directory, providers, ssoReadiness);
+  registerSsoReadinessLifecycleTests(directory, providers, ssoReadiness);
+  registerSsoReadinessFailureTests(directory, providers, ssoReadiness);
+  registerSsoModeTests(providers, ssoFetch);
+});
+
+function registerSsoDraftTests(directory: RawMember[]): void {
   it("preserves invite and member role drafts when the render children unmount and remount", async () => {
     const user = userEvent.setup();
     const directoryWithTracking = directory.map((member) => ({ ...member, signInConfirmed: true }));
@@ -2226,28 +2495,51 @@ describe("MembersSection — SSO cutover repair", () => {
     expect(screen.getByTestId("invite-role")).toHaveTextContent("Viewer");
     expect(within(await screen.findByRole("dialog")).getByRole("combobox")).toHaveTextContent("Editor");
   });
+}
 
-  it("refreshes readiness after a successful membership mutation", async () => {
+function registerSsoReadinessRefreshTests<T>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
+  it("refreshes readiness after a successful membership mutation while retaining the loaded snapshot", async () => {
     const user = userEvent.setup();
     let readinessReads = 0;
+    let resolveRefresh: ((response: Response) => void) | undefined;
+    const pendingRefresh = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
     const fetchMock = mockApi(directory, {
       "GET /sso-readiness": () => {
         readinessReads += 1;
-        return jsonResponse(ssoReadiness(false, "member_not_linked"));
+        return readinessReads === 1 ? jsonResponse(ssoReadiness(false, "member_not_linked")) : pendingRefresh;
       },
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection({ providers });
 
-    const targetRow = (await screen.findAllByTestId("member-row")).find((row) =>
-      within(row).queryByText(/target@x\.io/),
-    )!;
+    const targetRow = await findMemberRow(/target@x\.io/);
     await waitFor(() => expect(readinessReads).toBe(1));
     await saveRoleVia(user, targetRow, "Viewer");
 
     await waitFor(() => expect(readinessReads).toBeGreaterThanOrEqual(2));
-  });
+    expect(screen.getByTestId("sso-readiness")).toBeInTheDocument();
+    expect(screen.queryByTestId("sso-readiness-error")).not.toBeInTheDocument();
 
+    await act(async () => {
+      requireValue(
+        resolveRefresh,
+        "the readiness refresh resolver",
+      )(jsonResponse({ ...ssoReadiness(false, "member_not_linked"), ready: true, members: [] }));
+    });
+    expect(await screen.findByText(m.settings_sso_readiness_ready())).toBeInTheDocument();
+  });
+}
+
+function registerSsoEmailRepairTests(
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoFetch: (linked: boolean, reason: string) => ReturnType<typeof mockApi>,
+): void {
   it("corrects a blocking member email through the fresh identity-global route", async () => {
     const user = userEvent.setup();
     const fetchMock = ssoFetch(false, "member_not_linked");
@@ -2270,7 +2562,12 @@ describe("MembersSection — SSO cutover repair", () => {
       ),
     );
   });
+}
 
+function registerSsoEmailValidationTests(
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoFetch: (linked: boolean, reason: string) => ReturnType<typeof mockApi>,
+): void {
   it("confirms removal of an unverified wrong-subject link before dispatch", async () => {
     const user = userEvent.setup();
     const fetchMock = ssoFetch(true, "unverified_provider_link");
@@ -2312,7 +2609,13 @@ describe("MembersSection — SSO cutover repair", () => {
     expect(input).toHaveAttribute("aria-describedby", alert.id);
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PATCH")).toBe(false);
   });
+}
 
+function registerSsoRefusedEmailTest<T>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("shows a refused email correction beside the repair field", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
@@ -2334,12 +2637,19 @@ describe("MembersSection — SSO cutover repair", () => {
     expect(alert).toHaveTextContent("Email already belongs to another user.");
     expect(input).toHaveAttribute("aria-describedby", alert.id);
   });
+}
 
+function registerSsoSelfEmailRepairTests<T extends { members: { principalId: string; email: string }[] }>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("reloads after correcting the current user's email without refreshing the directory", async () => {
     const reload = stubPageReload();
     const selfReadiness = ssoReadiness(false, "member_not_linked");
-    selfReadiness.members[0]!.principalId = "me";
-    selfReadiness.members[0]!.email = "me@x.io";
+    const selfMember = requireValue(selfReadiness.members[0], "the current member readiness fixture");
+    selfMember.principalId = "me";
+    selfMember.email = "me@x.io";
     let memberReads = 0;
     vi.stubGlobal(
       "fetch",
@@ -2387,7 +2697,13 @@ describe("MembersSection — SSO cutover repair", () => {
     expect(input).toBeInTheDocument();
     expect(input).toHaveAttribute("aria-describedby", alert.id);
   });
+}
 
+function registerSsoLinkRepairTests<T extends { members: { principalId: string; email: string }[] }>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("does not bump readiness when federated unlink is refused", async () => {
     const user = userEvent.setup();
     let readinessReads = 0;
@@ -2413,8 +2729,9 @@ describe("MembersSection — SSO cutover repair", () => {
   it("reloads after unlinking the current user without bumping readiness", async () => {
     const reload = stubPageReload();
     const selfReadiness = ssoReadiness(true, "unverified_provider_link");
-    selfReadiness.members[0]!.principalId = "me";
-    selfReadiness.members[0]!.email = "me@x.io";
+    const selfMember = requireValue(selfReadiness.members[0], "the current member readiness fixture");
+    selfMember.principalId = "me";
+    selfMember.email = "me@x.io";
     let readinessReads = 0;
     vi.stubGlobal(
       "fetch",
@@ -2434,7 +2751,13 @@ describe("MembersSection — SSO cutover repair", () => {
     await waitFor(() => expect(reload).toHaveBeenCalledOnce());
     expect(readinessReads).toBe(1);
   });
+}
 
+function registerSsoLinkFailureTest<T>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("shows the remove-link error when unlink throws", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
@@ -2451,12 +2774,29 @@ describe("MembersSection — SSO cutover repair", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_sso_remove_link_error());
   });
+}
+
+function registerSsoReadinessLifecycleTests<T>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
+  registerSsoReplacementEffectTest(directory, providers, ssoReadiness);
 
   it.each(["resolve", "reject"])("ignores a readiness request that finishes after unmount (%s)", async (outcome) => {
-    let settle!: (response?: Response) => void;
+    let resolvePending: ((response: Response) => void) | undefined;
+    let rejectPending: ((reason: Error) => void) | undefined;
     const pending = new Promise<Response>((resolve, reject) => {
-      settle = (response) => (outcome === "resolve" ? resolve(response!) : reject(new Error("late readiness")));
+      resolvePending = resolve;
+      rejectPending = reject;
     });
+    const settle = (response?: Response) =>
+      outcome === "resolve"
+        ? requireValue(
+            resolvePending,
+            "the late readiness resolver",
+          )(requireValue(response, "the late readiness response"))
+        : requireValue(rejectPending, "the late readiness rejecter")(new Error("late readiness"));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => pending }));
     const view = renderSection({ providers });
@@ -2473,7 +2813,73 @@ describe("MembersSection — SSO cutover repair", () => {
 
     expect(consoleError.mock.calls.flat().join(" ")).not.toMatch(/state update|not wrapped in act/i);
   });
+}
 
+function registerSsoReplacementEffectTest<T>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
+  it("ignores an obsolete readiness completion after a provider change starts its replacement", async () => {
+    const replacementProvider: NonNullable<AuthContextValue["providers"]>[number] = {
+      id: "partner",
+      label: "Partner SSO",
+      kind: "oidc",
+      experimental: false,
+    };
+    let resolveObsolete: ((response: Response) => void) | undefined;
+    let resolveReplacement: ((response: Response) => void) | undefined;
+    const obsolete = new Promise<Response>((resolve) => {
+      resolveObsolete = resolve;
+    });
+    const replacement = new Promise<Response>((resolve) => {
+      resolveReplacement = resolve;
+    });
+    let readinessReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directory, {
+        "GET /sso-readiness": () => {
+          readinessReads += 1;
+          return readinessReads === 1 ? obsolete : replacement;
+        },
+      }),
+    );
+    const view = renderSection({ providers });
+    await waitFor(() => expect(readinessReads).toBe(1));
+
+    view.rerender(
+      <AuthContext.Provider value={authValue({ providers: [replacementProvider] })}>
+        <MembersSection />
+      </AuthContext.Provider>,
+    );
+    await waitFor(() => expect(readinessReads).toBe(2));
+    await act(async () => {
+      requireValue(
+        resolveReplacement,
+        "the replacement readiness resolver",
+      )(jsonResponse({ ...ssoReadiness(false, "member_not_linked"), provider: replacementProvider }));
+    });
+    expect(await screen.findByText(/Partner SSO/)).toBeInTheDocument();
+
+    await act(async () => {
+      requireValue(
+        resolveObsolete,
+        "the obsolete readiness resolver",
+      )(jsonResponse(ssoReadiness(false, "member_not_linked")));
+    });
+    expect(screen.getByText(/Partner SSO/)).toBeInTheDocument();
+    expect(screen.queryByText(/Workforce SSO/)).not.toBeInTheDocument();
+  });
+}
+
+function registerSsoReadinessFailureTests<
+  T extends { members: { principalId: unknown; repairLinks: { subject: string }[] }[] },
+>(
+  directory: RawMember[],
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoReadiness: (linked: boolean, reason: string) => T,
+): void {
   it("surfaces a readiness fetch failure instead of hiding the cutover state", async () => {
     vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => jsonResponse({}, 503) }));
     renderSection({ providers });
@@ -2482,15 +2888,45 @@ describe("MembersSection — SSO cutover repair", () => {
     expect(screen.queryByTestId("sso-readiness")).not.toBeInTheDocument();
   });
 
+  it("retries an errored readiness read after a successful membership mutation", async () => {
+    const user = userEvent.setup();
+    let readinessReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi(directory, {
+        "GET /sso-readiness": () => {
+          readinessReads += 1;
+          return readinessReads === 1
+            ? jsonResponse({}, 503)
+            : jsonResponse({ ...ssoReadiness(false, "member_not_linked"), ready: true, members: [] });
+        },
+      }),
+    );
+    renderSection({ providers });
+    expect(await screen.findByTestId("sso-readiness-error")).toBeInTheDocument();
+
+    await saveRoleVia(user, await findMemberRow(/target@x\.io/), "Viewer");
+
+    expect(await screen.findByText(m.settings_sso_readiness_ready())).toBeInTheDocument();
+    expect(screen.queryByTestId("sso-readiness-error")).not.toBeInTheDocument();
+    expect(readinessReads).toBe(2);
+  });
+
   it("rejects malformed nested readiness coordinates", async () => {
     const malformed = ssoReadiness(true, "unverified_provider_link");
-    malformed.members[0]!.repairLinks[0]!.subject = "";
+    const member = requireValue(malformed.members[0], "the malformed readiness member fixture");
+    requireValue(member.repairLinks[0], "the malformed readiness repair fixture").subject = "";
     vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => jsonResponse(malformed) }));
     renderSection({ providers });
 
     expect(await screen.findByTestId("sso-readiness-error")).toHaveTextContent(m.settings_sso_readiness_error());
   });
+}
 
+function registerSsoModeTests(
+  providers: NonNullable<AuthContextValue["providers"]>,
+  ssoFetch: (linked: boolean, reason: string) => ReturnType<typeof mockApi>,
+): void {
   it("does not offer mixed-mode email or link repair after password sign-in is disabled", async () => {
     vi.stubGlobal("fetch", ssoFetch(true, "unverified_provider_link"));
     renderSection({ authMode: "sso", providers });
@@ -2499,7 +2935,7 @@ describe("MembersSection — SSO cutover repair", () => {
     expect(screen.queryByTestId("sso-correct-email")).not.toBeInTheDocument();
     expect(screen.queryByTestId("sso-remove-link")).not.toBeInTheDocument();
   });
-});
+}
 
 // Reference DEFAULT_ACCOUNT_ID so the fixture import is used (the URL the component builds).
 it("uses the active account id from the store in fetch URLs", async () => {

@@ -23,7 +23,7 @@ function allocationSetup() {
   return { resource, activity, draft };
 }
 
-describe("atomic allocation creation", () => {
+function registerAtomicAllocationPart1(): void {
   it("shares the single/bulk path, stamps unique rows, clamps hours and publishes once", () => {
     const { draft } = allocationSetup();
     let publications = 0;
@@ -40,7 +40,7 @@ describe("atomic allocation creation", () => {
     expect(created).toHaveLength(2);
     expect(new Set(created.map((allocation) => allocation.id)).size).toBe(2);
     expect(created.every((allocation) => allocation.accountId === DEFAULT_ACCOUNT_ID)).toBe(true);
-    expect(created[0]?.hoursPerDay).toBe(24);
+    expect(requireValue(created[0], "first allocation").hoursPerDay).toBe(24);
     expect(state().data.allocations).toEqual(created);
     expect(state().past).toHaveLength(1);
 
@@ -48,7 +48,9 @@ describe("atomic allocation creation", () => {
     expect(state().data.allocations.at(-1)).toEqual(single);
     expect(state().past).toHaveLength(2);
   });
+}
 
+function registerAtomicAllocationPart2(): void {
   it("rejects an empty batch", () => {
     expect(() => state().addAllocations([])).toThrow(/at least one allocation/i);
     expect(state().data.allocations).toHaveLength(0);
@@ -72,12 +74,15 @@ describe("atomic allocation creation", () => {
     expect(state().data.allocations).toHaveLength(0);
     expect(state().past).toHaveLength(0);
   });
+}
 
+function registerAtomicAllocationPart3(): void {
   it("rejects cross-account references and a placeholder/project mismatch atomically", () => {
     const first = allocationSetup();
     const secondAccount = state().addAccount({ name: "Other", color: "#111111" });
     expect(secondAccount).not.toBeNull();
-    state().setActiveAccount(secondAccount!.id);
+    if (!secondAccount) throw new Error("Expected second account");
+    state().setActiveAccount(secondAccount.id);
     const otherResource = state().addResource(makeResourceDraft({ name: "Other person" }));
     const otherActivity = state().addActivity({ name: "Other work", kind: "repeatable" });
     state().setActiveAccount(DEFAULT_ACCOUNT_ID);
@@ -120,7 +125,9 @@ describe("atomic allocation creation", () => {
     expect(state().data.allocations).toHaveLength(0);
     expect(state().past).toHaveLength(0);
   });
+}
 
+function registerAtomicAllocationPart4(): void {
   it("creates one undo/redo unit for the complete batch", () => {
     const { draft } = allocationSetup();
     const created = state().addAllocations([
@@ -148,7 +155,8 @@ describe("atomic allocation creation", () => {
     const first = requireValue(created[0], "first repeated allocation");
     state().updateAllocation(first.id, { projectId: undefined });
     expect(state().data.allocations.find((allocation) => allocation.id === first.id)).not.toHaveProperty("projectId");
-    expect(state().data.allocations.find((allocation) => allocation.id === created[1]?.id)?.projectId).toBe(project.id);
+    const second = requireValue(created[1], "second repeated allocation");
+    expect(state().data.allocations.find((allocation) => allocation.id === second.id)?.projectId).toBe(project.id);
   });
 
   it("applies the Viewer guard to the whole batch", () => {
@@ -160,6 +168,13 @@ describe("atomic allocation creation", () => {
     expect(state().past).toHaveLength(0);
     expect(state().notice).toMatchObject({ tone: "error" });
   });
+}
+
+describe("atomic allocation creation", () => {
+  registerAtomicAllocationPart1();
+  registerAtomicAllocationPart2();
+  registerAtomicAllocationPart3();
+  registerAtomicAllocationPart4();
 });
 
 describe("repeat-series allocation mutations", () => {

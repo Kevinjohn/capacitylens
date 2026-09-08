@@ -42,6 +42,18 @@ function Harness({
 
 beforeEach(() => {
   // Clean up any stray document listeners between tests
+  const capturedPointers = new WeakMap<HTMLElement, Set<number>>();
+  HTMLElement.prototype.setPointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
+    const pointers = capturedPointers.get(this) ?? new Set<number>();
+    pointers.add(pointerId);
+    capturedPointers.set(this, pointers);
+  });
+  HTMLElement.prototype.hasPointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
+    return capturedPointers.get(this)?.has(pointerId) ?? false;
+  });
+  HTMLElement.prototype.releasePointerCapture = vi.fn(function (this: HTMLElement, pointerId: number) {
+    capturedPointers.get(this)?.delete(pointerId);
+  });
 });
 
 describe("useDragResize", () => {
@@ -52,15 +64,17 @@ describe("useDragResize", () => {
     render(<Harness onCommit={onCommit} onClick={onClick} onPreview={onPreview} />);
 
     const body = screen.getByTestId("body");
+    const dragTarget = screen.getByTestId("drag-target");
 
     // Start drag on the body span (no data-handle => 'move' mode)
-    fireEvent.pointerDown(body, { clientX: 0, clientY: 10, button: 0 });
+    fireEvent.pointerDown(body, { clientX: 0, clientY: 10, button: 0, pointerId: 1 });
+    expect(dragTarget.hasPointerCapture(1)).toBe(true);
 
     // Movement below the threshold does not preview.
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 3, clientY: 12, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 3, clientY: 12, pointerId: 1, bubbles: true }));
     expect(onPreview).not.toHaveBeenCalled();
 
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, clientY: 25, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }));
     expect(onPreview).toHaveBeenCalledTimes(1);
     expect(onPreview).toHaveBeenCalledWith({
       mode: "move",
@@ -70,10 +84,11 @@ describe("useDragResize", () => {
     });
 
     // Release
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, clientY: 25, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, clientY: 25, pointerId: 1, bubbles: true }));
 
     expect(onCommit).toHaveBeenCalledWith("move", 1, expect.objectContaining({ clientX: 48 }));
     expect(onClick).not.toHaveBeenCalled();
+    expect(dragTarget.hasPointerCapture(1)).toBe(false);
   });
 
   it("(b) pointerDown then pointerup with no move calls onClick", () => {
@@ -84,10 +99,10 @@ describe("useDragResize", () => {
     const body = screen.getByTestId("body");
 
     // Pointer down
-    fireEvent.pointerDown(body, { clientX: 100, button: 0 });
+    fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
 
     // Pointer up at the same position (no movement)
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 100, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 100, pointerId: 1, bubbles: true }));
 
     expect(onClick).toHaveBeenCalledTimes(1);
     expect(onCommit).not.toHaveBeenCalled();
@@ -101,13 +116,13 @@ describe("useDragResize", () => {
     const endHandle = screen.getByTestId("handle-end");
 
     // Start drag on end handle
-    fireEvent.pointerDown(endHandle, { clientX: 0, button: 0 });
+    fireEvent.pointerDown(endHandle, { clientX: 0, button: 0, pointerId: 1 });
 
     // Move 48px (1 day worth)
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
 
     // Release
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 48, pointerId: 1, bubbles: true }));
 
     expect(onCommit).toHaveBeenCalledWith("resize-end", 1, expect.objectContaining({ clientX: 48 }));
     expect(onClick).not.toHaveBeenCalled();
@@ -120,9 +135,9 @@ describe("useDragResize", () => {
     render(<Harness onCommit={onCommit} onClick={onClick} onCancel={onCancel} />);
 
     const body = screen.getByTestId("body");
-    fireEvent.pointerDown(body, { clientX: 100, button: 0 });
+    fireEvent.pointerDown(body, { clientX: 100, button: 0, pointerId: 1 });
     // Cancel BEFORE crossing the 4px threshold (e.g. the browser took the pointer to scroll).
-    document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 101, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 101, pointerId: 1, bubbles: true }));
 
     expect(onCancel).toHaveBeenCalledTimes(1); // armed gesture aborted → consumer is notified
     expect(onClick).not.toHaveBeenCalled();
@@ -135,9 +150,9 @@ describe("useDragResize", () => {
     render(<Harness onCommit={onCommit} onCancel={onCancel} />);
 
     const body = screen.getByTestId("body");
-    fireEvent.pointerDown(body, { clientX: 0, button: 0 });
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 48, bubbles: true }));
+    fireEvent.pointerDown(body, { clientX: 0, button: 0, pointerId: 1 });
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 48, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointercancel", { clientX: 48, pointerId: 1, bubbles: true }));
 
     expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onCommit).not.toHaveBeenCalled();
@@ -151,9 +166,9 @@ describe("useDragResize", () => {
     const body = screen.getByTestId("body");
 
     // Right-click (button=2) should be ignored
-    fireEvent.pointerDown(body, { clientX: 0, button: 2 });
-    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, bubbles: true }));
-    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, bubbles: true }));
+    fireEvent.pointerDown(body, { clientX: 0, button: 2, pointerId: 1 });
+    document.dispatchEvent(new PointerEvent("pointermove", { clientX: 96, pointerId: 1, bubbles: true }));
+    document.dispatchEvent(new PointerEvent("pointerup", { clientX: 96, pointerId: 1, bubbles: true }));
 
     expect(onCommit).not.toHaveBeenCalled();
     expect(onClick).not.toHaveBeenCalled();

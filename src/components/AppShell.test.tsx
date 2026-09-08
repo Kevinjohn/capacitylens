@@ -365,19 +365,23 @@ it("guards navigation while a persistence write is still unacknowledged", () => 
   detachPersistence();
 });
 
-describe("AppShell navigation links", () => {
+function registerSkipLinkLayerTest(): void {
   it("places the focused skip link on its dedicated accessibility layer", () => {
     renderAppShell();
 
     expect(screen.getByRole("link", { name: "Skip to content" })).toHaveClass("focus:z-(--z-index-skip-link)");
   });
+}
 
+function registerTrailingSlashTitleTest(): void {
   it("keeps a descriptive title on an accepted trailing-slash route", async () => {
     renderAppShell(["/resources/"]);
 
     await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
   });
+}
 
+function registerLocaleChangeNavigationTest(): void {
   it("resolves navigation labels again after the account locale changes", async () => {
     let secondLocale = false;
     vi.spyOn(m, "nav_resources").mockImplementation(
@@ -396,7 +400,9 @@ describe("AppShell navigation links", () => {
     await waitFor(() => expect(screen.getByRole("link", { name: "Ressources" })).toBeInTheDocument());
     expect(document.title).toBe("Ressources · CapacityLens");
   });
+}
 
+function registerLoadingAccountLocaleTest(): void {
   it("preserves the last locale while a selected company's slice is still loading", async () => {
     const currentAccount = makeAccount({ language: "en" });
     const destinationAccount = makeAccount({ id: "acct-other", name: "Other Co" });
@@ -418,7 +424,9 @@ describe("AppShell navigation links", () => {
     act(() => useStore.setState({ data: makeAppData({ accounts: [destinationAccount] }) }));
     await waitFor(() => expect(i18nMocks.syncLocaleFromAccount).toHaveBeenCalledWith(undefined));
   });
+}
 
+function registerOfflineSnapshotLabelTest(): void {
   it("labels a cached snapshot as Offline and view only instead of Demo access", () => {
     setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z"));
     renderAppShell();
@@ -427,7 +435,9 @@ describe("AppShell navigation links", () => {
     expect(screen.getByTestId("active-role")).not.toHaveTextContent("Demo access");
     expect(screen.getByTestId("view-only")).toHaveTextContent("Offline · View only");
   });
+}
 
+function registerExpectedNavigationLinksTest(): void {
   it("renders all expected nav links", () => {
     renderAppShell();
 
@@ -441,14 +451,16 @@ describe("AppShell navigation links", () => {
     expect(screen.getByRole("link", { name: "Time off" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
   });
+}
 
+function registerNavigationBrandNameTest(): void {
   it("renders the CapacityLens brand name in the nav", () => {
     renderAppShell();
     expect(screen.getByText("CapacityLens")).toBeInTheDocument();
   });
+}
 
-  // Issue #169: import/export left the sidebar for a Settings card. Nothing in the shell may
-  // resurrect it — the whole point was to stop it occupying permanent nav real estate.
+function registerImportExportAbsenceTest(): void {
   it("does NOT render the import/export tools in the sidebar", () => {
     renderAppShell();
 
@@ -456,25 +468,24 @@ describe("AppShell navigation links", () => {
     expect(screen.queryByTestId("export-data")).not.toBeInTheDocument();
     expect(screen.queryByTestId("import-data")).not.toBeInTheDocument();
   });
+}
 
-  // Issue #169: the bottom-left identity control. The demo persona is signed in here (isDemoMode is
-  // mocked true above and authMode defaults to "off"), so the avatar'd button ends the demo session.
+function registerSidebarSignOutTest(): void {
   it("offers an avatar'd sign-out below Switch company", () => {
     renderAppShell();
 
     const signOut = screen.getByTestId("nav-sign-out");
     expect(signOut).toHaveTextContent("Sign out");
-    expect(signOut).toHaveAttribute("title", "Signed in as Jordan Avery");
+    expect(signOut).toHaveAttribute("title", "Signed in as Bruce Wayne");
     expect(signOut.querySelector("[data-slot='avatar']")).not.toBeNull();
 
     expect(useStore.getState().fakeSignedIn).toBe(true);
     fireEvent.click(signOut);
     expect(useStore.getState().fakeSignedIn).toBe(false);
   });
+}
 
-  // Issues #169/#172: Team & access and Settings are pinned BELOW the day-to-day destinations, in
-  // that order, so administration stops competing with the app's actual purpose. Assert the real
-  // document order rather than mere presence — presence alone would pass with the old layout.
+function registerPinnedNavigationOrderTest(): void {
   it("pins Team & access and Settings, in that order, after every other destination", () => {
     renderAppShell();
 
@@ -494,7 +505,9 @@ describe("AppShell navigation links", () => {
       "/settings",
     ]);
   });
+}
 
+function registerNavigationRoutesTest(): void {
   it("nav links point to correct routes", () => {
     renderAppShell();
 
@@ -508,17 +521,9 @@ describe("AppShell navigation links", () => {
     expect(screen.getByRole("link", { name: "Time off" })).toHaveAttribute("href", "/timeoff");
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
   });
-});
+}
 
-describe("AppShell sidebar collapse", () => {
-  beforeEach(() => {
-    // Reset to the open default and forget any persisted choice from a prior test.
-    act(() => {
-      useStore.getState().setSidebarOpen(true);
-    });
-    localStorage.removeItem("capacitylens/sidebar");
-  });
-
+function registerDefaultSidebarStateTest(): void {
   it("defaults open (jsdom has no matchMedia → large-screen default): links + collapse toggle", () => {
     renderAppShell();
 
@@ -526,7 +531,9 @@ describe("AppShell sidebar collapse", () => {
     const toggle = within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Collapse menu" });
     expect(toggle).toHaveAttribute("aria-expanded", "true");
   });
+}
 
+function registerMobileSidebarTriggerTest(): void {
   it("reports the mobile sheet state and next action from the top-bar trigger", () => {
     vi.stubGlobal(
       "matchMedia",
@@ -555,7 +562,9 @@ describe("AppShell sidebar collapse", () => {
     expect(trigger).toHaveAccessibleName("Collapse menu");
     expect(trigger).toHaveAttribute("aria-expanded", "true");
   });
+}
 
+function registerPersistedSidebarCollapseTest(): void {
   it("collapsing keeps the navigation links usable and persists the choice", () => {
     renderAppShell();
 
@@ -572,7 +581,9 @@ describe("AppShell sidebar collapse", () => {
     );
     expect(localStorage.getItem("capacitylens/sidebar")).toBe("closed");
   });
+}
 
+function registerCollapsedNavigationLinksTest(): void {
   it("collapsed destinations remain real links instead of reopening the menu", () => {
     renderAppShell();
     act(() => {
@@ -583,14 +594,18 @@ describe("AppShell sidebar collapse", () => {
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
     expect(localStorage.getItem("capacitylens/sidebar")).toBe("closed");
   });
+}
 
+function registerNavigationLinkIconsTest(): void {
   it("nav links carry icons without changing their accessible names", () => {
     renderAppShell();
     const link = screen.getByRole("link", { name: "Projects" });
     expect(link.querySelector("svg")).not.toBeNull();
     expect(link.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
+}
 
+function registerSidebarKeyboardShortcutTest(): void {
   it("toggles with Cmd/Ctrl+B and prevents the browser shortcut outside guarded contexts", () => {
     renderAppShell();
     const event = new KeyboardEvent("keydown", { key: "b", metaKey: true, bubbles: true, cancelable: true });
@@ -602,7 +617,9 @@ describe("AppShell sidebar collapse", () => {
     expect(useStore.getState().sidebarOpen).toBe(false);
     expect(event.defaultPrevented).toBe(true);
   });
+}
 
+function registerEditableControlShortcutTest(): void {
   it.each([
     ["input", "input"],
     ["textarea", "textarea"],
@@ -626,7 +643,9 @@ describe("AppShell sidebar collapse", () => {
       target.remove();
     }
   });
+}
 
+function registerComposingShortcutTest(): void {
   it("ignores Cmd/Ctrl+B during IME composition", () => {
     renderAppShell();
     const event = new KeyboardEvent("keydown", {
@@ -644,7 +663,9 @@ describe("AppShell sidebar collapse", () => {
     expect(useStore.getState().sidebarOpen).toBe(true);
     expect(event.defaultPrevented).toBe(false);
   });
+}
 
+function registerModalShortcutTest(): void {
   it("ignores Cmd/Ctrl+B while a modal is open", () => {
     renderAppShell();
     const modal = document.createElement("div");
@@ -665,6 +686,346 @@ describe("AppShell sidebar collapse", () => {
       modal.remove();
     }
   });
+}
+
+function registerDirtyFormPaletteGuardTest(): void {
+  it("Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette", async () => {
+    useStore.getState().setHydrated(true);
+    renderAppShell();
+
+    act(() => {
+      useStore.getState().setDirtyForm(true);
+    });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+
+    // Palette must NOT render
+    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+    // Notice must show the exact message. It's surfaced via a Sonner toast now (bridged from
+    // the store `notice`), which portals in asynchronously — so await it.
+    expect(
+      await screen.findByText("You have unsaved changes — use Cancel or Save to close this dialog."),
+    ).toBeInTheDocument();
+  });
+}
+
+function registerCleanFormPaletteShortcutTest(): void {
+  it("Ctrl+K with dirtyForm=false opens the palette", () => {
+    useStore.getState().setHydrated(true);
+    renderAppShell();
+
+    act(() => {
+      useStore.getState().setDirtyForm(false);
+    });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+
+    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+  });
+}
+
+function registerModalPaletteShortcutTest(): void {
+  it("leaves Cmd/Ctrl+K to an existing modal", () => {
+    renderAppShell();
+    const modal = document.createElement("div");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("data-state", "open");
+    document.body.appendChild(modal);
+    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true });
+    try {
+      act(() => {
+        window.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+      expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+    } finally {
+      modal.remove();
+    }
+  });
+}
+
+function registerComposingPaletteShortcutTest(): void {
+  it("ignores Cmd/Ctrl+K during IME composition", () => {
+    renderAppShell();
+    const event = new KeyboardEvent("keydown", { key: "k", metaKey: true, isComposing: true, cancelable: true });
+    act(() => {
+      window.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(false);
+    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+  });
+}
+
+function registerRepeatedPaletteShortcutTest(): void {
+  it("keeps the palette open when the Ctrl+K keydown repeats", () => {
+    renderAppShell();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, repeat: true }));
+    });
+
+    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+  });
+}
+
+function registerPaletteToggleShortcutTest(): void {
+  it("closes the open palette with a second Ctrl+K", () => {
+    renderAppShell();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
+  });
+}
+
+function registerLaterModalPaletteShortcutTest(): void {
+  it("leaves Ctrl+K to a later modal even while the palette is open", () => {
+    renderAppShell();
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
+    });
+    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+
+    const modal = document.createElement("div");
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("data-state", "open");
+    document.body.appendChild(modal);
+    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true });
+    try {
+      act(() => {
+        window.dispatchEvent(event);
+      });
+      expect(event.defaultPrevented).toBe(false);
+      expect(screen.getByTestId("command-palette")).toBeInTheDocument();
+    } finally {
+      modal.remove();
+    }
+  });
+}
+
+function registerInfoNoticeDismissalTest(): void {
+  it("renders a Sonner toast for an info store notice and clears it on dismiss", async () => {
+    renderAppShell();
+    expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument();
+
+    act(() => {
+      useStore.getState().setNotice("That allocation could not be moved there.");
+    });
+    // Sonner portals the toast in asynchronously; wait for it, then confirm it's a real Sonner
+    // toast living in the polite live region (not, say, a loading spinner's status node).
+    const message = await screen.findByText(/could not be moved/);
+    expect(message.closest("[data-sonner-toast]")).not.toBeNull();
+    expect(message.closest('[aria-live="polite"]')).not.toBeNull();
+
+    // Dismiss via Sonner's close button (aria-label "Close toast"); the bridge's onDismiss
+    // calls setNotice(null), so the store clears in lock-step with the toast leaving.
+    act(() => {
+      screen.getByRole("button", { name: "Close toast" }).click();
+    });
+    await waitFor(() => expect(useStore.getState().notice).toBeNull());
+    await waitFor(() => expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument());
+  });
+}
+
+function registerPersistentErrorNoticeTest(): void {
+  it("keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info", async () => {
+    // Drive Sonner's auto-close timer with FAKE timers so we can genuinely advance past the
+    // 4000ms info window deterministically (a real 4s wait is too slow + flaky). `findBy*`
+    // polls on real timers, so we never use it here — we pump Sonner's mount + dismiss timers
+    // with advanceTimersByTimeAsync and read synchronously. Restored in finally so the other
+    // async tests in this file keep their real-timer behaviour.
+    vi.useFakeTimers();
+    try {
+      renderAppShell();
+
+      // BASELINE — an INFO notice MUST auto-dismiss once the 4000ms window elapses. Prove the
+      // window actually closes (so the error assertion below isn't vacuously true).
+      act(() => {
+        useStore.getState().setNotice("Info that should auto-dismiss.");
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50); // let Sonner mount/portal the toast
+      });
+      expect(screen.getByText(/auto-dismiss/)).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4500); // past the 4000ms info window + exit animation
+      });
+      expect(screen.queryByText(/auto-dismiss/)).not.toBeInTheDocument();
+      expect(useStore.getState().notice).toBeNull(); // bridge cleared the store in lock-step
+
+      // ERROR — created with duration: Infinity, so the SAME 4500ms advance must NOT dismiss it.
+      act(() => {
+        useStore.getState().setNotice("That allocation could not be moved.", "error");
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      const message = screen.getByText(/could not be moved/);
+      expect(message.closest("[data-sonner-toast]")).not.toBeNull();
+      // Tagged for the danger affordance (index.css `.toast-error`) so it reads as an error.
+      expect(message.closest("[data-sonner-toast]")).toHaveClass("toast-error");
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4500); // well past where an info toast would have gone
+      });
+      expect(screen.getByText(/could not be moved/)).toBeInTheDocument();
+      expect(useStore.getState().notice?.tone).toBe("error");
+
+      // It is still dismissible, and dismissal clears the store in lock-step.
+      act(() => {
+        screen.getByRole("button", { name: "Close toast" }).click();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500); // exit animation → removal + onDismiss
+      });
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+}
+
+function registerPersistentWarningNoticeTest(): void {
+  it("keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)", async () => {
+    // The 'warning' tone (e.g. the clamped-hours/data-truncation advisory) must inherit the
+    // persistent (duration: Infinity) treatment like an error — a fixed 4s timer on the sole signal
+    // of a silent truncation fails WCAG 2.2.1 — but must NOT carry the danger `.toast-error` accent,
+    // since the edit SUCCEEDED. Same fake-timer technique as the info-vs-error test above.
+    vi.useFakeTimers();
+    try {
+      renderAppShell();
+
+      act(() => {
+        useStore.getState().setNotice("Work volume was capped at 24h/day.", "warning");
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50); // let Sonner mount/portal the toast
+      });
+      const message = screen.getByText(/capped at 24h\/day/);
+      const toastEl = message.closest("[data-sonner-toast]");
+      expect(toastEl).not.toBeNull();
+      // NEUTRAL surface: not raised via toast.error, so no danger accent (unlike the error tone).
+      expect(toastEl).not.toHaveClass("toast-error");
+
+      // Persists well past where an INFO toast (4000ms) would have auto-dismissed.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4500);
+      });
+      expect(screen.getByText(/capped at 24h\/day/)).toBeInTheDocument();
+      expect(useStore.getState().notice?.tone).toBe("warning");
+
+      // Still dismissible via the close button; dismissal clears the store in lock-step.
+      act(() => {
+        screen.getByRole("button", { name: "Close toast" }).click();
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(useStore.getState().notice).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+}
+
+function registerNoticeReplacementRaceTest(): void {
+  it("rapidly replacing notice A with B leaves B intact (no stale-clear race)", async () => {
+    // REGRESSION for the Phase-5 stale-clear race: rapidly swapping notice A→B (e.g. two drags
+    // in quick succession) must NOT let A's deferred programmatic dismiss wipe B. When the bridge
+    // replaces A's toast it runs cleanup `toast.dismiss(idA)`, and Sonner fires A's `onDismiss`
+    // even for a *programmatic* dismiss — so without the `=== thisNotice` identity guard A's
+    // `clear()` would call setNotice(null) and erase B. (Verified: with the guard removed the
+    // store reads `notice === undefined` here instead of B.) Fake timers let us pump Sonner's
+    // deferred-dismiss + exit-animation rAFs for A deterministically while staying WELL under the
+    // 4000ms auto-dismiss window, so B never auto-closes — we isolate the swap race, not the timer.
+    vi.useFakeTimers();
+    try {
+      renderAppShell();
+
+      // A mounts first (its bridge effect runs, Sonner portals toast A) — the swap must dismiss a
+      // *real* live toast for the race to exist at all.
+      act(() => {
+        useStore.getState().setNotice("First notice");
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50); // let Sonner mount/portal toast A
+      });
+      expect(screen.getByText("First notice")).toBeInTheDocument();
+
+      // The back-to-back second notice REPLACES A — this is what tears A's toast down and fires
+      // A's deferred onDismiss (the thing that, unguarded, would wipe B).
+      act(() => {
+        useStore.getState().setNotice("Second notice");
+      });
+      // Pump A's deferred dismiss rAF, THEN its exit-animation removal, in two steps — Sonner
+      // chains those across rAF/flush boundaries, so a single big advance can leave A's node
+      // mid-animation. Total here (~250ms post-swap) stays well under the 4000ms auto-dismiss,
+      // so B never auto-closes.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50); // A's deferred onDismiss fires (the race trigger)
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200); // A's exit animation completes → node removed
+      });
+
+      // CORE ASSERTION — the store still holds B (A's deferred clear was identity-guarded out; an
+      // unguarded bridge leaves this undefined). Read synchronously: `findBy*` polls on real timers
+      // and would hang under fake timers, so we never use it here.
+      expect(useStore.getState().notice?.message).toBe("Second notice");
+      // B is on screen as a real Sonner toast; A's toast has left the DOM (its 300ms dismiss +
+      // exit completed), proving A's teardown removed only A, not B.
+      const message = screen.getByText("Second notice");
+      expect(message.closest("[data-sonner-toast]")).not.toBeNull();
+      expect(screen.queryByText("First notice")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+}
+
+describe("AppShell navigation links", () => {
+  registerSkipLinkLayerTest();
+  registerTrailingSlashTitleTest();
+  registerLocaleChangeNavigationTest();
+  registerLoadingAccountLocaleTest();
+  registerOfflineSnapshotLabelTest();
+  registerExpectedNavigationLinksTest();
+  registerNavigationBrandNameTest();
+  registerImportExportAbsenceTest();
+  registerSidebarSignOutTest();
+  registerPinnedNavigationOrderTest();
+  registerNavigationRoutesTest();
+});
+
+describe("AppShell sidebar collapse", () => {
+  beforeEach(() => {
+    // Reset to the open default and forget any persisted choice from a prior test.
+    act(() => {
+      useStore.getState().setSidebarOpen(true);
+    });
+    localStorage.removeItem("capacitylens/sidebar");
+  });
+
+  registerDefaultSidebarStateTest();
+  registerMobileSidebarTriggerTest();
+  registerPersistedSidebarCollapseTest();
+  registerCollapsedNavigationLinksTest();
+  registerNavigationLinkIconsTest();
+  registerSidebarKeyboardShortcutTest();
+  registerEditableControlShortcutTest();
+  registerComposingShortcutTest();
+  registerModalShortcutTest();
 });
 
 describe("AppShell hydration gate", () => {
@@ -780,117 +1141,13 @@ describe("AppShell undo/redo keyboard", () => {
 });
 
 describe("AppShell command palette dirty-form guard", () => {
-  it("Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette", async () => {
-    useStore.getState().setHydrated(true);
-    renderAppShell();
-
-    act(() => {
-      useStore.getState().setDirtyForm(true);
-    });
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
-    });
-
-    // Palette must NOT render
-    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
-    // Notice must show the exact message. It's surfaced via a Sonner toast now (bridged from
-    // the store `notice`), which portals in asynchronously — so await it.
-    expect(
-      await screen.findByText("You have unsaved changes — use Cancel or Save to close this dialog."),
-    ).toBeInTheDocument();
-  });
-
-  it("Ctrl+K with dirtyForm=false opens the palette", () => {
-    useStore.getState().setHydrated(true);
-    renderAppShell();
-
-    act(() => {
-      useStore.getState().setDirtyForm(false);
-    });
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
-    });
-
-    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
-  });
-
-  it("leaves Cmd/Ctrl+K to an existing modal", () => {
-    renderAppShell();
-    const modal = document.createElement("div");
-    modal.setAttribute("role", "dialog");
-    modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("data-state", "open");
-    document.body.appendChild(modal);
-    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true });
-    try {
-      act(() => {
-        window.dispatchEvent(event);
-      });
-      expect(event.defaultPrevented).toBe(false);
-      expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
-    } finally {
-      modal.remove();
-    }
-  });
-
-  it("ignores Cmd/Ctrl+K during IME composition", () => {
-    renderAppShell();
-    const event = new KeyboardEvent("keydown", { key: "k", metaKey: true, isComposing: true, cancelable: true });
-    act(() => {
-      window.dispatchEvent(event);
-    });
-    expect(event.defaultPrevented).toBe(false);
-    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
-  });
-
-  it("keeps the palette open when the Ctrl+K keydown repeats", () => {
-    renderAppShell();
-
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, repeat: true }));
-    });
-
-    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
-  });
-
-  it("closes the open palette with a second Ctrl+K", () => {
-    renderAppShell();
-
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
-    });
-    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
-
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
-    });
-    expect(screen.queryByTestId("command-palette")).not.toBeInTheDocument();
-  });
-
-  it("leaves Ctrl+K to a later modal even while the palette is open", () => {
-    renderAppShell();
-    act(() => {
-      window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }));
-    });
-    expect(screen.getByTestId("command-palette")).toBeInTheDocument();
-
-    const modal = document.createElement("div");
-    modal.setAttribute("role", "dialog");
-    modal.setAttribute("aria-modal", "true");
-    modal.setAttribute("data-state", "open");
-    document.body.appendChild(modal);
-    const event = new KeyboardEvent("keydown", { key: "k", ctrlKey: true, cancelable: true });
-    try {
-      act(() => {
-        window.dispatchEvent(event);
-      });
-      expect(event.defaultPrevented).toBe(false);
-      expect(screen.getByTestId("command-palette")).toBeInTheDocument();
-    } finally {
-      modal.remove();
-    }
-  });
+  registerDirtyFormPaletteGuardTest();
+  registerCleanFormPaletteShortcutTest();
+  registerModalPaletteShortcutTest();
+  registerComposingPaletteShortcutTest();
+  registerRepeatedPaletteShortcutTest();
+  registerPaletteToggleShortcutTest();
+  registerLaterModalPaletteShortcutTest();
 });
 
 describe("AppShell transient notice", () => {
@@ -901,177 +1158,10 @@ describe("AppShell transient notice", () => {
   // toast" button — so these assertions match Sonner's DOM, while the behavioural intent
   // (info appears + auto-dismisses, error persists + is dismissible, store stays in sync)
   // is preserved.
-  it("renders a Sonner toast for an info store notice and clears it on dismiss", async () => {
-    renderAppShell();
-    expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument();
-
-    act(() => {
-      useStore.getState().setNotice("That allocation could not be moved there.");
-    });
-    // Sonner portals the toast in asynchronously; wait for it, then confirm it's a real Sonner
-    // toast living in the polite live region (not, say, a loading spinner's status node).
-    const message = await screen.findByText(/could not be moved/);
-    expect(message.closest("[data-sonner-toast]")).not.toBeNull();
-    expect(message.closest('[aria-live="polite"]')).not.toBeNull();
-
-    // Dismiss via Sonner's close button (aria-label "Close toast"); the bridge's onDismiss
-    // calls setNotice(null), so the store clears in lock-step with the toast leaving.
-    act(() => {
-      screen.getByRole("button", { name: "Close toast" }).click();
-    });
-    await waitFor(() => expect(useStore.getState().notice).toBeNull());
-    await waitFor(() => expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument());
-  });
-
-  it("keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info", async () => {
-    // Drive Sonner's auto-close timer with FAKE timers so we can genuinely advance past the
-    // 4000ms info window deterministically (a real 4s wait is too slow + flaky). `findBy*`
-    // polls on real timers, so we never use it here — we pump Sonner's mount + dismiss timers
-    // with advanceTimersByTimeAsync and read synchronously. Restored in finally so the other
-    // async tests in this file keep their real-timer behaviour.
-    vi.useFakeTimers();
-    try {
-      renderAppShell();
-
-      // BASELINE — an INFO notice MUST auto-dismiss once the 4000ms window elapses. Prove the
-      // window actually closes (so the error assertion below isn't vacuously true).
-      act(() => {
-        useStore.getState().setNotice("Info that should auto-dismiss.");
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(50); // let Sonner mount/portal the toast
-      });
-      expect(screen.getByText(/auto-dismiss/)).toBeInTheDocument();
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(4500); // past the 4000ms info window + exit animation
-      });
-      expect(screen.queryByText(/auto-dismiss/)).not.toBeInTheDocument();
-      expect(useStore.getState().notice).toBeNull(); // bridge cleared the store in lock-step
-
-      // ERROR — created with duration: Infinity, so the SAME 4500ms advance must NOT dismiss it.
-      act(() => {
-        useStore.getState().setNotice("That allocation could not be moved.", "error");
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(50);
-      });
-      const message = screen.getByText(/could not be moved/);
-      expect(message.closest("[data-sonner-toast]")).not.toBeNull();
-      // Tagged for the danger affordance (index.css `.toast-error`) so it reads as an error.
-      expect(message.closest("[data-sonner-toast]")).toHaveClass("toast-error");
-
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(4500); // well past where an info toast would have gone
-      });
-      expect(screen.getByText(/could not be moved/)).toBeInTheDocument();
-      expect(useStore.getState().notice?.tone).toBe("error");
-
-      // It is still dismissible, and dismissal clears the store in lock-step.
-      act(() => {
-        screen.getByRole("button", { name: "Close toast" }).click();
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(500); // exit animation → removal + onDismiss
-      });
-      expect(useStore.getState().notice).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)", async () => {
-    // The 'warning' tone (e.g. the clamped-hours/data-truncation advisory) must inherit the
-    // persistent (duration: Infinity) treatment like an error — a fixed 4s timer on the sole signal
-    // of a silent truncation fails WCAG 2.2.1 — but must NOT carry the danger `.toast-error` accent,
-    // since the edit SUCCEEDED. Same fake-timer technique as the info-vs-error test above.
-    vi.useFakeTimers();
-    try {
-      renderAppShell();
-
-      act(() => {
-        useStore.getState().setNotice("Work volume was capped at 24h/day.", "warning");
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(50); // let Sonner mount/portal the toast
-      });
-      const message = screen.getByText(/capped at 24h\/day/);
-      const toastEl = message.closest("[data-sonner-toast]");
-      expect(toastEl).not.toBeNull();
-      // NEUTRAL surface: not raised via toast.error, so no danger accent (unlike the error tone).
-      expect(toastEl).not.toHaveClass("toast-error");
-
-      // Persists well past where an INFO toast (4000ms) would have auto-dismissed.
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(4500);
-      });
-      expect(screen.getByText(/capped at 24h\/day/)).toBeInTheDocument();
-      expect(useStore.getState().notice?.tone).toBe("warning");
-
-      // Still dismissible via the close button; dismissal clears the store in lock-step.
-      act(() => {
-        screen.getByRole("button", { name: "Close toast" }).click();
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(500);
-      });
-      expect(useStore.getState().notice).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("rapidly replacing notice A with B leaves B intact (no stale-clear race)", async () => {
-    // REGRESSION for the Phase-5 stale-clear race: rapidly swapping notice A→B (e.g. two drags
-    // in quick succession) must NOT let A's deferred programmatic dismiss wipe B. When the bridge
-    // replaces A's toast it runs cleanup `toast.dismiss(idA)`, and Sonner fires A's `onDismiss`
-    // even for a *programmatic* dismiss — so without the `=== thisNotice` identity guard A's
-    // `clear()` would call setNotice(null) and erase B. (Verified: with the guard removed the
-    // store reads `notice === undefined` here instead of B.) Fake timers let us pump Sonner's
-    // deferred-dismiss + exit-animation rAFs for A deterministically while staying WELL under the
-    // 4000ms auto-dismiss window, so B never auto-closes — we isolate the swap race, not the timer.
-    vi.useFakeTimers();
-    try {
-      renderAppShell();
-
-      // A mounts first (its bridge effect runs, Sonner portals toast A) — the swap must dismiss a
-      // *real* live toast for the race to exist at all.
-      act(() => {
-        useStore.getState().setNotice("First notice");
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(50); // let Sonner mount/portal toast A
-      });
-      expect(screen.getByText("First notice")).toBeInTheDocument();
-
-      // The back-to-back second notice REPLACES A — this is what tears A's toast down and fires
-      // A's deferred onDismiss (the thing that, unguarded, would wipe B).
-      act(() => {
-        useStore.getState().setNotice("Second notice");
-      });
-      // Pump A's deferred dismiss rAF, THEN its exit-animation removal, in two steps — Sonner
-      // chains those across rAF/flush boundaries, so a single big advance can leave A's node
-      // mid-animation. Total here (~250ms post-swap) stays well under the 4000ms auto-dismiss,
-      // so B never auto-closes.
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(50); // A's deferred onDismiss fires (the race trigger)
-      });
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(200); // A's exit animation completes → node removed
-      });
-
-      // CORE ASSERTION — the store still holds B (A's deferred clear was identity-guarded out; an
-      // unguarded bridge leaves this undefined). Read synchronously: `findBy*` polls on real timers
-      // and would hang under fake timers, so we never use it here.
-      expect(useStore.getState().notice?.message).toBe("Second notice");
-      // B is on screen as a real Sonner toast; A's toast has left the DOM (its 300ms dismiss +
-      // exit completed), proving A's teardown removed only A, not B.
-      const message = screen.getByText("Second notice");
-      expect(message.closest("[data-sonner-toast]")).not.toBeNull();
-      expect(screen.queryByText("First notice")).not.toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
+  registerInfoNoticeDismissalTest();
+  registerPersistentErrorNoticeTest();
+  registerPersistentWarningNoticeTest();
+  registerNoticeReplacementRaceTest();
 });
 
 describe("AppShell fake sign-in gate (cosmetic demo)", () => {

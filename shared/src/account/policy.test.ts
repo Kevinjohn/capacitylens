@@ -6,10 +6,15 @@ import {
   canChangeMemberStatus,
   canEditAnyMemberRole,
   canManageMemberRole,
+  canPerformIdentityAdminAction,
   canRemoveMember,
 } from "./policy";
 
 const roles = (entries: Array<[string, Role]>): ReadonlyMap<string, Role> => new Map(entries);
+
+it("preserves the public identity-admin action arity", () => {
+  expect(canPerformIdentityAdminAction.length).toBe(4);
+});
 
 describe("account administration policy", () => {
   it("keeps member/invitation administration at admin tier and transfer owner-only", () => {

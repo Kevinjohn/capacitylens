@@ -2,7 +2,7 @@ import { Fragment, useMemo } from "react";
 import { CalendarOff, Plus } from "lucide-react";
 import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { useCrudListState } from "../../hooks/useCrudListState";
+import { useEntityListState } from "../../hooks/useEntityListState";
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 import { formatShortDate } from "../../lib/dateDisplay";
 import { resolveTimeZone, resolveWeekStart } from "../../store/selectors";
@@ -18,7 +18,7 @@ export function CompanyClosureSection() {
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const calendarWeekStartsOn = useStore((state) => resolveWeekStart(state.data, state.activeAccountId));
   const deleteEntity = useStore((state) => state.deleteClosure);
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Closure>();
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Closure>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
   const currentWeekStart = readCurrentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
   const closures = useMemo(() => buildClosureList(data.closures, currentWeekStart), [currentWeekStart, data.closures]);

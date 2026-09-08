@@ -20,23 +20,21 @@ import {
   assertScopedRefs,
   type ValidationDataLookup,
 } from "@capacitylens/shared/domain/mutations";
-import type { Activity, AppData, AppDataKey, Resource, ScopedEntityKey } from "@capacitylens/shared/types/entities";
+import {
+  APP_DATA_KEYS,
+  isScopedEntityKey,
+  type Activity,
+  type Allocation,
+  type AppData,
+  type AppDataKey,
+  type Resource,
+  type TimeOff,
+} from "@capacitylens/shared/types/entities";
 import { ValidationError } from "./validate/errors";
 export { assertIdPresent, ValidationError } from "./validate/errors";
 export { listAcceptedFieldNames, buildAcceptedWriteFields, listAppliedRequestedFieldNames } from "./validate/fields";
 export { IMMUTABLE_ACCOUNT_FIELDS, sanitizeWrite } from "./validate/sanitize";
-// SanitizeWriteOptions is owned by fieldPolicy.ts (the single source of role-gated field policy);
-// re-exported here so existing importers (app.ts) keep their `from './validate'` import unchanged.
 export type { SanitizeWriteOptions } from "./fieldPolicy";
-// The server is the integrity boundary for direct API writes. Two layers, both
-// reusing the SAME shared domain-core the client uses (so server rules can't drift
-// from client rules):
-//   1. sanitizeWrite — repair value-level fields (enums / colour / hours /
-//      workingDays) exactly as the import path does, so a hand-crafted request can't
-//      persist a junk enum, non-hex colour, or NaN/negative hours.
-//   2. assertValidWrite — referential integrity + date ranges, throwing ValidationError
-//      (mapped to HTTP 400 by the caller; an unexpected throw becomes 500).
-const SCOPED_REF_TABLES: ScopedEntityKey[] = ["projects", "phases", "activities", "resources"];
 
 interface AssertValidWriteInput {
   state: AppData;
@@ -46,16 +44,228 @@ interface AssertValidWriteInput {
   lookup?: ValidationDataLookup | undefined;
 }
 
+function isAppDataKey(table: string): table is AppDataKey {
+  return APP_DATA_KEYS.some((key) => key === table);
+}
+
+function requireString(row: Record<string, unknown>, field: string): string {
+  const value = row[field];
+  if (typeof value !== "string" || value.length === 0) {
+    throw new ValidationError(`${field} must be a non-empty string.`);
+  }
+  return value;
+}
+
+function requireNumber(row: Record<string, unknown>, field: string): number {
+  const value = row[field];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new ValidationError(`${field} must be a finite number.`);
+  }
+  return value;
+}
+
+function optionalString(row: Record<string, unknown>, field: string): string | undefined {
+  const value = row[field];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new ValidationError(`${field} must be a string when supplied.`);
+  return value;
+}
+
+function parseAncestryRow(row: Record<string, unknown>): LifecycleAncestryRow {
+  const id = requireString(row, "id");
+  const accountId = optionalString(row, "accountId");
+  return { ...row, id, ...(accountId === undefined ? {} : { accountId }) };
+}
+
+function findAncestryRow(state: AppData, table: AppDataKey, id: string): LifecycleAncestryRow | undefined {
+  for (const row of state[table]) {
+    if (row.id === id) return { ...row };
+  }
+  return undefined;
+}
+
+function createAncestryLookup(state: AppData, lookup: ValidationDataLookup | undefined): LifecycleAncestryLookup {
+  return (table, id) => {
+    const row = lookup?.row(table, id);
+    return row ? parseAncestryRow(row) : findAncestryRow(state, table, id);
+  };
+}
+
+function parseActivity(row: Record<string, unknown>): Activity {
+  const kind = row.kind;
+  if (kind !== "project" && kind !== "internal" && kind !== "repeatable") {
+    throw new ValidationError("kind must identify a valid activity type.");
+  }
+  const projectId = optionalString(row, "projectId");
+  const phaseId = optionalString(row, "phaseId");
+  return {
+    id: requireString(row, "id"),
+    accountId: requireString(row, "accountId"),
+    createdAt: requireString(row, "createdAt"),
+    updatedAt: requireString(row, "updatedAt"),
+    name: requireString(row, "name"),
+    kind,
+    ...(projectId === undefined ? {} : { projectId }),
+    ...(phaseId === undefined ? {} : { phaseId }),
+  };
+}
+
+function isWeekday(value: unknown): value is Resource["workingDays"][number] {
+  return value === 0 || value === 1 || value === 2 || value === 3 || value === 4 || value === 5 || value === 6;
+}
+
+function requireWorkingDays(row: Record<string, unknown>, field: "workingDays" | "halfDays"): Resource[typeof field] {
+  const value = row[field];
+  if (!Array.isArray(value) || !value.every(isWeekday)) {
+    throw new ValidationError(`${field} must contain valid weekdays.`);
+  }
+  return value;
+}
+
+function parseResource(row: Record<string, unknown>): Resource {
+  const kind = row.kind;
+  if (kind !== "person" && kind !== "placeholder" && kind !== "external") {
+    throw new ValidationError("kind must identify a valid resource type.");
+  }
+  const employmentType = row.employmentType;
+  if (employmentType !== "permanent" && employmentType !== "freelancer" && employmentType !== "contractor") {
+    throw new ValidationError("employmentType must identify a valid employment type.");
+  }
+  const engagement = row.engagement;
+  if (engagement !== "studio" && engagement !== "supplementary") {
+    throw new ValidationError("engagement must identify a valid resource engagement.");
+  }
+  const name = optionalString(row, "name");
+  const disciplineId = optionalString(row, "disciplineId");
+  const projectId = optionalString(row, "projectId");
+  return {
+    id: requireString(row, "id"),
+    accountId: requireString(row, "accountId"),
+    createdAt: requireString(row, "createdAt"),
+    updatedAt: requireString(row, "updatedAt"),
+    kind,
+    role: requireString(row, "role"),
+    employmentType,
+    engagement,
+    workingHoursPerDay: requireNumber(row, "workingHoursPerDay"),
+    workingDays: requireWorkingDays(row, "workingDays"),
+    halfDays: requireWorkingDays(row, "halfDays"),
+    color: requireString(row, "color"),
+    ...(name === undefined ? {} : { name }),
+    ...(disciplineId === undefined ? {} : { disciplineId }),
+    ...(projectId === undefined ? {} : { projectId }),
+  };
+}
+
+function parseAllocationExisting(
+  row: Record<string, unknown> | undefined,
+): Pick<Allocation, "resourceId" | "activityId" | "projectId"> | undefined {
+  if (!row) return undefined;
+  const projectId = optionalString(row, "projectId");
+  return {
+    resourceId: requireString(row, "resourceId"),
+    activityId: requireString(row, "activityId"),
+    ...(projectId === undefined ? {} : { projectId }),
+  };
+}
+
+function parseTimeOffExisting(row: Record<string, unknown> | undefined): Pick<TimeOff, "resourceId"> | undefined {
+  return row ? { resourceId: requireString(row, "resourceId") } : undefined;
+}
+
+interface ClientWriteInput {
+  state: AppData;
+  row: Record<string, unknown>;
+  existing: Record<string, unknown> | undefined;
+  lookup: ValidationDataLookup | undefined;
+}
+
+function assertClientWrite({ state, row, existing, lookup }: ClientWriteInput): void {
+  const id = requireString(row, "id");
+  const accountId = requireString(row, "accountId");
+  const currentClient = existing ?? lookup?.row("clients", id) ?? state.clients.find((client) => client.id === id);
+  if (currentClient?.builtin === true && !isBuiltinClientRow(row)) {
+    throw new ValidationError("The built-in Internal client cannot be modified.");
+  }
+  if (row.builtin === true && !hasBuiltinClientPresentation(row)) {
+    throw new ValidationError("The built-in Internal client has a fixed name and colour.");
+  }
+  if (row.builtin === true && wouldAddSecondBuiltin(state.clients, accountId, id)) {
+    throw new ValidationError("This company already has its built-in Internal client.");
+  }
+}
+
+function hasBuiltinClientPresentation(row: Record<string, unknown>): boolean {
+  return row.name === INTERNAL_CLIENT_NAME && row.color === INTERNAL_CLIENT_COLOR;
+}
+
+function isBuiltinClientRow(row: Record<string, unknown>): boolean {
+  return row.builtin === true && hasBuiltinClientPresentation(row);
+}
+
+function assertEntityWrite(input: AssertValidWriteInput, accountId: string): void {
+  const { state, table, row, existing, lookup } = input;
+  if (isScopedEntityKey(table) && table !== "allocations" && table !== "timeOff" && table !== "closures") {
+    assertScopedRefs(state, accountId, table, row, existing, lookup, { fullRow: true });
+  }
+  if (table === "resources") {
+    const resource = parseResource(row);
+    const previous = existing ? parseResource(existing) : undefined;
+    assertResourceProjectAllowsDependents(state, accountId, resource.id, resource, previous, lookup);
+    assertResourceKindAllowsDependents(state, accountId, resource.id, resource.kind, lookup);
+  }
+  if (table === "activities") {
+    const activity = parseActivity(row);
+    const previous = existing ? parseActivity(existing) : undefined;
+    assertActivityProjectAllowsDependents(state, accountId, activity.id, activity, previous, lookup);
+  }
+  if (table === "allocations") {
+    assertAllocationRefs(
+      state,
+      accountId,
+      requireString(row, "resourceId"),
+      requireString(row, "activityId"),
+      requireNumber(row, "hoursPerDay"),
+      optionalString(row, "projectId"),
+      parseAllocationExisting(existing),
+      lookup,
+    );
+    assertDateRange(requireString(row, "startDate"), requireString(row, "endDate"));
+  }
+  if (table === "timeOff") {
+    assertResourceExists(state, accountId, requireString(row, "resourceId"), parseTimeOffExisting(existing), lookup);
+    assertDateRange(requireString(row, "startDate"), requireString(row, "endDate"));
+  }
+  if (table === "closures") assertDateRange(requireString(row, "startDate"), requireString(row, "endDate"));
+}
+
 /**
- * Referential-integrity + date-range validation for a write. `row` is the full
- * entity (it carries id/accountId/timestamps). Throws ValidationError on any
- * violation so the route can map it to 400 rather than leaking it as a 500.
+ * Enforce referential integrity and date ranges for a full, sanitised server write.
+ *
+ * @throws {ValidationError} When the write violates a domain invariant or its runtime shape does
+ * not match the full-row contract. Import repair remains separate and does not call this boundary.
  */
-export function assertValidWrite({ state, table, row, existing, lookup }: AssertValidWriteInput): void {
-  // The built-in Internal singleton is always active. In particular, a legacy-id replacement must
-  // not promote an archived/soft-deleted ordinary client while retiring the healthy generated row.
-  // Check both values so this invariant remains closed even if a future caller does not run the
-  // generic-write tombstone pin before validation.
+export function assertValidWrite(input: AssertValidWriteInput): void {
+  const { state, table, row, existing, lookup } = input;
+  assertLifecycleWrite(table, row, existing);
+  assertActiveAncestry({ state, table, row, lookup });
+  if (table === "clients") {
+    assertClientWrite({ state, row, existing, lookup });
+    return;
+  }
+  if (table === "accounts") {
+    assertAccountWrite(row);
+    return;
+  }
+  if (table === "disciplines" || !isScopedEntityKey(table)) return;
+  assertDomainWrite(input, requireString(row, "accountId"));
+}
+
+function assertLifecycleWrite(
+  table: string,
+  row: Record<string, unknown>,
+  existing: Record<string, unknown> | undefined,
+): void {
   if (
     table === "clients" &&
     row.builtin === true &&
@@ -68,121 +278,29 @@ export function assertValidWrite({ state, table, row, existing, lookup }: Assert
   if (isLifecycleEntityKey(table) && typeof existing?.deletedAt === "string") {
     throw new ValidationError("Soft-deleted records can only be changed through lifecycle endpoints.");
   }
-  const accountId = row.accountId as string;
-  const ancestryLookup: LifecycleAncestryLookup = lookup
-    ? (parentTable, id) => lookup.row(parentTable, id)
-    : (parentTable, id) => (state[parentTable] as unknown as LifecycleAncestryRow[]).find((parent) => parent.id === id);
-  const ancestry = inspectLifecycleAncestry(table as AppDataKey, row as LifecycleAncestryRow, ancestryLookup);
-  if (ancestry.inactiveAncestor) {
-    throw new ValidationError(
-      "Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.",
-    );
-  }
-  // A client carries no outbound FK, but the built-in Internal client is a SINGLETON: exactly one per
-  // account. This is the SERVER-REJECT enforcement point (3) of the single-Internal invariant — the
-  // direct API is the integrity boundary and the only write path that CAN set `builtin: true`. The
-  // other two points (store strip = public CRUD; import fold = bulk replace can't reject) are
-  // documented beside `wouldAddSecondBuiltin` in shared/src/data/internalClient.ts. Updating the SAME
-  // builtin (matching id) is fine. (Thrown directly, outside the try below, so it isn't redundantly
-  // re-tagged — it's already a ValidationError → 400.)
-  if (table === "clients") {
-    // The built-in Internal client is a per-account SINGLETON, and the direct API is the only write
-    // path that can set `builtin`. Two symmetric server-side guards:
-    //  (a) never ADD a second builtin to an account (wouldAddSecondBuiltin), and
-    //  (b) never UN-FLAG the existing builtin — a crafted PATCH `{builtin:false}` merges to `builtin`
-    //      absent (sanitizeImportedRecord drops a non-true builtin) and would otherwise strip the
-    //      singleton, orphaning the derived "project-less activities bucket under Internal" association
-    //      until the next boot backfill re-creates one. The web store never sends this (Draft<Client>
-    //      excludes builtin); it is purely a direct/crafted-request guard. Updating the SAME builtin
-    //      (matching id, builtin still true) is fine.
-    const currentClient =
-      existing ??
-      (typeof row.id === "string"
-        ? lookup
-          ? lookup.row("clients", row.id)
-          : state.clients.find((client) => client.id === row.id)
-        : undefined);
-    if (currentClient?.builtin === true) {
-      if (row.builtin !== true || row.name !== INTERNAL_CLIENT_NAME || row.color !== INTERNAL_CLIENT_COLOR) {
-        throw new ValidationError("The built-in Internal client cannot be modified.");
-      }
-    }
-    if (row.builtin === true && (row.name !== INTERNAL_CLIENT_NAME || row.color !== INTERNAL_CLIENT_COLOR)) {
-      throw new ValidationError("The built-in Internal client has a fixed name and colour.");
-    }
-    if (row.builtin === true && wouldAddSecondBuiltin(state.clients, row.accountId as string, row.id as string)) {
-      throw new ValidationError("This company already has its built-in Internal client.");
-    }
-    return;
-  }
-  try {
-    if (table === "accounts") {
-      if (typeof row.name !== "string" || row.name.trim().length === 0) {
-        throw new ValidationError("Company name is required.");
-      }
-      return;
-    }
-    if (table === "disciplines") {
-      // No outbound foreign keys to validate (accounts are top-level; disciplines only
-      // carry accountId, which the DB's FK enforces).
-      return;
-    }
-    if (SCOPED_REF_TABLES.includes(table as ScopedEntityKey)) {
-      assertScopedRefs(state, accountId, table as ScopedEntityKey, row, existing, lookup, { fullRow: true });
-      // `row` is the full merged entity (PUT carries the whole row; PATCH merges {...existing, ...body}),
-      // so `row.kind` is the kind the resource WILL have. Reject a flip-to-external that would orphan
-      // existing loaded work / time-off — `state` is loaded BEFORE the write, so it still holds those
-      // dependents. Same shared assert the store's updateResource calls, so the two can't drift. A no-op
-      // for non-resource tables and for any write that doesn't make the resource external.
-      if (table === "resources") {
-        assertResourceProjectAllowsDependents(
-          state,
-          accountId,
-          row.id as string,
-          row as unknown as Resource,
-          existing as unknown as Resource | undefined,
-          lookup,
-        );
-        assertResourceKindAllowsDependents(state, accountId, row.id as string, row.kind, lookup);
-      }
-      if (table === "activities") {
-        assertActivityProjectAllowsDependents(
-          state,
-          accountId,
-          row.id as string,
-          row as unknown as Activity,
-          existing as unknown as Activity | undefined,
-          lookup,
-        );
-      }
-      return;
-    }
-    if (table === "allocations") {
-      assertAllocationRefs(
-        state,
-        accountId,
-        row.resourceId as string,
-        row.activityId as string,
-        row.hoursPerDay as number,
-        row.projectId as string | undefined,
-        existing as never,
-        lookup,
+}
+
+function assertActiveAncestry({ state, table, row, lookup }: AssertValidWriteInput): void {
+  if (isAppDataKey(table)) {
+    const ancestry = inspectLifecycleAncestry(table, parseAncestryRow(row), createAncestryLookup(state, lookup));
+    if (ancestry.inactiveAncestor) {
+      throw new ValidationError(
+        "Records beneath an archived or soft-deleted ancestor cannot be changed through generic endpoints.",
       );
-      assertDateRange(row.startDate as string, row.endDate as string);
-      return;
     }
-    if (table === "timeOff") {
-      assertResourceExists(state, accountId, row.resourceId as string, existing as never, lookup);
-      assertDateRange(row.startDate as string, row.endDate as string);
-      return;
-    }
-    if (table === "closures") {
-      assertDateRange(row.startDate as string, row.endDate as string);
-      return;
-    }
+  }
+}
+
+function assertAccountWrite(row: Record<string, unknown>): void {
+  if (typeof row.name !== "string" || row.name.trim().length === 0) {
+    throw new ValidationError("Company name is required.");
+  }
+}
+
+function assertDomainWrite(input: AssertValidWriteInput, accountId: string): void {
+  try {
+    assertEntityWrite(input, accountId);
   } catch (e) {
-    // Shared domain rejections retain their stable code across the HTTP boundary. Unexpected
-    // errors are still re-tagged only because this catch encloses curated validation calls.
     throw new ValidationError(e instanceof Error ? e.message : String(e), {
       cause: e,
       ...(e instanceof DomainError ? { code: e.code } : {}),

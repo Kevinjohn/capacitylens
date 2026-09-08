@@ -1,201 +1,54 @@
 import { m } from "@/i18n";
-import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { useId } from "react";
-import { useAuth } from "../../auth/authContext";
-import { useCanEdit } from "../../auth/permissionContext";
-import { isServerConfigured } from "../../data/apiConfig";
-import { readBuildStamp, readFeedbackMailto } from "../../data/buildInfo";
-import { useOfflineReadEnabled, useOfflineState, usePersistenceDiagnostics } from "../../data/useOfflineState";
-import { resolveErrorMessage } from "../../lib/errorMessage";
-import { DEFAULT_COLORS } from "../../lib/palette";
-import { resolveTimeZoneOptionLabel } from "../../lib/timezones";
-import {
-  listAccountWorkingDays,
-  hasDisciplinesEnabled,
-  hasExternalResourcesEnabled,
-  hasResourceEngagementGrouping,
-  canCreateInlineActivity,
-  resolveInternalColourMode,
-  hasPlaceholdersEnabled,
-  resolveSchedulingMode,
-  hasVisibleInternalActivities,
-  hasVisibleInternalProjects,
-  resolveTimeZone,
-  resolveWeekStart,
-} from "../../store/selectors";
-import { useStore } from "../../store/useStore";
-import { Avatar, ListPage } from "../common/ui";
+import { ListPage } from "../common/ui";
 import { ImportExport } from "../ImportExport";
-import { Button } from "../ui/button";
 import { ArchivedSection } from "./ArchivedSection";
 import { SecuritySection } from "./SecuritySection";
+import { SettingsAccountOptions, SettingsAccountSection, SettingsBuildDetails } from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import { SettingsDataSection } from "./SettingsDataSection";
 import { SettingsSchedulingSection } from "./SettingsSchedulingSection";
 import { SettingsSection } from "./SettingsSection";
-import { useLocalDataActions } from "./useLocalDataActions";
+import { useSettingsViewController } from "./useSettingsViewController";
 
-// App-level preferences, opened from the nav like the CRUD list pages.
 export function SettingsView() {
-  const workingDaysMinimumId = useId();
-  const canEdit = useCanEdit();
-  // ONE data subscription: every per-account read below goes through a `*For(data, id)` selector,
-  // and the offline opt-in caches the whole slice, so a separate `s.data.accounts` subscription
-  // would only add a second re-render source for a view this one already covers.
-  const data = useStore((state) => state.data);
-  const accountSummaries = useStore((state) => state.accountSummaries);
-  const activeAccountId = useStore((state) => state.activeAccountId);
-  const activeAccount = data.accounts.find((account) => account.id === activeAccountId) ?? null;
-  const updateAccount = useStore((state) => state.updateAccount);
-  const setNotice = useStore((state) => state.setNotice);
-  const theme = useStore((state) => state.theme);
-  const setTheme = useStore((state) => state.setTheme);
-  const utilizationPreferences = useStore((state) => state.utilizationPrefs);
-  const setUtilizationPreference = useStore((state) => state.setUtilizationPref);
-  const barLabelPreferences = useStore((state) => state.barLabelPrefs);
-  const setBarLabelPreference = useStore((state) => state.setBarLabelPref);
-  const minimiseWeekends = useStore((state) => state.minimiseWeekends);
-  const setMinimiseWeekends = useStore((state) => state.setMinimiseWeekends);
-  const persistenceDiagnostics = usePersistenceDiagnostics();
-  const snapToWeekStart = useStore((state) => state.snapToWeekStart);
-  const compactView = useStore((state) => state.compactView);
-  const setSnapToWeekStart = useStore((state) => state.setSnapToWeekStart);
-  const setCompactView = useStore((state) => state.setCompactView);
-
-  // Every per-account setting is read through its selector, so this screen shows the SAME
-  // absent-field default (`?? true` for disciplines/internal visibility, `?? false` for
-  // placeholders/external, …) that the surfaces gating on it use — the defaults live once, in
-  // store/selectors.ts, and can't drift between where they're edited and where they're honoured.
-  const schedulingMode = resolveSchedulingMode(data, activeAccountId);
-  const weekStartsOn = resolveWeekStart(data, activeAccountId);
-  const workingDays = listAccountWorkingDays(data, activeAccountId);
-  const workingDayOrder = orderedWeekdays(weekStartsOn);
-  const timezone = resolveTimeZone(data, activeAccountId);
-  const disciplinesEnabled = hasDisciplinesEnabled(data, activeAccountId);
-  const groupResourcesByEngagement = hasResourceEngagementGrouping(data, activeAccountId);
-  const placeholdersEnabled = hasPlaceholdersEnabled(data, activeAccountId);
-  const externalEnabled = hasExternalResourcesEnabled(data, activeAccountId);
-  const internalColourMode = resolveInternalColourMode(data, activeAccountId);
-  const showInternalProjects = hasVisibleInternalProjects(data, activeAccountId);
-  const showInternalActivities = hasVisibleInternalActivities(data, activeAccountId);
-  const inlineActivityCreateEnabled = canCreateInlineActivity(data, activeAccountId);
-  const { authMode, user, canCreateAccount, multiAccount, signOut } = useAuth();
-  const offlineEnabled = useOfflineReadEnabled();
-  const offlineState = useOfflineState();
-  const serverMode = isServerConfigured();
-  const { confirmingClear, setConfirmingClear, clearBusy, clearLocalStorage, toggleOffline, offlineBusy } =
-    useLocalDataActions({
-      offlineEnabled,
-      authMode,
-      user,
-      canCreateAccount,
-      multiAccount,
-      accountSummaries,
-      activeAccountId,
-      data,
-      setNotice,
-    });
-
-  // The shell only routes here with an active account chosen; this is defensive.
-  if (!activeAccount) return null;
-
-  const updateSetting = (patch: Parameters<typeof updateAccount>[1]) => {
-    try {
-      updateAccount(activeAccount.id, patch);
-    } catch (error) {
-      setNotice(resolveErrorMessage(error), "error");
-    }
-  };
-
-  const stamp = readBuildStamp();
-  const feedback = readFeedbackMailto();
-  const weekStartLabel = weekStartsOn === 0 ? m.settings_week_start_sunday() : m.settings_week_start_monday();
-  const timeZoneLabel = resolveTimeZoneOptionLabel(timezone);
-
+  const controller = useSettingsViewController();
+  if (!controller.activeAccount) return null;
+  const { scheduling, display, localData, auth } = controller;
   return (
     <ListPage title={m.settings_title()}>
       <div className="flex flex-col gap-6">
         <SettingsSchedulingSection
-          canEdit={canEdit}
-          schedulingMode={schedulingMode}
-          workingDayOrder={workingDayOrder}
-          workingDays={workingDays}
-          workingDaysMinimumId={workingDaysMinimumId}
-          updateSetting={updateSetting}
-          disciplinesEnabled={disciplinesEnabled}
-          groupResourcesByEngagement={groupResourcesByEngagement}
-          placeholdersEnabled={placeholdersEnabled}
-          externalEnabled={externalEnabled}
-          showInternalProjects={showInternalProjects}
-          showInternalActivities={showInternalActivities}
-          inlineActivityCreateEnabled={inlineActivityCreateEnabled}
-          internalColourMode={internalColourMode}
-          minimiseWeekends={minimiseWeekends}
-          setMinimiseWeekends={setMinimiseWeekends}
-          snapToWeekStart={snapToWeekStart}
-          setSnapToWeekStart={setSnapToWeekStart}
-          compactView={compactView}
-          setCompactView={setCompactView}
+          canEdit={controller.canEdit}
+          {...scheduling}
+          workingDaysMinimumId={controller.workingDaysMinimumId}
+          updateSetting={controller.updateSetting}
+          minimiseWeekends={display.minimiseWeekends}
+          setMinimiseWeekends={display.setMinimiseWeekends}
+          snapToWeekStart={display.snapToWeekStart}
+          setSnapToWeekStart={display.setSnapToWeekStart}
+          compactView={display.compactView}
+          setCompactView={display.setCompactView}
         />
-
         <SettingsAppearanceSection
-          barLabelPrefs={barLabelPreferences}
-          setBarLabelPref={setBarLabelPreference}
-          utilizationPrefs={utilizationPreferences}
-          setUtilizationPref={setUtilizationPreference}
-          theme={theme}
-          setTheme={setTheme}
-          disciplinesEnabled={disciplinesEnabled}
+          barLabelPrefs={display.barLabelPrefs}
+          setBarLabelPref={display.setBarLabelPref}
+          utilizationPrefs={display.utilizationPrefs}
+          setUtilizationPref={display.setUtilizationPref}
+          theme={display.theme}
+          setTheme={display.setTheme}
+          disciplinesEnabled={scheduling.disciplinesEnabled}
         />
-
         <SettingsDataSection
-          serverMode={serverMode}
-          authMode={authMode}
-          user={user}
-          offlineEnabled={offlineEnabled}
-          offlineBusy={offlineBusy}
-          offlineState={offlineState}
-          confirmingClear={confirmingClear}
-          setConfirmingClear={setConfirmingClear}
-          clearBusy={clearBusy}
-          clearLocalStorage={clearLocalStorage}
-          toggleOffline={toggleOffline}
+          serverMode={controller.serverMode}
+          authMode={auth.authMode}
+          user={auth.user}
+          offlineEnabled={controller.offlineEnabled}
+          offlineState={controller.offlineState}
+          {...localData}
         />
-
-        {/* Account section (P3.3) — only on an auth-enabled deploy (authMode ≠ off, as
-            reported by the server). Auth off and the demo build render nothing here. */}
-        {authMode !== "off" && (
-          <SettingsSection title={m.settings_account_heading()} help={m.settings_account_help()}>
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <Avatar
-                  name={user?.name ?? user?.email ?? m.settings_signed_in_unknown()}
-                  color={DEFAULT_COLORS.account}
-                  {...(user?.image ? { imageUrl: user.image } : {})}
-                />
-                <p className="text-sm text-muted-foreground">
-                  {m.settings_signed_in_as({
-                    who: user?.email ?? user?.name ?? m.settings_signed_in_unknown(),
-                  })}
-                </p>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => void signOut()}>
-                {m.settings_account_sign_out()}
-              </Button>
-            </div>
-          </SettingsSection>
-        )}
-
-        {authMode === "password" && <SecuritySection />}
-
-        {/* Archived & deleted (P2.5b) — the admin view of the data-lifecycle. Unlike Members it ALSO
-            shows in the DEMO build (everyone is owner locally); in SERVER mode it self-gates on a 403 from
-            the inactive read (admin tier). Rendered unconditionally; the section decides its own
-            visibility. */}
+        <SettingsAccountSection auth={auth} />
+        {auth.authMode === "password" && <SecuritySection />}
         <ArchivedSection collapsible defaultOpen={false} />
-
-        {/* Import & export (issue #169) stays out of the sidebar and is now closed by default: it is
-            administrative, destructive on the import side, and something people open on purpose. */}
         <SettingsSection
           title={m.settings_data_heading()}
           help={m.settings_data_description()}
@@ -204,82 +57,13 @@ export function SettingsView() {
         >
           <ImportExport />
         </SettingsSection>
-
-        {/* Identity and calendar choices are informational here. They are captured at company
-            creation, remain server-protected, and deliberately have no disabled form controls. */}
-        <SettingsSection
-          title={m.settings_account_options_heading()}
-          help={
-            <>
-              <p>{m.settings_account_options_help()}</p>
-              <p>{m.settings_calendar_intro()}</p>
-            </>
-          }
-          contentClassName="gap-0"
-        >
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-line">
-              <tr>
-                <th scope="row" className="py-1 pr-4 text-left font-medium text-muted-foreground">
-                  {m.settings_company_name_label()}
-                </th>
-                <td className="py-1 text-right text-ink">{activeAccount.name}</td>
-              </tr>
-              <tr>
-                <th scope="row" className="py-1 pr-4 text-left font-medium text-muted-foreground">
-                  {m.settings_week_start_label()}
-                </th>
-                <td className="py-1 text-right text-ink">{weekStartLabel}</td>
-              </tr>
-              <tr>
-                <th scope="row" className="py-1 pr-4 text-left font-medium text-muted-foreground">
-                  {m.settings_timezone_label()}
-                </th>
-                <td className="py-1 text-right text-ink">{timeZoneLabel}</td>
-              </tr>
-              <tr>
-                <th scope="row" className="py-1 pr-4 text-left font-medium text-muted-foreground">
-                  {m.settings_language_label()}
-                </th>
-                <td className="py-1 text-right text-ink" data-testid="settings-language">
-                  {m.settings_language_value()}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </SettingsSection>
-
-        {/* Build provenance footer (P1.7) + feedback link (P5.2) — only in builds the
-            deploy script stamps; absent (today's Settings exactly) when both env vars
-            are unset. The mailto subject carries the stamp so reports arrive pinned. */}
-        {(stamp || feedback) && (
-          <p className="flex items-center gap-3 text-xs text-muted-foreground">
-            {stamp && <span data-testid="build-stamp">{stamp}</span>}
-            {feedback && (
-              <a data-testid="send-feedback" href={feedback} className="underline underline-offset-2 hover:text-ink">
-                {m.settings_feedback_link()}
-              </a>
-            )}
-          </p>
-        )}
-        {serverMode && (
-          <details className="text-xs text-muted-foreground" data-testid="persistence-diagnostics">
-            <summary className="cursor-pointer">{m.settings_persistence_diagnostics()}</summary>
-            <p className="mt-1 font-mono">
-              {m.settings_persistence_diagnostics_summary({
-                failed: persistenceDiagnostics.savesFailed,
-                retries: persistenceDiagnostics.retriesArmed,
-                reconciliations: persistenceDiagnostics.reconciliationsResolved,
-                superseded: persistenceDiagnostics.reloadsSuperseded,
-                rebased: persistenceDiagnostics.editsRebased,
-                discarded: persistenceDiagnostics.editsDiscarded,
-                suspended: persistenceDiagnostics.suspended
-                  ? m.settings_persistence_suspended_yes()
-                  : m.settings_persistence_suspended_no(),
-              })}
-            </p>
-          </details>
-        )}
+        <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
+        <SettingsBuildDetails
+          serverMode={controller.serverMode}
+          persistenceDiagnostics={controller.persistenceDiagnostics}
+          stamp={controller.stamp}
+          feedback={controller.feedback}
+        />
       </div>
     </ListPage>
   );

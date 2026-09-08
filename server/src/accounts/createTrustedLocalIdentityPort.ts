@@ -12,6 +12,24 @@ function throwUnsupportedOperation(commandId?: string): never {
   });
 }
 
+function createTrustedLocalSession(principal: LocalPrincipal) {
+  return {
+    id: "trusted-local",
+    principal: {
+      id: principal.id,
+      displayName: principal.displayName,
+      email: principal.email,
+      emailVerified: true,
+      image: principal.image ?? null,
+      linkedSubject: null,
+    },
+    createdAt: "1970-01-01T00:00:00.000Z",
+    expiresAt: null,
+    freshUntil: null,
+    assurance: "trusted-local" as const,
+  };
+}
+
 /** Zero-provider identity implementation for the open-source trusted-local profile. */
 export function createTrustedLocalIdentityPort(principal: LocalPrincipal): LocalIdentityPort {
   return {
@@ -19,21 +37,7 @@ export function createTrustedLocalIdentityPort(principal: LocalPrincipal): Local
     deprovisionLocalPrincipalsInTx: () => [],
     commitMasqueradeSessionEnds: () => {},
     async verifyApplicationSession() {
-      return {
-        id: "trusted-local",
-        principal: {
-          id: principal.id,
-          displayName: principal.displayName,
-          email: principal.email,
-          emailVerified: true,
-          image: principal.image ?? null,
-          linkedSubject: null,
-        },
-        createdAt: "1970-01-01T00:00:00.000Z",
-        expiresAt: null,
-        freshUntil: null,
-        assurance: "trusted-local",
-      };
+      return createTrustedLocalSession(principal);
     },
     async getPrincipalSummaries({ principalIds }) {
       return principalIds.includes(principal.id)

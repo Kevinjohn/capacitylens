@@ -22,18 +22,7 @@ type SessionDeletionLifecycleRef = {
   } | null;
 };
 
-export function buildPasswordPolicy({
-  env,
-  mode,
-  runtimeEnvironment,
-  passwordContextWords,
-  passwordResetSessionCapture,
-  sessionDeletionLifecycleRef,
-  captureResetToken,
-  hashPasswordWithBackpressure,
-  verifyPasswordWithBackpressure,
-  resetLinkTtlSeconds,
-}: {
+interface BuildPasswordPolicyInput {
   env: Record<string, string | undefined>;
   mode: "password" | "sso";
   runtimeEnvironment: string | undefined;
@@ -47,12 +36,85 @@ export function buildPasswordPolicy({
     input: Parameters<PasswordHasher["verify"]>[0],
   ) => Promise<boolean>;
   resetLinkTtlSeconds: number;
-}): Pick<BetterAuthOptions, "emailAndPassword"> & {
+}
+
+function createPasswordLengthAssertions(): {
+  assertCredentialPasswordLength: (password: unknown) => void;
   assertAuthRequestPasswordLength: (path: string, body: unknown) => void;
 } {
-  // The password floor remains unconditional, including when the optional bootstrap-owner flag
-  // is active. createBootstrapAdmin generates a high-entropy password that comfortably exceeds it.
+  const assertCredentialPasswordLength = (password: unknown): void => {
+    if (typeof password !== "string") return;
+    const failure = passwordLengthFailure(password);
+    if (!failure) return;
+    throw APIError.from(
+      "BAD_REQUEST",
+      failure === "too-short"
+        ? { message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`, code: "PASSWORD_TOO_SHORT" }
+        : { message: `Password must be at most ${MAX_PASSWORD_LENGTH} characters`, code: "PASSWORD_TOO_LONG" },
+    );
+  };
+  return {
+    assertCredentialPasswordLength,
+    assertAuthRequestPasswordLength(path, body) {
+      if (typeof body !== "object" || body === null) return;
+      const candidate = body as { password?: unknown; newPassword?: unknown };
+      if (path === "/sign-up/email") assertCredentialPasswordLength(candidate.password);
+      if (path === "/reset-password" || path === "/change-password") {
+        assertCredentialPasswordLength(candidate.newPassword);
+      }
+    },
+  };
+}
 
+function createPasswordHash({
+  input,
+  baseHasher,
+  breachCheckEnabled,
+  assertCredentialPasswordLength,
+}: {
+  input: BuildPasswordPolicyInput;
+  baseHasher: PasswordHasher;
+  breachCheckEnabled: boolean;
+  assertCredentialPasswordLength: (password: unknown) => void;
+}): (password: string) => Promise<string> {
+  return async (password) => {
+    assertCredentialPasswordLength(password);
+    try {
+      assertNoContextSpecificPassword(password, input.passwordContextWords);
+      if (breachCheckEnabled) await assertPasswordNotBreached(password);
+    } catch (error) {
+      if (error instanceof PasswordPolicyError) {
+        throw APIError.from("BAD_REQUEST", { message: error.message, code: error.code });
+      }
+      if (error instanceof PasswordPolicyDependencyError) {
+        throw APIError.from("SERVICE_UNAVAILABLE", { message: error.message, code: error.code });
+      }
+      throw error;
+    }
+    return input.hashPasswordWithBackpressure(baseHasher, password);
+  };
+}
+
+function passwordResetOptions(input: BuildPasswordPolicyInput): Partial<BetterAuthOptions["emailAndPassword"]> {
+  if (input.mode !== "password") return {};
+  return {
+    sendResetPassword: input.captureResetToken,
+    onPasswordReset: async ({ user }: { user: { id: string } }) => {
+      const capture = input.passwordResetSessionCapture.getStore();
+      if (capture) {
+        capture.sessionHandles =
+          input.sessionDeletionLifecycleRef.current?.prepareUser(user.id, "session_revoked") ?? [];
+      }
+    },
+    resetPasswordTokenExpiresIn: input.resetLinkTtlSeconds,
+    revokeSessionsOnPasswordReset: true,
+  };
+}
+
+export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<BetterAuthOptions, "emailAndPassword"> & {
+  assertAuthRequestPasswordLength: (path: string, body: unknown) => void;
+} {
+  const { env, mode, runtimeEnvironment, verifyPasswordWithBackpressure } = input;
   const testRuntime = runtimeEnvironment === "test";
   if (testRuntime && !process.env.VITEST) {
     console.warn(
@@ -61,66 +123,18 @@ export function buildPasswordPolicy({
   }
   const breachCheckEnabled = env.CAPACITYLENS_PASSWORD_BREACH_CHECK !== "off" && !testRuntime;
   const baseHasher = createScryptPasswordHasher(testRuntime ? 2 ** 10 : undefined);
-  const assertCredentialPasswordLength = (password: unknown): void => {
-    if (typeof password !== "string") return;
-    const failure = passwordLengthFailure(password);
-    if (!failure) return;
-    throw APIError.from(
-      "BAD_REQUEST",
-      failure === "too-short"
-        ? {
-            message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
-            code: "PASSWORD_TOO_SHORT",
-          }
-        : {
-            message: `Password must be at most ${MAX_PASSWORD_LENGTH} characters`,
-            code: "PASSWORD_TOO_LONG",
-          },
-    );
-  };
-  const assertAuthRequestPasswordLength = (path: string, body: unknown): void => {
-    if (typeof body !== "object" || body === null) return;
-    const candidate = body as { password?: unknown; newPassword?: unknown };
-    if (path === "/sign-up/email") assertCredentialPasswordLength(candidate.password);
-    if (path === "/reset-password" || path === "/change-password") {
-      assertCredentialPasswordLength(candidate.newPassword);
-    }
-  };
-  const passwordHash = async (password: string): Promise<string> => {
-    // Direct identity-port creation bypasses Better Auth's HTTP route guards. Keep the shared
-    // Unicode code-point policy at the last common boundary before every new hash is produced.
-    assertCredentialPasswordLength(password);
-    try {
-      assertNoContextSpecificPassword(password, passwordContextWords);
-      if (breachCheckEnabled) await assertPasswordNotBreached(password);
-    } catch (error) {
-      if (error instanceof PasswordPolicyError) {
-        throw APIError.from("BAD_REQUEST", {
-          message: error.message,
-          code: error.code,
-        });
-      }
-      if (error instanceof PasswordPolicyDependencyError) {
-        throw APIError.from("SERVICE_UNAVAILABLE", {
-          message: error.message,
-          code: error.code,
-        });
-      }
-      throw error;
-    }
-    return hashPasswordWithBackpressure(baseHasher, password);
-  };
+  const { assertCredentialPasswordLength, assertAuthRequestPasswordLength } = createPasswordLengthAssertions();
+  const passwordHash = createPasswordHash({
+    input,
+    baseHasher,
+    breachCheckEnabled,
+    assertCredentialPasswordLength,
+  });
 
   return {
     emailAndPassword: {
       enabled: mode === "password",
-      // The static library flag stays OFF so the sign-up gate has ONE owner: the live hooks.before
-      // below (see the SECURE DEFAULT comment above). Better Auth 1.6.23 enforces disableSignUp
-      // even for server-side auth.api.signUpEmail calls (sign-up.mjs:143), so leaving it on would
-      // also break the BROWSER first-run bootstrap (the login screen's "Create the owner account"
-      // form, which really does POST /api/auth/sign-up/email) — the headless
-      // --create-owner-admin-admin path is unaffected either way, since it now bypasses this route
-      // entirely (see createBootstrapAdmin).
+      // The live before hook owns sign-up gating; the browser's first-run bootstrap uses this route.
       disableSignUp: false,
       // PIN the minimum length to the shared constant rather than inheriting Better Auth's default,
       // so the server bound and the client reset-page pre-check (both read MIN_PASSWORD_LENGTH) can't
@@ -138,25 +152,7 @@ export function buildPasswordPolicy({
       // Admin-issued reset links (P1.18) — password mode ONLY: 'sso' delegates credentials to the
       // IdP, and configuring sendResetPassword would needlessly enable Better Auth's public
       // request-password-reset endpoint there. See captureResetToken/mintPasswordResetToken above.
-      ...(mode === "password"
-        ? {
-            sendResetPassword: captureResetToken,
-            // Better Auth owns the reset's session deletion. Prepare the application registry and
-            // durable end audit immediately before that deletion; the handler wrapper commits the
-            // in-memory removal only after the library returns a successful response.
-            onPasswordReset: async ({ user }: { user: { id: string } }) => {
-              const capture = passwordResetSessionCapture.getStore();
-              if (capture) {
-                capture.sessionHandles =
-                  sessionDeletionLifecycleRef.current?.prepareUser(user.id, "session_revoked") ?? [];
-              }
-            },
-            resetPasswordTokenExpiresIn: resetLinkTtlSeconds,
-            // A reset is "I lost control of my credential" (or an admin offboarding a laptop):
-            // every existing session for that user dies with the old password.
-            revokeSessionsOnPasswordReset: true,
-          }
-        : {}),
+      ...passwordResetOptions(input),
     },
     assertAuthRequestPasswordLength,
   };

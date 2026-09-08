@@ -204,22 +204,25 @@ export async function throwForBatchStatus(res: Response): Promise<void> {
   }
 }
 
-/** Reconciliation stage: validate the commit receipt, then fold its server revisions and lifecycle
- *  archive confirmations into the {@link BatchCommitReceipt} the caller advances the snapshot with. */
-export async function readBatchReceipt(
-  res: Response,
-  ops: Op[],
-  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
-): Promise<BatchCommitReceipt> {
-  const receipt = (await res.json().catch(() => null)) as {
-    ok?: unknown;
-    applied?: unknown;
-    revisions?: unknown;
-    archives?: unknown;
-    superseded?: unknown;
-    auditWarning?: unknown;
-  } | null;
-  if (receipt?.ok !== true || (receipt.applied !== undefined && receipt.applied !== ops.length)) {
+interface BatchReceiptWire {
+  ok?: unknown;
+  applied?: unknown;
+  revisions?: unknown;
+  archives?: unknown;
+  superseded?: unknown;
+  auditWarning?: unknown;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseBatchReceipt(value: unknown, appliedCount: number): BatchReceiptWire {
+  if (!value || typeof value !== "object") {
+    throw new BatchCommitUncertainError("Batch sync returned an invalid commit receipt.");
+  }
+  const receipt: BatchReceiptWire = value;
+  if (receipt.ok !== true || (receipt.applied !== undefined && receipt.applied !== appliedCount)) {
     throw new BatchCommitUncertainError("Batch sync returned an invalid commit receipt.");
   }
   if (receipt.applied === undefined) {
@@ -231,34 +234,42 @@ export async function readBatchReceipt(
   if (receipt.superseded !== undefined && typeof receipt.superseded !== "boolean") {
     throw new BatchCommitUncertainError("Batch sync returned an invalid ordering receipt.");
   }
-  // The batch receipt can flag audit degradation in its BODY as well as the shared header; the
-  // header half goes through the same synchronous helper as the lifecycle routes above.
-  if (receipt.auditWarning === true) announceAuditWarning();
-  else noteAuditWarning(res);
-  const rawRevisions = Array.isArray(receipt.revisions) ? receipt.revisions : [];
-  if (!Array.isArray(receipt.revisions))
+  return receipt;
+}
+
+function isCommittedRevision(value: unknown): value is CommittedRevision {
+  if (!isRecord(value)) return false;
+  const knownTables = emptyAppData();
+  return (
+    typeof value.table === "string" &&
+    Object.hasOwn(knownTables, value.table) &&
+    typeof value.id === "string" &&
+    typeof value.createdAt === "string" &&
+    typeof value.updatedAt === "string"
+  );
+}
+
+function listReceiptRevisions(receipt: BatchReceiptWire): CommittedRevision[] {
+  if (!Array.isArray(receipt.revisions)) {
     warnCompatibilityOnce(
       "batch-revisions",
       "ServerSyncAdapter: the batch receipt omitted server revisions; continuing without revision translation.",
     );
-  const knownTables = emptyAppData(); // hoisted: one shape probe for the whole receipt, not one per revision
-  const revisions = rawRevisions.filter((revision): revision is CommittedRevision => {
-    if (!revision || typeof revision !== "object") return false;
-    const value = revision as Partial<CommittedRevision>;
-    return (
-      typeof value.table === "string" &&
-      Object.hasOwn(knownTables, value.table) &&
-      typeof value.id === "string" &&
-      typeof value.createdAt === "string" &&
-      typeof value.updatedAt === "string"
-    );
+    return [];
+  }
+  const revisions = receipt.revisions.flatMap((value) => {
+    return isCommittedRevision(value) ? [value] : [];
   });
-  if (revisions.length !== rawRevisions.length)
+  if (revisions.length !== receipt.revisions.length) {
     warnCompatibilityOnce(
       "batch-invalid-revisions",
       "ServerSyncAdapter: dropping malformed server revisions from an otherwise successful batch receipt.",
     );
+  }
+  return revisions;
+}
 
+function reconcileRevisions(receipt: BatchReceiptWire, ops: Op[]): CommittedRevision[] {
   const expected = new Set(
     receipt.superseded === true
       ? []
@@ -267,63 +278,96 @@ export async function readBatchReceipt(
   const received = new Set<string>();
   const serverRewrites = new Set<string>();
   const compatibleRevisions: CommittedRevision[] = [];
-  for (const revision of revisions) {
+  for (const revision of listReceiptRevisions(receipt)) {
     const key = buildRowKey(revision.table, revision.id);
-    if (revision.rewrite !== true && expected.has(key) && !received.has(key)) {
-      received.add(key);
-      compatibleRevisions.push(revision);
-      continue;
-    }
-    if (revision.rewrite === true && revision.table === "allocations" && !serverRewrites.has(key)) {
-      serverRewrites.add(key);
-      compatibleRevisions.push(revision);
-      continue;
-    }
-    warnCompatibilityOnce(
-      "batch-mismatched-revisions",
-      "ServerSyncAdapter: dropping unexpected or duplicate server revisions from a successful batch receipt.",
-    );
+    const isExpected = revision.rewrite !== true && expected.has(key) && !received.has(key);
+    const isRewrite = revision.rewrite === true && revision.table === "allocations" && !serverRewrites.has(key);
+    if (isExpected) received.add(key);
+    if (isRewrite) serverRewrites.add(key);
+    if (isExpected || isRewrite) compatibleRevisions.push(revision);
+    else
+      warnCompatibilityOnce(
+        "batch-mismatched-revisions",
+        "ServerSyncAdapter: dropping unexpected or duplicate server revisions from a successful batch receipt.",
+      );
   }
   if (received.size !== expected.size) {
     throw new BatchCommitUncertainError(
       "Batch sync committed without complete server revisions; authoritative reload is required.",
     );
   }
-  const expectedArchives = new Set(
-    receipt.superseded === true || !options?.archiveLifecycleDeletes
-      ? []
-      : ops
-          .filter((op) => op.method === "DELETE" && isLifecycleEntityKey(op.table))
-          .map((op) => buildRowKey(op.table, op.id)),
+  return compatibleRevisions;
+}
+
+function listExpectedArchives(receipt: BatchReceiptWire, ops: Op[], archiveLifecycleDeletes: boolean): Set<string> {
+  if (receipt.superseded === true || !archiveLifecycleDeletes) return new Set();
+  return new Set(
+    ops
+      .filter((op) => op.method === "DELETE" && isLifecycleEntityKey(op.table))
+      .map((op) => buildRowKey(op.table, op.id)),
   );
-  const rawArchives = Array.isArray(receipt.archives) ? receipt.archives : [];
-  if (expectedArchives.size > 0 && !Array.isArray(receipt.archives)) {
+}
+
+interface ArchiveReceipt {
+  key: string;
+  archived: boolean;
+}
+
+function parseArchiveReceipt(
+  value: unknown,
+  expected: ReadonlySet<string>,
+  received: ReadonlySet<string>,
+): ArchiveReceipt {
+  if (!isRecord(value)) {
+    throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
+  }
+  const key = buildRowKey(String(value.table), String(value.id));
+  if (
+    typeof value.table !== "string" ||
+    !isLifecycleEntityKey(value.table) ||
+    typeof value.id !== "string" ||
+    typeof value.archived !== "boolean" ||
+    !expected.has(key) ||
+    received.has(key)
+  ) {
+    throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
+  }
+  return { key, archived: value.archived };
+}
+
+function reconcileArchives(receipt: BatchReceiptWire, expected: ReadonlySet<string>): Set<string> {
+  if (expected.size > 0 && !Array.isArray(receipt.archives)) {
     throw new BatchCommitUncertainError("Batch sync committed without lifecycle archive receipts.");
   }
-  const receivedArchives = new Set<string>();
+  const rawArchives: unknown[] = Array.isArray(receipt.archives) ? receipt.archives : [];
+  const received = new Set<string>();
   const archivedLifecycleKeys = new Set<string>();
-  for (const archiveReceipt of rawArchives) {
-    if (!archiveReceipt || typeof archiveReceipt !== "object") {
-      throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
-    }
-    const value = archiveReceipt as { table?: unknown; id?: unknown; archived?: unknown };
-    const key = buildRowKey(String(value.table), String(value.id));
-    if (
-      typeof value.table !== "string" ||
-      !isLifecycleEntityKey(value.table) ||
-      typeof value.id !== "string" ||
-      typeof value.archived !== "boolean" ||
-      !expectedArchives.has(key) ||
-      receivedArchives.has(key)
-    ) {
-      throw new BatchCommitUncertainError("Batch sync returned an invalid lifecycle archive receipt.");
-    }
-    receivedArchives.add(key);
-    if (value.archived) archivedLifecycleKeys.add(key);
+  for (const value of rawArchives) {
+    const archive = parseArchiveReceipt(value, expected, received);
+    received.add(archive.key);
+    if (archive.archived) archivedLifecycleKeys.add(archive.key);
   }
-  if (receivedArchives.size !== expectedArchives.size) {
+  if (received.size !== expected.size) {
     throw new BatchCommitUncertainError("Batch sync committed without complete lifecycle archive receipts.");
   }
+  return archivedLifecycleKeys;
+}
+
+/** Reconciliation stage: validate the commit receipt, then fold its server revisions and lifecycle
+ *  archive confirmations into the {@link BatchCommitReceipt} the caller advances the snapshot with. */
+export async function readBatchReceipt(
+  res: Response,
+  ops: Op[],
+  options?: { keepalive?: boolean; archiveLifecycleDeletes?: boolean },
+): Promise<BatchCommitReceipt> {
+  const receipt = parseBatchReceipt(await res.json().catch(() => null), ops.length);
+  // The batch receipt can flag audit degradation in its BODY as well as the shared header; the
+  // header half goes through the same synchronous helper as the lifecycle routes above.
+  if (receipt.auditWarning === true) announceAuditWarning();
+  else noteAuditWarning(res);
+  const compatibleRevisions = reconcileRevisions(receipt, ops);
+  const expectedArchives = listExpectedArchives(receipt, ops, options?.archiveLifecycleDeletes === true);
+  const archivedLifecycleKeys = reconcileArchives(receipt, expectedArchives);
   return {
     revisions: compatibleRevisions,
     archivedLifecycleKeys,

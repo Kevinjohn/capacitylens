@@ -41,7 +41,7 @@ export function createRequestLoggerOptions(stream?: AppOptions["logStream"]) {
     serializers: {
       req(req: FastifyRequest) {
         const url = redactSecretUrl(req.url);
-        const remotePort = req.socket?.remotePort;
+        const remotePort = req.socket.remotePort;
         return {
           method: req.method,
           ...(url === undefined ? {} : { url }),

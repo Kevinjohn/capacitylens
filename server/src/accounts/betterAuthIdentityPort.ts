@@ -29,10 +29,9 @@ const federatedLinkCeremoniesTableExists = createTableExistenceProbe("capacityle
 const accountSessionAssuranceTableExists = createTableExistenceProbe("account_session_assurance");
 /** Better Auth and SQLite mechanics narrowed behind the provider-neutral IdentityPort. */
 
-export function createBetterAuthIdentityPort(input: IdentityPortInput): SsoCutoverIdentityPort {
-  // Handles are valid only for this port instance; inject both operations with this same key.
+function createCompensationMethods() {
   const compensationKey = randomBytes(32);
-  const buildCompensationHandle = (principalId: string, commandId: string): string =>
+  const makeCompensationHandle = (principalId: string, commandId: string): string =>
     createHash("sha256")
       .update(compensationKey)
       .update("\0")
@@ -42,19 +41,23 @@ export function createBetterAuthIdentityPort(input: IdentityPortInput): SsoCutov
       .digest("base64url");
   const assertCompensationHandle = (provisional: ProvisionalPrincipal, commandId: string): void => {
     if (
-      !isMatchingSecretToken(
-        buildCompensationHandle(provisional.principalId, commandId),
-        provisional.compensationHandle,
-      )
+      isMatchingSecretToken(makeCompensationHandle(provisional.principalId, commandId), provisional.compensationHandle)
     ) {
-      throw new AccountContractError({
-        code: "FORBIDDEN",
-        message: "The provisional-principal compensation handle is invalid.",
-        retryable: false,
-        commandId,
-      });
+      return;
     }
+    throw new AccountContractError({
+      code: "FORBIDDEN",
+      message: "The provisional-principal compensation handle is invalid.",
+      retryable: false,
+      commandId,
+    });
   };
+  return { makeCompensationHandle, assertCompensationHandle };
+}
+
+export function createBetterAuthIdentityPort(input: IdentityPortInput): SsoCutoverIdentityPort {
+  // Handles are valid only for this port instance; inject both operations with this same key.
+  const compensation = createCompensationMethods();
   const tables = {
     accountTableExists,
     sessionTableExists,
@@ -70,8 +73,7 @@ export function createBetterAuthIdentityPort(input: IdentityPortInput): SsoCutov
   const context = {
     input,
     ...tables,
-    makeCompensationHandle: buildCompensationHandle,
-    assertCompensationHandle,
+    ...compensation,
     eraseLocalPrincipalsInTx,
     revokePrincipalSessionsInTx,
   };

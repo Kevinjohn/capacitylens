@@ -71,13 +71,13 @@ function DisciplineRoute() {
 function ActivityRoute() {
   const { hash } = useLocation();
   const encodedId = hash.startsWith("#activity=") ? hash.slice("#activity=".length) : "";
-  let selectedActivityId: string | null = null;
+  let selectedActivityId: string | undefined;
   try {
-    selectedActivityId = encodedId ? decodeURIComponent(encodedId) : null;
+    selectedActivityId = encodedId ? decodeURIComponent(encodedId) : undefined;
   } catch {
     // A malformed bookmark still opens the complete list without selecting an arbitrary row.
   }
-  return <ActivityList selectedActivityId={selectedActivityId} />;
+  return <ActivityList {...(selectedActivityId === undefined ? {} : { selectedActivityId })} />;
 }
 
 export const router = createBrowserRouter([

@@ -174,7 +174,99 @@ describe("findOwned", () => {
   });
 });
 
-describe("assertScopedRefs", () => {
+const registerUnchangedParentIdOnUpdatePart1 = () => {
+  it("passes an UNCHANGED clientId even when the client is absent from data (archived parent)", () => {
+    const existing = project("p1", A1, "c-archived");
+    // No clients at all — the archived parent was stripped from the slice.
+    expect(() =>
+      assertScopedRefs(base(), A1, "projects", { name: "Renamed", clientId: "c-archived" }, existing),
+    ).not.toThrow();
+  });
+};
+const registerUnchangedParentIdOnUpdatePart2 = () => {
+  it("rejects an unchanged legacy reference when the resolved parent belongs to another account", () => {
+    const existing = project("p1", A1, "cross-account-client");
+    const data: AppData = {
+      ...base(),
+      clients: [client("cross-account-client", A2)],
+      projects: [existing],
+    };
+
+    expect(() =>
+      assertScopedRefs(data, A1, "projects", { name: "Unrelated rename", clientId: existing.clientId }, existing),
+    ).toThrow("Project must reference a client in this company.");
+  });
+};
+const registerUnchangedParentIdOnUpdatePart3 = () => {
+  it("still rejects a CHANGED clientId that is absent from data", () => {
+    const existing = project("p1", A1, "c-archived");
+    expect(() => assertScopedRefs(base(), A1, "projects", { clientId: "c-other" }, existing)).toThrow(
+      "Project must reference a client in this company.",
+    );
+  });
+};
+const registerUnchangedParentIdOnUpdatePart4 = () => {
+  it("passes an UNCHANGED projectId+phaseId pair even when both are absent from data", () => {
+    const existing = activity({ id: "t1", accountId: A1, projectId: "p-archived", phaseId: "ph-archived" });
+    const merged = { ...existing, name: "Renamed" };
+    expect(() => assertScopedRefs(base(), A1, "activities", merged, existing)).not.toThrow();
+  });
+};
+const registerUnchangedParentIdOnUpdatePart5 = () => {
+  it("rejects an unchanged phaseId when the resolved legacy phase belongs to another account", () => {
+    const existing = activity({ id: "t1", accountId: A1, projectId: "p1", phaseId: "cross-account-phase" });
+    const data: AppData = {
+      ...base(),
+      projects: [project("p1", A1, "c1")],
+      phases: [phase("cross-account-phase", A2, "p2")],
+      activities: [existing],
+    };
+
+    expect(() => assertScopedRefs(data, A1, "activities", { ...existing, name: "Unrelated rename" }, existing)).toThrow(
+      "Activity phase must belong to this company.",
+    );
+  });
+};
+const registerUnchangedParentIdOnUpdatePart6 = () => {
+  it("re-runs the full phase coherence check when the phaseId CHANGES", () => {
+    const data = {
+      ...base(),
+      clients: [client("c1", A1)],
+      projects: [project("p1", A1, "c1")],
+    };
+    const existing = activity({ id: "t1", accountId: A1, projectId: "p1", phaseId: "ph-old" });
+    const merged = { ...existing, phaseId: "ph-new" }; // changed → must resolve, and it can't
+    expect(() => assertScopedRefs(data, A1, "activities", merged, existing)).toThrow(
+      "Activity phase must belong to this company.",
+    );
+  });
+};
+const registerUnchangedParentIdOnUpdatePart7 = () => {
+  it("passes an UNCHANGED placeholder projectId even when the project is absent from data", () => {
+    const existing = placeholder("r1", A1, "p-archived");
+    expect(() =>
+      assertScopedRefs(base(), A1, "resources", { name: "Renamed", projectId: "p-archived" }, existing),
+    ).not.toThrow();
+  });
+};
+const registerUnchangedParentIdOnUpdatePart8 = () => {
+  it("without `existing` (an ADD) the check stays strict", () => {
+    expect(() => assertScopedRefs(base(), A1, "projects", { clientId: "c-archived" })).toThrow(
+      "Project must reference a client in this company.",
+    );
+  });
+};
+const registerUnchangedParentIdOnUpdate = () => {
+  registerUnchangedParentIdOnUpdatePart1();
+  registerUnchangedParentIdOnUpdatePart2();
+  registerUnchangedParentIdOnUpdatePart3();
+  registerUnchangedParentIdOnUpdatePart4();
+  registerUnchangedParentIdOnUpdatePart5();
+  registerUnchangedParentIdOnUpdatePart6();
+  registerUnchangedParentIdOnUpdatePart7();
+  registerUnchangedParentIdOnUpdatePart8();
+};
+const registerAssertScopedRefsPart1 = () => {
   it.each(["clients", "disciplines", "allocations", "timeOff"] as const)(
     "leaves %s validation to its dedicated boundary",
     (table) => {
@@ -200,7 +292,9 @@ describe("assertScopedRefs", () => {
       "Project must reference a client in this company.",
     );
   });
+};
 
+const registerAssertScopedRefsPart2 = () => {
   it("rejects a new reference to an archived parent at the generic scoped write boundary", () => {
     const archivedClient = { ...client("c1", A1), archivedAt: TS };
     const data = { ...base(), clients: [archivedClient] };
@@ -245,7 +339,9 @@ describe("assertScopedRefs", () => {
       assertScopedRefs(data, A1, "phases", { ...existingPhase, name: "Renamed" }, existingPhase),
     ).not.toThrow();
   });
+};
 
+const registerAssertScopedRefsPart3 = () => {
   it("only checks FK fields actually present (partial patch)", () => {
     // A patch with no clientId must not be rejected for omitting it.
     const existing = project("p1", A1, "c1");
@@ -282,7 +378,9 @@ describe("assertScopedRefs", () => {
       }),
     ).toThrow("Activity phase must belong to the activity’s project.");
   });
+};
 
+const registerAssertScopedRefsPart4 = () => {
   it("throws when an activity carries a phase but no project", () => {
     const data = {
       ...base(),
@@ -320,7 +418,9 @@ describe("assertScopedRefs", () => {
       "A project-specific activity must be assigned to a project.",
     );
   });
+};
 
+const registerAssertScopedRefsPart5 = () => {
   it("throws when an internal/repeatable activity carries a project or phase (kind coherence)", () => {
     const data = {
       ...base(),
@@ -361,7 +461,9 @@ describe("assertScopedRefs", () => {
       "Placeholder project must belong to this company.",
     );
   });
+};
 
+const registerAssertScopedRefsPart6 = () => {
   it("rejects project bindings on people and externals at the shared write boundary", () => {
     const data = {
       ...base(),
@@ -397,7 +499,9 @@ describe("assertScopedRefs", () => {
     const existing = { ...person("r1", A1), projectId: "legacy-project" };
     expect(() => assertScopedRefs(base(), A1, "resources", { name: "Renamed" }, existing)).not.toThrow();
   });
+};
 
+const registerAssertScopedRefsPart7 = () => {
   it("rejects absent or null required parents on project and phase creates", () => {
     expect(() => assertScopedRefs(base(), A1, "projects", { name: "No parent" })).toThrow(
       "Project must reference a client in this company.",
@@ -430,7 +534,9 @@ describe("assertScopedRefs", () => {
       "Project must reference a client in this company.",
     );
   });
+};
 
+const registerAssertScopedRefsPart8 = () => {
   it("validates a phase’s projectId FK (throws cross-account, passes in-account)", () => {
     const cross = {
       ...base(),
@@ -471,7 +577,9 @@ describe("assertScopedRefs", () => {
       }),
     ).toThrow("Activity phase must belong to this company.");
   });
+};
 
+const registerAssertScopedRefsPart9 = () => {
   it("an UNRECOGNISED activity kind is not treated as internal/repeatable (no false project rejection)", () => {
     // assertScopedRefs checks refs + coherence for the KNOWN kinds only; it does not police the kind
     // enum itself (sanitize does). An unknown kind carrying a valid project must pass the ref checks.
@@ -498,92 +606,22 @@ describe("assertScopedRefs", () => {
   // The unchanged-on-update relaxation (5th arg `existing`): in SERVER mode the client's hydrated
   // slice is ACTIVE-ONLY, so an unchanged parent id pointing at an ARCHIVED parent (absent from
   // `data`) must not block an unrelated edit. A CHANGED id is still validated strictly.
-  describe("unchanged parent id on update (existing row passed)", () => {
-    it("passes an UNCHANGED clientId even when the client is absent from data (archived parent)", () => {
-      const existing = project("p1", A1, "c-archived");
-      // No clients at all — the archived parent was stripped from the slice.
-      expect(() =>
-        assertScopedRefs(base(), A1, "projects", { name: "Renamed", clientId: "c-archived" }, existing),
-      ).not.toThrow();
-    });
+  describe("unchanged parent id on update (existing row passed)", registerUnchangedParentIdOnUpdate);
+};
 
-    it("rejects an unchanged legacy reference when the resolved parent belongs to another account", () => {
-      const existing = project("p1", A1, "cross-account-client");
-      const data: AppData = {
-        ...base(),
-        clients: [client("cross-account-client", A2)],
-        projects: [existing],
-      };
-
-      expect(() =>
-        assertScopedRefs(data, A1, "projects", { name: "Unrelated rename", clientId: existing.clientId }, existing),
-      ).toThrow("Project must reference a client in this company.");
-    });
-
-    it("still rejects a CHANGED clientId that is absent from data", () => {
-      const existing = project("p1", A1, "c-archived");
-      expect(() => assertScopedRefs(base(), A1, "projects", { clientId: "c-other" }, existing)).toThrow(
-        "Project must reference a client in this company.",
-      );
-    });
-
-    it("passes an UNCHANGED projectId+phaseId pair even when both are absent from data", () => {
-      const existing = activity({ id: "t1", accountId: A1, projectId: "p-archived", phaseId: "ph-archived" });
-      const merged = { ...existing, name: "Renamed" };
-      expect(() => assertScopedRefs(base(), A1, "activities", merged, existing)).not.toThrow();
-    });
-
-    it("rejects an unchanged phaseId when the resolved legacy phase belongs to another account", () => {
-      const existing = activity({ id: "t1", accountId: A1, projectId: "p1", phaseId: "cross-account-phase" });
-      const data: AppData = {
-        ...base(),
-        projects: [project("p1", A1, "c1")],
-        phases: [phase("cross-account-phase", A2, "p2")],
-        activities: [existing],
-      };
-
-      expect(() =>
-        assertScopedRefs(data, A1, "activities", { ...existing, name: "Unrelated rename" }, existing),
-      ).toThrow("Activity phase must belong to this company.");
-    });
-
-    it("re-runs the full phase coherence check when the phaseId CHANGES", () => {
-      const data = {
-        ...base(),
-        clients: [client("c1", A1)],
-        projects: [project("p1", A1, "c1")],
-      };
-      const existing = activity({ id: "t1", accountId: A1, projectId: "p1", phaseId: "ph-old" });
-      const merged = { ...existing, phaseId: "ph-new" }; // changed → must resolve, and it can't
-      expect(() => assertScopedRefs(data, A1, "activities", merged, existing)).toThrow(
-        "Activity phase must belong to this company.",
-      );
-    });
-
-    it("passes an UNCHANGED placeholder projectId even when the project is absent from data", () => {
-      const existing = placeholder("r1", A1, "p-archived");
-      expect(() =>
-        assertScopedRefs(base(), A1, "resources", { name: "Renamed", projectId: "p-archived" }, existing),
-      ).not.toThrow();
-    });
-
-    it("without `existing` (an ADD) the check stays strict", () => {
-      expect(() => assertScopedRefs(base(), A1, "projects", { clientId: "c-archived" })).toThrow(
-        "Project must reference a client in this company.",
-      );
-    });
-  });
+describe("assertScopedRefs", () => {
+  registerAssertScopedRefsPart1();
+  registerAssertScopedRefsPart2();
+  registerAssertScopedRefsPart3();
+  registerAssertScopedRefsPart4();
+  registerAssertScopedRefsPart5();
+  registerAssertScopedRefsPart6();
+  registerAssertScopedRefsPart7();
+  registerAssertScopedRefsPart8();
+  registerAssertScopedRefsPart9();
 });
 
-describe("assertAllocationRefs", () => {
-  const world = (): AppData => ({
-    ...base(),
-    clients: [client("c1", A1)],
-    projects: [project("p1", A1, "c1")],
-    activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
-    resources: [person("r1", A1)],
-  });
-
+const registerAssertAllocationRefsPart1 = (world: () => AppData) => {
   it("passes for a real resource + activity in the account", () => {
     expect(() => assertAllocationRefs(world(), A1, "r1", "t1", 8)).not.toThrow();
   });
@@ -593,7 +631,9 @@ describe("assertAllocationRefs", () => {
       "Allocation must reference an existing resource and activity in this company.",
     );
   });
+};
 
+const registerAssertAllocationRefsPart2 = (world: () => AppData) => {
   it("rejects new allocations to archived resources and archived projects", () => {
     const archivedResource: AppData = {
       ...world(),
@@ -631,7 +671,9 @@ describe("assertAllocationRefs", () => {
       }),
     ).not.toThrow();
   });
+};
 
+const registerAssertAllocationRefsPart3 = (world: () => AppData) => {
   it("rejects a project-bound activity whose project is missing or belongs to another account", () => {
     const missingProject = { ...world(), projects: [] };
     expect(() => assertAllocationRefs(missingProject, A1, "r1", "t1", 8)).toThrow(
@@ -677,7 +719,9 @@ describe("assertAllocationRefs", () => {
       }),
     ).toThrow("Allocation must reference an activity under an active project.");
   });
+};
 
+const registerAssertAllocationRefsPart4 = (world: () => AppData) => {
   it("throws when a placeholder is assigned outside its bound project", () => {
     const data: AppData = {
       ...base(),
@@ -704,7 +748,9 @@ describe("assertAllocationRefs", () => {
   it("allows a non-zero load on a normal resource", () => {
     expect(() => assertAllocationRefs(world(), A1, "r1", "t1", 8)).not.toThrow();
   });
+};
 
+const registerAssertAllocationRefsPart5 = (world: () => AppData) => {
   it("enforces repeatable-only attribution, project ownership/liveness and placeholder scope", () => {
     const repeatable: Activity = {
       ...activity({ id: "repeatable", accountId: A1, projectId: "p1" }),
@@ -752,6 +798,21 @@ describe("assertAllocationRefs", () => {
       }),
     ).toThrow(/active project/i);
   });
+};
+
+describe("assertAllocationRefs", () => {
+  const world = (): AppData => ({
+    ...base(),
+    clients: [client("c1", A1)],
+    projects: [project("p1", A1, "c1")],
+    activities: [activity({ id: "t1", accountId: A1, projectId: "p1" })],
+    resources: [person("r1", A1)],
+  });
+  registerAssertAllocationRefsPart1(world);
+  registerAssertAllocationRefsPart2(world);
+  registerAssertAllocationRefsPart3(world);
+  registerAssertAllocationRefsPart4(world);
+  registerAssertAllocationRefsPart5(world);
 });
 
 describe("assertDateRange", () => {
@@ -816,7 +877,7 @@ describe("assertResourceExists", () => {
   });
 });
 
-describe("assertResourceKindAllowsDependents", () => {
+const registerAssertResourceKindAllowsDependentsPart1 = () => {
   const reject = /reassign or remove this resource’s work and time off/i;
 
   it("is a no-op when the merged kind is not external", () => {
@@ -852,7 +913,9 @@ describe("assertResourceKindAllowsDependents", () => {
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).toThrow(reject);
   });
+};
 
+const registerAssertResourceKindAllowsDependentsPart2 = () => {
   it("ignores company closures when making a resource external", () => {
     const data: AppData = {
       ...base(),
@@ -898,12 +961,14 @@ describe("assertResourceKindAllowsDependents", () => {
     };
     expect(() => assertResourceKindAllowsDependents(data, A1, "r1", "external")).not.toThrow();
   });
+};
+
+describe("assertResourceKindAllowsDependents", () => {
+  registerAssertResourceKindAllowsDependentsPart1();
+  registerAssertResourceKindAllowsDependentsPart2();
 });
 
-describe("parent project edits preserve placeholder allocation assignments", () => {
-  const rejectResource = /reassign or remove this placeholder’s work before changing its bound project/i;
-  const rejectActivity = /reassign placeholder work before changing this activity’s project/i;
-
+const registerParentProjectEditsPart1 = (rejectResource: RegExp) => {
   it("rejects rebinding a placeholder while it owns work under its previous project", () => {
     const existing = placeholder("ph", A1, "p1");
     const data: AppData = {
@@ -933,7 +998,9 @@ describe("parent project edits preserve placeholder allocation assignments", () 
       assertResourceProjectAllowsDependents(data, A1, "ph", { ...existing, projectId: "p2" }, existing),
     ).not.toThrow();
   });
+};
 
+const registerParentProjectEditsPart2 = (rejectResource: RegExp, rejectActivity: RegExp) => {
   it("rejects rebinding a placeholder with repeatable work attributed to its bound project", () => {
     const existing = placeholder("ph", A1, "p1");
     const repeatable: Activity = { ...meta("shared", A1), name: "Shared", kind: "repeatable" };
@@ -979,7 +1046,9 @@ describe("parent project edits preserve placeholder allocation assignments", () 
       assertActivityProjectAllowsDependents(data, A1, "shared", { ...existing, kind: "internal" }, existing),
     ).not.toThrow();
   });
+};
 
+const registerParentProjectEditsPart3 = (rejectResource: RegExp, rejectActivity: RegExp) => {
   it("rejects converting a person with all-projects work into a bound placeholder", () => {
     const existing = person("r1", A1);
     const data: AppData = {
@@ -1013,7 +1082,9 @@ describe("parent project edits preserve placeholder allocation assignments", () 
       assertActivityProjectAllowsDependents(data, A1, "t1", { ...existing, projectId: "p2" }, existing),
     ).toThrow(rejectActivity);
   });
+};
 
+const registerParentProjectEditsPart4 = () => {
   it("allows moving an activity owned only by people and allows making placeholder work project-less", () => {
     const projectActivity = activity({ id: "project-work", accountId: A1, projectId: "p1" });
     const placeholderActivity = activity({ id: "placeholder-work", accountId: A1, projectId: "p1" });
@@ -1050,7 +1121,9 @@ describe("parent project edits preserve placeholder allocation assignments", () 
       ),
     ).not.toThrow();
   });
+};
 
+const registerParentProjectEditsPart5 = () => {
   it("does not make an unrelated edit the repair boundary for already-corrupt assignments", () => {
     const resource = placeholder("ph", A1, "p2");
     const activityRow = activity({ id: "t1", accountId: A1, projectId: "p1" });
@@ -1064,6 +1137,16 @@ describe("parent project edits preserve placeholder allocation assignments", () 
     expect(() => assertResourceProjectAllowsDependents(data, A1, "ph", resource, resource)).not.toThrow();
     expect(() => assertActivityProjectAllowsDependents(data, A1, "t1", activityRow, activityRow)).not.toThrow();
   });
+};
+
+describe("parent project edits preserve placeholder allocation assignments", () => {
+  const rejectResource = /reassign or remove this placeholder’s work before changing its bound project/i;
+  const rejectActivity = /reassign placeholder work before changing this activity’s project/i;
+  registerParentProjectEditsPart1(rejectResource);
+  registerParentProjectEditsPart2(rejectResource, rejectActivity);
+  registerParentProjectEditsPart3(rejectResource, rejectActivity);
+  registerParentProjectEditsPart4();
+  registerParentProjectEditsPart5();
 });
 
 describe("deleteAccountCascade", () => {
@@ -1088,14 +1171,7 @@ describe("deleteAccountCascade", () => {
   });
 });
 
-describe("remapAndValidateImport", () => {
-  const incoming = (): AppData => ({
-    ...emptyAppData(),
-    clients: [client("src-c", "src-acct")],
-    projects: [project("src-p", "src-acct", "src-c")],
-    activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
-  });
-
+const registerRemapAndValidateImportPart1 = (incoming: () => AppData) => {
   it("imports into the active account with FRESH ids and remapped foreign keys", () => {
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, incoming(), TS);
     expect(imported).toBe(3);
@@ -1121,7 +1197,9 @@ describe("remapAndValidateImport", () => {
 
     expect(data.clients.find(({ builtin }) => builtin !== true)).not.toHaveProperty("opaquePrivateField");
   });
+};
 
+const registerRemapAndValidateImportPart2 = () => {
   it("retains a legacy-only activity and its allocation from a mixed v4 migration state", () => {
     const migrated = migrate({
       schemaVersion: 4,
@@ -1163,7 +1241,9 @@ describe("remapAndValidateImport", () => {
     expect(imported).toBe(4);
     expect(skipped).toBe(0);
   });
+};
 
+const registerRemapAndValidateImportPart3 = (incoming: () => AppData) => {
   it("replaces only the active account slice; other accounts are untouched", () => {
     const start: AppData = { ...base(), clients: [client("keep", A2)] };
     const { data } = remapAndValidateImport(start, A1, incoming(), TS);
@@ -1200,7 +1280,9 @@ describe("remapAndValidateImport", () => {
     expect(data.allocations).toHaveLength(1); // only the valid one survives
     expect(skipped).toBe(3); // 2 bad allocations + 1 dangling time-off
   });
+};
 
+const registerRemapAndValidateImportPart4 = () => {
   it("drops a v16 Everyone time-off entry instead of converting it to a closure", () => {
     const migrated = migrate({
       schemaVersion: 16,
@@ -1225,7 +1307,9 @@ describe("remapAndValidateImport", () => {
     expect(imported).toBe(0);
     expect(skipped).toBe(1);
   });
+};
 
+const registerRemapAndValidateImportPart5 = () => {
   it("keeps a company closure when the import has no resources", () => {
     const closure = {
       ...meta("closure", "src-acct"),
@@ -1250,7 +1334,9 @@ describe("remapAndValidateImport", () => {
     expect(imported).toBe(1);
     expect(skipped).toBe(0);
   });
+};
 
+const registerRemapAndValidateImportPart6 = () => {
   it("drops imported allocation and time-off ranges beyond the calendar-span bound", () => {
     const start = "2026-01-01";
     const atLimit = addDaysISO(start, MAX_SPAN_DAYS - 1);
@@ -1311,7 +1397,9 @@ describe("remapAndValidateImport", () => {
     expect(data.timeOff.filter((row) => row.accountId === A1)).toHaveLength(1);
     expect(skipped).toBe(2);
   });
+};
 
+const registerRemapAndValidateImportPart7 = () => {
   it("skips null and primitive import rows instead of dereferencing them", () => {
     const malformed = {
       ...emptyAppData(),
@@ -1333,7 +1421,9 @@ describe("remapAndValidateImport", () => {
 
     expect(() => remapAndValidateImport(base(), A1, malformed, TS)).toThrow("Imported clients table must be a list.");
   });
+};
 
+const registerRemapAndValidateImportPart8 = () => {
   it("coerces an external resource’s allocation load to 0 and drops external time-off", () => {
     // A hand-edited file: an external resource carries a non-zero allocation load (impossible via the
     // form) and a time-off entry (meaningless — externals have no capacity). Import keeps the booking
@@ -1380,59 +1470,57 @@ describe("remapAndValidateImport", () => {
     expect(data.resources[0]?.name).toMatch(/^Removed person #[a-zA-Z0-9]{12}$/);
     expect(data.resources[0]?.name).not.toContain("Named Person");
   });
+};
 
+const deletedResourceImportFixture = (): AppData => {
+  const deleted = {
+    ...person("src-r", "src-acct"),
+    name: "Named Person",
+    archivedAt: "2026-01-02T00:00:00.000Z",
+    deletedAt: "2026-01-03T00:00:00.000Z",
+  };
+  return {
+    ...emptyAppData(),
+    clients: [client("src-c", "src-acct")],
+    projects: [project("src-p", "src-acct", "src-c")],
+    activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
+    resources: [deleted, person("active-r", "src-acct")],
+    allocations: [
+      allocation({
+        id: "deleted-al",
+        accountId: "src-acct",
+        resourceId: "src-r",
+        activityId: "src-t",
+        overrides: { note: "Private project context" },
+      }),
+      allocation({
+        id: "active-al",
+        accountId: "src-acct",
+        resourceId: "active-r",
+        activityId: "src-t",
+        overrides: { note: "Keep this context" },
+      }),
+    ],
+    timeOff: [
+      timeOff({
+        id: "deleted-to",
+        accountId: "src-acct",
+        resourceId: "src-r",
+        overrides: { note: "Private medical detail" },
+      }),
+      timeOff({
+        id: "active-to",
+        accountId: "src-acct",
+        resourceId: "active-r",
+        overrides: { note: "Keep this absence detail" },
+      }),
+    ],
+  };
+};
+
+const registerRemapAndValidateImportPart9 = () => {
   it("scrubs dependent allocation and time-off notes for an imported deleted resource", () => {
-    const deleted = {
-      ...person("src-r", "src-acct"),
-      name: "Named Person",
-      archivedAt: "2026-01-02T00:00:00.000Z",
-      deletedAt: "2026-01-03T00:00:00.000Z",
-    };
-    const handEdited: AppData = {
-      ...emptyAppData(),
-      clients: [client("src-c", "src-acct")],
-      projects: [project("src-p", "src-acct", "src-c")],
-      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
-      resources: [deleted, person("active-r", "src-acct")],
-      allocations: [
-        allocation({
-          id: "deleted-al",
-          accountId: "src-acct",
-          resourceId: "src-r",
-          activityId: "src-t",
-          overrides: {
-            note: "Private project context",
-          },
-        }),
-        allocation({
-          id: "active-al",
-          accountId: "src-acct",
-          resourceId: "active-r",
-          activityId: "src-t",
-          overrides: {
-            note: "Keep this context",
-          },
-        }),
-      ],
-      timeOff: [
-        timeOff({
-          id: "deleted-to",
-          accountId: "src-acct",
-          resourceId: "src-r",
-          overrides: {
-            note: "Private medical detail",
-          },
-        }),
-        timeOff({
-          id: "active-to",
-          accountId: "src-acct",
-          resourceId: "active-r",
-          overrides: {
-            note: "Keep this absence detail",
-          },
-        }),
-      ],
-    };
+    const handEdited = deletedResourceImportFixture();
 
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited, TS);
 
@@ -1443,7 +1531,9 @@ describe("remapAndValidateImport", () => {
     expect(imported).toBe(9);
     expect(skipped).toBe(0);
   });
+};
 
+const registerRemapAndValidateImportPart10 = () => {
   it("does not obfuscate personal data on an active imported resource", () => {
     const active = { ...person("src-r", "src-acct"), name: "Named Person" };
     const { data } = remapAndValidateImport(base(), A1, { ...emptyAppData(), resources: [active] }, TS);
@@ -1491,7 +1581,9 @@ describe("remapAndValidateImport", () => {
     expect(data.activities[0]?.projectId).toBeUndefined();
     expect(data.allocations).toHaveLength(1); // unbound placeholder + general activity is allowed
   });
+};
 
+const registerRemapAndValidateImportPart11 = () => {
   it("drops an allocation to an unbound placeholder when its activity is project-bound", () => {
     // Same unbinding, but the activity keeps a SURVIVING project, so the placeholder rule
     // bites: an unbound placeholder may not take a project activity → the allocation drops.
@@ -1524,7 +1616,9 @@ describe("remapAndValidateImport", () => {
     expect(new Set(brought.map((c) => c.id)).size).toBe(2); // two distinct ids, not one shared id
     expect(brought.map((c) => c.name).sort()).toEqual(["First", "Second"]);
   });
+};
 
+const registerRemapAndValidateImportPart12 = () => {
   it("does not count an auto-added built-in Internal that the file already carries (no N+1 over-report)", () => {
     // A pre-v6 FULL export gets a builtin Internal synthesised by migrate BEFORE this import runs, so
     // the file reaching here already carries one. It must be KEPT (every account needs exactly one) but
@@ -1577,7 +1671,9 @@ describe("remapAndValidateImport", () => {
     expect(internal).not.toHaveProperty("archivedAt");
     expect(internal).not.toHaveProperty("deletedAt");
   });
+};
 
+const registerRemapAndValidateImportPart13 = () => {
   it("resolves a foreign key against its OWN table when a source id collides across tables", () => {
     // Corrupt file: a discipline and a client share source id 'X', and a project points at
     // clientId 'X'. A single GLOBAL id map would resolve 'X' to whichever table is processed
@@ -1615,7 +1711,9 @@ describe("remapAndValidateImport", () => {
     expect(c?.createdAt).toBe(NOW);
     expect(c?.updatedAt).toBe(NOW);
   });
+};
 
+const registerRemapAndValidateImportPart14 = () => {
   it("unbinds an activity’s phase that belongs to a different project", () => {
     const handEdited: AppData = {
       ...emptyAppData(),
@@ -1635,7 +1733,9 @@ describe("remapAndValidateImport", () => {
     expect(imported).toBe(0);
     expect(skipped).toBe(0);
   });
+};
 
+const registerRemapAndValidateImportPart15 = () => {
   it("exhaustiveness: remapAndValidateImport output covers every scoped key (repair order completeness)", () => {
     // If a new scoped entity is added to SCOPED_KEYS but the import repair block inside
     // remapAndValidateImport is not updated, the new table's rows would be brought in
@@ -1671,7 +1771,9 @@ describe("remapAndValidateImport", () => {
     // The synthesised Internal is bookkeeping, so the FILE'S record count is still SCOPED_KEYS.length.
     expect(imported).toBe(SCOPED_KEYS.length);
   });
+};
 
+const registerRemapAndValidateImportPart16 = () => {
   it("assigns a FRESH id to a record that arrives WITHOUT one (never leaves id undefined)", () => {
     // A hand-edited file can carry a record missing its id. It must still get a fresh newId() — not
     // land with an undefined primary key (which SQLite's NOT NULL would reject).
@@ -1706,7 +1808,9 @@ describe("remapAndValidateImport", () => {
     expect(r?.projectId).toBe(proj?.id); // valid placeholder project kept + remapped
     expect(r).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
   });
+};
 
+const registerRemapAndValidateImportPart17 = () => {
   it("normalizes imported placeholder working patterns independently of the target account", () => {
     const incoming: AppData = {
       ...emptyAppData(),
@@ -1741,7 +1845,9 @@ describe("remapAndValidateImport", () => {
     expect(t?.projectId).toBe(proj?.id); // project kept
     expect(t?.phaseId).toBe(ph?.id); // coherent phase kept
   });
+};
 
+const registerRemapAndValidateImportPart18 = () => {
   it("STRIPS project + phase from an INTERNAL activity that carries them (kind coherence)", () => {
     const incoming: AppData = {
       ...emptyAppData(),
@@ -1771,7 +1877,9 @@ describe("remapAndValidateImport", () => {
     expect(t?.projectId).toBeUndefined();
     expect(t?.phaseId).toBeUndefined();
   });
+};
 
+const registerRemapAndValidateImportPart19 = () => {
   it("FOLDS duplicate imported built-in Internal clients into ONE and rewires their projects to it", () => {
     // A hand-edited / re-imported file with TWO builtins must be normalised to exactly one Internal;
     // anything that pointed at a folded-away builtin must be re-pointed at the kept one so it survives
@@ -1801,7 +1909,9 @@ describe("remapAndValidateImport", () => {
     expect(proj).toBeDefined(); // rewired to the kept Internal ⇒ survives the required-FK drop
     expect(proj?.clientId).toBe(builtins[0]?.id);
   });
+};
 
+const registerRemapAndValidateImportPart20 = () => {
   it("repairs an imported allocation’s unpadded dates instead of dropping it", () => {
     const handEdited: AppData = {
       ...emptyAppData(),
@@ -1829,7 +1939,9 @@ describe("remapAndValidateImport", () => {
     expect(a?.startDate).toBe("2026-06-01");
     expect(a?.endDate).toBe("2026-06-05");
   });
+};
 
+const registerRemapAndValidateImportPart21 = () => {
   it("clears invalid allocation attribution before placeholder validation without dropping bookings", () => {
     const repeatable: Activity = { ...meta("repeatable", "src"), name: "Shared", kind: "repeatable" };
     const incoming: AppData = {
@@ -1877,4 +1989,34 @@ describe("remapAndValidateImport", () => {
       expect(data.allocations.find((row) => row.note === note)?.projectId).toBeUndefined();
     }
   });
+};
+
+describe("remapAndValidateImport", () => {
+  const incoming = (): AppData => ({
+    ...emptyAppData(),
+    clients: [client("src-c", "src-acct")],
+    projects: [project("src-p", "src-acct", "src-c")],
+    activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
+  });
+  registerRemapAndValidateImportPart1(incoming);
+  registerRemapAndValidateImportPart2();
+  registerRemapAndValidateImportPart3(incoming);
+  registerRemapAndValidateImportPart4();
+  registerRemapAndValidateImportPart5();
+  registerRemapAndValidateImportPart6();
+  registerRemapAndValidateImportPart7();
+  registerRemapAndValidateImportPart8();
+  registerRemapAndValidateImportPart9();
+  registerRemapAndValidateImportPart10();
+  registerRemapAndValidateImportPart11();
+  registerRemapAndValidateImportPart12();
+  registerRemapAndValidateImportPart13();
+  registerRemapAndValidateImportPart14();
+  registerRemapAndValidateImportPart15();
+  registerRemapAndValidateImportPart16();
+  registerRemapAndValidateImportPart17();
+  registerRemapAndValidateImportPart18();
+  registerRemapAndValidateImportPart19();
+  registerRemapAndValidateImportPart20();
+  registerRemapAndValidateImportPart21();
 });

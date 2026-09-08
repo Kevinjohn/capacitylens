@@ -13,7 +13,7 @@ import {
   type TimeOff,
 } from "@capacitylens/shared/types/entities";
 import { isCreationStartBlockedForEffectiveWeek } from "./creationAvailability";
-import { hasRenderableDateRange } from "./schedulerModelIndexing";
+import { hasRenderableDateRange, reportInvalidScheduleDateRangeOnce } from "./schedulerModelIndexing";
 import type { createAllocationFilters } from "./schedulerModelFilters";
 import type { createCapacitySource } from "./schedulerRowCapacity";
 import type { BarLayout, DayState, RowModel, SchedulerModelOptions, TimeOffBlock } from "./schedulerModelTypes";
@@ -30,6 +30,119 @@ interface CreateRowBuilderInput {
   capacitySource: ReturnType<typeof createCapacitySource>;
 }
 
+type AllocationFilters = ReturnType<typeof createAllocationFilters>;
+type CapacitySource = ReturnType<ReturnType<typeof createCapacitySource>["capacitySourceFor"]>;
+const NO_TIME_OFF_BLOCKS: TimeOffBlock[] = [];
+
+function includeRenderableDateRange(row: { id: string; startDate: ISODate; endDate: ISODate }): boolean {
+  const renderable = hasRenderableDateRange(row);
+  if (!renderable) reportInvalidScheduleDateRangeOnce(row);
+  return renderable;
+}
+
+function buildTimeOffBlock(timeOffEntry: TimeOff, geometry: SchedulerModelOptions["geom"]): TimeOffBlock {
+  return {
+    id: timeOffEntry.id,
+    x: geometry.xForDateInGeom(timeOffEntry.startDate),
+    width: geometry.widthForDates(timeOffEntry.startDate, timeOffEntry.endDate),
+    label: resolveTimeOffTypeLabel(timeOffEntry.type),
+    ...(timeOffEntry.note ? { note: timeOffEntry.note } : {}),
+  };
+}
+
+function createTimelineIntersection(days: ISODate[]) {
+  const timelineStart = days[0];
+  const timelineEnd = days[days.length - 1];
+  return (row: { startDate: ISODate; endDate: ISODate }) =>
+    timelineStart !== undefined &&
+    timelineEnd !== undefined &&
+    rangesOverlap(row.startDate, row.endDate, timelineStart, timelineEnd);
+}
+
+function listVisibleAllocations(input: {
+  allAllocations: Allocation[];
+  dimmed: boolean;
+  hasTimelineIntersection: (row: { startDate: ISODate; endDate: ISODate }) => boolean;
+  filters: Pick<AllocationFilters, "notTentativeHidden" | "barVisibleByInternalPref">;
+  matchingVisibleAllocations: Allocation[];
+}): Allocation[] {
+  if (!input.dimmed) return input.matchingVisibleAllocations;
+  return input.allAllocations
+    .filter(input.filters.notTentativeHidden)
+    .filter(input.hasTimelineIntersection)
+    .filter(input.filters.barVisibleByInternalPref);
+}
+
+function buildBars(input: {
+  allocations: Allocation[];
+  geometry: SchedulerModelOptions["geom"];
+  laneLayout: NonNullable<SchedulerModelOptions["laneLayout"]>;
+  seriesEndByKey: Map<string, ISODate>;
+  filters: Pick<AllocationFilters, "projectClientFor" | "activityById" | "colorMaps">;
+  external: boolean;
+}): { bars: BarLayout[]; laneCount: number } {
+  const { lanes, laneCount } = packLanes(input.allocations);
+  const laneIndicesByAllocationId = new Map(lanes.map((lane) => [lane.id, lane.lane]));
+  const bars = input.allocations.map((allocation) => {
+    const { project, client } = input.filters.projectClientFor(allocation);
+    const seriesEnd = allocation.seriesId
+      ? input.seriesEndByKey.get(`${allocation.accountId}\u0000${allocation.seriesId}`)
+      : undefined;
+    return {
+      allocation,
+      x: input.geometry.xForDateInGeom(allocation.startDate),
+      width: input.geometry.widthForDates(allocation.startDate, allocation.endDate),
+      top: resolveLaneTop(laneIndicesByAllocationId.get(allocation.id) ?? 0, input.laneLayout),
+      color: resolveBarColor(allocation, input.filters.colorMaps),
+      label: input.filters.activityById.get(allocation.activityId)?.name ?? "Activity",
+      ...(project ? { project: project.name } : {}),
+      ...(client ? { client: client.name } : {}),
+      ...(seriesEnd ? { seriesEnd } : {}),
+      external: input.external,
+    };
+  });
+  return { bars, laneCount };
+}
+
+function buildDayStates(input: {
+  resource: Resource;
+  days: ISODate[];
+  blocksMode: boolean;
+  closures: CreateRowBuilderInput["model"]["data"]["closures"];
+  effectiveWeek: ReturnType<typeof effectiveWorkingWeek>;
+  capacity: CapacitySource;
+}): Pick<RowModel, "dayStates" | "conflictDayCount" | "partialCapacityDayCount"> {
+  const dayStates: DayState[] = [];
+  let conflictDayCount = 0;
+  let partialCapacityDayCount = 0;
+  for (const date of input.days) {
+    const dayCapacity = input.capacity.getCapacityOnDay(date);
+    const creationBlocked = isCreationStartBlockedForEffectiveWeek({
+      resource: input.resource,
+      date,
+      timeOff: input.capacity.listTimeOffOn(date),
+      effectiveWeek: input.effectiveWeek,
+      closures: input.closures,
+    });
+    const unavailable = (input.capacity.tracked && dayCapacity.available === 0) || creationBlocked;
+    const partialCapacity = input.capacity.tracked && !unavailable && isHalfDay(input.resource, weekdayOf(date));
+    const hasTimeOff = input.capacity.getTimeOffCountOn(date) > 0;
+    const timeOffConflict =
+      hasTimeOff && (input.blocksMode ? input.capacity.getAllocationCountOn(date) > 0 : dayCapacity.over);
+    if (dayCapacity.over || timeOffConflict) conflictDayCount++;
+    if (partialCapacity) partialCapacityDayCount++;
+    dayStates.push({
+      over: dayCapacity.over,
+      timeOffConflict,
+      unavailable,
+      partialCapacity,
+      creationBlocked,
+      hasTimeOff,
+    });
+  }
+  return { dayStates, conflictDayCount, partialCapacityDayCount };
+}
+
 export function createRowBuilder({
   model: { data, geom: geometry, days },
   accountWorkingDays,
@@ -38,37 +151,15 @@ export function createRowBuilder({
   allocationsByResource,
   timeOffByResource,
   seriesEndByKey,
-  allocationFilters: {
-    allocVisible,
-    notTentativeHidden: passesTentativeFilter,
-    barVisibleByInternalPref: barVisibleByInternalPreference,
-    workFilterActive,
-    projectClientFor,
-    activityById: activitiesById,
-    colorMaps,
-  },
+  allocationFilters,
   capacitySource: { capacitySourceFor, visDays: visibleDays, overDays },
 }: CreateRowBuilderInput) {
-  const timelineStart = days[0];
-  const timelineEnd = days[days.length - 1];
-  const hasTimelineIntersection = (row: { startDate: ISODate; endDate: ISODate }) =>
-    timelineStart !== undefined &&
-    timelineEnd !== undefined &&
-    rangesOverlap(row.startDate, row.endDate, timelineStart, timelineEnd);
-
-  const buildTimeOffBlock = (timeOffEntry: TimeOff): TimeOffBlock => ({
-    id: timeOffEntry.id,
-    x: geometry.xForDateInGeom(timeOffEntry.startDate),
-    width: geometry.widthForDates(timeOffEntry.startDate, timeOffEntry.endDate),
-    label: resolveTimeOffTypeLabel(timeOffEntry.type),
-    ...(timeOffEntry.note ? { note: timeOffEntry.note } : {}),
-  });
-  const NO_TIME_OFF_BLOCKS: TimeOffBlock[] = [];
+  const hasTimelineIntersection = createTimelineIntersection(days);
 
   return function buildRow(resource: Resource): RowModel {
     // This resource's data, pre-grouped above; capacity then scans only its own
     // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
-    const allAllocations = (allocationsByResource.get(resource.id) ?? []).filter(hasRenderableDateRange);
+    const allAllocations = (allocationsByResource.get(resource.id) ?? []).filter(includeRenderableDateRange);
     const resourceTimeOff = timeOffByResource.get(resource.id) ?? [];
     const isExternal = isExternalResource(resource);
     // Resolve the company/personal intersection once for the whole row. Capacity, creation
@@ -80,76 +171,32 @@ export function createRowBuilder({
     // from the exact matching bar set means off-timeline and otherwise hidden matches cannot
     // create a full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
     const matchingVisibleAllocations = allAllocations
-      .filter(allocVisible)
+      .filter(allocationFilters.allocVisible)
       .filter(hasTimelineIntersection)
-      .filter(barVisibleByInternalPreference);
-    const dimmed = workFilterActive && matchingVisibleAllocations.length === 0;
-    const visibleAllocations = dimmed
-      ? allAllocations
-          .filter(passesTentativeFilter)
-          .filter(hasTimelineIntersection)
-          // BAR-ONLY internal-work hide (see barVisibleByInternalPref). Applied here, after the
-          // capacity path has already taken `allAllocations`, so hiding an internal bar never changes
-          // the resource's utilisation/capacity — only which bars render.
-          .filter(barVisibleByInternalPreference)
-      : matchingVisibleAllocations;
-    const { lanes, laneCount } = packLanes(visibleAllocations);
-    const laneIndicesByAllocationId = new Map(lanes.map((lane) => [lane.id, lane.lane]));
-    const bars: BarLayout[] = visibleAllocations.map((allocation) => {
-      const { project, client } = projectClientFor(allocation);
-      const seriesEnd = allocation.seriesId
-        ? seriesEndByKey.get(`${allocation.accountId}\u0000${allocation.seriesId}`)
-        : undefined;
-      return {
-        allocation: allocation,
-        x: geometry.xForDateInGeom(allocation.startDate),
-        width: geometry.widthForDates(allocation.startDate, allocation.endDate),
-        top: resolveLaneTop(laneIndicesByAllocationId.get(allocation.id) ?? 0, laneLayout),
-        color: resolveBarColor(allocation, colorMaps),
-        label: activitiesById.get(allocation.activityId)?.name ?? "Activity",
-        ...(project ? { project: project.name } : {}),
-        ...(client ? { client: client.name } : {}),
-        ...(seriesEnd ? { seriesEnd } : {}),
-        external: isExternal,
-      };
+      .filter(allocationFilters.barVisibleByInternalPref);
+    const dimmed = allocationFilters.workFilterActive && matchingVisibleAllocations.length === 0;
+    const visibleAllocations = listVisibleAllocations({
+      allAllocations,
+      dimmed,
+      hasTimelineIntersection,
+      filters: allocationFilters,
+      matchingVisibleAllocations,
+    });
+    const { bars, laneCount } = buildBars({
+      allocations: visibleAllocations,
+      geometry,
+      laneLayout,
+      seriesEndByKey,
+      filters: allocationFilters,
+      external: isExternal,
     });
     const capacity = capacitySourceFor({ resource, allocations: allAllocations, resourceTimeOff, effectiveWeek });
-    const dayStates: DayState[] = [];
-    let conflictDayCount = 0;
-    let partialCapacityDayCount = 0;
-    for (const date of days) {
-      const dayCapacity = capacity.capacityOnDay(date);
-      // Company-closed dates still receive the shared unavailable tint on EVERY row, starved
-      // or not, because allocation creation is blocked there for everyone. The per-date
-      // bucket keeps this O(coverage) instead of rescanning the full row list each day.
-      const creationBlocked = isCreationStartBlockedForEffectiveWeek({
-        resource,
-        date,
-        timeOff: capacity.timeOffOn(date),
-        effectiveWeek,
-        closures: data.closures,
-      });
-      const unavailable = (capacity.tracked && dayCapacity.available === 0) || creationBlocked;
-      const partialCapacity = capacity.tracked && !unavailable && isHalfDay(resource, weekdayOf(date));
-      const hasTimeOff = capacity.timeOffCountOn(date) > 0;
-      // Blocks carry placement but zero hourly load. Their date-range overlap with time
-      // off is therefore an explicit conflict signal rather than fabricated capacity.
-      // Hours/Days retain their existing working-day-aware `cap.over` semantics.
-      const timeOffConflict = hasTimeOff && (blocksMode ? capacity.allocationCountOn(date) > 0 : dayCapacity.over);
-      if (dayCapacity.over || timeOffConflict) conflictDayCount++;
-      if (partialCapacity) partialCapacityDayCount++;
-      dayStates.push({
-        over: dayCapacity.over,
-        timeOffConflict,
-        unavailable,
-        partialCapacity,
-        creationBlocked,
-        hasTimeOff,
-      });
-    }
+    const daySummary = buildDayStates({ resource, days, blocksMode, closures: data.closures, effectiveWeek, capacity });
     // Starved rows draw no blocks (see CapacitySource); tracked rows share the company
     // array and reuse one side untouched when the other is empty, same as mergeTimeOff.
-    const personalTimeOffBlocks = resourceTimeOff.filter(hasTimelineIntersection).map(buildTimeOffBlock);
+    const personalTimeOffBlocks = resourceTimeOff
+      .filter(hasTimelineIntersection)
+      .map((entry) => buildTimeOffBlock(entry, geometry));
     const timeOff: TimeOffBlock[] = capacity.tracked ? personalTimeOffBlocks : NO_TIME_OFF_BLOCKS;
     // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
     // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
@@ -157,15 +204,13 @@ export function createRowBuilder({
     // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
     // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
     // (weekend-aware allocated hours are zero). Starved rows answer 0 / never over.
-    const utilization = capacity.utilizationOver(visibleDays);
-    const overSoon = capacity.overOn(overDays);
+    const utilization = capacity.resolveUtilizationOver(visibleDays);
+    const overSoon = capacity.isOverOn(overDays);
     return {
       resource,
       rowHeight: resolveRowHeightForLanes(laneCount, laneLayout),
       bars,
-      dayStates,
-      conflictDayCount,
-      partialCapacityDayCount,
+      ...daySummary,
       timeOff,
       utilization,
       overSoon,

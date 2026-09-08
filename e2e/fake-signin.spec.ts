@@ -22,7 +22,7 @@ test.describe("fake sign-in (cosmetic demo gate)", () => {
     // No popup, no password: clicking the account advances to the picker.
     await page.getByTestId("fake-sign-in").click();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
-    await expect(page.getByText("Signed in as Jordan Avery")).toBeVisible();
+    await expect(page.getByText("Signed in as Bruce Wayne")).toBeVisible();
 
     // Pick a company → the post-login "What CapacityLens is" intro page (once per device).
     await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();

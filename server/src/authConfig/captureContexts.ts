@@ -13,17 +13,24 @@ export const passwordResetSessionCapture = new AsyncLocalStorage<{ sessionHandle
  * two federated-account uniqueness races from unrelated provider or network failures. */
 export const authHandlerErrorCapture = new AsyncLocalStorage<{ error: unknown }>();
 
-export function isFederatedAccountCoordinateConstraint(error: unknown): boolean {
-  const sqlite = error as { code?: unknown; errcode?: unknown; message?: unknown };
-  const constraint =
-    sqlite?.errcode === 19 ||
-    sqlite?.errcode === 2067 ||
-    (typeof sqlite?.code === "string" && sqlite.code.startsWith("SQLITE_CONSTRAINT"));
+function isObject(value: unknown): value is object {
+  return typeof value === "object" && value !== null;
+}
+
+function hasSqliteConstraintCode(error: object): boolean {
   return (
-    constraint &&
-    typeof sqlite.message === "string" &&
-    sqlite.message.includes("account.providerId") &&
-    (sqlite.message.includes("account.accountId") || sqlite.message.includes("account.userId"))
+    ("errcode" in error && (error.errcode === 19 || error.errcode === 2067)) ||
+    ("code" in error && typeof error.code === "string" && error.code.startsWith("SQLITE_CONSTRAINT"))
+  );
+}
+
+export function isFederatedAccountCoordinateConstraint(error: unknown): boolean {
+  if (!isObject(error) || !hasSqliteConstraintCode(error) || !("message" in error)) return false;
+
+  return (
+    typeof error.message === "string" &&
+    error.message.includes("account.providerId") &&
+    (error.message.includes("account.accountId") || error.message.includes("account.userId"))
   );
 }
 

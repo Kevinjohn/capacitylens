@@ -18,8 +18,8 @@ export interface InternalTlsHealth {
 }
 
 export class InternalTlsConfigError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "InternalTlsConfigError";
   }
 }
@@ -36,6 +36,12 @@ const parseCertificateExpiry = (certificate: Buffer): string => {
   return new Date(parsed).toISOString();
 };
 
+const resolveInternalTlsStatus = (remainingMs: number): InternalTlsHealth["status"] => {
+  if (remainingMs <= 0) return "expired";
+  if (remainingMs <= INTERNAL_TLS_RENEW_BEFORE_SECONDS * 1_000) return "expiring";
+  return "ok";
+};
+
 /** Constant-work health projection over the certificate metadata parsed once at startup. */
 export function buildInternalTlsHealth(
   expiresAt: string,
@@ -45,7 +51,7 @@ export function buildInternalTlsHealth(
   const parsedExpiry = Date.parse(expiresAt);
   const remainingMs = Number.isFinite(parsedExpiry) ? parsedExpiry - now : 0;
   return {
-    status: remainingMs <= 0 ? "expired" : remainingMs <= INTERNAL_TLS_RENEW_BEFORE_SECONDS * 1_000 ? "expiring" : "ok",
+    status: resolveInternalTlsStatus(remainingMs),
     expiresAt,
     daysRemaining: Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1_000))),
     ...(fingerprintSha256 ? { fingerprintSha256 } : {}),
@@ -58,6 +64,92 @@ interface LoadInternalTlsInput {
   expiry?: ((certificate: Buffer) => string) | undefined;
   validateIdentity?: ((certificate: Buffer, privateKey: Buffer) => void) | undefined;
 }
+
+interface ReadInternalTlsIdentityInput {
+  certPath: string;
+  keyPath: string;
+  readFile: (path: string) => Buffer;
+}
+
+const readInternalTlsIdentity = ({ certPath, keyPath, readFile }: ReadInternalTlsIdentityInput) => {
+  let cert: Buffer;
+  let key: Buffer;
+  try {
+    cert = readFile(certPath);
+    key = readFile(keyPath);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new InternalTlsConfigError(`Unable to read the configured internal TLS identity: ${detail}`, {
+      cause: error,
+    });
+  }
+  if (cert.length === 0 || key.length === 0) {
+    throw new InternalTlsConfigError("The configured internal TLS certificate and key must not be empty.");
+  }
+  return { cert, key };
+};
+
+interface ValidateInternalTlsIdentityInput {
+  cert: Buffer;
+  key: Buffer;
+  validateIdentity: (certificate: Buffer, privateKey: Buffer) => void;
+}
+
+const assertInternalTlsIdentityValid = ({ cert, key, validateIdentity }: ValidateInternalTlsIdentityInput): void => {
+  try {
+    validateIdentity(cert, key);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new InternalTlsConfigError(`The configured internal TLS identity is invalid: ${detail}`, { cause: error });
+  }
+};
+
+const parseInternalTlsExpiry = (cert: Buffer, expiry: (certificate: Buffer) => string): string => {
+  let expiresAt: string;
+  try {
+    expiresAt = expiry(cert);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new InternalTlsConfigError(`The configured internal TLS certificate is invalid: ${detail}`, { cause: error });
+  }
+  if (!Number.isFinite(Date.parse(expiresAt))) {
+    throw new InternalTlsConfigError("The configured internal TLS certificate expiry is invalid.");
+  }
+  return new Date(expiresAt).toISOString();
+};
+
+interface AssertInternalTlsGenerationInput {
+  rawGenerationPath: string | undefined;
+  generationPath: string | undefined;
+  fingerprintSha256: string;
+  readFile: (path: string) => Buffer;
+}
+
+const assertInternalTlsGeneration = ({
+  rawGenerationPath,
+  generationPath,
+  fingerprintSha256,
+  readFile,
+}: AssertInternalTlsGenerationInput): void => {
+  if (rawGenerationPath === undefined) return;
+  if (!generationPath) {
+    throw new InternalTlsConfigError("CAPACITYLENS_INTERNAL_TLS_GENERATION must not be blank when configured.");
+  }
+  let publishedGeneration: string;
+  try {
+    publishedGeneration = readFile(generationPath).toString("utf8").trim();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new InternalTlsConfigError(`Unable to read the configured internal TLS generation: ${detail}`, {
+      cause: error,
+    });
+  }
+  if (!/^[a-f0-9]{64}$/.test(publishedGeneration) || publishedGeneration !== fingerprintSha256) {
+    throw new InternalTlsConfigError(
+      "The configured internal TLS certificate does not match its published generation.",
+    );
+  }
+};
 
 /**
  * Load the API's internal HTTPS identity. Both paths are required together; a partial or unreadable
@@ -87,61 +179,17 @@ export function loadInternalTls({
     );
   }
 
-  let cert: Buffer;
-  let key: Buffer;
-  try {
-    cert = read(certPath);
-    key = read(keyPath);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new InternalTlsConfigError(`Unable to read the configured internal TLS identity: ${detail}`);
-  }
-  if (cert.length === 0 || key.length === 0) {
-    throw new InternalTlsConfigError("The configured internal TLS certificate and key must not be empty.");
-  }
-
-  try {
-    validateIdentity(cert, key);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new InternalTlsConfigError(`The configured internal TLS identity is invalid: ${detail}`);
-  }
-
-  let expiresAt: string;
-  try {
-    expiresAt = expiry(cert);
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new InternalTlsConfigError(`The configured internal TLS certificate is invalid: ${detail}`);
-  }
-  if (!Number.isFinite(Date.parse(expiresAt))) {
-    throw new InternalTlsConfigError("The configured internal TLS certificate expiry is invalid.");
-  }
-
+  const { cert, key } = readInternalTlsIdentity({ certPath, keyPath, readFile: read });
+  assertInternalTlsIdentityValid({ cert, key, validateIdentity });
+  const expiresAt = parseInternalTlsExpiry(cert, expiry);
   const fingerprintSha256 = createHash("sha256").update(cert).digest("hex");
-  if (rawGenerationPath !== undefined) {
-    if (!generationPath) {
-      throw new InternalTlsConfigError("CAPACITYLENS_INTERNAL_TLS_GENERATION must not be blank when configured.");
-    }
-    let publishedGeneration: string;
-    try {
-      publishedGeneration = read(generationPath).toString("utf8").trim();
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      throw new InternalTlsConfigError(`Unable to read the configured internal TLS generation: ${detail}`);
-    }
-    if (!/^[a-f0-9]{64}$/.test(publishedGeneration) || publishedGeneration !== fingerprintSha256) {
-      throw new InternalTlsConfigError(
-        "The configured internal TLS certificate does not match its published generation.",
-      );
-    }
-  }
+  assertInternalTlsGeneration({ rawGenerationPath, generationPath, fingerprintSha256, readFile: read });
 
   return {
     cert,
     key,
     minVersion: "TLSv1.2",
-    expiresAt: new Date(expiresAt).toISOString(),
+    expiresAt,
     fingerprintSha256,
   };
 }

@@ -7,6 +7,11 @@ import { makeAccount, WORKDAYS } from "../test/fixtures";
 
 const s = () => useStore.getState();
 
+function present<T>(value: T | null | undefined): T {
+  if (value == null) throw new Error("Expected a value");
+  return value;
+}
+
 // Two accounts, each with one client + one project, used to prove isolation.
 function twoAccountData(): AppData {
   return {
@@ -22,6 +27,109 @@ function twoAccountData(): AppData {
     ],
   };
 }
+
+const invalidImportedData: AppData = {
+  ...emptyAppData(),
+  clients: [{ id: "old-c1", accountId: "foreign", createdAt: "t", updatedAt: "t", name: "Acme", color: "#ef4444" }],
+  projects: [
+    {
+      id: "old-p1",
+      accountId: "foreign",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Site",
+      clientId: "old-c1",
+      color: "#10b981",
+    },
+  ],
+  resources: [
+    {
+      id: "old-r1",
+      accountId: "foreign",
+      createdAt: "t",
+      updatedAt: "t",
+      kind: "person",
+      role: "Dev",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: WORKDAYS,
+      halfDays: [],
+      color: "#777777",
+    },
+  ],
+  activities: [
+    {
+      id: "old-t1",
+      accountId: "foreign",
+      createdAt: "t",
+      updatedAt: "t",
+      name: "Build",
+      kind: "project",
+      projectId: "old-p1",
+    },
+  ],
+  allocations: [
+    {
+      id: "ok",
+      accountId: "foreign",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "old-r1",
+      activityId: "old-t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+    },
+    {
+      id: "rev",
+      accountId: "foreign",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "old-r1",
+      activityId: "old-t1",
+      startDate: "2026-06-05",
+      endDate: "2026-06-01",
+      hoursPerDay: 8,
+      status: "confirmed",
+    },
+    {
+      id: "dangle",
+      accountId: "foreign",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "old-r1",
+      activityId: "missing",
+      startDate: "2026-06-01",
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+    },
+  ],
+  timeOff: [
+    {
+      id: "to-ok",
+      accountId: "foreign",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "old-r1",
+      startDate: "2026-07-01",
+      endDate: "2026-07-03",
+      type: "holiday",
+    },
+    {
+      id: "to-bad",
+      accountId: "foreign",
+      createdAt: "t",
+      updatedAt: "t",
+      resourceId: "missing",
+      startDate: "2026-07-01",
+      endDate: "2026-07-03",
+      type: "holiday",
+    },
+  ],
+};
 
 describe("scopeData", () => {
   it("returns only the matching account’s scoped entities and blanks the accounts list", () => {
@@ -60,13 +168,13 @@ describe("account CRUD", () => {
 
   it("addAccount works with no active account (bootstraps the first tenant)", () => {
     expect(s().activeAccountId).toBeNull();
-    const a = s().addAccount({ name: "Acme Co", color: "#6366f1" })!;
+    const a = present(s().addAccount({ name: "Acme Co", color: "#6366f1" }));
     expect(a.id).toBeTruthy();
     expect(s().data.accounts).toHaveLength(1);
   });
 
   it("addAccount is a read-only no-op for a viewer", () => {
-    const existing = s().addAccount({ name: "Existing", color: "#6366f1" })!;
+    const existing = present(s().addAccount({ name: "Existing", color: "#6366f1" }));
     s().setActiveAccount(existing.id);
     s().setActiveRole("viewer");
     const dataBefore = s().data;
@@ -84,7 +192,7 @@ describe("account CRUD", () => {
   });
 
   it("updateAccount renames", () => {
-    const a = s().addAccount({ name: "Old", color: "#1" })!;
+    const a = present(s().addAccount({ name: "Old", color: "#1" }));
     s().setActiveAccount(a.id);
     s().updateAccount(a.id, { name: "New" });
     expect(s().data.accounts[0]?.name).toBe("New");
@@ -122,12 +230,12 @@ describe("setActiveAccount resets per-account view state", () => {
     // Drives the switch the way useScopedData composes it — scopeData(data, activeAccountId) —
     // so it proves the *transition* changes the visible row set, not just that scopeData filters.
     s().setActiveAccount("a1");
-    const a1 = scopeData(s().data, s().activeAccountId!);
+    const a1 = scopeData(s().data, present(s().activeAccountId));
     expect(a1.clients.map((c) => c.id)).toEqual(["c1"]);
     expect(a1.projects.map((p) => p.id)).toEqual(["p1"]);
 
     s().setActiveAccount("a2");
-    const a2 = scopeData(s().data, s().activeAccountId!);
+    const a2 = scopeData(s().data, present(s().activeAccountId));
     expect(a2.clients.map((c) => c.id)).toEqual(["c2"]);
     expect(a2.projects.map((p) => p.id)).toEqual(["p2"]);
   });
@@ -167,12 +275,7 @@ describe("setActiveAccount resets per-account view state", () => {
   });
 });
 
-describe("importData (account-scoped)", () => {
-  beforeEach(() => {
-    s().replaceAll(twoAccountData());
-    s().setActiveAccount("a1");
-  });
-
+function registerScopedImportPart1(): void {
   it("replaces only the active account’s slice, re-stamps incoming, keeps other accounts", () => {
     const incoming: AppData = {
       ...emptyAppData(),
@@ -199,12 +302,14 @@ describe("importData (account-scoped)", () => {
       clients: [{ id: "c1", accountId: "X", createdAt: "t", updatedAt: "t", name: "Dupe", color: "#9" }],
     });
     // Editing the imported row in a2 must NOT touch a1's original c1.
-    const importedId = s().data.clients.find((c) => c.accountId === "a2")!.id;
+    const importedId = present(s().data.clients.find((c) => c.accountId === "a2")).id;
     expect(importedId).not.toBe("c1");
     s().updateClient(importedId, { name: "Changed" });
-    expect(s().data.clients.find((c) => c.accountId === "a1")!.name).toBe("Client A1");
+    expect(present(s().data.clients.find((c) => c.accountId === "a1")).name).toBe("Client A1");
   });
+}
 
+function registerScopedImportPart3(): void {
   it("remaps foreign keys among imported entities to the new ids", () => {
     s().setActiveAccount("a2");
     s().importData({
@@ -215,8 +320,8 @@ describe("importData (account-scoped)", () => {
       ],
     });
     const a2 = scopeData(s().data, "a2");
-    const client = a2.clients.find((c) => c.name === "C")!;
-    const project = a2.projects.find((p) => p.name === "P")!;
+    const client = present(a2.clients.find((c) => c.name === "C"));
+    const project = present(a2.projects.find((p) => p.name === "P"));
     // The project's clientId was rewritten to the imported client's new id.
     expect(project.clientId).toBe(client.id);
     expect(client.id).not.toBe("imp-c");
@@ -251,117 +356,12 @@ describe("importData (account-scoped)", () => {
         .map((c) => c.id),
     ).toEqual(["c1"]);
   });
+}
 
+function registerScopedImportPart2(): void {
   it("drops imported allocations/time-off that violate the integrity rules", () => {
     // The store is the integrity boundary on every write — import is no exception.
-    const incoming: AppData = {
-      ...emptyAppData(),
-      clients: [{ id: "old-c1", accountId: "foreign", createdAt: "t", updatedAt: "t", name: "Acme", color: "#ef4444" }],
-      projects: [
-        {
-          id: "old-p1",
-          accountId: "foreign",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Site",
-          clientId: "old-c1",
-          color: "#10b981",
-        },
-      ],
-      resources: [
-        {
-          id: "old-r1",
-          accountId: "foreign",
-          createdAt: "t",
-          updatedAt: "t",
-          kind: "person",
-          role: "Dev",
-          employmentType: "permanent",
-          engagement: "studio" as const,
-          workingHoursPerDay: 8,
-          workingDays: WORKDAYS,
-          halfDays: [],
-          color: "#777777",
-        },
-      ],
-      activities: [
-        {
-          id: "old-t1",
-          accountId: "foreign",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Build",
-          kind: "project",
-          projectId: "old-p1",
-        },
-      ],
-      allocations: [
-        // valid
-        {
-          id: "ok",
-          accountId: "foreign",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "old-r1",
-          activityId: "old-t1",
-          startDate: "2026-06-01",
-          endDate: "2026-06-05",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-        // reversed range — dropped
-        {
-          id: "rev",
-          accountId: "foreign",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "old-r1",
-          activityId: "old-t1",
-          startDate: "2026-06-05",
-          endDate: "2026-06-01",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-        // dangling activity — dropped
-        {
-          id: "dangle",
-          accountId: "foreign",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "old-r1",
-          activityId: "missing",
-          startDate: "2026-06-01",
-          endDate: "2026-06-05",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-      ],
-      timeOff: [
-        // valid
-        {
-          id: "to-ok",
-          accountId: "foreign",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "old-r1",
-          startDate: "2026-07-01",
-          endDate: "2026-07-03",
-          type: "holiday",
-        },
-        // dangling resource — dropped
-        {
-          id: "to-bad",
-          accountId: "foreign",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "missing",
-          startDate: "2026-07-01",
-          endDate: "2026-07-03",
-          type: "holiday",
-        },
-      ],
-    };
-    s().importData(incoming);
+    s().importData(invalidImportedData);
 
     const a1Allocs = s().data.allocations.filter((a) => a.accountId === "a1");
     const a1TimeOff = s().data.timeOff.filter((t) => t.accountId === "a1");
@@ -372,4 +372,14 @@ describe("importData (account-scoped)", () => {
     expect(s().data.activities.some((t) => t.id === a1Allocs[0]?.activityId)).toBe(true);
     expect(s().data.resources.some((r) => r.id === a1Allocs[0]?.resourceId)).toBe(true);
   });
+}
+
+describe("importData (account-scoped)", () => {
+  beforeEach(() => {
+    s().replaceAll(twoAccountData());
+    s().setActiveAccount("a1");
+  });
+  registerScopedImportPart1();
+  registerScopedImportPart3();
+  registerScopedImportPart2();
 });

@@ -37,8 +37,229 @@ const SUMMARY: [keyof AppData, () => string][] = [
 ];
 
 function summarize(data: AppData): string {
-  const parts = SUMMARY.filter(([key]) => data[key].length > 0).map(([k, label]) => `${data[k].length} ${label()}`);
+  const parts = SUMMARY.filter(([key]) => data[key].length > 0).map(([key, label]) => `${data[key].length} ${label()}`);
   return parts.length ? parts.join(", ") : m.data_summary_none();
+}
+
+type PendingImport = { accountId: string | null; data: AppData; name: string };
+
+function buildSkippedMessage(skipped: number, variant: "why" | "note"): string {
+  if (skipped === 0) return "";
+  if (variant === "why") {
+    if (skipped === 1) return m.data_why_skipped_one({ count: skipped });
+    return m.data_why_skipped_other({ count: skipped });
+  }
+  if (skipped === 1) return m.data_skipped_note_one({ count: skipped });
+  return m.data_skipped_note_other({ count: skipped });
+}
+
+function buildImportedMessage(imported: number, skipped: number): string {
+  const values = { count: imported, skipped: buildSkippedMessage(skipped, "note"), shortcut: buildUndoShortcut() };
+  if (imported === 1) return m.data_imported_one(values);
+  return m.data_imported_other(values);
+}
+
+function ImportProgress({ requiresReload }: { requiresReload: boolean }) {
+  return (
+    <Modal title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
+      {requiresReload ? (
+        <div className="flex flex-col gap-3">
+          <p role="alert" data-testid="import-reload-required" className="text-sm text-muted-foreground">
+            {m.data_import_unknown_reload_required()}
+          </p>
+          <Button type="button" size="sm" onClick={reloadPage}>
+            {m.boundary_reload()}
+          </Button>
+        </div>
+      ) : (
+        <p tabIndex={0} data-testid="import-busy" className="text-sm text-muted-foreground">
+          {m.data_importing_body()}
+        </p>
+      )}
+    </Modal>
+  );
+}
+
+function ImportConfirmation({
+  pending,
+  serverMode,
+  onConfirm,
+  onCancel,
+}: {
+  pending: PendingImport;
+  serverMode: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const outro = serverMode
+    ? m.data_import_confirm_outro_server()
+    : m.data_import_confirm_outro({ shortcut: buildUndoShortcut() });
+  return (
+    <ConfirmDialog
+      title={m.data_import_confirm_title()}
+      confirmLabel={m.data_import_confirm_action()}
+      message={
+        <>
+          {m.data_import_confirm_intro()}
+          <span className="font-medium text-ink">{pending.name}</span>
+          {m.data_import_confirm_mid1()}
+          <span className="font-medium text-ink">{m.data_import_confirm_replaces()}</span>
+          {m.data_import_confirm_mid2()}
+          {summarize(pending.data)}
+          {outro}
+        </>
+      }
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
+  );
+}
+
+function useExportAction() {
+  const data = useScopedData();
+  const setNotice = useStore((state) => state.setNotice);
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const role = useRole();
+  const serverMode = isServerConfigured();
+  const [busy, setBusy] = useState(false);
+  const inFlight = useRef(false);
+
+  const exportData = async () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      let exported = data;
+      if (serverMode) {
+        if (!activeAccountId) throw new Error("Choose a company before exporting.");
+        if (role === null || can(role, "purge")) exported = await fetchInactiveSlice(activeAccountId);
+      }
+      downloadTextFile("capacitylens-data.json", serializeData(exported));
+    } catch (error) {
+      if (error instanceof InactiveSliceHttpError) {
+        setNotice(error.serverMessage ?? m.data_export_failed({ status: error.status }), "error");
+      } else if (error instanceof InactiveSliceShapeError) {
+        setNotice(m.data_export_incomplete(), "error");
+      } else {
+        setNotice(m.data_export_error({ error: resolveErrorMessage(error) }), "error");
+      }
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  };
+
+  return { busy, exportData };
+}
+
+function usePendingImport(
+  activeAccountId: string | null,
+  setNotice: ReturnType<typeof useStore.getState>["setNotice"],
+) {
+  const [pending, setPending] = useState<PendingImport | null>(null);
+  const selectionRef = useRef(0);
+  const accountRef = useRef(activeAccountId);
+
+  useEffect(() => {
+    if (accountRef.current === activeAccountId) return;
+    accountRef.current = activeAccountId;
+    selectionRef.current += 1;
+    setPending(null);
+  }, [activeAccountId]);
+
+  const readFile = async (file: File) => {
+    const selection = ++selectionRef.current;
+    if (file.size > MAX_IMPORT_BYTES) {
+      setNotice(m.data_err_too_large({ max: MAX_IMPORT_BYTES / (1024 * 1024) }), "error");
+      return;
+    }
+    try {
+      const parsed = parseData(await file.text());
+      if (selection !== selectionRef.current || useStore.getState().activeAccountId !== activeAccountId) return;
+      setPending({ accountId: activeAccountId, data: parsed, name: file.name });
+    } catch (error) {
+      if (selection !== selectionRef.current) return;
+      setNotice(resolveErrorMessage(error) || m.data_err_invalid_json({ app: APP_NAME }), "error");
+    }
+  };
+
+  return { pending, readFile, selectionRef, setPending };
+}
+
+function confirmLocalImport(
+  incoming: AppData,
+  importData: ReturnType<typeof useStore.getState>["importData"],
+  setNotice: ReturnType<typeof useStore.getState>["setNotice"],
+): void {
+  let imported: number;
+  let skipped: number;
+  try {
+    ({ imported, skipped } = importData(incoming));
+  } catch (error) {
+    setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
+    return;
+  }
+  if (imported === 0) {
+    setNotice(m.data_no_records({ why: buildSkippedMessage(skipped, "why") }), "error");
+    return;
+  }
+  setNotice(buildImportedMessage(imported, skipped));
+}
+
+function DataToolControls({
+  canImport,
+  disabled,
+  exportBusy,
+  onExport,
+  onFile,
+}: {
+  canImport: boolean;
+  disabled: boolean;
+  exportBusy: boolean;
+  onExport: () => void;
+  onFile: (file: File) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          data-testid="export-data"
+          onClick={onExport}
+          disabled={disabled || exportBusy}
+        >
+          {m.data_export()}
+        </Button>
+        {canImport && (
+          <Button
+            size="sm"
+            variant="outline"
+            data-testid="import-data"
+            onClick={() => fileRef.current?.click()}
+            disabled={disabled}
+          >
+            {m.data_import()}
+          </Button>
+        )}
+      </div>
+      {canImport && (
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json"
+          data-testid="import-input"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) onFile(file);
+            event.target.value = "";
+          }}
+        />
+      )}
+    </>
+  );
 }
 
 export function ImportExport() {
@@ -53,14 +274,8 @@ export function ImportExport() {
   // COMPLETE per-tenant export (P2.6) / the P2.5 admin "Archived & deleted" view, not this client-side
   // snapshot. Using the raw hook keeps this export decoupled from the view-hiding rule (and complete in
   // the demo build); the normal VIEWS use the active-only projection, this export does not.
-  const data = useScopedData();
   const importData = useStore((state) => state.importData);
   const setNotice = useStore((state) => state.setNotice);
-  const fileRef = useRef<HTMLInputElement>(null);
-  // File reads are asynchronous and the hidden input is reset after every selection. Keep a
-  // generation so an older, slower read cannot replace the confirmation prepared for the latest
-  // file (or surface its stale parse error over that selection).
-  const importSelectionRef = useRef(0);
   const role = useRole();
   const serverMode = isServerConfigured();
   const activeAccountId = useStore((state) => state.activeAccountId);
@@ -74,82 +289,19 @@ export function ImportExport() {
   // A parsed-but-not-yet-applied import, awaiting the user's confirmation. Import
   // is a full replace, so we never apply it silently — confirm first, and the
   // apply goes through the undoable history path so ⌘Z restores the old data.
-  const [pendingImport, setPendingImport] = useState<{
-    accountId: string | null;
-    data: AppData;
-    name: string;
-  } | null>(null);
-  const importAccountRef = useRef(activeAccountId);
+  const {
+    pending: pendingImport,
+    readFile,
+    selectionRef,
+    setPending: setPendingImport,
+  } = usePendingImport(activeAccountId, setNotice);
   const { confirm: confirmServerImport, busy: importBusy, requiresReload: importRequiresReload } = useServerImport();
-  const [exportBusy, setExportBusy] = useState(false);
-  const exportInFlight = useRef(false);
-
-  // A file selection belongs to the company that was active when reading began. Account switching
-  // stays available while the browser reads or while the confirmation is open, so invalidate both
-  // states at the boundary rather than allowing a whole-slice replacement to follow the new account.
-  useEffect(() => {
-    if (importAccountRef.current === activeAccountId) return;
-    importAccountRef.current = activeAccountId;
-    importSelectionRef.current += 1;
-    setPendingImport(null);
-  }, [activeAccountId]);
-
-  const onExport = async () => {
-    if (exportInFlight.current) return;
-    exportInFlight.current = true;
-    setExportBusy(true);
-    // downloadTextFile throws if the download couldn't start — surface it rather than letting it
-    // escape as an uncaught handler error, so the user knows the export did NOT save.
-    try {
-      let exported = data;
-      if (serverMode) {
-        if (!activeAccountId) throw new Error("Choose a company before exporting.");
-        // Admin/OFF-mode callers receive the structurally validated complete slice. Editors and
-        // viewers retain their previously available active, already-redacted store export instead
-        // of being sent to the purge-gated endpoint and receiving a guaranteed 403.
-        if (role === null || can(role, "purge")) exported = await fetchInactiveSlice(activeAccountId);
-      }
-      downloadTextFile("capacitylens-data.json", serializeData(exported));
-    } catch (e) {
-      if (e instanceof InactiveSliceHttpError) {
-        setNotice(e.serverMessage ?? m.data_export_failed({ status: e.status }), "error");
-      } else if (e instanceof InactiveSliceShapeError) {
-        setNotice(m.data_export_incomplete(), "error");
-      } else {
-        setNotice(m.data_export_error({ error: resolveErrorMessage(e) }), "error");
-      }
-    } finally {
-      exportInFlight.current = false;
-      setExportBusy(false);
-    }
-  };
-
-  const onImport = async (file: File) => {
-    const selection = ++importSelectionRef.current;
-    const selectedAccountId = activeAccountId;
-    // Reject an oversized file before reading it into memory (self-DoS guard).
-    if (file.size > MAX_IMPORT_BYTES) {
-      setNotice(m.data_err_too_large({ max: MAX_IMPORT_BYTES / (1024 * 1024) }), "error");
-      return;
-    }
-    try {
-      const parsed = parseData(await file.text());
-      if (selection !== importSelectionRef.current || useStore.getState().activeAccountId !== selectedAccountId) return;
-      setPendingImport({ accountId: selectedAccountId, data: parsed, name: file.name });
-    } catch (e) {
-      if (selection !== importSelectionRef.current) return;
-      // parseData throws PRECISE, user-ready messages ("This file isn't valid JSON.", "This file is
-      // damaged: a data table is not a list.", "This file has too many records (…)", "This file
-      // contains no CapacityLens records.") — surface the REAL reason instead of a generic catch-all, so
-      // the user (and a contributor) knows why the file was rejected.
-      setNotice(resolveErrorMessage(e) || m.data_err_invalid_json({ app: APP_NAME }), "error");
-    }
-  };
+  const { busy: exportBusy, exportData } = useExportAction();
 
   const confirmImport = () => {
     if (!pendingImport) return;
     if (pendingImport.accountId !== useStore.getState().activeAccountId) {
-      importSelectionRef.current += 1;
+      selectionRef.current += 1;
       setPendingImport(null);
       return;
     }
@@ -161,40 +313,7 @@ export function ImportExport() {
     }
     const incoming = pendingImport.data;
     setPendingImport(null);
-    let imported: number;
-    let skipped: number;
-    try {
-      ({ imported, skipped } = importData(incoming));
-    } catch (e) {
-      setNotice(resolveErrorMessage(e) || m.data_import_failed({ status: 0 }), "error");
-      return;
-    }
-    // When EVERY record was dropped (imported === 0) the store no-ops — it pushes NO undo
-    // entry — so we must NOT tell the user to press ⌘Z (that would revert their PREVIOUS,
-    // unrelated edit). Report the failure instead.
-    if (imported === 0) {
-      const why =
-        skipped > 0
-          ? skipped === 1
-            ? m.data_why_skipped_one({ count: skipped })
-            : m.data_why_skipped_other({ count: skipped })
-          : "";
-      setNotice(m.data_no_records({ why }), "error");
-      return;
-    }
-    // Report the delta honestly: the store drops allocations/time-off with broken
-    // ranges or dangling refs, so "imported 40" can become 31 in the store.
-    const skippedNote =
-      skipped > 0
-        ? skipped === 1
-          ? m.data_skipped_note_one({ count: skipped })
-          : m.data_skipped_note_other({ count: skipped })
-        : "";
-    setNotice(
-      imported === 1
-        ? m.data_imported_one({ count: imported, skipped: skippedNote, shortcut: buildUndoShortcut() })
-        : m.data_imported_other({ count: imported, skipped: skippedNote, shortcut: buildUndoShortcut() }),
-    );
+    confirmLocalImport(incoming, importData, setNotice);
   };
 
   return (
@@ -202,89 +321,25 @@ export function ImportExport() {
     // once-in-a-while administrative act, and it was crowding the day-to-day destinations. The
     // enclosing SettingsSection owns the heading, help and disclosure, so this renders controls only.
     <div className="flex flex-col gap-3" data-testid="settings-data-tools">
-      <div className="flex flex-wrap gap-2">
-        {/* Disabled while a server import is in flight: an export mid-replacement would snapshot a
-            slice that is about to be obsolete, and a second import would race the first. */}
-        <Button
-          size="sm"
-          variant="outline"
-          data-testid="export-data"
-          onClick={() => void onExport()}
-          disabled={importBusy || exportBusy}
-        >
-          {m.data_export()}
-        </Button>
-        {canImport && (
-          <Button
-            size="sm"
-            variant="outline"
-            data-testid="import-data"
-            onClick={() => fileRef.current?.click()}
-            disabled={importBusy}
-          >
-            {m.data_import()}
-          </Button>
-        )}
-      </div>
-      {canImport && (
-        <input
-          ref={fileRef}
-          type="file"
-          accept="application/json"
-          data-testid="import-input"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void onImport(file);
-            e.target.value = "";
-          }}
-        />
-      )}
+      <DataToolControls
+        canImport={canImport}
+        disabled={importBusy}
+        exportBusy={exportBusy}
+        onExport={() => void exportData()}
+        onFile={(file) => void readFile(file)}
+      />
 
       {/* The import UI LOCK (see importBusy above): a non-dismissable blocking dialog for the few
           seconds of POST + re-hydrate. onClose is a deliberate no-op — visibility is owned by
           importBusy alone, so Escape/backdrop cannot dismiss it. The body carries tabIndex={0} so
           the Modal's Tab-trap engages (it no-ops on a panel with zero focusables) and initial
           focus lands on the status text for screen readers. */}
-      {importBusy && (
-        <Modal title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
-          {importRequiresReload ? (
-            <div className="flex flex-col gap-3">
-              <p role="alert" data-testid="import-reload-required" className="text-sm text-muted-foreground">
-                {m.data_import_unknown_reload_required()}
-              </p>
-              <Button type="button" size="sm" onClick={reloadPage}>
-                {m.boundary_reload()}
-              </Button>
-            </div>
-          ) : (
-            <p tabIndex={0} data-testid="import-busy" className="text-sm text-muted-foreground">
-              {m.data_importing_body()}
-            </p>
-          )}
-        </Modal>
-      )}
+      {importBusy && <ImportProgress requiresReload={importRequiresReload} />}
 
       {pendingImport && canImport && (
-        <ConfirmDialog
-          title={m.data_import_confirm_title()}
-          confirmLabel={m.data_import_confirm_action()}
-          message={
-            <>
-              {m.data_import_confirm_intro()}
-              <span className="font-medium text-ink">{pendingImport.name}</span>
-              {m.data_import_confirm_mid1()}
-              <span className="font-medium text-ink">{m.data_import_confirm_replaces()}</span>
-              {m.data_import_confirm_mid2()}
-              {summarize(pendingImport.data)}
-              {/* Honest dialog semantics: the demo/local import goes through the undoable store
-                  history (⌘Z restores); the server import is an atomic server-side slice replace
-                  the store history never sees, so promising ⌘Z there would be a lie. */}
-              {serverMode
-                ? m.data_import_confirm_outro_server()
-                : m.data_import_confirm_outro({ shortcut: buildUndoShortcut() })}
-            </>
-          }
+        <ImportConfirmation
+          pending={pendingImport}
+          serverMode={serverMode}
           onConfirm={confirmImport}
           onCancel={() => setPendingImport(null)}
         />

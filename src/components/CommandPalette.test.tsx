@@ -57,7 +57,8 @@ function addInternalSearchItems({
 }
 
 function addOptionalResources() {
-  const client = useStore.getState().data.clients.find((candidate) => candidate.name === "Queen Consolidated")!;
+  const client = useStore.getState().data.clients.find((candidate) => candidate.name === "Queen Consolidated");
+  if (!client) throw new Error("Expected Queen Consolidated client");
   const project = useStore.getState().addProject({
     name: "Placeholder Project",
     clientId: client.id,
@@ -127,20 +128,24 @@ describe("CommandPalette", () => {
     const initialOption = screen
       .getAllByRole("option")
       .find((option) => option.getAttribute("aria-selected") === "true");
-    expect(initialOption?.id).toBeTruthy();
-    await waitFor(() => expect(input).toHaveAttribute("aria-activedescendant", initialOption?.id));
+    if (!initialOption) throw new Error("Expected an initially active command palette option");
+    expect(initialOption.id).toBeTruthy();
+    await waitFor(() => expect(input).toHaveAttribute("aria-activedescendant", initialOption.id));
 
     fireEvent.keyDown(input, { key: "ArrowDown" });
     const movedOption = screen.getAllByRole("option").find((option) => option.getAttribute("aria-selected") === "true");
-    expect(movedOption?.id).toBeTruthy();
-    expect(movedOption?.id).not.toBe(initialOption?.id);
-    await waitFor(() => expect(input).toHaveAttribute("aria-activedescendant", movedOption?.id));
+    if (!movedOption) throw new Error("Expected an active command palette option after ArrowDown");
+    expect(movedOption.id).toBeTruthy();
+    expect(movedOption.id).not.toBe(initialOption.id);
+    await waitFor(() => expect(input).toHaveAttribute("aria-activedescendant", movedOption.id));
 
     fireEvent.change(input, { target: { value: "xyzzyxyzzy" } });
     expect(screen.queryAllByRole("option")).toHaveLength(0);
     await waitFor(() => expect(input).not.toHaveAttribute("aria-activedescendant"));
   });
+});
 
+describe("CommandPalette", () => {
   it("shows People section when typing a resource name", () => {
     renderPalette();
 
@@ -149,7 +154,10 @@ describe("CommandPalette", () => {
 
     expect(screen.getByText("People")).toBeInTheDocument();
     const options = screen.getAllByTestId("command-palette-option");
-    const tylerOption = options.find((o) => o.textContent?.includes("Bruce Wayne"));
+    const tylerOption = options.find((o) => {
+      const textContent = o.textContent;
+      return textContent.includes("Bruce Wayne");
+    });
     expect(tylerOption).toBeTruthy();
   });
 
@@ -190,7 +198,9 @@ describe("CommandPalette", () => {
     expect(screen.getByText("People")).toBeInTheDocument();
     expect(screen.getByText("José Müller")).toBeInTheDocument();
   });
+});
 
+describe("CommandPalette", () => {
   it("omits an Internal project whose destination bars are hidden from the schedule", () => {
     addInternalSearchItems({
       showInternalProjects: false,
@@ -233,7 +243,9 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Office Ritual")).toBeInTheDocument();
     expect(screen.getByText("Internal")).toBeInTheDocument();
   });
+});
 
+describe("CommandPalette", () => {
   it("shows no results message for unmatched query", () => {
     renderPalette();
 
@@ -260,7 +272,9 @@ describe("CommandPalette", () => {
 
     expect(screen.queryByText(/Go to date/)).not.toBeInTheDocument();
   });
+});
 
+describe("CommandPalette", () => {
   it("ArrowDown moves highlight to next option", () => {
     renderPalette();
 
@@ -314,7 +328,9 @@ describe("CommandPalette", () => {
 
     expect(closed).toBe(true);
   });
+});
 
+describe("CommandPalette", () => {
   it("mouse hover sets the active option", () => {
     renderPalette();
 
@@ -342,7 +358,9 @@ describe("CommandPalette", () => {
 
     expect(closed).toBe(true);
   });
+});
 
+describe("CommandPalette", () => {
   it("jumpToResource is called when a resource is selected", () => {
     renderPalette();
 
@@ -350,22 +368,29 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Bruce" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const tylerOption = options.find((o) => o.textContent?.includes("Bruce Wayne"));
+    const tylerOption = options.find((o) => {
+      const textContent = o.textContent;
+      return textContent.includes("Bruce Wayne");
+    });
+    if (!tylerOption) throw new Error("Expected Bruce Wayne command palette option");
     expect(tylerOption).toBeTruthy();
 
     // Click it — should call jumpToResource (store action). cmdk's onSelect fires on click (and
     // Enter), so the pointer pick is a click; the assertion (selecting the row runs its action) holds.
     act(() => {
-      fireEvent.click(tylerOption!);
+      fireEvent.click(tylerOption);
     });
 
     // The scrollToResource state should be set in the store
     const sr = useStore.getState().ui.scrollToResource;
     expect(sr).not.toBeNull();
-    expect(sr?.token).toBeGreaterThan(0);
-    expect(sr?.consumed).toBe(false);
+    if (!sr) throw new Error("Expected scroll-to-resource state after selecting a resource");
+    expect(sr.token).toBeGreaterThan(0);
+    expect(sr.consumed).toBe(false);
   });
+});
 
+describe("CommandPalette", () => {
   it("setFilters is called with projectId when a project is selected", () => {
     // Add a project first
     const clients = useStore.getState().data.clients;
@@ -385,18 +410,24 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Watchtower" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const projectOption = options.find((o) => o.textContent?.includes("Project Watchtower"));
+    const projectOption = options.find((o) => {
+      const textContent = o.textContent;
+      return textContent.includes("Project Watchtower");
+    });
+    if (!projectOption) throw new Error("Expected Project Watchtower command palette option");
     expect(projectOption).toBeTruthy();
 
     act(() => {
-      fireEvent.click(projectOption!);
+      fireEvent.click(projectOption);
     });
 
     // The filters should be updated
     const filters = useStore.getState().ui.filters;
     expect(filters.projectId).not.toBeNull();
   });
+});
 
+describe("CommandPalette", () => {
   it("carries the selected activity identity to the complete activity list", () => {
     const activity = useStore.getState().addActivity({ name: "Kickoff", kind: "internal" });
     renderPalette();
@@ -417,12 +448,14 @@ describe("CommandPalette", () => {
 
     expect(screen.queryByText(/Go to date/)).not.toBeInTheDocument();
   });
+});
 
+describe("CommandPalette", () => {
   it("project selection REPLACES stale filters with only projectId set", () => {
     const clients = useStore.getState().data.clients;
     const client = clients[0];
     if (!client) throw new Error("Expected client");
-    let projectId: string;
+    let projectId: string | undefined;
     act(() => {
       const p = useStore.getState().addProject({
         name: "Project Alpha",
@@ -449,20 +482,27 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Alpha" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const projectOption = options.find((o) => o.textContent?.includes("Project Alpha"));
+    const projectOption = options.find((o) => {
+      const textContent = o.textContent;
+      return textContent.includes("Project Alpha");
+    });
+    if (!projectOption) throw new Error("Expected Project Alpha command palette option");
     expect(projectOption).toBeTruthy();
 
     act(() => {
-      fireEvent.click(projectOption!);
+      fireEvent.click(projectOption);
     });
 
     // Filters must deep-equal { ...emptyFilters(), projectId } — no stale fields survive
     const filters = useStore.getState().ui.filters;
-    expect(filters).toEqual({ ...buildEmptyFilters(), projectId: projectId! });
+    if (!projectId) throw new Error("Expected Project Alpha id");
+    expect(filters).toEqual({ ...buildEmptyFilters(), projectId });
   });
+});
 
+describe("CommandPalette", () => {
   it("client selection REPLACES stale filters with only clientId set", () => {
-    let clientId: string;
+    let clientId: string | undefined;
     act(() => {
       const c = useStore.getState().addClient({ name: "Client Zeta", color: "#6366f1" });
       clientId = c.id;
@@ -485,15 +525,20 @@ describe("CommandPalette", () => {
     fireEvent.change(input, { target: { value: "Zeta" } });
 
     const options = screen.getAllByTestId("command-palette-option");
-    const clientOption = options.find((o) => o.textContent?.includes("Client Zeta"));
+    const clientOption = options.find((o) => {
+      const textContent = o.textContent;
+      return textContent.includes("Client Zeta");
+    });
+    if (!clientOption) throw new Error("Expected Client Zeta command palette option");
     expect(clientOption).toBeTruthy();
 
     act(() => {
-      fireEvent.click(clientOption!);
+      fireEvent.click(clientOption);
     });
 
     // Filters must deep-equal { ...emptyFilters(), clientId } — no stale fields survive
     const filters = useStore.getState().ui.filters;
-    expect(filters).toEqual({ ...buildEmptyFilters(), clientId: clientId! });
+    if (!clientId) throw new Error("Expected Client Zeta id");
+    expect(filters).toEqual({ ...buildEmptyFilters(), clientId });
   });
 });

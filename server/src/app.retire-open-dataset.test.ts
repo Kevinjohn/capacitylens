@@ -20,8 +20,7 @@ import { signUp } from "./testHelpers";
 const TS = "2026-01-01T00:00:00.000Z";
 const client = { id: "c1", accountId: "a1", name: "Acme", color: "#3b82f6", createdAt: TS, updatedAt: TS };
 
-const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
-  app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
+const readResponse = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> => app.inject(opts);
 
 const PASSWORD_ENV = {
   CAPACITYLENS_AUTH: "password",
@@ -35,15 +34,22 @@ const PASSWORD_ENV = {
  * lets the matrix prove requireUser 401s `POST /api/test/reset` BEFORE the allowReset check runs, so
  * an unauthenticated reset can NEVER wipe data in the hosted posture.
  */
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
+async function createAuthenticatedApp(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
-  return { app: createApp(db, { authMode: mode, auth, allowReset: true }), db };
+  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+  if (!configured.auth) {
+    throw new Error("Password authentication was not configured");
+  }
+  await runAuthMigrations(configured.auth);
+  return {
+    app: createApp(db, { authMode: configured.mode, auth: configured.auth, allowReset: true }),
+    db,
+  };
 }
 
-/** Build an OFF (trusted-local) app — no authMode ⇒ off; allowReset on to mirror appWithAuth. */
-function offApp(): FastifyInstance {
+/** Build an OFF (trusted-local) app — no authMode ⇒ off; allowReset on to mirror
+ * createAuthenticatedApp. */
+function createTrustedLocalApp(): FastifyInstance {
   return createApp(openDb(":memory:"), { allowReset: true });
 }
 
@@ -94,8 +100,8 @@ const BLOCKED_ROUTES: ReadonlyArray<{ name: string; opts: InjectOptions }> = [
 
 describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serves ZERO unauthenticated /api access", () => {
   it.each(BLOCKED_ROUTES)("$name → 401 with the no-data error (no session)", async ({ opts }) => {
-    const { app } = await appWithAuth();
-    const res = await call(app, opts);
+    const { app } = await createAuthenticatedApp();
+    const res = await readResponse(app, opts);
     expect(res.statusCode).toBe(401);
     // The retire proof: the blocked body is the plain requireUser 401 — the open shared dataset is
     // never served. (requireUser's 401 is exactly `{ error: 'Sign in to continue.' }` — note it has
@@ -104,7 +110,7 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
   });
 
   it("refuses installation-wide reset to a signed-in non-member and preserves tenant data", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db } = await createAuthenticatedApp();
     db.prepare(
       `
       INSERT INTO accounts (id, name, color, createdAt, updatedAt)
@@ -113,7 +119,7 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
     ).run();
     const principal = await signUp(app, "reset-non-member@capacitylens.dev");
 
-    const res = await call(app, {
+    const res = await readResponse(app, {
       method: "POST",
       url: "/api/test/reset",
       payload: { seed: false },
@@ -126,8 +132,8 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
   });
 
   it("GET /api/health → 200 (exempt: the uptime monitor has no session)", async () => {
-    const { app } = await appWithAuth();
-    const res = await call(app, { method: "GET", url: "/api/health" });
+    const { app } = await createAuthenticatedApp();
+    const res = await readResponse(app, { method: "GET", url: "/api/health" });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ ok: true });
   });
@@ -136,11 +142,11 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
     // /api/auth/* is exempt from requireUser; the auth layer answers it. A no-session /api/auth/me
     // is reachable and 401s with the login-screen shape `{ authMode, error }` — the `authMode` key
     // (absent from requireUser's 401) is the tell that the auth layer, not requireUser, answered.
-    const { app } = await appWithAuth();
-    const res = await call(app, { method: "GET", url: "/api/auth/me" });
+    const { app } = await createAuthenticatedApp();
+    const res = await readResponse(app, { method: "GET", url: "/api/auth/me" });
     expect(res.statusCode).toBe(401);
-    expect(res.json().authMode).toBe("password");
-    expect(res.json().error).toBe("Sign in to continue.");
+    expect(res.json<{ authMode: string; error: string }>().authMode).toBe("password");
+    expect(res.json<{ authMode: string; error: string }>().error).toBe("Sign in to continue.");
   });
 });
 
@@ -149,10 +155,10 @@ describe("P1.17 — OFF stays the trusted-local self-hoster default (auth-off-by
   // open shared dataset IS the deliberate self-hoster default, so an unauthenticated request is NOT
   // 401'd (requireUser attaches DEMO_USER and continues). This pins that P1.17 left OFF unchanged.
   it("representative unauthenticated reads are NOT 401 in OFF (DEMO_USER, open dataset served)", async () => {
-    const app = offApp();
+    const app = createTrustedLocalApp();
     // No cookie, no session — yet OFF serves these (the open shared dataset is the default deploy).
-    expect((await call(app, { method: "GET", url: "/api/accounts" })).statusCode).not.toBe(401);
-    expect((await call(app, { method: "GET", url: "/api/state?accountId=a1" })).statusCode).not.toBe(401);
-    expect((await call(app, { method: "GET", url: "/api/state" })).statusCode).toBe(200); // no-arg whole read retained in OFF
+    expect((await readResponse(app, { method: "GET", url: "/api/accounts" })).statusCode).not.toBe(401);
+    expect((await readResponse(app, { method: "GET", url: "/api/state?accountId=a1" })).statusCode).not.toBe(401);
+    expect((await readResponse(app, { method: "GET", url: "/api/state" })).statusCode).toBe(200); // no-arg whole read retained in OFF
   });
 });

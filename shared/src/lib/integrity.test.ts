@@ -67,6 +67,86 @@ const person = (over: Partial<Resource> = {}): Resource => {
   return { ...base, kind: "person", ...over };
 };
 
+function assertEntityById<T extends { id: string }>(entities: readonly T[], id: string): T {
+  const entity = entities.find((candidate) => candidate.id === id);
+  expect(entity, `Expected entity ${id}`).toBeDefined();
+  if (entity === undefined) throw new Error(`Expected entity ${id}`);
+  return entity;
+}
+
+function sampleActivityData(): Pick<AppData, "activities" | "resources"> {
+  return {
+    activities: [
+      {
+        id: "t1",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Wires",
+        kind: "project",
+        projectId: "p1",
+        phaseId: "phase1",
+      },
+      {
+        id: "t2",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Visual",
+        kind: "project",
+        projectId: "p1",
+      },
+    ],
+    resources: [
+      person({ id: "r1", disciplineId: "d1" }),
+      placeholder({ id: "ph1", projectId: "p1", disciplineId: "d1" }),
+    ],
+  };
+}
+
+function sampleCapacityData(): Pick<AppData, "allocations" | "timeOff"> {
+  return {
+    allocations: [
+      {
+        id: "a1",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+      {
+        id: "a2",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "ph1",
+        activityId: "t2",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+    ],
+    timeOff: [
+      {
+        id: "to1",
+        accountId: "acct-test",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "r1",
+        startDate: "2026-06-10",
+        endDate: "2026-06-11",
+        type: "holiday",
+      },
+    ],
+  };
+}
+
 // A small connected dataset: client c1 -> project p1 -> phase ph -> activities; allocations; a bound placeholder.
 function sampleData(): AppData {
   return {
@@ -112,69 +192,265 @@ function sampleData(): AppData {
         projectId: "p1",
       },
     ],
-    activities: [
+    ...sampleActivityData(),
+    ...sampleCapacityData(),
+  };
+}
+
+function danglingPhaseData(): AppData {
+  return {
+    ...emptyAppData(),
+    clients: [
       {
-        id: "t1",
-        accountId: "acct-test",
+        id: "c1",
+        accountId: "a",
         createdAt: "t",
         updatedAt: "t",
-        name: "Wires",
-        kind: "project",
-        projectId: "p1",
-        phaseId: "phase1",
+        name: "C",
+        color: "#1",
+      },
+    ],
+    projects: [
+      {
+        id: "p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "P1",
+        clientId: "c1",
+        color: "#1",
       },
       {
-        id: "t2",
-        accountId: "acct-test",
+        id: "p2",
+        accountId: "a",
         createdAt: "t",
         updatedAt: "t",
-        name: "Visual",
-        kind: "project",
+        name: "P2",
+        clientId: "c1",
+        color: "#2",
+      },
+    ],
+    phases: [
+      {
+        id: "ph-p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph",
         projectId: "p1",
       },
     ],
-    resources: [
-      person({ id: "r1", disciplineId: "d1" }),
-      placeholder({ id: "ph1", projectId: "p1", disciplineId: "d1" }),
+    activities: [
+      {
+        id: "t-keep",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Keep",
+        kind: "project",
+        projectId: "p2",
+        phaseId: "ph-p1",
+      },
+    ],
+  };
+}
+
+function siblingProjectData(): AppData {
+  return {
+    ...danglingPhaseData(),
+    phases: [
+      {
+        id: "ph-p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph1",
+        projectId: "p1",
+      },
+      {
+        id: "ph-p2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph2",
+        projectId: "p2",
+      },
+    ],
+    activities: [
+      {
+        id: "a-p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A1",
+        kind: "project",
+        projectId: "p1",
+        phaseId: "ph-p1",
+      },
+      {
+        id: "a-p2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A2",
+        kind: "project",
+        projectId: "p2",
+        phaseId: "ph-p2",
+      },
     ],
     allocations: [
       {
-        id: "a1",
-        accountId: "acct-test",
+        id: "al-p2",
+        accountId: "a",
         createdAt: "t",
         updatedAt: "t",
-        resourceId: "r1",
-        activityId: "t1",
-        startDate: "2026-06-01",
-        endDate: "2026-06-03",
-        hoursPerDay: 8,
-        status: "confirmed",
-      },
-      {
-        id: "a2",
-        accountId: "acct-test",
-        createdAt: "t",
-        updatedAt: "t",
-        resourceId: "ph1",
-        activityId: "t2",
+        resourceId: "ph2",
+        activityId: "a-p2",
         startDate: "2026-06-01",
         endDate: "2026-06-02",
         hoursPerDay: 8,
         status: "confirmed",
       },
     ],
-    timeOff: [
+    resources: [placeholder({ id: "ph2", projectId: "p2" })],
+  };
+}
+
+function siblingClientHierarchy(): Pick<AppData, "clients" | "projects" | "phases"> {
+  return {
+    clients: [
       {
-        id: "to1",
-        accountId: "acct-test",
+        id: "c1",
+        accountId: "a",
         createdAt: "t",
         updatedAt: "t",
-        resourceId: "r1",
-        startDate: "2026-06-10",
-        endDate: "2026-06-11",
-        type: "holiday",
+        name: "C1",
+        color: "#1",
+      },
+      {
+        id: "c2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "C2",
+        color: "#2",
       },
     ],
+    projects: [
+      {
+        id: "p1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "P1",
+        clientId: "c1",
+        color: "#1",
+      },
+      {
+        id: "p2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "P2",
+        clientId: "c2",
+        color: "#2",
+      },
+    ],
+    phases: [
+      {
+        id: "ph1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph1",
+        projectId: "p1",
+      },
+      {
+        id: "ph2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Ph2",
+        projectId: "p2",
+      },
+    ],
+  };
+}
+
+function siblingClientActivityData(): Pick<AppData, "activities"> {
+  return {
+    activities: [
+      {
+        id: "a1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A1",
+        kind: "project",
+        projectId: "p1",
+      },
+      {
+        id: "a2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A2",
+        kind: "project",
+        projectId: "p2",
+        phaseId: "ph2",
+      },
+      {
+        id: "a3",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "A3",
+        kind: "project",
+        projectId: "p2",
+        phaseId: "ph1",
+      },
+    ],
+  };
+}
+
+function siblingClientCapacityData(): Pick<AppData, "allocations" | "resources"> {
+  return {
+    allocations: [
+      {
+        id: "al1",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "phc2",
+        activityId: "a1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+      {
+        id: "al2",
+        accountId: "a",
+        createdAt: "t",
+        updatedAt: "t",
+        resourceId: "phc2",
+        activityId: "a2",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      },
+    ],
+    resources: [placeholder({ id: "phc1", projectId: "p1" }), placeholder({ id: "phc2", projectId: "p2" })],
+  };
+}
+
+function siblingClientData(): AppData {
+  return {
+    ...emptyAppData(),
+    ...siblingClientHierarchy(),
+    ...siblingClientActivityData(),
+    ...siblingClientCapacityData(),
   };
 }
 
@@ -305,7 +581,7 @@ describe("placeholder binding", () => {
   });
 });
 
-describe("cascade deletes", () => {
+function registerResourceCascadeTests(): void {
   it("deleteResourceCascade removes the resource, its allocations and time off", () => {
     const next = deleteResourceCascade(sampleData(), "r1");
     expect(next.resources.map((r) => r.id)).toEqual(["ph1"]);
@@ -336,11 +612,13 @@ describe("cascade deletes", () => {
     expect(next.activities.map((t) => t.id)).toEqual(["t2"]);
     expect(next.allocations.map((a) => a.id)).toEqual(["a2"]);
   });
+}
 
+function registerPhaseCascadeTests(): void {
   it("deletePhaseCascade ungroups activities but keeps them", () => {
     const next = deletePhaseCascade(sampleData(), "phase1", CASCADE_REVISION);
     expect(next.phases).toHaveLength(0);
-    expect(next.activities.find((t) => t.id === "t1")!.phaseId).toBeUndefined();
+    expect(assertEntityById(next.activities, "t1").phaseId).toBeUndefined();
     expect(next.activities).toHaveLength(2);
   });
 
@@ -368,17 +646,19 @@ describe("cascade deletes", () => {
     });
     const next = deletePhaseCascade(data, "phase1", CASCADE_REVISION);
     expect(next.phases.map((p) => p.id)).toEqual(["phase2"]); // sibling phase kept
-    expect(next.activities.find((t) => t.id === "t3")!.phaseId).toBe("phase2"); // NOT ungrouped
-    expect(next.activities.find((t) => t.id === "t1")!.phaseId).toBeUndefined(); // was under phase1
+    expect(assertEntityById(next.activities, "t3").phaseId).toBe("phase2"); // NOT ungrouped
+    expect(assertEntityById(next.activities, "t1").phaseId).toBeUndefined(); // was under phase1
   });
+}
 
+function registerProjectCascadeTests(): void {
   it("deleteProjectCascade removes project, phases, activities, their allocations, and unbinds placeholders", () => {
     const next = deleteProjectCascade(sampleData(), "p1", CASCADE_REVISION);
     expect(next.projects).toHaveLength(0);
     expect(next.phases).toHaveLength(0);
     expect(next.activities).toHaveLength(0);
     expect(next.allocations).toHaveLength(0); // both allocations referenced p1 activities
-    expect(next.resources.find((r) => r.id === "ph1")!.projectId).toBeUndefined();
+    expect(assertEntityById(next.resources, "ph1").projectId).toBeUndefined();
     expect(next.resources).toHaveLength(2); // resources are NOT deleted
   });
 
@@ -416,170 +696,30 @@ describe("cascade deletes", () => {
     // t-keep belongs to p2 but (incoherently) references phase ph-p1, which belongs to p1.
     // Deleting p1 removes ph-p1; t-keep must SURVIVE with its phaseId unbound — never a
     // dangling reference (mirrors the server FK's ON DELETE SET NULL).
-    const data: AppData = {
-      ...emptyAppData(),
-      clients: [
-        {
-          id: "c1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "C",
-          color: "#1",
-        },
-      ],
-      projects: [
-        {
-          id: "p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P1",
-          clientId: "c1",
-          color: "#1",
-        },
-        {
-          id: "p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P2",
-          clientId: "c1",
-          color: "#2",
-        },
-      ],
-      phases: [
-        {
-          id: "ph-p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph",
-          projectId: "p1",
-        },
-      ],
-      activities: [
-        {
-          id: "t-keep",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Keep",
-          kind: "project",
-          projectId: "p2",
-          phaseId: "ph-p1",
-        },
-      ],
-    };
+    const data = danglingPhaseData();
     const revision = "2026-07-15T00:00:00.000Z";
     const next = deleteProjectCascade(data, "p1", revision);
-    const keep = next.activities.find((t) => t.id === "t-keep");
-    expect(keep).toBeDefined(); // survives — it belongs to p2
-    expect(keep!.phaseId).toBeUndefined(); // dangling phase reference unbound
-    expect(keep!.updatedAt).toBe(revision); // surviving FK repair is synchronizable
+    const keep = assertEntityById(next.activities, "t-keep"); // survives — it belongs to p2
+    expect(keep.phaseId).toBeUndefined(); // dangling phase reference unbound
+    expect(keep.updatedAt).toBe(revision); // surviving FK repair is synchronizable
     expect(next.phases).toHaveLength(0); // p1's phase removed
   });
 
   it("deleteProjectCascade spares a SIBLING project’s phases, activities, allocations and bound placeholder", () => {
     // Deleting p1 must touch ONLY p1's subtree: p2 and everything coherently under it survives,
     // and a coherent p2 activity keeps its (p2) phase — the removed-phase set must not over-collect.
-    const data: AppData = {
-      ...emptyAppData(),
-      clients: [
-        {
-          id: "c1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "C",
-          color: "#1",
-        },
-      ],
-      projects: [
-        {
-          id: "p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P1",
-          clientId: "c1",
-          color: "#1",
-        },
-        {
-          id: "p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P2",
-          clientId: "c1",
-          color: "#2",
-        },
-      ],
-      phases: [
-        {
-          id: "ph-p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph1",
-          projectId: "p1",
-        },
-        {
-          id: "ph-p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph2",
-          projectId: "p2",
-        },
-      ],
-      activities: [
-        {
-          id: "a-p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A1",
-          kind: "project",
-          projectId: "p1",
-          phaseId: "ph-p1",
-        },
-        {
-          id: "a-p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A2",
-          kind: "project",
-          projectId: "p2",
-          phaseId: "ph-p2",
-        },
-      ],
-      allocations: [
-        {
-          id: "al-p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "ph2",
-          activityId: "a-p2",
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-      ],
-      resources: [placeholder({ id: "ph2", projectId: "p2" })],
-    };
+    const data = siblingProjectData();
     const next = deleteProjectCascade(data, "p1", CASCADE_REVISION);
     expect(next.projects.map((p) => p.id)).toEqual(["p2"]); // only p1 removed
     expect(next.phases.map((p) => p.id)).toEqual(["ph-p2"]); // p2's phase kept
     expect(next.activities.map((t) => t.id)).toEqual(["a-p2"]); // p1 activity removed, p2 kept
-    expect(next.activities.find((t) => t.id === "a-p2")!.phaseId).toBe("ph-p2"); // coherent phase NOT unbound
+    expect(assertEntityById(next.activities, "a-p2").phaseId).toBe("ph-p2"); // coherent phase NOT unbound
     expect(next.allocations.map((a) => a.id)).toEqual(["al-p2"]); // sibling allocation survives
-    expect(next.resources.find((r) => r.id === "ph2")!.projectId).toBe("p2"); // p2 placeholder keeps binding
+    expect(assertEntityById(next.resources, "ph2").projectId).toBe("p2"); // p2 placeholder keeps binding
   });
+}
 
+function registerClientCascadeTests(): void {
   it("deleteClientCascade cascades through its projects", () => {
     const data = sampleData();
     data.activities.push({
@@ -610,144 +750,32 @@ describe("cascade deletes", () => {
     expect(next.allocations.map((allocation) => allocation.id)).toEqual(["attributed"]);
     expect(next.allocations[0]?.projectId).toBeUndefined();
     expect(next.allocations[0]?.updatedAt).toBe(CASCADE_REVISION);
-    expect(next.resources.find((r) => r.id === "ph1")!.projectId).toBeUndefined();
+    expect(assertEntityById(next.resources, "ph1").projectId).toBeUndefined();
   });
 
   it("deleteClientCascade removes ONLY the target client’s subtree, sparing a sibling client", () => {
     // Two clients; deleting c1 leaves c2's project/phase/activity/allocation/placeholder intact.
     // A c2 activity that (incoherently) points at a c1 phase SURVIVES with its phaseId unbound.
-    const data: AppData = {
-      ...emptyAppData(),
-      clients: [
-        {
-          id: "c1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "C1",
-          color: "#1",
-        },
-        {
-          id: "c2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "C2",
-          color: "#2",
-        },
-      ],
-      projects: [
-        {
-          id: "p1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P1",
-          clientId: "c1",
-          color: "#1",
-        },
-        {
-          id: "p2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "P2",
-          clientId: "c2",
-          color: "#2",
-        },
-      ],
-      phases: [
-        {
-          id: "ph1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph1",
-          projectId: "p1",
-        },
-        {
-          id: "ph2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "Ph2",
-          projectId: "p2",
-        },
-      ],
-      activities: [
-        {
-          id: "a1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A1",
-          kind: "project",
-          projectId: "p1",
-        },
-        {
-          id: "a2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A2",
-          kind: "project",
-          projectId: "p2",
-          phaseId: "ph2",
-        },
-        {
-          id: "a3",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          name: "A3",
-          kind: "project",
-          projectId: "p2",
-          phaseId: "ph1",
-        },
-      ],
-      allocations: [
-        {
-          id: "al1",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "phc2",
-          activityId: "a1",
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-        {
-          id: "al2",
-          accountId: "a",
-          createdAt: "t",
-          updatedAt: "t",
-          resourceId: "phc2",
-          activityId: "a2",
-          startDate: "2026-06-01",
-          endDate: "2026-06-02",
-          hoursPerDay: 8,
-          status: "confirmed",
-        },
-      ],
-      resources: [placeholder({ id: "phc1", projectId: "p1" }), placeholder({ id: "phc2", projectId: "p2" })],
-    };
+    const data = siblingClientData();
     const revision = "2026-07-15T00:00:00.000Z";
     const next = deleteClientCascade(data, "c1", revision);
     expect(next.clients.map((c) => c.id)).toEqual(["c2"]);
     expect(next.projects.map((p) => p.id)).toEqual(["p2"]);
     expect(next.phases.map((p) => p.id)).toEqual(["ph2"]); // c1's phase removed, c2's kept
     expect(next.activities.map((t) => t.id).sort()).toEqual(["a2", "a3"]); // a1 (c1) removed
-    expect(next.activities.find((t) => t.id === "a2")!.name).toBe("A2"); // record kept whole, not blanked
-    expect(next.activities.find((t) => t.id === "a2")!.phaseId).toBe("ph2"); // coherent phase NOT unbound
-    expect(next.activities.find((t) => t.id === "a3")!.phaseId).toBeUndefined(); // dangling c1 phase unbound
-    expect(next.activities.find((t) => t.id === "a3")!.updatedAt).toBe(revision);
+    const survivingActivity = assertEntityById(next.activities, "a2");
+    expect(survivingActivity.name).toBe("A2"); // record kept whole, not blanked
+    expect(survivingActivity.phaseId).toBe("ph2"); // coherent phase NOT unbound
+    const repairedActivity = assertEntityById(next.activities, "a3");
+    expect(repairedActivity.phaseId).toBeUndefined(); // dangling c1 phase unbound
+    expect(repairedActivity.updatedAt).toBe(revision);
     expect(next.allocations.map((a) => a.id)).toEqual(["al2"]); // a1's allocation removed, a2's kept
-    expect(next.resources.find((r) => r.id === "phc1")!.projectId).toBeUndefined(); // bound to removed p1
-    expect(next.resources.find((r) => r.id === "phc2")!.projectId).toBe("p2"); // bound to surviving p2
+    expect(assertEntityById(next.resources, "phc1").projectId).toBeUndefined(); // bound to removed p1
+    expect(assertEntityById(next.resources, "phc2").projectId).toBe("p2"); // bound to surviving p2
   });
+}
 
+function registerDisciplineCascadeTests(): void {
   it("deleteDisciplineCascade ungroups resources but keeps them", () => {
     const next = deleteDisciplineCascade(sampleData(), "d1", CASCADE_REVISION);
     expect(next.disciplines).toHaveLength(0);
@@ -768,11 +796,11 @@ describe("cascade deletes", () => {
     data.resources.push(person({ id: "r2", disciplineId: "d2" }));
     const next = deleteDisciplineCascade(data, "d1", CASCADE_REVISION);
     expect(next.disciplines.map((d) => d.id)).toEqual(["d2"]); // sibling discipline kept
-    expect(next.resources.find((r) => r.id === "r2")!.disciplineId).toBe("d2"); // NOT ungrouped
+    expect(assertEntityById(next.resources, "r2").disciplineId).toBe("d2"); // NOT ungrouped
     // r1 was in d1 → ungrouped, but kept as a whole record (not blanked to {})
-    const r1 = next.resources.find((r) => r.id === "r1");
-    expect(r1!.disciplineId).toBeUndefined();
-    expect(r1!.role).toBe("Senior Designer");
+    const r1 = assertEntityById(next.resources, "r1");
+    expect(r1.disciplineId).toBeUndefined();
+    expect(r1.role).toBe("Senior Designer");
   });
 
   it("stamps surviving records whose foreign key is cleared by a cascade", () => {
@@ -805,4 +833,12 @@ describe("cascade deletes", () => {
     deleteClientCascade(data, "c1", CASCADE_REVISION);
     expect(JSON.stringify(data)).toBe(snapshot);
   });
+}
+
+describe("cascade deletes", () => {
+  registerResourceCascadeTests();
+  registerPhaseCascadeTests();
+  registerProjectCascadeTests();
+  registerClientCascadeTests();
+  registerDisciplineCascadeTests();
 });

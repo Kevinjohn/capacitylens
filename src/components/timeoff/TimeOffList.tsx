@@ -1,7 +1,7 @@
 import { useStore } from "../../store/useStore";
 import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { useCrudListState } from "../../hooks/useCrudListState";
+import { useEntityListState } from "../../hooks/useEntityListState";
 import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { formatShortDate, formatDayCount } from "../../lib/dateDisplay";
 import { TimeOffForm } from "./TimeOffForm";
@@ -21,7 +21,7 @@ export function TimeOffList() {
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const calendarWeekStartsOn = useStore((state) => resolveWeekStart(state.data, state.activeAccountId));
   const deleteEntity = useStore((state) => state.deleteTimeOff);
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<TimeOff>();
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<TimeOff>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
 
   const currentWeekStart = readCurrentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);

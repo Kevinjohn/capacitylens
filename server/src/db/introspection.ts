@@ -64,28 +64,47 @@ const tableHasForeignKey = ({ db, table, from, targetTable, targetColumn = "id" 
     }>
   ).some((key) => key.from === from && key.table === targetTable && key.to === targetColumn);
 
+const legacyWorkTable = (tables: ReadonlySet<string>): "activities" | "tasks" | undefined => {
+  if (tables.has("activities")) return "activities";
+  if (tables.has("tasks")) return "tasks";
+  return undefined;
+};
+
+interface LegacyRelationshipInput {
+  db: Db;
+  table: string;
+  from: string;
+  targetTable: string;
+}
+
+const hasLegacyRelationship = (input: LegacyRelationshipInput): boolean =>
+  tableHasForeignKey({ ...input, targetColumn: "id" });
+
+const hasLegacyColumns = (db: Db, workTable: "activities" | "tasks", allocationWorkColumn: string): boolean =>
+  tableHasColumns(db, "accounts", ["id", "name", "createdAt", "updatedAt"]) &&
+  tableHasColumns(db, "clients", ["id", "accountId", "name"]) &&
+  tableHasColumns(db, "projects", ["id", "accountId", "clientId"]) &&
+  tableHasColumns(db, workTable, ["id", "accountId", "name", "projectId"]) &&
+  tableHasColumns(db, "allocations", ["id", "accountId", "resourceId", allocationWorkColumn]);
+
 /** application_id predates the retained v7 fixtures, so legacy recognition must be structural.
  * Require the distinctive account→client→project→work chain plus allocation ownership rather
  * than accepting any second table whose name happens to overlap the domain model. The identifiers
  * below are fixed source constants, never caller input. */
 export function hasLegacyCapacityLensShape(db: Db, tables: readonly string[]): boolean {
   const tableSet = new Set(tables);
-  const workTable = tableSet.has("activities") ? "activities" : tableSet.has("tasks") ? "tasks" : null;
+  const workTable = legacyWorkTable(tableSet);
   if (!workTable || !["accounts", "clients", "projects", "allocations"].every((table) => tableSet.has(table)))
     return false;
 
   const allocationWorkColumn = workTable === "activities" ? "activityId" : "taskId";
   return (
-    tableHasColumns(db, "accounts", ["id", "name", "createdAt", "updatedAt"]) &&
-    tableHasColumns(db, "clients", ["id", "accountId", "name"]) &&
-    tableHasColumns(db, "projects", ["id", "accountId", "clientId"]) &&
-    tableHasColumns(db, workTable, ["id", "accountId", "name", "projectId"]) &&
-    tableHasColumns(db, "allocations", ["id", "accountId", "resourceId", allocationWorkColumn]) &&
-    tableHasForeignKey({ db, table: "clients", from: "accountId", targetTable: "accounts" }) &&
-    tableHasForeignKey({ db, table: "projects", from: "accountId", targetTable: "accounts" }) &&
-    tableHasForeignKey({ db, table: "projects", from: "clientId", targetTable: "clients" }) &&
-    tableHasForeignKey({ db, table: workTable, from: "accountId", targetTable: "accounts" }) &&
-    tableHasForeignKey({ db, table: workTable, from: "projectId", targetTable: "projects" }) &&
-    tableHasForeignKey({ db, table: "allocations", from: "accountId", targetTable: "accounts" })
+    hasLegacyColumns(db, workTable, allocationWorkColumn) &&
+    hasLegacyRelationship({ db, table: "clients", from: "accountId", targetTable: "accounts" }) &&
+    hasLegacyRelationship({ db, table: "projects", from: "accountId", targetTable: "accounts" }) &&
+    hasLegacyRelationship({ db, table: "projects", from: "clientId", targetTable: "clients" }) &&
+    hasLegacyRelationship({ db, table: workTable, from: "accountId", targetTable: "accounts" }) &&
+    hasLegacyRelationship({ db, table: workTable, from: "projectId", targetTable: "projects" }) &&
+    hasLegacyRelationship({ db, table: "allocations", from: "accountId", targetTable: "accounts" })
   );
 }

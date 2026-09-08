@@ -17,6 +17,13 @@ export interface RollbackFailure {
 
 export type RollbackFailureReporter = (failure: RollbackFailure) => void;
 
+type TransactionMode = "deferred" | "immediate";
+
+export interface TransactionOptions {
+  mode?: TransactionMode;
+  reportRollbackFailure?: RollbackFailureReporter;
+}
+
 const defaultRollbackFailureReporter: RollbackFailureReporter = ({ scope }) => {
   // This helper is also used before a request logger exists. Emit one parseable, privacy-safe line;
   // callers with correlation context can inject their structured reporter through tx().
@@ -38,12 +45,92 @@ function reportRollbackFailureSafely(reporter: RollbackFailureReporter, failure:
   }
 }
 
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  if (value === null || (typeof value !== "object" && typeof value !== "function")) return false;
+  return "then" in value && typeof value.then === "function";
+}
+
 function assertSynchronousResult(result: unknown): void {
-  const resultType = typeof result;
-  if ((resultType === "object" && result !== null) || resultType === "function") {
-    if (typeof (result as { then?: unknown }).then === "function") {
-      throw new TypeError("Transaction callback must be synchronous; received a Promise-like result.");
+  if (isPromiseLike(result)) {
+    throw new TypeError("Transaction callback must be synchronous; received a Promise-like result.");
+  }
+}
+
+type TransactionConfiguration =
+  | []
+  | [mode: TransactionMode | undefined]
+  | [mode: TransactionMode | undefined, reportRollbackFailure: RollbackFailureReporter | undefined]
+  | [options: TransactionOptions];
+
+function resolveTransactionOptions(configuration: TransactionConfiguration): Required<TransactionOptions> {
+  if (configuration.length === 2) {
+    const [mode, reportRollbackFailure] = configuration;
+    return {
+      mode: mode ?? "deferred",
+      reportRollbackFailure: reportRollbackFailure ?? defaultRollbackFailureReporter,
+    };
+  }
+  const [modeOrOptions] = configuration;
+  if (typeof modeOrOptions === "string") {
+    return { mode: modeOrOptions, reportRollbackFailure: defaultRollbackFailureReporter };
+  }
+  return {
+    mode: modeOrOptions?.mode ?? "deferred",
+    reportRollbackFailure: modeOrOptions?.reportRollbackFailure ?? defaultRollbackFailureReporter,
+  };
+}
+
+function isTransactionActive(db: Db): boolean {
+  return db.isTransaction;
+}
+
+function runNestedTransaction<Result>(db: Db, callback: () => Result, options: Required<TransactionOptions>): Result {
+  if (options.mode === "immediate" && activeTransactionModes.get(db) !== "immediate") {
+    throw new Error("A nested immediate transaction requires its enclosing tx() transaction to be immediate.");
+  }
+  const savepoint = `capacitylens_tx_${++savepointId}`;
+  db.exec(`SAVEPOINT ${savepoint}`);
+  try {
+    const result = callback();
+    assertSynchronousResult(result);
+    db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+    return result;
+  } catch (e) {
+    try {
+      db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+      db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+    } catch (rollbackError) {
+      reportRollbackFailureSafely(options.reportRollbackFailure, { scope: "savepoint", error: rollbackError });
     }
+    throw e;
+  }
+}
+
+function runTopLevelTransaction<Result>(db: Db, callback: () => Result, options: Required<TransactionOptions>): Result {
+  db.exec(options.mode === "immediate" ? "BEGIN IMMEDIATE" : "BEGIN");
+  activeTransactionModes.set(db, options.mode);
+  try {
+    const result = callback();
+    assertSynchronousResult(result);
+    db.exec("COMMIT");
+    return result;
+  } catch (e) {
+    // Roll back, but NEVER let a ROLLBACK failure MASK the original error. If BEGIN never armed a
+    // transaction or the connection is gone, db.exec('ROLLBACK') itself throws — swallow ONLY that
+    // (after logging), then always rethrow `e`, the real cause, so the diagnostic chain stays
+    // intact. The rare acceptable nested swallow: the original failure is still surfaced.
+    try {
+      db.exec("ROLLBACK");
+    } catch (rollbackError) {
+      // If SQLite says the transaction is STILL active after a failed ROLLBACK, later commits
+      // cannot be trusted to sit on a durability boundary. Read through a function boundary because
+      // native accessors may change during exec(), despite the earlier top-level branch narrowing.
+      if (isTransactionActive(db)) poisonedHandles.add(db);
+      reportRollbackFailureSafely(options.reportRollbackFailure, { scope: "transaction", error: rollbackError });
+    }
+    throw e;
+  } finally {
+    activeTransactionModes.delete(db);
   }
 }
 
@@ -56,62 +143,18 @@ function assertSynchronousResult(result: unknown): void {
  * when the enclosing transaction was itself opened as immediate by this helper; otherwise it
  * throws instead of silently weakening the caller's requested reservation.
  */
-export function tx<Fn extends () => unknown>(
+export function tx<Result>(
   db: Db,
-  fn: SynchronousCallback<Fn>,
-  mode: "deferred" | "immediate" = "deferred",
-  reportRollbackFailure: RollbackFailureReporter = defaultRollbackFailureReporter,
-): ReturnType<Fn> {
+  callback: (() => Result) & ([Extract<Result, PromiseLike<unknown>>] extends [never] ? unknown : never),
+  ...configuration: TransactionConfiguration
+): Result {
   if (poisonedHandles.has(db)) {
     throw new Error(
       "This database handle is quarantined: an earlier ROLLBACK failed while the transaction stayed active, so no further writes can be acknowledged on it.",
     );
   }
-  if (db.isTransaction) {
-    if (mode === "immediate" && activeTransactionModes.get(db) !== "immediate") {
-      throw new Error("A nested immediate transaction requires its enclosing tx() transaction to be immediate.");
-    }
-    const savepoint = `capacitylens_tx_${++savepointId}`;
-    db.exec(`SAVEPOINT ${savepoint}`);
-    try {
-      const result = fn();
-      assertSynchronousResult(result);
-      db.exec(`RELEASE SAVEPOINT ${savepoint}`);
-      return result as ReturnType<Fn>;
-    } catch (e) {
-      try {
-        db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
-        db.exec(`RELEASE SAVEPOINT ${savepoint}`);
-      } catch (rollbackError) {
-        reportRollbackFailureSafely(reportRollbackFailure, { scope: "savepoint", error: rollbackError });
-      }
-      throw e;
-    }
-  }
-
-  db.exec(mode === "immediate" ? "BEGIN IMMEDIATE" : "BEGIN");
-  activeTransactionModes.set(db, mode);
-  try {
-    const result = fn();
-    assertSynchronousResult(result);
-    db.exec("COMMIT");
-    return result as ReturnType<Fn>;
-  } catch (e) {
-    // Roll back, but NEVER let a ROLLBACK failure MASK the original error. If BEGIN never armed a
-    // transaction or the connection is gone, db.exec('ROLLBACK') itself throws — swallow ONLY that
-    // (after logging), then always rethrow `e`, the real cause, so the diagnostic chain stays
-    // intact. The rare acceptable nested swallow: the original failure is still surfaced.
-    try {
-      db.exec("ROLLBACK");
-    } catch (rollbackError) {
-      // If SQLite says the transaction is STILL active after a failed ROLLBACK, later commits
-      // cannot be trusted to sit on a durability boundary. Quarantine the handle before rethrowing
-      // so no later write can be acknowledged against it.
-      if (db.isTransaction) poisonedHandles.add(db);
-      reportRollbackFailureSafely(reportRollbackFailure, { scope: "transaction", error: rollbackError });
-    }
-    throw e;
-  } finally {
-    activeTransactionModes.delete(db);
-  }
+  const resolvedOptions = resolveTransactionOptions(configuration);
+  return db.isTransaction
+    ? runNestedTransaction(db, callback, resolvedOptions)
+    : runTopLevelTransaction(db, callback, resolvedOptions);
 }

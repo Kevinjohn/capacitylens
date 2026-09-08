@@ -1,16 +1,20 @@
 import type { AsyncLocalStorage } from "node:async_hooks";
 import { APIError } from "better-auth/api";
-import type { BetterAuthPlugin } from "better-auth";
 import type { SocialProviders } from "better-auth/social-providers";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import type { Db } from "../db";
 import { resolveAccountConfigKey } from "../accountConfig";
 import { createStrictOidcClient, isLoopbackHostname, StrictOidcVerificationError } from "../strictOidc";
-import type { AuthProviderInfo } from "../auth";
-import type { AuthConfigError } from "../auth";
+import type { AuthConfigError, AuthProviderInfo } from "../auth";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
+
+function resolveNonEmptyValue(value: string | undefined, fallback: string): string {
+  if (value) return value;
+  return fallback;
+}
+
 interface ParseOptionalCredentialPairInput {
   environment: Env;
   idKey: string;
@@ -66,7 +70,7 @@ function parseSecureProviderUrl(
 }
 
 /** Native social providers assembled from env. Unset pairs are absent; a partial pair refuses
- * startup. New external identities are separately verified and invite-gated in the database hook. */
+ * startup. New external identities require verified email and remain invite-gated in the database hook. */
 function parseSocialProvidersFromEnvironment(
   environment: Env,
   AuthConfigError: AuthConfigErrorConstructor,
@@ -94,7 +98,7 @@ function parseSocialProvidersFromEnvironment(
     providers.microsoft = {
       clientId,
       clientSecret,
-      tenantId: environment.CAPACITYLENS_MICROSOFT_TENANT_ID || "common",
+      tenantId: resolveNonEmptyValue(environment.CAPACITYLENS_MICROSOFT_TENANT_ID, "common"),
     };
   }
   const github = parseConfiguredPair(
@@ -112,7 +116,7 @@ function parseSocialProvidersFromEnvironment(
 // Provider ids are persisted as part of an external identity's namespace. Generic OIDC must not
 // claim an id owned by a built-in sign-in method or one of CapacityLens' installed auth plugins:
 // enabling that method later would otherwise reinterpret existing accounts or overwrite issuer
-// routing. Keep this list aligned with socialProvidersFromEnv() and the plugins assembled below.
+// routing. Keep this list aligned with social-provider parsing and plugin assembly below.
 const RESERVED_IDS = new Set(["credential", "generic-oauth", "two-factor", "google", "microsoft", "github"]);
 
 function buildExternalProviderInfo(
@@ -136,7 +140,7 @@ function buildExternalProviderInfo(
   if (genericProviderId) {
     providers.push({
       id: genericProviderId,
-      label: environment.CAPACITYLENS_SSO_LABEL?.trim() || defaultProviderLabel,
+      label: resolveNonEmptyValue(environment.CAPACITYLENS_SSO_LABEL?.trim(), defaultProviderLabel),
       kind: "oidc",
       experimental: false,
     });
@@ -144,16 +148,7 @@ function buildExternalProviderInfo(
   return providers;
 }
 
-export function prepareProviders({
-  db,
-  env,
-  mode,
-  publicUrl,
-  authHandlerErrorCapture,
-  AuthConfigError,
-  required,
-  assertStrictOidcEmailAdmission,
-}: {
+interface PrepareProvidersInput {
   db: Db;
   env: Env;
   mode: "password" | "sso";
@@ -166,12 +161,25 @@ export function prepareProviders({
     providerId: string,
     profile: { sub: string; emailVerified: boolean },
   ) => void;
-}) {
-  // Generic OAuth/OIDC is additive in password mode and exclusive in sso mode. This lets an
-  // installation keep a password fallback while trialling SSO, then switch to SSO-only without
-  // changing provider configuration.
-  const genericSsoConfigured = Boolean(env.CAPACITYLENS_SSO_CLIENT_ID || env.CAPACITYLENS_SSO_CLIENT_SECRET);
-  if (genericSsoConfigured) {
+}
+
+interface GenericOidcConfiguration extends Required<Parameters<typeof createStrictOidcClient>[0]> {
+  providerId: string;
+  scopes: string[];
+}
+
+interface ParsedGenericOidcConfiguration {
+  configuration: GenericOidcConfiguration | null;
+  issuer: string | undefined;
+}
+
+function resolveGenericProviderId(
+  env: Env,
+  mode: "password" | "sso",
+  AuthConfigError: AuthConfigErrorConstructor,
+): string | null {
+  const configured = [env.CAPACITYLENS_SSO_CLIENT_ID, env.CAPACITYLENS_SSO_CLIENT_SECRET].some(Boolean);
+  if (configured) {
     parseOptionalCredentialPair({
       environment: env,
       idKey: "CAPACITYLENS_SSO_CLIENT_ID",
@@ -180,132 +188,171 @@ export function prepareProviders({
       E: AuthConfigError,
     });
   }
-  if (mode === "sso" && !genericSsoConfigured) {
+  if (mode === "sso" && !configured) {
     throw new AuthConfigError(
       "SMALLSASS_ACCOUNT_MODE=sso requires SMALLSASS_ACCOUNT_OIDC_CLIENT_ID and SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET.",
     );
   }
-  const genericProviderId = genericSsoConfigured ? env.CAPACITYLENS_SSO_PROVIDER_ID || "sso" : null;
-  if (genericProviderId && !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(genericProviderId)) {
+  if (!configured) return null;
+  const providerId = resolveNonEmptyValue(env.CAPACITYLENS_SSO_PROVIDER_ID, "sso");
+  if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(providerId)) {
     throw new AuthConfigError("SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID must match ^[a-z0-9][a-z0-9_-]{0,63}$.");
   }
-  if (genericProviderId && RESERVED_IDS.has(genericProviderId)) {
+  if (RESERVED_IDS.has(providerId)) {
+    throw new AuthConfigError(`SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID must not use reserved provider id "${providerId}".`);
+  }
+  return providerId;
+}
+
+function parseRequiredOidcScopes(env: Env, AuthConfigError: AuthConfigErrorConstructor): string[] {
+  const scopes = (env.CAPACITYLENS_SSO_SCOPES ?? "openid profile email").split(/\s+/).filter(Boolean);
+  const missingScopes = ["openid", "profile", "email"].filter((scope) => !scopes.includes(scope));
+  if (missingScopes.length > 0) {
     throw new AuthConfigError(
-      `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID must not use reserved provider id "${genericProviderId}".`,
+      `Generic OIDC requires the ${missingScopes.join(", ")} scope${missingScopes.length === 1 ? "" : "s"}.`,
     );
   }
+  return scopes;
+}
+
+function parseGenericOidcConfiguration({
+  env,
+  mode,
+  AuthConfigError,
+  required,
+}: Pick<PrepareProvidersInput, "env" | "mode" | "AuthConfigError" | "required">): ParsedGenericOidcConfiguration {
+  const providerId = resolveGenericProviderId(env, mode, AuthConfigError);
   const discoveryUrl = parseSecureProviderUrl(env, "CAPACITYLENS_SSO_DISCOVERY_URL", AuthConfigError);
-  const genericIssuer = parseSecureProviderUrl(env, "CAPACITYLENS_SSO_ISSUER", AuthConfigError);
-  if (genericIssuer) {
-    const issuerUrl = new URL(genericIssuer);
+  const issuer = parseSecureProviderUrl(env, "CAPACITYLENS_SSO_ISSUER", AuthConfigError);
+  if (issuer) {
+    const issuerUrl = new URL(issuer);
     if (issuerUrl.search || issuerUrl.hash) {
       throw new AuthConfigError("SMALLSASS_ACCOUNT_OIDC_ISSUER must not contain a query string or fragment.");
     }
   }
   const authorizationUrl = parseSecureProviderUrl(env, "CAPACITYLENS_SSO_AUTHORIZATION_URL", AuthConfigError);
   const tokenUrl = parseSecureProviderUrl(env, "CAPACITYLENS_SSO_TOKEN_URL", AuthConfigError);
-  let strictOidcClient: ReturnType<typeof createStrictOidcClient> | null = null;
-  let strictOidcAuthorizationProxyPath: string | null = null;
-  let genericOidcPlugin: BetterAuthPlugin | null = null;
-  if (genericProviderId) {
-    if (!genericIssuer) {
-      throw new AuthConfigError(
-        "Strict OIDC requires SMALLSASS_ACCOUNT_OIDC_ISSUER for stable issuer-and-subject identity correlation.",
-      );
-    }
-    const scopes = (env.CAPACITYLENS_SSO_SCOPES ?? "openid profile email").split(/\s+/).filter(Boolean);
-    const missingScopes = ["openid", "profile", "email"].filter((scope) => !scopes.includes(scope));
-    if (missingScopes.length > 0) {
-      throw new AuthConfigError(
-        `Generic OIDC requires the ${missingScopes.join(", ")} scope${missingScopes.length === 1 ? "" : "s"}.`,
-      );
-    }
-    if (!discoveryUrl) {
-      throw new AuthConfigError(
-        "Strict OIDC requires SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL; endpoint-only generic OAuth is not accepted.",
-      );
-    }
-    if (authorizationUrl || tokenUrl) {
-      throw new AuthConfigError(
-        "Strict OIDC endpoints must come from discovery; explicit authorization and token endpoint overrides are not accepted.",
-      );
-    }
-    const genericClientId = required(env, "CAPACITYLENS_SSO_CLIENT_ID", "generic SSO");
-    const genericClientSecret = required(env, "CAPACITYLENS_SSO_CLIENT_SECRET", "generic SSO");
-    strictOidcClient = createStrictOidcClient({
-      issuer: genericIssuer,
-      clientId: genericClientId,
-      clientSecret: genericClientSecret,
+  if (!providerId) return { configuration: null, issuer };
+  if (!issuer) {
+    throw new AuthConfigError(
+      "Strict OIDC requires SMALLSASS_ACCOUNT_OIDC_ISSUER for stable issuer-and-subject identity correlation.",
+    );
+  }
+  const scopes = parseRequiredOidcScopes(env, AuthConfigError);
+  if (!discoveryUrl) {
+    throw new AuthConfigError(
+      "Strict OIDC requires SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL; endpoint-only generic OAuth is not accepted.",
+    );
+  }
+  if ([authorizationUrl, tokenUrl].some(Boolean)) {
+    throw new AuthConfigError(
+      "Strict OIDC endpoints must come from discovery; explicit authorization and token endpoint overrides are not accepted.",
+    );
+  }
+  return {
+    issuer,
+    configuration: {
+      providerId,
+      issuer,
       discoveryUrl,
-    });
-    strictOidcAuthorizationProxyPath = `/api/auth/oidc/authorize/${genericProviderId}`;
-    const oidcClient = strictOidcClient;
-    genericOidcPlugin = genericOAuth({
-      config: [
-        {
-          providerId: genericProviderId,
-          clientId: genericClientId,
-          clientSecret: genericClientSecret,
-          // Do not give the generic plugin the discovery URL: it consumes discovery endpoints before
-          // validating their issuer or transport. Its generated authorization request instead visits
-          // our same-origin proxy below, and its code exchange delegates to the same issuer-pinned
-          // metadata object. No browser redirect or client secret crosses an unvalidated endpoint.
-          authorizationUrl: new URL(strictOidcAuthorizationProxyPath, publicUrl).toString(),
-          // genericOAuth shape-validates a token URL while creating the authorization response even
-          // when a custom getToken owns exchange. Keep that required placeholder same-origin; it is
-          // never requested because getToken below always resolves the validated discovery endpoint.
-          tokenUrl: new URL(`/api/auth/oidc/token/${genericProviderId}`, publicUrl).toString(),
-          issuer: genericIssuer,
-          // RFC 9207's authorization-response `iss` parameter is optional and is not emitted by
-          // otherwise-conformant providers such as Dex. Do not make that extension a portability
-          // requirement. The trust decision remains strict: discovery is issuer-pinned and
-          // strictOidcUserInfo verifies the signed ID token's issuer and client audience before
-          // accepting any identity claims.
-          requireIssuerValidation: false,
-          pkce: true,
-          getToken: ({ code, redirectURI, codeVerifier }) =>
-            oidcClient.exchangeCode({
-              code,
-              redirectURI,
-              ...(codeVerifier === undefined ? {} : { codeVerifier }),
-            }),
-          getUserInfo: async (tokens) => {
-            try {
-              const profile = await oidcClient.getUserInfo({
-                ...(tokens.accessToken === undefined ? {} : { accessToken: tokens.accessToken }),
-                ...(tokens.idToken === undefined ? {} : { idToken: tokens.idToken }),
-              });
-              assertStrictOidcEmailAdmission(db, genericProviderId, profile);
-              return profile;
-            } catch (error) {
-              if (!(error instanceof StrictOidcVerificationError)) throw error;
-              console.error("Strict OIDC identity verification failed.", error);
-              // generic-oauth performs its browser redirect only when getUserInfo returns no
-              // profile. Preserve our stable reason in request-local state so the outer callback
-              // seam can replace generic-oauth's `user_info_is_missing` redirect without
-              // throwing an APIError that escapes to the browser as raw JSON.
-              const capture = authHandlerErrorCapture.getStore();
-              if (capture) {
-                capture.error = APIError.from("UNAUTHORIZED", {
-                  message: "The identity provider response could not be verified.",
-                  code: "OIDC_IDENTITY_VERIFICATION_FAILED",
-                });
-              }
-              return null;
-            }
-          },
-          scopes,
-        },
-      ],
+      clientId: required(env, "CAPACITYLENS_SSO_CLIENT_ID", "generic SSO"),
+      clientSecret: required(env, "CAPACITYLENS_SSO_CLIENT_SECRET", "generic SSO"),
+      scopes,
+    },
+  };
+}
+
+function captureStrictOidcVerificationError(
+  error: unknown,
+  authHandlerErrorCapture: AsyncLocalStorage<{ error: unknown }>,
+): null {
+  if (!(error instanceof StrictOidcVerificationError)) throw error;
+  console.error("Strict OIDC identity verification failed.", error);
+  // Request-local APIError plus null replaces generic-oauth's user_info_is_missing redirect without
+  // allowing an exception to escape to the browser as raw JSON.
+  const capture = authHandlerErrorCapture.getStore();
+  if (capture) {
+    capture.error = APIError.from("UNAUTHORIZED", {
+      message: "The identity provider response could not be verified.",
+      code: "OIDC_IDENTITY_VERIFICATION_FAILED",
     });
   }
+  return null;
+}
+
+function createGenericOidcPlugin(
+  configuration: GenericOidcConfiguration,
+  input: Pick<PrepareProvidersInput, "db" | "publicUrl" | "authHandlerErrorCapture" | "assertStrictOidcEmailAdmission">,
+) {
+  const { providerId, issuer, discoveryUrl, clientId, clientSecret, scopes } = configuration;
+  const strictOidcClient = createStrictOidcClient({ issuer, clientId, clientSecret, discoveryUrl });
+  const strictOidcAuthorizationProxyPath = `/api/auth/oidc/authorize/${providerId}`;
+  const genericOidcPlugin = genericOAuth({
+    config: [
+      {
+        providerId,
+        clientId,
+        clientSecret,
+        // Same-origin proxy keeps the plugin from consuming untrusted discovery before validation.
+        authorizationUrl: new URL(strictOidcAuthorizationProxyPath, input.publicUrl).toString(),
+        // Shape-only placeholder: custom getToken owns exchange, so this URL is never requested.
+        tokenUrl: new URL(`/api/auth/oidc/token/${providerId}`, input.publicUrl).toString(),
+        issuer,
+        // Dex may omit RFC 9207 `iss`; the strict client still enforces ID-token issuer and audience.
+        requireIssuerValidation: false,
+        pkce: true,
+        getToken: ({ code, redirectURI, codeVerifier }) =>
+          strictOidcClient.exchangeCode({
+            code,
+            redirectURI,
+            ...(codeVerifier === undefined ? {} : { codeVerifier }),
+          }),
+        getUserInfo: async (tokens) => {
+          try {
+            const profile = await strictOidcClient.getUserInfo({
+              ...(tokens.accessToken === undefined ? {} : { accessToken: tokens.accessToken }),
+              ...(tokens.idToken === undefined ? {} : { idToken: tokens.idToken }),
+            });
+            input.assertStrictOidcEmailAdmission(input.db, providerId, profile);
+            return profile;
+          } catch (error) {
+            return captureStrictOidcVerificationError(error, input.authHandlerErrorCapture);
+          }
+        },
+        scopes,
+      },
+    ],
+  });
+  return { strictOidcClient, strictOidcAuthorizationProxyPath, genericOidcPlugin };
+}
+
+export function prepareProviders({
+  db,
+  env,
+  mode,
+  publicUrl,
+  authHandlerErrorCapture,
+  AuthConfigError,
+  required,
+  assertStrictOidcEmailAdmission,
+}: PrepareProvidersInput) {
+  // Generic OAuth/OIDC is additive in password mode and exclusive in sso mode. This lets an
+  // installation keep a password fallback while trialling SSO, then switch to SSO-only without
+  // changing provider configuration.
+  const { configuration, issuer } = parseGenericOidcConfiguration({ env, mode, AuthConfigError, required });
+  const preparedGenericOidc = configuration
+    ? createGenericOidcPlugin(configuration, {
+        db,
+        publicUrl,
+        authHandlerErrorCapture,
+        assertStrictOidcEmailAdmission,
+      })
+    : { strictOidcClient: null, strictOidcAuthorizationProxyPath: null, genericOidcPlugin: null };
 
   return {
-    genericProviderId,
-    genericIssuer,
-    strictOidcClient,
-    strictOidcAuthorizationProxyPath,
-    genericOidcPlugin,
+    genericProviderId: configuration?.providerId ?? null,
+    genericIssuer: issuer,
+    ...preparedGenericOidc,
   };
 }
 
@@ -335,7 +382,7 @@ export function buildProviders({
   if (configuredSocialProviders.microsoft) {
     configuredFederatedIssuers.set(
       "microsoft",
-      `urn:better-auth:microsoft:${env.CAPACITYLENS_MICROSOFT_TENANT_ID || "common"}`,
+      `urn:better-auth:microsoft:${resolveNonEmptyValue(env.CAPACITYLENS_MICROSOFT_TENANT_ID, "common")}`,
     );
   }
   if (configuredSocialProviders.github) configuredFederatedIssuers.set("github", "urn:better-auth:github");

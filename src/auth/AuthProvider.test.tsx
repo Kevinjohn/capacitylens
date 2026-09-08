@@ -109,7 +109,7 @@ describe("AuthProvider — demo mode (VITE_CAPACITYLENS_DEMO=1)", () => {
   });
 });
 
-describe("AuthProvider — server mode", () => {
+function registerServerModeTest01() {
   it("signals tenant-data access only after a successful auth check", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const auth = deferred<Response>();
@@ -145,7 +145,9 @@ describe("AuthProvider — server mode", () => {
     expect(await screen.findByText("app-content")).toBeInTheDocument();
     await waitFor(() => expect(onTenantAccessReady).toHaveBeenCalledTimes(1));
   });
+}
 
+function registerServerModeTest02() {
   it("hides an active tenant immediately when a sibling tab signs out, then rechecks the session", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const fetchSpy = vi
@@ -181,7 +183,9 @@ describe("AuthProvider — server mode", () => {
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
+}
 
+function registerServerModeTest03() {
   it.each([
     ["signed-out", me(401, { authMode: "password", providers: [] }), "Sign in"],
     [
@@ -211,7 +215,9 @@ describe("AuthProvider — server mode", () => {
     expect(onTenantAccessReady).not.toHaveBeenCalled();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
+}
 
+function registerServerModeTest04() {
   it.each([
     [
       "/reset-password/reset-token",
@@ -252,11 +258,17 @@ describe("AuthProvider — server mode", () => {
       window.history.replaceState({}, "", "/");
     }
   });
+}
 
+function registerServerModeTest05() {
   it("a TRULY empty env (no demo flag, no API origin) is server mode: same-origin /api/auth/me, NOT a pass-through", async () => {
     // Guards the production same-origin deploy: an empty env must drive the credentialed auth check,
     // never the demo pass-through (which would silently bypass auth). API_BASE='' → relative /api/auth/me.
-    const fetchSpy = vi.fn(async () => me(200, { authMode: "off", user: { id: "demo", name: "Demo" } }));
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      void input;
+      void init;
+      return me(200, { authMode: "off", user: { id: "demo", name: "Demo" } });
+    });
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider } = await freshProvider();
     render(
@@ -265,18 +277,25 @@ describe("AuthProvider — server mode", () => {
       </AuthProvider>,
     );
     expect(await screen.findByText("app-content")).toBeInTheDocument();
-    expect(fetchSpy).toHaveBeenCalledWith(
-      "/api/auth/me",
-      expect.objectContaining({
-        credentials: "include",
-        signal: expect.any(AbortSignal),
-      }),
-    );
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const call = fetchSpy.mock.calls.at(0);
+    expect(call).toBeDefined();
+    if (!call) throw new Error("Expected the auth status request");
+    const [request, init] = call;
+    expect(request).toBe("/api/auth/me");
+    expect(init?.credentials).toBe("include");
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
+}
 
+function registerServerModeTest06() {
   it("authMode 'off' renders children after one credentialed /api/auth/me check", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
-    const fetchSpy = vi.fn(async () => me(200, { authMode: "off", user: { id: "demo", name: "Demo" } }));
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      void input;
+      void init;
+      return me(200, { authMode: "off", user: { id: "demo", name: "Demo" } });
+    });
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider } = await freshProvider();
     render(
@@ -285,15 +304,18 @@ describe("AuthProvider — server mode", () => {
       </AuthProvider>,
     );
     expect(await screen.findByText("app-content")).toBeInTheDocument();
-    expect(fetchSpy).toHaveBeenCalledWith(
-      "http://api.test/api/auth/me",
-      expect.objectContaining({
-        credentials: "include",
-        signal: expect.any(AbortSignal),
-      }),
-    );
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const call = fetchSpy.mock.calls.at(0);
+    expect(call).toBeDefined();
+    if (!call) throw new Error("Expected the auth status request");
+    const [request, init] = call;
+    expect(request).toBe("http://api.test/api/auth/me");
+    expect(init?.credentials).toBe("include");
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
   });
+}
 
+function registerServerModeTest07() {
   it("surfaces and clears an OIDC step-up failure for an authenticated session", async () => {
     window.history.replaceState(
       {},
@@ -338,7 +360,9 @@ describe("AuthProvider — server mode", () => {
       window.history.replaceState({}, "", "/");
     }
   });
+}
 
+function registerServerModeTest08() {
   it("does not mark a cached active tenant online merely because the identity check succeeds", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -358,7 +382,9 @@ describe("AuthProvider — server mode", () => {
     expect(await screen.findByText("cached-app-content")).toBeInTheDocument();
     expect(readOfflineStateSnapshot().readOnly).toBe(true);
   });
+}
 
+function registerServerModeTest09() {
   it("a 401 replaces the app with the login screen (password form)", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -378,7 +404,9 @@ describe("AuthProvider — server mode", () => {
     // A well-formed password-mode body is a real signal, not a guess — no degraded notice.
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
+}
 
+function registerServerModeTest10() {
   it("a 401 with authMode 'sso' and a valid providers array shows the SSO sign-in form", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -409,7 +437,9 @@ describe("AuthProvider — server mode", () => {
     // A well-formed SSO body is a real signal too — no degraded notice.
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
+}
 
+function registerServerModeTest11() {
   it("rejects duplicate provider identities instead of rendering order-dependent sign-in choices", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -446,7 +476,9 @@ describe("AuthProvider — server mode", () => {
     expect(screen.queryByRole("button", { name: /continue with/i })).not.toBeInTheDocument();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("duplicate provider identities"));
   });
+}
 
+function registerServerModeTest12() {
   it("drops an unsupported named social provider with a diagnostic breadcrumb", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -486,7 +518,9 @@ describe("AuthProvider — server mode", () => {
       kind: "social",
     });
   });
+}
 
+function registerServerModeTest13() {
   it("DEFECT A — a 401 whose body OMITS the providers array still lands on the password sign-in wall (version-skew)", async () => {
     // An older/version-skewed server that predates the providers array must NOT strand the signed-out
     // user on a terminal 'invalid configuration' screen — a 401 always offers a way in.
@@ -509,7 +543,9 @@ describe("AuthProvider — server mode", () => {
     // authMode is still a trustworthy signal, so no degraded notice.
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
+}
 
+function registerServerModeTest14() {
   it("DEFECT A — a 401 with an empty / HTML / non-JSON body falls back to the password sign-in wall (proxy)", async () => {
     // A proxy returning a plain-HTML 401 (or an empty body) must land on a usable sign-in form, not a
     // dead-end error screen with no way to authenticate.
@@ -531,7 +567,9 @@ describe("AuthProvider — server mode", () => {
     // signal, so the login wall must hint that an SSO-only instance could be hiding behind it.
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
+}
 
+function registerServerModeTest15() {
   it("DEFECT A — a 401 with a junk authMode value falls back to the password sign-in wall WITH the degraded notice", async () => {
     // Distinct from an OMITTED authMode (old-server compat, no notice): here the field is PRESENT
     // but neither 'password' nor 'sso' — a genuinely untrustworthy body, not a version-skew case.
@@ -549,7 +587,9 @@ describe("AuthProvider — server mode", () => {
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
   });
+}
 
+function registerServerModeTest16() {
   it("DEFECT A — a NON-401 failure is unchanged: it still renders the retryable auth error boundary", async () => {
     // The lenient 401 handling is scoped to 401 only — a genuinely unexpected status stays fail-closed.
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
@@ -570,7 +610,9 @@ describe("AuthProvider — server mode", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
+}
 
+function registerServerModeTest17() {
   it("surfaces the authentication service's temporary-unavailability message", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -585,7 +627,9 @@ describe("AuthProvider — server mode", () => {
     );
     expect(await screen.findByText("Sign-in is temporarily unavailable.")).toBeInTheDocument();
   });
+}
 
+function registerServerModeTest18() {
   it("password invite routes render before sign-in so the token can onboard a new identity", async () => {
     window.history.pushState({}, "", "/invite/invite-token");
     try {
@@ -606,7 +650,9 @@ describe("AuthProvider — server mode", () => {
       window.history.pushState({}, "", "/");
     }
   });
+}
 
+function registerServerModeTest19() {
   it("SSO invite routes render before sign-in so the provider callback preserves the token", async () => {
     window.history.pushState({}, "", "/invite/invite-token");
     try {
@@ -639,7 +685,9 @@ describe("AuthProvider — server mode", () => {
       window.history.pushState({}, "", "/");
     }
   });
+}
 
+function registerServerModeTest20() {
   it("a 401 with needsSetup:true shows the first-run owner-setup form instead of sign-in", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -656,7 +704,9 @@ describe("AuthProvider — server mode", () => {
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
+}
 
+function registerServerModeTest21() {
   it("fail-closed: junk/non-boolean needsSetup on the 401 body shows the ORDINARY sign-in form", async () => {
     // A proxy page or an off-spec server must never conjure a create-account form on a populated
     // instance — only a literal `true` counts.
@@ -674,7 +724,9 @@ describe("AuthProvider — server mode", () => {
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
   });
+}
 
+function registerServerModeTest22() {
   it("an unreachable auth server renders a retryable auth error boundary", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -693,7 +745,9 @@ describe("AuthProvider — server mode", () => {
       }),
     ).toBeInTheDocument();
   });
+}
 
+function registerServerModeTest23() {
   it("uses the opted-in cached identity when the auth check times out", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal("indexedDB", new IDBFactory());
@@ -750,7 +804,9 @@ describe("AuthProvider — server mode", () => {
       cacheWriteFailed: false,
     });
   });
+}
 
+function registerServerModeTest24() {
   it("describes an auth timeout as an unreachable service when no cached identity exists", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("signal timed out", "TimeoutError")));
@@ -772,7 +828,9 @@ describe("AuthProvider — server mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("The authentication service could not be reached.");
     expect(screen.getByText("The authentication service could not be reached.")).toBeInTheDocument();
   });
+}
 
+function registerServerModeTest25() {
   it.each([
     ["no user", null],
     ["no email", { id: "u1" }],
@@ -796,7 +854,9 @@ describe("AuthProvider — server mode", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
+}
 
+function registerServerModeTest26() {
   it("treats malformed JSON from a reachable auth service as invalid, not offline", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -816,7 +876,9 @@ describe("AuthProvider — server mode", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("The authentication service returned an invalid response.")).toBeInTheDocument();
   });
+}
 
+function registerServerModeTest27() {
   it("re-checks on persistError and swaps to the login screen when the session is gone", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const fetchSpy = vi
@@ -840,7 +902,9 @@ describe("AuthProvider — server mode", () => {
     act(() => useStore.getState().setPersistError(true));
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
   });
+}
 
+function registerServerModeTest28() {
   it("cancels a pending step-up when a session re-check removes its React host", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const fetchSpy = vi
@@ -873,7 +937,9 @@ describe("AuthProvider — server mode", () => {
     expect(settled).toEqual({ kind: "cancelled" });
     expect(isReauthPending()).toBe(false);
   });
+}
 
+function registerServerModeTest29() {
   it("warns on the login screen when a mid-session 401 strands unsaved writes", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     const fetchSpy = vi
@@ -914,7 +980,9 @@ describe("AuthProvider — server mode", () => {
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
     detach();
   });
+}
 
+function registerServerModeTest30() {
   it("persistError re-check that CANNOT resolve /me keeps the live authenticated snapshot (warns, no flip to auth-off)", async () => {
     // The regression this pins: a server outage raises persistError AND makes /me unreachable at
     // the same time. The re-check must not reset a live session to passOpen('off', null) — that
@@ -947,7 +1015,9 @@ describe("AuthProvider — server mode", () => {
     expect(screen.getByText("authMode:password user:u1")).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
+}
 
+function registerServerModeTest31() {
   it("a STALE refreshAuth resolving after a newer 401 does not overwrite the login status", async () => {
     // The interleaving this pins (authRequestSeq): refreshAuth fires but its /me hangs; a
     // persistError re-check then resolves a real 401 and shows the login screen; the stale refresh
@@ -991,13 +1061,46 @@ describe("AuthProvider — server mode", () => {
     expect(screen.queryByRole("button", { name: /refresh/ })).not.toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(3);
   });
+}
+describe("AuthProvider — server mode", () => {
+  registerServerModeTest01();
+  registerServerModeTest02();
+  registerServerModeTest03();
+  registerServerModeTest04();
+  registerServerModeTest05();
+  registerServerModeTest06();
+  registerServerModeTest07();
+  registerServerModeTest08();
+  registerServerModeTest09();
+  registerServerModeTest10();
+  registerServerModeTest11();
+  registerServerModeTest12();
+  registerServerModeTest13();
+  registerServerModeTest14();
+  registerServerModeTest15();
+  registerServerModeTest16();
+  registerServerModeTest17();
+  registerServerModeTest18();
+  registerServerModeTest19();
+  registerServerModeTest20();
+  registerServerModeTest21();
+  registerServerModeTest22();
+  registerServerModeTest23();
+  registerServerModeTest24();
+  registerServerModeTest25();
+  registerServerModeTest26();
+  registerServerModeTest27();
+  registerServerModeTest28();
+  registerServerModeTest29();
+  registerServerModeTest30();
+  registerServerModeTest31();
 });
 
 // Single-company-per-instance policy: GET /api/auth/me gains canCreateAccount/multiAccount
 // (server-computed: multiAccount || zero accounts exist). The client only ever HIDES the "New
 // company" affordance with these — the server 403 is the real enforcer — so every path where the
 // fact can't be trusted must fail OPEN (default true), never closed.
-describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-instance policy)", () => {
+function registerAccountPolicyTest01() {
   it("parses canCreateAccount:false / multiAccount:false from a mocked /api/auth/me", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -1019,7 +1122,9 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
     );
     expect(await screen.findByText("canCreateAccount:false multiAccount:false")).toBeInTheDocument();
   });
+}
 
+function registerAccountPolicyTest02() {
   it("parses canCreateAccount:true / multiAccount:true from a mocked /api/auth/me", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -1041,7 +1146,9 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
     );
     expect(await screen.findByText("canCreateAccount:true multiAccount:true")).toBeInTheDocument();
   });
+}
 
+function registerAccountPolicyTest03() {
   it("defaults BOTH fields to true when an older server omits them from an otherwise-valid body", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -1056,7 +1163,9 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
     );
     expect(await screen.findByText("canCreateAccount:true multiAccount:true")).toBeInTheDocument();
   });
+}
 
+function registerAccountPolicyTest04() {
   it("fails closed on a boot-time auth fetch failure", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -1075,7 +1184,9 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
       }),
     ).toBeInTheDocument();
   });
+}
 
+function registerAccountPolicyTest05() {
   it("fails closed on a 200 response with an off-spec authMode", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
@@ -1094,7 +1205,9 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
       }),
     ).toBeInTheDocument();
   });
+}
 
+function registerAccountPolicyTest06() {
   it("refreshAuth re-asks /api/auth/me and a flipped canCreateAccount reaches consumers", async () => {
     // The server recomputes canCreateAccount per request (account count + membership roles), so a
     // consumer that just changed that state (org create/delete) calls refreshAuth — the boot-time
@@ -1130,7 +1243,9 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
     expect(await screen.findByText("canCreateAccount:true")).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
+}
 
+function registerAccountPolicyTest07() {
   it("a FAILED refresh keeps the previous (stale) snapshot with a warn breadcrumb — no crash, no reset", async () => {
     // Fail-open posture (see fetchAuthStatus): an unresolved refresh must not flip a live session
     // to authMode 'off' / canCreateAccount true — stale beats wrong, and the server 403 remains
@@ -1164,7 +1279,9 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
     expect(screen.getByText("canCreateAccount:false")).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
+}
 
+function registerAccountPolicyTest08() {
   it("defaults to true in the demo build (no fetch at all)", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const fetchSpy = vi.fn();
@@ -1178,4 +1295,14 @@ describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-i
     expect(await screen.findByText("canCreateAccount:true multiAccount:true")).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+}
+describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-instance policy)", () => {
+  registerAccountPolicyTest01();
+  registerAccountPolicyTest02();
+  registerAccountPolicyTest03();
+  registerAccountPolicyTest04();
+  registerAccountPolicyTest05();
+  registerAccountPolicyTest06();
+  registerAccountPolicyTest07();
+  registerAccountPolicyTest08();
 });

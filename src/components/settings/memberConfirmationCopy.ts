@@ -7,20 +7,22 @@ import type { TeamMember } from "../../account/teamAccessClient";
 // MemberConfirmations component so that file exports only components (react-refresh).
 export type MemberConfirmationAction =
   "masquerade" | "remove" | "resetPassword" | "revokeSessions" | "disable" | "archive" | "restore";
-export type MemberConfirmation = { action: MemberConfirmationAction; member: TeamMember };
+export type MemberConfirmation = { kind: MemberConfirmationAction; member: TeamMember };
 
 export function resolveMemberLabel(member: TeamMember): string {
   const name = member.name?.trim();
   if (name && member.email) return `${name} (${member.email})`;
-  return name || member.email || member.userId;
+  if (name) return name;
+  if (member.email) return member.email;
+  return member.userId;
 }
 
-export function buildMemberConfirmationCopy({ action, member }: MemberConfirmation): {
+export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation): {
   title: string;
   confirmLabel: string;
   message: string;
 } {
-  switch (action) {
+  switch (kind) {
     case "masquerade":
       return {
         title: m.settings_masquerade_title(),

@@ -6,6 +6,11 @@ import { captureResetToken, resetTokenCapture } from "./captureContexts";
 
 const fixtures = registerServerFixtureCleanup();
 
+function assertConfiguredAuth(auth: Auth | null): Auth {
+  if (auth === null) throw new Error("Expected authentication to be configured");
+  return auth;
+}
+
 describe("reset-token capture across the auth facade", () => {
   it("keeps overlapping capture chains separate and drops uncaptured tokens", async () => {
     let releaseFirst!: () => void;
@@ -35,15 +40,16 @@ describe("reset-token capture across the auth facade", () => {
   it("captures the real configured Better Auth reset hook through the facade", async () => {
     const db = fixtures.trackDb(openDb(":memory:"));
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
-    await auth!.createCredentialUser({
+    const configuredAuth = assertConfiguredAuth(auth);
+    await runAuthMigrations(configuredAuth);
+    await configuredAuth.createCredentialUser({
       email: "bruce@example.com",
       name: "Bruce Wayne",
       password: "unique-passphrase-2026",
     });
 
-    expect(await mintPasswordResetToken(auth!, "bruce@example.com")).toEqual(expect.any(String));
-    expect(await mintPasswordResetToken(auth!, "missing@example.com")).toBeNull();
+    expect(await mintPasswordResetToken(configuredAuth, "bruce@example.com")).toEqual(expect.any(String));
+    expect(await mintPasswordResetToken(configuredAuth, "missing@example.com")).toBeNull();
     expect(resetTokenCapture.getStore()).toBeUndefined();
   });
 });

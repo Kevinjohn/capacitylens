@@ -15,7 +15,11 @@ const configured = createAuthFromEnvironment(db, {
   BETTER_AUTH_URL: "http://localhost:8787",
   CAPACITYLENS_PASSWORD_BREACH_CHECK: "off",
 });
-await runAuthMigrations(configured.auth!);
+const auth = configured.auth;
+if (!auth) {
+  throw new Error("Credential onboarding crash fixture requires password authentication.");
+}
+await runAuthMigrations(auth);
 
 if (boundary === "after-user") {
   db.function("capacitylens_crash_now", () => process.exit(86));
@@ -26,7 +30,7 @@ if (boundary === "after-user") {
       SELECT capacitylens_crash_now();
     END;
   `);
-  await configured.auth!.createCredentialUser({
+  await auth.createCredentialUser({
     email: "inner-crash@example.com",
     name: "Inner Crash",
     password: "a-valid-crash-test-password",
@@ -55,7 +59,7 @@ if (boundary === "after-user") {
       SELECT capacitylens_schedule_crash();
     END;
   `);
-  await configured.auth!.createCredentialUser({
+  await auth.createCredentialUser({
     email: "outer-crash@example.com",
     name: "Outer Crash",
     password: "a-valid-crash-test-password",

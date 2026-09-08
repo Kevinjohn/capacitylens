@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, expectTypeOf, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
 import { ActivityList } from "./ActivityList";
 import { useStore } from "../../store/useStore";
 import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "../../test/fixtures";
@@ -8,6 +9,16 @@ import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } 
 beforeEach(() => resetStoreWithAccount());
 
 describe("ActivityList", () => {
+  it("uses omission for an absent activity selection", () => {
+    expectTypeOf<ComponentProps<typeof ActivityList>>().toEqualTypeOf<{ selectedActivityId?: string }>();
+
+    useStore.getState().addActivity({ name: "Unselected planning", kind: "internal" });
+
+    render(<ActivityList />);
+
+    expect(screen.getByTestId("activity-row")).not.toHaveAttribute("aria-current");
+  });
+
   it("orders activity kinds from internal through project-specific while keeping the project default", async () => {
     const user = userEvent.setup();
     render(<ActivityList />);

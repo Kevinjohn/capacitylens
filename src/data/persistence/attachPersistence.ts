@@ -5,9 +5,9 @@ import type { PersistenceAdapter } from "../PersistenceAdapter";
 import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
 import { resetPersistenceDiagnostics } from "../persistenceDiagnostics";
 import { persistenceCoordinator } from "./coordinator";
-import { createAttachmentState } from "./attachmentState";
-import { createWriteQueue } from "./writeQueue";
-import { createRefreshController } from "./refreshController";
+import { createAttachmentState, type AttachmentState } from "./attachmentState";
+import { createWriteQueue, type WriteQueue } from "./writeQueue";
+import { createRefreshController, type RefreshController } from "./refreshController";
 import { attachAccountSwitch } from "./accountSwitch";
 import { attachDomListeners } from "./domListeners";
 
@@ -18,6 +18,141 @@ interface AttachPersistenceInput {
   onError?: (error: unknown) => void;
   onSuccess?: () => void;
   serverMode?: boolean;
+}
+
+interface PersistenceParts {
+  store: StoreApi<StoreState>;
+  adapter: PersistenceAdapter;
+  owner: AttachmentState;
+  writes: WriteQueue;
+  refresh: RefreshController;
+  serverMode: boolean;
+}
+
+function attachStoreSubscription(
+  input: Pick<PersistenceParts, "store" | "owner" | "writes"> & { debounceMs: number },
+): () => void {
+  const { store, owner, writes, debounceMs } = input;
+  return store.subscribe((state) => {
+    if (owner.current.disposed || state.data === owner.current.lastData) return;
+    owner.update({ lastData: state.data });
+    // The orchestrator's slice load is not a user edit — track lastData (done) but DON'T save it.
+    if (owner.current.loadingSlice) return;
+    owner.update({ unacknowledged: state.data, terminalBatchSnapshot: null });
+    // Suspended (a slice replacement is in flight): PARK the edit — record it in `pending` with no
+    // timer so nothing sends it. It is rebased by a successful reload, or re-scheduled on resume
+    // when the suspending operation failed before any reload.
+    if (owner.current.suspendDepth > 0) {
+      owner.update({ pending: state.data });
+      return;
+    }
+    owner.update({ retryAttempts: 0 }); // a fresh user change earns a fresh retry budget
+    if (debounceMs <= 0) {
+      writes.save(state.data);
+      return;
+    }
+    owner.update({ pending: state.data });
+    if (owner.current.timer) clearTimeout(owner.current.timer);
+    owner.update({ timer: setTimeout(() => writes.save(state.data), debounceMs) });
+  });
+}
+
+function isFlushBlocked(owner: AttachmentState): boolean {
+  // A reconciliation in progress leaves the batch commit boundary uncertain, so import must not
+  // replay the possibly committed diff. A suspension means another replacement is already in
+  // flight; flushing its parked edit would push it against a mid-replacement snapshot.
+  return (
+    owner.current.disposed || owner.current.authoritativeReloadRequiredFor !== null || owner.current.suspendDepth > 0
+  );
+}
+
+function hasQueuedWrite(owner: AttachmentState): boolean {
+  return (
+    !owner.current.disposed &&
+    (owner.current.timer !== null || owner.current.pending !== null || owner.current.inFlightSave !== null)
+  );
+}
+
+function isWriteStateClean(owner: AttachmentState): boolean {
+  return (
+    !owner.current.disposed &&
+    owner.current.suspendDepth === 0 &&
+    !owner.current.timer &&
+    !owner.current.pending &&
+    !owner.current.inFlightSave &&
+    !owner.current.failedSinceSuccess &&
+    owner.current.unacknowledged === null
+  );
+}
+
+function createFlushPending(owner: AttachmentState, writes: WriteQueue): () => Promise<FlushPendingWritesResult> {
+  return async () => {
+    if (isFlushBlocked(owner)) return { kind: "blocked" };
+    // Loop until QUIESCENT, not just one round: writes are unsuspended during the await, so an edit
+    // landing mid-flush arms a fresh debounce whose save can outlive a single await. A one-shot
+    // flush would then return "clean" while that save is still on the wire, and the caller's import
+    // POST would race it (the exact pre-suspension window this sequence closes). The caps prevent
+    // a continuously edited store from holding the seam open.
+    const deadline = Date.now() + 120_000;
+    let rounds = 0;
+    while (hasQueuedWrite(owner) && rounds < 100 && Date.now() < deadline) {
+      rounds += 1;
+      owner.cancelDebounce();
+      const pending = owner.current.pending;
+      if (pending) writes.save(pending); // consumes pending, sets inFlightSave synchronously
+      const inFlightSave = owner.current.inFlightSave;
+      if (inFlightSave) await inFlightSave;
+      if (owner.current.suspendDepth > 0) return { kind: "blocked" };
+    }
+    return isWriteStateClean(owner) ? { kind: "clean" } : { kind: "blocked" };
+  };
+}
+
+function hasUnsavedWrites(owner: AttachmentState): boolean {
+  return (
+    !owner.current.disposed &&
+    (owner.current.unacknowledged !== null ||
+      owner.current.pending !== null ||
+      owner.current.inFlightSave !== null ||
+      owner.current.failedSinceSuccess ||
+      owner.current.authoritativeReloadRequiredFor !== null)
+  );
+}
+
+function attachCoordinator(parts: PersistenceParts, accountSwitch: ReturnType<typeof attachAccountSwitch>): () => void {
+  const { owner, refresh, serverMode } = parts;
+  // Register the orchestrator-backed refresh for out-of-band server writers. Server mode only —
+  // the demo build's lifecycle actions mutate the store directly and never reload. Save failure
+  // aborts because a convenience re-hydrate must never destroy un-persisted edits.
+  const registeredRefresh = serverMode ? (id: string) => refresh.refreshActive(id, { abortIfSaveFailed: true }) : null;
+  // The import seam lands every debounced edit against the current snapshot before replacement.
+  // A blocked result prevents import from wiping an unsaved edit or replaying it over fresh data.
+  const registeredFlush = serverMode ? createFlushPending(owner, parts.writes) : null;
+  // External suspension parks writes across the import POST and its authoritative re-hydrate.
+  const registeredSuspend = serverMode ? () => refresh.beginSuspension({ external: true }) : null;
+  return persistenceCoordinator.attach({
+    ...(registeredRefresh ? { refreshActive: registeredRefresh } : {}),
+    ...(registeredFlush ? { flushPending: registeredFlush } : {}),
+    ...(registeredSuspend ? { suspendWrites: registeredSuspend } : {}),
+    ...(accountSwitch.myRegisteredSwitch ? { switchAndAwaitHydration: accountSwitch.myRegisteredSwitch } : {}),
+    hasUnsavedWrites: () => hasUnsavedWrites(owner),
+  });
+}
+
+function attachAllocationRewriteHandler({ store, adapter }: Pick<PersistenceParts, "store" | "adapter">): void {
+  adapter.setAllocationRewriteHandler?.((revisions) => {
+    const revisionsById = new Map(revisions.map((revision) => [revision.id, revision]));
+    store.setState((state) => {
+      const allocations = state.data.allocations.map((allocation) => {
+        const revision = revisionsById.get(allocation.id);
+        return revision && allocation.updatedAt === revision.flushedUpdatedAt
+          ? withoutAllocationAttribution(allocation, revision.updatedAt)
+          : allocation;
+      });
+      const changed = allocations.some((allocation, index) => allocation !== state.data.allocations[index]);
+      return changed ? { ...state, data: { ...state.data, allocations } } : state;
+    });
+  });
 }
 
 /**
@@ -62,138 +197,28 @@ export function attachPersistence({
     ...(onError ? { onError } : {}),
     ...(onSuccess ? { onSuccess } : {}),
   });
-  const { save } = writes;
-  const { cancelDebounce, cancelRetry } = owner;
-  const { refreshActive, beginSuspension } = refresh;
-  const unsubscribe = store.subscribe((state) => {
-    if (owner.current.disposed) return;
-    if (state.data === owner.current.lastData) return; // only persist when data actually changes
-    owner.update({ lastData: state.data });
-    // The orchestrator's slice load is not a user edit — track lastData (done) but DON'T save it.
-    if (owner.current.loadingSlice) return;
-    owner.update({ unacknowledged: state.data });
-    owner.update({ terminalBatchSnapshot: null });
-    // Suspended (a slice replacement is in flight): PARK the edit — record it in `pending` with no
-    // timer so nothing sends it. It is rebased by a successful reload, or re-scheduled on resume
-    // when the suspending operation failed before any reload.
-    if (owner.current.suspendDepth > 0) {
-      owner.update({ pending: state.data });
-      return;
-    }
-    owner.update({ retryAttempts: 0 }); // a fresh user change earns a fresh retry budget
-    if (debounceMs <= 0) {
-      save(state.data);
-      return;
-    }
-    owner.update({ pending: state.data });
-    if (owner.current.timer) clearTimeout(owner.current.timer);
-    owner.update({ timer: setTimeout(() => save(state.data), debounceMs) });
-  });
-
-  const { unsubscribeSwitch, myRegisteredSwitch } = attachAccountSwitch({
+  const parts = { store, adapter, owner, writes, refresh, serverMode };
+  const unsubscribe = attachStoreSubscription({ store, owner, writes, debounceMs });
+  const accountSwitch = attachAccountSwitch({
     store: store,
     owner: owner,
     writes: writes,
     refresh: refresh,
     serverMode: serverMode,
   });
-  // Register the orchestrator-backed refresh for out-of-band server writers (see
-  // refreshActiveAccountSlice above). Server mode only — the demo build's lifecycle actions mutate
-  // the store directly and never reload. abortIfSaveFailed for the same reason as focus-refresh:
-  // a post-lifecycle reload is a convenience re-hydrate, never worth destroying un-persisted edits.
-  const myRegisteredRefresh = serverMode ? (id: string) => refreshActive(id, { abortIfSaveFailed: true }) : null;
-
-  // Flush-pending seam for out-of-band whole-slice writers (the server-mode import): land any
-  // still-debounced edit against the CURRENT state, in order, and report whether writes are clean.
-  // Returning blocked (a write is still failed) tells the caller its precondition — "local edits are
-  // persisted or knowingly abandoned" — does not hold; the import path refuses to proceed rather
-  // than let its post-import reload wipe an unsaved edit or its retry replay a stale diff over the
-  // freshly imported slice.
-  const myRegisteredFlush = serverMode
-    ? async (): Promise<FlushPendingWritesResult> => {
-        if (owner.current.disposed) return { kind: "blocked" };
-        if (owner.current.authoritativeReloadRequiredFor !== null) return { kind: "blocked" };
-        // Suspended: another slice replacement is already in flight — writes are NOT clean and
-        // flushing the parked edit would push it against a mid-replacement snapshot. Refuse.
-        if (owner.current.suspendDepth > 0) return { kind: "blocked" };
-        // Loop until QUIESCENT, not just one round: writes are unsuspended during the await, so
-        // an edit landing mid-flush arms a fresh debounce whose save can outlive a single await —
-        // a one-shot flush would then return "clean" while that save is still on the wire, and
-        // the caller's import POST would race it (the exact pre-suspension window the whole
-        // import sequence exists to close). Terminates when a full round finds nothing new.
-        const deadline = Date.now() + 120_000;
-        let rounds = 0;
-        while (
-          !owner.current.disposed &&
-          (owner.current.timer || owner.current.pending || owner.current.inFlightSave) &&
-          rounds < 100 &&
-          Date.now() < deadline
-        ) {
-          rounds += 1;
-          cancelDebounce();
-          if (owner.current.pending) save(owner.current.pending); // consumes pending, sets inFlightSave synchronously
-          if (owner.current.inFlightSave) await owner.current.inFlightSave;
-          if (owner.current.suspendDepth > 0) return { kind: "blocked" };
-        }
-        return !owner.current.disposed &&
-          owner.current.suspendDepth === 0 &&
-          !owner.current.timer &&
-          !owner.current.pending &&
-          !owner.current.inFlightSave &&
-          !owner.current.failedSinceSuccess &&
-          owner.current.unacknowledged === null
-          ? { kind: "clean" }
-          : { kind: "blocked" };
-      }
-    : null;
-  // Write-suspension seam (see suspendServerWrites' doc for the resume contract) — the EXTERNAL
-  // variant of beginSuspension, registered for the server-mode import.
-  const myRegisteredSuspend = serverMode ? () => beginSuspension({ external: true }) : null;
-  const myRegisteredHasUnsaved = () =>
-    !owner.current.disposed &&
-    (owner.current.unacknowledged !== null ||
-      owner.current.pending !== null ||
-      owner.current.inFlightSave !== null ||
-      owner.current.failedSinceSuccess ||
-      owner.current.authoritativeReloadRequiredFor !== null);
-  const unregisterCoordinator = persistenceCoordinator.attach({
-    ...(myRegisteredRefresh ? { refreshActive: myRegisteredRefresh } : {}),
-    ...(myRegisteredFlush ? { flushPending: myRegisteredFlush } : {}),
-    ...(myRegisteredSuspend ? { suspendWrites: myRegisteredSuspend } : {}),
-    ...(myRegisteredSwitch ? { switchAndAwaitHydration: myRegisteredSwitch } : {}),
-    hasUnsavedWrites: myRegisteredHasUnsaved,
-  });
+  const unregisterCoordinator = attachCoordinator(parts, accountSwitch);
   resetPersistenceDiagnostics();
-  adapter.setAllocationRewriteHandler?.((revisions) => {
-    const allocationRevisionsById = new Map(revisions.map((revision) => [revision.id, revision]));
-    store.setState((state) => {
-      let changed = false;
-      const allocations = state.data.allocations.map((allocation) => {
-        const revision = allocationRevisionsById.get(allocation.id);
-        if (!revision || allocation.updatedAt !== revision.flushedUpdatedAt) return allocation;
-        changed = true;
-        return withoutAllocationAttribution(allocation, revision.updatedAt);
-      });
-      return changed ? { ...state, data: { ...state.data, allocations } } : state;
-    });
-  });
-
-  const detachDomListeners = attachDomListeners({
-    store: store,
-    owner: owner,
-    writes: writes,
-    refresh: refresh,
-    serverMode: serverMode,
-  });
+  attachAllocationRewriteHandler(parts);
+  const detachDomListeners = attachDomListeners(parts);
   return () => {
     if (owner.current.disposed) return;
     owner.dispose();
     unsubscribe();
-    unsubscribeSwitch?.();
+    accountSwitch.unsubscribeSwitch?.();
     unregisterCoordinator();
     adapter.setAllocationRewriteHandler?.(null);
     detachDomListeners();
-    cancelDebounce();
-    cancelRetry();
+    owner.cancelDebounce();
+    owner.cancelRetry();
   };
 }

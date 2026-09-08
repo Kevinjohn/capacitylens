@@ -18,15 +18,129 @@ const actor: ActorContext = {
 
 const command = { commandId: "command-1", idempotencyKey: "idempotency-1" };
 
-describe("sqliteAccountAdminPort invitation secrecy", () => {
-  let db: Db | null = null;
+function expectFailureCode(operation: () => unknown, code: string): void {
+  try {
+    operation();
+  } catch (error: unknown) {
+    expect(error).toMatchObject({ failure: { code } });
+    return;
+  }
+  throw new Error(`Expected operation to fail with ${code}`);
+}
 
+function seedMfaAuditFixture(db: Db): {
+  auditEvents: AccountAuditEvent[];
+  port: ReturnType<typeof createSqliteAccountAdminPort>;
+} {
+  insertRow(db, "accounts", {
+    id: "workspace-1",
+    name: "Workspace",
+    color: "#6366f1",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  });
+  upsertMember(db, {
+    accountId: "workspace-1",
+    userId: actor.principalId,
+    role: "owner",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+  const auditEvents: AccountAuditEvent[] = [];
+  const audit = {
+    append: vi.fn((event: AccountAuditEvent) => {
+      auditEvents.push(event);
+      return true;
+    }),
+  };
+  return {
+    auditEvents,
+    port: createSqliteAccountAdminPort({
+      applicationId: "test-application",
+      db,
+      lock: new KeyedOperationLock(),
+      requireMfa: true,
+      audit,
+    }),
+  };
+}
+
+function seedIdentityRepairFixture(db: Db): void {
+  for (const id of ["workspace-a", "workspace-b"]) {
+    insertRow(db, "accounts", {
+      id,
+      name: id,
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+  }
+  for (const accountId of ["workspace-a", "workspace-b"]) {
+    upsertMember(db, {
+      accountId,
+      userId: actor.principalId,
+      role: "owner",
+      status: "active",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+  }
+  upsertMember(db, {
+    accountId: "workspace-b",
+    userId: "target-1",
+    role: "viewer",
+    status: "active",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  });
+}
+
+let db: Db | null = null;
+
+describe("sqliteAccountAdminPort invitation secrecy", () => {
   afterEach(() => {
     vi.useRealTimers();
     db?.close();
     db = null;
   });
 
+  registerSqliteAccountAdminPortTest1();
+  registerSqliteAccountAdminPortTest2();
+  registerSqliteAccountAdminPortTest3();
+  registerSqliteAccountAdminPortTest4();
+  registerSqliteAccountAdminPortTest5();
+  registerSqliteAccountAdminPortTest6();
+  registerSqliteAccountAdminPortTest7();
+  registerSqliteAccountAdminPortTest8();
+  registerSqliteAccountAdminPortTest9();
+  registerSqliteAccountAdminPortTest10();
+  registerSqliteAccountAdminPortTest11();
+  registerSqliteAccountAdminPortTest12();
+  registerSqliteAccountAdminPortTest13();
+});
+
+describe("sqliteAccountAdminPort authority integrity", () => {
+  registerSqliteAccountAdminPortTest14();
+  registerSqliteAccountAdminPortTest15();
+  registerSqliteAccountAdminPortTest16();
+  registerSqliteAccountAdminPortTest17();
+  registerSqliteAccountAdminPortTest18();
+  registerSqliteAccountAdminPortTest19();
+  registerSqliteAccountAdminPortTest20();
+  registerSqliteAccountAdminPortTest21();
+  registerSqliteAccountAdminPortTest22();
+  registerSqliteAccountAdminPortTest23();
+  registerSqliteAccountAdminPortTest24();
+  registerSqliteAccountAdminPortTest30();
+});
+
+describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
+  registerSqliteAccountAdminPortTest25();
+  registerSqliteAccountAdminPortTest26();
+  registerSqliteAccountAdminPortTest27();
+  registerSqliteAccountAdminPortTest28();
+  registerSqliteAccountAdminPortTest29();
+});
+
+function registerSqliteAccountAdminPortTest1(): void {
   it("evaluates pre-authorised invitation expiry by instant rather than stored text order", () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -61,23 +175,27 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
     expect(hasLivePreauthorizedInvitation(db, "expired@example.com", now)).toBe(false);
     expect(hasLivePreauthorizedInvitation(db, "live@example.com", now)).toBe(true);
   });
+}
 
+function registerSqliteAccountAdminPortTest2(): void {
   it("uses the partial live-email index for pre-authorised admission", () => {
     db = openDb(":memory:");
     const plan = db
       .prepare(
         `EXPLAIN QUERY PLAN
-        SELECT invitation.expiresAt
-          FROM invites AS invitation
-          JOIN accounts AS workspace ON workspace.id = invitation.accountId
-         WHERE invitation.preauthEmail = ?
-           AND invitation.usedAt IS NULL`,
+          SELECT invitation.expiresAt
+            FROM invites AS invitation
+            JOIN accounts AS workspace ON workspace.id = invitation.accountId
+           WHERE invitation.preauthEmail = ?
+             AND invitation.usedAt IS NULL`,
       )
       .all("person@example.com") as Array<{ detail: string }>;
 
     expect(plan.map(({ detail }) => detail).join("\n")).toContain("idx_invites_live_preauthEmail");
   });
+}
 
+function registerSqliteAccountAdminPortTest3(): void {
   it("lists ordinary invitations when a used legacy Owner invite is retained for history", async () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -118,7 +236,9 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       expect.objectContaining({ id: "live-editor", role: "editor" }),
     ]);
   });
+}
 
+function registerSqliteAccountAdminPortTest4(): void {
   it("hides an expired unused invitation without mutating durable state on the read path", async () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -150,7 +270,9 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       id: "expired-invite",
     });
   });
+}
 
+function registerSqliteAccountAdminPortTest5(): void {
   it("never persists a raw invitation token in the durable command ledger", async () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -194,12 +316,15 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       }),
     ).resolves.toEqual(created);
   });
+}
 
+function registerSqliteAccountAdminPortTest6(): void {
   it("prunes aged used history inside both invitation creation and claim transactions", async () => {
     vi.useFakeTimers();
     const now = new Date("2027-01-01T00:00:00.000Z");
     vi.setSystemTime(now);
-    db = openDb(":memory:");
+    const currentDb = openDb(":memory:");
+    db = currentDb;
     insertRow(db, "accounts", {
       id: "workspace-1",
       name: "Workspace",
@@ -208,7 +333,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       updatedAt: now.toISOString(),
     });
     const oldInvite = (token: string, id: string) =>
-      createInvite(db!, {
+      createInvite(currentDb, {
         token,
         id,
         accountId: "workspace-1",
@@ -248,7 +373,9 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
     expect(getInvite(db, "old-before-claim")).toBeNull();
     expect(getInvite(db, invitation.token)?.usedAt).toBe(now.toISOString());
   });
+}
 
+function registerSqliteAccountAdminPortTest7(): void {
   it("drops the plaintext invitation replay after the short response-loss horizon", async () => {
     vi.useFakeTimers();
     const startedAt = new Date("2026-01-01T00:00:00.000Z");
@@ -283,7 +410,9 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
     vi.setSystemTime(startedAt.getTime() + WRITE_ONCE_SECRET_REPLAY_WINDOW_MS);
     await expect(port.createInvitation(input)).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
   });
+}
 
+function registerSqliteAccountAdminPortTest8(): void {
   it("refuses invitation issuance under replay pressure without displacing a completed response", async () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -327,7 +456,9 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
     await expect(port.createInvitation(firstInput)).resolves.toEqual(first);
     expect(db.prepare(`SELECT COUNT(*) AS count FROM invites`).get()).toEqual({ count: 1 });
   });
+}
 
+function registerSqliteAccountAdminPortTest9(): void {
   it("keeps an unrecoverable write-once invitation visible and revocable after an adapter restart", async () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -378,7 +509,9 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
     ).resolves.toMatchObject({ changed: true });
     await expect(restarted.listInvitations({ actor, workspaceId: "workspace-1" })).resolves.toEqual([]);
   });
+}
 
+function registerSqliteAccountAdminPortTest10(): void {
   it("removes the write-once replay copy before a successful invitation claim releases its lock", async () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -416,7 +549,9 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
 
     await expect(port.createInvitation(createInput)).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
   });
+}
 
+function registerSqliteAccountAdminPortTest11(): void {
   it("rechecks current invitation authority before replaying a write-once token", async () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -447,7 +582,8 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       command,
     };
 
-    await expect(port.createInvitation(input)).resolves.toMatchObject({ token: expect.any(String) });
+    const created = await port.createInvitation(input);
+    expect(created.token).toEqual(expect.any(String));
     upsertMember(db, {
       accountId: "workspace-1",
       userId: actor.principalId,
@@ -458,7 +594,9 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
 
     await expect(port.createInvitation(input)).rejects.toMatchObject({ failure: { code: "FORBIDDEN" } });
   });
+}
 
+function registerSqliteAccountAdminPortTest12(): void {
   it("validates invitation email syntax at the transport-independent port boundary", async () => {
     db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -486,37 +624,12 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       }),
     ).rejects.toMatchObject({ failure: { code: "VALIDATION_FAILED" } });
   });
+}
 
+function registerSqliteAccountAdminPortTest13(): void {
   it("enforces fresh MFA-backed administration and emits normalized success and denial audits", async () => {
     db = openDb(":memory:");
-    insertRow(db, "accounts", {
-      id: "workspace-1",
-      name: "Workspace",
-      color: "#6366f1",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
-    });
-    upsertMember(db, {
-      accountId: "workspace-1",
-      userId: actor.principalId,
-      role: "owner",
-      status: "active",
-      createdAt: "2026-01-01T00:00:00.000Z",
-    });
-    const events: AccountAuditEvent[] = [];
-    const audit = {
-      append: vi.fn((event: AccountAuditEvent) => {
-        events.push(event);
-        return true;
-      }),
-    };
-    const port = createSqliteAccountAdminPort({
-      applicationId: "test-application",
-      db,
-      lock: new KeyedOperationLock(),
-      requireMfa: true,
-      audit,
-    });
+    const { auditEvents, port } = seedMfaAuditFixture(db);
     const expiresAt = new Date(Date.now() + 60_000).toISOString();
     const staleActor = { ...actor, fresh: false };
     const passwordActor = { ...actor, assurance: "password" as const, mfaSatisfied: false };
@@ -550,22 +663,22 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
       command: { commandId: "success-command", idempotencyKey: "success-idempotency" },
     });
 
-    expect(events.map(({ action, outcome, commandId }) => ({ action, outcome, commandId }))).toEqual([
+    expect(auditEvents.map(({ action, outcome, commandId }) => ({ action, outcome, commandId }))).toEqual([
       { action: "invitation.created", outcome: "denied", commandId: "stale-command" },
       { action: "invitation.created", outcome: "denied", commandId: "mfa-command" },
       { action: "invitation.created", outcome: "success", commandId: "success-command" },
     ]);
-    expect(JSON.stringify(events)).not.toContain(created.token);
-    expect(events[2]).toMatchObject({
+    expect(JSON.stringify(auditEvents)).not.toContain(created.token);
+    expect(auditEvents[2]).toMatchObject({
       applicationId: "test-application",
       workspaceId: "workspace-1",
       actorPrincipalId: actor.principalId,
       changedFields: ["role", "preauthorizedEmail", "expiresAt"],
     });
   });
-});
+}
 
-describe("sqliteAccountAdminPort authority integrity", () => {
+function registerSqliteAccountAdminPortTest14(): void {
   it("evaluates a member batch with one actor-role and live-workspace snapshot", async () => {
     const db = openDb(":memory:");
     try {
@@ -622,7 +735,9 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest15(): void {
   it("does not expose or administer membership rows for an erased workspace", async () => {
     const db = openDb(":memory:");
     try {
@@ -664,7 +779,9 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest16(): void {
   it("enforces administrative session assurance at privileged read port boundaries", async () => {
     const db = openDb(":memory:");
     try {
@@ -705,7 +822,9 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest17(): void {
   it("requires administrative assurance for membership-authorized workspace provisioning", () => {
     const db = openDb(":memory:");
     try {
@@ -736,18 +855,16 @@ describe("sqliteAccountAdminPort authority integrity", () => {
           bootstrapAuthorized: false,
         });
 
-      expect(() => evaluate({ ...actor, fresh: false })).toThrow(
-        expect.objectContaining({ failure: expect.objectContaining({ code: "SESSION_NOT_FRESH" }) }),
-      );
-      expect(() => evaluate({ ...actor, assurance: "password", mfaSatisfied: false })).toThrow(
-        expect.objectContaining({ failure: expect.objectContaining({ code: "MFA_REQUIRED" }) }),
-      );
+      expectFailureCode(() => evaluate({ ...actor, fresh: false }), "SESSION_NOT_FRESH");
+      expectFailureCode(() => evaluate({ ...actor, assurance: "password", mfaSatisfied: false }), "MFA_REQUIRED");
       expect(evaluate(actor)).toEqual({ allowed: true });
     } finally {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest18(): void {
   it("does not let an inactive control row confer workspace administration authority", async () => {
     const db = openDb(":memory:");
     try {
@@ -786,12 +903,14 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
+}
 
-  // Was "reactivates an inactive invitee with the invitation role rather than its stale role". The
-  // #175 review closed that door entirely: redeeming an invite is no longer a way back INTO a
-  // non-active membership at any role, because it would let the suspended party reverse their own
-  // suspension with no `member.status_changed` record. The escalation half of the old assertion is
-  // kept and strengthened — the stale `owner` role must not survive either.
+// Was "reactivates an inactive invitee with the invitation role rather than its stale role". The
+// #175 review closed that door entirely: redeeming an invite is no longer a way back INTO a
+// non-active membership at any role, because it would let the suspended party reverse their own
+// suspension with no `member.status_changed` record. The escalation half of the old assertion is
+// kept and strengthened — the stale `owner` role must not survive either.
+function registerSqliteAccountAdminPortTest19(): void {
   it("refuses an invite claim against a non-active membership, granting neither role", async () => {
     const db = openDb(":memory:");
     try {
@@ -842,7 +961,9 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest20(): void {
   it("replays a committed invitation acceptance after the invite row is removed", async () => {
     const db = openDb(":memory:");
     try {
@@ -898,7 +1019,9 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest21(): void {
   it("replays a committed principal invitation claim after the invite row is removed", async () => {
     const db = openDb(":memory:");
     try {
@@ -955,7 +1078,9 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest22(): void {
   it("ignores dangling membership rows when evaluating identity-global authority", async () => {
     const db = openDb(":memory:");
     try {
@@ -990,40 +1115,13 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest23(): void {
   it("binds identity repair to the requested workspace and exact authority revision", async () => {
     const db = openDb(":memory:");
     try {
-      for (const id of ["workspace-a", "workspace-b"]) {
-        insertRow(db, "accounts", {
-          id,
-          name: id,
-          color: "#6366f1",
-          createdAt: "2026-01-01T00:00:00.000Z",
-          updatedAt: "2026-01-01T00:00:00.000Z",
-        });
-      }
-      upsertMember(db, {
-        accountId: "workspace-a",
-        userId: actor.principalId,
-        role: "owner",
-        status: "active",
-        createdAt: "2026-01-01T00:00:00.000Z",
-      });
-      upsertMember(db, {
-        accountId: "workspace-b",
-        userId: actor.principalId,
-        role: "owner",
-        status: "active",
-        createdAt: "2026-01-01T00:00:00.000Z",
-      });
-      upsertMember(db, {
-        accountId: "workspace-b",
-        userId: "target-1",
-        role: "viewer",
-        status: "active",
-        createdAt: "2026-01-01T00:00:00.000Z",
-      });
+      seedIdentityRepairFixture(db);
       const port = createSqliteAccountAdminPort({
         applicationId: "test-application",
         db,
@@ -1078,7 +1176,9 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest24(): void {
   it.each([
     { caseName: "existing workspace", survivingWorkspaceExists: true, expectedUnaffiliated: [] },
     { caseName: "orphan membership", survivingWorkspaceExists: false, expectedUnaffiliated: ["principal-1"] },
@@ -1123,44 +1223,86 @@ describe("sqliteAccountAdminPort authority integrity", () => {
       db.close();
     }
   });
-});
+}
 
-describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
-  const workspaceId = "workspace-1";
+function registerSqliteAccountAdminPortTest30(): void {
+  it("does not let injected input override identity-repair authority dependencies", async () => {
+    const db = openDb(":memory:");
+    const injectedDb = openDb(":memory:");
+    try {
+      seedIdentityRepairFixture(db);
+      const port = createSqliteAccountAdminPort({
+        applicationId: "test-application",
+        db,
+        lock: new KeyedOperationLock(),
+        requireMfa: true,
+      });
+      const authority = await port.evaluateIdentityAdminAuthority({
+        actor,
+        targetPrincipalId: "target-1",
+        action: "correct-email",
+      });
+      if (!authority.allowed) throw new Error("Expected identity repair authority");
+      const injectedInput: Parameters<typeof port.assertIdentityRepairAuthorityInTx>[0] & {
+        db: Db;
+        trustedLocal: boolean;
+        requireMfa: boolean;
+      } = {
+        actor: { ...actor, fresh: false, mfaSatisfied: false },
+        workspaceId: "workspace-b",
+        targetPrincipalId: "target-1",
+        action: "correct-email",
+        expectedRevision: authority.revision,
+        db: injectedDb,
+        trustedLocal: true,
+        requireMfa: false,
+      };
 
-  function seedWorkspace(db: Db): void {
-    insertRow(db, "accounts", {
-      id: workspaceId,
-      name: "Workspace",
-      color: "#6366f1",
-      createdAt: "2026-01-01T00:00:00.000Z",
-      updatedAt: "2026-01-01T00:00:00.000Z",
-    });
-  }
+      expectFailureCode(() => port.assertIdentityRepairAuthorityInTx(injectedInput), "SESSION_NOT_FRESH");
+      port.assertIdentityRepairAuthorityInTx({ ...injectedInput, actor });
+    } finally {
+      injectedDb.close();
+      db.close();
+    }
+  });
+}
 
-  // Bypasses upsertMember's automatic bumpSecurityRevision, so the membership row exists with NO
-  // account_security_revisions row — the "never signed in since" case the 0-default must cover.
-  function insertMemberRaw(
-    db: Db,
-    member: { accountId: string; userId: string; role: string; status: string; createdAt: string },
-  ): void {
-    db.prepare(`INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, ?, ?, ?)`).run(
-      member.accountId,
-      member.userId,
-      member.role,
-      member.status,
-      member.createdAt,
-    );
-  }
+const workspaceId = "workspace-1";
 
-  function setSecurityRevision(db: Db, principalId: string, revision: number): void {
-    db.prepare(`INSERT INTO account_security_revisions (principalId, revision, updatedAt) VALUES (?, ?, ?)`).run(
-      principalId,
-      revision,
-      "2026-01-01T00:00:00.000Z",
-    );
-  }
+function seedWorkspace(db: Db): void {
+  insertRow(db, "accounts", {
+    id: workspaceId,
+    name: "Workspace",
+    color: "#6366f1",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  });
+}
 
+// Bypasses upsertMember's automatic bumpSecurityRevision, so the membership row exists with NO
+// account_security_revisions row — the "never signed in since" case the 0-default must cover.
+function insertMemberRaw(
+  db: Db,
+  member: { accountId: string; userId: string; role: string; status: string; createdAt: string },
+): void {
+  db.prepare(`INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, ?, ?, ?)`).run(
+    member.accountId,
+    member.userId,
+    member.role,
+    member.status,
+    member.createdAt,
+  );
+}
+
+function setSecurityRevision(db: Db, principalId: string, revision: number): void {
+  db.prepare(`INSERT INTO account_security_revisions (principalId, revision, updatedAt) VALUES (?, ?, ?)`).run(
+    principalId,
+    revision,
+    "2026-01-01T00:00:00.000Z",
+  );
+}
+
+function registerSqliteAccountAdminPortTest25(): void {
   it("defaults a member's revision to 0 when it has no account_security_revisions row", async () => {
     const db = openDb(":memory:");
     try {
@@ -1186,7 +1328,9 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest26(): void {
   it("returns each member's own revision when revisions differ across the workspace", async () => {
     const db = openDb(":memory:");
     try {
@@ -1232,7 +1376,9 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest27(): void {
   it("preserves listMembersForAccount's ordering and the includeInactive status filter", async () => {
     const db = openDb(":memory:");
     try {
@@ -1278,7 +1424,9 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest28(): void {
   it("returns an empty array and issues no revision query for a workspace with no members", async () => {
     const db = openDb(":memory:");
     try {
@@ -1301,7 +1449,9 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
       db.close();
     }
   });
+}
 
+function registerSqliteAccountAdminPortTest29(): void {
   it("chunks the revision IN-query at 500 principals and keeps every member's own revision across the boundary", async () => {
     const db = openDb(":memory:");
     try {
@@ -1340,4 +1490,4 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
       db.close();
     }
   });
-});
+}

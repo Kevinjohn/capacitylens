@@ -44,6 +44,25 @@ function isReconciliationRepairKind(value: string): value is ReconciliationRepai
   return Object.hasOwn(repairRequirements, value);
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim() !== "";
+}
+
+function assertValidCoordinates(stored: Record<string, unknown>, commandId: string): void {
+  const coordinates: readonly RepairCoordinate[] = [
+    "workspaceId",
+    "targetPrincipalId",
+    "provisionalPrincipalId",
+    "ceremonyId",
+  ];
+  for (const coordinate of coordinates) {
+    const value = stored[coordinate];
+    if (value !== undefined && value !== null && !isNonEmptyString(value)) {
+      throw new CorruptAccountCommandStateError(commandId);
+    }
+  }
+}
+
 export class CorruptAccountCommandStateError extends Error {
   readonly code = "ACCOUNT_COMMAND_STATE_CORRUPT";
   readonly commandId: string;
@@ -78,24 +97,11 @@ export function parseStoredReconciliationRepair(
   if (!isReconciliationRepairKind(stored.kind)) {
     throw new CorruptAccountCommandStateError(row.commandId);
   }
-  const isNonEmptyString = (value: unknown): value is string => typeof value === "string" && value.trim() !== "";
-  const coordinates: readonly RepairCoordinate[] = [
-    "workspaceId",
-    "targetPrincipalId",
-    "provisionalPrincipalId",
-    "ceremonyId",
-  ];
-  for (const coordinate of coordinates) {
-    const value = stored[coordinate];
-    if (value !== undefined && value !== null && !isNonEmptyString(value)) {
-      throw new CorruptAccountCommandStateError(row.commandId);
-    }
-  }
+  assertValidCoordinates(stored, row.commandId);
   const requirement = repairRequirements[stored.kind];
   if (
-    requirement &&
-    ((requirement.operation !== undefined && requirement.operation !== operation) ||
-      requirement.coordinates.some((coordinate) => !isNonEmptyString(stored[coordinate])))
+    (requirement.operation !== undefined && requirement.operation !== operation) ||
+    requirement.coordinates.some((coordinate) => !isNonEmptyString(stored[coordinate]))
   ) {
     throw new CorruptAccountCommandStateError(row.commandId);
   }

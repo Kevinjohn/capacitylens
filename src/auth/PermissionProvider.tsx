@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { isServerConfigured } from "../data/apiConfig";
 import { useStore } from "../store/useStore";
 import { useAuth } from "./authContext";
@@ -9,6 +9,100 @@ import { readOfflineStateEpisode } from "../data/offlineCache";
 import { refreshAccountSummaries } from "./useAccountSummaries";
 import { masqueradeApi } from "./masqueradeApi";
 import { masqueradeController } from "./masqueradeController";
+
+type PermissionStatus = "not-applicable" | "pending" | "resolved" | "unavailable";
+
+interface FetchedPermission {
+  accountId: string;
+  membershipRevision: number;
+  offlineEpisode: number;
+  status: "resolved" | "unavailable";
+  role?: Role;
+}
+
+interface PermissionRefresh {
+  accountId: string;
+  membershipRevision: number;
+  offlineEpisode: number;
+  isCurrent: () => boolean;
+  setFetched: Dispatch<SetStateAction<FetchedPermission | null>>;
+  setActiveRole: (role: Role | null, status?: PermissionStatus) => void;
+}
+
+interface PermissionValueInput {
+  offlineReadOnly: boolean;
+  enabled: boolean;
+  activeAccountId: string | null;
+  fetched: FetchedPermission | null;
+}
+
+interface PermissionValue {
+  role: Role | null;
+  status: PermissionStatus;
+}
+
+function publishUnavailable(refresh: PermissionRefresh) {
+  if (!refresh.isCurrent()) return;
+  refresh.setActiveRole("viewer", "unavailable");
+  refresh.setFetched({
+    accountId: refresh.accountId,
+    membershipRevision: refresh.membershipRevision,
+    offlineEpisode: refresh.offlineEpisode,
+    status: "unavailable",
+  });
+}
+
+async function refreshPermission(refresh: PermissionRefresh) {
+  // Reset the store role before the first await so a prior tenant's role cannot leak while the new
+  // fetch is in flight. The provider value is independently keyed and already projects Viewer.
+  refresh.setActiveRole("viewer", "pending");
+  try {
+    // Adopt masquerade status before publishing an effective role so reloads never render one
+    // writable frame under a masqueraded session.
+    const masquerade = await masqueradeApi.status();
+    if (!refresh.isCurrent()) return;
+    masqueradeController.adoptStatus(masquerade);
+    // One validated request drives the picker list and permission projection while retaining their
+    // distinct failure postures.
+    const summaries = await refreshAccountSummaries({
+      acceptEffects: refresh.isCurrent,
+      allowCachedFallback: false,
+    });
+    if (summaries === null) {
+      publishUnavailable(refresh);
+      return;
+    }
+    // A malformed role remains selectable only as an unavailable Viewer summary and never grants
+    // access.
+    const entry = summaries.find((account) => account.id === refresh.accountId);
+    if (!entry || entry.roleStatus === "unavailable") {
+      publishUnavailable(refresh);
+      return;
+    }
+    if (!refresh.isCurrent()) return;
+    refresh.setFetched({
+      accountId: refresh.accountId,
+      membershipRevision: refresh.membershipRevision,
+      offlineEpisode: refresh.offlineEpisode,
+      status: "resolved",
+      role: entry.role,
+    });
+    refresh.setActiveRole(entry.role, "resolved");
+  } catch (error) {
+    // Keep the fail-closed Viewer projection until a later successful lookup.
+    console.warn("PermissionProvider: the active account role could not be resolved", error);
+    publishUnavailable(refresh);
+  }
+}
+
+function getPermissionValue(input: PermissionValueInput): PermissionValue {
+  if (input.offlineReadOnly) return { role: "viewer", status: "unavailable" };
+  if (!input.enabled || !input.activeAccountId) return { role: null, status: "not-applicable" };
+  if (input.fetched?.status === "resolved" && input.fetched.role) {
+    return { role: input.fetched.role, status: "resolved" };
+  }
+  return { role: "viewer", status: input.fetched?.status ?? "pending" };
+}
 
 // Client permission boundary (production plan P1.12). It resolves the caller's ROLE for the ACTIVE
 // account and provides it to the pure-`can`-driven affordance hooks (useRole / useCanEdit) so a
@@ -50,13 +144,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   // changes (without a synchronous reset that the set-state-in-effect lint forbids): a stale entry
   // whose accountId/revision no longer matches reads as pending with a fail-closed Viewer projection
   // until the new fetch lands.
-  const [fetched, setFetched] = useState<{
-    accountId: string;
-    membershipRevision: number;
-    offlineEpisode: number;
-    status: "resolved" | "unavailable";
-    role?: Role;
-  } | null>(null);
+  const [fetched, setFetched] = useState<FetchedPermission | null>(null);
 
   // Enabled ONLY in an auth-on, server-backed deploy. OFF / demo provides null and fetches nothing.
   const enabled = authMode !== "off" && isServerConfigured();
@@ -74,60 +162,14 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       return;
     }
     let cancelled = false;
-    void (async () => {
-      // Reset the store role BEFORE the await so a prior tenant's role can't leak across an account
-      // switch while the new fetch is in flight. The provider's own value is already pending with a
-      // Viewer projection for the new account until the keyed fetch resolves.
-      setActiveRole("viewer", "pending");
-      try {
-        // Resolve session projection in this same generation and publish it before the effective
-        // role. A reload into an active masquerade must never render one writable frame.
-        const masquerade = await masqueradeApi.status();
-        if (cancelled) return;
-        masqueradeController.adoptStatus(masquerade);
-        // The shell's directory hook deliberately yields active-account reads to this provider in
-        // auth-on mode. One validated request therefore drives both the picker list and the
-        // fail-closed permission projection without coupling their distinct failure postures.
-        const summaries = await refreshAccountSummaries({
-          acceptEffects: () => !cancelled,
-          allowCachedFallback: false,
-        });
-        if (summaries === null) {
-          if (!cancelled) {
-            setActiveRole("viewer", "unavailable");
-            setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: "unavailable" });
-          }
-          return;
-        }
-        // refreshAccountSummaries already validates every untrusted row. A malformed role remains
-        // selectable only as an explicitly unavailable Viewer summary and must not resolve access.
-        const entry = summaries.find((account) => account.id === activeAccountId);
-        if (!entry || entry.roleStatus === "unavailable") {
-          if (!cancelled) {
-            setActiveRole("viewer", "unavailable");
-            setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: "unavailable" });
-          }
-          return;
-        }
-        if (cancelled) return;
-        setFetched({
-          accountId: activeAccountId,
-          membershipRevision,
-          offlineEpisode,
-          status: "resolved",
-          role: entry.role,
-        });
-        setActiveRole(entry.role, "resolved");
-      } catch (error) {
-        // Fail-closed: the store and context keep the viewer projection until a later successful
-        // role lookup. No optimistic local mutation can diverge from the server during an outage.
-        console.warn("PermissionProvider: the active account role could not be resolved", error);
-        if (!cancelled) {
-          setActiveRole("viewer", "unavailable");
-          setFetched({ accountId: activeAccountId, membershipRevision, offlineEpisode, status: "unavailable" });
-        }
-      }
-    })();
+    void refreshPermission({
+      accountId: activeAccountId,
+      membershipRevision,
+      offlineEpisode,
+      isCurrent: () => !cancelled,
+      setFetched,
+      setActiveRole,
+    });
     return () => {
       cancelled = true;
     };
@@ -146,20 +188,14 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     fetched.offlineEpisode === offlineEpisode
       ? fetched
       : null;
-  const status: "not-applicable" | "pending" | "resolved" | "unavailable" = offline.readOnly
-    ? // Offline read-only is a safe capability projection, not a resolved membership fact. Keep the
-      // status unavailable so explanatory consumers cannot present Viewer as the authoritative role.
-      "unavailable"
-    : enabled && activeAccountId
-      ? (currentFetched?.status ?? "pending")
-      : "not-applicable";
-  const role = offline.readOnly
-    ? "viewer"
-    : enabled && activeAccountId
-      ? currentFetched?.status === "resolved" && currentFetched.role
-        ? currentFetched.role
-        : "viewer"
-      : null;
+  // Offline read-only is a safe capability projection, not a resolved membership fact. Keep the
+  // status unavailable so explanatory consumers cannot present Viewer as the authoritative role.
+  const { role, status } = getPermissionValue({
+    offlineReadOnly: offline.readOnly,
+    enabled,
+    activeAccountId,
+    fetched: currentFetched,
+  });
 
   // Memoise the context value on `role` so a re-render that doesn't change the role keeps the SAME
   // value reference — otherwise every consumer (the affordance hubs across the app) re-renders on any

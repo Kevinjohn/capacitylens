@@ -43,6 +43,77 @@ const PASSWORD_ENV = {
 
 const fixtures = registerServerFixtureCleanup();
 const openDb = (...args: Parameters<typeof openDbRaw>) => fixtures.trackDb(openDbRaw(...args));
+const assertPresent = <T>(value: T, label: string): NonNullable<T> => {
+  if (value === null || value === undefined) throw new Error(`Expected ${label}`);
+  return value;
+};
+const readRejectedValue = async (promise: Promise<unknown>): Promise<unknown> => {
+  try {
+    await promise;
+  } catch (error) {
+    return error;
+  }
+  throw new Error("Expected promise to reject");
+};
+const parseApiErrorFields = (value: unknown): { status: unknown; code: unknown } => {
+  if (typeof value !== "object" || value === null || !("status" in value) || !("body" in value)) {
+    throw new Error("Expected an API error object");
+  }
+  const { body, status } = value;
+  if (typeof body !== "object" || body === null || !("code" in body)) {
+    throw new Error("Expected an API error body with a code");
+  }
+  return { status, code: body.code };
+};
+const parseSingleFederatedObservation = (
+  value: unknown,
+): {
+  accountRowId: unknown;
+  principalId: unknown;
+  providerId: unknown;
+  subject: unknown;
+  verifiedAt: unknown;
+  auditedAt: unknown;
+} => {
+  if (!Array.isArray(value) || value.length !== 1) throw new Error("Expected one federated-link observation");
+  const row: unknown = value[0];
+  if (
+    typeof row !== "object" ||
+    row === null ||
+    !("accountRowId" in row) ||
+    !("principalId" in row) ||
+    !("providerId" in row) ||
+    !("subject" in row) ||
+    !("verifiedAt" in row) ||
+    !("auditedAt" in row)
+  ) {
+    throw new Error("Expected a complete federated-link observation");
+  }
+  return {
+    accountRowId: row.accountRowId,
+    principalId: row.principalId,
+    providerId: row.providerId,
+    subject: row.subject,
+    verifiedAt: row.verifiedAt,
+    auditedAt: row.auditedAt,
+  };
+};
+const createCompletedFederatedLinkFixture = (db: ReturnType<typeof openDbRaw>) => {
+  const timestamp = "2026-08-07T00:00:00.000Z";
+  db.prepare(
+    `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+     VALUES (?, ?, ?, 1, ?, ?)`,
+  ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
+  db.prepare(
+    `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run("link-1", "workforce", "subject-1", "principal-1", timestamp, timestamp);
+  db.prepare(
+    `INSERT INTO capacitylens_federated_link_ceremonies
+      (id, principalId, providerId, createdAt, expiresAt, completedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run("ceremony-1", "principal-1", "workforce", timestamp, "2099-01-01T00:00:00.000Z", timestamp);
+};
 
 describe("password verification backpressure", () => {
   it("maps scrypt saturation to a retryable service-unavailable API error", async () => {
@@ -51,12 +122,11 @@ describe("password verification backpressure", () => {
       verify: vi.fn().mockRejectedValue(new WorkQueueFullError("Password processing is at capacity.", "full")),
     };
 
-    await expect(
-      verifyPasswordWithBackpressure(hasher, { hash: "stored", password: "correct password" }),
-    ).rejects.toMatchObject({
-      status: "SERVICE_UNAVAILABLE",
-      body: expect.objectContaining({ code: "PASSWORD_PROCESSING_UNAVAILABLE" }),
-    });
+    const error = parseApiErrorFields(
+      await readRejectedValue(verifyPasswordWithBackpressure(hasher, { hash: "stored", password: "correct password" })),
+    );
+    expect(error.status).toBe("SERVICE_UNAVAILABLE");
+    expect(error.code).toBe("PASSWORD_PROCESSING_UNAVAILABLE");
   });
 
   it("maps new-hash saturation to the same retryable service-unavailable API error", async () => {
@@ -65,18 +135,20 @@ describe("password verification backpressure", () => {
       verify: vi.fn(),
     };
 
-    await expect(hashPasswordWithBackpressure(hasher, "correct horse battery staple")).rejects.toMatchObject({
-      status: "SERVICE_UNAVAILABLE",
-      body: expect.objectContaining({ code: "PASSWORD_PROCESSING_UNAVAILABLE" }),
-    });
+    const error = parseApiErrorFields(
+      await readRejectedValue(hashPasswordWithBackpressure(hasher, "correct horse battery staple")),
+    );
+    expect(error.status).toBe("SERVICE_UNAVAILABLE");
+    expect(error.code).toBe("PASSWORD_PROCESSING_UNAVAILABLE");
   });
 });
 
-describe("federated link observation reconciliation", () => {
+const registerFederatedSchemaTests = () => {
   it("rejects a reserved observation trigger whose body does not match the v25 definition", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    await runAuthMigrations(auth);
     db.exec(`
       DROP TRIGGER capacitylens_observe_federated_account;
       CREATE TRIGGER capacitylens_observe_federated_account
@@ -100,7 +172,8 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    await runAuthMigrations(auth);
     const timestamp = "2026-08-07T00:00:00.000Z";
     db.prepare(
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
@@ -125,7 +198,9 @@ describe("federated link observation reconciliation", () => {
       assertStrictOidcEmailAdmission(db, "workforce", { sub: "new-subject", emailVerified: true }),
     ).not.toThrow();
   });
+};
 
+const registerFederatedAuditTests = () => {
   it("admits a direct OIDC identity as verified on SSO-only restart and emits one stable audit", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
@@ -136,32 +211,22 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
-    const timestamp = "2026-08-07T00:00:00.000Z";
-    db.prepare(
-      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
-       VALUES (?, ?, ?, 1, ?, ?)`,
-    ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("link-1", "workforce", "subject-1", "principal-1", timestamp, timestamp);
-    db.prepare(
-      `INSERT INTO capacitylens_federated_link_ceremonies
-        (id, principalId, providerId, createdAt, expiresAt, completedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("ceremony-1", "principal-1", "workforce", timestamp, "2099-01-01T00:00:00.000Z", timestamp);
+    const auth = assertPresent(configured.auth, "password auth");
+    const strictProvider = assertPresent(auth.strictProvider, "strict OIDC provider");
+    const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
+    await runAuthMigrations(auth);
+    createCompletedFederatedLinkFixture(db);
 
     const identity = createBetterAuthIdentityPort({
       applicationId: "capacitylens",
-      auth: configured.auth!,
+      auth,
       authMode: "sso",
       db,
     }).inspectSsoCutover("workforce");
     expect(
       evaluateSsoCutoverReadiness({
-        provider: configured.auth!.strictProvider!,
-        providers: configured.auth!.providers,
+        provider: strictProvider,
+        providers: auth.providers,
         identity,
         workspaces: [
           {
@@ -174,23 +239,31 @@ describe("federated link observation reconciliation", () => {
       }).ready,
     ).toBe(true);
 
-    configured.auth!.reconcileFederatedLinks!();
-    configured.auth!.reconcileFederatedLinks!();
+    reconcileFederatedLinks();
+    reconcileFederatedLinks();
 
-    expect(db.prepare(`SELECT * FROM capacitylens_federated_link_observations`).all()).toEqual([
-      expect.objectContaining({
-        accountRowId: "link-1",
-        principalId: "principal-1",
-        providerId: "workforce",
-        subject: "subject-1",
-        verifiedAt: expect.any(String),
-        auditedAt: expect.any(String),
-      }),
-    ]);
+    const observation = parseSingleFederatedObservation(
+      db.prepare(`SELECT * FROM capacitylens_federated_link_observations`).all(),
+    );
+    expect({
+      accountRowId: observation.accountRowId,
+      principalId: observation.principalId,
+      providerId: observation.providerId,
+      subject: observation.subject,
+    }).toEqual({
+      accountRowId: "link-1",
+      principalId: "principal-1",
+      providerId: "workforce",
+      subject: "subject-1",
+    });
+    expect(typeof observation.verifiedAt).toBe("string");
+    expect(typeof observation.auditedAt).toBe("string");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
     expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "identity-link:link-1" }]);
   });
+};
 
+const registerFederatedReconciliationTests = () => {
   it("keeps an interrupted zero-row ceremony until expiry and then removes it", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
@@ -201,24 +274,27 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
+    await runAuthMigrations(auth);
     const ceremony = createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce" });
 
-    configured.auth!.reconcileFederatedLinks!();
+    reconcileFederatedLinks();
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([{ id: ceremony.id }]);
 
     db.prepare(`UPDATE capacitylens_federated_link_ceremonies SET expiresAt = ? WHERE id = ?`).run(
       "2000-01-01T00:00:00.000Z",
       ceremony.id,
     );
-    configured.auth!.reconcileFederatedLinks!();
+    reconcileFederatedLinks();
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
   it("does not acquire a SQLite write lock when reconciliation has no work", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    await runAuthMigrations(auth);
     let immediateTransactions = 0;
     const observedDb = new Proxy(db, {
       get(target, property) {
@@ -237,7 +313,9 @@ describe("federated link observation reconciliation", () => {
 
     expect(immediateTransactions).toBe(0);
   });
+};
 
+const registerFederatedCeremonyConflictTests = () => {
   it("supersedes an abandoned link ceremony when the same principal begins again", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
@@ -248,7 +326,8 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    await runAuthMigrations(auth);
     createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce", ceremonyId: "abandoned" });
     db.prepare(
       `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
@@ -276,7 +355,9 @@ describe("federated link observation reconciliation", () => {
     ).toEqual([{ id: "replacement" }]);
     expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([]);
   });
+};
 
+const registerFederatedSubjectConflictTests = () => {
   it("preserves one observed row when an interrupted callback attempts a second subject", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
@@ -287,7 +368,9 @@ describe("federated link observation reconciliation", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
       CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
     });
-    await runAuthMigrations(configured.auth!);
+    const auth = assertPresent(configured.auth, "password auth");
+    const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
+    await runAuthMigrations(auth);
     const timestamp = "2026-08-07T00:00:00.000Z";
     db.prepare(
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
@@ -307,7 +390,7 @@ describe("federated link observation reconciliation", () => {
         )
         .run("link-2", "workforce", "subject-2", "principal-1", timestamp, timestamp),
     ).toThrow(/unique constraint/i);
-    configured.auth!.reconcileFederatedLinks!();
+    reconcileFederatedLinks();
 
     expect(db.prepare(`SELECT id, accountId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
       { id: "link-1", accountId: "subject-1" },
@@ -317,14 +400,17 @@ describe("federated link observation reconciliation", () => {
     ]);
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
+};
+
+describe("federated link observation reconciliation", () => {
+  registerFederatedSchemaTests();
+  registerFederatedAuditTests();
+  registerFederatedReconciliationTests();
+  registerFederatedCeremonyConflictTests();
+  registerFederatedSubjectConflictTests();
 });
 
-describe("startup configuration before database migration", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
+const registerStartupControlTests = () => {
   it("can resolve auth options without DDL, then maintains controls after app migration", () => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV, { deferDatabaseSetup: true });
@@ -365,7 +451,9 @@ describe("startup configuration before database migration", () => {
       db.close();
     },
   );
+};
 
+const registerStartupConfigurationRefusalTests = () => {
   it("leaves a bare database untouched when provider configuration is invalid", () => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
     expect(() =>
@@ -428,7 +516,9 @@ describe("startup configuration before database migration", () => {
       ).toThrow(/must be an origin/);
     }
   });
+};
 
+const registerStartupDiscoverySuccessTest = () => {
   it("issuer-validates discovery before the browser reaches its authorization endpoint", async () => {
     const discoveryUrl = "https://idp.example/.well-known/openid-configuration";
     vi.stubGlobal(
@@ -453,7 +543,8 @@ describe("startup configuration before database migration", () => {
       CAPACITYLENS_SSO_DISCOVERY_URL: discoveryUrl,
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
     });
-    const response = await auth!.handler(
+    const ssoAuth = assertPresent(auth, "SSO auth");
+    const response = await ssoAuth.handler(
       new Request("http://localhost:8787/api/auth/oidc/authorize/sso?client_id=client&state=opaque&scope=openid"),
     );
 
@@ -463,7 +554,9 @@ describe("startup configuration before database migration", () => {
     );
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
+};
 
+const registerStartupDiscoveryFailureTest = () => {
   it("fails closed before redirect when discovery does not match the pinned issuer", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal(
@@ -487,7 +580,8 @@ describe("startup configuration before database migration", () => {
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
     });
 
-    const response = await auth!.handler(
+    const ssoAuth = assertPresent(auth, "SSO auth");
+    const response = await ssoAuth.handler(
       new Request("http://localhost:8787/api/auth/oidc/authorize/sso?client_id=client&state=opaque"),
     );
     expect(response.status).toBe(302);
@@ -496,7 +590,9 @@ describe("startup configuration before database migration", () => {
     );
     expect(response.headers.get("location")).not.toContain("attacker.example");
   });
+};
 
+const registerStartupMigrationPlanningTest = () => {
   it("plans both the app-owned control migration and Better Auth DDL before executing either", async () => {
     const db = openDb(":memory:");
     for (const { index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) db.exec(`DROP INDEX ${index}`);
@@ -506,6 +602,7 @@ describe("startup configuration before database migration", () => {
       PRAGMA user_version = 19;
     `);
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV, { deferDatabaseSetup: true });
+    const auth = assertPresent(configured.auth, "password auth");
     expect(planDatabaseMigrations(db).migrations).toEqual([
       expect.objectContaining({ version: 20, name: "version-bootstrap-claim-control" }),
       expect.objectContaining({ version: 21, name: "index-tenant-entity-slices" }),
@@ -528,49 +625,70 @@ describe("startup configuration before database migration", () => {
         checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
       }),
     ]);
-    const before = await planAuthSchemaMigrations(configured.auth!);
+    const before = await planAuthSchemaMigrations(auth);
     expect(before.pending).toBe(true);
     expect(before.tables).toContain("user");
 
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(auth);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
-    await expect(planAuthSchemaMigrations(configured.auth!)).resolves.toEqual({ pending: false, tables: [] });
+    await expect(planAuthSchemaMigrations(auth)).resolves.toEqual({ pending: false, tables: [] });
     db.close();
   });
+};
+
+describe("startup configuration before database migration", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  registerStartupControlTests();
+  registerStartupConfigurationRefusalTests();
+  registerStartupDiscoverySuccessTest();
+  registerStartupDiscoveryFailureTest();
+  registerStartupMigrationPlanningTest();
 });
 
 describe("first-owner database-hook races", () => {
   it("rejects a delayed first-owner insertion after another principal wins", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
-    await auth!.createCredentialUser({
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    await passwordAuth.createCredentialUser({
       email: "winner@example.com",
       name: "Winner",
       password: "winner-password-123456",
       emailVerified: true,
     });
-    const before = auth!.options.databaseHooks?.user?.create?.before;
+    const before = assertPresent(passwordAuth.options.databaseHooks?.user?.create?.before, "first-owner creation hook");
 
-    await expect(
-      before!(
-        { email: "loser@example.com", name: "Loser" } as never,
-        { path: "/sign-up/email", bootstrapClaimToken: "losing-claim" } as never,
+    const error = parseApiErrorFields(
+      await readRejectedValue(
+        before(
+          { email: "loser@example.com", name: "Loser" } as never,
+          { path: "/sign-up/email", bootstrapClaimToken: "losing-claim" } as never,
+        ),
       ),
-    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "BOOTSTRAP_ALREADY_CLAIMED" }) });
+    );
+    expect(error.code).toBe("BOOTSTRAP_ALREADY_CLAIMED");
   });
 
   it("rejects a first-owner insertion that reaches the hook without its claim token", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
-    const before = auth!.options.databaseHooks?.user?.create?.before;
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    const before = assertPresent(passwordAuth.options.databaseHooks?.user?.create?.before, "first-owner creation hook");
 
-    await expect(
-      before!({ email: "owner@example.com", name: "Owner" } as never, { path: "/sign-up/email" } as never),
-    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "BOOTSTRAP_ALREADY_IN_PROGRESS" }) });
+    const error = parseApiErrorFields(
+      await readRejectedValue(
+        before({ email: "owner@example.com", name: "Owner" } as never, { path: "/sign-up/email" } as never),
+      ),
+    );
+    expect(error.code).toBe("BOOTSTRAP_ALREADY_IN_PROGRESS");
   });
 });
 
@@ -612,26 +730,27 @@ describe("resolved auth options", () => {
       deferDatabaseSetup: true,
       ...(trustedOrigins === undefined ? {} : { trustedOrigins }),
     });
+    const configuredAuth = assertPresent(auth, `${env.CAPACITYLENS_AUTH} auth`);
 
-    expect(auth!.options.telemetry?.enabled).toBe(false);
-    expect(auth!.options.verification?.storeIdentifier).toBe("hashed");
-    expect(auth!.options.plugins?.map((plugin) => plugin.id)).toEqual(pluginIds);
-    expect(auth!.options.trustedOrigins).toEqual(trustedOrigins);
+    expect(configuredAuth.options.telemetry?.enabled).toBe(false);
+    expect(configuredAuth.options.verification?.storeIdentifier).toBe("hashed");
+    expect(configuredAuth.options.plugins?.map((plugin) => plugin.id)).toEqual(pluginIds);
+    expect(configuredAuth.options.trustedOrigins).toEqual(trustedOrigins);
     db.close();
   });
 });
 
-describe("cookie/session hardening (P1.16)", () => {
+const registerCookieHardeningTests = () => {
   it("pins sameSite:lax + httpOnly on the session cookie", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
-    expect(auth!.options.advanced?.defaultCookieAttributes).toEqual({ sameSite: "lax", httpOnly: true });
-    expect(auth!.options.advanced?.cookiePrefix).toBe("capacitylens");
+    const passwordAuth = assertPresent(auth, "password auth");
+    expect(passwordAuth.options.advanced?.defaultCookieAttributes).toEqual({ sameSite: "lax", httpOnly: true });
+    expect(passwordAuth.options.advanced?.cookiePrefix).toBe("capacitylens");
   });
 
   it("derives an insecure development cookie from an HTTP public URL", () => {
-    expect(createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV).auth!.options.advanced?.useSecureCookies).toBe(
-      false,
-    );
+    const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
+    expect(assertPresent(auth, "password auth").options.advanced?.useSecureCookies).toBe(false);
   });
 
   it("sets a valid __Host prefix and Secure from the HTTPS public URL even behind an HTTP proxy hop", () => {
@@ -639,11 +758,12 @@ describe("cookie/session hardening (P1.16)", () => {
       ...PASSWORD_ENV,
       BETTER_AUTH_URL: "https://capacity.example",
     });
+    const passwordAuth = assertPresent(auth, "password auth");
     // Better Auth's built-in switch is deliberately false because it prepends `__Secure-`.
     // CapacityLens supplies Secure directly so the stricter `__Host-` prefix remains first.
-    expect(auth!.options.advanced?.useSecureCookies).toBe(false);
-    expect(auth!.options.advanced?.cookiePrefix).toBe("__Host-capacitylens");
-    expect(auth!.options.advanced?.defaultCookieAttributes).toEqual({
+    expect(passwordAuth.options.advanced?.useSecureCookies).toBe(false);
+    expect(passwordAuth.options.advanced?.cookiePrefix).toBe("__Host-capacitylens");
+    expect(passwordAuth.options.advanced?.defaultCookieAttributes).toEqual({
       sameSite: "lax",
       httpOnly: true,
       secure: true,
@@ -685,12 +805,15 @@ describe("cookie/session hardening (P1.16)", () => {
       }),
     ).not.toThrow();
   });
+};
 
+const registerSessionHardeningTests = () => {
   it("pins a 12-hour absolute lifetime with no sliding refresh and a 15-minute fresh window", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
-    expect(auth!.options.session?.expiresIn).toBe(43_200);
-    expect(auth!.options.session?.disableSessionRefresh).toBe(true);
-    expect(auth!.options.session?.freshAge).toBe(900);
+    const passwordAuth = assertPresent(auth, "password auth");
+    expect(passwordAuth.options.session?.expiresIn).toBe(43_200);
+    expect(passwordAuth.options.session?.disableSessionRefresh).toBe(true);
+    expect(passwordAuth.options.session?.freshAge).toBe(900);
   });
 
   it("OFF mode constructs no betterAuth instance — nothing to harden (auth === null)", () => {
@@ -698,9 +821,14 @@ describe("cookie/session hardening (P1.16)", () => {
     expect(mode).toBe("off");
     expect(auth).toBeNull();
   });
+};
+
+describe("cookie/session hardening (P1.16)", () => {
+  registerCookieHardeningTests();
+  registerSessionHardeningTests();
 });
 
-describe("external identity creation gate", () => {
+const registerExternalProviderConfigurationTests = () => {
   it("resolves the concrete provider from a parameterized database-hook route", () => {
     expect(
       parseProviderIdFromExternalContext({
@@ -714,7 +842,7 @@ describe("external identity creation gate", () => {
 
   it("disables implicit email-based account linking", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
-    expect(auth!.options.account?.accountLinking?.disableImplicitLinking).toBe(true);
+    expect(assertPresent(auth, "password auth").options.account?.accountLinking?.disableImplicitLinking).toBe(true);
   });
 
   it("binds every configured external provider to a stable issuer namespace", () => {
@@ -724,12 +852,14 @@ describe("external identity creation gate", () => {
       CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
       CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
-    expect(auth!.federatedIssuers.get("google")).toBe("https://accounts.google.com");
+    expect(assertPresent(auth, "password auth").federatedIssuers.get("google")).toBe("https://accounts.google.com");
     expect(
       db.prepare(`SELECT issuer FROM account_federated_provider_bindings WHERE providerId = 'google'`).get(),
     ).toEqual({ issuer: "https://accounts.google.com" });
   });
+};
 
+const registerExternalOpenSignupTest = () => {
   it("stays enforced when open email registration is deliberately enabled", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(
@@ -744,14 +874,19 @@ describe("external identity creation gate", () => {
         externalIdentityAdmission: async () => false,
       },
     );
-    const before = auth!.options.databaseHooks?.user?.create?.before;
+    const before = assertPresent(
+      assertPresent(auth, "password auth").options.databaseHooks?.user?.create?.before,
+      "external-identity admission hook",
+    );
     expect(before).toBeTypeOf("function");
 
     await expect(
-      before!({ email: "stranger@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
+      before({ email: "stranger@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
     ).rejects.toThrow(/not invited/);
   });
+};
 
+const registerExternalSsoProviderTest = () => {
   it("keeps named social providers as existing-principal sign-in doors in SSO-only mode", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(
@@ -768,14 +903,25 @@ describe("external identity creation gate", () => {
       },
       { externalIdentityAdmission: async () => true },
     );
-    const before = auth!.options.databaseHooks?.user?.create?.before;
+    const before = assertPresent(
+      assertPresent(auth, "SSO auth").options.databaseHooks?.user?.create?.before,
+      "external-identity admission hook",
+    );
     expect(before).toBeTypeOf("function");
 
-    await expect(
-      before!({ email: "new-social@example.com", emailVerified: true } as never, { path: "/callback/google" } as never),
-    ).rejects.toMatchObject({ body: expect.objectContaining({ code: "STRICT_PROVIDER_REQUIRED" }) });
+    const error = parseApiErrorFields(
+      await readRejectedValue(
+        before(
+          { email: "new-social@example.com", emailVerified: true } as never,
+          { path: "/callback/google" } as never,
+        ),
+      ),
+    );
+    expect(error.code).toBe("STRICT_PROVIDER_REQUIRED");
   });
+};
 
+const registerExternalSessionAssuranceTest = () => {
   it("creates a strict-OIDC session without querying password-only MFA columns", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
@@ -786,7 +932,8 @@ describe("external identity creation gate", () => {
       CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
       CAPACITYLENS_SSO_ISSUER: "https://idp.example",
     });
-    await runAuthMigrations(auth!);
+    const ssoAuth = assertPresent(auth, "SSO auth");
+    await runAuthMigrations(ssoAuth);
     expect(
       (db.prepare("PRAGMA table_info(user)").all() as Array<{ name: string }>).some(
         ({ name }) => name === "twoFactorEnabled",
@@ -803,10 +950,10 @@ describe("external identity creation gate", () => {
       "2026-08-10T00:00:00.000Z",
     );
 
-    const after = auth!.options.databaseHooks?.session?.create?.after;
+    const after = assertPresent(ssoAuth.options.databaseHooks?.session?.create?.after, "session assurance hook");
     expect(after).toBeTypeOf("function");
     await expect(
-      after!(
+      after(
         { token: "strict-session-token", userId: "strict-principal" } as never,
         { path: "/oauth2/callback/:providerId", params: { providerId: "sso" } } as never,
       ),
@@ -816,7 +963,9 @@ describe("external identity creation gate", () => {
       providerId: "sso",
     });
   });
+};
 
+const registerExternalBootstrapAdmissionTests = () => {
   it("keeps the first-external-identity claim control when email registration is open", () => {
     const db = openDb(":memory:");
     const env = {
@@ -864,12 +1013,15 @@ describe("external identity creation gate", () => {
       }),
     ).toBe(false);
   });
+};
 
+const registerExternalLiveInvitationTest = () => {
   it("allows a verified email with a live unused pre-authorised invite after bootstrap", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
-    await auth!.createCredentialUser({
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    await passwordAuth.createCredentialUser({
       email: "existing-owner@example.com",
       name: "Existing Owner",
       password: "Unrelated-phrase-4827!",
@@ -908,7 +1060,9 @@ describe("external identity creation gate", () => {
       }),
     ).toBe(false);
   });
+};
 
+const registerExternalBootstrapInvitationTest = () => {
   it("does not let an invitation replace the first-external-identity allow-list", () => {
     const db = openDb(":memory:");
     createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -941,12 +1095,15 @@ describe("external identity creation gate", () => {
       }),
     ).toBe(true);
   });
+};
 
+const registerExternalExpiredInvitationTest = () => {
   it("rejects expired and consumed invitations after bootstrap", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(auth!);
-    await auth!.createCredentialUser({
+    const passwordAuth = assertPresent(auth, "password auth");
+    await runAuthMigrations(passwordAuth);
+    await passwordAuth.createCredentialUser({
       email: "existing-owner@example.com",
       name: "Existing Owner",
       password: "Unrelated-phrase-4827!",
@@ -990,4 +1147,15 @@ describe("external identity creation gate", () => {
       }),
     ).toBe(false);
   });
+};
+
+describe("external identity creation gate", () => {
+  registerExternalProviderConfigurationTests();
+  registerExternalOpenSignupTest();
+  registerExternalSsoProviderTest();
+  registerExternalSessionAssuranceTest();
+  registerExternalBootstrapAdmissionTests();
+  registerExternalLiveInvitationTest();
+  registerExternalBootstrapInvitationTest();
+  registerExternalExpiredInvitationTest();
 });

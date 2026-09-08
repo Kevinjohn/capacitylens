@@ -81,8 +81,7 @@ export function AppShell() {
   // is enough to pass the tenant gate and render the shell; the slice fills in the body a frame later.
   const activeAccount =
     accounts.find((account) => account.id === activeAccountId) ??
-    accountSummaries.find((a) => a.id === activeAccountId) ??
-    null;
+    accountSummaries.find((a) => a.id === activeAccountId);
   // Cosmetic demo sign-in (see the gate below). `demoAuthActive` is true only when the real
   // auth seam is OFF, so the demo gate and the real login wall never double-gate.
   const demoAuthActive = useDemoAuthActive();
@@ -135,7 +134,7 @@ export function AppShell() {
       loadError={loadError}
       demoAuthActive={demoAuthActive}
       fakeSignedIn={fakeSignedIn}
-      hasActiveAccount={activeAccount !== null}
+      hasActiveAccount={activeAccount !== undefined}
       introSeen={introSeen}
       onFakeSignIn={() => setFakeSignedIn(true)}
       onIntroContinue={() => setIntroSeen(true)}

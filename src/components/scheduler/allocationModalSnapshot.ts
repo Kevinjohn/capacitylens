@@ -24,7 +24,7 @@ export interface AllocationModalSnapshot {
   selectedActivity: Activity | undefined;
   selectedEffectiveProjectId: string | undefined;
   attributedProjectId: string | undefined;
-  selectedEffectiveWeek: EffectiveWorkingWeek | null;
+  selectedEffectiveWeek: EffectiveWorkingWeek | undefined;
   startDate: ISODate;
   endDate: ISODate;
   effEndDate: ISODate;

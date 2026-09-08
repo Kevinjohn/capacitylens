@@ -137,8 +137,7 @@ export function ensureFederatedIdentitySchema(db: Db): void {
   installFederatedIdentityV25(db);
 }
 
-/** Fail unless every v25 identity table, index, and trigger has the exact owned shape. */
-export function assertFederatedIdentitySchemaCurrent(db: Db): void {
+function assertOwnedTables(db: Db): void {
   const expectedTables = new Map([
     [
       "capacitylens_federated_link_ceremonies",
@@ -186,46 +185,55 @@ export function assertFederatedIdentitySchemaCurrent(db: Db): void {
       throw new Error(`DB identity schema has an invalid ${table} definition.`);
     }
   }
-  const ceremonyIndexes = db.prepare(`PRAGMA index_list(capacitylens_federated_link_ceremonies)`).all() as Array<{
+}
+
+function assertCeremonyIndex(db: Db): void {
+  const indexes = db.prepare(`PRAGMA index_list(capacitylens_federated_link_ceremonies)`).all() as Array<{
     name: string;
     unique: number;
   }>;
-  const ceremonyColumns = db
-    .prepare(`PRAGMA index_info(idx_capacitylens_federated_link_ceremonies_principal)`)
-    .all() as Array<{ name: string }>;
-  if (
-    !ceremonyIndexes.some(
-      ({ name, unique }) => name === "idx_capacitylens_federated_link_ceremonies_principal" && unique === 1,
-    ) ||
-    ceremonyColumns.map(({ name }) => name).join(",") !== "principalId,providerId"
-  ) {
+  const columns = db.prepare(`PRAGMA index_info(idx_capacitylens_federated_link_ceremonies_principal)`).all() as Array<{
+    name: string;
+  }>;
+  const isUnique = indexes.some(
+    ({ name, unique }) => name === "idx_capacitylens_federated_link_ceremonies_principal" && unique === 1,
+  );
+  if (!isUnique || columns.map(({ name }) => name).join(",") !== "principalId,providerId") {
     throw new Error("DB identity schema has an invalid federated-link ceremony index definition.");
   }
-  const observationIndexes = db.prepare(`PRAGMA index_list(capacitylens_federated_link_observations)`).all() as Array<{
+}
+
+function assertObservationConstraint(db: Db): void {
+  const indexes = db.prepare(`PRAGMA index_list(capacitylens_federated_link_observations)`).all() as Array<{
     name: string;
     unique: number;
     origin: string;
   }>;
-  const hasProviderSubjectConstraint = observationIndexes.some(({ name, unique, origin }) => {
+  const valid = indexes.some(({ name, unique, origin }) => {
     if (unique !== 1 || origin !== "u") return false;
     const columns = db.prepare(`PRAGMA index_info(${name})`).all() as Array<{ name: string }>;
     return columns.map(({ name: column }) => column).join(",") === "providerId,subject";
   });
-  if (!hasProviderSubjectConstraint) {
-    throw new Error("DB identity schema is missing the provider-subject observation constraint.");
-  }
+  if (!valid) throw new Error("DB identity schema is missing the provider-subject observation constraint.");
+}
+
+function assertAccountIndexes(db: Db): void {
   if (!sqliteTableExists(db, "account")) return;
-  const accountIndexes = db.prepare(`PRAGMA index_list(account)`).all() as Array<{ name: string; unique: number }>;
+  const indexes = db.prepare(`PRAGMA index_list(account)`).all() as Array<{ name: string; unique: number }>;
   for (const [indexName, expectedColumns] of [
     [FEDERATED_SUBJECT_UNIQUE_INDEX, "providerId,accountId"],
     [FEDERATED_PRINCIPAL_PROVIDER_UNIQUE_INDEX, "userId,providerId"],
   ] as const) {
     const columns = db.prepare(`PRAGMA index_info(${indexName})`).all() as Array<{ name: string }>;
-    const unique = accountIndexes.some((index) => index.name === indexName && index.unique === 1);
-    if (!unique || columns.map(({ name }) => name).join(",") !== expectedColumns) {
+    const isUnique = indexes.some((index) => index.name === indexName && index.unique === 1);
+    if (!isUnique || columns.map(({ name }) => name).join(",") !== expectedColumns) {
       throw new Error(`DB identity schema has an invalid ${indexName} definition.`);
     }
   }
+}
+
+function assertObservationTrigger(db: Db): void {
+  if (!sqliteTableExists(db, "account")) return;
   const trigger = db
     .prepare(`SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = ?`)
     .get(FEDERATED_OBSERVATION_TRIGGER) as { sql: string } | undefined;
@@ -235,6 +243,15 @@ export function assertFederatedIdentitySchemaCurrent(db: Db): void {
   ) {
     throw new Error(`DB identity schema has an invalid ${FEDERATED_OBSERVATION_TRIGGER} definition.`);
   }
+}
+
+/** Fail unless every v25 identity table, index, and trigger has the exact owned shape. */
+export function assertFederatedIdentitySchemaCurrent(db: Db): void {
+  assertOwnedTables(db);
+  assertCeremonyIndex(db);
+  assertObservationConstraint(db);
+  assertAccountIndexes(db);
+  assertObservationTrigger(db);
 }
 
 /** Identity-adapter-owned read that proves an observation still names the exact live provider

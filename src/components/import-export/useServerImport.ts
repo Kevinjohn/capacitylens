@@ -13,6 +13,116 @@ import { readApiError } from "../../lib/readApiError";
 import { useStore } from "../../store/useStore";
 import { m } from "@/i18n";
 
+type SetNotice = ReturnType<typeof useStore.getState>["setNotice"];
+type ImportTransaction = { committed: boolean; requiresReload: boolean };
+type ImportContext = {
+  accountId: string;
+  transaction: ImportTransaction;
+  setRequiresReload: (required: boolean) => void;
+  setNotice: SetNotice;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
+const parseCount = (value: unknown): number | null =>
+  typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
+const isStaleView = (outcome: RefreshOutcome): boolean =>
+  outcome.kind === "failed" || outcome.kind === "skipped" || outcome.kind === "unattached";
+
+const buildSkippedMessage = (
+  skipped: number,
+  messages: {
+    one: (input: { count: number }) => string;
+    other: (input: { count: number }) => string;
+  },
+): string => {
+  if (skipped === 0) return "";
+  return skipped === 1 ? messages.one({ count: skipped }) : messages.other({ count: skipped });
+};
+
+const requireAuthoritativeReload = (context: ImportContext, message: string): void => {
+  context.transaction.requiresReload = true;
+  context.setRequiresReload(true);
+  context.setNotice(message, "error");
+};
+
+const refreshRespectingNotices = async (accountId: string) => {
+  const noticeBefore = useStore.getState().notice;
+  const outcome = await refreshActiveAccountSlice(accountId);
+  const noticeAfter = useStore.getState().notice;
+  return { outcome, errorRaised: noticeAfter !== noticeBefore && noticeAfter?.tone === "error" };
+};
+
+const reconcileUnknownOutcome = async (context: ImportContext): Promise<void> => {
+  context.transaction.committed = true;
+  const outcome = await refreshActiveAccountSlice(context.accountId).catch((): RefreshOutcome => ({ kind: "failed" }));
+  if (isStaleView(outcome)) {
+    requireAuthoritativeReload(context, m.data_import_unknown_reload_required());
+    return;
+  }
+  context.setNotice(m.data_import_unknown_reloaded(), "warning");
+};
+
+const reportCommittedImport = async (context: ImportContext, successMessage: string): Promise<void> => {
+  const { outcome, errorRaised } = await refreshRespectingNotices(context.accountId);
+  if (isStaleView(outcome)) {
+    requireAuthoritativeReload(context, m.data_import_refresh_failed());
+    return;
+  }
+  if (!errorRaised) context.setNotice(successMessage);
+};
+
+const handleSuccessfulResponse = async (response: Response, context: ImportContext): Promise<void> => {
+  context.transaction.committed = true;
+  const body: unknown = await response.json().catch(() => null);
+  const imported = parseCount(isRecord(body) ? body.imported : undefined);
+  const skipped = parseCount(isRecord(body) ? body.skipped : undefined) ?? 0;
+  if (imported === null) {
+    console.warn("import: 200 response with an off-spec body; the slice was replaced server-side", body);
+    await reportCommittedImport(context, m.data_import_done());
+    return;
+  }
+  if (imported === 0) {
+    context.transaction.committed = false;
+    const why = buildSkippedMessage(skipped, { one: m.data_why_skipped_one, other: m.data_why_skipped_other });
+    context.setNotice(m.data_no_records({ why }), "error");
+    return;
+  }
+  const skippedNote = buildSkippedMessage(skipped, { one: m.data_skipped_note_one, other: m.data_skipped_note_other });
+  const successMessage =
+    imported === 1
+      ? m.data_imported_server_one({ count: imported, skipped: skippedNote })
+      : m.data_imported_server_other({ count: imported, skipped: skippedNote });
+  await reportCommittedImport(context, successMessage);
+};
+
+const runServerImport = async (incoming: AppData, context: ImportContext): Promise<void> => {
+  const { accountId, transaction, setNotice } = context;
+  if ((await flushPendingWrites()).kind === "blocked") {
+    setNotice(m.data_import_blocked_unsynced(), "error");
+    return;
+  }
+  const resumeWrites = suspendServerWrites();
+  try {
+    const response = await apiFetch(
+      `${API_BASE}/api/import`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ accountId, data: incoming }),
+      },
+      API_BULK_TIMEOUT_MS,
+    );
+    if (response.ok) await handleSuccessfulResponse(response, context);
+    else if (response.status === 408 || response.status >= 500) await reconcileUnknownOutcome(context);
+    else setNotice((await readApiError(response)) ?? m.data_import_failed({ status: response.status }), "error");
+  } catch {
+    await reconcileUnknownOutcome(context);
+  } finally {
+    if (!transaction.requiresReload) resumeWrites({ dropParkedEdits: transaction.committed });
+  }
+};
+
 /** Owns the atomic server-import transaction, persistence suspension and recovery state. */
 export function useServerImport() {
   const setNotice = useStore((state) => state.setNotice);
@@ -32,116 +142,13 @@ export function useServerImport() {
     if (accountId === null) throw new Error("Import requires an active company.");
     setBusy(true);
     setRequiresReload(false);
-    let keepBlockedUntilReload = false;
     try {
-      // The replacement starts only from a fully acknowledged pre-import slice.
-      if ((await flushPendingWrites()).kind === "blocked") {
-        setNotice(m.data_import_blocked_unsynced(), "error");
-        return;
-      }
-      const resumeWrites = suspendServerWrites();
-      let committed = false;
-      let safeToResume = true;
-      const requireAuthoritativeReload = (message: string) => {
-        safeToResume = false;
-        keepBlockedUntilReload = true;
-        setRequiresReload(true);
-        setNotice(message, "error");
-      };
-      const reconcileUnknownOutcome = async () => {
-        committed = true;
-        const outcome = await refreshActiveAccountSlice(accountId).catch((): RefreshOutcome => ({ kind: "failed" }));
-        if (outcome.kind === "failed" || outcome.kind === "skipped" || outcome.kind === "unattached") {
-          requireAuthoritativeReload(m.data_import_unknown_reload_required());
-        } else {
-          setNotice(m.data_import_unknown_reloaded(), "warning");
-        }
-      };
-      try {
-        const response = await apiFetch(
-          `${API_BASE}/api/import`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify({ accountId, data: incoming }),
-          },
-          API_BULK_TIMEOUT_MS,
-        );
-        if (!response.ok) {
-          if (response.status === 408 || response.status >= 500) {
-            await reconcileUnknownOutcome();
-            return;
-          }
-          setNotice((await readApiError(response)) ?? m.data_import_failed({ status: response.status }), "error");
-          return;
-        }
-
-        committed = true;
-        const count = (value: unknown): number | null =>
-          typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
-        const body: unknown = await response.json().catch(() => null);
-        const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
-        const imported = count(record.imported);
-        const skipped = count(record.skipped) ?? 0;
-        const viewIsStale = (outcome: Awaited<ReturnType<typeof refreshActiveAccountSlice>>) =>
-          outcome.kind === "failed" || outcome.kind === "skipped" || outcome.kind === "unattached";
-        const refreshRespectingNotices = async () => {
-          const noticeBefore = useStore.getState().notice;
-          const outcome = await refreshActiveAccountSlice(accountId);
-          const noticeAfter = useStore.getState().notice;
-          return { outcome, errorRaised: noticeAfter !== noticeBefore && noticeAfter?.tone === "error" };
-        };
-
-        if (imported === null) {
-          console.warn("import: 200 response with an off-spec body; the slice was replaced server-side", body);
-          const { outcome, errorRaised } = await refreshRespectingNotices();
-          if (viewIsStale(outcome)) {
-            requireAuthoritativeReload(m.data_import_refresh_failed());
-            return;
-          }
-          if (errorRaised) return;
-          setNotice(m.data_import_done());
-          return;
-        }
-        if (imported === 0) {
-          committed = false;
-          const why =
-            skipped > 0
-              ? skipped === 1
-                ? m.data_why_skipped_one({ count: skipped })
-                : m.data_why_skipped_other({ count: skipped })
-              : "";
-          setNotice(m.data_no_records({ why }), "error");
-          return;
-        }
-
-        const { outcome, errorRaised } = await refreshRespectingNotices();
-        if (viewIsStale(outcome)) {
-          requireAuthoritativeReload(m.data_import_refresh_failed());
-          return;
-        }
-        if (errorRaised) return;
-        const skippedNote =
-          skipped > 0
-            ? skipped === 1
-              ? m.data_skipped_note_one({ count: skipped })
-              : m.data_skipped_note_other({ count: skipped })
-            : "";
-        setNotice(
-          imported === 1
-            ? m.data_imported_server_one({ count: imported, skipped: skippedNote })
-            : m.data_imported_server_other({ count: imported, skipped: skippedNote }),
-        );
-      } catch {
-        await reconcileUnknownOutcome();
-      } finally {
-        if (safeToResume) resumeWrites({ dropParkedEdits: committed });
-      }
+      const transaction: ImportTransaction = { committed: false, requiresReload: false };
+      await runServerImport(incoming, { accountId, transaction, setRequiresReload, setNotice });
+      if (!transaction.requiresReload) setBusy(false);
     } catch (error) {
       setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
-    } finally {
-      if (!keepBlockedUntilReload) setBusy(false);
+      setBusy(false);
     }
   };
 

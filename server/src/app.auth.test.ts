@@ -40,10 +40,152 @@ const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequest
   app.inject(opts) as unknown as Promise<LightMyRequestResponse>;
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
+function headerValues(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value;
+  if (value === undefined) return [];
+  return [value];
+}
+
 function cookiesOf(res: LightMyRequestResponse): string {
   const raw = res.headers["set-cookie"];
-  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
-  return list.map((c) => String(c).split(";")[0]).join("; ");
+  return headerValues(raw)
+    .map((c) => String(c).split(";")[0])
+    .join("; ");
+}
+
+function parseJsonObject(res: LightMyRequestResponse): object {
+  const value: unknown = JSON.parse(res.body);
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Expected response body to be a JSON object.");
+  }
+  return value;
+}
+
+function parseNeedsSetup(res: LightMyRequestResponse): boolean {
+  const value = parseJsonObject(res);
+  if (!("needsSetup" in value) || typeof value.needsSetup !== "boolean") {
+    throw new Error("Expected response body to include a boolean needsSetup.");
+  }
+  return value.needsSetup;
+}
+
+function hasNeedsSetup(res: LightMyRequestResponse): boolean {
+  return "needsSetup" in parseJsonObject(res);
+}
+
+function parseErrorCode(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("code" in value) || typeof value.code !== "string") {
+    throw new Error("Expected response body to include a string error code.");
+  }
+  return value.code;
+}
+
+function parseAuthUser(value: object) {
+  if (
+    !("email" in value) ||
+    typeof value.email !== "string" ||
+    !("emailVerified" in value) ||
+    typeof value.emailVerified !== "boolean"
+  ) {
+    throw new Error("Expected a valid authenticated user.");
+  }
+  return { email: value.email, emailVerified: value.emailVerified };
+}
+
+function parseAuthUserResponse(res: LightMyRequestResponse) {
+  const value = parseJsonObject(res);
+  if (!("user" in value) || typeof value.user !== "object" || value.user === null || Array.isArray(value.user)) {
+    throw new Error("Expected response body to include a user.");
+  }
+  return parseAuthUser(value.user);
+}
+
+function parseResponseAuthMode(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("authMode" in value) || typeof value.authMode !== "string") {
+    throw new Error("Expected response body to include an authentication mode.");
+  }
+  return value.authMode;
+}
+
+function parseAuthMeResponse(res: LightMyRequestResponse) {
+  const value = parseJsonObject(res);
+  if (!("authMode" in value) || typeof value.authMode !== "string") {
+    throw new Error("Expected authenticated response body to include authMode.");
+  }
+  if (!("mfaRequired" in value) || typeof value.mfaRequired !== "boolean") {
+    throw new Error("Expected authenticated response body to include mfaRequired.");
+  }
+  if (!("user" in value) || typeof value.user !== "object" || value.user === null || Array.isArray(value.user)) {
+    throw new Error("Expected authenticated response body to include a user.");
+  }
+  return {
+    authMode: value.authMode,
+    mfaRequired: value.mfaRequired,
+    user: parseAuthUser(value.user),
+  };
+}
+
+function parseErrorMessage(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("error" in value) || typeof value.error !== "string") {
+    throw new Error("Expected response body to include a string error message.");
+  }
+  return value.error;
+}
+
+function parseResponseUrl(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("url" in value) || typeof value.url !== "string") {
+    throw new Error("Expected response body to include a string URL.");
+  }
+  return value.url;
+}
+
+function parseBackupCodes(res: LightMyRequestResponse): string[] {
+  const value = parseJsonObject(res);
+  if (!("backupCodes" in value) || !Array.isArray(value.backupCodes)) {
+    throw new Error("Expected response body to include backup codes.");
+  }
+  return Array.from(value.backupCodes, (code: unknown) => {
+    if (typeof code !== "string") throw new Error("Expected every backup code to be a string.");
+    return code;
+  });
+}
+
+function parseTotpSecret(res: LightMyRequestResponse): string {
+  const value = parseJsonObject(res);
+  if (!("totpURI" in value) || typeof value.totpURI !== "string") {
+    throw new Error("Expected response body to include a TOTP URI.");
+  }
+  const secret = new URL(value.totpURI).searchParams.get("secret");
+  if (secret === null) throw new Error("Expected TOTP URI to include a secret.");
+  return secret;
+}
+
+function parseCreatedUserId(value: unknown): string {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Expected the created user to contain only a string id.");
+  }
+  const keys = Object.keys(value);
+  if (keys.length !== 1 || keys[0] !== "id" || !("id" in value) || typeof value.id !== "string") {
+    throw new Error("Expected the created user to contain only a string id.");
+  }
+  return value.id;
+}
+
+function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
+  if (auth === null) throw new Error("Expected authentication to be configured.");
+  return auth;
+}
+
+function parseFederatedLink(auth: ReturnType<typeof createAuthFromEnvironment>["auth"]) {
+  const configuredAuth = parseConfiguredAuth(auth);
+  if (configuredAuth.beginFederatedLink === undefined) {
+    throw new Error("Expected federated account linking to be configured.");
+  }
+  return configuredAuth.beginFederatedLink;
 }
 
 function totpCode(secret: string, at = Date.now()): string {
@@ -86,14 +228,206 @@ const SSO_ENV = {
   CAPACITYLENS_SSO_ISSUER: "https://idp.test",
 };
 
+const SETUP_TOKEN = "unit-test-owner-setup-token-0123456789abcdef";
+/** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
+const CLOSED_SIGNUP_ENV: Record<string, string> = {
+  ...PASSWORD_ENV,
+  CAPACITYLENS_SETUP_TOKEN: SETUP_TOKEN,
+};
+delete CLOSED_SIGNUP_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
+
+const signUpWithSetupToken = (app: FastifyInstance, email = "late@capacitylens.dev") =>
+  call(app, {
+    method: "POST",
+    url: "/api/auth/sign-up/email",
+    headers: { "x-capacitylens-setup-token": SETUP_TOKEN },
+    payload: { email, password: "password-123456", name: "Late" },
+  });
+
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, env);
-  await runAuthMigrations(auth!);
+  await runAuthMigrations(parseConfiguredAuth(auth));
   return createApp(db, { authMode: mode, auth });
 }
 
-describe("CAPACITYLENS_AUTH off (default)", () => {
+async function createSessionManagementFixture() {
+  const db = openDb(":memory:");
+  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+  await runAuthMigrations(parseConfiguredAuth(configured.auth));
+  const app = createApp(db, {
+    authMode: configured.mode,
+    auth: configured.auth,
+  });
+  const signUp = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-up/email",
+    payload: {
+      email: "sessions@capacitylens.dev",
+      password: "password-123456",
+      name: "Sessions",
+    },
+  });
+  const raw = db.prepare(`SELECT id, token, userId FROM session`).get() as {
+    id: string;
+    token: string;
+    userId: string;
+  };
+  const staleToken = "stale-session-bearer-token";
+  const staleHandle = buildApplicationSessionHandle("capacitylens", staleToken);
+  db.prepare(
+    `
+      INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
+      VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
+    `,
+  ).run(
+    "stale-session-row",
+    "2026-01-01T12:00:00.000Z",
+    staleToken,
+    "2026-01-01T00:00:00.000Z",
+    "2026-01-01T00:00:00.000Z",
+    raw.userId,
+  );
+  db.prepare(
+    `
+      INSERT INTO account_session_assurance (sessionId, principalId, assurance, providerId, createdAt)
+      VALUES (?, ?, 'password', NULL, ?)
+    `,
+  ).run(staleHandle, raw.userId, "2026-01-01T00:00:00.000Z");
+  return { app, cookie: cookiesOf(signUp), db, raw, staleHandle };
+}
+
+function createLifecycleRaceFixture(next: string | null) {
+  const raw = openDb(":memory:");
+  raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
+  const now = Date.parse("2026-07-31T09:00:00.000Z");
+  const expired = new Date(now - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1_000).toISOString();
+  const token = "lifecycle-reread";
+  raw.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, expired);
+  const deletions = { count: 0 };
+  const raced = new Proxy(raw, {
+    get(target, property) {
+      if (property === "exec") {
+        return (sql: string) => {
+          if (sql === "BEGIN IMMEDIATE") {
+            // Another connection's update is visible by the time the writer reservation is acquired.
+            if (next === null) target.prepare(`DELETE FROM session WHERE token = ?`).run(token);
+            else target.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(next, token);
+          }
+          return target.exec(sql);
+        };
+      }
+      if (property === "prepare") {
+        return (sql: string) => {
+          const statement = target.prepare(sql);
+          if (sql === "DELETE FROM session WHERE token = ?") {
+            return new Proxy(statement, {
+              get(statementTarget, statementProperty) {
+                if (statementProperty === "run") {
+                  return (sessionToken: string) => {
+                    deletions.count += 1;
+                    return statementTarget.run(sessionToken);
+                  };
+                }
+                const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
+                return typeof value === "function" ? value.bind(statementTarget) : value;
+              },
+            });
+          }
+          return statement;
+        };
+      }
+      const value = Reflect.get(target, property, target) as unknown;
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  return { deletions, expired, now, raced, raw, token };
+}
+
+async function createRequiredMfaFixture() {
+  const db = openDb(":memory:");
+  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+  await runAuthMigrations(parseConfiguredAuth(configured.auth));
+  const app = createApp(db, {
+    authMode: configured.mode,
+    auth: configured.auth,
+    requireMfa: true,
+  });
+  const email = "mfa-user@capacitylens.dev";
+  const password = "password-123456";
+  const signup = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-up/email",
+    payload: { email, password, name: "MFA User" },
+  });
+  expect(signup.statusCode).toBe(200);
+  const signupCookie = cookiesOf(signup);
+  const blocked = await call(app, {
+    method: "GET",
+    url: "/api/accounts",
+    headers: { cookie: signupCookie },
+  });
+  expect(blocked.statusCode).toBe(403);
+  expect(parseErrorCode(blocked)).toBe("MFA_ENROLLMENT_REQUIRED");
+  const before = await call(app, {
+    method: "GET",
+    url: "/api/auth/me",
+    headers: { cookie: signupCookie },
+  });
+  expect(before.statusCode).toBe(200);
+  expect(before.json()).toMatchObject({
+    mfaRequired: true,
+    user: { twoFactorEnabled: false },
+  });
+  return { app, email, password, signupCookie };
+}
+
+async function completeRequiredMfaEnrollment(options: {
+  app: FastifyInstance;
+  password: string;
+  signupCookie: string;
+}) {
+  const enabled = await call(options.app, {
+    method: "POST",
+    url: "/api/auth/two-factor/enable",
+    headers: { cookie: options.signupCookie },
+    payload: { password: options.password },
+  });
+  expect(enabled.statusCode).toBe(200);
+  expect(parseBackupCodes(enabled)).toHaveLength(10);
+  const secret = parseTotpSecret(enabled);
+  expect(secret).toBeTruthy();
+  const verified = await call(options.app, {
+    method: "POST",
+    url: "/api/auth/two-factor/verify-totp",
+    headers: { cookie: options.signupCookie },
+    payload: { code: totpCode(secret), trustDevice: false },
+  });
+  expect(verified.statusCode).toBe(200);
+  const enrolledCookie = cookiesOf(verified);
+  const after = await call(options.app, {
+    method: "GET",
+    url: "/api/auth/me",
+    headers: { cookie: enrolledCookie },
+  });
+  expect(after.statusCode).toBe(200);
+  expect(after.json()).toMatchObject({
+    mfaRequired: false,
+    user: { twoFactorEnabled: true },
+  });
+  expect(
+    (
+      await call(options.app, {
+        method: "GET",
+        url: "/api/accounts",
+        headers: { cookie: enrolledCookie },
+      })
+    ).statusCode,
+  ).toBe(200);
+  return { enrolledCookie, secret };
+}
+
+function registerAuthOffSurfaceTests(): void {
   it("reports the demo identity from /api/auth/me and gates nothing", async () => {
     const app = createApp(openDb(":memory:"));
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
@@ -108,7 +442,7 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       canCreateAccount: true,
     });
     // P1.7a: off is trusted-local, so the demo principal is verified with a clearly-local email.
-    expect(me.json().user).toMatchObject({
+    expect(parseAuthUserResponse(me)).toMatchObject({
       email: "demo@capacitylens.local",
       emailVerified: true,
     });
@@ -132,7 +466,9 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
     });
     expect(signUp.statusCode).toBe(404);
   });
+}
 
+function registerAuthOffCommandIdentityTests(): void {
   it("rejects malformed caller-supplied command headers instead of silently replacing them", async () => {
     const app = createApp(openDb(":memory:"));
     const res = await call(app, {
@@ -145,10 +481,8 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       payload: { name: "Studio" },
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json()).toMatchObject({
-      code: "VALIDATION_FAILED",
-      error: expect.stringMatching(/independently generated.*unguessable/i),
-    });
+    expect(parseErrorCode(res)).toBe("VALIDATION_FAILED");
+    expect(parseErrorMessage(res)).toMatch(/independently generated.*unguessable/i);
   });
 
   it("generates independent command and idempotency identities for compatibility callers", async () => {
@@ -165,7 +499,9 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       .get() as { commandId: string; idempotencyKey: string };
     expect(recorded.commandId).not.toBe(recorded.idempotencyKey);
   });
+}
 
+function registerAuthOffCommandStatusTests(): void {
   it("exposes command status only when both reconciliation bearers and operation match", async () => {
     const db = openDb(":memory:");
     const commandId = "command-000000000001";
@@ -216,7 +552,9 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       ).statusCode,
     ).toBe(404);
   });
+}
 
+function registerAuthOffRepairRedactionTests(): void {
   it("redacts operator repair coordinates from the public command-status ceremony", async () => {
     const db = openDb(":memory:");
     const commandId = "command-000000000002";
@@ -265,7 +603,9 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
     });
     expect(response.body).not.toMatch(/workspace-secret|principal-target|principal-provisional|ceremony-secret/);
   });
+}
 
+function registerAuthOffCorruptRepairTests(): void {
   it("returns a generic 500 and logs only the command coordinate for corrupt repair metadata", async () => {
     const db = openDb(":memory:");
     const commandId = "command-000000000003";
@@ -319,6 +659,14 @@ describe("CAPACITYLENS_AUTH off (default)", () => {
       logged.mockRestore();
     }
   });
+}
+
+describe("CAPACITYLENS_AUTH off (default)", () => {
+  registerAuthOffSurfaceTests();
+  registerAuthOffCommandIdentityTests();
+  registerAuthOffCommandStatusTests();
+  registerAuthOffRepairRedactionTests();
+  registerAuthOffCorruptRepairTests();
 });
 
 describe("authentication request authority", () => {
@@ -397,7 +745,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect((await call(app, { method: "GET", url: "/api/health" })).statusCode).toBe(200);
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(me.statusCode).toBe(401);
-    expect(me.json().authMode).toBe("password"); // the login screen needs the mode
+    expect(parseResponseAuthMode(me)).toBe("password"); // the login screen needs the mode
   });
 
   it("allowlists the Better Auth proxy surface so unclassified account mutations stay closed", async () => {
@@ -428,7 +776,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("refuses to relink a principal who already has the strict provider", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -452,7 +800,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(409);
-    expect(response.json().code).toBe("PROVIDER_ALREADY_LINKED");
+    expect(parseErrorCode(response)).toBe("PROVIDER_ALREADY_LINKED");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
@@ -480,7 +828,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       },
     }) as Db;
     const configured = createAuthFromEnvironment(observed, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(observed, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -499,16 +847,16 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(409);
-    expect(response.json().code).toBe("MULTIPLE_PROVIDER_LINKS");
+    expect(parseErrorCode(response)).toBe("MULTIPLE_PROVIDER_LINKS");
     expect(raw.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
   it("guards provider-link initiation when no strict provider exists or the session principal does not match", async () => {
     const passwordDb = openDb(":memory:");
     const password = createAuthFromEnvironment(passwordDb, PASSWORD_ENV);
-    await runAuthMigrations(password.auth!);
+    await runAuthMigrations(parseConfiguredAuth(password.auth));
     await expect(
-      password.auth!.beginFederatedLink!({
+      parseFederatedLink(password.auth)({
         headers: new Headers(),
         principalId: "principal-1",
         callbackURL: "http://localhost:8787/settings",
@@ -518,9 +866,9 @@ describe("CAPACITYLENS_AUTH password", () => {
 
     const strictDb = openDb(":memory:");
     const strict = createAuthFromEnvironment(strictDb, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(strict.auth!);
+    await runAuthMigrations(parseConfiguredAuth(strict.auth));
     await expect(
-      strict.auth!.beginFederatedLink!({
+      parseFederatedLink(strict.auth)({
         headers: new Headers(),
         principalId: "different-principal",
         callbackURL: "http://localhost:8787/settings",
@@ -533,7 +881,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("rejects an untrusted link return URL before persisting a ceremony", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -552,7 +900,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json().code).toBe("INVALID_CALLBACK_URL");
+    expect(parseErrorCode(response)).toBe("INVALID_CALLBACK_URL");
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
   });
 
@@ -561,7 +909,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     async (callbackURL) => {
       const db = openDb(":memory:");
       const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-      await runAuthMigrations(configured.auth!);
+      await runAuthMigrations(parseConfiguredAuth(configured.auth));
       const app = createApp(db, { authMode: "password", auth: configured.auth });
       const signUp = await call(app, {
         method: "POST",
@@ -580,7 +928,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       });
 
       expect(response.statusCode).toBe(400);
-      expect(response.json().code).toBe("INVALID_CALLBACK_URL");
+      expect(parseErrorCode(response)).toBe("INVALID_CALLBACK_URL");
       expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([]);
     },
   );
@@ -588,7 +936,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("forwards the signed OAuth state cookie when a provider-link ceremony starts", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -607,7 +955,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().url).toContain("/api/auth/oidc/authorize/sso");
+    expect(parseResponseUrl(response)).toContain("/api/auth/oidc/authorize/sso");
     expect(response.headers["set-cookie"]).toBeDefined();
     expect(cookiesOf(response)).toMatch(/state=/);
     expect(db.prepare(`SELECT principalId, providerId FROM capacitylens_federated_link_ceremonies`).all()).toHaveLength(
@@ -618,7 +966,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("does not expose SSO email repair on an ordinary password-only installation", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
@@ -652,7 +1000,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(response.json().error).toMatch(/no strict OIDC provider/i);
+    expect(parseErrorMessage(response)).toMatch(/no strict OIDC provider/i);
     expect(db.prepare(`SELECT email FROM user WHERE id = ?`).get(principalId)).toEqual({
       email: "owner@example.com",
     });
@@ -661,7 +1009,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("accepts federated assurance as MFA in mixed mode and advertises provider step-up", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const principalId = "federated-principal";
     db.prepare(
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
@@ -680,9 +1028,9 @@ describe("CAPACITYLENS_AUTH password", () => {
       now: TS,
     });
     const auth = {
-      ...configured.auth!,
+      ...parseConfiguredAuth(configured.auth),
       api: {
-        ...configured.auth!.api,
+        ...parseConfiguredAuth(configured.auth).api,
         getSession: vi.fn(async () => ({
           user: {
             id: principalId,
@@ -710,81 +1058,12 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 
   it("requires enrollment, verifies TOTP, and challenges every later password sign-in", async () => {
-    const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
-    const app = createApp(db, {
-      authMode: configured.mode,
-      auth: configured.auth,
-      requireMfa: true,
+    const { app, email, password, signupCookie } = await createRequiredMfaFixture();
+    const { enrolledCookie, secret } = await completeRequiredMfaEnrollment({
+      app,
+      password,
+      signupCookie,
     });
-    const email = "mfa-user@capacitylens.dev";
-    const password = "password-123456";
-
-    const signup = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-up/email",
-      payload: { email, password, name: "MFA User" },
-    });
-    expect(signup.statusCode).toBe(200);
-    const signupCookie = cookiesOf(signup);
-    const blocked = await call(app, {
-      method: "GET",
-      url: "/api/accounts",
-      headers: { cookie: signupCookie },
-    });
-    expect(blocked.statusCode).toBe(403);
-    expect(blocked.json().code).toBe("MFA_ENROLLMENT_REQUIRED");
-
-    const before = await call(app, {
-      method: "GET",
-      url: "/api/auth/me",
-      headers: { cookie: signupCookie },
-    });
-    expect(before.statusCode).toBe(200);
-    expect(before.json()).toMatchObject({
-      mfaRequired: true,
-      user: { twoFactorEnabled: false },
-    });
-
-    const enabled = await call(app, {
-      method: "POST",
-      url: "/api/auth/two-factor/enable",
-      headers: { cookie: signupCookie },
-      payload: { password },
-    });
-    expect(enabled.statusCode).toBe(200);
-    expect(enabled.json().backupCodes).toHaveLength(10);
-    const secret = new URL(enabled.json().totpURI as string).searchParams.get("secret");
-    expect(secret).toBeTruthy();
-
-    const verified = await call(app, {
-      method: "POST",
-      url: "/api/auth/two-factor/verify-totp",
-      headers: { cookie: signupCookie },
-      payload: { code: totpCode(secret!), trustDevice: false },
-    });
-    expect(verified.statusCode).toBe(200);
-    const enrolledCookie = cookiesOf(verified);
-    const after = await call(app, {
-      method: "GET",
-      url: "/api/auth/me",
-      headers: { cookie: enrolledCookie },
-    });
-    expect(after.statusCode).toBe(200);
-    expect(after.json()).toMatchObject({
-      mfaRequired: false,
-      user: { twoFactorEnabled: true },
-    });
-    expect(
-      (
-        await call(app, {
-          method: "GET",
-          url: "/api/accounts",
-          headers: { cookie: enrolledCookie },
-        })
-      ).statusCode,
-    ).toBe(200);
 
     expect(
       (
@@ -817,7 +1096,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       method: "POST",
       url: "/api/auth/two-factor/verify-totp",
       headers: { cookie: challengeCookie },
-      payload: { code: totpCode(secret!), trustDevice: false },
+      payload: { code: totpCode(secret), trustDevice: false },
     });
     expect(completed.statusCode).toBe(200);
     const finalCookie = cookiesOf(completed);
@@ -853,13 +1132,13 @@ describe("CAPACITYLENS_AUTH password", () => {
       headers: { cookie },
     });
     expect(me.statusCode).toBe(200);
-    expect(me.json().authMode).toBe("password");
-    expect(me.json().user.email).toBe("tester@capacitylens.dev");
-    expect(me.json().mfaRequired).toBe(false);
+    expect(parseAuthMeResponse(me).authMode).toBe("password");
+    expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
+    expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
     // P1.7a: emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
     // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
     // is present and defaults correctly (the P1.10 invite-bind gate depends on it).
-    expect(me.json().user.emailVerified).toBe(false);
+    expect(parseAuthMeResponse(me).user.emailVerified).toBe(false);
 
     // The GENERIC account create is CLOSED auth-on (403 → POST /api/orgs): the bare row write never
     // minted a membership, so it could only produce orphan accounts — /api/orgs is the atomic path.
@@ -871,7 +1150,7 @@ describe("CAPACITYLENS_AUTH password", () => {
       headers: { cookie },
     });
     expect(write.statusCode).toBe(403);
-    expect(write.json().error).toContain("/api/orgs");
+    expect(parseErrorMessage(write)).toContain("/api/orgs");
     // P1.13: the no-arg whole read is CLOSED in auth-on (tenant isolation — the P1.4 carry-forward).
     // A logged-in user must hydrate PER ACCOUNT via ?accountId=, so the bare GET /api/state now 400s.
     const noArg = await call(app, {
@@ -907,7 +1186,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     });
     expect(signUp.statusCode).toBe(200);
     const raw = signUp.headers["set-cookie"];
-    const cookies = (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String);
+    const cookies = headerValues(raw).map(String);
     const session = cookies.find((cookie) => cookie.startsWith("__Host-capacitylens.session_token="));
     expect(session).toBeDefined();
     expect(session).toMatch(/;\s*Path=\//i);
@@ -924,7 +1203,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     async (_label, env) => {
       const db = openDb(":memory:");
       const configured = createAuthFromEnvironment(db, env);
-      await runAuthMigrations(configured.auth!);
+      await runAuthMigrations(parseConfiguredAuth(configured.auth));
       const app = createApp(db, {
         authMode: configured.mode,
         auth: configured.auth,
@@ -975,7 +1254,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("expires a session whose activity timestamp is in the future", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, {
       authMode: configured.mode,
       auth: configured.auth,
@@ -1057,49 +1336,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     { caseName: "preparation failure", next: "not-a-timestamp", preparationFails: true },
     { caseName: "a missing transaction reread", next: null, preparationFails: false },
   ])("preserves lifecycle expiry semantics for $caseName", async ({ next, preparationFails }) => {
-    const raw = openDb(":memory:");
-    raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
-    const now = Date.parse("2026-07-31T09:00:00.000Z");
-    const expired = new Date(now - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1_000).toISOString();
-    const token = "lifecycle-reread";
-    raw.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, expired);
-    let deletes = 0;
-    const raced = new Proxy(raw, {
-      get(target, property) {
-        if (property === "exec") {
-          return (sql: string) => {
-            if (sql === "BEGIN IMMEDIATE") {
-              // Another connection's update is visible by the time the writer reservation is acquired.
-              if (next === null) target.prepare(`DELETE FROM session WHERE token = ?`).run(token);
-              else target.prepare(`UPDATE session SET updatedAt = ? WHERE token = ?`).run(next, token);
-            }
-            return target.exec(sql);
-          };
-        }
-        if (property === "prepare") {
-          return (sql: string) => {
-            const statement = target.prepare(sql);
-            if (sql === "DELETE FROM session WHERE token = ?") {
-              return new Proxy(statement, {
-                get(statementTarget, statementProperty) {
-                  if (statementProperty === "run") {
-                    return (sessionToken: string) => {
-                      deletes += 1;
-                      return statementTarget.run(sessionToken);
-                    };
-                  }
-                  const value = Reflect.get(statementTarget, statementProperty, statementTarget) as unknown;
-                  return typeof value === "function" ? value.bind(statementTarget) : value;
-                },
-              });
-            }
-            return statement;
-          };
-        }
-        const value = Reflect.get(target, property, target) as unknown;
-        return typeof value === "function" ? value.bind(target) : value;
-      },
-    });
+    const { deletions, expired, now, raced, raw, token } = createLifecycleRaceFixture(next);
     const failure = new Error("Lifecycle preparation failed.");
     const handles = ["expired-session-handle"];
     const prepare = vi.fn((sessionToken: string, reason: "session_expired") => {
@@ -1122,7 +1359,7 @@ describe("CAPACITYLENS_AUTH password", () => {
         await expect(result).rejects.toBe(failure);
         expect(prepare).toHaveBeenCalledOnce();
         expect(commit).not.toHaveBeenCalled();
-        expect(deletes).toBe(0);
+        expect(deletions.count).toBe(0);
         expect(raw.isTransaction).toBe(false);
         expect(raw.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token)).toEqual({ updatedAt: next });
       } else if (next === "2026-07-31T09:00:00.000Z") {
@@ -1130,12 +1367,12 @@ describe("CAPACITYLENS_AUTH password", () => {
         expect(session.session.updatedAt.getTime()).toBe(now);
         expect(prepare).not.toHaveBeenCalled();
         expect(commit).not.toHaveBeenCalled();
-        expect(deletes).toBe(0);
+        expect(deletions.count).toBe(0);
         expect(raw.prepare(`SELECT updatedAt FROM session WHERE token = ?`).get(token)).toEqual({ updatedAt: next });
       } else {
         await expect(result).resolves.toBeNull();
         expect(prepare).toHaveBeenCalledTimes(next === null ? 0 : 1);
-        expect(deletes).toBe(next === null ? 0 : 1);
+        expect(deletions.count).toBe(next === null ? 0 : 1);
         expect(commit).toHaveBeenCalledExactlyOnceWith(next === null ? [] : handles);
         expect(raw.prepare(`SELECT token FROM session`).all()).toEqual([]);
       }
@@ -1148,7 +1385,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("touches active sessions without extending their absolute expiry", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, {
       authMode: configured.mode,
       auth: configured.auth,
@@ -1189,7 +1426,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("does not delete a session touched after an expired request resolved its stale snapshot", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
     await call(app, {
       method: "POST",
@@ -1210,7 +1447,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   it("does not move a concurrent newer session touch backward", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
     await call(app, {
       method: "POST",
@@ -1310,6 +1547,32 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(db.prepare(`SELECT token FROM session`).all()).toEqual([]);
   });
 
+  it("revokes dependent sessions when malformed activity is deleted during a touch", async () => {
+    const db = openDb(":memory:");
+    const token = "touch-invalid-lifecycle";
+    db.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
+    db.prepare(`INSERT INTO session (token, updatedAt) VALUES (?, ?)`).run(token, "not-a-timestamp");
+    const prepare = vi.fn((sessionToken: string, reason: "session_expired") => {
+      expect(db.isTransaction).toBe(true);
+      expect(db.prepare(`SELECT token FROM session WHERE token = ?`).get(token)).toEqual({ token });
+      expect(sessionToken).toBe(token);
+      expect(reason).toBe("session_expired");
+      return ["dependent-session"];
+    });
+    const commit = vi.fn((sessionHandles: readonly string[]) => {
+      expect(db.isTransaction).toBe(false);
+      expect(db.prepare(`SELECT token FROM session WHERE token = ?`).get(token)).toBeUndefined();
+      expect(sessionHandles).toEqual(["dependent-session"]);
+    });
+    const stale = Date.now() - 2 * 60 * 1_000;
+
+    await expect(
+      enforceSessionActivity({ session: { token, updatedAt: new Date(stale) } }, db, { prepare, commit }),
+    ).resolves.toBeNull();
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(commit).toHaveBeenCalledOnce();
+  });
+
   it("adopts the winner when the activity-touch CAS loses", async () => {
     const raw = openDb(":memory:");
     raw.exec(`CREATE TABLE session (token TEXT PRIMARY KEY, updatedAt date)`);
@@ -1379,49 +1642,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 
   it("lists and revokes sessions through neutral opaque handles without exposing bearer tokens", async () => {
-    const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
-    await runAuthMigrations(configured.auth!);
-    const app = createApp(db, {
-      authMode: configured.mode,
-      auth: configured.auth,
-    });
-    const signUp = await call(app, {
-      method: "POST",
-      url: "/api/auth/sign-up/email",
-      payload: {
-        email: "sessions@capacitylens.dev",
-        password: "password-123456",
-        name: "Sessions",
-      },
-    });
-    const cookie = cookiesOf(signUp);
-    const raw = db.prepare(`SELECT id, token, userId FROM session`).get() as {
-      id: string;
-      token: string;
-      userId: string;
-    };
-    const staleToken = "stale-session-bearer-token";
-    const staleHandle = buildApplicationSessionHandle("capacitylens", staleToken);
-    db.prepare(
-      `
-      INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
-      VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
-    `,
-    ).run(
-      "stale-session-row",
-      "2026-01-01T12:00:00.000Z",
-      staleToken,
-      "2026-01-01T00:00:00.000Z",
-      "2026-01-01T00:00:00.000Z",
-      raw.userId,
-    );
-    db.prepare(
-      `
-      INSERT INTO account_session_assurance (sessionId, principalId, assurance, providerId, createdAt)
-      VALUES (?, ?, 'password', NULL, ?)
-    `,
-    ).run(staleHandle, raw.userId, "2026-01-01T00:00:00.000Z");
+    const { app, cookie, db, raw, staleHandle } = await createSessionManagementFixture();
 
     const listed = await call(app, {
       method: "GET",
@@ -1431,16 +1652,18 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(listed.statusCode).toBe(200);
     const { sessions } = listed.json() as { sessions: Array<{ id: string; current: boolean }> };
     expect(sessions).toHaveLength(1);
-    expect(sessions[0]).toMatchObject({ current: true });
-    expect(sessions[0]!.id).not.toBe(raw.id);
-    expect(sessions[0]!.id).toBe(buildApplicationSessionHandle("capacitylens", raw.token));
+    const session = sessions[0];
+    if (session === undefined) throw new Error("Expected the current session to be listed.");
+    expect(session).toMatchObject({ current: true });
+    expect(session.id).not.toBe(raw.id);
+    expect(session.id).toBe(buildApplicationSessionHandle("capacitylens", raw.token));
     expect(JSON.stringify(sessions)).not.toContain(raw.token);
     expect(db.prepare(`SELECT 1 FROM session WHERE id = 'stale-session-row'`).get()).toBeUndefined();
     expect(db.prepare(`SELECT 1 FROM account_session_assurance WHERE sessionId = ?`).get(staleHandle)).toBeUndefined();
 
     const revoked = await call(app, {
       method: "DELETE",
-      url: `/api/account/sessions/${sessions[0]!.id}`,
+      url: `/api/account/sessions/${session.id}`,
       headers: {
         cookie,
         "idempotency-key": "session-idempotency-0001",
@@ -1491,7 +1714,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH sso", () => {
+function registerSsoClosedRouteTests(): void {
   it("keeps password mutation and invitation password signup closed", async () => {
     const app = await appWithAuth(SSO_ENV);
     expect(
@@ -1526,7 +1749,9 @@ describe("CAPACITYLENS_AUTH sso", () => {
       ).statusCode,
     ).toBe(404);
   });
+}
 
+function registerSsoRedirectTests(): void {
   it("discovers strict OIDC and issues a stateful PKCE redirect", async () => {
     const originalFetch = globalThis.fetch;
     vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
@@ -1577,6 +1802,11 @@ describe("CAPACITYLENS_AUTH sso", () => {
       vi.stubGlobal("fetch", originalFetch);
     }
   });
+}
+
+describe("CAPACITYLENS_AUTH sso", () => {
+  registerSsoClosedRouteTests();
+  registerSsoRedirectTests();
 });
 
 // P1.7 — native social providers wired from env. Assert against the resolved betterAuth
@@ -1595,7 +1825,7 @@ describe("social providers (P1.7)", () => {
 
   it("inits all three (Google/Microsoft/GitHub) from env without throwing", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), SOCIAL_ENV);
-    const social = auth!.options.socialProviders ?? {};
+    const social = parseConfiguredAuth(auth).options.socialProviders ?? {};
     expect(Object.keys(social).sort()).toEqual(["github", "google", "microsoft"]);
     expect(social.google).toMatchObject({
       clientId: "google-id",
@@ -1618,7 +1848,7 @@ describe("social providers (P1.7)", () => {
       ...SOCIAL_ENV,
       CAPACITYLENS_MICROSOFT_TENANT_ID: "tenant-123",
     });
-    expect(auth!.options.socialProviders?.microsoft).toMatchObject({
+    expect(parseConfiguredAuth(auth).options.socialProviders?.microsoft).toMatchObject({
       tenantId: "tenant-123",
     });
   });
@@ -1634,7 +1864,7 @@ describe("social providers (P1.7)", () => {
 
   it("is empty (no providers) when no social env is set", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
-    expect(Object.keys(auth!.options.socialProviders ?? {})).toEqual([]);
+    expect(Object.keys(parseConfiguredAuth(auth).options.socialProviders ?? {})).toEqual([]);
   });
 });
 
@@ -1642,41 +1872,25 @@ describe("social providers (P1.7)", () => {
 // bootstrap exception is an empty user table plus the operator's setup token; the gate is enforced
 // live per request, so it closes on the very next request after the first identity. The explicit
 // CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 escape still re-opens registration unconditionally.
-describe("closed self-registration (P1.7) + first-run bootstrap", () => {
-  const SETUP_TOKEN = "unit-test-owner-setup-token-0123456789abcdef";
-  /** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
-  const CLOSED_ENV: Record<string, string> = {
-    ...PASSWORD_ENV,
-    CAPACITYLENS_SETUP_TOKEN: SETUP_TOKEN,
-  };
-  delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
-
-  const signUp = (app: FastifyInstance, email = "late@capacitylens.dev") =>
-    call(app, {
-      method: "POST",
-      url: "/api/auth/sign-up/email",
-      headers: { "x-capacitylens-setup-token": SETUP_TOKEN },
-      payload: { email, password: "password-123456", name: "Late" },
-    });
-
+function registerClosedSignupLifecycleTests(): void {
   it("allows the first sign-up only with the operator setup token, then closes live", async () => {
-    const app = await appWithAuth(CLOSED_ENV);
-    const first = await signUp(app, "owner@capacitylens.dev");
+    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
+    const first = await signUpWithSetupToken(app, "owner@capacitylens.dev");
     expect(first.statusCode).toBe(200);
     expect(cookiesOf(first)).toContain("capacitylens.session_token");
     // The gate is per REQUEST, not per boot: the very next sign-up on the SAME running app must
     // be refused now that one user exists — Better Auth's unchanged 400
     // EMAIL_PASSWORD_SIGN_UP_DISABLED shape (a boot-time boolean would stay open until restart).
-    const second = await signUp(app, "late@capacitylens.dev");
+    const second = await signUpWithSetupToken(app, "late@capacitylens.dev");
     expect(second.statusCode).toBe(400);
     expect(cookiesOf(second)).not.toContain("capacitylens.session_token");
   });
 
   it("serializes concurrent first-owner sign-ups so exactly one identity is created", async () => {
-    const app = await appWithAuth(CLOSED_ENV);
+    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
     const results = await Promise.all([
-      signUp(app, "owner-one@capacitylens.dev"),
-      signUp(app, "owner-two@capacitylens.dev"),
+      signUpWithSetupToken(app, "owner-one@capacitylens.dev"),
+      signUpWithSetupToken(app, "owner-two@capacitylens.dev"),
     ]);
     expect(results.filter((res) => res.statusCode === 200)).toHaveLength(1);
     expect(results.filter((res) => res.statusCode !== 200)).toHaveLength(1);
@@ -1684,20 +1898,22 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
 
   it("releases the bootstrap claim after success so erasing the sole identity reopens setup", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, CLOSED_ENV);
-    await runAuthMigrations(auth!);
+    const { mode, auth } = createAuthFromEnvironment(db, CLOSED_SIGNUP_ENV);
+    await runAuthMigrations(parseConfiguredAuth(auth));
     const app = createApp(db, { authMode: mode, auth });
-    expect((await signUp(app, "first-owner@capacitylens.dev")).statusCode).toBe(200);
+    expect((await signUpWithSetupToken(app, "first-owner@capacitylens.dev")).statusCode).toBe(200);
     expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0);
 
     db.exec(`DELETE FROM session; DELETE FROM account; DELETE FROM user;`);
-    expect((await signUp(app, "replacement-owner@capacitylens.dev")).statusCode).toBe(200);
+    expect((await signUpWithSetupToken(app, "replacement-owner@capacitylens.dev")).statusCode).toBe(200);
   });
+}
 
+function registerClosedSignupRejectionTests(): void {
   it("releases the bootstrap claim when first-owner password policy rejects the endpoint", async () => {
     const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, CLOSED_ENV);
-    await runAuthMigrations(auth!);
+    const { mode, auth } = createAuthFromEnvironment(db, CLOSED_SIGNUP_ENV);
+    await runAuthMigrations(parseConfiguredAuth(auth));
     const app = createApp(db, { authMode: mode, auth });
 
     const rejected = await call(app, {
@@ -1714,11 +1930,11 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
     expect(rejected.json()).toMatchObject({ code: "PASSWORD_CONTEXT_REJECTED" });
     expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0);
 
-    expect((await signUp(app, "replacement-owner@capacitylens.dev")).statusCode).toBe(200);
+    expect((await signUpWithSetupToken(app, "replacement-owner@capacitylens.dev")).statusCode).toBe(200);
   });
 
   it("refuses a network visitor who lacks the fresh-instance setup token", async () => {
-    const app = await appWithAuth(CLOSED_ENV);
+    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
     const missing = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -1742,25 +1958,27 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
     expect(wrong.statusCode).toBe(400);
     expect(cookiesOf(missing)).not.toContain("capacitylens.session_token");
   });
+}
 
+function registerOpenSignupEscapeTests(): void {
   it("allows sign-up with users already present only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1", async () => {
     const app = await appWithAuth({
-      ...CLOSED_ENV,
+      ...CLOSED_SIGNUP_ENV,
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
     });
     // First user consumes the bootstrap exception; the second still succeeds because the flag
     // re-opens sign-up unconditionally.
-    expect((await signUp(app, "first@capacitylens.dev")).statusCode).toBe(200);
-    const res = await signUp(app);
+    expect((await signUpWithSetupToken(app, "first@capacitylens.dev")).statusCode).toBe(200);
+    const res = await signUpWithSetupToken(app);
     expect(res.statusCode).toBe(200);
     expect(cookiesOf(res)).toContain("capacitylens.session_token");
   });
 
   it("open email signup validation failures leave the external bootstrap-claim table empty", async () => {
-    const env = { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1" };
+    const env = { ...CLOSED_SIGNUP_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1" };
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(db, env);
-    await runAuthMigrations(auth!);
+    await runAuthMigrations(parseConfiguredAuth(auth));
     const app = createApp(db, { authMode: mode, auth });
     const invalid = await call(app, {
       method: "POST",
@@ -1775,55 +1993,61 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
     expect(invalid.statusCode).toBeLessThan(500);
     expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0);
   });
+}
 
+function registerClosedSignupStatusTests(): void {
   it("keeps the library flag OFF — the live hook owns the gate (disableSignUp stays false)", () => {
     // Better Auth 1.6.23 enforces disableSignUp even for server-side auth.api.signUpEmail
     // (sign-up.mjs:143), so the static flag must stay false in BOTH postures — the closed
     // behaviour above comes from hooks.before, never from this option.
     const open = createAuthFromEnvironment(openDb(":memory:"), {
-      ...CLOSED_ENV,
+      ...CLOSED_SIGNUP_ENV,
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
     });
-    const closed = createAuthFromEnvironment(openDb(":memory:"), CLOSED_ENV);
-    expect(open.auth!.options.emailAndPassword?.disableSignUp).toBe(false);
-    expect(closed.auth!.options.emailAndPassword?.disableSignUp).toBe(false);
+    const closed = createAuthFromEnvironment(openDb(":memory:"), CLOSED_SIGNUP_ENV);
+    expect(parseConfiguredAuth(open.auth).options.emailAndPassword?.disableSignUp).toBe(false);
+    expect(parseConfiguredAuth(closed.auth).options.emailAndPassword?.disableSignUp).toBe(false);
   });
 
   it("reports needsSetup on the /api/auth/me 401 at zero users, and drops it once a user exists", async () => {
-    const app = await appWithAuth(CLOSED_ENV);
+    const app = await appWithAuth(CLOSED_SIGNUP_ENV);
     // Zero users: the login screen must offer "Create the owner account" instead of a dead end.
     const before = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(before.statusCode).toBe(401);
-    expect(before.json().needsSetup).toBe(true);
+    expect(parseNeedsSetup(before)).toBe(true);
     // The 401 shape still excludes account facts (only authMode/error/needsSetup — no capFields).
-    expect(Object.keys(before.json()).sort()).toEqual(["authMode", "error", "needsSetup", "providers"]);
+    expect(Object.keys(parseJsonObject(before)).sort()).toEqual(["authMode", "error", "needsSetup", "providers"]);
     // One user later, the flag is GONE (absent, not false — the client fail-closes on absence).
-    expect((await signUp(app, "owner@capacitylens.dev")).statusCode).toBe(200);
+    expect((await signUpWithSetupToken(app, "owner@capacitylens.dev")).statusCode).toBe(200);
     const after = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(after.statusCode).toBe(401);
-    expect(after.json().needsSetup).toBeUndefined();
+    expect(hasNeedsSetup(after)).toBe(false);
   });
+}
+
+describe("closed self-registration (P1.7) + first-run bootstrap", () => {
+  registerClosedSignupLifecycleTests();
+  registerClosedSignupRejectionTests();
+  registerOpenSignupEscapeTests();
+  registerClosedSignupStatusTests();
 });
+
+const BOOTSTRAP_PASSWORD = "operator-managed-bootstrap-password";
+const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV };
+delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
+
+/** authFromEnv + migrations on a fresh in-memory DB, ready for createBootstrapAdmin. */
+async function bootstrapFixture(env: Record<string, string> = CLOSED_ENV) {
+  const db = openDb(":memory:");
+  const { mode, auth } = createAuthFromEnvironment(db, env);
+  await runAuthMigrations(parseConfiguredAuth(auth));
+  return { db, mode, auth };
+}
 
 // First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1):
 // createBootstrapAdmin creates admin@admin.admin with an operator-managed password on an EMPTY user
 // table, skips (one line, not an error) when users exist, and refuses outside password mode.
-describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
-  const BOOTSTRAP_PASSWORD = "operator-managed-bootstrap-password";
-  const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV };
-  delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
-
-  beforeEach(() => vi.stubEnv("CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD", BOOTSTRAP_PASSWORD));
-  afterEach(() => vi.unstubAllEnvs());
-
-  /** authFromEnv + migrations on a fresh in-memory DB, ready for createBootstrapAdmin. */
-  async function bootstrapFixture(env: Record<string, string> = CLOSED_ENV) {
-    const db = openDb(":memory:");
-    const { mode, auth } = createAuthFromEnvironment(db, env);
-    await runAuthMigrations(auth!);
-    return { db, mode, auth };
-  }
-
+function registerBootstrapCreationTests(): void {
   it("creates admin@admin.admin and confirms it without copying the operator password into logs", async () => {
     const { db, mode, auth } = await bootstrapFixture();
     const lines: string[] = [];
@@ -1840,7 +2064,7 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     await createBootstrapAdmin(db, mode, auth, () => {});
     // "Restart": a fresh instance on the SAME DB, bootstrap flag absent → floor back at the min.
     const restarted = createAuthFromEnvironment(db, CLOSED_ENV);
-    expect(restarted.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
+    expect(parseConfiguredAuth(restarted.auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
     const app = createApp(db, { authMode: restarted.mode, auth: restarted.auth });
     const signIn = await call(app, {
       method: "POST",
@@ -1870,7 +2094,9 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     });
     expect(signIn.statusCode).toBe(200);
   });
+}
 
+function registerBootstrapCredentialPolicyTests(): void {
   it("refuses to create an irretrievable generated credential when the operator password is absent", async () => {
     vi.stubEnv("CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD", "");
     const { db, mode, auth } = await bootstrapFixture();
@@ -1896,13 +2122,13 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     // password is created through a DIFFERENT path (auth.createCredentialUser(), bypassing the sign-up route
     // entirely — see createBootstrapAdmin) instead of lowering this option.
     const { auth } = await bootstrapFixture();
-    expect(auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
+    expect(parseConfiguredAuth(auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
     const seeded = await bootstrapFixture();
     await createBootstrapAdmin(seeded.db, seeded.mode, seeded.auth, () => {});
     const populated = createAuthFromEnvironment(seeded.db, CLOSED_ENV);
-    expect(populated.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
+    expect(parseConfiguredAuth(populated.auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
     const plain = createAuthFromEnvironment(openDb(":memory:"), CLOSED_ENV);
-    expect(plain.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
+    expect(parseConfiguredAuth(plain.auth).options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH);
   });
 
   it("REJECTS a 5-char sign-up password during a boot where the bootstrap just ran (the floor is never bent for anything else)", async () => {
@@ -1926,9 +2152,11 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
       },
     });
     expect(res.statusCode).toBe(400);
-    expect(res.json().code).toBe("PASSWORD_TOO_SHORT");
+    expect(parseErrorCode(res)).toBe("PASSWORD_TOO_SHORT");
   });
+}
 
+function registerBootstrapUnicodePolicyTests(): void {
   it("enforces sign-up bounds in Unicode code points rather than UTF-16 code units", async () => {
     const { db } = await bootstrapFixture();
     const open = createAuthFromEnvironment(db, {
@@ -1945,32 +2173,34 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
 
     const tooShort = await signUpWith("astral-short@capacitylens.dev", "🔐".repeat(14));
     expect(tooShort.statusCode).toBe(400);
-    expect(tooShort.json().code).toBe("PASSWORD_TOO_SHORT");
+    expect(parseErrorCode(tooShort)).toBe("PASSWORD_TOO_SHORT");
     expect((await signUpWith("astral-min@capacitylens.dev", "🔐".repeat(15))).statusCode).toBe(200);
     expect((await signUpWith("astral-max@capacitylens.dev", "🔐".repeat(128))).statusCode).toBe(200);
     const tooLong = await signUpWith("astral-long@capacitylens.dev", "🔐".repeat(129));
     expect(tooLong.statusCode).toBe(400);
-    expect(tooLong.json().code).toBe("PASSWORD_TOO_LONG");
+    expect(parseErrorCode(tooLong)).toBe("PASSWORD_TOO_LONG");
   });
 
   it("enforces the code-point policy on direct identity creation that bypasses HTTP routes", async () => {
     const { auth } = await bootstrapFixture();
+    if (auth === null) throw new Error("Expected password authentication to be configured.");
     await expect(
-      auth!.createCredentialUser({
+      auth.createCredentialUser({
         email: "direct-short@capacitylens.dev",
         name: "Direct Short",
         password: "🔐".repeat(14),
       }),
     ).rejects.toThrow(`at least ${MIN_PASSWORD_LENGTH} characters`);
-    await expect(
-      auth!.createCredentialUser({
-        email: "direct-max@capacitylens.dev",
-        name: "Direct Max",
-        password: "🔐".repeat(128),
-      }),
-    ).resolves.toEqual({ id: expect.any(String) });
+    const createdUser: unknown = await auth.createCredentialUser({
+      email: "direct-max@capacitylens.dev",
+      name: "Direct Max",
+      password: "🔐".repeat(128),
+    });
+    expect(parseCreatedUserId(createdUser)).toBeTypeOf("string");
   });
+}
 
+function registerBootstrapLifecycleTests(): void {
   it("skips with one line (not an error) when users already exist", async () => {
     const { db, mode, auth } = await bootstrapFixture();
     await createBootstrapAdmin(db, mode, auth, () => {});
@@ -2027,9 +2257,19 @@ describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
     expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe("created");
     expect(countUsers(db)).toBe(1);
   });
+}
+
+describe("first-run owner bootstrap (createBootstrapAdmin)", () => {
+  beforeEach(() => vi.stubEnv("CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD", BOOTSTRAP_PASSWORD));
+  afterEach(() => vi.unstubAllEnvs());
+
+  registerBootstrapCreationTests();
+  registerBootstrapCredentialPolicyTests();
+  registerBootstrapUnicodePolicyTests();
+  registerBootstrapLifecycleTests();
 });
 
-describe("boot refusal (AuthConfigError)", () => {
+function registerAuthModeRefusalTests(): void {
   it("rejects an unknown CAPACITYLENS_AUTH value; blank/unset means off", () => {
     expect(() => parseAuthMode("on")).toThrow(AuthConfigError);
     expect(parseAuthMode(undefined)).toBe("off");
@@ -2069,7 +2309,9 @@ describe("boot refusal (AuthConfigError)", () => {
     expect((thrown as Error).message).toContain(String(MIN_BETTER_AUTH_SECRET_LENGTH));
     expect((thrown as Error).message).not.toContain(tooShort);
   });
+}
 
+function registerCredentialAndDiscoveryConfigurationTests(): void {
   it("password mode with an exactly-32-char secret passes the length gate", () => {
     const db = openDb(":memory:");
     // PASSWORD_ENV has a valid URL; a 32-char secret must NOT trip the length check.
@@ -2102,7 +2344,9 @@ describe("boot refusal (AuthConfigError)", () => {
       }),
     ).toThrow(AuthConfigError);
   });
+}
 
+function registerOidcEndpointRefusalTests(): void {
   it("rejects explicit authorization or token endpoint overrides for strict OIDC", () => {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
@@ -2143,7 +2387,9 @@ describe("boot refusal (AuthConfigError)", () => {
       }),
     ).not.toThrow();
   });
+}
 
+function registerOidcProviderIdTests(): void {
   it("restricts provider ids to route-safe lowercase identifiers", () => {
     for (const providerId of ["UPPER", "../callback", "sso space", "-sso"]) {
       expect(() =>
@@ -2175,12 +2421,21 @@ describe("boot refusal (AuthConfigError)", () => {
       CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
     });
 
-    expect(configured.auth!.providers.map(({ id }) => id)).toEqual(["google", "company-sso"]);
-    expect(configured.auth!.federatedIssuers.get("google")).toBe("https://accounts.google.com");
-    expect(configured.auth!.federatedIssuers.get("company-sso")).toBe(SSO_ENV.CAPACITYLENS_SSO_ISSUER);
+    expect(parseConfiguredAuth(configured.auth).providers.map(({ id }) => id)).toEqual(["google", "company-sso"]);
+    expect(parseConfiguredAuth(configured.auth).federatedIssuers.get("google")).toBe("https://accounts.google.com");
+    expect(parseConfiguredAuth(configured.auth).federatedIssuers.get("company-sso")).toBe(
+      SSO_ENV.CAPACITYLENS_SSO_ISSUER,
+    );
   });
 
   it("buildApp refuses authMode ≠ off without an auth instance", () => {
     expect(() => createApp(openDb(":memory:"), { authMode: "password" })).toThrow(/requires a Better Auth instance/);
   });
+}
+
+describe("boot refusal (AuthConfigError)", () => {
+  registerAuthModeRefusalTests();
+  registerCredentialAndDiscoveryConfigurationTests();
+  registerOidcEndpointRefusalTests();
+  registerOidcProviderIdTests();
 });

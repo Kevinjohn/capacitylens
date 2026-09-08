@@ -64,14 +64,14 @@ describe("OWASP password storage profile", () => {
     } catch (error) {
       expect(error).toMatchObject({
         code: "PASSWORD_CONTEXT_REJECTED",
-        message: expect.stringMatching(/product name/i),
       });
+      expect(error).toHaveProperty("message", expect.stringMatching(/product name/i));
     }
     expect(() => assertNoContextSpecificPassword("correct horse battery staple")).not.toThrow();
   });
 });
 
-describe("breached-password range check", () => {
+function registerAbandonedQueuedLookupTest(): void {
   it("withdraws an abandoned queued lookup before admitting the next live request", async () => {
     const releases: Array<() => void> = [];
     let invocations = 0;
@@ -102,8 +102,8 @@ describe("breached-password range check", () => {
     controller.abort(new Error("request gone"));
     await expect(abandoned).rejects.toMatchObject({
       code: "PASSWORD_CHECK_UNAVAILABLE",
-      cause: expect.objectContaining({ message: "request gone" }),
     });
+    await expect(abandoned).rejects.toHaveProperty("cause", expect.objectContaining({ message: "request gone" }));
     releases.splice(0).forEach((release) => release());
     await vi.waitFor(() => expect(invocations).toBe(MAX_CONCURRENT_HIBP + 1));
     releases.splice(0).forEach((release) => release());
@@ -111,7 +111,9 @@ describe("breached-password range check", () => {
     await expect(Promise.all([...active, useful])).resolves.toEqual(Array(MAX_CONCURRENT_HIBP + 1).fill(undefined));
     expect(invocations).toBe(MAX_CONCURRENT_HIBP + 1);
   });
+}
 
+function registerMatchingSuffixTest(): void {
   it("rejects a matching suffix without sending the password or full digest", async () => {
     let requested = "";
     let init: RequestInit | undefined;
@@ -129,7 +131,9 @@ describe("breached-password range check", () => {
     expect(new URL(requested).pathname).not.toContain("1E4C9B93");
     expect(init?.redirect).toBe("error");
   });
+}
 
+function registerUnavailableServiceTest(): void {
   it("accepts a missing suffix and fails closed when the service is unavailable", async () => {
     const clean = (async () => new Response("AAAA:1", { status: 200 })) as typeof fetch;
     await expect(assertPasswordNotBreached("not-in-the-response", clean)).resolves.toBeUndefined();
@@ -138,7 +142,9 @@ describe("breached-password range check", () => {
     }) as typeof fetch;
     await expect(assertPasswordNotBreached("anything", down)).rejects.toThrow(/temporarily unavailable/i);
   });
+}
 
+function registerOversizedResponseTest(): void {
   it("fails closed before reading an oversized service response", async () => {
     const oversized = (async () =>
       new Response("ignored", {
@@ -147,7 +153,9 @@ describe("breached-password range check", () => {
       })) as typeof fetch;
     await expect(assertPasswordNotBreached("anything", oversized)).rejects.toThrow(/response was invalid/i);
   });
+}
 
+function registerHeldBodyTest(): void {
   it("holds each queue slot until its bounded response body finishes", async () => {
     let fetcherInvocations = 0;
     const releaseBodies: Array<() => void> = [];
@@ -177,8 +185,8 @@ describe("breached-password range check", () => {
     );
     await expect(overflow).rejects.toMatchObject({
       code: "PASSWORD_CHECK_UNAVAILABLE",
-      cause: expect.any(WorkQueueFullError),
     });
+    await expect(overflow).rejects.toHaveProperty("cause", expect.any(WorkQueueFullError));
     expect(reportSaturation).toHaveBeenCalledOnce();
     expect(reportSaturation).toHaveBeenCalledWith("hibp", "full");
     expect(fetcherInvocations).toBe(MAX_CONCURRENT_HIBP);
@@ -194,4 +202,12 @@ describe("breached-password range check", () => {
     releaseBodies.splice(0).forEach((release) => release());
     await expect(Promise.all(attempts)).resolves.toEqual(Array(MAX_CONCURRENT_HIBP + MAX_QUEUED_HIBP).fill(undefined));
   });
+}
+
+describe("breached-password range check", () => {
+  registerAbandonedQueuedLookupTest();
+  registerMatchingSuffixTest();
+  registerUnavailableServiceTest();
+  registerOversizedResponseTest();
+  registerHeldBodyTest();
 });

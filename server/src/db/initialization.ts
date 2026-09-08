@@ -6,9 +6,7 @@ import { createStatementCache } from "./statementCache";
  *  mirroring the web app's "storage key present" semantics, where the two diverged. */
 export function markInitialized(db: Db): void {
   const cache = createStatementCache(db);
-  if (!cache.markInitialized) {
-    cache.markInitialized = db.prepare(`INSERT OR IGNORE INTO _meta (key, value) VALUES ('initialized', '1')`);
-  }
+  cache.markInitialized ??= db.prepare(`INSERT OR IGNORE INTO _meta (key, value) VALUES ('initialized', '1')`);
   cache.markInitialized.run();
 }
 

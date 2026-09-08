@@ -6,25 +6,7 @@ import { RequiredFieldLabel } from "./fieldLayout";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
 
-export function TextField({
-  label,
-  value,
-  onChange,
-  placeholder,
-  description,
-  autoFocus,
-  invalid,
-  required,
-  describedById,
-  disabled,
-  maxLength = MAX_NAME_INPUT_CODE_UNITS,
-  type = "text",
-  autoComplete,
-  minLength,
-  ariaLabel,
-  testId,
-  layout = "stacked",
-}: {
+type TextFieldProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -43,10 +25,40 @@ export function TextField({
   testId?: string;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
-}) {
-  const id = useId();
-  const descriptionId = useId();
-  const input = (
+};
+
+function resolveBooleanAttribute(value: boolean | undefined): true | undefined {
+  return value ? true : undefined;
+}
+
+function resolveNonEmptyAttribute(value: string): string | undefined {
+  return value === "" ? undefined : value;
+}
+
+function TextFieldControl({
+  value,
+  onChange,
+  placeholder,
+  description,
+  autoFocus,
+  invalid,
+  required,
+  describedById,
+  disabled,
+  maxLength = MAX_NAME_INPUT_CODE_UNITS,
+  type = "text",
+  autoComplete,
+  minLength,
+  ariaLabel,
+  testId,
+  id,
+  descriptionId,
+}: TextFieldProps & { id: string; descriptionId: string }) {
+  const ariaDescribedBy = resolveNonEmptyAttribute(
+    [description ? descriptionId : undefined, invalid ? describedById : undefined].filter(Boolean).join(" "),
+  );
+
+  return (
     <Input
       id={id}
       type={type}
@@ -62,19 +74,24 @@ export function TextField({
       disabled={disabled}
       aria-label={ariaLabel}
       data-testid={testId}
-      aria-required={required || undefined}
-      aria-invalid={invalid || undefined}
-      aria-describedby={
-        [description ? descriptionId : undefined, invalid ? describedById : undefined].filter(Boolean).join(" ") ||
-        undefined
-      }
+      aria-required={resolveBooleanAttribute(required)}
+      aria-invalid={resolveBooleanAttribute(invalid)}
+      aria-describedby={ariaDescribedBy}
       onChange={(e) => onChange(e.target.value)}
     />
   );
+}
+
+export function TextField(props: TextFieldProps) {
+  const { label, description, invalid, required, disabled, layout = "stacked" } = props;
+  const id = useId();
+  const descriptionId = useId();
+  const input = <TextFieldControl {...props} id={id} descriptionId={descriptionId} />;
+
   return (
     <Field
-      data-invalid={invalid || undefined}
-      data-disabled={disabled || undefined}
+      data-invalid={resolveBooleanAttribute(invalid)}
+      data-disabled={resolveBooleanAttribute(disabled)}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
@@ -119,8 +136,8 @@ export function NumberField({
   const id = useId();
   return (
     <Field
-      data-invalid={invalid || undefined}
-      data-disabled={disabled || undefined}
+      data-invalid={resolveBooleanAttribute(invalid)}
+      data-disabled={resolveBooleanAttribute(disabled)}
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
@@ -132,8 +149,8 @@ export function NumberField({
         max={max}
         step={step}
         disabled={disabled}
-        aria-required={required || undefined}
-        aria-invalid={invalid || undefined}
+        aria-required={resolveBooleanAttribute(required)}
+        aria-invalid={resolveBooleanAttribute(invalid)}
         aria-describedby={invalid ? describedById : undefined}
         // For <input type="number"> the browser reports `value` as EITHER a valid numeric string
         // OR "" — it sanitises away part-typed junk ("1.", "-", "1e"), so Number(value) is a finite
@@ -182,14 +199,14 @@ export function DateField({
 }) {
   const id = useId();
   return (
-    <Field data-invalid={invalid || undefined} {...buildProductFieldLayoutProps(layout)}>
+    <Field data-invalid={resolveBooleanAttribute(invalid)} {...buildProductFieldLayoutProps(layout)}>
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
       <Input
         id={id}
         type="date"
         value={value}
-        aria-required={required || undefined}
-        aria-invalid={invalid || undefined}
+        aria-required={resolveBooleanAttribute(required)}
+        aria-invalid={resolveBooleanAttribute(invalid)}
         aria-describedby={invalid ? describedById : undefined}
         min={min}
         max={max}

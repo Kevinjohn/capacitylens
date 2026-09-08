@@ -52,12 +52,24 @@ const data: AppData = {
   ],
 };
 
+function assertDefined<T>(value: T | undefined, label: string): T {
+  if (value === undefined) {
+    throw new Error(`Expected ${label} to exist`);
+  }
+  return value;
+}
+
 describe("lookup + relation selectors", () => {
   it("by-id selectors find entities (and return undefined for misses)", () => {
-    expect(clientById(data, "c1")!.name).toBe("Acme");
-    expect(projectById(data, "p1")!.name).toBe("P1");
-    expect(activityById(data, "t1")!.name).toBe("T1");
-    expect(resourceById(data, "r1")!.name).toBe("A");
+    const client = assertDefined(clientById(data, "c1"), "client c1");
+    const project = assertDefined(projectById(data, "p1"), "project p1");
+    const activity = assertDefined(activityById(data, "t1"), "activity t1");
+    const resource = assertDefined(resourceById(data, "r1"), "resource r1");
+
+    expect(client.name).toBe("Acme");
+    expect(project.name).toBe("P1");
+    expect(activity.name).toBe("T1");
+    expect(resource.name).toBe("A");
     expect(clientById(data, "nope")).toBeUndefined();
   });
 

@@ -15,11 +15,16 @@ import { assertValidWrite } from "./validate";
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = { createdAt: TS, updatedAt: TS };
 
-function relationshipFixture(): AppData {
+function makeRelationshipDirectory(): Pick<AppData, "accounts" | "clients" | "disciplines"> {
   return {
     accounts: [{ id: "a1", name: "Studio", color: "#5c34d4", ...meta }],
     clients: [{ id: "c1", accountId: "a1", name: "Client", color: "#5c34d4", ...meta }],
     disciplines: [{ id: "d1", accountId: "a1", name: "Design", sortOrder: 0, ...meta }],
+  };
+}
+
+function makeRelationshipPlan(): Pick<AppData, "projects" | "phases" | "resources"> {
+  return {
     projects: [
       {
         id: "p1",
@@ -48,6 +53,11 @@ function relationshipFixture(): AppData {
         ...meta,
       },
     ],
+  };
+}
+
+function makeRelationshipSchedule(): Pick<AppData, "activities" | "allocations" | "timeOff" | "closures"> {
+  return {
     activities: [
       {
         id: "act1",
@@ -106,12 +116,20 @@ function relationshipFixture(): AppData {
   };
 }
 
+function relationshipFixture(): AppData {
+  return {
+    ...makeRelationshipDirectory(),
+    ...makeRelationshipPlan(),
+    ...makeRelationshipSchedule(),
+  };
+}
+
 const canonical = (data: AppData): AppData =>
   Object.fromEntries(
     APP_DATA_KEYS.map((table) => [table, [...data[table]].sort((left, right) => left.id.localeCompare(right.id))]),
   ) as unknown as AppData;
 
-describe("BatchStateProjection", () => {
+function registerCascadeProjectionTests(): void {
   it.each([
     ["accounts", "a1", (data: AppData) => deleteAccountCascade(data, "a1")],
     ["clients", "c1", (data: AppData) => deleteClientCascade(data, "c1", TS)],
@@ -128,7 +146,9 @@ describe("BatchStateProjection", () => {
 
     expect(canonical(projection.data)).toEqual(canonical(expected(initial)));
   });
+}
 
+function registerBatchBoundaryTests(): void {
   it("updates and deletes the supported 5,000-row boundary without per-op array rebuilding", () => {
     const data = emptyAppData();
     data.allocations = Array.from({ length: 5_000 }, (_, index) => ({
@@ -166,7 +186,9 @@ describe("BatchStateProjection", () => {
     expect(map).not.toHaveBeenCalled();
     expect(filter).not.toHaveBeenCalled();
   });
+}
 
+function registerIndexedValidationTests(): void {
   it("validates 5,000 client updates through indexes without rescanning the tenant table", () => {
     const data = emptyAppData();
     data.clients = Array.from({ length: 5_000 }, (_, index) => ({
@@ -188,7 +210,8 @@ describe("BatchStateProjection", () => {
       const id = `client-${index}`;
       const existing = projection.row("clients", id);
       expect(existing).toBeDefined();
-      const updated = { ...existing!, name: `Updated ${index}` };
+      if (!existing) throw new Error(`Expected indexed client ${id}.`);
+      const updated = { ...existing, name: `Updated ${index}` };
       assertValidWrite({ state: projection.data, table: "clients", row: updated, existing, lookup: projection });
       projection.upsert("clients", updated);
     }
@@ -197,7 +220,9 @@ describe("BatchStateProjection", () => {
     expect(some).not.toHaveBeenCalled();
     expect(projection.row("clients", "client-4999")?.name).toBe("Updated 4999");
   });
+}
 
+function registerRelationshipProjectionTests(): void {
   it("reparents projects before replacing the generated Internal client", () => {
     const data = relationshipFixture();
     const client = data.clients[0];
@@ -219,14 +244,18 @@ describe("BatchStateProjection", () => {
     expect(projection.data.clients.map((client) => client.id)).toEqual(["imported-internal"]);
     expect(projection.data.projects[0]?.clientId).toBe("imported-internal");
   });
+}
 
+function registerCorruptionDetectionTests(): void {
   it("surfaces a corrupted index when its indexed collection is empty", () => {
     const projection = new BatchStateProjection(relationshipFixture());
     projection.data.clients.length = 0;
 
     expect(() => projection.delete("clients", "c1")).toThrow("Missing indexed clients row c1.");
   });
+}
 
+function registerReverseLookupTests(): void {
   it("keeps reverse allocation lookups current across resource and activity edits", () => {
     const projection = new BatchStateProjection(relationshipFixture());
 
@@ -242,7 +271,9 @@ describe("BatchStateProjection", () => {
     expect(projection.allocationsForActivity("a1", "act1")).toEqual([]);
     expect(projection.allocationsForActivity("a1", "act2").map((row) => row.id)).toEqual(["al2", "al1"]);
   });
+}
 
+function registerAttributionProjectionTests(): void {
   it("mirrors allocation attribution revisions produced by the database sweep", () => {
     const projection = new BatchStateProjection(relationshipFixture());
 
@@ -255,4 +286,14 @@ describe("BatchStateProjection", () => {
     });
     expect(projection.row("allocations", "al2")).not.toHaveProperty("projectId");
   });
+}
+
+describe("BatchStateProjection", () => {
+  registerCascadeProjectionTests();
+  registerBatchBoundaryTests();
+  registerIndexedValidationTests();
+  registerRelationshipProjectionTests();
+  registerCorruptionDetectionTests();
+  registerReverseLookupTests();
+  registerAttributionProjectionTests();
 });

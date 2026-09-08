@@ -52,19 +52,7 @@ function listRepairableLinks(member: ReadinessMember): ReadinessRepairLink[] {
   return REPAIRABLE_REASONS.has(member.reason) ? member.repairLinks : [];
 }
 
-/** Render the current workspace's strict-OIDC readiness and mixed-mode repair controls. */
-export function SsoReadinessPanel({
-  authMode,
-  readiness,
-  busy,
-  emailRepair,
-  setEmailRepair,
-  error,
-  errorField,
-  errorId,
-  onCorrectEmail,
-  onRemoveLink,
-}: {
+interface SsoReadinessPanelProps {
   authMode: AccountMode;
   readiness: WorkspaceReadiness;
   busy: boolean;
@@ -75,104 +63,189 @@ export function SsoReadinessPanel({
   errorId: string;
   onCorrectEmail(): void;
   onRemoveLink(member: ReadinessMember, link: ReadinessRepairLink): void;
+}
+
+type RepairControlsProps = Pick<
+  SsoReadinessPanelProps,
+  "busy" | "emailRepair" | "setEmailRepair" | "errorField" | "errorId" | "onCorrectEmail"
+> & { member: ReadinessMember; memberName: string; mayRepair: boolean };
+
+function EmailRepairControl({
+  busy,
+  emailRepair,
+  setEmailRepair,
+  member,
+  memberName,
+  mayRepair,
+  errorField,
+  errorId,
+  onCorrectEmail,
+}: RepairControlsProps) {
+  if (!mayRepair || !member.blocking) return null;
+  const editingEmail = emailRepair?.member.principalId === member.principalId;
+  if (!editingEmail) {
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        data-testid="sso-correct-email"
+        onClick={() => setEmailRepair({ member, email: member.email ?? "" })}
+      >
+        {m.settings_sso_correct_email()}
+      </Button>
+    );
+  }
+  return (
+    <>
+      <div className="min-w-48 flex-1">
+        <TextField
+          testId="sso-correct-email-input"
+          label={m.settings_sso_correct_email_label({ member: memberName })}
+          type="email"
+          value={emailRepair.email}
+          maxLength={MAX_EMAIL_LENGTH}
+          onChange={(email) => setEmailRepair({ member, email })}
+          disabled={busy}
+          invalid={errorField === "sso-email"}
+          describedById={errorId}
+        />
+      </div>
+      <Button size="sm" data-testid="sso-correct-email-save" disabled={busy} onClick={onCorrectEmail}>
+        {m.settings_sso_correct_email_save()}
+      </Button>
+      <Button size="sm" variant="outline" onClick={() => setEmailRepair(null)}>
+        {m.form_cancel()}
+      </Button>
+    </>
+  );
+}
+
+function MemberRepairControls({
+  onRemoveLink,
+  ...props
+}: RepairControlsProps & {
+  onRemoveLink(member: ReadinessMember, link: ReadinessRepairLink): void;
 }) {
+  if (props.member.reason === "principal_missing") return null;
+  if (!props.member.blocking && !props.member.linked) return null;
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <EmailRepairControl {...props} />
+      {props.mayRepair &&
+        listRepairableLinks(props.member).map((link) => (
+          <Button
+            key={link.rowId}
+            size="sm"
+            variant="danger-soft"
+            data-testid="sso-remove-link"
+            onClick={() => onRemoveLink(props.member, link)}
+          >
+            {m.settings_sso_remove_link_provider({ provider: link.providerId })}
+          </Button>
+        ))}
+    </div>
+  );
+}
+
+interface MemberStatus {
+  badgeVariant: "danger" | "warn" | "secondary";
+  criticalLabel: string;
+  rowClass: string;
+}
+
+function resolveMemberStatus(member: ReadinessMember): MemberStatus {
+  // "Critical AND blocking" is the one state drawn in danger red: a critical issue that no
+  // longer blocks the cutover is history, not an alarm.
+  if (member.critical && member.blocking) {
+    return {
+      badgeVariant: "danger",
+      criticalLabel: ` · ${m.settings_sso_critical()}`,
+      rowClass: "border border-danger/40 bg-danger/5",
+    };
+  }
+  if (member.blocking) {
+    return { badgeVariant: "warn", criticalLabel: "", rowClass: "bg-canvas" };
+  }
+  return { badgeVariant: "secondary", criticalLabel: "", rowClass: "bg-canvas" };
+}
+
+function ReadinessMemberRow({
+  member,
+  error,
+  ...props
+}: RepairControlsProps & {
+  error: string | null;
+  onRemoveLink(member: ReadinessMember, link: ReadinessRepairLink): void;
+}) {
+  const status = resolveMemberStatus(member);
+  const editingEmail = props.emailRepair?.member.principalId === member.principalId;
+  return (
+    <li className={`flex flex-col gap-2 rounded p-2 text-xs ${status.rowClass}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>
+          {props.memberName} ({member.role}){status.criticalLabel}
+        </span>
+        <Badge variant={status.badgeVariant}>{resolveReadinessReasonLabel(member)}</Badge>
+      </div>
+      <MemberRepairControls member={member} {...props} />
+      {editingEmail && <FieldError id={props.errorId}>{props.errorField === "sso-email" ? error : null}</FieldError>}
+    </li>
+  );
+}
+
+interface PanelStatus {
+  badgeVariant: "warn" | "secondary";
+  label: string;
+  message: string;
+}
+
+function resolvePanelStatus(ready: boolean): PanelStatus {
+  if (ready) {
+    return {
+      badgeVariant: "secondary",
+      label: m.settings_sso_member_connected(),
+      message: m.settings_sso_readiness_ready(),
+    };
+  }
+  return {
+    badgeVariant: "warn",
+    label: m.settings_sso_member_not_connected(),
+    message: m.settings_sso_readiness_blocked(),
+  };
+}
+
+/** Render the current workspace's strict-OIDC readiness and mixed-mode repair controls. */
+export function SsoReadinessPanel({ authMode, readiness, ...props }: SsoReadinessPanelProps) {
   // Repairs are a PASSWORD-mode affordance: once the workspace is on strict SSO the identity is the
   // IdP's to correct, not ours, so neither the email fix nor the unlink button is offered.
   const mayRepair = authMode === "password";
+  const status = resolvePanelStatus(readiness.ready);
+  const issues = [
+    ...readiness.globalIssues,
+    ...readiness.issues.filter((issue) => WORKSPACE_ISSUE_REASONS.has(issue.reason)),
+  ];
   return (
     <section className="flex flex-col gap-2 rounded-md border p-3" data-testid="sso-readiness">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium text-ink">{m.settings_sso_readiness_heading()}</h3>
-        <Badge variant={readiness.ready ? "secondary" : "warn"}>
-          {readiness.ready ? m.settings_sso_member_connected() : m.settings_sso_member_not_connected()}
-        </Badge>
+        <Badge variant={status.badgeVariant}>{status.label}</Badge>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {readiness.ready ? m.settings_sso_readiness_ready() : m.settings_sso_readiness_blocked()}
-      </p>
+      <p className="text-xs text-muted-foreground">{status.message}</p>
       <p className="text-xs text-muted-foreground">
         {m.settings_sso_readiness_provider({ provider: readiness.provider.label })}
       </p>
       <ul className="flex flex-col gap-1">
-        {readiness.members.map((member) => {
-          const memberName = resolveReadinessMemberLabel(member);
-          const editingEmail = emailRepair?.member.principalId === member.principalId;
-          const repairLinks = listRepairableLinks(member);
-          // "Critical AND blocking" is the one state drawn in danger red: a critical issue that no
-          // longer blocks the cutover is history, not an alarm.
-          const criticalBlocking = member.critical && member.blocking;
-          return (
-            <li
-              key={member.principalId}
-              className={`flex flex-col gap-2 rounded p-2 text-xs ${
-                criticalBlocking ? "border border-danger/40 bg-danger/5" : "bg-canvas"
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span>
-                  {memberName} ({member.role}){criticalBlocking ? ` · ${m.settings_sso_critical()}` : ""}
-                </span>
-                <Badge variant={criticalBlocking ? "danger" : member.blocking ? "warn" : "secondary"}>
-                  {resolveReadinessReasonLabel(member)}
-                </Badge>
-              </div>
-              {member.reason !== "principal_missing" && (member.blocking || member.linked) && (
-                <div className="flex flex-wrap items-end gap-2">
-                  {mayRepair && member.blocking && editingEmail ? (
-                    <>
-                      <div className="min-w-48 flex-1">
-                        <TextField
-                          testId="sso-correct-email-input"
-                          label={m.settings_sso_correct_email_label({ member: memberName })}
-                          type="email"
-                          value={emailRepair.email}
-                          maxLength={MAX_EMAIL_LENGTH}
-                          onChange={(email) => setEmailRepair({ member, email })}
-                          disabled={busy}
-                          invalid={errorField === "sso-email"}
-                          describedById={errorId}
-                        />
-                      </div>
-                      <Button size="sm" data-testid="sso-correct-email-save" disabled={busy} onClick={onCorrectEmail}>
-                        {m.settings_sso_correct_email_save()}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEmailRepair(null)}>
-                        {m.form_cancel()}
-                      </Button>
-                    </>
-                  ) : mayRepair && member.blocking ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      data-testid="sso-correct-email"
-                      onClick={() => setEmailRepair({ member, email: member.email ?? "" })}
-                    >
-                      {m.settings_sso_correct_email()}
-                    </Button>
-                  ) : null}
-                  {mayRepair &&
-                    repairLinks.map((link) => (
-                      <Button
-                        key={link.rowId}
-                        size="sm"
-                        variant="danger-soft"
-                        data-testid="sso-remove-link"
-                        onClick={() => onRemoveLink(member, link)}
-                      >
-                        {m.settings_sso_remove_link_provider({ provider: link.providerId })}
-                      </Button>
-                    ))}
-                </div>
-              )}
-              {editingEmail && <FieldError id={errorId}>{errorField === "sso-email" ? error : null}</FieldError>}
-            </li>
-          );
-        })}
+        {readiness.members.map((member) => (
+          <ReadinessMemberRow
+            key={member.principalId}
+            member={member}
+            memberName={resolveReadinessMemberLabel(member)}
+            mayRepair={mayRepair}
+            {...props}
+          />
+        ))}
         {/* Installation-wide issues first, then this workspace's own — one row shape for both. */}
-        {[
-          ...readiness.globalIssues,
-          ...readiness.issues.filter((issue) => WORKSPACE_ISSUE_REASONS.has(issue.reason)),
-        ].map((issue) => (
+        {issues.map((issue) => (
           <li
             key={`${issue.reason}:${issue.workspaceId ?? "global"}:${issue.principalId ?? "all"}`}
             className={issue.critical ? "text-xs font-medium text-danger" : "text-xs text-danger"}

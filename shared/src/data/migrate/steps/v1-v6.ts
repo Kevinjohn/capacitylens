@@ -1,18 +1,28 @@
 import { availableInternalClientId, buildInternalClient } from "../../internalClient";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object";
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
 // v1 → v2: early resources carried a boolean `isFreelancer`; convert it to the
 // richer `employmentType` enum.
 export function migrateV1toV2(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.resources)) return data;
-  const resources = data.resources.map((r) => {
-    if (!r || typeof r !== "object") return r;
-    const rec = r as Record<string, unknown>;
-    if ("isFreelancer" in rec && rec.employmentType === undefined) {
-      const next: Record<string, unknown> = { ...rec, employmentType: rec.isFreelancer ? "freelancer" : "permanent" };
-      delete next.isFreelancer;
-      return next;
+  if (!isUnknownArray(data.resources)) return data;
+  const resources = data.resources.map((resource) => {
+    if (!isRecord(resource)) return resource;
+    if ("isFreelancer" in resource && resource.employmentType === undefined) {
+      const migratedResource: Record<string, unknown> = {
+        ...resource,
+        employmentType: resource.isFreelancer ? "freelancer" : "permanent",
+      };
+      delete migratedResource.isFreelancer;
+      return migratedResource;
     }
-    return rec;
+    return resource;
   });
   return { ...data, resources };
 }
@@ -24,15 +34,17 @@ export function migrateV1toV2(data: Record<string, unknown>): Record<string, unk
 // Versionless/partially migrated blobs may already use `activities`, or even carry both keys, so
 // backfill every present table before the v4→v5 merge.
 export function migrateV3toV4(data: Record<string, unknown>): Record<string, unknown> {
-  const backfill = (rows: unknown[]): unknown[] =>
-    rows.map((t) => {
-      if (!t || typeof t !== "object") return t;
-      const rec = t as Record<string, unknown>;
-      if (rec.kind !== undefined) return rec; // already v4 (or hand-set) — leave it
-      return { ...rec, kind: rec.projectId !== undefined && rec.projectId !== null ? "project" : "repeatable" };
+  const applyKindBackfill = (rows: unknown[]): unknown[] =>
+    rows.map((activity) => {
+      if (!isRecord(activity)) return activity;
+      if (activity.kind !== undefined) return activity; // already v4 (or hand-set) — leave it
+      return {
+        ...activity,
+        kind: activity.projectId !== undefined && activity.projectId !== null ? "project" : "repeatable",
+      };
     });
-  const tasks = Array.isArray(data.tasks) ? backfill(data.tasks) : undefined;
-  const activities = Array.isArray(data.activities) ? backfill(data.activities) : undefined;
+  const tasks = isUnknownArray(data.tasks) ? applyKindBackfill(data.tasks) : undefined;
+  const activities = isUnknownArray(data.activities) ? applyKindBackfill(data.activities) : undefined;
   if (!tasks && !activities) return data;
   return {
     ...data,
@@ -48,42 +60,40 @@ export function migrateV3toV4(data: Record<string, unknown>): Record<string, unk
 // through untouched. An in-progress blob carrying BOTH keys keeps every distinct row while
 // preferring the modern activity when the same valid id appears in both tables.
 export function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
-  const next: Record<string, unknown> = { ...data };
+  const migratedData: Record<string, unknown> = { ...data };
   // Rename/merge the table: `tasks` → `activities`. Modern rows come first and own id
   // conflicts; malformed/missing ids are retained for the import sanitiser to repair later.
-  if (Array.isArray(next.tasks)) {
-    if (!Array.isArray(next.activities)) {
-      next.activities = next.tasks;
+  if (isUnknownArray(migratedData.tasks)) {
+    if (!isUnknownArray(migratedData.activities)) {
+      migratedData.activities = migratedData.tasks;
     } else {
       const modernIds = new Set(
-        next.activities.flatMap((activity) => {
-          if (!activity || typeof activity !== "object") return [];
-          const id = (activity as Record<string, unknown>).id;
+        migratedData.activities.flatMap((activity) => {
+          if (!isRecord(activity)) return [];
+          const id = activity.id;
           return typeof id === "string" && id.length > 0 ? [id] : [];
         }),
       );
-      const legacyOnly = next.tasks.filter((task) => {
-        if (!task || typeof task !== "object") return true;
-        const id = (task as Record<string, unknown>).id;
+      const legacyOnly = migratedData.tasks.filter((task) => {
+        if (!isRecord(task)) return true;
+        const id = task.id;
         return typeof id !== "string" || id.length === 0 || !modernIds.has(id);
       });
-      next.activities = [...next.activities, ...legacyOnly];
+      migratedData.activities = [...migratedData.activities, ...legacyOnly];
     }
   }
-  delete next.tasks;
+  delete migratedData.tasks;
   // Rename the FK on every allocation: `taskId` → `activityId`.
-  if (Array.isArray(next.allocations)) {
-    next.allocations = next.allocations.map((a) => {
-      if (!a || typeof a !== "object") return a;
-      const rec = a as Record<string, unknown>;
-      if (!("taskId" in rec)) return rec;
-      const renamed: Record<string, unknown> = { ...rec };
-      if (!("activityId" in renamed)) renamed.activityId = renamed.taskId;
-      delete renamed.taskId;
-      return renamed;
+  if (isUnknownArray(migratedData.allocations)) {
+    migratedData.allocations = migratedData.allocations.map((allocation) => {
+      if (!isRecord(allocation) || !("taskId" in allocation)) return allocation;
+      const migratedAllocation: Record<string, unknown> = { ...allocation };
+      if (!("activityId" in migratedAllocation)) migratedAllocation.activityId = migratedAllocation.taskId;
+      delete migratedAllocation.taskId;
+      return migratedAllocation;
     });
   }
-  return next;
+  return migratedData;
 }
 
 // v5 → v6: ensure EVERY account carries exactly one built-in "Internal" client (`builtin: true`).
@@ -101,34 +111,29 @@ export function migrateV4toV5(data: Record<string, unknown>): Record<string, unk
 // directly. The row SHAPE + the "match builtin by flag + accountId" predicate are kept in lockstep by
 // using the shared `buildInternalClient` factory for the row literal.
 export function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
-  if (!Array.isArray(data.accounts) || data.accounts.length === 0) return data;
-  const clients = Array.isArray(data.clients) ? [...data.clients] : [];
+  if (!isUnknownArray(data.accounts) || data.accounts.length === 0) return data;
+  const clients = isUnknownArray(data.clients) ? [...data.clients] : [];
   const accountsWithBuiltin = new Set(
     clients.flatMap((client) => {
-      if (!client || typeof client !== "object") return [];
-      const rec = client as Record<string, unknown>;
-      return rec.builtin === true && typeof rec.accountId === "string" ? [rec.accountId] : [];
+      if (!isRecord(client)) return [];
+      return client.builtin === true && typeof client.accountId === "string" ? [client.accountId] : [];
     }),
   );
   // Migrated rows are newly created here; a fixed timestamp keeps the migration deterministic.
-  const now = "2026-01-01T00:00:00.000Z";
-  const usedIds = new Set(
-    clients.flatMap((client) =>
-      client && typeof client === "object" && typeof (client as Record<string, unknown>).id === "string"
-        ? [(client as Record<string, unknown>).id as string]
-        : [],
-    ),
+  const createdAt = "2026-01-01T00:00:00.000Z";
+  const usedClientIds = new Set(
+    clients.flatMap((client) => (isRecord(client) && typeof client.id === "string" ? [client.id] : [])),
   );
-  let added = false;
+  let hasAddedClient = false;
   for (const account of data.accounts) {
-    if (!account || typeof account !== "object") continue;
-    const accountId = (account as Record<string, unknown>).id;
+    if (!isRecord(account)) continue;
+    const accountId = account.id;
     if (typeof accountId !== "string" || accountsWithBuiltin.has(accountId)) continue;
-    const id = availableInternalClientId(accountId, usedIds);
-    clients.push(buildInternalClient(accountId, now, id));
-    usedIds.add(id);
+    const id = availableInternalClientId(accountId, usedClientIds);
+    clients.push(buildInternalClient(accountId, createdAt, id));
+    usedClientIds.add(id);
     accountsWithBuiltin.add(accountId);
-    added = true;
+    hasAddedClient = true;
   }
-  return added ? { ...data, clients } : data;
+  return hasAddedClient ? { ...data, clients } : data;
 }

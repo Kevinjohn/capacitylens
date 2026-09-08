@@ -8,6 +8,7 @@ import type { Activity, AppData, Weekday } from "@capacitylens/shared/types/enti
 import {
   DEFAULT_ACCOUNT_ID,
   makeActivity,
+  makeAllocation,
   makeAppData,
   makeClient,
   makeProject,
@@ -17,13 +18,26 @@ import {
 } from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
 import { addDaysISO, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { chooseOption, GEOM, indexAtClientX, renderWithTooltip } from "./__tests__/schedulerTestKit";
+import { buildAllocationModalSeed } from "./buildAllocationModalSeed";
+import type { EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import type { AllocationModalSnapshot } from "./allocationModalSnapshot";
+
+type IsExact<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
+
+function required<T>(value: T | undefined | null, message: string): T {
+  expect(value).toBeDefined();
+  if (value === undefined || value === null) throw new Error(message);
+  return value;
+}
 
 function first<T>(values: T[]): T {
-  const value = values[0];
-  expect(value).toBeDefined();
-  if (value === undefined) throw new Error("Expected a non-empty test result.");
-  return value;
+  return required(values[0], "Expected a non-empty test result.");
+}
+
+function closestForm(control: HTMLElement): HTMLFormElement {
+  return required(control.closest("form"), "Expected the allocation control to belong to a form.");
 }
 
 interface AllocationScopeCaseInput {
@@ -91,10 +105,69 @@ beforeEach(() => {
   setPlaceholdersEnabled(true);
 });
 
-describe("AllocationModal create", () => {
+describe("buildAllocationModalSeed", () => {
+  it("represents a missing selected effective week with undefined", () => {
+    const selectedEffectiveWeekUsesUndefined: IsExact<
+      AllocationModalSnapshot["selectedEffectiveWeek"],
+      EffectiveWorkingWeek | undefined
+    > = true;
+
+    expect(selectedEffectiveWeekUsesUndefined).toBe(true);
+  });
+
+  it("uses the injected calendar date when no create or edit date exists", () => {
+    const data = base();
+
+    const seed = buildAllocationModalSeed({
+      editing: undefined,
+      create: undefined,
+      data,
+      mode: "hourly",
+      resourceById: new Map(),
+      accountWorkingDays: normalizeAccountWorkingDays(undefined, 1),
+      today: "2040-01-02",
+    });
+
+    expect(seed.initialStart).toBe("2040-01-02");
+  });
+
+  it("keeps an edited allocation date ahead of create and injected dates", () => {
+    const data = base();
+    const editing = makeAllocation({
+      accountId: ACC,
+      id: "allocation-edit",
+      resourceId: "resource-edit",
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 0,
+      status: "tentative",
+      note: "",
+      ignoreWeekends: false,
+    });
+
+    const seed = buildAllocationModalSeed({
+      editing,
+      create: { resourceId: "resource-create", startDate: "2030-01-01", endDate: "2030-01-02" },
+      data,
+      mode: "hourly",
+      resourceById: new Map(),
+      accountWorkingDays: normalizeAccountWorkingDays(undefined, 1),
+      today: "2040-01-02",
+    });
+
+    expect(seed.initialStart).toBe("2026-06-01");
+    expect(seed.initialResourceId).toBe("resource-edit");
+  });
+});
+
+function registerCreatePickerTests() {
   it("orders project scopes and activities, and exposes status as a labelled radiogroup", async () => {
     useStore.getState().addClient({ name: "Zeta", color: "#123456" });
-    const zetaClient = useStore.getState().data.clients.find((client) => client.name === "Zeta")!;
+    const zetaClient = required(
+      useStore.getState().data.clients.find((client) => client.name === "Zeta"),
+      "Expected the newly added Zeta client.",
+    );
     useStore.getState().addProject({ name: "Alpha", clientId: zetaClient.id, color: "#123456" });
     useStore.getState().addActivity({ name: "Support", kind: "internal" });
     useStore.getState().addActivity({ name: "Admin", kind: "internal" });
@@ -144,7 +217,9 @@ describe("AllocationModal create", () => {
     expect(within(status).getByRole("radio", { name: "Tentative" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByLabelText("Note").tagName).toBe("INPUT");
   });
+}
 
+function registerCreateDefaultsAndLabelsTests() {
   it("defaults hourly load to four hours when creation starts on a half day", () => {
     const resource = useStore
       .getState()
@@ -182,7 +257,9 @@ describe("AllocationModal create", () => {
     expect(screen.getByRole("option", { name: "Wireframes / Lightning (1)" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Wireframes / Lightning (2)" })).toBeInTheDocument();
   });
+}
 
+function registerCreateSavingTests() {
   it("creates an allocation for a person after picking project + activity", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = first(useStore.getState().data.resources).id;
@@ -211,7 +288,9 @@ describe("AllocationModal create", () => {
     });
     expect(allocs[0]).not.toHaveProperty("projectId");
   });
+}
 
+function registerCreateAttributionTests() {
   it.each([
     ["Internal", "Operations", undefined],
     ["No specific project", "Planning", undefined],
@@ -242,7 +321,9 @@ describe("AllocationModal create", () => {
     if (expectedProjectId) expect(allocation).toHaveProperty("projectId", expectedProjectId);
     else expect(allocation).not.toHaveProperty("projectId");
   });
+}
 
+function registerCreateHoursAndValidationTests() {
   it.each([
     ["1 h", 1],
     ["2 h - quarter day", 2],
@@ -294,7 +375,9 @@ describe("AllocationModal create", () => {
     expect(screen.getByLabelText("Start Date")).toHaveFocus();
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerBoundPlaceholderCreateTests() {
   it("books an All-projects activity for a bound placeholder under its locked project", async () => {
     const planning = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const ph = useStore.getState().addResource({
@@ -348,7 +431,9 @@ describe("AllocationModal create", () => {
       projectId: "p1",
     });
   });
+}
 
+function registerUnboundPlaceholderCreateTests() {
   it("cannot attribute an All-projects activity for an unbound placeholder", async () => {
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const placeholder = useStore.getState().addResource({
@@ -384,6 +469,16 @@ describe("AllocationModal create", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("This placeholder is not bound to a project yet.");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
+
+describe("AllocationModal create", () => {
+  registerCreatePickerTests();
+  registerCreateDefaultsAndLabelsTests();
+  registerCreateSavingTests();
+  registerCreateAttributionTests();
+  registerCreateHoursAndValidationTests();
+  registerBoundPlaceholderCreateTests();
+  registerUnboundPlaceholderCreateTests();
 });
 
 const person = (name: string) => makeResourceDraft({ name, role: "Dev", color: "#111" });
@@ -408,7 +503,7 @@ function expectAllocationSpanRow(controls: HTMLElement[]) {
   }
 }
 
-describe("AllocationModal compact layout", () => {
+function registerCompactCreateLayoutTest() {
   it("aligns Hours-mode create fields, the full-width scheduling row, inline creation and repeat hints", async () => {
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
     const user = userEvent.setup();
@@ -444,7 +539,9 @@ describe("AllocationModal compact layout", () => {
     expectLabelControl(screen.getByLabelText("Repeat until"));
     expectInAllocationControlColumn(screen.getByText(/Creates \d+ linked allocations/));
   });
+}
 
+function registerCompactSharedRowTests() {
   it("adds Assignee to the shared rows in edit mode without adding Repeat", () => {
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -483,7 +580,9 @@ describe("AllocationModal compact layout", () => {
     expectAllocationSpanRow(labels.map((label) => screen.getByLabelText(label)));
     expect(screen.getByText(/^Ends /).closest("[data-allocation-span-row]")).toBeInTheDocument();
   });
+}
 
+function registerCompactResourceLayoutTest() {
   it("keeps External dates aligned and the placeholder hint under the control area", () => {
     const external = useStore.getState().addResource({
       kind: "external",
@@ -527,9 +626,15 @@ describe("AllocationModal compact layout", () => {
     );
     expectInAllocationControlColumn(screen.getByText("Placeholder — locked to its bound project."));
   });
+}
+
+describe("AllocationModal compact layout", () => {
+  registerCompactCreateLayoutTest();
+  registerCompactSharedRowTests();
+  registerCompactResourceLayoutTest();
 });
 
-describe("AllocationModal advisory work bounds", () => {
+function registerAdvisoryWorkBoundTests() {
   it("does not recompute the advisory when only the note changes", () => {
     const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     render(
@@ -585,7 +690,9 @@ describe("AllocationModal advisory work bounds", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Date span cannot exceed 36,500 calendar days.");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerExternalSpanLimitTest() {
   it("rejects the same over-limit date span for an External resource", async () => {
     const resource = useStore.getState().addResource({
       kind: "external",
@@ -623,7 +730,9 @@ describe("AllocationModal advisory work bounds", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Date span cannot exceed 36,500 calendar days.");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerExternalLiteralSpanTest() {
   it("keeps Ignore working days hidden for an External while preserving its literal calendar span", async () => {
     const resource = useStore.getState().addResource({
       kind: "external",
@@ -657,12 +766,41 @@ describe("AllocationModal advisory work bounds", () => {
       ignoreWeekends: true,
     });
   });
+}
+
+describe("AllocationModal advisory work bounds", () => {
+  registerAdvisoryWorkBoundTests();
+  registerExternalSpanLimitTest();
+  registerExternalLiteralSpanTest();
 });
 
 const enableDays = (workingDays?: Weekday[]) =>
   useStore.getState().updateAccount(ACC, { schedulingMode: "days", ...(workingDays && { workingDays }) });
 
-describe("AllocationModal days mode", () => {
+function registerMissingResourceEffectiveWeekTest() {
+  it("keeps a missing resource distinct from a resource with no effective working days", async () => {
+    enableDays();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId: "missing-resource", startDate: "2026-06-01", endDate: "2026-06-05" }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).not.toHaveTextContent(
+      "This person has no working days within the company's current working week.",
+    );
+    expect(useStore.getState().data.allocations).toHaveLength(0);
+  });
+}
+
+function registerDaysEffectiveWeekTests() {
   it("counts and derives spans through a company-narrowed effective week", async () => {
     enableDays([1, 2, 3, 4]);
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
@@ -707,14 +845,16 @@ describe("AllocationModal days mode", () => {
     expect(daysOver).toHaveAttribute("max", "4");
     fireEvent.change(daysOver, { target: { value: "5" } });
     fireEvent.change(screen.getByLabelText("Days of work"), { target: { value: "0" } });
-    fireEvent.submit(daysOver.closest("form")!);
+    fireEvent.submit(closestForm(daysOver));
 
     expect(screen.getByRole("alert")).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
     expect(daysOver).toHaveAttribute("aria-invalid", "true");
     expect(screen.getByLabelText("Days of work")).not.toHaveAttribute("aria-invalid", "true");
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerDaysZeroOverlapTests() {
   it("keeps zero-overlap date math finite but rejects creating a normal allocation", async () => {
     enableDays([2]);
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
@@ -762,7 +902,9 @@ describe("AllocationModal days mode", () => {
       screen.getByText("This person has no working days within the company's current working week."),
     ).toBeInTheDocument();
   });
+}
 
+function registerDaysWorkingDayChoiceTests() {
   it("leaves Ignore working days unchecked and skips personal non-working weekdays", async () => {
     enableDays();
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
@@ -815,7 +957,9 @@ describe("AllocationModal days mode", () => {
       ignoreWeekends: true,
     });
   });
+}
 
+function registerDaysExistingIgnoredSpanTest() {
   it("reopens and resaves an existing checked allocation without changing its span or semantics", async () => {
     enableDays();
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 3, 5] });
@@ -840,7 +984,9 @@ describe("AllocationModal days mode", () => {
       ignoreWeekends: true,
     });
   });
+}
 
+function registerDaysDerivedScheduleTest() {
   it("derives end date + hours/day from start, days of work and days over", async () => {
     enableDays();
     const r = useStore
@@ -884,7 +1030,9 @@ describe("AllocationModal days mode", () => {
       hoursPerDay: 4,
     });
   });
+}
 
+function registerDaysBasicValidationTests() {
   it("rejects zero days of work", async () => {
     enableDays();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -940,7 +1088,9 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerDaysWorkVolumeValidationTest() {
   it("rejects a work volume that would derive more than 24h/day (no silent clamp)", async () => {
     // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24 —
     // silently discarding the entered volume. The modal must reject so preview === saved.
@@ -972,7 +1122,9 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/more than 24h a day/i);
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerDaysEmptySpanValidationTest() {
   it('rejects an EMPTY "Days over" submitted via Enter (no blur) instead of saving a 0-hour allocation', async () => {
     // The NaN hole: a valid "Days of work" but a "Days over" left empty/part-typed emits NaN
     // (NumberField only clamps to min on blur). hoursPerDayFor(daysOfWork, NaN, whpd) is NaN, the
@@ -1005,7 +1157,7 @@ describe("AllocationModal days mode", () => {
     // single number input), which skips the field's on-blur clamp.
     const daysOver = screen.getByLabelText("Days over");
     fireEvent.change(daysOver, { target: { value: "" } });
-    fireEvent.submit(daysOver.closest("form")!);
+    fireEvent.submit(closestForm(daysOver));
 
     expect(onClose).not.toHaveBeenCalled();
     expect(addAllocation).not.toHaveBeenCalled();
@@ -1013,7 +1165,9 @@ describe("AllocationModal days mode", () => {
     expect(useStore.getState().data.allocations).toHaveLength(0);
     addAllocation.mockRestore();
   });
+}
 
+function registerDaysCreationSeedTests() {
   it("honours the drawn span when creating (days over = the dragged-out length)", async () => {
     enableDays();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1061,7 +1215,9 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByLabelText("Days over")).toHaveValue(1);
     expect(screen.getByLabelText("Days of work")).toHaveValue(0.5);
   });
+}
 
+function registerDaysExistingAllocationTests() {
   it("does not drift hours when an unevenly-dividing allocation is re-saved unchanged", async () => {
     enableDays();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1078,7 +1234,10 @@ describe("AllocationModal days mode", () => {
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
-    const after = useStore.getState().data.allocations.find((a) => a.id === alloc.id)!;
+    const after = required(
+      useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id),
+      "Expected the unchanged allocation to remain saved.",
+    );
     expect(after.endDate).toBe("2026-06-03");
     expect(after.hoursPerDay).toBeCloseTo(5, 6);
   });
@@ -1121,11 +1280,25 @@ describe("AllocationModal days mode", () => {
     expect(screen.getByLabelText("Days of work")).toHaveValue(5);
     expect(screen.getByLabelText("Days over")).toHaveValue(10);
   });
+}
+
+describe("AllocationModal days mode", () => {
+  registerDaysEffectiveWeekTests();
+  registerMissingResourceEffectiveWeekTest();
+  registerDaysZeroOverlapTests();
+  registerDaysWorkingDayChoiceTests();
+  registerDaysExistingIgnoredSpanTest();
+  registerDaysDerivedScheduleTest();
+  registerDaysBasicValidationTests();
+  registerDaysWorkVolumeValidationTest();
+  registerDaysEmptySpanValidationTest();
+  registerDaysCreationSeedTests();
+  registerDaysExistingAllocationTests();
 });
 
-describe("AllocationModal blocks mode", () => {
-  const enableBlocks = () => useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
+const enableBlocks = () => useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
 
+function registerBlocksCreateTest() {
   it("asks only for start + days over, and persists a zero-load span", async () => {
     enableBlocks();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1163,7 +1336,9 @@ describe("AllocationModal blocks mode", () => {
       hoursPerDay: 0,
     });
   });
+}
 
+function registerBlocksProjectionTest() {
   it("counts the existing load through the blocks projection, like the grid and the drag path", () => {
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     // Legacy hourly allocation persisted BEFORE the account switched to blocks: it keeps its stored
@@ -1202,7 +1377,9 @@ describe("AllocationModal blocks mode", () => {
     // "over capacity" on days the grid's over-markers leave clean.
     expect(lastAdvisoryOthers()).toEqual([expect.objectContaining({ hoursPerDay: 0 })]);
   });
+}
 
+function registerBlocksDateLimitTest() {
   it("rejects a block span that would leave the four-digit-year date domain", async () => {
     enableBlocks();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1231,7 +1408,9 @@ describe("AllocationModal blocks mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/cannot extend beyond 31 December 9999/i);
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerBlocksDrawnSpanTest() {
   it("seeds days over from the drawn span and saves with start alone", async () => {
     enableBlocks();
     const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1261,7 +1440,9 @@ describe("AllocationModal blocks mode", () => {
       hoursPerDay: 0,
     });
   });
+}
 
+function registerBlocksHistoricalHoursTest() {
   it("preserves historical hours when editing an existing allocation", async () => {
     const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1285,7 +1466,9 @@ describe("AllocationModal blocks mode", () => {
       note: "Still scheduled",
     });
   });
+}
 
+function registerBlocksFractionalSpanTest() {
   it("rejects a fractional Days over value instead of rounding the saved span", async () => {
     enableBlocks();
     const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
@@ -1312,9 +1495,18 @@ describe("AllocationModal blocks mode", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/whole number from 1/i);
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
+
+describe("AllocationModal blocks mode", () => {
+  registerBlocksCreateTest();
+  registerBlocksProjectionTest();
+  registerBlocksDateLimitTest();
+  registerBlocksDrawnSpanTest();
+  registerBlocksHistoricalHoursTest();
+  registerBlocksFractionalSpanTest();
 });
 
-describe("AllocationModal edit", () => {
+function registerEditScopeTests() {
   it.each([
     {
       caseName: "attributed All-projects",
@@ -1350,7 +1542,10 @@ describe("AllocationModal edit", () => {
       const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
       const activity =
         activityKind === "project"
-          ? useStore.getState().data.activities.find((candidate) => candidate.id === "t1")!
+          ? required(
+              useStore.getState().data.activities.find((candidate) => candidate.id === "t1"),
+              "Expected the seeded project activity.",
+            )
           : useStore.getState().addActivity({ name: activityName, kind: activityKind });
       const allocation = useStore.getState().addAllocation({
         resourceId: resource.id,
@@ -1368,12 +1563,17 @@ describe("AllocationModal edit", () => {
       expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent(activityName);
       await user.click(screen.getByRole("button", { name: "Save" }));
 
-      const saved = useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)!;
+      const saved = required(
+        useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id),
+        "Expected the edited allocation to remain saved.",
+      );
       if (allocationProjectId) expect(saved).toHaveProperty("projectId", allocationProjectId);
       else expect(saved).not.toHaveProperty("projectId");
     },
   );
+}
 
+function registerEditScopeAndHoursTests() {
   it("clears attributed All-projects work when its scope changes", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
@@ -1429,7 +1629,9 @@ describe("AllocationModal edit", () => {
       note: "Unrelated edit",
     });
   });
+}
 
+function registerEditHoursAndNoteTests() {
   it("replaces an unmatched hours value when a listed option is chosen", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1482,7 +1684,9 @@ describe("AllocationModal edit", () => {
       "First line Second line",
     );
   });
+}
 
+function registerRejectedDeletionTest() {
   it("keeps the modal open and surfaces the reason when deletion is rejected", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1513,7 +1717,9 @@ describe("AllocationModal edit", () => {
       deleteAllocation.mockRestore();
     }
   });
+}
 
+function registerFutureDeletionTest() {
   it("offers one-or-future deletion for a linked occurrence and closes after the atomic removal", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const seriesId = "series-weekly";
@@ -1565,7 +1771,9 @@ describe("AllocationModal edit", () => {
     expect(useStore.getState().data.allocations.map(({ id }) => id)).not.toContain(later.id);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+}
 
+function registerOccurrenceDeletionTest() {
   it("deletes only the selected linked occurrence when that scope is chosen", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const [selected, later] = useStore.getState().addAllocations([
@@ -1605,7 +1813,9 @@ describe("AllocationModal edit", () => {
     expect(useStore.getState().data.allocations.map(({ id }) => id)).toEqual([later.id]);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+}
 
+function registerEditReassignmentTests() {
   it("reassigns an allocation to another resource", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const b = useStore.getState().addResource({ ...person("Bob"), workingDays: [1, 2, 3, 4, 5] });
@@ -1623,7 +1833,11 @@ describe("AllocationModal edit", () => {
     await chooseOption(user, "Assignee", "Bob");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(useStore.getState().data.allocations.find((x) => x.id === alloc.id)!.resourceId).toBe(b.id);
+    const reassigned = required(
+      useStore.getState().data.allocations.find((candidate) => candidate.id === alloc.id),
+      "Expected the reassigned allocation to remain saved.",
+    );
+    expect(reassigned.resourceId).toBe(b.id);
   });
 
   it("rejects reassigning a normal allocation to a zero-overlap person", async () => {
@@ -1654,7 +1868,9 @@ describe("AllocationModal edit", () => {
     });
     expect(destination.id).not.toBe(source.id);
   });
+}
 
+function registerIgnoredReassignmentTest() {
   it("rejects reassigning even an ignored allocation to a zero-overlap person (decision 6)", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
     const source = useStore.getState().addResource({ ...person("Alice"), workingDays: [2] });
@@ -1682,7 +1898,9 @@ describe("AllocationModal edit", () => {
       screen.getByText("This person has no working days within the company's current working week."),
     ).toBeInTheDocument();
   });
+}
 
+function registerPlaceholderReassignmentTest() {
   it("snaps the project to the placeholder bound project when reassigned, restricting options", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     useStore.getState().addResource({
@@ -1715,7 +1933,9 @@ describe("AllocationModal edit", () => {
     });
     expect(screen.queryByRole("option", { name: "Acme / Lightning" })).not.toBeInTheDocument();
   });
+}
 
+function registerHiddenPlaceholderEditTest() {
   it("risk A: editing an allocation on a HIDDEN placeholder still offers that placeholder so the value is preserved", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
@@ -1748,7 +1968,9 @@ describe("AllocationModal edit", () => {
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Placeholder (slot)" })).toBeInTheDocument();
   });
+}
 
+function registerHiddenExternalEditTest() {
   it("risk A: editing an allocation on a HIDDEN external still offers that external so the value is preserved", async () => {
     // Externals default OFF too; the suite-wide beforeEach only turns placeholders on. Create an
     // external, book it, then assert the picker keeps it as an option even with the pref OFF.
@@ -1783,7 +2005,9 @@ describe("AllocationModal edit", () => {
     fireEvent.keyDown(assignee, { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Kord Industries (external)" })).toBeInTheDocument();
   });
+}
 
+function registerLegacyPlaceholderEditTest() {
   it("reopens and saves a legacy unattributed placeholder allocation unchanged", async () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
@@ -1819,7 +2043,9 @@ describe("AllocationModal edit", () => {
       "projectId",
     );
   });
+}
 
+function registerDanglingActivityEditTest() {
   it("uses a bound placeholder's project when an edited allocation has a dangling activity", () => {
     const ph = useStore.getState().addResource({
       kind: "placeholder",
@@ -1852,7 +2078,9 @@ describe("AllocationModal edit", () => {
 
     expect(screen.getByRole("combobox", { name: "Project" })).toHaveTextContent("Acme / Lightning");
   });
+}
 
+function registerEditDuplicateValueTest() {
   it("duplicates the current validated form values without changing the saved allocation", async () => {
     const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const alloc = useStore.getState().addAllocation({
@@ -1892,7 +2120,9 @@ describe("AllocationModal edit", () => {
       note: "Draft note",
     });
   });
+}
 
+function registerEditDuplicateAvailabilityTests() {
   it("keeps Duplicate for an unlinked all-projects allocation and hides it for a linked occurrence", () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
@@ -1944,6 +2174,24 @@ describe("AllocationModal edit", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/hours per day must be greater than 0/i);
     expect(useStore.getState().data.allocations).toHaveLength(1);
   });
+}
+
+describe("AllocationModal edit", () => {
+  registerEditScopeTests();
+  registerEditScopeAndHoursTests();
+  registerEditHoursAndNoteTests();
+  registerRejectedDeletionTest();
+  registerFutureDeletionTest();
+  registerOccurrenceDeletionTest();
+  registerEditReassignmentTests();
+  registerIgnoredReassignmentTest();
+  registerPlaceholderReassignmentTest();
+  registerHiddenPlaceholderEditTest();
+  registerHiddenExternalEditTest();
+  registerLegacyPlaceholderEditTest();
+  registerDanglingActivityEditTest();
+  registerEditDuplicateValueTest();
+  registerEditDuplicateAvailabilityTests();
 });
 
 describe("#257: modal and gesture effective-week agreement", () => {
@@ -1963,11 +2211,17 @@ describe("#257: modal and gesture effective-week agreement", () => {
 
     fireEvent.change(screen.getByLabelText("Days over"), { target: { value: "5" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
-    const modalAllocation = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!;
+    const modalAllocation = required(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      "Expected the modal-resized allocation.",
+    );
     modal.unmount();
 
     useStore.getState().updateAllocation(allocation.id, { endDate: "2026-06-04", hoursPerDay: 8 });
-    const resetAllocation = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!;
+    const resetAllocation = required(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      "Expected the reset allocation.",
+    );
     renderWithTooltip(
       <AllocationBar
         bar={{
@@ -1985,7 +2239,10 @@ describe("#257: modal and gesture effective-week agreement", () => {
       />,
     );
     fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight", shiftKey: true });
-    const gestureAllocation = useStore.getState().data.allocations.find(({ id }) => id === allocation.id)!;
+    const gestureAllocation = required(
+      useStore.getState().data.allocations.find(({ id }) => id === allocation.id),
+      "Expected the gesture-resized allocation.",
+    );
 
     expect(modalAllocation).toMatchObject({ endDate: "2026-06-08", hoursPerDay: 6.4 });
     expect(gestureAllocation).toMatchObject({
@@ -1995,7 +2252,7 @@ describe("#257: modal and gesture effective-week agreement", () => {
   });
 });
 
-describe("#257: stale-start edit and duplicate creation gates", () => {
+function registerStaleStartEditAndCreateTests() {
   it("still saves an existing allocation after its assignee loses every effective working day", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
@@ -2047,7 +2304,9 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
     );
     expect(useStore.getState().data.allocations).toHaveLength(0);
   });
+}
 
+function registerStaleStartDuplicateTests() {
   // Phase 1 pinned the ungated duplicate; Phase 5 flips it to a rejected record-creation action.
   it("rejects duplicating an allocation whose start is company-non-working", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [1, 2, 3, 4] });
@@ -2095,7 +2354,9 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
       "New allocations must begin on a company and personal working day. Move the start date.",
     );
   });
+}
 
+function registerZeroOverlapDuplicateTest() {
   it("rejects duplicating a normal allocation for a zero-overlap person", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1] });
@@ -2117,16 +2378,22 @@ describe("#257: stale-start edit and duplicate creation gates", () => {
     );
     expect(useStore.getState().data.allocations).toHaveLength(1);
   });
+}
+
+describe("#257: stale-start edit and duplicate creation gates", () => {
+  registerStaleStartEditAndCreateTests();
+  registerStaleStartDuplicateTests();
+  registerZeroOverlapDuplicateTest();
 });
 
-describe("AllocationModal inline activity creation pref", () => {
-  const addPerson = () => {
-    useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
-    return first(useStore.getState().data.resources).id;
-  };
+function addInlineActivityTestPerson() {
+  useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+  return first(useStore.getState().data.resources).id;
+}
 
+function registerInlineActivityEnabledTests() {
   it('renders the inline "Add activity" input + button by default (pref absent → enabled)', () => {
-    const resourceId = addPerson();
+    const resourceId = addInlineActivityTestPerson();
     render(
       <AllocationModal
         kind="create"
@@ -2140,7 +2407,7 @@ describe("AllocationModal inline activity creation pref", () => {
 
   it("places an inline-created project activity in the project-specific group", async () => {
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const resourceId = addPerson();
+    const resourceId = addInlineActivityTestPerson();
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -2165,9 +2432,11 @@ describe("AllocationModal inline activity creation pref", () => {
       }),
     ).toBeInTheDocument();
   });
+}
 
+function registerInlineActivityUnavailableTests() {
   it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', () => {
-    const resourceId = addPerson();
+    const resourceId = addInlineActivityTestPerson();
     useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
     render(
       <AllocationModal
@@ -2184,7 +2453,7 @@ describe("AllocationModal inline activity creation pref", () => {
   });
 
   it("removes inline activity creation when an open editor modal is downgraded to viewer", async () => {
-    const resourceId = addPerson();
+    const resourceId = addInlineActivityTestPerson();
     const user = userEvent.setup();
     const view = render(
       <PermissionContext.Provider value={{ role: "editor" }}>
@@ -2211,9 +2480,14 @@ describe("AllocationModal inline activity creation pref", () => {
     expect(screen.queryByRole("button", { name: "Add activity" })).not.toBeInTheDocument();
     expect(useStore.getState().data.activities).toHaveLength(2);
   });
+}
+
+describe("AllocationModal inline activity creation pref", () => {
+  registerInlineActivityEnabledTests();
+  registerInlineActivityUnavailableTests();
 });
 
-describe("AllocationModal Enter key submission", () => {
+function registerEnterSubmissionTests() {
   it("operates the Hours / day select with the keyboard", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = first(useStore.getState().data.resources).id;
@@ -2265,7 +2539,9 @@ describe("AllocationModal Enter key submission", () => {
     expect(onClose).toHaveBeenCalled();
     expect(useStore.getState().data.allocations).toHaveLength(1);
   });
+}
 
+function registerInlineActivityEnterTest() {
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = first(useStore.getState().data.resources).id;
@@ -2290,17 +2566,21 @@ describe("AllocationModal Enter key submission", () => {
     expect(activities.find((activity) => activity.name === "Brand new activity")).toMatchObject({ kind: "internal" });
     expect(screen.getByRole("combobox", { name: "Activity" })).toHaveTextContent("Brand new activity");
   });
+}
+
+describe("AllocationModal Enter key submission", () => {
+  registerEnterSubmissionTests();
+  registerInlineActivityEnterTest();
 });
 
-// These cases drive many sequential user interactions and can exceed Vitest's 5 s default on CI hardware.
-describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
-  const addPerson = () => useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" }));
+const addPerson = () => useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" }));
 
-  const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
-    await chooseOption(user, "Project", "Acme / Lightning");
-    await chooseOption(user, "Activity", "Wireframes");
-  };
+const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
+  await chooseOption(user, "Project", "Acme / Lightning");
+  await chooseOption(user, "Activity", "Wireframes");
+};
 
+function registerRepeatOptionsTest() {
   it("shows all six create-only options, defaults to one-off and dirty-tracks repeat changes", async () => {
     const resource = addPerson();
     const { unmount } = render(
@@ -2336,7 +2616,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
     expect(screen.queryByRole("combobox", { name: "Repeat" })).not.toBeInTheDocument();
   });
+}
 
+function registerRepeatCutoffSeedTest() {
   it("defaults from the allocation start, follows untouched starts, and preserves a hand-edited cutoff", async () => {
     const resource = addPerson();
     const user = userEvent.setup();
@@ -2362,7 +2644,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     await user.type(start, "2028-02-10");
     expect(repeatUntil).toHaveValue("2028-04-15");
   });
+}
 
+function registerRepeatCutoffClampTest() {
   it("clamps the suggested cutoff at the supported date boundary", async () => {
     const resource = addPerson();
     const user = userEvent.setup();
@@ -2377,7 +2661,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(screen.getByLabelText("Repeat until")).toHaveValue("9999-12-31");
     expect(screen.getByLabelText("Repeat until")).toHaveAttribute("max", "9999-12-31");
   });
+}
 
+function registerRepeatCadencePreviewTest() {
   it("previews every cadence with formatShortDate and creates weekly through one bulk call", async () => {
     const resource = addPerson();
     const bulkSpy = vi.spyOn(useStore.getState(), "addAllocations");
@@ -2425,7 +2711,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     bulkSpy.mockRestore();
     oneSpy.mockRestore();
   });
+}
 
+function registerRepeatAttributionTests() {
   it.each([
     ["Internal", "Operations", undefined],
     ["No specific project", "Planning", undefined],
@@ -2462,7 +2750,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
       bulkSpy.mockRestore();
     },
   );
+}
 
+function registerMonthlyRepeatSpanTest() {
   it("keeps the original monthly numeric day while preserving a multi-day span", async () => {
     // A seven-day company and person make the Saturday day-31 anchor an effective start — the
     // creation gate has no override (no ignored-creation escape hatch), so the numeric-day
@@ -2495,7 +2785,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     ]);
     bulkSpy.mockRestore();
   });
+}
 
+function registerNumericModeRepeatLimitTests() {
   it.each(["days", "blocks"] as const)(
     "rejects a %s repeat when a later occurrence cannot fit the complete working span",
     async (schedulingMode) => {
@@ -2531,7 +2823,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
       bulkSpy.mockRestore();
     },
   );
+}
 
+function registerZeroOverlapRepeatTest() {
   it("routes a zero-overlap repeat to the assignee/form error instead of Repeat until", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
     const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1] });
@@ -2557,7 +2851,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(onClose).not.toHaveBeenCalled();
     bulkSpy.mockRestore();
   });
+}
 
+function registerRepeatSubmissionPathTest() {
   it("keeps one-off on addAllocation and leaves a rejected bulk dialog open", async () => {
     const resource = addPerson();
     const oneSpy = vi.spyOn(useStore.getState(), "addAllocation");
@@ -2600,7 +2896,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(onClose).not.toHaveBeenCalled();
     rejectBulk.mockRestore();
   });
+}
 
+function registerRepeatValidationTest() {
   it("validates the required, temporal and six-month Repeat until boundaries", async () => {
     useStore.getState().updateAccount(ACC, { timezone: "UTC" });
     const resource = addPerson();
@@ -2647,7 +2945,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(bulkSpy).not.toHaveBeenCalled();
     bulkSpy.mockRestore();
   });
+}
 
+function registerRepeatBoundaryAndAdvisoryTests() {
   it("includes an occurrence on the cutoff and supports the complete six-month weekly range", async () => {
     const resource = addPerson();
     const user = userEvent.setup();
@@ -2703,7 +3003,9 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     expect(capacityAdvisoryMock).toHaveBeenCalledTimes(14);
     expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
+}
 
+function registerRepeatEffectiveWeekAndDuplicateTests() {
   it("surfaces monthly occurrences whose starts fall outside the effective week", async () => {
     const resource = useStore.getState().addResource({ ...person("Tyler"), workingDays: [1] });
     const user = userEvent.setup();
@@ -2746,6 +3048,22 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     oneSpy.mockRestore();
     bulkSpy.mockRestore();
   });
+}
+
+// These cases drive many sequential user interactions and can exceed Vitest's 5 s default on CI hardware.
+describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
+  registerRepeatOptionsTest();
+  registerRepeatCutoffSeedTest();
+  registerRepeatCutoffClampTest();
+  registerRepeatCadencePreviewTest();
+  registerRepeatAttributionTests();
+  registerMonthlyRepeatSpanTest();
+  registerNumericModeRepeatLimitTests();
+  registerZeroOverlapRepeatTest();
+  registerRepeatSubmissionPathTest();
+  registerRepeatValidationTest();
+  registerRepeatBoundaryAndAdvisoryTests();
+  registerRepeatEffectiveWeekAndDuplicateTests();
 });
 
 describe("AllocationModal lifecycle", () => {

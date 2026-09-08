@@ -114,12 +114,16 @@ describe("ImportExport – Import", () => {
 
     expect(text).not.toHaveBeenCalled();
     expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
-    expect(useStore.getState().notice).toMatchObject({
-      tone: "error",
-      message: expect.stringMatching(/5\s*MB/i),
+    const noticeMatcher = { tone: "error" as const };
+    Object.defineProperty(noticeMatcher, "message", {
+      value: expect.stringMatching(/5\s*MB/i),
+      enumerable: true,
     });
+    expect(useStore.getState().notice).toMatchObject(noticeMatcher);
   });
+});
 
+describe("ImportExport – Import", () => {
   it("keeps the latest file selection when an older file read finishes last", async () => {
     render(<ImportExport />);
 
@@ -161,7 +165,9 @@ describe("ImportExport – Import", () => {
     expect(screen.getByText("second.json")).toBeInTheDocument();
     expect(screen.queryByText("first.json")).toBeNull();
   });
+});
 
+describe("ImportExport – Import", () => {
   it("replaces the store data when a valid CapacityLens JSON file is loaded", async () => {
     render(<ImportExport />);
 
@@ -186,7 +192,9 @@ describe("ImportExport – Import", () => {
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0);
     expect(useStore.getState().data.resources).toHaveLength(seedData.resources.length);
   });
+});
 
+describe("ImportExport – Import", () => {
   it.each([false, true])("cancels a %s-mode file read when the active company changes", async (serverMode) => {
     serverFlag.on = serverMode;
     const original = useStore.getState().data;
@@ -209,7 +217,9 @@ describe("ImportExport – Import", () => {
 
     expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
   });
+});
 
+describe("ImportExport – Import", () => {
   it.each([false, true])("dismisses a parsed %s-mode import when the active company changes", async (serverMode) => {
     serverFlag.on = serverMode;
     const original = useStore.getState().data;
@@ -232,7 +242,9 @@ describe("ImportExport – Import", () => {
     expect(screen.queryByRole("button", { name: "Replace data" })).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
+});
 
+describe("ImportExport – Import", () => {
   it("shows a confirmation summary and does NOT replace data until confirmed", async () => {
     useStore.getState().replaceAll(seed()); // existing data
     const before = useStore.getState().data.clients.length;
@@ -278,7 +290,9 @@ describe("ImportExport – Import", () => {
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(useStore.getState().data.clients).toHaveLength(before);
   });
+});
 
+describe("ImportExport – Import", () => {
   it("import is undoable with ⌘Z (routes through the history stack)", async () => {
     // Active-account data: a non-empty import replaces the active account's slice (the
     // two added resources → the one imported), so ⌘Z restores the originals.
@@ -315,7 +329,9 @@ describe("ImportExport – Import", () => {
     useStore.getState().undo();
     expect(useStore.getState().data.resources).toHaveLength(before); // restored
   });
+});
 
+describe("ImportExport – Import", () => {
   it("shows an error (NOT an undo prompt) when an import drops every record", async () => {
     // A real prior edit, so there's an undo entry a wrongful "Press ⌘Z" prompt could target.
     useStore.getState().addClient({ name: "Real Edit", color: "#111111" });
@@ -355,7 +371,9 @@ describe("ImportExport – Import", () => {
     expect(notice?.tone).toBe("error");
     expect(useStore.getState().data.clients.map((c) => c.name)).toContain("Real Edit"); // prior edit intact
   });
+});
 
+describe("ImportExport – Import", () => {
   it("rejects a CapacityLens-shaped file with zero records (no dialog, no wipe)", async () => {
     useStore.getState().replaceAll(seed()); // existing data that must NOT be wiped
     render(<ImportExport />);
@@ -405,27 +423,29 @@ async function importAndConfirm(json: string) {
   fireEvent.click(screen.getByRole("button", { name: "Replace data" }));
 }
 
-describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
-  const incoming = () =>
-    serializeData({
-      ...emptyAppData(),
-      resources: [
-        {
-          ...makeResourceDraft({ name: "Imported" }),
-          id: "imp-r",
-          accountId: "X",
-          createdAt: "t",
-          updatedAt: "t",
-          engagement: "studio",
-          halfDays: [],
-        },
-      ],
-    });
-
-  beforeEach(() => {
-    serverFlag.on = true;
-    refreshOverride.value = { kind: "reloaded" };
+const incoming = () =>
+  serializeData({
+    ...emptyAppData(),
+    resources: [
+      {
+        ...makeResourceDraft({ name: "Imported" }),
+        id: "imp-r",
+        accountId: "X",
+        createdAt: "t",
+        updatedAt: "t",
+        engagement: "studio",
+        halfDays: [],
+      },
+    ],
   });
+
+function setupServerMode(): void {
+  serverFlag.on = true;
+  refreshOverride.value = { kind: "reloaded" };
+}
+
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
 
   it("keeps active-slice export available to editors without calling the admin endpoint", async () => {
     const fetchMock = vi.fn();
@@ -446,7 +466,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(fetchMock).not.toHaveBeenCalled();
     click.mockRestore();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("rejects an incomplete complete-export response instead of downloading it", async () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(dispatchAnchorClick);
     vi.stubGlobal(
@@ -468,7 +491,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(click).not.toHaveBeenCalled();
     click.mockRestore();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("downloads the validated complete server slice for a purge-capable role", async () => {
     const completeSlice = useStore.getState().data;
     let downloaded: Blob | undefined;
@@ -500,10 +526,16 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(fetchMock).toHaveBeenCalledOnce();
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("includeInactive=1");
     expect(downloaded).toBeDefined();
-    expect(parseData(await downloaded!.text())).toEqual(parseData(serializeData(completeSlice)));
+    if (downloaded === undefined) {
+      throw new Error("Expected the export blob to be captured");
+    }
+    expect(parseData(await downloaded.text())).toEqual(parseData(serializeData(completeSlice)));
     click.mockRestore();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("allows only one complete-slice export while its request is pending", async () => {
     const completeSlice = useStore.getState().data;
     let resolveFetch!: (response: Response) => void;
@@ -543,7 +575,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(exportButton).not.toBeDisabled();
     click.mockRestore();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("POSTs the parsed file to /api/import and reports the server counts WITHOUT an undo prompt", async () => {
     const before = useStore.getState().data;
     const fetchMock = vi.fn().mockResolvedValue(
@@ -574,7 +609,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/imported 3 records/i));
     expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i); // a server import is NOT undoable
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("surfaces the server's own error sentence on a non-OK response (e.g. the owner gate's 403)", async () => {
     vi.stubGlobal(
       "fetch",
@@ -594,7 +632,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/only the account owner can import/i));
     expect(useStore.getState().notice?.tone).toBe("error");
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("surfaces a stale-import conflict and resumes writes without discarding parked edits", async () => {
     vi.stubGlobal(
       "fetch",
@@ -618,7 +659,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(refreshOverride.value).toEqual({ kind: "reloaded" });
     expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]);
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("a 200 with an off-spec body still re-hydrates and reports success — the server DID commit", async () => {
     // A shape error on a committed import must not be reported as "no records imported" (that
     // would skip the reload and leave the UI on pre-import data the server no longer holds).
@@ -633,7 +677,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(warn).toHaveBeenCalled(); // breadcrumb for the off-spec body
     warn.mockRestore();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it('treats off-spec COUNTS (-1, 1.5, negatives) as a shape error — re-hydrate + plain success, never "-1 records"', async () => {
     // The counts are untrusted: a number that isn't a nonnegative safe integer must take the
     // off-spec committed-import path (breadcrumb + reload + numberless success), not the
@@ -657,7 +704,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("a committed import whose re-hydrate FAILS reports the honest stale-view message, not success", async () => {
     // The import POST committed but the follow-up slice load broke: claiming "Imported 3 records"
     // over a view still rendering PRE-import data would be a lie — say both halves honestly.
@@ -686,7 +736,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(screen.getByTestId("export-data")).toBeDisabled();
     expect(useStore.getState().dirtyForm).toBe(true);
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("does not report success when no persistence orchestrator can rehydrate the committed slice", async () => {
     refreshOverride.value = { kind: "unattached" };
     vi.stubGlobal(
@@ -710,7 +763,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(screen.getByTestId("import-data")).toBeDisabled();
     expect(screen.getByTestId("export-data")).toBeDisabled();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("keeps writes blocked when a committed import refresh is skipped", async () => {
     refreshOverride.value = { kind: "skipped" };
     vi.stubGlobal(
@@ -730,7 +786,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(resumeSpy.calls).toEqual([]);
     expect(screen.getByTestId("import-data")).toBeDisabled();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("keeps writes blocked when an off-spec committed response cannot be rehydrated", async () => {
     refreshOverride.value = { kind: "failed" };
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -743,15 +802,18 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(resumeSpy.calls).toEqual([]);
     expect(warn).toHaveBeenCalled();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("locks the UI while the import is in flight: blocking dialog + dirtyForm + disabled affordances", async () => {
-    let resolveFetch: ((r: Response) => void) | null = null;
+    const pendingFetch: { resolve?: (response: Response) => void } = {};
     vi.stubGlobal(
       "fetch",
       vi.fn(
         () =>
           new Promise<Response>((resolve) => {
-            resolveFetch = resolve;
+            pendingFetch.resolve = resolve;
           }),
       ),
     );
@@ -769,7 +831,11 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.getByTestId("import-busy")).toBeInTheDocument();
 
-    resolveFetch!(
+    const resolveFetch = pendingFetch.resolve;
+    if (resolveFetch === undefined) {
+      throw new Error("Expected the import request to be pending");
+    }
+    resolveFetch(
       new Response(JSON.stringify({ imported: 1, skipped: 0 }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -780,7 +846,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(screen.getByTestId("import-data")).not.toBeDisabled();
     expect(screen.getByTestId("export-data")).not.toBeDisabled();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("a loss warning raised DURING the re-hydrate is not overwritten by the success notice", async () => {
     // The app holds one notice and a new one dismisses the old — the sticky parked-edit loss
     // warning must outrank "Imported N records" (the user can verify the import from the data;
@@ -805,7 +874,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     expect(useStore.getState().notice?.message).toMatch(/could not be saved/i);
     expect(useStore.getState().notice?.message).not.toMatch(/imported 3 records/i);
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("a zero-record 200 UN-commits: the server refused the replace, so the parked-edit resume re-schedules (no drop)", async () => {
     // The server returns 200 {imported:0} WITHOUT replacing the slice (its replace is gated on
     // imported > 0). Treating that as committed made resume DROP a parked edit — destroying a
@@ -826,7 +898,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     await waitFor(() => expect(useStore.getState().notice?.tone).toBe("error"));
     expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]);
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("a committed import resumes with dropParkedEdits (a parked pre-import edit must never re-save)", async () => {
     vi.stubGlobal(
       "fetch",
@@ -843,7 +918,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 
     await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]));
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("a NON-OK response resumes with re-schedule (nothing was replaced)", async () => {
     vi.stubGlobal(
       "fetch",
@@ -860,7 +938,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
 
     await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: false }]));
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it.each([408, 500, 503, 504])(
     "reconciles an HTTP %i import as an unknown atomic outcome before resuming writes",
     async (status) => {
@@ -874,7 +955,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
       expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i);
     },
   );
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("reconciles a failed transport as an unknown atomic outcome", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
@@ -884,7 +968,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     await waitFor(() => expect(useStore.getState().notice?.tone).toBe("warning"));
     expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i);
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("reconciles an unknown timed-out import before resuming writes", async () => {
     refreshOverride.value = { kind: "reloaded" };
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
@@ -893,7 +980,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]));
     expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i);
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it("leaves writes suspended when a timed-out import cannot be reconciled", async () => {
     refreshOverride.value = { kind: "failed" };
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")));
@@ -908,7 +998,10 @@ describe("ImportExport – server mode (atomic /api/import, owner-gated)", () =>
     fireEvent.click(screen.getByRole("button", { name: "Reload" }));
     expect(reloadMock.reloadPage).toHaveBeenCalledOnce();
   });
+});
 
+describe("ImportExport – server mode (atomic /api/import, owner-gated)", () => {
+  beforeEach(setupServerMode);
   it.each(["admin", "editor"] as const)("hides Import from a server-backed %s but keeps Export", (role) => {
     render(
       <PermissionContext.Provider value={{ role }}>

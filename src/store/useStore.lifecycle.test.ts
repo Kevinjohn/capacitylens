@@ -12,6 +12,11 @@ import { makeResourceDraft, requireValue, resetStoreWithAccount } from "../test/
 // specs mirror the existing store-test idiom (resetStoreWithAccount + s().data assertions).
 
 const s = () => useStore.getState();
+const requireById = <T extends { id: string }>(rows: readonly T[], id: string, context: string) =>
+  requireValue(
+    rows.find((row) => row.id === id),
+    context,
+  );
 
 beforeEach(() => {
   resetStoreWithAccount();
@@ -31,7 +36,7 @@ describe("archiveEntity", () => {
     expect(lifecycleStatus(requireValue(s().data.resources[0], "resource"))).toBe("active");
 
     s().archiveEntity("resources", r.id);
-    const row = s().data.resources.find((x) => x.id === r.id)!;
+    const row = requireById(s().data.resources, r.id, "archived resource");
     expect(row.archivedAt).toBeTruthy();
     expect(lifecycleStatus(row)).toBe("archived");
     // updatedAt is re-stamped to a fresh ISO timestamp. Deterministic: assert the SHAPE (a valid ISO
@@ -87,7 +92,7 @@ describe("unarchiveEntity", () => {
     const r = s().addResource(personDraft);
     s().archiveEntity("resources", r.id);
     s().unarchiveEntity("resources", r.id);
-    const row = s().data.resources.find((x) => x.id === r.id)!;
+    const row = requireById(s().data.resources, r.id, "unarchived resource");
     expect(row.archivedAt).toBeUndefined();
     expect(lifecycleStatus(row)).toBe("active");
     // Restored into the active view.
@@ -100,7 +105,7 @@ describe("unarchiveEntity", () => {
   });
 });
 
-describe("softDeleteEntity", () => {
+function registerSoftDeleteGuardsAndResourceScrubTests() {
   it("throws unless the row is archived first (prior-archival rule)", () => {
     const r = s().addResource(personDraft);
     // Active, not archived → cannot delete directly.
@@ -141,13 +146,15 @@ describe("softDeleteEntity", () => {
     const r = s().addResource(personDraft);
     s().archiveEntity("resources", r.id);
     s().softDeleteEntity("resources", r.id);
-    const row = s().data.resources.find((x) => x.id === r.id)!;
+    const row = requireById(s().data.resources, r.id, "deleted resource");
     expect(lifecycleStatus(row)).toBe("deleted");
     expect(row.deletedAt).toBeTruthy();
     expect(row.name).toMatch(/^Removed person #/);
     expect(row.name).not.toContain("Ada"); // the original name is gone
   });
+}
 
+function registerDependentNoteScrubTest() {
   it("scrubs and re-stamps only dependent rows that actually carry a note", () => {
     const client = s().addClient({ name: "Acme", color: "#1" });
     const project = s().addProject({ name: "Project", clientId: client.id, color: "#2" });
@@ -187,8 +194,8 @@ describe("softDeleteEntity", () => {
     s().archiveEntity("resources", resource.id);
     s().softDeleteEntity("resources", resource.id);
 
-    const allocation = (id: string) => s().data.allocations.find((row) => row.id === id)!;
-    const timeOff = (id: string) => s().data.timeOff.find((row) => row.id === id)!;
+    const allocation = (id: string) => requireById(s().data.allocations, id, "dependent allocation");
+    const timeOff = (id: string) => requireById(s().data.timeOff, id, "dependent time off");
     expect(allocation(notedAllocation.id)).not.toHaveProperty("note");
     expect(allocation(notedAllocation.id).updatedAt).not.toBe(notedAllocation.updatedAt);
     expect(allocation(plainAllocation.id).updatedAt).toBe(plainAllocation.updatedAt);
@@ -196,12 +203,14 @@ describe("softDeleteEntity", () => {
     expect(timeOff(notedTimeOff.id).updatedAt).not.toBe(notedTimeOff.updatedAt);
     expect(timeOff(plainTimeOff.id).updatedAt).toBe(plainTimeOff.updatedAt);
   });
+}
 
+function registerSoftDeleteTimestampAndNameTests() {
   it("on a non-resource (client/project), the name is unchanged", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     s().archiveEntity("clients", c.id);
     s().softDeleteEntity("clients", c.id);
-    const row = s().data.clients.find((x) => x.id === c.id)!;
+    const row = requireById(s().data.clients, c.id, "deleted client");
     expect(lifecycleStatus(row)).toBe("deleted");
     expect(row.name).toBe("Acme");
 
@@ -209,7 +218,7 @@ describe("softDeleteEntity", () => {
     const p = s().addProject({ name: "Project X", clientId: c2.id, color: "#3" });
     s().archiveEntity("projects", p.id);
     s().softDeleteEntity("projects", p.id);
-    const prow = s().data.projects.find((x) => x.id === p.id)!;
+    const prow = requireById(s().data.projects, p.id, "deleted project");
     expect(lifecycleStatus(prow)).toBe("deleted");
     expect(prow.name).toBe("Project X");
   });
@@ -226,13 +235,20 @@ describe("softDeleteEntity", () => {
 
     s().softDeleteEntity("clients", c.id);
 
-    const deleted = s().data.clients.find((client) => client.id === c.id)!;
-    expect(deleted.deletedAt! >= futureArchive).toBe(true);
-    expect(deleted.updatedAt >= deleted.deletedAt!).toBe(true);
+    const deleted = requireById(s().data.clients, c.id, "deleted client");
+    const deletedAt = requireValue(deleted.deletedAt, "client deletion timestamp");
+    expect(deletedAt >= futureArchive).toBe(true);
+    expect(deleted.updatedAt >= deletedAt).toBe(true);
   });
+}
+
+describe("softDeleteEntity", () => {
+  registerSoftDeleteGuardsAndResourceScrubTests();
+  registerDependentNoteScrubTest();
+  registerSoftDeleteTimestampAndNameTests();
 });
 
-describe("purgeEntity", () => {
+function registerResourcePurgeTests() {
   it("does NOT purge a tombstone deleted < 30 days ago — fires a notice instead", () => {
     const r = s().addResource(personDraft);
     s().archiveEntity("resources", r.id);
@@ -277,7 +293,9 @@ describe("purgeEntity", () => {
     expect(s().data.resources.some((x) => x.id === r.id)).toBe(false); // row removed
     expect(s().data.allocations.some((x) => x.id === a.id)).toBe(false); // child allocation cascaded out
   });
+}
 
+function registerClientPurgeTest() {
   it("cascades a purged client through its projects/activities/allocations", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
@@ -308,6 +326,11 @@ describe("purgeEntity", () => {
     expect(d.allocations).toHaveLength(0);
     expect(d.resources).toHaveLength(1); // resources are not cascaded by a client purge
   });
+}
+
+describe("purgeEntity", () => {
+  registerResourcePurgeTests();
+  registerClientPurgeTest();
 });
 
 describe("built-in Internal client is protected from every lifecycle action", () => {
@@ -315,9 +338,10 @@ describe("built-in Internal client is protected from every lifecycle action", ()
   // privileged path) — matching internalClient.test.ts.
   const seedWithInternal = () => {
     s().replaceAll({ ...s().data, accounts: [], clients: [] });
-    const a = s().addAccount({ name: "Acme Co", color: "#6366f1" })!;
+    const a = s().addAccount({ name: "Acme Co", color: "#6366f1" });
+    if (a === null) throw new Error("Expected account creation to succeed");
     s().setActiveAccount(a.id);
-    return internalClientFor(s().data.clients, a.id)!;
+    return requireValue(internalClientFor(s().data.clients, a.id), "built-in Internal client");
   };
 
   it("archiveEntity / softDeleteEntity / purgeEntity all THROW on the Internal client", () => {
@@ -327,7 +351,7 @@ describe("built-in Internal client is protected from every lifecycle action", ()
     expect(() => s().purgeEntity("clients", internal.id)).toThrow(/built in/i);
     // Still present and active throughout.
     expect(internalClientFor(s().data.clients, internal.accountId)).toBeDefined();
-    expect(lifecycleStatus(s().data.clients.find((x) => x.id === internal.id)!)).toBe("active");
+    expect(lifecycleStatus(requireById(s().data.clients, internal.id, "active Internal client"))).toBe("active");
   });
 });
 
@@ -363,7 +387,7 @@ describe("lifecycle actions are undoable (⌘Z)", () => {
     expect(lifecycleStatus(requireValue(s().data.resources[0], "archived resource"))).toBe("archived");
 
     s().undo();
-    const row = s().data.resources.find((x) => x.id === r.id)!;
+    const row = requireById(s().data.resources, r.id, "restored resource");
     expect(lifecycleStatus(row)).toBe("active");
     expect(row.archivedAt).toBeUndefined();
   });

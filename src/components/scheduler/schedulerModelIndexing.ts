@@ -3,14 +3,16 @@ import type { Allocation, Closure, ID, ISODate, TimeOff } from "@capacitylens/sh
 
 const reportedInvalidScheduleRows = new WeakSet<object>();
 
-/** Fail visibly but once for a stable row object, then keep corrupt dates out of every scheduler path. */
+/** Return whether a schedule row's range can safely enter date indexing and layout paths. */
 export function hasRenderableDateRange(row: { id: string; startDate: ISODate; endDate: ISODate }): boolean {
-  const valid = isValidISODate(row.startDate) && isValidISODate(row.endDate) && row.startDate <= row.endDate;
-  if (!valid && !reportedInvalidScheduleRows.has(row)) {
-    reportedInvalidScheduleRows.add(row);
-    console.error(`Scheduler omitted ${row.id}: invalid date range.`);
-  }
-  return valid;
+  return isValidISODate(row.startDate) && isValidISODate(row.endDate) && row.startDate <= row.endDate;
+}
+
+/** Report an omitted corrupt row once for its stable object identity. */
+export function reportInvalidScheduleDateRangeOnce(row: { id: string }): void {
+  if (reportedInvalidScheduleRows.has(row)) return;
+  reportedInvalidScheduleRows.add(row);
+  console.error(`Scheduler omitted ${row.id}: invalid date range.`);
 }
 
 // Reused for a bucket miss so a day with no allocations / no time off doesn't allocate a throwaway

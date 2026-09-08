@@ -34,6 +34,7 @@ import {
   assertFederatedIdentitySchemaCurrent,
   createAuthFromEnvironment,
   runAuthMigrations,
+  type Auth,
 } from "./auth";
 import { TABLES } from "./tables";
 import {
@@ -105,6 +106,125 @@ const V35_MIGRATION = {
   name: "add-allocation-project-id",
   checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
 } as const;
+const RELEASED_MIGRATION_HISTORY = [
+  {
+    version: 8,
+    name: "establish-explicit-migration-baseline",
+    checksum: "90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d",
+  },
+  {
+    version: 9,
+    name: "add-internal-colour-mode",
+    checksum: "41f8f933f17eb59dac8bfc7a385db70e46df61e249a295fd622f821dcc3bb1f0",
+  },
+  {
+    version: 10,
+    name: "enforce-single-owner",
+    checksum: "a178fba43ad4c58ca8508117303b568c05103a05cc6e48512f2e92306e857653",
+  },
+  {
+    version: 11,
+    name: "repair-ownerless-memberships",
+    checksum: "561d0b306d9702e807d45702ec2424f0421b44eb2bc34adab7abc8ba08875117",
+  },
+  {
+    version: 12,
+    name: "revoke-owner-reset-ceremonies",
+    checksum: "4e7a506b4324de4e8d48ad843d1eabe70b4723c6e9bb4e44f2ed1c76046b2b56",
+  },
+  {
+    version: 13,
+    name: "snap-legacy-account-colors",
+    checksum: "1067b03a5483de517efc575e5597c633e8f6a6640bec02c5f0087e76b53ce7d1",
+  },
+  {
+    version: 14,
+    name: "revoke-member-reset-ceremonies",
+    checksum: "a99f4cb99587c3cfeef7cc3fe618a4223160ba3c01b2ec391a64251ae17556e1",
+  },
+  {
+    version: 15,
+    name: "add-account-boundary-state",
+    checksum: "3aaf6516f6ccd9d0f107d2d972d94219709e907d1cdc0fdf65c218d8e38b0efb",
+  },
+  {
+    version: 16,
+    name: "add-account-view-prefs",
+    checksum: "7c6209e72a7a3a100a8d1b513420341f9ddbe73c562810ce01c277f0480c99a1",
+  },
+  {
+    version: 17,
+    name: "add-durable-audit-outbox",
+    checksum: "f2a4dba4fb74de14aa40f57b42c214593a824ffdee2617972fc44d65f8e9f372",
+  },
+  {
+    version: 18,
+    name: "add-browser-sync-ordering",
+    checksum: "9f36a8cc44912588daa937c7144386d45c44f9d165aa4df2bb08b69b279aa49a",
+  },
+  {
+    version: 19,
+    name: "enforce-tenant-relationship-integrity",
+    checksum: "558cc0192ffdae7ef6aa47e189a10ef6e371154fedb74242ff692bb9e52ed74c",
+  },
+  {
+    version: 20,
+    name: "version-bootstrap-claim-control",
+    checksum: "3723fb194afa8f85d3fe9a93493197f3e59eabbb030a8286ac1e030c661077b0",
+  },
+  {
+    version: 21,
+    name: "index-tenant-entity-slices",
+    checksum: "431d2dc119c652583f26e0bc47f39a80957ca24c82ac6519cec9e8e846db7441",
+  },
+  {
+    version: 22,
+    name: "reactivate-builtin-internal-clients",
+    checksum: "05283dd0a42049e3a20cb75a7a0a3063670e003aace3a3c7d3a3ed6d35698560",
+  },
+  {
+    version: 23,
+    name: "index-foreign-key-children",
+    checksum: "b9cd82f6191f8e3ba675a77f09cbf5cc8cbc05b130e486d9dd1681ea0403e6ef",
+  },
+  {
+    version: 24,
+    name: "bound-used-invitation-history",
+    checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
+  },
+  {
+    version: 25,
+    name: "secure-federated-identity-linking",
+    checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+  },
+  V26_MIGRATION,
+  V27_MIGRATION,
+  V28_MIGRATION,
+  V29_MIGRATION,
+  V30_MIGRATION,
+  V31_MIGRATION,
+  V32_MIGRATION,
+  V33_MIGRATION,
+  V34_MIGRATION,
+  V35_MIGRATION,
+] as const;
+const V25_TO_CURRENT_MIGRATIONS = [
+  {
+    version: 25,
+    name: "secure-federated-identity-linking",
+    checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
+  },
+  V26_MIGRATION,
+  V27_MIGRATION,
+  V28_MIGRATION,
+  V29_MIGRATION,
+  V30_MIGRATION,
+  V31_MIGRATION,
+  V32_MIGRATION,
+  V33_MIGRATION,
+  V34_MIGRATION,
+  V35_MIGRATION,
+] as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
@@ -117,6 +237,12 @@ const FIXTURE_PASSWORD_ENV = {
   BETTER_AUTH_SECRET: "fixture-secret-0123456789abcdef-012345",
   BETTER_AUTH_URL: "http://localhost:8787",
 } as const;
+
+function createFixtureAuth(db: Db): Auth {
+  const { auth } = createAuthFromEnvironment(db, FIXTURE_PASSWORD_ENV);
+  if (!auth) throw new Error("Expected password authentication for the migration fixture.");
+  return auth;
+}
 
 function copyFixture(name: string): { path: string; cleanup: () => void } {
   const path = join(tmpdir(), `capacitylens-${name}-${process.pid}-${Date.now()}.db`);
@@ -322,6 +448,321 @@ function dropAllocationProjectAttribution(db: DatabaseSync): void {
   `);
 }
 
+function prepareV14ResetCeremonyFixture(path: string): void {
+  const db = openDb(path);
+  insertRow(db, "accounts", {
+    id: "a1",
+    name: "Studio",
+    color: "#e02727",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  upsertMember(db, {
+    accountId: "a1",
+    userId: "kept-owner",
+    role: "owner",
+    status: "active",
+    createdAt: TS,
+  });
+  upsertMember(db, {
+    accountId: "a1",
+    userId: "demoted-admin",
+    role: "admin",
+    status: "active",
+    createdAt: TS,
+  });
+  db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+  db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run("demoted-reset", "demoted-admin");
+  db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
+  db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
+  db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
+  db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
+  db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+  dropAllocationProjectAttribution(db);
+  db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
+  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
+  db.exec(`PRAGMA user_version = 13`);
+  db.close();
+}
+
+function prepareV16AccountViewPreferencesFixture(path: string): void {
+  const db = openDb(path);
+  insertRow(db, "accounts", {
+    id: "a1",
+    name: "Studio",
+    color: "#e02727",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  for (const column of ["showInternalProjects", "showInternalActivities", "inlineActivityCreateEnabled"]) {
+    db.exec(`ALTER TABLE accounts DROP COLUMN ${column}`);
+  }
+  db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
+  db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
+  db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
+  db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
+  db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+  dropAllocationProjectAttribution(db);
+  db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
+  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
+  db.exec(`PRAGMA user_version = 15`);
+  db.close();
+}
+
+function rollBackCurrentDatabaseToV25(db: DatabaseSync): void {
+  db.exec(`
+    DROP TABLE account_member_sign_in_tracking;
+    ALTER TABLE account_members DROP COLUMN signInConfirmed;
+    ALTER TABLE allocations DROP COLUMN seriesId;
+    ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement;
+    ALTER TABLE accounts DROP COLUMN workingDays;
+    ALTER TABLE resources DROP COLUMN engagement;
+    ALTER TABLE resources DROP COLUMN halfDays;
+    ALTER TABLE resources DROP COLUMN isFavourite;
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 26;
+    PRAGMA user_version = 25;
+  `);
+}
+
+function assertPresentAccountViewPreferences(db: Db): void {
+  const row = getRow(db, "accounts", "a2");
+  expect(row?.placeholdersEnabled).toBe(true);
+  expect(row?.externalEnabled).toBe(true);
+  expect(row?.groupResourcesByEngagement).toBe(false);
+  expect(row?.showInternalProjects).toBe(false);
+  expect(row?.showInternalActivities).toBe(false);
+  expect(row?.inlineActivityCreateEnabled).toBe(false);
+}
+
+function assertAbsentAccountViewPreferences(db: Db): void {
+  const oldRow = getRow(db, "accounts", "a1");
+  expect(oldRow?.placeholdersEnabled).toBeUndefined();
+  expect(oldRow?.externalEnabled).toBeUndefined();
+  expect(oldRow?.groupResourcesByEngagement).toBeUndefined();
+  expect(oldRow?.showInternalProjects).toBeUndefined();
+  expect(oldRow?.showInternalActivities).toBeUndefined();
+  expect(oldRow?.inlineActivityCreateEnabled).toBeUndefined();
+}
+
+interface V23InvitationInput {
+  accountId: string;
+  id: string;
+  usedAt: string | null;
+  expiresAt?: string | undefined;
+}
+
+function prepareV23InvitationHistory(db: Db): void {
+  db.exec(`
+    DROP INDEX idx_invites_account_usedAt_id;
+    DROP INDEX idx_invites_live_preauthEmail;
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 24;
+    PRAGMA user_version = 23;
+  `);
+  const insert = ({ accountId, id, usedAt, expiresAt = "2999-01-01T00:00:00.000Z" }: V23InvitationInput) =>
+    createInvite(db, {
+      token: `token-${accountId}-${id}`,
+      id,
+      accountId,
+      role: "viewer",
+      preauthEmail: usedAt === null ? "live@example.com" : null,
+      expiresAt,
+      usedAt,
+      createdAt: "2026-01-01T00:00:00.000Z",
+    });
+  for (let index = 0; index < USED_INVITATION_RETENTION_LIMIT + 2; index += 1) {
+    insert({
+      accountId: "account-1",
+      id: `recent-${String(index).padStart(3, "0")}`,
+      usedAt: "2998-01-01T00:00:00.000Z",
+    });
+  }
+  insert({ accountId: "account-1", id: "old", usedAt: "2000-01-01T00:00:00.000Z" });
+  insert({ accountId: "account-1", id: "live", usedAt: null });
+  insert({ accountId: "account-1", id: "expired-unused", usedAt: null, expiresAt: "2000-01-01T00:00:00.000Z" });
+  insert({ accountId: "account-2", id: "other-account", usedAt: "2998-01-01T00:00:00.000Z" });
+}
+
+function assertBootstrapClaimSchema(db: Db): void {
+  expect(db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all()).toEqual([
+    expect.objectContaining({
+      name: "id",
+      type: "INTEGER",
+      notnull: 0,
+      pk: 1,
+    }),
+    expect.objectContaining({
+      name: "claimedAt",
+      type: "TEXT",
+      notnull: 1,
+      pk: 0,
+    }),
+    expect.objectContaining({
+      name: "claimToken",
+      type: "TEXT",
+      notnull: 1,
+      pk: 0,
+    }),
+  ]);
+  expect(() => db.prepare(`INSERT INTO capacitylens_bootstrap_claim VALUES (2, ?, ?)`).run(TS, "token")).toThrow(
+    /check constraint/i,
+  );
+  expect(() => db.prepare(`INSERT INTO capacitylens_bootstrap_claim VALUES (1, ?, NULL)`).run(TS)).toThrow(
+    /not null constraint/i,
+  );
+}
+
+function prepareV21TombstonedInternalClients(db: Db, priorRevision: string): void {
+  insertRow(db, "accounts", {
+    id: "a-archived",
+    name: "Archived Studio",
+    color: "#e02727",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  insertRow(db, "accounts", {
+    id: "a-deleted",
+    name: "Deleted Studio",
+    color: "#e02727",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  insertRow(db, "clients", buildInternalClient("a-archived", TS) as unknown as Record<string, unknown>);
+  insertRow(db, "clients", buildInternalClient("a-deleted", TS) as unknown as Record<string, unknown>);
+  db.prepare(`UPDATE clients SET archivedAt = ?, updatedAt = ? WHERE id = ?`).run(
+    TS,
+    priorRevision,
+    "internal:a-archived",
+  );
+  db.prepare(`UPDATE clients SET archivedAt = ?, deletedAt = ?, updatedAt = ? WHERE id = ?`).run(
+    TS,
+    "2026-01-02T00:00:00.000Z",
+    priorRevision,
+    "internal:a-deleted",
+  );
+  db.exec(`
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 22;
+    PRAGMA user_version = 21;
+  `);
+}
+
+function prepareV26LegacyDefaultEntities(db: Db) {
+  insertRow(db, "accounts", {
+    id: "a1",
+    name: "Wayne Enterprises",
+    color: "#2d75da",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  insertRow(db, "accounts", {
+    id: "a2",
+    name: "Stark Industries",
+    color: "#da2d92",
+    weekStartsOn: 0,
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  const resource = {
+    id: "r1",
+    accountId: "a1",
+    kind: "person" as const,
+    name: "Bruce Wayne",
+    role: "Director",
+    employmentType: "permanent" as const,
+    engagement: "studio" as const,
+    workingHoursPerDay: 8,
+    workingDays: [1, 2, 3, 4, 5] as Array<1 | 2 | 3 | 4 | 5>,
+    halfDays: [],
+    color: "#2d75da",
+    createdAt: TS,
+    updatedAt: TS,
+  };
+  insertRow(db, "resources", resource);
+  insertRow(db, "activities", {
+    id: "t1",
+    accountId: "a1",
+    name: "Admin",
+    kind: "repeatable",
+    createdAt: TS,
+    updatedAt: TS,
+  });
+  return resource;
+}
+
+function prepareV24IdentitySchema(db: Db): void {
+  db.exec(`
+    DROP TABLE capacitylens_federated_link_observations;
+    DROP TABLE capacitylens_federated_link_ceremonies;
+    DROP TABLE capacitylens_sso_cutover_state;
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
+    PRAGMA user_version = 24;
+    CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL);
+    CREATE TABLE account (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      providerId TEXT NOT NULL,
+      accountId TEXT NOT NULL
+    );
+  `);
+}
+
+function assertV25IdentityMigrationRefusals(): void {
+  const duplicate = openDb(":memory:");
+  prepareV24IdentitySchema(duplicate);
+  duplicate.exec(`
+    INSERT INTO user (id, email) VALUES
+      ('principal-1', 'owner@example.com'),
+      ('principal-2', 'other@example.com');
+    INSERT INTO account (id, userId, providerId, accountId) VALUES
+      ('link-1', 'principal-1', 'workforce', 'subject-1'),
+      ('link-2', 'principal-2', 'workforce', 'subject-1');
+  `);
+  expect(() => initializeOpenDb(duplicate, ":memory:")).toThrow(
+    /provider workforce, subject subject-1, principals principal-1, principal-2.*owner@example.com, other@example.com/i,
+  );
+  expect((duplicate.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
+  expect(duplicate.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
+  duplicate.close();
+
+  const repeatedProvider = openDb(":memory:");
+  prepareV24IdentitySchema(repeatedProvider);
+  repeatedProvider.exec(`
+    INSERT INTO user (id, email) VALUES ('principal-1', 'owner@example.com');
+    INSERT INTO account (id, userId, providerId, accountId) VALUES
+      ('link-1', 'principal-1', 'workforce', 'subject-1'),
+      ('link-2', 'principal-1', 'workforce', 'subject-2');
+  `);
+  expect(() => initializeOpenDb(repeatedProvider, ":memory:")).toThrow(
+    /principal principal-1.*provider workforce, subjects subject-1, subject-2/i,
+  );
+  expect((repeatedProvider.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
+  repeatedProvider.close();
+
+  const malformed = openDb(":memory:");
+  prepareV24IdentitySchema(malformed);
+  malformed.exec(`
+    CREATE TABLE capacitylens_federated_link_ceremonies (
+      id TEXT NOT NULL PRIMARY KEY,
+      principalId TEXT NOT NULL,
+      providerId TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      expiresAt TEXT NOT NULL,
+      completedAt TEXT
+    );
+  `);
+  expect(() => initializeOpenDb(malformed, ":memory:")).toThrow(
+    /invalid capacitylens_federated_link_ceremonies definition/i,
+  );
+  expect((malformed.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
+  expect(malformed.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
+  malformed.close();
+}
+
+function assertV13AccountColors(db: Db): void {
+  const state = readState(db);
+  expect(state.accounts.find((account) => account.id === "a-legacy")?.color).toBe("#7adae3");
+  expect(state.accounts.find((account) => account.id === "a-preset")?.color).toBe("#e02727");
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("pins synchronous FULL even when the connection inherited a weaker setting", () => {
     const copied = copyFixture("v16-off.db");
@@ -335,14 +776,18 @@ describe("schema migration of an existing on-disk DB", () => {
     db.close();
     copied.cleanup();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("retains both auth shapes for every top-level database schema that shipped", () => {
     const committed = readdirSync(join(process.cwd(), "src", "fixtures", "databases"))
       .filter((name) => name.endsWith(".db"))
       .sort();
     expect(committed).toEqual([...RELEASED_FIXTURE_NAMES].sort());
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("restricts the database and all live SQLite sidecars to owner read/write", () => {
     const path = join(tmpdir(), `capacitylens-mode-${process.pid}-${Date.now()}.db`);
     try {
@@ -373,7 +818,9 @@ describe("schema migration of an existing on-disk DB", () => {
       }
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("folds duplicate Internal clients before installing the singleton index", () => {
     const copied = copyFixture("v7-off.db");
     try {
@@ -414,7 +861,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("mints a collision-free Internal id when a legacy ordinary client owns the generated id", () => {
     const copied = copyFixture("v7-off.db");
     try {
@@ -440,7 +889,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v13 snaps every legacy non-preset account colour to its nearest preset exactly once, leaving preset colours untouched", () => {
     // Before v13, sanitizeWrite('accounts') replaced ANY non-preset stored colour with one FIXED
     // fallback hex on every write, and no migration ever repaired the rows already on disk — so a
@@ -510,15 +961,15 @@ describe("schema migration of an existing on-disk DB", () => {
       // now-repaired colours untouched (the write-time guard is a no-op for already-migrated data).
       const reopened = openDb(path);
       expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
-      const restate = readState(reopened);
-      expect(restate.accounts.find((a) => a.id === "a-legacy")?.color).toBe("#7adae3");
-      expect(restate.accounts.find((a) => a.id === "a-preset")?.color).toBe("#e02727");
+      assertV13AccountColors(reopened);
       reopened.close();
     } finally {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("preserves v13's released malformed-colour outcomes without changing its ledger definition", () => {
     const copied = copyFixture("v12-off.db");
     try {
@@ -546,7 +997,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v14 revokes an outstanding reset ceremony for a non-owner active member, leaving the membership row untouched", () => {
     // v12 revoked ceremonies for active OWNERS only, so a co-owner the v10-era raw-SQL repairs
     // demoted to admin kept any reset link minted while they still held Owner privilege. v14 is the
@@ -565,44 +1018,11 @@ describe("schema migration of an existing on-disk DB", () => {
     };
     cleanup();
     try {
-      const db = openDb(path); // fresh DB: already at the current version (v14 is a no-op here)
-      insertRow(db, "accounts", {
-        id: "a1",
-        name: "Studio",
-        color: "#e02727",
-        createdAt: TS,
-        updatedAt: TS,
-      });
-      upsertMember(db, {
-        accountId: "a1",
-        userId: "kept-owner",
-        role: "owner",
-        status: "active",
-        createdAt: TS,
-      });
-      upsertMember(db, {
-        accountId: "a1",
-        userId: "demoted-admin",
-        role: "admin",
-        status: "active",
-        createdAt: TS,
-      });
       // Better Auth normally creates `verification` when password auth first runs; mirror that shape
       // (as controlTables.test.ts does) AFTER the membership writes, so upsertMember's own
       // privilege-change revocation cannot be what removes the token — only v14 can.
-      db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`);
-      db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run("demoted-reset", "demoted-admin");
       // Roll the ledger back to "just before v14" so the next openDb() re-runs ONLY the v14 migration.
-      db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
-      db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
-      db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
-      dropAllocationProjectAttribution(db);
-      db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
-      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
-      db.exec(`PRAGMA user_version = 13`);
-      db.close();
+      prepareV14ResetCeremonyFixture(path);
 
       const upgraded = openDb(path);
       expect(upgraded.prepare(`SELECT id FROM verification`).all()).toEqual([]);
@@ -629,7 +1049,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v16 adds the account view-pref columns via the explicit ledger step, leaving existing rows untouched", () => {
     // Drive migration 16 in ISOLATION through the real ledger/openDb path: take a current DB, simulate
     // a pre-v16 shape (drop the three columns + roll the ledger back to 15), then reopen and prove the
@@ -646,27 +1068,7 @@ describe("schema migration of an existing on-disk DB", () => {
     };
     cleanup();
     try {
-      const db = openDb(path); // fresh DB: already current (v16 columns present)
-      insertRow(db, "accounts", {
-        id: "a1",
-        name: "Studio",
-        color: "#e02727",
-        createdAt: TS,
-        updatedAt: TS,
-      });
-      for (const column of ["showInternalProjects", "showInternalActivities", "inlineActivityCreateEnabled"]) {
-        db.exec(`ALTER TABLE accounts DROP COLUMN ${column}`);
-      }
-      db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
-      db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
-      db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
-      dropAllocationProjectAttribution(db);
-      db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
-      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
-      db.exec(`PRAGMA user_version = 15`);
-      db.close();
+      prepareV16AccountViewPreferencesFixture(path);
 
       const upgraded = openDb(path);
       const cols = (
@@ -702,7 +1104,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("upgrades an old-shape DB (NOT NULL projectId, missing new columns) to current", () => {
     const path = join(tmpdir(), `capacitylens-migrate-${process.pid}-${Date.now()}.db`);
     const cleanup = () => {
@@ -724,7 +1128,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("seeds a never-initialised DB once, and NOT after the user empties it (no demo re-seed)", () => {
     const db = openDb(":memory:");
     // Fresh DB: uninitialised → seeds.
@@ -745,7 +1151,9 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(isEmpty(readState(db))).toBe(true);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("serializes two database handles racing to seed the same fresh file", async () => {
     const path = join(tmpdir(), `capacitylens-seed-race-${process.pid}-${Date.now()}.db`);
     const parentDb = openDb(path);
@@ -787,7 +1195,9 @@ describe("schema migration of an existing on-disk DB", () => {
       }
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("generically ADDs a missing OPTIONAL column with no hard-coded migration step", () => {
     // An old `disciplines` table missing the optional `color` column. There is NO
     // hard-coded rule for disciplines.color, so this proves the migration is GENERIC —
@@ -832,7 +1242,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("throws a clear, column-naming error when an existing DB lacks a now-REQUIRED column", () => {
     // The flip side of the generic optional-add: an old `accounts` table that predates a
     // required column (here `color`). CREATE TABLE IF NOT EXISTS won't backfill it and
@@ -889,7 +1301,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("refuses a current-version entity table with an unexpected required column", () => {
     const { path, cleanup } = mutateCurrentDatabase("migrate-extra-required", (db) => {
       db.exec("ALTER TABLE accounts ADD COLUMN blocker TEXT NOT NULL");
@@ -900,7 +1314,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("refuses a current control table whose composite primary key was removed", () => {
     const { path, cleanup } = mutateCurrentDatabase("control-primary-key", (db) => {
       db.exec(`
@@ -929,7 +1345,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("refuses a current control index whose name hides the wrong key definition", () => {
     const { path, cleanup } = mutateCurrentDatabase("control-index-definition", (db) => {
       db.exec(`
@@ -945,7 +1363,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it.each([
     {
       label: "declared type",
@@ -994,7 +1414,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("allows extension columns that the explicit insert contract can safely omit", () => {
     const { path, cleanup } = mutateCurrentDatabase("migrate-benign-extensions", (db) => {
       db.exec(`
@@ -1022,7 +1444,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("accounts.timezone and accounts.weekStartsOn are added by migration", () => {
     // An old accounts table without the new optional columns.
     const path = join(tmpdir(), `capacitylens-migrate-tz-${process.pid}-${Date.now()}.db`);
@@ -1072,7 +1496,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("accounts.placeholdersEnabled and accounts.externalEnabled are added by migration", () => {
     // An old accounts table without the two new optional view-pref columns.
     const path = join(tmpdir(), `capacitylens-migrate-flags-${process.pid}-${Date.now()}.db`);
@@ -1118,29 +1544,19 @@ describe("schema migration of an existing on-disk DB", () => {
         createdAt: TS,
         updatedAt: TS,
       });
-      const row = getRow(db, "accounts", "a2");
-      expect(row?.placeholdersEnabled).toBe(true);
-      expect(row?.externalEnabled).toBe(true);
-      expect(row?.groupResourcesByEngagement).toBe(false);
       // JSON boolean columns round-trip an explicit `false` (not lost / not coerced to absent).
-      expect(row?.showInternalProjects).toBe(false);
-      expect(row?.showInternalActivities).toBe(false);
-      expect(row?.inlineActivityCreateEnabled).toBe(false);
       // The old row (without the new fields) reads back without them (absent → default true client-side
       // for the view prefs, false for placeholders/external).
-      const old2 = getRow(db, "accounts", "a1");
-      expect(old2?.placeholdersEnabled).toBeUndefined();
-      expect(old2?.externalEnabled).toBeUndefined();
-      expect(old2?.groupResourcesByEngagement).toBeUndefined();
-      expect(old2?.showInternalProjects).toBeUndefined();
-      expect(old2?.showInternalActivities).toBeUndefined();
-      expect(old2?.inlineActivityCreateEnabled).toBeUndefined();
+      assertPresentAccountViewPreferences(db);
+      assertAbsentAccountViewPreferences(db);
       db.close();
     } finally {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("throws a nullability-mismatch error when a column is present but NULL/NOT NULL disagrees with the spec", () => {
     // accounts.schedulingMode is OPTIONAL in the spec (nullable), but here the on-disk column
     // exists as NOT NULL. It's present, so migrateSchema won't touch it and the missing-column
@@ -1173,7 +1589,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("stamps a fresh DB with the independent physical version and CapacityLens application id", () => {
     const db = openDb(":memory:");
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION);
@@ -1196,113 +1614,14 @@ describe("schema migration of an existing on-disk DB", () => {
         name,
         checksum,
       })),
-    ).toEqual([
-      {
-        version: 8,
-        name: "establish-explicit-migration-baseline",
-        checksum: "90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d",
-      },
-      {
-        version: 9,
-        name: "add-internal-colour-mode",
-        checksum: "41f8f933f17eb59dac8bfc7a385db70e46df61e249a295fd622f821dcc3bb1f0",
-      },
-      {
-        version: 10,
-        name: "enforce-single-owner",
-        checksum: "a178fba43ad4c58ca8508117303b568c05103a05cc6e48512f2e92306e857653",
-      },
-      {
-        version: 11,
-        name: "repair-ownerless-memberships",
-        checksum: "561d0b306d9702e807d45702ec2424f0421b44eb2bc34adab7abc8ba08875117",
-      },
-      {
-        version: 12,
-        name: "revoke-owner-reset-ceremonies",
-        checksum: "4e7a506b4324de4e8d48ad843d1eabe70b4723c6e9bb4e44f2ed1c76046b2b56",
-      },
-      {
-        version: 13,
-        name: "snap-legacy-account-colors",
-        checksum: "1067b03a5483de517efc575e5597c633e8f6a6640bec02c5f0087e76b53ce7d1",
-      },
-      {
-        version: 14,
-        name: "revoke-member-reset-ceremonies",
-        checksum: "a99f4cb99587c3cfeef7cc3fe618a4223160ba3c01b2ec391a64251ae17556e1",
-      },
-      {
-        version: 15,
-        name: "add-account-boundary-state",
-        checksum: "3aaf6516f6ccd9d0f107d2d972d94219709e907d1cdc0fdf65c218d8e38b0efb",
-      },
-      {
-        version: 16,
-        name: "add-account-view-prefs",
-        checksum: "7c6209e72a7a3a100a8d1b513420341f9ddbe73c562810ce01c277f0480c99a1",
-      },
-      {
-        version: 17,
-        name: "add-durable-audit-outbox",
-        checksum: "f2a4dba4fb74de14aa40f57b42c214593a824ffdee2617972fc44d65f8e9f372",
-      },
-      {
-        version: 18,
-        name: "add-browser-sync-ordering",
-        checksum: "9f36a8cc44912588daa937c7144386d45c44f9d165aa4df2bb08b69b279aa49a",
-      },
-      {
-        version: 19,
-        name: "enforce-tenant-relationship-integrity",
-        checksum: "558cc0192ffdae7ef6aa47e189a10ef6e371154fedb74242ff692bb9e52ed74c",
-      },
-      {
-        version: 20,
-        name: "version-bootstrap-claim-control",
-        checksum: "3723fb194afa8f85d3fe9a93493197f3e59eabbb030a8286ac1e030c661077b0",
-      },
-      {
-        version: 21,
-        name: "index-tenant-entity-slices",
-        checksum: "431d2dc119c652583f26e0bc47f39a80957ca24c82ac6519cec9e8e846db7441",
-      },
-      {
-        version: 22,
-        name: "reactivate-builtin-internal-clients",
-        checksum: "05283dd0a42049e3a20cb75a7a0a3063670e003aace3a3c7d3a3ed6d35698560",
-      },
-      {
-        version: 23,
-        name: "index-foreign-key-children",
-        checksum: "b9cd82f6191f8e3ba675a77f09cbf5cc8cbc05b130e486d9dd1681ea0403e6ef",
-      },
-      {
-        version: 24,
-        name: "bound-used-invitation-history",
-        checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
-      },
-      {
-        version: 25,
-        name: "secure-federated-identity-linking",
-        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
-      },
-      V26_MIGRATION,
-      V27_MIGRATION,
-      V28_MIGRATION,
-      V29_MIGRATION,
-      V30_MIGRATION,
-      V31_MIGRATION,
-      V32_MIGRATION,
-      V33_MIGRATION,
-      V34_MIGRATION,
-      V35_MIGRATION,
-    ]);
+    ).toEqual(RELEASED_MIGRATION_HISTORY);
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true);
     expect(planDatabaseMigrations(db).migrations).toEqual([]);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("repairs raw empty account working weeks on every boot without a schema migration", () => {
     const db = openDb(":memory:");
     insertRow(db, "accounts", {
@@ -1334,7 +1653,9 @@ describe("schema migration of an existing on-disk DB", () => {
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("treats migrations committed by a concurrent boot after planning as already applied", () => {
     const copied = copyFixture("v16-off.db");
     try {
@@ -1375,7 +1696,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v17 adds the durable audit outbox through one explicit ledger step", () => {
     const db = openDb(":memory:");
     db.exec(`
@@ -1411,7 +1734,9 @@ describe("schema migration of an existing on-disk DB", () => {
     );
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v18 adds durable browser-sync ordering through one explicit ledger step", () => {
     const db = openDb(":memory:");
     db.exec(`
@@ -1452,7 +1777,9 @@ describe("schema migration of an existing on-disk DB", () => {
     );
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v19 rejects an existing cross-account edge and rolls back its triggers and ledger step", () => {
     const db = openDb(":memory:");
     const triggers = db
@@ -1506,7 +1833,9 @@ describe("schema migration of an existing on-disk DB", () => {
     ).toEqual([]);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v20 creates the bootstrap-claim control through one explicit ledger step", () => {
     const db = openDb(":memory:");
     dropTenantEntityIndexes(db);
@@ -1560,35 +1889,12 @@ describe("schema migration of an existing on-disk DB", () => {
     ]);
 
     initializeOpenDb(db, ":memory:");
-    expect(db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all()).toEqual([
-      expect.objectContaining({
-        name: "id",
-        type: "INTEGER",
-        notnull: 0,
-        pk: 1,
-      }),
-      expect.objectContaining({
-        name: "claimedAt",
-        type: "TEXT",
-        notnull: 1,
-        pk: 0,
-      }),
-      expect.objectContaining({
-        name: "claimToken",
-        type: "TEXT",
-        notnull: 1,
-        pk: 0,
-      }),
-    ]);
-    expect(() => db.prepare(`INSERT INTO capacitylens_bootstrap_claim VALUES (2, ?, ?)`).run(TS, "token")).toThrow(
-      /check constraint/i,
-    );
-    expect(() => db.prepare(`INSERT INTO capacitylens_bootstrap_claim VALUES (1, ?, NULL)`).run(TS)).toThrow(
-      /not null constraint/i,
-    );
+    assertBootstrapClaimSchema(db);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it.each([
     {
       label: "original two-column definition",
@@ -1628,7 +1934,9 @@ describe("schema migration of an existing on-disk DB", () => {
     );
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v20 preserves a live claim when the direct-DDL table is already exact", () => {
     const db = openDb(":memory:");
     db.prepare(`INSERT INTO capacitylens_bootstrap_claim (id, claimedAt, claimToken) VALUES (1, ?, ?)`).run(
@@ -1649,7 +1957,9 @@ describe("schema migration of an existing on-disk DB", () => {
     });
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v20 rejects unknown bootstrap-claim drift and rolls its ledger step back", () => {
     const db = openDb(":memory:");
     dropTenantEntityIndexes(db);
@@ -1675,7 +1985,9 @@ describe("schema migration of an existing on-disk DB", () => {
     ).toEqual(["id", "claimToken"]);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v21 adds every tenant-slice index through one explicit ledger step", () => {
     const db = openDb(":memory:");
     dropTenantEntityIndexes(db);
@@ -1731,41 +2043,13 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(TENANT_ENTITY_INDEXES_V21_SQL).toContain("idx_allocations_accountId");
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v22 reactivates tombstoned built-in Internal clients and advances their revisions", () => {
     const db = openDb(":memory:");
-    insertRow(db, "accounts", {
-      id: "a-archived",
-      name: "Archived Studio",
-      color: "#e02727",
-      createdAt: TS,
-      updatedAt: TS,
-    });
-    insertRow(db, "accounts", {
-      id: "a-deleted",
-      name: "Deleted Studio",
-      color: "#e02727",
-      createdAt: TS,
-      updatedAt: TS,
-    });
-    insertRow(db, "clients", buildInternalClient("a-archived", TS) as unknown as Record<string, unknown>);
-    insertRow(db, "clients", buildInternalClient("a-deleted", TS) as unknown as Record<string, unknown>);
     const priorRevision = "2099-01-01T00:00:00.000Z";
-    db.prepare(`UPDATE clients SET archivedAt = ?, updatedAt = ? WHERE id = ?`).run(
-      TS,
-      priorRevision,
-      "internal:a-archived",
-    );
-    db.prepare(`UPDATE clients SET archivedAt = ?, deletedAt = ?, updatedAt = ? WHERE id = ?`).run(
-      TS,
-      "2026-01-02T00:00:00.000Z",
-      priorRevision,
-      "internal:a-deleted",
-    );
-    db.exec(`
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 22;
-      PRAGMA user_version = 21;
-    `);
+    prepareV21TombstonedInternalClients(db, priorRevision);
 
     expect(planDatabaseMigrations(db).migrations).toEqual([
       {
@@ -1818,7 +2102,9 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(db.prepare(`SELECT id, updatedAt FROM clients ORDER BY id`).all()).toEqual(revisions);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v23 adds every foreign-key child index through one explicit ledger step", () => {
     const db = openDb(":memory:");
     for (const { index } of FOREIGN_KEY_CHILD_INDEXES_V23) db.exec(`DROP INDEX ${index}`);
@@ -1865,45 +2151,12 @@ describe("schema migration of an existing on-disk DB", () => {
     for (const { index } of FOREIGN_KEY_CHILD_INDEXES_V23) expect(installed.has(index)).toBe(true);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v24 bounds pre-existing used invitation history and installs its lookup indexes", () => {
     const db = openDb(":memory:");
-    db.exec(`
-      DROP INDEX idx_invites_account_usedAt_id;
-      DROP INDEX idx_invites_live_preauthEmail;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 24;
-      PRAGMA user_version = 23;
-    `);
-
-    interface InsertInput {
-      accountId: string;
-      id: string;
-      usedAt: string | null;
-      expiresAt?: string | undefined;
-    }
-
-    const insert = ({ accountId, id, usedAt, expiresAt = "2999-01-01T00:00:00.000Z" }: InsertInput) =>
-      createInvite(db, {
-        token: `token-${accountId}-${id}`,
-        id,
-        accountId,
-        role: "viewer",
-        preauthEmail: usedAt === null ? "live@example.com" : null,
-        expiresAt,
-        usedAt,
-        createdAt: "2026-01-01T00:00:00.000Z",
-      });
-    for (let index = 0; index < USED_INVITATION_RETENTION_LIMIT + 2; index += 1) {
-      insert({
-        accountId: "account-1",
-        id: `recent-${String(index).padStart(3, "0")}`,
-        usedAt: "2998-01-01T00:00:00.000Z",
-      });
-    }
-    insert({ accountId: "account-1", id: "old", usedAt: "2000-01-01T00:00:00.000Z" });
-    insert({ accountId: "account-1", id: "live", usedAt: null });
-    insert({ accountId: "account-1", id: "expired-unused", usedAt: null, expiresAt: "2000-01-01T00:00:00.000Z" });
-    insert({ accountId: "account-2", id: "other-account", usedAt: "2998-01-01T00:00:00.000Z" });
+    prepareV23InvitationHistory(db);
 
     expect(planDatabaseMigrations(db).migrations).toEqual([
       {
@@ -1945,25 +2198,10 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(db.prepare(`SELECT id FROM invites ORDER BY id`).all()).toEqual(rows);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v25 refuses duplicate provider subjects before installing the concurrency-safe unique index", () => {
-    const prepareV24IdentitySchema = (db: Db) => {
-      db.exec(`
-        DROP TABLE capacitylens_federated_link_observations;
-        DROP TABLE capacitylens_federated_link_ceremonies;
-        DROP TABLE capacitylens_sso_cutover_state;
-        DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
-        PRAGMA user_version = 24;
-        CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL);
-        CREATE TABLE account (
-          id TEXT PRIMARY KEY,
-          userId TEXT NOT NULL,
-          providerId TEXT NOT NULL,
-          accountId TEXT NOT NULL
-        );
-      `);
-    };
-
     const clean = openDb(":memory:");
     prepareV24IdentitySchema(clean);
     clean.exec(`
@@ -1971,23 +2209,7 @@ describe("schema migration of an existing on-disk DB", () => {
       INSERT INTO account (id, userId, providerId, accountId)
       VALUES ('link-1', 'principal-1', 'workforce', 'subject-1');
     `);
-    expect(planDatabaseMigrations(clean).migrations).toEqual([
-      {
-        version: 25,
-        name: "secure-federated-identity-linking",
-        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
-      },
-      V26_MIGRATION,
-      V27_MIGRATION,
-      V28_MIGRATION,
-      V29_MIGRATION,
-      V30_MIGRATION,
-      V31_MIGRATION,
-      V32_MIGRATION,
-      V33_MIGRATION,
-      V34_MIGRATION,
-      V35_MIGRATION,
-    ]);
+    expect(planDatabaseMigrations(clean).migrations).toEqual(V25_TO_CURRENT_MIGRATIONS);
     initializeOpenDb(clean, ":memory:");
     expect(() => assertFederatedIdentitySchemaCurrent(clean)).not.toThrow();
     expect(() =>
@@ -2026,58 +2248,11 @@ describe("schema migration of an existing on-disk DB", () => {
         .all(),
     ).toEqual([{ principalId: "principal-2", providerId: "workforce", subject: "subject-2" }]);
     clean.close();
-
-    const duplicate = openDb(":memory:");
-    prepareV24IdentitySchema(duplicate);
-    duplicate.exec(`
-      INSERT INTO user (id, email) VALUES
-        ('principal-1', 'owner@example.com'),
-        ('principal-2', 'other@example.com');
-      INSERT INTO account (id, userId, providerId, accountId) VALUES
-        ('link-1', 'principal-1', 'workforce', 'subject-1'),
-        ('link-2', 'principal-2', 'workforce', 'subject-1');
-    `);
-    expect(() => initializeOpenDb(duplicate, ":memory:")).toThrow(
-      /provider workforce, subject subject-1, principals principal-1, principal-2.*owner@example.com, other@example.com/i,
-    );
-    expect((duplicate.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
-    expect(duplicate.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
-    duplicate.close();
-
-    const repeatedProvider = openDb(":memory:");
-    prepareV24IdentitySchema(repeatedProvider);
-    repeatedProvider.exec(`
-      INSERT INTO user (id, email) VALUES ('principal-1', 'owner@example.com');
-      INSERT INTO account (id, userId, providerId, accountId) VALUES
-        ('link-1', 'principal-1', 'workforce', 'subject-1'),
-        ('link-2', 'principal-1', 'workforce', 'subject-2');
-    `);
-    expect(() => initializeOpenDb(repeatedProvider, ":memory:")).toThrow(
-      /principal principal-1.*provider workforce, subjects subject-1, subject-2/i,
-    );
-    expect((repeatedProvider.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
-    repeatedProvider.close();
-
-    const malformed = openDb(":memory:");
-    prepareV24IdentitySchema(malformed);
-    malformed.exec(`
-      CREATE TABLE capacitylens_federated_link_ceremonies (
-        id TEXT NOT NULL PRIMARY KEY,
-        principalId TEXT NOT NULL,
-        providerId TEXT NOT NULL,
-        createdAt TEXT NOT NULL,
-        expiresAt TEXT NOT NULL,
-        completedAt TEXT
-      );
-    `);
-    expect(() => initializeOpenDb(malformed, ":memory:")).toThrow(
-      /invalid capacitylens_federated_link_ceremonies definition/i,
-    );
-    expect((malformed.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(24);
-    expect(malformed.prepare(`SELECT 1 FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 25`).get()).toBeUndefined();
-    malformed.close();
+    assertV25IdentityMigrationRefusals();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("refuses missing or checksummed migration-history drift before planning writes", () => {
     const db = openDb(":memory:");
     db.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = ?`).run(
@@ -2090,7 +2265,9 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(() => planDatabaseMigrations(db)).toThrow(/history has 0 row/i);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it.each([
     [
       "unexpected column",
@@ -2115,7 +2292,9 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(() => planDatabaseMigrations(db)).toThrow(/migration history table is invalid/i);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it.each([
     ["out-of-order version", `UPDATE ${DATABASE_MIGRATION_TABLE} SET version = 0 WHERE version = 8`, /out of order/],
     ["name drift", `UPDATE ${DATABASE_MIGRATION_TABLE} SET name = 'renamed' WHERE version = 8`, /name does not match/],
@@ -2130,7 +2309,9 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(() => planDatabaseMigrations(db)).toThrow(message);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("refuses startup when WAL or FULL synchronous durability cannot be established", () => {
     const memoryHandle = new DatabaseSync(":memory:");
     expect(() => initializeOpenDb(memoryHandle as Db, "not-an-in-memory-path.db")).toThrow(
@@ -2163,7 +2344,9 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(() => initializeOpenDb(weakened, ":memory:")).toThrow(/synchronous durability policy.*expected FULL/);
     raw.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("rolls back schema, history and version stamps when a migration fails before commit", () => {
     const copied = copyFixture("v7-off.db");
     try {
@@ -2202,21 +2385,12 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v26 through v33 add sign-in confirmation, resource fields, account preferences, series identity and company time off", () => {
     const db = openDb(":memory:");
-    db.exec(`
-      DROP TABLE account_member_sign_in_tracking;
-      ALTER TABLE account_members DROP COLUMN signInConfirmed;
-      ALTER TABLE allocations DROP COLUMN seriesId;
-      ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement;
-      ALTER TABLE accounts DROP COLUMN workingDays;
-      ALTER TABLE resources DROP COLUMN engagement;
-      ALTER TABLE resources DROP COLUMN halfDays;
-      ALTER TABLE resources DROP COLUMN isFavourite;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 26;
-      PRAGMA user_version = 25;
-    `);
+    rollBackCurrentDatabaseToV25(db);
 
     expect(planDatabaseMigrations(db).migrations).toEqual([
       V26_MIGRATION,
@@ -2269,48 +2443,12 @@ describe("schema migration of an existing on-disk DB", () => {
     ).toBe(true);
     db.close();
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v27 through v33 preserve legacy defaults and leave old allocations unlinked", () => {
     const db = openDb(":memory:");
-    insertRow(db, "accounts", {
-      id: "a1",
-      name: "Wayne Enterprises",
-      color: "#2d75da",
-      createdAt: TS,
-      updatedAt: TS,
-    });
-    insertRow(db, "accounts", {
-      id: "a2",
-      name: "Stark Industries",
-      color: "#da2d92",
-      weekStartsOn: 0,
-      createdAt: TS,
-      updatedAt: TS,
-    });
-    const resource = {
-      id: "r1",
-      accountId: "a1",
-      kind: "person" as const,
-      name: "Bruce Wayne",
-      role: "Director",
-      employmentType: "permanent" as const,
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5] as Array<1 | 2 | 3 | 4 | 5>,
-      halfDays: [],
-      color: "#2d75da",
-      createdAt: TS,
-      updatedAt: TS,
-    };
-    insertRow(db, "resources", resource);
-    insertRow(db, "activities", {
-      id: "t1",
-      accountId: "a1",
-      name: "Admin",
-      kind: "repeatable",
-      createdAt: TS,
-      updatedAt: TS,
-    });
+    const resource = prepareV26LegacyDefaultEntities(db);
     const legacyAllocation = {
       id: "al-legacy",
       accountId: "a1",
@@ -2356,69 +2494,71 @@ describe("schema migration of an existing on-disk DB", () => {
     expect(getRow(db, "allocations", legacyAllocation.id)?.seriesId).toBeUndefined();
     db.close();
   });
+});
 
-  // schemaFingerprint scoped to one table's secondary objects: the table is rebuilt in v33 and
-  // v34, so only indexes and triggers must round-trip.
-  const timeOffSecondaryObjects = (db: DatabaseSync): unknown[] =>
-    (
-      db
-        .prepare(
-          `SELECT type, name, sql FROM sqlite_master
-            WHERE tbl_name = 'timeOff' AND type IN ('index', 'trigger') AND sql IS NOT NULL
-            ORDER BY type, name`,
-        )
-        .all() as Array<{ type: string; name: string; sql: string | null }>
-    ).map((entry) => ({ ...entry, sql: normalizeSchemaSql(entry.sql) }));
+// schemaFingerprint scoped to one table's secondary objects: the table is rebuilt in v33 and
+// v34, so only indexes and triggers must round-trip.
+const timeOffSecondaryObjects = (db: DatabaseSync): unknown[] =>
+  (
+    db
+      .prepare(
+        `SELECT type, name, sql FROM sqlite_master
+          WHERE tbl_name = 'timeOff' AND type IN ('index', 'trigger') AND sql IS NOT NULL
+          ORDER BY type, name`,
+      )
+      .all() as Array<{ type: string; name: string; sql: string | null }>
+  ).map((entry) => ({ ...entry, sql: normalizeSchemaSql(entry.sql) }));
 
+function prepareV33TimeOffRows(path: string) {
+  const db = openDbConnection(path);
+  expect(() =>
+    initializeOpenDb(db, path, {
+      beforeCommit: (migration) => {
+        if (migration.version === 34) throw new Error("stop before v34 commit");
+      },
+    }),
+  ).toThrow(/stop before v34 commit/i);
+  expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(33);
+  expect(
+    (db.prepare(`PRAGMA table_info(timeOff)`).all() as Array<{ name: string; notnull: number }>).find(
+      ({ name }) => name === "resourceId",
+    )?.notnull,
+  ).toBe(0);
+  const target = db.prepare(`SELECT id AS resourceId, accountId FROM resources ORDER BY id LIMIT 1`).get() as {
+    resourceId: string;
+    accountId: string;
+  };
+  db.prepare(
+    `INSERT INTO timeOff
+        (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    "to-v32-preserved",
+    target.accountId,
+    target.resourceId,
+    "2026-12-24",
+    "2026-12-25",
+    "holiday",
+    "Office closed",
+    TS,
+    TS,
+  );
+  db.prepare(
+    `INSERT INTO timeOff
+        (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
+       VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
+  ).run("to-v33-company-wide", target.accountId, "2026-12-31", "2027-01-01", "holiday", "Everyone", TS, TS);
+  const beforeRows = db.prepare(`SELECT * FROM timeOff WHERE resourceId IS NOT NULL ORDER BY id`).all();
+  const beforeObjects = timeOffSecondaryObjects(db);
+  db.close();
+  return { target, beforeRows, beforeObjects };
+}
+
+describe("schema migration of an existing on-disk DB", () => {
   it("v34 restores required personal time-off resources and creates first-class closures", () => {
     const copied = copyFixture("v25-off.db");
     try {
-      const v33 = openDbConnection(copied.path);
-      expect(() =>
-        initializeOpenDb(v33, copied.path, {
-          beforeCommit: (migration) => {
-            if (migration.version === 34) throw new Error("stop before v34 commit");
-          },
-        }),
-      ).toThrow(/stop before v34 commit/i);
-      expect((v33.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(33);
-      expect(
-        (v33.prepare(`PRAGMA table_info(timeOff)`).all() as Array<{ name: string; notnull: number }>).find(
-          ({ name }) => name === "resourceId",
-        )?.notnull,
-      ).toBe(0);
-
-      const target = v33.prepare(`SELECT id AS resourceId, accountId FROM resources ORDER BY id LIMIT 1`).get() as {
-        resourceId: string;
-        accountId: string;
-      };
-      v33
-        .prepare(
-          `INSERT INTO timeOff
-            (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run(
-          "to-v32-preserved",
-          target.accountId,
-          target.resourceId,
-          "2026-12-24",
-          "2026-12-25",
-          "holiday",
-          "Office closed",
-          TS,
-          TS,
-        );
-      v33
-        .prepare(
-          `INSERT INTO timeOff
-            (id, accountId, resourceId, startDate, endDate, type, note, createdAt, updatedAt)
-           VALUES (?, ?, NULL, ?, ?, ?, ?, ?, ?)`,
-        )
-        .run("to-v33-company-wide", target.accountId, "2026-12-31", "2027-01-01", "holiday", "Everyone", TS, TS);
-      const beforeRows = v33.prepare(`SELECT * FROM timeOff WHERE resourceId IS NOT NULL ORDER BY id`).all();
-      const beforeObjects = timeOffSecondaryObjects(v33);
-      v33.close();
+      const { target, beforeRows, beforeObjects } = prepareV33TimeOffRows(copied.path);
 
       const upgraded = openDb(copied.path);
       expect(
@@ -2475,7 +2615,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("v35 adds allocation project attribution with its FK, tenant guards and child index", () => {
     const copied = copyFixture("v34-off.db");
     try {
@@ -2508,7 +2650,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("emits v11 owner-promotion outcomes only after the migration commits", () => {
     const copied = copyFixture("v9-off.db");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -2541,7 +2685,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("upgrades a committed v8 database through the current version without changing the v8 ledger row", () => {
     const copied = copyFixture("v7-off.db");
     try {
@@ -2600,7 +2746,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("keeps the v8 migration independent from later additions to the live table model", () => {
     const copied = copyFixture("v7-off.db");
     const originalAccounts = TABLES.accounts;
@@ -2611,9 +2759,10 @@ describe("schema migration of an existing on-disk DB", () => {
         ...originalAccounts,
         columns: [...originalAccounts.columns, { name: "futureOptional", optional: true }],
       };
-      db = openDbConnection(copied.path);
+      const connection = openDbConnection(copied.path);
+      db = connection;
       expect(() =>
-        initializeOpenDb(db!, copied.path, {
+        initializeOpenDb(connection, copied.path, {
           beforeCommit: (migration) => {
             if (migration.version === 9) throw new Error("stop before v9 commit");
           },
@@ -2633,7 +2782,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("keeps migration v16 independent from a future required live-model column", () => {
     const copied = copyFixture("v15-off.db");
     const originalPhases = TABLES.phases;
@@ -2644,9 +2795,10 @@ describe("schema migration of an existing on-disk DB", () => {
         ...originalPhases,
         columns: [...originalPhases.columns, { name: "futureRequired" }],
       };
-      db = openDbConnection(copied.path);
+      const connection = openDbConnection(copied.path);
+      db = connection;
       expect(() =>
-        initializeOpenDb(db!, copied.path, {
+        initializeOpenDb(connection, copied.path, {
           beforeCommit: (migration) => {
             if (migration.version === 17) throw new Error("stop after committed v16");
           },
@@ -2667,7 +2819,9 @@ describe("schema migration of an existing on-disk DB", () => {
       copied.cleanup();
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("refuses a future database without mutating its version", () => {
     const path = join(tmpdir(), `capacitylens-future-${process.pid}-${Date.now()}.db`);
     try {
@@ -2694,7 +2848,9 @@ describe("schema migration of an existing on-disk DB", () => {
       }
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("refuses a SQLite file claimed by another application", () => {
     const path = join(tmpdir(), `capacitylens-wrong-app-${process.pid}-${Date.now()}.db`);
     try {
@@ -2719,7 +2875,9 @@ describe("schema migration of an existing on-disk DB", () => {
       }
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("refuses an unclaimed SQLite file with only generic accounts and disciplines tables", () => {
     const path = join(tmpdir(), `capacitylens-ambiguous-${process.pid}-${Date.now()}.db`);
     try {
@@ -2768,7 +2926,9 @@ describe("schema migration of an existing on-disk DB", () => {
       }
     }
   });
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it.each(DATABASE_FIXTURE_VERSIONS)(
     "upgrades the versioned v%s auth-off fixture, preserves data, and is idempotent on reopen",
     (version) => {
@@ -2822,7 +2982,9 @@ describe("schema migration of an existing on-disk DB", () => {
       }
     },
   );
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it.each(DATABASE_FIXTURE_VERSIONS)(
     "upgrades the versioned v%s password fixture, preserves auth data, and converges with a fresh schema",
     async (version) => {
@@ -2842,8 +3004,7 @@ describe("schema migration of an existing on-disk DB", () => {
         released.close();
 
         const db = openDb(copied.path);
-        const configured = createAuthFromEnvironment(db, FIXTURE_PASSWORD_ENV);
-        await runAuthMigrations(configured.auth!);
+        await runAuthMigrations(createFixtureAuth(db));
         assertMigrationValuesPreserved(originalValues, captureMigrationValues(db), version);
         expect(db.prepare(`SELECT id, email FROM user ORDER BY id`).all()).toEqual(originalUsers);
         expect(db.prepare(`SELECT id, userId FROM session ORDER BY id`).all()).toEqual(originalSessions);
@@ -2857,15 +3018,13 @@ describe("schema migration of an existing on-disk DB", () => {
         }
 
         const fresh = openDb(":memory:");
-        const freshConfigured = createAuthFromEnvironment(fresh, FIXTURE_PASSWORD_ENV);
-        await runAuthMigrations(freshConfigured.auth!);
+        await runAuthMigrations(createFixtureAuth(fresh));
         expect(schemaFingerprint(db)).toEqual(schemaFingerprint(fresh));
         fresh.close();
         db.close();
 
         const reopened = openDb(copied.path);
-        const reopenedConfigured = createAuthFromEnvironment(reopened, FIXTURE_PASSWORD_ENV);
-        await runAuthMigrations(reopenedConfigured.auth!);
+        await runAuthMigrations(createFixtureAuth(reopened));
         expect(planDatabaseMigrations(reopened).migrations).toEqual([]);
         expect(reopened.prepare(`PRAGMA foreign_key_check`).all()).toEqual([]);
         reopened.close();
@@ -2874,7 +3033,9 @@ describe("schema migration of an existing on-disk DB", () => {
       }
     },
   );
+});
 
+describe("schema migration of an existing on-disk DB", () => {
   it("rejects an unapproved same-row-count value change after a released-fixture upgrade", () => {
     const copied = copyFixture("v12-off.db");
     try {
@@ -2967,12 +3128,12 @@ describe("migration ledger checksum supersession (v11 alpha-line amendment)", ()
   });
 });
 
-describe("migration value preservation policy", () => {
-  const table = (rows: Array<Record<string, string | number | null>>, primaryKey = ["id"]) => ({
-    primaryKey,
-    rows,
-  });
+const table = (rows: Array<Record<string, string | number | null>>, primaryKey = ["id"]) => ({
+  primaryKey,
+  rows,
+});
 
+describe("migration value preservation policy", () => {
   it("allows only the versioned historical deletion repairs", () => {
     const ownerInvite = { id: "invite-1", role: "owner", usedAt: null };
     expect(() =>
@@ -3023,7 +3184,9 @@ describe("migration value preservation policy", () => {
     };
     expect(() => assertMigrationValuesPreserved(before, after, 7)).not.toThrow();
   });
+});
 
+describe("migration value preservation policy", () => {
   it("uses createdAt then id to break pre-v8 fold ties", () => {
     const before: MigrationValueSnapshot = {
       clients: table([
@@ -3059,7 +3222,9 @@ describe("migration value preservation policy", () => {
     };
     expect(() => assertMigrationValuesPreserved(before, after, 7)).not.toThrow();
   });
+});
 
+describe("migration value preservation policy", () => {
   it("allows pre-v22 built-in lifecycle cell repairs", () => {
     const before = {
       id: "internal:a1",
@@ -3131,10 +3296,10 @@ describe("init failure is not masked by the cleanup PRAGMA", () => {
             return failingExec(sql);
           };
         }
-        const value = Reflect.get(target, prop);
-        return typeof value === "function" ? value.bind(target) : value;
+        const value: unknown = Reflect.get(target, prop, target);
+        return typeof value === "function" ? (...args: unknown[]) => Reflect.apply(value, target, args) : value;
       },
-    }) as Db;
+    });
     let thrown = "";
     try {
       initializeOpenDb(db, ":memory:");

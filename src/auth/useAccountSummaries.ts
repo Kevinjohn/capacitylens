@@ -41,6 +41,92 @@ function parseAccountSummary(entry: unknown): AccountSummary | null {
   return { id: summaryRecord.id, name: summaryRecord.name, role: summaryRecord.role };
 }
 
+async function readCachedAccountSummaryFallback(acceptEffects: () => boolean): Promise<AccountSummary[] | null> {
+  try {
+    const cached = await readCachedAccountSummaries();
+    if (!cached) return null;
+    if (acceptEffects() && useStore.getState().activeAccountId === null) {
+      // This snapshot proves only that the company DIRECTORY is cached. While a company is open,
+      // its slice may still be live, so the directory must not replace the slice loader's status.
+      setOfflineReadState("accounts", true, cached.savedAt);
+    }
+    return cached.value;
+  } catch (error) {
+    // A server outage and unavailable IndexedDB can happen together. Keep the total contract.
+    console.warn("fetchAccountSummaries: the offline account list could not be read", error);
+    return null;
+  }
+}
+
+type AccountSummaryParseOutcome =
+  | { kind: "accepted"; valid: AccountSummary[]; complete: boolean; droppedCount: number }
+  | { kind: "rejected"; droppedCount: number };
+
+function parseAccountSummaryList(body: unknown): AccountSummaryParseOutcome {
+  if (!Array.isArray(body)) {
+    console.warn(
+      "fetchAccountSummaries: /api/accounts returned a non-array body; reporting null (callers keep their existing list)",
+      body,
+    );
+    return { kind: "rejected", droppedCount: 0 };
+  }
+  const valid = body.map(parseAccountSummary).filter((state): state is AccountSummary => state !== null);
+  const droppedCount = body.length - valid.length;
+  if (droppedCount > 0) {
+    console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/accounts row(s)`, body);
+  }
+  if (body.length > 0 && valid.length === 0) return { kind: "rejected", droppedCount };
+  if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
+    console.warn("fetchAccountSummaries: /api/accounts returned duplicate account identities; reporting null");
+    return { kind: "rejected", droppedCount };
+  }
+  return {
+    kind: "accepted",
+    valid,
+    complete: droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable"),
+    droppedCount,
+  };
+}
+
+type ApplyLiveAccountSummaryEffectsOptions = {
+  valid: AccountSummary[];
+  complete: boolean;
+  acceptEffects: () => boolean;
+  onCompleteness: ((complete: boolean) => void) | undefined;
+};
+
+function applyLiveAccountSummaryEffects(options: ApplyLiveAccountSummaryEffectsOptions): void {
+  const { valid, complete, acceptEffects, onCompleteness } = options;
+  if (acceptEffects()) {
+    if (useStore.getState().activeAccountId === null) setOfflineReadState("accounts", false);
+    if (complete) {
+      void cacheAccountSummaries(valid).catch((error) =>
+        console.warn("fetchAccountSummaries: the offline account list could not be updated", error),
+      );
+    }
+  }
+  onCompleteness?.(complete);
+}
+
+function applyAccountSummaryParseEffects(outcome: AccountSummaryParseOutcome, acceptEffects: () => boolean): void {
+  if (outcome.droppedCount > 0 && acceptEffects()) {
+    useStore.getState().setNotice(m.picker_accounts_incomplete(), "warning");
+  }
+}
+
+async function readAccountSummaryFailureFallback(
+  error: unknown,
+  allowCachedFallback: boolean,
+  acceptEffects: () => boolean,
+): Promise<AccountSummary[] | null> {
+  console.warn(
+    "fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)",
+    error,
+  );
+  if (!isTransportFailure(error) || !allowCachedFallback) return null;
+  return readCachedAccountSummaryFallback(acceptEffects);
+}
+
 /**
  * Fetch `GET /api/accounts` and coerce it to a validated summaries list — the shared server read
  * behind {@link useAccountSummaries}, exported so routes that mount OUTSIDE AppShell (InviteAccept)
@@ -69,89 +155,27 @@ export async function fetchAccountSummaries(requestOptions?: {
 }): Promise<AccountSummary[] | null> {
   const acceptEffects = requestOptions?.acceptEffects ?? (() => true);
   const allowCachedFallback = requestOptions?.allowCachedFallback ?? true;
-  const cachedFallback = async (): Promise<AccountSummary[] | null> => {
-    const cached = await readCachedAccountSummaries();
-    if (!cached) return null;
-    if (acceptEffects() && useStore.getState().activeAccountId === null) {
-      // This snapshot proves only that the company DIRECTORY is cached. While a company is open,
-      // its slice may still be live, so the directory must not replace the slice loader's status
-      // with a global read-only marker or a timestamp belonging to a different cache record.
-      setOfflineReadState("accounts", true, cached.savedAt);
-    }
-    return cached.value;
-  };
-  const safeCachedFallback = async (): Promise<AccountSummary[] | null> => {
-    try {
-      return await cachedFallback();
-    } catch (error) {
-      // A server outage and a broken/unavailable IndexedDB can happen together. Preserve this
-      // helper's total contract so callers keep their existing directory instead of receiving an
-      // unhandled rejection from the fallback path.
-      console.warn("fetchAccountSummaries: the offline account list could not be read", error);
-      return null;
-    }
-  };
   try {
     const res = await accountClient.listWorkspaces(requestOptions?.signal);
-    if (!res.ok) return res.status >= 500 && allowCachedFallback ? safeCachedFallback() : null;
+    if (!res.ok) {
+      return res.status >= 500 && allowCachedFallback ? readCachedAccountSummaryFallback(acceptEffects) : null;
+    }
     const body: unknown = await res.json();
-    // UNTRUSTED external input: validate each entry's shape; drop off-spec rows rather than trusting
-    // an `as` cast. A 200 whose body is NOT an array (a proxy HTML page, a server bug) is MALFORMED,
-    // not "no accounts" — report null (keep-what-you-have, same as a transport error) rather than
-    // an empty list that would blank the picker.
-    if (!Array.isArray(body)) {
-      console.warn(
-        "fetchAccountSummaries: /api/accounts returned a non-array body; reporting null (callers keep their existing list)",
-        body,
-      );
-      return null;
-    }
-    const valid = body.map(parseAccountSummary).filter((state): state is AccountSummary => state !== null);
-    const droppedCount = body.length - valid.length;
-    if (droppedCount > 0) {
-      // Partial corruption must not be silent (DEFENSIVE-CODING.md §5, handled-but-logged): every
-      // dropped row is a server/proxy bug worth a breadcrumb even when the rest of the list is fine.
-      console.warn(`fetchAccountSummaries: dropped ${droppedCount} malformed /api/accounts row(s)`, body);
-      if (acceptEffects()) useStore.getState().setNotice(m.picker_accounts_incomplete(), "warning");
-    }
-    // A NONEMPTY array where EVERY row is off-spec is MALFORMED, not "no accounts" — report null
-    // (keep-what-you-have, same as the non-array case above) rather than an [] that would blank
-    // the picker over what is really a broken response. Only a genuinely empty array means [].
-    if (body.length > 0 && valid.length === 0) return null;
-    if (hasDuplicateIdentity(valid, (summary) => summary.id)) {
-      console.warn("fetchAccountSummaries: /api/accounts returned duplicate account identities; reporting null");
-      return null;
-    }
-    if (acceptEffects()) {
-      // This read proves only the company DIRECTORY is online. When an active company is still
-      // rendering a cached slice, clearing the global marker here would re-enable its edits and let
-      // it masquerade as live data. The authoritative slice loader owns that transition; at the
-      // picker (no active slice), a live directory read may clear an identity/list-only fallback.
-      if (useStore.getState().activeAccountId === null) setOfflineReadState("accounts", false);
-      // An unavailable role is a fail-closed UI projection, not durable membership evidence.
-      // Cache only a wholly authoritative directory so an offline boot never presents the coerced
-      // Viewer role as the last verified access state. Same-key cache writes are serialized by
-      // offlineCache.put(), preserving the acceptance order of overlapping live reads.
-      if (droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable")) {
-        void cacheAccountSummaries(valid).catch((error) =>
-          console.warn("fetchAccountSummaries: the offline account list could not be updated", error),
-        );
-      }
-    }
-    requestOptions?.onCompleteness?.(
-      droppedCount === 0 && valid.every((summary) => summary.roleStatus !== "unavailable"),
-    );
-    return valid;
+    const parsed = parseAccountSummaryList(body);
+    applyAccountSummaryParseEffects(parsed, acceptEffects);
+    if (parsed.kind === "rejected") return null;
+    applyLiveAccountSummaryEffects({
+      valid: parsed.valid,
+      complete: parsed.complete,
+      acceptEffects,
+      onCompleteness: requestOptions?.onCompleteness,
+    });
+    return parsed.valid;
   } catch (e) {
     // Fail-soft by contract (see @returns): a transport error/abort is reported as null, never a
     // throw — the callers treat a failed list read as "keep what you have", not an error surface of
     // its own. Breadcrumb per DEFENSIVE-CODING.md §5: handled-but-logged, never totally silent.
-    console.warn(
-      "fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)",
-      e,
-    );
-    if (!isTransportFailure(e)) return null;
-    return allowCachedFallback ? safeCachedFallback() : null;
+    return readAccountSummaryFailureFallback(e, allowCachedFallback, acceptEffects);
   }
 }
 
@@ -170,20 +194,20 @@ export async function refreshAccountSummaries(requestOptions?: {
   const callerAcceptsEffects = requestOptions?.acceptEffects ?? (() => true);
   const requestId = useStore.getState().beginAccountSummariesRequest();
   const requestIsCurrent = () => callerAcceptsEffects() && useStore.getState().accountSummariesRequestId === requestId;
-  let complete = false;
+  const completeness = { value: false };
   const list = await fetchAccountSummaries({
     ...requestOptions,
     acceptEffects: requestIsCurrent,
     onCompleteness: (value) => {
-      complete = value;
+      completeness.value = value;
     },
   });
   if (list !== null && callerAcceptsEffects()) {
-    const published = useStore.getState().setAccountSummaries(list, requestId, complete);
+    const published = useStore.getState().setAccountSummaries(list, requestId, completeness.value);
     const activeAccountId = useStore.getState().activeAccountId;
     if (
       published &&
-      complete &&
+      completeness.value &&
       requestOptions?.preserveActiveAccountIfMissing !== true &&
       activeAccountId !== null &&
       !list.some((account) => account.id === activeAccountId)

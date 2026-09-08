@@ -81,7 +81,13 @@ function tickingClock(start = new Date("2026-06-13T00:00:00")) {
   return () => new Date((t += 1000));
 }
 
-describe("parseBackupConfig (fail-closed)", () => {
+function registerParseBackupConfigTests(): void {
+  registerParseBackupConfigAbsenceTests();
+  registerParseBackupConfigValueTests();
+  registerParseBackupConfigLogTests();
+}
+
+function registerParseBackupConfigAbsenceTests(): void {
   it("is null without CAPACITYLENS_BACKUP_DIR — backups simply do not exist", () => {
     expect(parseBackupConfig({})).toBeNull();
     expect(
@@ -119,7 +125,9 @@ describe("parseBackupConfig (fail-closed)", () => {
       }),
     ).toEqual({ dir: "/tmp/x", intervalMin: 15, keep: 4 });
   });
+}
 
+function registerParseBackupConfigValueTests(): void {
   it("floors bounded fractional retention without falling back to a smaller destructive window", () => {
     const configured = (keep: string) =>
       parseBackupConfig({
@@ -142,7 +150,9 @@ describe("parseBackupConfig (fail-closed)", () => {
       })?.intervalMin,
     ).toBe(60);
   });
+}
 
+function registerParseBackupConfigLogTests(): void {
   it("reports every configured value that is replaced, clamped or floored", () => {
     const log = vi.fn();
 
@@ -178,9 +188,21 @@ describe("parseBackupConfig (fail-closed)", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining('requested "lots"; applied 60'));
     expect(log).toHaveBeenCalledWith(expect.stringContaining('requested "-2"; applied 48'));
   });
-});
+}
 
-describe("pre-migration rollback snapshot", () => {
+describe("parseBackupConfig (fail-closed)", registerParseBackupConfigTests);
+
+describe("pre-migration rollback snapshot", registerPreMigrationRollbackTests);
+
+function registerPreMigrationRollbackTests(): void {
+  registerRollbackDirectoryPermissionsTest();
+  registerReleasedDatabaseRollbackMigrationTest();
+  registerInMemoryRollbackSkipTest();
+  registerRollbackPublicationFailureTests();
+  registerRollbackArtifactRefreshTest();
+}
+
+function registerRollbackDirectoryPermissionsTest(): void {
   it("tightens an existing rollback directory to mode 0700", async () => {
     const work = tempDir();
     const dbPath = join(work, "capacitylens.db");
@@ -199,7 +221,9 @@ describe("pre-migration rollback snapshot", () => {
 
     expect(statSync(rollbacks).mode & 0o777).toBe(0o700);
   });
+}
 
+function registerReleasedDatabaseRollbackMigrationTest(): void {
   it("copies and verifies v7 before the live handle advances through every current migration", async () => {
     const dir = tempDir();
     const dbPath = join(dir, "capacitylens.db");
@@ -224,47 +248,54 @@ describe("pre-migration rollback snapshot", () => {
       log: () => {},
     });
     expect(snapshot).not.toBeNull();
+    if (snapshot === null) throw new Error("expected a pre-migration backup snapshot");
 
     initializeOpenDb(db, dbPath);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION);
     db.close();
 
-    const rollback = trackDatabase(new DatabaseSync(snapshot!, { readOnly: true }));
-    expect(
-      (
-        rollback.prepare(`PRAGMA user_version`).get() as {
-          user_version: number;
-        }
-      ).user_version,
-    ).toBe(7);
-    expect(
-      (
-        rollback.prepare(`PRAGMA application_id`).get() as {
-          application_id: number;
-        }
-      ).application_id,
-    ).toBe(0);
-    expect(
-      (
-        rollback.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as {
-          n: number;
-        }
-      ).n,
-    ).toBeGreaterThan(0);
-    expect((rollback.prepare(`PRAGMA quick_check`).get() as { quick_check: string }).quick_check).toBe("ok");
-    expect(
-      (
-        rollback.prepare(`PRAGMA journal_mode`).get() as {
-          journal_mode: string;
-        }
-      ).journal_mode,
-    ).toBe("delete");
-    rollback.close();
-    expect(statSync(snapshot!).mode & 0o777).toBe(0o600);
+    assertReleasedRollbackSnapshot(snapshot);
+    expect(statSync(snapshot).mode & 0o777).toBe(0o600);
     expect(existsSync(`${snapshot}.tmp-wal`)).toBe(false);
     expect(existsSync(`${snapshot}.tmp-shm`)).toBe(false);
   });
+}
 
+function assertReleasedRollbackSnapshot(snapshot: string): void {
+  const rollback = trackDatabase(new DatabaseSync(snapshot, { readOnly: true }));
+  expect(
+    (
+      rollback.prepare(`PRAGMA user_version`).get() as {
+        user_version: number;
+      }
+    ).user_version,
+  ).toBe(7);
+  expect(
+    (
+      rollback.prepare(`PRAGMA application_id`).get() as {
+        application_id: number;
+      }
+    ).application_id,
+  ).toBe(0);
+  expect(
+    (
+      rollback.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as {
+        n: number;
+      }
+    ).n,
+  ).toBeGreaterThan(0);
+  expect((rollback.prepare(`PRAGMA quick_check`).get() as { quick_check: string }).quick_check).toBe("ok");
+  expect(
+    (
+      rollback.prepare(`PRAGMA journal_mode`).get() as {
+        journal_mode: string;
+      }
+    ).journal_mode,
+  ).toBe("delete");
+  rollback.close();
+}
+
+function registerInMemoryRollbackSkipTest(): void {
   it("does not create a rollback artifact for an in-memory database", async () => {
     const db = openDb(":memory:");
     await expect(
@@ -279,7 +310,9 @@ describe("pre-migration rollback snapshot", () => {
     ).resolves.toBeNull();
     db.close();
   });
+}
 
+function registerRollbackPublicationFailureTests(): void {
   it.each(["chmod-file", "sync-file", "rename", "sync-directory"] as const)(
     "refuses migration when the %s publication barrier fails",
     async (failureStage) => {
@@ -325,7 +358,9 @@ describe("pre-migration rollback snapshot", () => {
       }
     },
   );
+}
 
+function registerRollbackArtifactRefreshTest(): void {
   it("atomically refreshes one rollback artifact per migration pair across restart attempts", async () => {
     const dir = tempDir();
     const dbPath = join(dir, "capacitylens.db");
@@ -353,11 +388,12 @@ describe("pre-migration rollback snapshot", () => {
     db.close();
 
     expect(second).toBe(first);
+    if (second === null) throw new Error("expected a refreshed pre-migration backup snapshot");
     expect(readdirSync(rollbacks).filter((file) => file.endsWith(".db"))).toEqual([
       "capacitylens-pre-migration-v7-to-v16.db",
     ]);
     expect(readdirSync(rollbacks).filter((file) => file.endsWith(".tmp"))).toEqual([]);
-    const refreshed = trackDatabase(new DatabaseSync(second!, { readOnly: true }));
+    const refreshed = trackDatabase(new DatabaseSync(second, { readOnly: true }));
     expect(
       (
         refreshed.prepare("SELECT COUNT(*) AS n FROM example").get() as {
@@ -367,9 +403,36 @@ describe("pre-migration rollback snapshot", () => {
     ).toBe(2);
     refreshed.close();
   });
-});
+}
 
-describe("startBackups", () => {
+describe("startBackups", registerStartBackupTests);
+
+function registerStartBackupTests(): void {
+  registerUncreatableBackupDirectoryTest();
+  registerScheduledBackupDirectoryPermissionsTest();
+  registerOpenableSnapshotTest();
+  registerSnapshotPublicationOrderTest();
+  registerScheduledPublicationFailureTests();
+  registerSnapshotRetentionTest();
+  registerDaylightSavingRetentionTest();
+  registerLiveDatabaseRetentionExclusionTest();
+  registerLiveDatabaseHardLinkRetentionExclusionTest();
+  registerInvalidSnapshotRejectionTest();
+  registerMonotonicSnapshotNameTest();
+  registerInFlightIntervalSkipTest();
+  registerIntervalSnapshotTest();
+  registerStartupSnapshotDrainTest();
+  registerRestartFilenameCollisionTest();
+  registerExistingFilenameCollisionTest();
+  registerStaleTempFileSweepTest();
+  registerUnstatableStartupEntryTest();
+  registerRetentionRemovalFailureTest();
+  registerFailedSnapshotCleanupTest();
+  registerConcurrentSnapshotSerializationTest();
+  registerShutdownSnapshotRefusalTest();
+}
+
+function registerUncreatableBackupDirectoryTest(): void {
   it("frames an uncreatable configured directory with the variable and recovery choices", () => {
     const parentFile = join(tempDir(), "not-a-directory");
     writeFileSync(parentFile, "occupied");
@@ -388,7 +451,9 @@ describe("startBackups", () => {
     expect(message).toMatch(/ENOTDIR|not a directory/i);
     expect(message).toContain("CAPACITYLENS_BACKUP_DIR= to disable scheduled backups");
   });
+}
 
+function registerScheduledBackupDirectoryPermissionsTest(): void {
   it("tightens an existing scheduled-backup directory to mode 0700", async () => {
     const dir = tempDir();
     chmodSync(dir, 0o777);
@@ -404,7 +469,9 @@ describe("startBackups", () => {
 
     expect(statSync(dir).mode & 0o777).toBe(0o700);
   });
+}
 
+function registerOpenableSnapshotTest(): void {
   it("writes a real, openable snapshot containing the seeded rows", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -422,12 +489,13 @@ describe("startBackups", () => {
     expect(log).toHaveBeenCalledWith(expect.stringContaining("backup written"));
     expect(statSync(dir).mode & 0o777).toBe(0o700);
     expect(statSync(file).mode & 0o777).toBe(0o600);
-    expect(backups.health).toEqual({
-      degraded: false,
-      lastSuccessAt: expect.any(String),
-    });
+    const lastSuccessAt = backups.health.lastSuccessAt;
+    expect(typeof lastSuccessAt).toBe("string");
+    expect(backups.health).toEqual({ degraded: false, lastSuccessAt });
   });
+}
 
+function registerSnapshotPublicationOrderTest(): void {
   it("persists the scheduled snapshot name before retention and then persists deletions", async () => {
     const dir = tempDir();
     const oldSnapshot = join(dir, "capacitylens-20200101-000000-000.db");
@@ -470,7 +538,9 @@ describe("startBackups", () => {
     ]);
     expect(existsSync(oldSnapshot)).toBe(false);
   });
+}
 
+function registerScheduledPublicationFailureTests(): void {
   it.each(["chmod-file", "sync-file", "rename", "sync-directory"] as const)(
     "skips scheduled retention when the %s publication barrier fails",
     async (failureStage) => {
@@ -503,7 +573,9 @@ describe("startBackups", () => {
       expect(log).not.toHaveBeenCalledWith(expect.stringContaining("backup written"));
     },
   );
+}
 
+function registerSnapshotRetentionTest(): void {
   it("prunes to the newest `keep` snapshots, oldest first, leaving other files alone", async () => {
     const dir = tempDir();
     writeFileSync(join(dir, "not-a-snapshot.txt"), "keep me");
@@ -524,7 +596,9 @@ describe("startBackups", () => {
     expect(older < newer).toBe(true);
     expect(readdirSync(dir)).toContain("not-a-snapshot.txt");
   });
+}
 
+function registerDaylightSavingRetentionTest(): void {
   it("retains and returns the newer snapshot across a daylight-saving fall-back", async () => {
     vi.stubEnv("TZ", "Europe/London");
     const dir = tempDir();
@@ -546,7 +620,9 @@ describe("startBackups", () => {
       vi.unstubAllEnvs();
     }
   });
+}
 
+function registerLiveDatabaseRetentionExclusionTest(): void {
   it("never treats the live database as retention when its path has a snapshot-shaped name", async () => {
     const dir = tempDir();
     const livePath = join(dir, "capacitylens-20000101-000000-000.db");
@@ -567,7 +643,9 @@ describe("startBackups", () => {
     expect(readState(reopened).accounts.map((account) => account.name)).toContain("Wayne Enterprises");
     reopened.close();
   });
+}
 
+function registerLiveDatabaseHardLinkRetentionExclusionTest(): void {
   it("excludes a snapshot-shaped hard-link alias of the live database from retention", async () => {
     const dir = tempDir();
     const livePath = join(dir, "live.db");
@@ -585,7 +663,9 @@ describe("startBackups", () => {
     expect(snapshots(dir).filter((file) => file !== basename(alias))).toHaveLength(1);
     db.close();
   });
+}
 
+function registerInvalidSnapshotRejectionTest(): void {
   it("rejects a foreign-key-invalid snapshot without publishing it or pruning the last good restore point", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -616,7 +696,9 @@ describe("startBackups", () => {
     expect(readdirSync(dir).filter((file) => file.includes(".tmp"))).toEqual([]);
     expect(log.mock.calls.filter(([message]) => String(message).includes("backup written"))).toHaveLength(2);
   });
+}
 
+function registerMonotonicSnapshotNameTest(): void {
   it("never reuses a filename, even when the clock does not advance (monotonic stamp bump)", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -632,7 +714,9 @@ describe("startBackups", () => {
     // Start-up shot + 2 manual = 3 distinct files despite identical clock readings.
     await vi.waitFor(() => expect(snapshots(dir)).toHaveLength(3));
   });
+}
 
+function registerInFlightIntervalSkipTest(): void {
   it("skips (and logs) an interval tick while a snapshot is still in flight", async () => {
     vi.useFakeTimers();
     const dir = tempDir();
@@ -654,7 +738,9 @@ describe("startBackups", () => {
     // Let the in-flight start-up snapshot settle: exactly one file, none from the skipped tick.
     await vi.waitFor(() => expect(snapshots(dir)).toHaveLength(1));
   });
+}
 
+function registerIntervalSnapshotTest(): void {
   it("the interval timer keeps snapshotting until stop()", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -671,7 +757,9 @@ describe("startBackups", () => {
     await new Promise((r) => setTimeout(r, 120));
     expect(snapshots(dir)).toHaveLength(after); // no timer left running
   });
+}
 
+function registerStartupSnapshotDrainTest(): void {
   it("stop() resolves only after the in-flight start-up snapshot has completed", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -691,7 +779,9 @@ describe("startBackups", () => {
     const restored = readState(openDb(join(dir, snapshot)));
     expect(restored.accounts.map((a) => a.name)).toContain("Wayne Enterprises");
   });
+}
 
+function registerRestartFilenameCollisionTest(): void {
   it("never clobbers an existing snapshot after a restart, even with a stuck/stepped-back clock", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -711,7 +801,9 @@ describe("startBackups", () => {
     // Two files per instance (start-up shot + manual), all four distinct — nothing clobbered.
     await vi.waitFor(() => expect(snapshots(dir)).toHaveLength(4));
   });
+}
 
+function registerExistingFilenameCollisionTest(): void {
   it("never overwrites a pre-existing file with the exact colliding name (existsSync backstop)", async () => {
     const dir = tempDir();
     // A second-precision UTC name seeds the restart floor at .000 while another file already
@@ -736,7 +828,9 @@ describe("startBackups", () => {
       ),
     );
   });
+}
 
+function registerStaleTempFileSweepTest(): void {
   it("sweeps only STALE .tmp files at start-up, sparing fresh ones and other files", async () => {
     const dir = tempDir();
     // A stale temp is a torn write from a crashed process; a FRESH one could be a sibling
@@ -763,7 +857,9 @@ describe("startBackups", () => {
     // The sweep is name-scoped: the finished start-up snapshot itself is untouched.
     expect(snapshots(dir)).toHaveLength(1);
   });
+}
 
+function registerUnstatableStartupEntryTest(): void {
   it("the start-up sweep skips (never throws on) an entry it cannot stat, and still boots", async () => {
     const dir = tempDir();
     // A dangling symlink makes statSync throw ENOENT — the same failure shape as a tmp file a
@@ -786,7 +882,9 @@ describe("startBackups", () => {
     expect(readdirSync(dir)).not.toContain("capacitylens-20260102-000000-000.db.tmp");
     expect(snapshots(dir)).toHaveLength(1);
   });
+}
 
+function registerRetentionRemovalFailureTest(): void {
   it("a snapshot still succeeds when retention cannot remove an old entry (warn + skip)", async () => {
     const dir = tempDir();
     // A directory squatting on the oldest snapshot name: rmSync without `recursive` refuses
@@ -806,7 +904,9 @@ describe("startBackups", () => {
     // The unremovable entry is skipped in place (retried next prune), not a fatal.
     expect(readdirSync(dir)).toContain("capacitylens-20200101-000000-000.db");
   });
+}
 
+function registerFailedSnapshotCleanupTest(): void {
   it("a failed snapshot removes its temp file and surfaces the original error", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -831,7 +931,9 @@ describe("startBackups", () => {
     expect(readdirSync(dir).filter((f) => f.endsWith(".tmp"))).toHaveLength(0);
     expect(snapshots(dir)).toHaveLength(2); // start-up shot + first manual, both intact
   });
+}
 
+function registerConcurrentSnapshotSerializationTest(): void {
   it("overlapping snapshotNow() calls serialize, and stop() awaits ALL in-flight work", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -869,7 +971,9 @@ describe("startBackups", () => {
       expect(readState(openDb(join(dir, f))).accounts.map((x) => x.name)).toContain("Wayne Enterprises");
     }
   });
+}
 
+function registerShutdownSnapshotRefusalTest(): void {
   it("stop() drains the pre-stop chain, and a snapshotNow() during shutdown is refused", async () => {
     const dir = tempDir();
     const db = openDb(":memory:");
@@ -900,4 +1004,4 @@ describe("startBackups", () => {
     expect(readdirSync(dir).filter((f) => f.endsWith(".tmp"))).toHaveLength(0);
     expect(await a).toMatch(/\.db$/);
   });
-});
+}

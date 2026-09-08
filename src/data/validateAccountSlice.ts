@@ -10,23 +10,32 @@ export function parseAccountSlice(value: unknown, accountId: string): AppData | 
   return parseAccountSliceWithRepairBase(value, accountId)?.data ?? null;
 }
 
-/** Validate a complete tenant slice and preserve its pre-repair persistence baseline. */
-export function parseAccountSliceWithRepairBase(value: unknown, accountId: string): MigrationWithRepairBase | null {
-  if (!isRecord(value) || KNOWN_KEYS.some((key) => !Array.isArray(value[key]))) return null;
+function hasValidRowIdentities(value: Record<string, unknown>): boolean {
   for (const key of KNOWN_KEYS) {
-    const rows = value[key] as unknown[];
-    if (!rows.every(isRecord)) return null;
+    const rows = value[key];
+    if (!Array.isArray(rows) || !rows.every(isRecord)) return false;
     const ids = new Set<string>();
     for (const row of rows) {
-      if (typeof row.id !== "string" || row.id.length === 0 || ids.has(row.id)) return null;
+      if (typeof row.id !== "string" || row.id.length === 0 || ids.has(row.id)) return false;
       ids.add(row.id);
     }
   }
-  const accounts = value.accounts as Array<Record<string, unknown>>;
+  return true;
+}
+
+function belongsToAccount(value: Record<string, unknown>, accountId: string): boolean {
+  const accounts = value.accounts;
+  if (!Array.isArray(accounts) || !accounts.every(isRecord)) return false;
   const [account] = accounts;
-  if (accounts.length !== 1 || account?.id !== accountId) return null;
-  for (const key of SCOPED_KEYS) {
-    if (!(value[key] as Array<Record<string, unknown>>).every((row) => row.accountId === accountId)) return null;
-  }
+  if (accounts.length !== 1 || account?.id !== accountId) return false;
+  return SCOPED_KEYS.every((key) => {
+    const rows = value[key];
+    return Array.isArray(rows) && rows.every(isRecord) && rows.every((row) => row.accountId === accountId);
+  });
+}
+
+/** Validate a complete tenant slice and preserve its pre-repair persistence baseline. */
+export function parseAccountSliceWithRepairBase(value: unknown, accountId: string): MigrationWithRepairBase | null {
+  if (!isRecord(value) || !hasValidRowIdentities(value) || !belongsToAccount(value, accountId)) return null;
   return migrateWithRepairBase(value);
 }

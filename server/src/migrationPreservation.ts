@@ -143,6 +143,15 @@ interface ApprovedCellChangeInput {
   foldedInternalClients: ReadonlyMap<string, string>;
 }
 
+function approvedClientCellChange({ column, before, after, fromVersion }: ApprovedCellChangeInput): boolean {
+  if (fromVersion < 8 && before.builtin === "true" && ["name", "color", "builtin"].includes(column)) return true;
+  return (
+    fromVersion < 22 &&
+    (before.builtin === "true" || after.builtin === "true") &&
+    ["archivedAt", "deletedAt", "updatedAt"].includes(column)
+  );
+}
+
 function approvedCellChange({
   table,
   column,
@@ -153,28 +162,96 @@ function approvedCellChange({
 }: ApprovedCellChangeInput): boolean {
   if (table === "accounts" && column === "color" && fromVersion < 13) return true;
   if (table === "account_members" && column === "role" && fromVersion < 12) return true;
-  if (
+  if (table === "projects" && column === "clientId" && fromVersion < 8) {
+    return foldedInternalClients.get(String(before.clientId)) === String(after.clientId);
+  }
+  return (
     table === "clients" &&
-    fromVersion < 8 &&
-    before.builtin === "true" &&
-    ["name", "color", "builtin"].includes(column)
-  )
-    return true;
-  if (
-    table === "projects" &&
-    column === "clientId" &&
-    fromVersion < 8 &&
-    foldedInternalClients.get(String(before.clientId)) === String(after.clientId)
-  )
-    return true;
-  if (
-    table === "clients" &&
-    fromVersion < 22 &&
-    (before.builtin === "true" || after.builtin === "true") &&
-    ["archivedAt", "deletedAt", "updatedAt"].includes(column)
-  )
-    return true;
-  return false;
+    approvedClientCellChange({ table, column, before, after, fromVersion, foldedInternalClients })
+  );
+}
+
+interface PreservedRowInput {
+  tableName: string;
+  beforeRow: SnapshotRow;
+  afterByKey: ReadonlyMap<string, SnapshotRow>;
+  primaryKey: string[];
+  fromVersion: number;
+  activeMembers: ReadonlySet<string>;
+  foldedInternalClients: ReadonlyMap<string, string>;
+}
+
+function assertColumnsPreserved(
+  input: Pick<PreservedRowInput, "tableName" | "beforeRow" | "fromVersion" | "foldedInternalClients"> & {
+    afterRow: SnapshotRow;
+    key: string;
+  },
+): void {
+  const { tableName, beforeRow, afterRow, key, fromVersion, foldedInternalClients } = input;
+  for (const [column, beforeValue] of Object.entries(beforeRow)) {
+    if (!(column in afterRow)) {
+      // The migration DROPPED this column. A populated value silently disappearing is exactly
+      // the data loss this oracle exists to catch (review finding DBR-0003): refuse it unless
+      // the value carried nothing or the removal is explicitly classified below.
+      const hadValue = beforeValue !== null && String(beforeValue) !== "";
+      if (!hadValue || approvedColumnRemoval()) continue;
+      throw new Error(
+        `migration removed unapproved ${tableName}.${column} in row ${key}: ` +
+          `populated value ${canonicalCell(beforeValue)} would be lost`,
+      );
+    }
+    const afterValue = afterRow[column];
+    if (afterValue === undefined) {
+      throw new Error(`migration comparison could not resolve ${tableName}.${column} in row ${key}`);
+    }
+    if (canonicalCell(beforeValue) === canonicalCell(afterValue)) continue;
+    if (
+      approvedCellChange({
+        table: tableName,
+        column,
+        before: beforeRow,
+        after: afterRow,
+        fromVersion,
+        foldedInternalClients,
+      })
+    )
+      continue;
+    throw new Error(
+      `migration changed unapproved ${tableName}.${column} in row ${key}: ` +
+        `${canonicalCell(beforeValue)} → ${canonicalCell(afterValue)}`,
+    );
+  }
+}
+
+function assertRowPreserved(input: PreservedRowInput): string {
+  const { tableName, beforeRow, afterByKey, primaryKey, fromVersion, activeMembers, foldedInternalClients } = input;
+  const key = rowKey(beforeRow, primaryKey);
+  const afterRow = afterByKey.get(key);
+  if (!afterRow) {
+    if (approvedDeletion({ table: tableName, row: beforeRow, fromVersion, activeMembers, foldedInternalClients })) {
+      return key;
+    }
+    throw new Error(`migration removed unapproved ${tableName} row ${key}`);
+  }
+  assertColumnsPreserved({ tableName, beforeRow, afterRow, key, fromVersion, foldedInternalClients });
+  return key;
+}
+
+interface NoRowsAddedInput {
+  tableName: string;
+  afterTable: SnapshotTable;
+  primaryKey: string[];
+  beforeKeys: ReadonlySet<string>;
+  fromVersion: number;
+}
+
+function assertNoRowsAdded({ tableName, afterTable, primaryKey, beforeKeys, fromVersion }: NoRowsAddedInput): void {
+  for (const afterRow of afterTable.rows) {
+    const key = rowKey(afterRow, primaryKey);
+    if (!beforeKeys.has(key) && !approvedAddition(tableName, afterRow, fromVersion)) {
+      throw new Error(`migration added unapproved ${tableName} row ${key}`);
+    }
+  }
 }
 
 /**
@@ -197,53 +274,18 @@ export function assertMigrationValuesPreserved(
     const afterByKey = new Map(afterTable.rows.map((row) => [rowKey(row, beforeTable.primaryKey), row]));
     const beforeKeys = new Set<string>();
     for (const beforeRow of beforeTable.rows) {
-      const key = rowKey(beforeRow, beforeTable.primaryKey);
-      beforeKeys.add(key);
-      const afterRow = afterByKey.get(key);
-      if (!afterRow) {
-        if (approvedDeletion({ table: tableName, row: beforeRow, fromVersion, activeMembers, foldedInternalClients }))
-          continue;
-        throw new Error(`migration removed unapproved ${tableName} row ${key}`);
-      }
-      for (const [column, beforeValue] of Object.entries(beforeRow)) {
-        if (!(column in afterRow)) {
-          // The migration DROPPED this column. A populated value silently disappearing is exactly
-          // the data loss this oracle exists to catch (review finding DBR-0003): refuse it unless
-          // the value carried nothing or the removal is explicitly classified below.
-          const hadValue = beforeValue !== undefined && beforeValue !== null && String(beforeValue) !== "";
-          if (!hadValue || approvedColumnRemoval()) continue;
-          throw new Error(
-            `migration removed unapproved ${tableName}.${column} in row ${key}: ` +
-              `populated value ${canonicalCell(beforeValue)} would be lost`,
-          );
-        }
-        const afterValue = afterRow[column];
-        if (afterValue === undefined) {
-          throw new Error(`migration comparison could not resolve ${tableName}.${column} in row ${key}`);
-        }
-        if (canonicalCell(beforeValue) === canonicalCell(afterValue)) continue;
-        if (
-          approvedCellChange({
-            table: tableName,
-            column,
-            before: beforeRow,
-            after: afterRow,
-            fromVersion,
-            foldedInternalClients,
-          })
-        )
-          continue;
-        throw new Error(
-          `migration changed unapproved ${tableName}.${column} in row ${key}: ` +
-            `${canonicalCell(beforeValue)} → ${canonicalCell(afterValue)}`,
-        );
-      }
+      beforeKeys.add(
+        assertRowPreserved({
+          tableName,
+          beforeRow,
+          afterByKey,
+          primaryKey: beforeTable.primaryKey,
+          fromVersion,
+          activeMembers,
+          foldedInternalClients,
+        }),
+      );
     }
-    for (const afterRow of afterTable.rows) {
-      const key = rowKey(afterRow, beforeTable.primaryKey);
-      if (!beforeKeys.has(key) && !approvedAddition(tableName, afterRow, fromVersion)) {
-        throw new Error(`migration added unapproved ${tableName} row ${key}`);
-      }
-    }
+    assertNoRowsAdded({ tableName, afterTable, primaryKey: beforeTable.primaryKey, beforeKeys, fromVersion });
   }
 }

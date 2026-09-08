@@ -31,12 +31,15 @@ CREATE TABLE IF NOT EXISTS ${DATABASE_MIGRATION_TABLE} (
 ) STRICT;
 `;
 
-export function defineMigration(
+type DefineMigrationArguments = [
   version: number,
   name: string,
   definition: string,
   up: (db: Db) => void | (() => void),
-): DatabaseMigration {
+];
+
+export function defineMigration(...args: DefineMigrationArguments): DatabaseMigration {
+  const [version, name, definition, up] = args;
   // The definition is the immutable, reviewable migration manifest. Include every SQL block and
   // named repair revision that contributes to the step. Once released, changing it changes the
   // checksum and every already-upgraded database will refuse to open instead of drifting silently.

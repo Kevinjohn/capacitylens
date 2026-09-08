@@ -99,81 +99,87 @@ describe("disciplinesEnabledFor", () => {
   });
 });
 
-describe("account feature selector defaults", () => {
-  const accountData = (values: Partial<Account> = {}): AppData => ({
-    ...emptyAppData(),
-    accounts: [{ id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1", ...values }],
-  });
-  const cases: Array<{
-    name: string;
-    selector: (data: AppData, accountId: ID | null) => unknown;
-    fallback: unknown;
-    explicit: unknown[];
-    values: (value: unknown) => Partial<Account>;
-  }> = [
-    {
-      name: "scheduling mode",
-      selector: resolveSchedulingMode,
-      fallback: "hourly",
-      explicit: ["days", "blocks"],
-      values: (schedulingMode) =>
-        schedulingMode === undefined
-          ? {}
-          : { schedulingMode: schedulingMode as NonNullable<Account["schedulingMode"]> },
-    },
-    {
-      name: "placeholders",
-      selector: hasPlaceholdersEnabled,
-      fallback: false,
-      explicit: [true, false],
-      values: (placeholdersEnabled) => ({ placeholdersEnabled: placeholdersEnabled as boolean }),
-    },
-    {
-      name: "external resources",
-      selector: hasExternalResourcesEnabled,
-      fallback: false,
-      explicit: [true, false],
-      values: (externalEnabled) => ({ externalEnabled: externalEnabled as boolean }),
-    },
-    {
-      name: "engagement grouping",
-      selector: hasResourceEngagementGrouping,
-      fallback: true,
-      explicit: [true, false],
-      values: (groupResourcesByEngagement) => ({
-        groupResourcesByEngagement: groupResourcesByEngagement as boolean,
-      }),
-    },
-    {
-      name: "internal projects",
-      selector: hasVisibleInternalProjects,
-      fallback: true,
-      explicit: [true, false],
-      values: (showInternalProjects) => ({ showInternalProjects: showInternalProjects as boolean }),
-    },
-    {
-      name: "internal activities",
-      selector: hasVisibleInternalActivities,
-      fallback: true,
-      explicit: [true, false],
-      values: (showInternalActivities) => ({ showInternalActivities: showInternalActivities as boolean }),
-    },
-    {
-      name: "inline activity creation",
-      selector: canCreateInlineActivity,
-      fallback: true,
-      explicit: [true, false],
-      values: (inlineActivityCreateEnabled) => ({
-        inlineActivityCreateEnabled: inlineActivityCreateEnabled as boolean,
-      }),
-    },
-  ];
+const accountData = (values: Partial<Account> = {}): AppData => ({
+  ...emptyAppData(),
+  accounts: [{ id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1", ...values }],
+});
 
-  it.each(cases)("pins absent, unmatched and explicit $name values", ({ selector, fallback, explicit, values }) => {
-    expect(selector(accountData(), "a1")).toBe(fallback);
-    expect(selector(accountData(values(explicit[0])), "missing")).toBe(fallback);
-    for (const value of explicit) expect(selector(accountData(values(value)), "a1")).toBe(value);
-  });
+const accountFeatureCases: Array<{
+  name: string;
+  selector: (data: AppData, accountId: ID | null) => unknown;
+  fallback: unknown;
+  explicit: unknown[];
+  values: (value: unknown) => Partial<Account>;
+}> = [
+  {
+    name: "scheduling mode",
+    selector: resolveSchedulingMode,
+    fallback: "hourly",
+    explicit: ["days", "blocks"],
+    values: (schedulingMode) =>
+      schedulingMode === undefined ? {} : { schedulingMode: schedulingMode as NonNullable<Account["schedulingMode"]> },
+  },
+  {
+    name: "placeholders",
+    selector: hasPlaceholdersEnabled,
+    fallback: false,
+    explicit: [true, false],
+    values: (placeholdersEnabled) => ({ placeholdersEnabled: placeholdersEnabled as boolean }),
+  },
+  {
+    name: "external resources",
+    selector: hasExternalResourcesEnabled,
+    fallback: false,
+    explicit: [true, false],
+    values: (externalEnabled) => ({ externalEnabled: externalEnabled as boolean }),
+  },
+  {
+    name: "engagement grouping",
+    selector: hasResourceEngagementGrouping,
+    fallback: true,
+    explicit: [true, false],
+    values: (groupResourcesByEngagement) => ({
+      groupResourcesByEngagement: groupResourcesByEngagement as boolean,
+    }),
+  },
+  {
+    name: "internal projects",
+    selector: hasVisibleInternalProjects,
+    fallback: true,
+    explicit: [true, false],
+    values: (showInternalProjects) => ({ showInternalProjects: showInternalProjects as boolean }),
+  },
+  {
+    name: "internal activities",
+    selector: hasVisibleInternalActivities,
+    fallback: true,
+    explicit: [true, false],
+    values: (showInternalActivities) => ({ showInternalActivities: showInternalActivities as boolean }),
+  },
+  {
+    name: "inline activity creation",
+    selector: canCreateInlineActivity,
+    fallback: true,
+    explicit: [true, false],
+    values: (inlineActivityCreateEnabled) => ({
+      inlineActivityCreateEnabled: inlineActivityCreateEnabled as boolean,
+    }),
+  },
+];
+
+function registerAccountFeatureDefaults(): void {
+  it.each(accountFeatureCases)(
+    "pins absent, unmatched and explicit $name values",
+    ({ selector, fallback, explicit, values }) => {
+      expect(selector(accountData(), "a1")).toBe(fallback);
+      expect(selector(accountData(values(explicit[0])), "missing")).toBe(fallback);
+      for (const value of explicit) expect(selector(accountData(values(value)), "a1")).toBe(value);
+    },
+  );
+}
+
+describe("account feature selector defaults", () => {
+  registerAccountFeatureDefaults();
 });
 
 describe("calendar primitive selectors", () => {
@@ -196,12 +202,11 @@ describe("calendar primitive selectors", () => {
   it("derives legacy account working days from week start and preserves an explicit selection", () => {
     expect(listAccountWorkingDays(accounts({ weekStartsOn: 1 }), "a1")).toEqual([1, 2, 3, 4, 5]);
     expect(listAccountWorkingDays(accounts({ weekStartsOn: 0 }), "a1")).toEqual([0, 1, 2, 3, 4]);
+    const sundayAccount = accounts({ weekStartsOn: 0 }).accounts[0];
+    if (!sundayAccount) throw new Error("Expected Sunday-start account fixture");
     expect(
       listAccountWorkingDays(
-        {
-          ...accounts({ weekStartsOn: 0 }),
-          accounts: [{ ...accounts({ weekStartsOn: 0 }).accounts[0]!, workingDays: [1, 3, 5] }],
-        },
+        { ...accounts({ weekStartsOn: 0 }), accounts: [{ ...sundayAccount, workingDays: [1, 3, 5] }] },
         "a1",
       ),
     ).toEqual([1, 3, 5]);

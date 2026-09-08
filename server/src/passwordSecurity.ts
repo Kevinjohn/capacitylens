@@ -48,6 +48,12 @@ interface DeriveInput {
   p: number;
 }
 
+interface StoredScryptHash extends DeriveInput {
+  expected: Buffer;
+}
+
+type ResponseChunk = { done: true } | { done: false; value: Uint8Array };
+
 function derive({ password, salt, n, r, p }: DeriveInput): Promise<Buffer> {
   const signal = readCurrentRequestAbortSignal();
   return scryptQueue.run(
@@ -60,6 +66,76 @@ function derive({ password, salt, n, r, p }: DeriveInput): Promise<Buffer> {
       }),
     signal,
   );
+}
+
+function parseStoredInteger(raw: string | undefined, minimum: number): number | undefined {
+  if (!raw) return undefined;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= minimum ? value : undefined;
+}
+
+function hasAllowedScryptResources(input: StoredScryptHash): boolean {
+  // A malformed or hostile stored hash must not allocate arbitrary amounts of memory.
+  return (
+    input.n <= SCRYPT_N &&
+    input.r <= SCRYPT_R &&
+    input.p <= SCRYPT_P &&
+    input.salt.length === SALT_BYTES &&
+    input.expected.length === KEY_BYTES
+  );
+}
+
+function parseVersionedHash(fields: string[], password: string): StoredScryptHash | undefined {
+  const [, rawN, rawR, rawP, rawSalt, rawExpected] = fields;
+  const n = parseStoredInteger(rawN, 2);
+  const r = parseStoredInteger(rawR, 1);
+  const p = parseStoredInteger(rawP, 1);
+  if (n === undefined || r === undefined || p === undefined || !rawSalt || !rawExpected) return undefined;
+  let salt: Buffer;
+  let expected: Buffer;
+  try {
+    salt = Buffer.from(rawSalt, "base64url");
+    expected = Buffer.from(rawExpected, "base64url");
+  } catch {
+    // Stored representation failure is a safe credential non-match. Derivation happens
+    // outside this guard so operational queue/crypto failures remain loud and retryable.
+    return undefined;
+  }
+  const parsed = { password, salt, n, r, p, expected };
+  return hasAllowedScryptResources(parsed) ? parsed : undefined;
+}
+
+async function verifyVersionedHash(fields: string[], password: string): Promise<boolean> {
+  const parsed = parseVersionedHash(fields, password);
+  if (!parsed) return false;
+  const { expected, ...deriveInput } = parsed;
+  const actual = await derive(deriveInput);
+  return timingSafeEqual(actual, expected);
+}
+
+async function verifyLegacyHash(hash: string, password: string): Promise<boolean> {
+  // Better Auth <=1.6.23 used `hex-salt:hex-key`, N=2^14,r=16,p=1 and normalized the
+  // password to NFKC before hashing. Compatibility is verify-only; every new/change/reset hash
+  // uses the exact password bytes and the stronger versioned profile above.
+  const legacy = hash.split(":");
+  const [legacySalt, legacyExpected] = legacy;
+  if (
+    !legacySalt ||
+    !legacyExpected ||
+    legacy.length !== 2 ||
+    !/^[0-9a-f]{32}$/i.test(legacySalt) ||
+    !/^[0-9a-f]{128}$/i.test(legacyExpected)
+  )
+    return false;
+  const expected = Buffer.from(legacyExpected, "hex");
+  const actual = await derive({
+    password: password.normalize("NFKC"),
+    salt: Buffer.from(legacySalt, "utf8"),
+    n: 2 ** 14,
+    r: 16,
+    p: 1,
+  });
+  return timingSafeEqual(actual, expected);
 }
 
 /** Strong new hashes plus read-only compatibility with Better Auth's former `salt:key` format. */
@@ -76,57 +152,9 @@ export function createScryptPasswordHasher(n = SCRYPT_N): PasswordHasher {
     async verify({ hash, password }): Promise<boolean> {
       const fields = hash.split("$");
       if (fields.length === 6 && fields[0] === "scrypt-v1") {
-        const [, rawN, rawR, rawP, rawSalt, rawExpected] = fields;
-        if (!rawN || !rawR || !rawP || !rawSalt || !rawExpected) return false;
-        const parsedN = Number(rawN);
-        const r = Number(rawR);
-        const p = Number(rawP);
-        if (![parsedN, r, p].every(Number.isSafeInteger) || parsedN < 2 || r < 1 || p < 1) return false;
-        let salt: Buffer;
-        let expected: Buffer;
-        try {
-          salt = Buffer.from(rawSalt, "base64url");
-          expected = Buffer.from(rawExpected, "base64url");
-        } catch {
-          // Stored representation failure is a safe credential non-match. Derivation happens
-          // outside this guard so operational queue/crypto failures remain loud and retryable.
-          return false;
-        }
-        // A malformed/hostile stored hash must not allocate arbitrary amounts of memory.
-        if (
-          parsedN > SCRYPT_N ||
-          r > SCRYPT_R ||
-          p > SCRYPT_P ||
-          salt.length !== SALT_BYTES ||
-          expected.length !== KEY_BYTES
-        )
-          return false;
-        const actual = await derive({ password, salt, n: parsedN, r, p });
-        return timingSafeEqual(actual, expected);
+        return verifyVersionedHash(fields, password);
       }
-
-      // Better Auth <=1.6.23 used `hex-salt:hex-key`, N=2^14,r=16,p=1 and normalized the
-      // password to NFKC before hashing. Compatibility is verify-only; every new/change/reset hash
-      // uses the exact password bytes and the stronger versioned profile above.
-      const legacy = hash.split(":");
-      const [legacySalt, legacyExpected] = legacy;
-      if (
-        !legacySalt ||
-        !legacyExpected ||
-        legacy.length !== 2 ||
-        !/^[0-9a-f]{32}$/i.test(legacySalt) ||
-        !/^[0-9a-f]{128}$/i.test(legacyExpected)
-      )
-        return false;
-      const expected = Buffer.from(legacyExpected, "hex");
-      const actual = await derive({
-        password: password.normalize("NFKC"),
-        salt: Buffer.from(legacySalt, "utf8"),
-        n: 2 ** 14,
-        r: 16,
-        p: 1,
-      });
-      return timingSafeEqual(actual, expected);
+      return verifyLegacyHash(hash, password);
     },
   };
 }
@@ -153,6 +181,12 @@ export class PasswordPolicyDependencyError extends Error {
   readonly code = "PASSWORD_CHECK_UNAVAILABLE";
 }
 
+function isResponseChunk(value: unknown): value is ResponseChunk {
+  if (typeof value !== "object" || value === null || !("done" in value)) return false;
+  if (value.done === true) return true;
+  return value.done === false && "value" in value && value.value instanceof Uint8Array;
+}
+
 async function readBoundedResponseText(response: Response): Promise<string> {
   const declared = Number(response.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > MAX_HIBP_RESPONSE_BYTES) {
@@ -164,8 +198,9 @@ async function readBoundedResponseText(response: Response): Promise<string> {
   const decoder = new TextDecoder();
   let bytes = 0;
   let text = "";
-  while (true) {
-    const chunk = await reader.read();
+  for (;;) {
+    const chunk: unknown = await reader.read();
+    if (!isResponseChunk(chunk)) throw new TypeError("Breached-password response contained an invalid chunk.");
     if (chunk.done) break;
     bytes += chunk.value.byteLength;
     if (bytes > MAX_HIBP_RESPONSE_BYTES) {

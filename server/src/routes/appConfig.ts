@@ -13,23 +13,28 @@ import type { AppOptions } from "../app";
 // CAPACITYLENS_CORS_ORIGIN override it for a deliberate deploy.
 export const DEFAULT_CORS = "http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273";
 
-export function resolveAppConfig(options: AppOptions) {
-  const authMode = options.authMode ?? "off";
-  const auth = options.auth ?? null;
+function validateAppOptions(options: AppOptions, rateLimitMax: number): void {
   const configuredRateLimit = options.rateLimit ?? 0;
-  const rateLimitMax = normalizeRateLimit(configuredRateLimit);
   if (configuredRateLimit !== 0 && rateLimitMax === 0) {
     throw new RangeError(
       `rateLimit must be 0 (disabled) or a positive integer no greater than ${MAX_RATE_LIMIT.toLocaleString("en-US")}.`,
     );
   }
-  // Misconfiguration, not a request-time condition: fail at construction, loudly.
-  if (authMode !== "off" && !auth) {
-    throw new Error(`buildApp: authMode '${authMode}' requires a Better Auth instance (opts.auth)`);
+  if ((options.authMode ?? "off") !== "off" && !options.auth) {
+    throw new Error(`buildApp: authMode '${options.authMode}' requires a Better Auth instance (opts.auth)`);
   }
   if (options.bootstrapToken && Buffer.byteLength(options.bootstrapToken, "utf8") < MIN_BOOTSTRAP_TOKEN_BYTES) {
     throw new Error(`CAPACITYLENS_BOOTSTRAP_TOKEN must be at least ${MIN_BOOTSTRAP_TOKEN_BYTES} bytes.`);
   }
+}
+
+export function resolveAppConfig(options: AppOptions) {
+  const authMode = options.authMode ?? "off";
+  const auth = options.auth ?? null;
+  const configuredRateLimit = options.rateLimit ?? 0;
+  const rateLimitMax = normalizeRateLimit(configuredRateLimit);
+  // Misconfiguration, not a request-time condition: fail at construction, loudly.
+  validateAppOptions(options, rateLimitMax);
   const application = options.application ?? DEFAULT_ACCOUNT_APPLICATION;
   const applicationFailure = boundApplicationFailure(application);
   if (applicationFailure) throw new Error(`buildApp: ${applicationFailure}`);

@@ -29,9 +29,7 @@ export function readState(db: Db): AppData {
  *  shape (adding the OFF sentinel `role: "owner"`); this only owns the query and its cached statement. */
 export function listAccountSummaries(db: Db): Array<{ id: string; name: string }> {
   const cache = createStatementCache(db);
-  if (!cache.accountSummariesSelect) {
-    cache.accountSummariesSelect = db.prepare(`SELECT id, name FROM accounts ORDER BY id`);
-  }
+  cache.accountSummariesSelect ??= db.prepare(`SELECT id, name FROM accounts ORDER BY id`);
   return cache.accountSummariesSelect.all() as Array<{ id: string; name: string }>;
 }
 
@@ -138,7 +136,7 @@ function readSliceFromSnapshot(
   const cache = createStatementCache(db);
   // The single global table: read the ONE account by id (0 or 1 row), via the same codec loadState uses.
   const accountsSpec = resolveTable("accounts");
-  if (!cache.accountByIdSelect) cache.accountByIdSelect = db.prepare(`SELECT * FROM accounts WHERE id = ?`);
+  cache.accountByIdSelect ??= db.prepare(`SELECT * FROM accounts WHERE id = ?`);
   data["accounts"] = cache.accountByIdSelect.all(accountId).map((r) => fromRow(accountsSpec, r));
   // Every scoped table: WHERE accountId = ? — never an unpredicated read (the no-cross-tenant invariant).
   for (const table of SCOPED_ORDER) {

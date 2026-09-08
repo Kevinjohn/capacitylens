@@ -1,6 +1,6 @@
 import type { AuthorizeBasicInput } from "./routeShared";
 import { createHash } from "node:crypto";
-import type { FastifyInstance, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
 import type { Role } from "@capacitylens/shared/account/types";
 import { canSeePrivateNames } from "@capacitylens/shared/domain/access";
@@ -9,7 +9,8 @@ import { parseData, MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfe
 import { APP_DATA_KEYS, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../audit";
 import type { AccountMode } from "../auth";
-import { insertAll, replaceAccountSlice, type Db, buildCompleteAccountSlice, wipe } from "../db";
+import { buildCompleteAccountSlice, insertAll, replaceAccountSlice, wipe } from "../db";
+import type { Db } from "../db";
 import { readCurrentRequestAbortSignal } from "../requestAbort";
 import type { runImportWorker } from "../runImportWorker";
 import type { TenantStore } from "../tenantStore";
@@ -33,9 +34,10 @@ class ImportSnapshotConflictError extends Error {
 }
 
 function buildCanonicalJson(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value) ?? "undefined";
+  if (value === undefined) return "undefined";
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(buildCanonicalJson).join(",")}]`;
-  const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right));
+  const entries = Object.entries(value).sort(([left], [right]) => left.localeCompare(right));
   return `{${entries.map(([key, child]) => `${JSON.stringify(key)}:${buildCanonicalJson(child)}`).join(",")}}`;
 }
 
@@ -63,19 +65,129 @@ export interface ImportRouteDependencies {
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
 }
 
-export function registerImportRoutes(app: FastifyInstance, dependencies: ImportRouteDependencies): void {
-  const {
-    db,
-    store,
-    authMode,
-    allowReset,
-    accountAdminPort,
-    authorize,
-    executeImportWorker,
-    commitProductAudit,
-    fail: sendFail,
-  } = dependencies;
+interface ImportRequestBody {
+  accountId: string;
+  data: unknown;
+}
 
+function readImportRequestBody(body: unknown): ImportRequestBody | undefined {
+  if (body === null || typeof body !== "object" || !("accountId" in body) || typeof body.accountId !== "string") {
+    return undefined;
+  }
+  return { accountId: body.accountId, data: "data" in body ? body.data : undefined };
+}
+
+function isResetSeedRequested(body: unknown): boolean {
+  return body !== null && typeof body === "object" && "seed" in body && Boolean(body.seed);
+}
+
+interface AuthorizedImportUserInput {
+  req: FastifyRequest;
+  reply: FastifyReply;
+  body: ImportRequestBody;
+  dependencies: ImportRouteDependencies;
+}
+
+function authorizeImportUser({
+  req,
+  reply,
+  body,
+  dependencies,
+}: AuthorizedImportUserInput): NonNullable<FastifyRequest["user"]> | undefined {
+  if (!dependencies.authorize({ req, reply, accountId: body.accountId, action: "purge" })) return undefined;
+  const user = req.user;
+  if (user === null) {
+    dependencies.fail(reply, new Error("Authenticated import request has no user."));
+    return undefined;
+  }
+  if (dependencies.authMode === "off") return user;
+  const role = dependencies.accountAdminPort.roleForPrincipalInWorkspace(user.id, body.accountId);
+  if (role === null || !canSeePrivateNames(role)) {
+    void reply.code(403).send({ error: "Only the account owner can import data." });
+    return undefined;
+  }
+  return user;
+}
+
+function sendImportFailure(reply: FastifyReply, error: unknown, dependencies: ImportRouteDependencies): FastifyReply {
+  if (error instanceof WorkQueueFullError) {
+    reply.header("retry-after", "1");
+    return reply.code(503).send({ error: error.message, code: "IMPORT_BUSY", retryable: true });
+  }
+  if (error instanceof ImportSnapshotConflictError) {
+    return reply.code(409).send({ error: error.message, code: "IMPORT_SNAPSHOT_STALE" });
+  }
+  return dependencies.fail(reply, error);
+}
+
+async function handleImport(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  dependencies: ImportRouteDependencies,
+): Promise<unknown> {
+  const body = readImportRequestBody(req.body);
+  if (body === undefined) return reply.code(400).send({ error: "accountId is required" });
+  const user = authorizeImportUser({ req, reply, body, dependencies });
+  if (user === undefined) return;
+  let incoming;
+  try {
+    incoming = parseData(JSON.stringify(body.data ?? {}));
+  } catch (error) {
+    return reply.code(400).send({ error: error instanceof Error ? error.message : "Invalid import data" });
+  }
+  try {
+    const currentSlice = dependencies.store.readFullSlice(body.accountId);
+    const expectedSnapshot = buildImportSnapshotFingerprint(currentSlice);
+    const result = await dependencies.executeImportWorker(
+      { current: currentSlice, accountId: body.accountId, incoming, now: new Date().toISOString() },
+      readCurrentRequestAbortSignal(),
+    );
+    if (result.imported === 0) {
+      return reply.code(400).send({
+        error: "The import contained no usable records, so the company data was left unchanged.",
+        imported: 0,
+        skipped: result.skipped,
+        maxRecords: MAX_IMPORT_RECORDS,
+      });
+    }
+    const auditRecord: AuditRecord = {
+      ts: new Date().toISOString(),
+      userId: user.id,
+      accountId: body.accountId,
+      action: "import",
+      entity: "account",
+      id: body.accountId,
+      changedFields: [],
+    };
+    const auditOk = dependencies.commitProductAudit(reply, auditRecord, () => {
+      if (buildImportSnapshotFingerprint(dependencies.store.readFullSlice(body.accountId)) !== expectedSnapshot) {
+        throw new ImportSnapshotConflictError();
+      }
+      replaceAccountSlice(dependencies.db, body.accountId, buildCompleteAccountSlice(result.data));
+    });
+    return {
+      imported: result.imported,
+      skipped: result.skipped,
+      maxRecords: MAX_IMPORT_RECORDS,
+      auditWarning: !auditOk,
+    };
+  } catch (error) {
+    return sendImportFailure(reply, error, dependencies);
+  }
+}
+
+function handleReset(req: FastifyRequest, reply: FastifyReply, dependencies: ImportRouteDependencies): unknown {
+  if (!dependencies.allowReset || dependencies.authMode !== "off") {
+    return reply.code(403).send({ error: "reset disabled" });
+  }
+  tx(dependencies.db, () => {
+    wipe(dependencies.db);
+    if (isResetSeedRequested(req.body)) insertAll(dependencies.db, seed());
+  });
+  return { ok: true };
+}
+
+export function registerImportRoutes(app: FastifyInstance, dependencies: ImportRouteDependencies): void {
   // Bulk import into one account, reusing the SAME remap+validate+sanitize the store
   // runs (shared/domain/mutations.remapAndValidateImport). Body: { accountId, data }.
   // `data` may be a raw export ({schemaVersion,data} or bare AppData); parseData
@@ -85,11 +197,7 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
   // (accountId-carrying), never `accounts` itself — an import can only replace an EXISTING
   // account's data, never insert a new top-level accounts row. So there is no create vector here
   // for accountCreateCapped to gate.
-  app.post("/api/import", async (req, reply) => {
-    const body = req.body as { accountId?: string; data?: unknown };
-    if (!body || typeof body.accountId !== "string") {
-      return reply.code(400).send({ error: "accountId is required" });
-    }
+  app.post("/api/import", (req, reply) => {
     // Import first requires 'purge', NOT 'write' (editor), because:
     //   (1) it is DESTRUCTIVE slice replacement — replaceAccountSlice deletes the account's
     //       entire scoped slice and re-inserts the import, the same hard-delete semantics the
@@ -103,84 +211,9 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
     // used as a replacement — it would turn the cover name into the persisted real name and repair
     // the missing code name to "Confidential", destroying the owner-only identity. OFF mode keeps
     // the open behaviour (demo/e2e parity — authorize no-ops there).
-    if (!authorize({ req, reply, accountId: body.accountId, action: "purge" })) return;
-    if (authMode !== "off") {
-      const role = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, body.accountId);
-      if (role === null || !canSeePrivateNames(role)) {
-        return reply.code(403).send({ error: "Only the account owner can import data." });
-      }
-    }
-    let incoming;
-    try {
-      incoming = parseData(JSON.stringify(body.data ?? {}));
-    } catch (error) {
-      return reply.code(400).send({
-        error: error instanceof Error ? error.message : "Invalid import data",
-      });
-    }
-    // remapAndValidateImport drops/repairs dangling refs so the slice is FK-clean
-    // before it hits SQLite; the try/catch is defence-in-depth so any residual DB
-    // constraint failure becomes a 400 (via fail's classification) rather than an
-    // uncaught 500.
-    try {
-      const currentSlice = store.readFullSlice(body.accountId);
-      const expectedSnapshot = buildImportSnapshotFingerprint(currentSlice);
-      const result = await executeImportWorker(
-        {
-          current: currentSlice,
-          accountId: body.accountId,
-          incoming,
-          now: new Date().toISOString(),
-        },
-        readCurrentRequestAbortSignal(),
-      );
-      // Refuse a zero-record import rather than wiping the account's slice (mirrors the
-      // client store guard — replacing a company's data with nothing is never intended).
-      if (result.imported === 0) {
-        return reply.code(400).send({
-          error: "The import contained no usable records, so the company data was left unchanged.",
-          imported: 0,
-          skipped: result.skipped,
-          maxRecords: MAX_IMPORT_RECORDS,
-        });
-      }
-      const auditRecord: AuditRecord = {
-        ts: new Date().toISOString(),
-        userId: req.user!.id,
-        accountId: body.accountId,
-        action: "import",
-        entity: "account",
-        id: body.accountId,
-        changedFields: [],
-      };
-      const auditOk = commitProductAudit(reply, auditRecord, () => {
-        // The worker runs outside SQLite so ordinary writes stay responsive. Recheck the exact
-        // tenant slice after BEGIN IMMEDIATE and before replacement: a same-account commit in the
-        // worker window must conflict, never be silently erased by this destructive import.
-        if (buildImportSnapshotFingerprint(store.readFullSlice(body.accountId!)) !== expectedSnapshot) {
-          throw new ImportSnapshotConflictError();
-        }
-        replaceAccountSlice(db, body.accountId!, buildCompleteAccountSlice(result.data));
-      });
-      return {
-        imported: result.imported,
-        skipped: result.skipped,
-        maxRecords: MAX_IMPORT_RECORDS,
-        auditWarning: !auditOk,
-      };
-    } catch (error) {
-      if (error instanceof WorkQueueFullError) {
-        reply.header("retry-after", "1");
-        return reply.code(503).send({ error: error.message, code: "IMPORT_BUSY", retryable: true });
-      }
-      if (error instanceof ImportSnapshotConflictError) {
-        return reply.code(409).send({
-          error: error.message,
-          code: "IMPORT_SNAPSHOT_STALE",
-        });
-      }
-      return sendFail(reply, error);
-    }
+    // remapAndValidateImport drops/repairs dangling refs before SQLite. The handler retains
+    // defence-in-depth so any residual constraint failure is classified by fail rather than lost.
+    return handleImport(req, reply, dependencies);
   });
 
   // Test-only, trusted-local only: wipe (and optionally re-seed) so E2E/integration runs start
@@ -192,15 +225,5 @@ export function registerImportRoutes(app: FastifyInstance, dependencies: ImportR
   // HTTP create vector the cap is meant to police. It's how e2e fixtures reach a known
   // multi-company state (the demo seed ships TWO companies) without threading multiAccount
   // through every spec.
-  app.post("/api/test/reset", (req, reply) => {
-    if (!allowReset || authMode !== "off") {
-      return reply.code(403).send({ error: "reset disabled" });
-    }
-    const body = (req.body ?? {}) as { seed?: boolean };
-    tx(db, () => {
-      wipe(db);
-      if (body.seed) insertAll(db, seed());
-    });
-    return { ok: true };
-  });
+  app.post("/api/test/reset", (req, reply) => handleReset(req, reply, dependencies));
 }

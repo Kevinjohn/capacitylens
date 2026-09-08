@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { AccountContractError, type AccountErrorCode } from "@capacitylens/shared/account/errors";
 import { openDb, type Db } from "../db";
 import { buildAccountPayloadHash, beginCommand, resumeExistingCommand, terminatePendingCommand } from "./commands";
 import {
@@ -18,20 +19,40 @@ import {
 
 const hash = "a".repeat(64);
 
-describe("account boundary durable state", () => {
-  let db: Db | null = null;
+function getOpenTestDb(db: Db | null): Db {
+  if (db === null) throw new Error("Expected the test database to be open");
+  return db;
+}
 
-  afterEach(() => {
-    db?.close();
-    db = null;
-  });
+interface ExpectedAccountFailure {
+  code: AccountErrorCode;
+  retryable: boolean;
+}
 
+function expectAccountFailure(run: () => unknown, expected: ExpectedAccountFailure): void {
+  try {
+    run();
+  } catch (error) {
+    expect(error).toBeInstanceOf(AccountContractError);
+    if (!(error instanceof AccountContractError)) throw error;
+    expect(error.failure.code).toBe(expected.code);
+    expect(error.failure.retryable).toBe(expected.retryable);
+    return;
+  }
+  throw new Error(`Expected account failure ${expected.code}`);
+}
+
+let db: Db | null = null;
+
+function registerPayloadHashTests(): void {
   it("canonicalizes object order while retaining array positions in payload hashes", () => {
     expect(buildAccountPayloadHash({ b: 2, a: 1 })).toBe(buildAccountPayloadHash({ a: 1, b: 2 }));
     expect(buildAccountPayloadHash([undefined])).toBe(buildAccountPayloadHash([null]));
     expect(buildAccountPayloadHash([undefined])).not.toBe(buildAccountPayloadHash([]));
   });
+}
 
+function registerTerminalOutcomeTests(): void {
   it("canonically records a terminal outcome only while the command is pending", () => {
     db = openDb(":memory:");
     const scope = { applicationId: "app", operation: "operation" };
@@ -61,7 +82,9 @@ describe("account boundary durable state", () => {
     });
     expect(terminatePendingCommand({ db, scope, command, status: "compensated", failureCode: "CONFLICT" })).toBe(false);
   });
+}
 
+function registerStaleReservationTests(): void {
   it("turns stale pending commands into explicit reconciliation work", () => {
     db = openDb(":memory:");
     reserveAccountCommand(db, {
@@ -92,7 +115,9 @@ describe("account boundary durable state", () => {
       },
     });
   });
+}
 
+function registerWallClockTests(): void {
   it("does not age or prune durable state when the host wall clock jumps forward in-process", () => {
     db = openDb(":memory:");
     reserveAccountCommand(db, {
@@ -151,7 +176,9 @@ describe("account boundary durable state", () => {
       wallClock.mockRestore();
     }
   });
+}
 
+function registerReconciliationReadTests(): void {
   it("ages an abandoned pending command during a reconciliation read without a mutation retry", () => {
     db = openDb(":memory:");
     reserveAccountCommand(db, {
@@ -177,7 +204,9 @@ describe("account boundary durable state", () => {
       resultJson: JSON.stringify({ kind: "stale-pending" }),
     });
   });
+}
 
+function registerInFlightConflictTests(): void {
   it("distinguishes an in-flight command from a terminal conflict", () => {
     db = openDb(":memory:");
     const scope = {
@@ -189,16 +218,14 @@ describe("account boundary durable state", () => {
     expect(beginCommand({ db, scope, command, canonicalPayload: { value: 1 } })).toMatchObject({
       kind: "execute",
     });
-    expect(() => beginCommand({ db: db!, scope, command, canonicalPayload: { value: 1 } })).toThrow(
-      expect.objectContaining({
-        failure: expect.objectContaining({
-          code: "COMMAND_IN_PROGRESS",
-          retryable: true,
-        }),
-      }),
+    expectAccountFailure(
+      () => beginCommand({ db: getOpenTestDb(db), scope, command, canonicalPayload: { value: 1 } }),
+      { code: "COMMAND_IN_PROGRESS", retryable: true },
     );
   });
+}
 
+function registerActorIsolationTests(): void {
   it("does not replay or age an account command for a different actor", () => {
     db = openDb(":memory:");
     const command = { commandId: "command", idempotencyKey: "key" };
@@ -212,24 +239,19 @@ describe("account boundary durable state", () => {
       now: "2026-01-01T00:00:00.000Z",
     });
 
-    expect(() =>
-      beginCommand({
-        db: db!,
-        scope: {
-          applicationId: "app",
-          operation: "operation",
-          actorPrincipalId: "second-actor",
-        },
-        command,
-        canonicalPayload: payload,
-      }),
-    ).toThrow(
-      expect.objectContaining({
-        failure: expect.objectContaining({
-          code: "IDEMPOTENCY_CONFLICT",
-          retryable: false,
+    expectAccountFailure(
+      () =>
+        beginCommand({
+          db: getOpenTestDb(db),
+          scope: {
+            applicationId: "app",
+            operation: "operation",
+            actorPrincipalId: "second-actor",
+          },
+          command,
+          canonicalPayload: payload,
         }),
-      }),
+      { code: "IDEMPOTENCY_CONFLICT", retryable: false },
     );
     expect(
       getAccountCommand({ db, applicationId: "app", operation: "operation", idempotencyKey: "key" }),
@@ -245,27 +267,24 @@ describe("account boundary durable state", () => {
       status: "completed",
       resultJson: JSON.stringify({ commandId: "command" }),
     });
-    expect(() =>
-      resumeExistingCommand({
-        db: db!,
-        scope: {
-          applicationId: "app",
-          operation: "operation",
-          actorPrincipalId: "second-actor",
-        },
-        command,
-        canonicalPayload: payload,
-      }),
-    ).toThrow(
-      expect.objectContaining({
-        failure: expect.objectContaining({
-          code: "IDEMPOTENCY_CONFLICT",
-          retryable: false,
+    expectAccountFailure(
+      () =>
+        resumeExistingCommand({
+          db: getOpenTestDb(db),
+          scope: {
+            applicationId: "app",
+            operation: "operation",
+            actorPrincipalId: "second-actor",
+          },
+          command,
+          canonicalPayload: payload,
         }),
-      }),
+      { code: "IDEMPOTENCY_CONFLICT", retryable: false },
     );
   });
+}
 
+function registerStalePayloadConflictTests(): void {
   it("still reports an idempotency conflict when a stale pending retry changes payload", () => {
     db = openDb(":memory:");
     reserveAccountCommand(db, {
@@ -293,7 +312,9 @@ describe("account boundary durable state", () => {
       record: { status: "reconciliation_required" },
     });
   });
+}
 
+function registerCommandPruningTests(): void {
   it("prunes closed terminal commands but retains pending and reconciliation work", () => {
     db = openDb(":memory:");
     for (const commandId of ["old-terminal", "old-pending", "old-reconciliation"]) {
@@ -351,7 +372,9 @@ describe("account boundary durable state", () => {
       status: "reconciliation_required",
     });
   });
+}
 
+function registerCommandIdConflictTests(): void {
   it("normalizes command-id reuse across another operation instead of leaking a database error", () => {
     db = openDb(":memory:");
     reserveAccountCommand(db, {
@@ -373,24 +396,24 @@ describe("account boundary durable state", () => {
         payloadHash: hash,
       }),
     ).toMatchObject({ kind: "conflict", record: { operation: "first" } });
-    expect(() =>
-      beginCommand({
-        db: db!,
-        scope: {
-          applicationId: "app",
-          operation: "second",
-          actorPrincipalId: "actor",
-        },
-        command: { commandId: "same-command", idempotencyKey: "second-key" },
-        canonicalPayload: {},
-      }),
-    ).toThrow(
-      expect.objectContaining({
-        failure: expect.objectContaining({ code: "IDEMPOTENCY_CONFLICT" }),
-      }),
+    expectAccountFailure(
+      () =>
+        beginCommand({
+          db: getOpenTestDb(db),
+          scope: {
+            applicationId: "app",
+            operation: "second",
+            actorPrincipalId: "actor",
+          },
+          command: { commandId: "same-command", idempotencyKey: "second-key" },
+          canonicalPayload: {},
+        }),
+      { code: "IDEMPOTENCY_CONFLICT", retryable: false },
     );
   });
+}
 
+function registerIdempotencyKeyConflictTests(): void {
   it("does not let an idempotency key bind to a second command id", () => {
     db = openDb(":memory:");
     reserveAccountCommand(db, {
@@ -416,7 +439,9 @@ describe("account boundary durable state", () => {
       record: { commandId: "first-command" },
     });
   });
+}
 
+function registerCommandCorrelationTests(): void {
   it("adds immutable privacy coordinates only while a command is pending", () => {
     db = openDb(":memory:");
     reserveAccountCommand(db, {
@@ -445,7 +470,7 @@ describe("account boundary durable state", () => {
       targetPrincipalId: "principal-1",
     });
     expect(() =>
-      correlatePendingAccountCommand(db!, {
+      correlatePendingAccountCommand(getOpenTestDb(db), {
         applicationId: "app",
         operation: "signup",
         idempotencyKey: "key",
@@ -460,7 +485,7 @@ describe("account boundary durable state", () => {
       resultJson: "{}",
     });
     expect(() =>
-      correlatePendingAccountCommand(db!, {
+      correlatePendingAccountCommand(getOpenTestDb(db), {
         applicationId: "app",
         operation: "signup",
         idempotencyKey: "key",
@@ -468,7 +493,9 @@ describe("account boundary durable state", () => {
       }),
     ).toThrow(/pending/);
   });
+}
 
+function registerReconciliationClosureTests(): void {
   it("supports operator closure only for reconciliation-required commands with a hashed reference", () => {
     db = openDb(":memory:");
     reserveAccountCommand(db, {
@@ -489,7 +516,7 @@ describe("account boundary durable state", () => {
 
     expect(() =>
       closeAccountCommandReconciliation({
-        db: db!,
+        db: getOpenTestDb(db),
         applicationId: "app",
         commandId: "command",
         referenceHash: "operator-note",
@@ -511,14 +538,15 @@ describe("account boundary durable state", () => {
         referenceHash: "b".repeat(64),
       }),
     ).toBe(false);
-    expect(
-      getAccountCommand({ db, applicationId: "app", operation: "operation", idempotencyKey: "key" }),
-    ).toMatchObject({
-      status: "compensated",
-      resultJson: expect.stringContaining("referenceHash"),
-    });
+    const command = getAccountCommand({ db, applicationId: "app", operation: "operation", idempotencyKey: "key" });
+    expect(command).not.toBeNull();
+    if (command === null) throw new Error("Expected the reconciled command to remain recorded");
+    expect(command.status).toBe("compensated");
+    expect(command.resultJson).toContain("referenceHash");
   });
+}
 
+function registerWorkspaceErasureTests(): void {
   it("erases closed workspace command history while preserving active recovery state", () => {
     db = openDb(":memory:");
     for (const [operation, commandId, workspaceId] of [
@@ -576,7 +604,9 @@ describe("account boundary durable state", () => {
       getAccountCommand({ db, applicationId: "app", operation: "other", idempotencyKey: "other-command" }),
     ).not.toBeNull();
   });
+}
 
+function registerLegacyTransactionTests(): void {
   it("preserves active workspace commands during an enclosing legacy transaction", () => {
     db = openDb(":memory:");
     for (const [operation, workspaceId] of [
@@ -626,7 +656,9 @@ describe("account boundary durable state", () => {
       getAccountCommand({ db, applicationId: "app", operation: "other-command", idempotencyKey: "other-command" }),
     ).not.toBeNull();
   });
+}
 
+function registerPrincipalErasureTests(): void {
   it("erases principal correlation while retaining an anonymized erasure command for replay", () => {
     db = openDb(":memory:");
     for (const [operation, commandId, actorPrincipalId, targetPrincipalId] of [
@@ -659,7 +691,9 @@ describe("account boundary durable state", () => {
       getAccountCommand({ db, applicationId: "app", operation: "unrelated", idempotencyKey: "unrelated-command" }),
     ).not.toBeNull();
   });
+}
 
+function registerSessionLifetimeTests(): void {
   it("bounds assurance metadata to the absolute session lifetime", () => {
     db = openDb(":memory:");
     recordSessionAssurance({
@@ -685,12 +719,14 @@ describe("account boundary durable state", () => {
       providerId: "sso",
     });
   });
+}
 
+function registerSessionAssuranceValidationTests(): void {
   it("rejects impossible assurance/provider combinations", () => {
     db = openDb(":memory:");
     expect(() =>
       recordSessionAssurance({
-        db: db!,
+        db: getOpenTestDb(db),
         sessionId: "federated-without-provider",
         principalId: "principal-1",
         assurance: "federated",
@@ -698,7 +734,7 @@ describe("account boundary durable state", () => {
     ).toThrow(/provider id/i);
     expect(() =>
       recordSessionAssurance({
-        db: db!,
+        db: getOpenTestDb(db),
         sessionId: "password-with-provider",
         principalId: "principal-1",
         assurance: "password",
@@ -706,29 +742,47 @@ describe("account boundary durable state", () => {
       }),
     ).toThrow(/provider id/i);
   });
+}
 
+function registerFederatedProviderTests(): void {
   it("makes issuer/provider bindings immutable in both directions", () => {
     db = openDb(":memory:");
     bindFederatedProvider({ db, applicationId: "app", issuer: "https://issuer.example", providerId: "sso" });
     expect(() =>
-      bindFederatedProvider({ db: db!, applicationId: "app", issuer: "https://issuer.example", providerId: "renamed" }),
+      bindFederatedProvider({
+        db: getOpenTestDb(db),
+        applicationId: "app",
+        issuer: "https://issuer.example",
+        providerId: "renamed",
+      }),
     ).toThrow(/immutable/i);
     expect(() =>
-      bindFederatedProvider({ db: db!, applicationId: "app", issuer: "https://different.example", providerId: "sso" }),
+      bindFederatedProvider({
+        db: getOpenTestDb(db),
+        applicationId: "app",
+        issuer: "https://different.example",
+        providerId: "sso",
+      }),
     ).toThrow(/already bound/i);
   });
+}
 
+function registerBoundarySchemaTests(): void {
   it("refuses extra columns and misleadingly named indexes in boundary schema", () => {
     db = openDb(":memory:");
     db.exec(`ALTER TABLE account_commands ADD COLUMN unexpected TEXT`);
-    expect(() => assertAccountBoundaryStateCurrent(db!)).toThrow(/unexpected account_commands\.unexpected/);
+    expect(() => assertAccountBoundaryStateCurrent(getOpenTestDb(db))).toThrow(
+      /unexpected account_commands\.unexpected/,
+    );
     db.close();
 
     db = openDb(":memory:");
     db.exec(
       `DROP INDEX idx_account_commands_status; CREATE INDEX idx_account_commands_status ON account_commands(operation)`,
     );
-    expect(() => assertAccountBoundaryStateCurrent(db!)).toThrow(/does not cover exactly account_commands\.status/);
+    expect(() => assertAccountBoundaryStateCurrent(getOpenTestDb(db))).toThrow(
+      /does not cover exactly account_commands\.status/,
+    );
     db.close();
 
     db = openDb(":memory:");
@@ -736,8 +790,36 @@ describe("account boundary durable state", () => {
       DROP INDEX idx_account_session_assurance_principalId;
       CREATE INDEX idx_account_session_assurance_principalId ON account_security_revisions(principalId)
     `);
-    expect(() => assertAccountBoundaryStateCurrent(db!)).toThrow(
+    expect(() => assertAccountBoundaryStateCurrent(getOpenTestDb(db))).toThrow(
       /does not cover exactly account_session_assurance\.principalId/,
     );
   });
+}
+
+describe("account boundary durable state", () => {
+  afterEach(() => {
+    db?.close();
+    db = null;
+  });
+
+  registerPayloadHashTests();
+  registerTerminalOutcomeTests();
+  registerStaleReservationTests();
+  registerWallClockTests();
+  registerReconciliationReadTests();
+  registerInFlightConflictTests();
+  registerActorIsolationTests();
+  registerStalePayloadConflictTests();
+  registerCommandPruningTests();
+  registerCommandIdConflictTests();
+  registerIdempotencyKeyConflictTests();
+  registerCommandCorrelationTests();
+  registerReconciliationClosureTests();
+  registerWorkspaceErasureTests();
+  registerLegacyTransactionTests();
+  registerPrincipalErasureTests();
+  registerSessionLifetimeTests();
+  registerSessionAssuranceValidationTests();
+  registerFederatedProviderTests();
+  registerBoundarySchemaTests();
 });

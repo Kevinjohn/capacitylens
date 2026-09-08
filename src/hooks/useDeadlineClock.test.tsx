@@ -21,6 +21,13 @@ const nextOf =
       .filter((at) => at > clock)
       .reduce<number | null>((nearest, at) => (nearest === null ? at : Math.min(nearest, at)), null);
 
+const makeInput = (pickNextDeadline: (clock: number) => number | null) => ({
+  pickNextDeadline,
+  readNow: Date.now,
+});
+
+const useClockFor = (nextAt: number | null) => useDeadlineClock(makeInput(() => nextAt));
+
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(START);
@@ -30,15 +37,51 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it("reads deadline-clock dependencies from the named input", () => {
+  const readNow = vi.fn(() => START);
+  const pickNextDeadline = vi.fn(() => null);
+
+  const { result } = renderHook(() => useDeadlineClock({ pickNextDeadline, readNow }));
+
+  expect(result.current).toBe(START);
+  expect(readNow).toHaveBeenCalledOnce();
+  expect(pickNextDeadline).toHaveBeenCalledWith(START);
+});
+
+it("uses the injected clock to arm, wake past, and re-arm deadlines", () => {
+  const initial = START + 1_000_000;
+  const first = initial + 60_000;
+  const second = first + 60_000;
+  let now = initial;
+  const readNow = () => now;
+  const pickNextDeadline = nextOf(first, second);
+
+  expect(Date.now()).toBe(START);
+  const { result } = renderHook(() => useDeadlineClock({ pickNextDeadline, readNow }));
+  expect(result.current).toBe(initial);
+
+  now = first;
+  act(() => void vi.advanceTimersByTime(60_000));
+  expect(result.current).toBe(initial);
+
+  now = first + 1;
+  act(() => void vi.advanceTimersByTime(1));
+  expect(result.current).toBe(first + 1);
+
+  now = second + 1;
+  act(() => void vi.advanceTimersByTime(60_000));
+  expect(result.current).toBe(second + 1);
+});
+
 describe("useDeadlineClock", () => {
   it("starts at the current time", () => {
-    const { result } = renderHook(() => useDeadlineClock(nextOf(START + 60_000)));
+    const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
     expect(result.current).toBe(START);
   });
 
   it("advances just AFTER the deadline passes, not at it", () => {
     const deadline = START + 60_000;
-    const { result } = renderHook(() => useDeadlineClock(nextOf(deadline)));
+    const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
 
     act(() => void vi.advanceTimersByTime(60_000));
     expect(result.current).toBe(START); // still armed: firing at exactly the deadline is too early
@@ -49,14 +92,14 @@ describe("useDeadlineClock", () => {
   });
 
   it("arms nothing at all when no deadline is pending", () => {
-    const { result } = renderHook(() => useDeadlineClock(() => null));
+    const { result } = renderHook(() => useDeadlineClock(makeInput(() => null)));
 
     act(() => void vi.advanceTimersByTime(24 * 60 * 60 * 1000));
     expect(result.current).toBe(START);
   });
 
   it("re-arms on the nearer deadline when one appears", () => {
-    const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useDeadlineClock(() => nextAt), {
+    const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt), {
       initialProps: { nextAt: START + 60_000 },
     });
 
@@ -68,7 +111,7 @@ describe("useDeadlineClock", () => {
   it("works down a queue of deadlines, the caller's stale filter running against its own clock", () => {
     const first = START + 5_000;
     const second = START + 9_000;
-    const { result } = renderHook(() => useDeadlineClock(nextOf(first, second)));
+    const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(first, second))));
 
     act(() => void vi.advanceTimersByTime(5_001));
     // The first has fired, so the picker — asked with the clock it just produced — drops it as past
@@ -86,7 +129,7 @@ describe("useDeadlineClock", () => {
     // The picker is expected to be an inline arrow — a NEW function every render. The effect keys on
     // the instant it returns, so re-renders that change nothing else must leave the timer alone.
     const deadline = START + 60_000;
-    const { rerender } = renderHook(() => useDeadlineClock(nextOf(deadline)));
+    const { rerender } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
     const setTimeoutSpy = vi.spyOn(window, "setTimeout");
 
     rerender();
@@ -95,7 +138,7 @@ describe("useDeadlineClock", () => {
   });
 
   it("stops waking once the deadline is cleared", () => {
-    const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useDeadlineClock(() => nextAt), {
+    const { result, rerender } = renderHook(({ nextAt }: { nextAt: number | null }) => useClockFor(nextAt), {
       initialProps: { nextAt: (START + 5_000) as number | null },
     });
 
@@ -107,7 +150,7 @@ describe("useDeadlineClock", () => {
   it("clamps a deadline beyond setTimeout's 32-bit ceiling instead of overflowing", () => {
     // Passed through raw, this delay overflows and fires IMMEDIATELY (then again on every re-arm).
     const deadline = START + 3 * MAX_TIMEOUT_DELAY;
-    const { result } = renderHook(() => useDeadlineClock(nextOf(deadline)));
+    const { result } = renderHook(() => useDeadlineClock(makeInput(nextOf(deadline))));
 
     // Each clamped wake re-arms for the remainder without advancing the clock: the deadline has not
     // been crossed, so there is nothing for a re-render to show.
@@ -124,7 +167,7 @@ describe("useDeadlineClock", () => {
 
   it("clears its outstanding timer on unmount", () => {
     const clearTimeoutSpy = vi.spyOn(window, "clearTimeout");
-    const { unmount } = renderHook(() => useDeadlineClock(nextOf(START + 60_000)));
+    const { unmount } = renderHook(() => useDeadlineClock(makeInput(nextOf(START + 60_000))));
 
     clearTimeoutSpy.mockClear();
     unmount();

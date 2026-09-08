@@ -5,14 +5,87 @@ interface ExternalSignInResult {
   error?: { message?: string | null | undefined } | null;
 }
 
+type NavigationOutcome = { kind: "navigation" };
+type TimeoutOutcome = { kind: "timeout" };
+type RequestOutcome = { kind: "result"; result: ExternalSignInResult } | { kind: "error"; error: unknown };
+type ExternalRedirectOutcome =
+  { kind: "failure"; message: string | null | undefined } | { kind: "redirect"; url: string };
+
 function parseExternalRedirectUrl(value: string | null | undefined): string | null {
-  if (!value) return null;
+  if (value === undefined || value === null || value === "") return null;
   try {
     const url = new URL(value, window.location.href);
     return url.protocol === "https:" || url.protocol === "http:" ? url.href : null;
   } catch {
     return null;
   }
+}
+
+function startExternalRequest(
+  start: (signal: AbortSignal) => Promise<ExternalSignInResult>,
+  signal: AbortSignal,
+): Promise<RequestOutcome> {
+  // Invoke the SDK on a promise boundary so a synchronous provider/configuration throw follows
+  // the same recovery path as an asynchronously rejected provider request.
+  return Promise.resolve()
+    .then(() => start(signal))
+    .then(
+      (result) => ({ kind: "result", result }),
+      (error: unknown) => ({ kind: "error", error }),
+    );
+}
+
+function resolveExternalRedirect(result: ExternalSignInResult): ExternalRedirectOutcome {
+  if (result.error !== undefined && result.error !== null) {
+    return { kind: "failure", message: result.error.message };
+  }
+  const redirectUrl = parseExternalRedirectUrl(result.data?.url);
+  return redirectUrl === null ? { kind: "failure", message: undefined } : { kind: "redirect", url: redirectUrl };
+}
+
+function createNavigationLifecycle(navigationTimeoutMs: number, onCachedReturn: () => void) {
+  const requestController = new AbortController();
+  let resolveNavigation = () => {};
+  const navigation = new Promise<NavigationOutcome>((resolve) => {
+    resolveNavigation = () => resolve({ kind: "navigation" });
+  });
+  let resolveDeadline: (outcome: TimeoutOutcome) => void = () => {};
+  const deadline = new Promise<TimeoutOutcome>((resolve) => {
+    resolveDeadline = resolve;
+  });
+  const timeout = window.setTimeout(() => {
+    // Resolve the timeout race first, then synchronously abort the old request before its failure
+    // callback unlocks retry controls. If abort rejection and the timer settle in the same turn,
+    // the user therefore sees the timeout outcome rather than a misleading network-error outcome.
+    resolveDeadline({ kind: "timeout" });
+    requestController.abort();
+  }, navigationTimeoutMs);
+  let removeCachedReturnListener = () => {
+    window.removeEventListener("pageshow", restoreAfterCachedNavigation);
+  };
+  function markNavigation() {
+    // A page restored from bfcache can accept a new sign-in attempt. Retire the request owned by
+    // the page that left before resolving the race, so it cannot later compete with that retry.
+    requestController.abort();
+    removeCachedReturnListener = () => {};
+    resolveNavigation();
+  }
+  function restoreAfterCachedNavigation(event: PageTransitionEvent) {
+    if (event.persisted) onCachedReturn();
+  }
+  window.addEventListener("pagehide", markNavigation, { once: true });
+  window.addEventListener("pageshow", restoreAfterCachedNavigation, { once: true });
+
+  return {
+    requestController,
+    navigation,
+    deadline,
+    cleanup: () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("pagehide", markNavigation);
+      removeCachedReturnListener();
+    },
+  };
 }
 
 /**
@@ -41,44 +114,10 @@ export async function runExternalSignIn({
   navigate?: (url: string) => void;
   navigationTimeoutMs?: number;
 }): Promise<void> {
-  const requestController = new AbortController();
-  let navigationStarted = false;
-  let resolveNavigation: (() => void) | null = null;
-  const navigation = new Promise<{ kind: "navigation" }>((resolve) => {
-    resolveNavigation = () => resolve({ kind: "navigation" });
-  });
-  let timeout: ReturnType<typeof window.setTimeout> | null = null;
-  const deadline = new Promise<{ kind: "timeout" }>((resolve) => {
-    timeout = window.setTimeout(() => {
-      // Resolve the timeout race first, then synchronously abort the old request before its failure
-      // callback unlocks retry controls. If abort rejection and the timer settle in the same turn,
-      // the user therefore sees the timeout outcome rather than a misleading network-error outcome.
-      resolve({ kind: "timeout" });
-      requestController.abort();
-    }, navigationTimeoutMs);
-  });
-  const markNavigation = () => {
-    navigationStarted = true;
-    // A page restored from bfcache can accept a new sign-in attempt. Retire the request owned by
-    // the page that left before resolving the race, so it cannot later compete with that retry.
-    requestController.abort();
-    resolveNavigation?.();
-  };
-  const restoreAfterCachedNavigation = (event: PageTransitionEvent) => {
-    if (event.persisted) onCachedReturn();
-  };
-  window.addEventListener("pagehide", markNavigation, { once: true });
-  window.addEventListener("pageshow", restoreAfterCachedNavigation, { once: true });
+  const lifecycle = createNavigationLifecycle(navigationTimeoutMs, onCachedReturn);
   try {
-    // Invoke the SDK on a promise boundary so a synchronous provider/configuration throw follows
-    // the same recovery path as an asynchronously rejected provider request.
-    const startOutcome = Promise.resolve()
-      .then(() => start(requestController.signal))
-      .then(
-        (result) => ({ kind: "result" as const, result }),
-        (error: unknown) => ({ kind: "error" as const, error }),
-      );
-    const outcome = await Promise.race([startOutcome, navigation, deadline]);
+    const startOutcome = startExternalRequest(start, lifecycle.requestController.signal);
+    const outcome = await Promise.race([startOutcome, lifecycle.navigation, lifecycle.deadline]);
     if (outcome.kind === "navigation") return;
     if (outcome.kind === "timeout") {
       onFailure();
@@ -88,27 +127,20 @@ export async function runExternalSignIn({
       onRequestError(outcome.error);
       return;
     }
-    if (outcome.result.error) {
-      onFailure(outcome.result.error.message ?? undefined);
-      return;
-    }
-    const redirectUrl = parseExternalRedirectUrl(outcome.result.data?.url);
-    if (!redirectUrl) {
-      onFailure();
+    const redirect = resolveExternalRedirect(outcome.result);
+    if (redirect.kind === "failure") {
+      onFailure(redirect.message ?? undefined);
       return;
     }
     try {
-      navigate(redirectUrl);
+      navigate(redirect.url);
     } catch (error) {
       onRequestError(error);
       return;
     }
-    const navigationOutcome = await Promise.race([navigation, deadline]);
+    const navigationOutcome = await Promise.race([lifecycle.navigation, lifecycle.deadline]);
     if (navigationOutcome.kind === "timeout") onFailure();
   } finally {
-    if (timeout !== null) window.clearTimeout(timeout);
-    window.removeEventListener("pagehide", markNavigation);
-    // A bfcache-restored page needs this listener after pagehide. Otherwise clean it up now.
-    if (!navigationStarted) window.removeEventListener("pageshow", restoreAfterCachedNavigation);
+    lifecycle.cleanup();
   }
 }

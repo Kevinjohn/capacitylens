@@ -18,90 +18,116 @@ interface AuditRecoveryInput {
   state: AuditRecoveryState;
 }
 
-export function createAuditRecovery({ file, log, syncFile, recoveryScanBytes, state }: AuditRecoveryInput) {
-  const readBoundedTail = (path: string): Buffer | null => {
-    if (!existsSync(path)) return null;
-    const size = readExistingSize(path);
-    if (size === 0) return Buffer.alloc(0);
-    const length = Math.min(size, recoveryScanBytes);
-    const offset = size - length;
-    const bytes = Buffer.allocUnsafe(length);
-    const fd = openSync(path, "r");
+interface DeliveryStateLoaderInput {
+  file: string;
+  log: (msg: string) => void;
+  syncFile: (fd: number) => void;
+  recoveryScanBytes: number;
+  state: AuditRecoveryState;
+  readBoundedTail: (path: string) => Buffer | null;
+  collectDeliveryIds: (path: string) => void;
+  readExistingSize: (path: string) => number;
+}
+
+interface DeliveryIdCollectorInput {
+  log: (msg: string) => void;
+  recoveryScanBytes: number;
+  state: AuditRecoveryState;
+  readBoundedTail: (path: string) => Buffer | null;
+}
+
+function requiredValue<T>(value: T | null | undefined, description: string): T {
+  if (value === null || value === undefined) throw new Error(`Missing ${description}`);
+  return value;
+}
+
+function rememberDeliveryId(state: AuditRecoveryState, auditId: string) {
+  state.deliveredAuditIds.add(auditId);
+  if (state.deliveredAuditIds.size <= MAX_RECOVERY_DELIVERY_IDS) return;
+  const oldestAuditId = requiredValue(state.deliveredAuditIds.values().next().value, "oldest audit delivery id");
+  state.deliveredAuditIds.delete(oldestAuditId);
+}
+
+function readExistingSize(path: string): number {
+  try {
+    return statSync(path).size;
+  } catch (statErr) {
+    // ENOENT is the normal first-write/no-prior-generation case. Any other stat failure is an
+    // audit sink failure and must reach the outer fail-never/degraded boundary.
+    if ((statErr as NodeJS.ErrnoException).code === "ENOENT") return 0;
+    throw statErr;
+  }
+}
+
+function readBoundedTail(path: string, recoveryScanBytes: number): Buffer | null {
+  if (!existsSync(path)) return null;
+  const size = readExistingSize(path);
+  if (size === 0) return Buffer.alloc(0);
+  const length = Math.min(size, recoveryScanBytes);
+  const offset = size - length;
+  const bytes = Buffer.allocUnsafe(length);
+  const fd = openSync(path, "r");
+  try {
+    let read = 0;
+    while (read < length) {
+      const count = readSync(fd, bytes, read, length - read, offset + read);
+      if (count === 0) break;
+      read += count;
+    }
+    return read === length ? bytes : bytes.subarray(0, read);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function collectDeliveryIds(path: string, input: DeliveryIdCollectorInput) {
+  const { log, recoveryScanBytes, state, readBoundedTail: readTail } = input;
+  const tail = readTail(path);
+  if (tail === null || tail.length === 0) return;
+  const size = readExistingSize(path);
+  let start = 0;
+  if (size > tail.length) {
+    const firstNewline = tail.indexOf(0x0a);
+    if (firstNewline < 0) {
+      throw new RangeError(`Audit recovery tail contains no complete line within ${recoveryScanBytes} bytes.`);
+    }
+    start = firstNewline + 1;
+  }
+  for (const line of tail.subarray(start).toString("utf8").split("\n")) {
+    if (!line) continue;
     try {
-      let read = 0;
-      while (read < length) {
-        const count = readSync(fd, bytes, read, length - read, offset + read);
-        if (count === 0) break;
-        read += count;
-      }
-      return read === length ? bytes : bytes.subarray(0, read);
-    } finally {
-      closeSync(fd);
+      const parsed = JSON.parse(line) as { auditId?: unknown };
+      if (typeof parsed.auditId === "string") rememberDeliveryId(state, parsed.auditId);
+      // A WELL-FORMED line without a usable auditId still cannot suppress replay (its outbox row,
+      // if any, replays) but it is not corruption — records may legitimately omit the delivery
+      // metadata — so it is skipped silently, as before.
+    } catch {
+      // A complete MALFORMED historical line is file corruption: silent acceptance hid it from
+      // deep health entirely (review finding DBR-0007). Latch degraded; the affected outbox rows
+      // replay, which stays the safe direction.
+      state.degraded = true;
+      log(
+        "capacitylens-server: audit recovery found a complete malformed JSONL line — latching degraded health; affected outbox rows will replay",
+      );
     }
-  };
+  }
+}
 
-  const collectDeliveryIds = (path: string) => {
-    const tail = readBoundedTail(path);
-    if (tail === null || tail.length === 0) return;
-    const size = readExistingSize(path);
-    let start = 0;
-    if (size > tail.length) {
-      const firstNewline = tail.indexOf(0x0a);
-      if (firstNewline < 0) {
-        throw new RangeError(`Audit recovery tail contains no complete line within ${recoveryScanBytes} bytes.`);
-      }
-      start = firstNewline + 1;
-    }
-    for (const line of tail.subarray(start).toString("utf8").split("\n")) {
-      if (!line) continue;
-      try {
-        const parsed = JSON.parse(line) as { auditId?: unknown };
-        if (typeof parsed.auditId === "string") {
-          state.deliveredAuditIds.add(parsed.auditId);
-          if (state.deliveredAuditIds.size > MAX_RECOVERY_DELIVERY_IDS) {
-            state.deliveredAuditIds.delete(state.deliveredAuditIds.values().next().value!);
-          }
-        }
-        // A WELL-FORMED line without a usable auditId still cannot suppress replay (its outbox row,
-        // if any, replays) but it is not corruption — records may legitimately omit the delivery
-        // metadata — so it is skipped silently, as before.
-      } catch {
-        // A complete MALFORMED historical line is file corruption: silent acceptance hid it from
-        // deep health entirely (review finding DBR-0007). Latch degraded; the affected outbox rows
-        // replay, which stays the safe direction.
-        state.degraded = true;
-        log(
-          "capacitylens-server: audit recovery found a complete malformed JSONL line — latching degraded health; affected outbox rows will replay",
-        );
-      }
-    }
-  };
-
-  const syncParentDirectory = () => {
-    const fd = openSync(dirname(file), "r");
-    try {
-      syncFile(fd);
-    } finally {
-      closeSync(fd);
-    }
-  };
-
-  const readExistingSize = (path: string): number => {
-    try {
-      return statSync(path).size;
-    } catch (statErr) {
-      // ENOENT is the normal first-write/no-prior-generation case. Any other stat failure is an
-      // audit sink failure and must reach the outer fail-never/degraded boundary.
-      if ((statErr as NodeJS.ErrnoException).code === "ENOENT") return 0;
-      throw statErr;
-    }
-  };
-
-  const loadDeliveryState = () => {
+function createDeliveryStateLoader({
+  file,
+  log,
+  syncFile,
+  recoveryScanBytes,
+  state,
+  readBoundedTail,
+  collectDeliveryIds,
+  readExistingSize,
+}: DeliveryStateLoaderInput) {
+  return () => {
     // A process/power loss can interrupt a write before its fsync. Drop only the unterminated tail;
     // the corresponding SQLite outbox row remains and will replay the complete record below.
     if (existsSync(file)) {
-      const bytes = readBoundedTail(file)!;
+      const bytes = requiredValue(readBoundedTail(file), "active audit recovery tail");
       if (bytes.length > 0 && bytes[bytes.length - 1] !== 0x0a) {
         const newline = bytes.lastIndexOf(0x0a);
         if (newline < 0 && readExistingSize(file) > bytes.length) {
@@ -125,6 +151,32 @@ export function createAuditRecovery({ file, log, syncFile, recoveryScanBytes, st
     state.priorSize = readExistingSize(`${file}.1`);
     state.deliveryStateLoaded = true;
   };
+}
+
+export function createAuditRecovery({ file, log, syncFile, recoveryScanBytes, state }: AuditRecoveryInput) {
+  const readTail = (path: string) => readBoundedTail(path, recoveryScanBytes);
+  const collectIds = (path: string) =>
+    collectDeliveryIds(path, { log, recoveryScanBytes, state, readBoundedTail: readTail });
+
+  const syncParentDirectory = () => {
+    const fd = openSync(dirname(file), "r");
+    try {
+      syncFile(fd);
+    } finally {
+      closeSync(fd);
+    }
+  };
+
+  const loadDeliveryState = createDeliveryStateLoader({
+    file,
+    log,
+    syncFile,
+    recoveryScanBytes,
+    state,
+    readBoundedTail: readTail,
+    collectDeliveryIds: collectIds,
+    readExistingSize,
+  });
 
   const syncRediscoveredDeliveries = () => {
     // A complete line can be readable even when its prior fsync failed. A retry satisfied from
@@ -143,5 +195,5 @@ export function createAuditRecovery({ file, log, syncFile, recoveryScanBytes, st
     syncParentDirectory();
   };
 
-  return { collectDeliveryIds, loadDeliveryState, syncRediscoveredDeliveries, syncParentDirectory };
+  return { collectDeliveryIds: collectIds, loadDeliveryState, syncRediscoveredDeliveries, syncParentDirectory };
 }

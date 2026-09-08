@@ -94,6 +94,135 @@ function seedTwo(db: Db): void {
 const REAL_CLIENT_NAME = "SENTINEL_REAL_CLIENT_NAME";
 const REAL_PROJECT_NAME = "SENTINEL_REAL_PROJECT_NAME";
 
+function readJsonObject(response: LightMyRequestResponse): object {
+  const value: unknown = response.json();
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new TypeError("Expected a JSON object response.");
+  }
+  return value;
+}
+
+function readImportedCount(response: LightMyRequestResponse): number {
+  const body = readJsonObject(response);
+  if (!("imported" in body) || typeof body.imported !== "number") {
+    throw new TypeError("Expected the import response to contain a numeric imported count.");
+  }
+  return body.imported;
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function readClientRows(response: LightMyRequestResponse): unknown[] {
+  const body = readJsonObject(response);
+  if (!("clients" in body) || !isUnknownArray(body.clients)) {
+    throw new TypeError("Expected the exported state to contain a clients array.");
+  }
+  return body.clients;
+}
+
+function readClientId(row: unknown): string {
+  if (typeof row !== "object" || row === null || !("id" in row) || typeof row.id !== "string") {
+    throw new TypeError("Expected a client response row with a string id.");
+  }
+  return row.id;
+}
+
+function readProjectRows(response: LightMyRequestResponse): unknown[] {
+  const body = readJsonObject(response);
+  if (!("projects" in body) || !isUnknownArray(body.projects)) {
+    throw new TypeError("Expected the state response to contain a projects array.");
+  }
+  return body.projects;
+}
+
+function readRowById(rows: unknown[], id: string): object {
+  const row = rows.find(
+    (candidate) => typeof candidate === "object" && candidate !== null && "id" in candidate && candidate.id === id,
+  );
+  if (typeof row !== "object" || row === null) throw new TypeError(`Expected a response row with id ${id}.`);
+  return row;
+}
+
+function readPrivateRows(response: LightMyRequestResponse): { client: object; project: object } {
+  return {
+    client: readRowById(readClientRows(response), "c1"),
+    project: readRowById(readProjectRows(response), "p1"),
+  };
+}
+
+function expectPrivateClientExport(response: LightMyRequestResponse): object {
+  const body = readJsonObject(response);
+  const matchingClient = readClientRows(response).find(
+    (row) => typeof row === "object" && row !== null && "id" in row && row.id === "c1",
+  );
+  expect(matchingClient).toMatchObject({ name: '"Nightwing"', isPrivate: true });
+  return body;
+}
+
+function readErrorMessage(response: LightMyRequestResponse): string {
+  const body = readJsonObject(response);
+  if (!("error" in body) || typeof body.error !== "string") {
+    throw new TypeError("Expected the rejected response to contain an error message.");
+  }
+  return body.error;
+}
+
+function readTimeOffRows(response: LightMyRequestResponse): unknown[] {
+  const body = readJsonObject(response);
+  if (!("timeOff" in body) || !isUnknownArray(body.timeOff)) {
+    throw new TypeError("Expected the state response to contain a timeOff array.");
+  }
+  return body.timeOff;
+}
+
+function readFirstTimeOff(response: LightMyRequestResponse): object {
+  const [row] = readTimeOffRows(response);
+  if (typeof row !== "object" || row === null || Array.isArray(row)) {
+    throw new TypeError("Expected the state response to contain a time-off object.");
+  }
+  return row;
+}
+
+function readTimeOffNote(response: LightMyRequestResponse): string | undefined {
+  const row = readFirstTimeOff(response);
+  if (!("note" in row)) return undefined;
+  if (typeof row.note !== "string") {
+    throw new TypeError("Expected the time-off note to be a string when present.");
+  }
+  return row.note;
+}
+
+function readAccountRows(response: LightMyRequestResponse): unknown[] {
+  const body = readJsonObject(response);
+  if (!("accounts" in body) || !isUnknownArray(body.accounts)) {
+    throw new TypeError("Expected the state response to contain an accounts array.");
+  }
+  return body.accounts;
+}
+
+function readWorkingDays(response: LightMyRequestResponse): unknown {
+  const [accountRow] = readAccountRows(response);
+  if (typeof accountRow !== "object" || accountRow === null || !("workingDays" in accountRow)) {
+    throw new TypeError("Expected the first account response row to contain workingDays.");
+  }
+  return accountRow.workingDays;
+}
+
+function readCurrentObject(response: LightMyRequestResponse): object {
+  const body = readJsonObject(response);
+  if (
+    !("current" in body) ||
+    typeof body.current !== "object" ||
+    body.current === null ||
+    Array.isArray(body.current)
+  ) {
+    throw new TypeError("Expected the conflict response to contain a current object.");
+  }
+  return body.current;
+}
+
 /** Add owner-only names to the a1 client/project without changing the broad authz fixture shape. */
 function seedPrivateNames(db: Db): void {
   seedTwo(db);
@@ -119,7 +248,8 @@ async function appWithAuth(
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
+  if (auth === null) throw new TypeError("Expected password mode to create an auth instance.");
+  await runAuthMigrations(auth);
   return {
     app: createApp(db, {
       authMode: mode,
@@ -278,6 +408,29 @@ const importInto = ({ app, accountId, id, cookie }: ImportIntoInput) => {
   });
 };
 
+function expectedClosureWriteStatus(role: Role, batched: boolean): number {
+  if (role === "viewer") return 403;
+  if (batched) return 200;
+  return 201;
+}
+
+const deleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
+  call(app, { method: "DELETE", url: `/api/accounts/${id}`, headers: cookie ? { cookie } : {} });
+
+const batchDeleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
+  call(app, {
+    method: "POST",
+    url: "/api/batch",
+    payload: { ops: [{ method: "DELETE", table: "accounts", id }] },
+    headers: cookie ? { cookie } : {},
+  });
+
+/** Does the accounts row still exist? Read it back through an authorized member session. */
+async function accountExists(app: FastifyInstance, id: string, cookie: string): Promise<boolean> {
+  const res = await getState(app, id, cookie);
+  return res.statusCode === 200 ? readAccountRows(res).length === 1 : false;
+}
+
 describe("P1.5 authorize — auth-on 403 matrix", () => {
   it.each([false, true])("keeps closures at the editor+ write tier (batched=%s)", async (batched) => {
     const { app, db } = await appWithAuth();
@@ -289,7 +442,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       const id = `${role}-company-${batched}`;
       const response = await writeClosure({ app, accountId: "a1", id, cookie, batched });
 
-      expect(response.statusCode, role).toBe(role === "viewer" ? 403 : batched ? 200 : 201);
+      expect(response.statusCode, role).toBe(expectedClosureWriteStatus(role, batched));
       if (role === "viewer") expect(getRow(db, "closures", id), role).toBeNull();
       else {
         expect(getRow(db, "closures", id), role).toMatchObject({
@@ -328,7 +481,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     expect((await batchInto({ app, accountId: "a2", id: "x3", cookie })).statusCode).toBe(403);
     expect((await importInto({ app, accountId: "a2", id: "x4", cookie })).statusCode).toBe(403);
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("cross-account batch (one a1 op + one a2 op) → 403 AND the a1 op is NOT applied", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -352,12 +507,12 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     // member and confirm only the originally-seeded client c1 exists.
     const a1 = await getState(app, "a1", cookie);
     expect(a1.statusCode).toBe(200);
-    expect(
-      a1
-        .json()
-        .clients.map((c: { id: string }) => c.id)
-        .sort(),
-    ).toEqual(["c1"]);
+    const clientIds: string[] = [];
+    for (const clientRow of readClientRows(a1)) {
+      clientIds.push(readClientId(clientRow));
+    }
+    clientIds.sort();
+    expect(clientIds).toEqual(["c1"]);
   });
 
   it("viewer of a1: read → 200; any write to a1 → 403", async () => {
@@ -394,7 +549,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     // the P1.6 note pin — ultimately gated to owner. See the dedicated import-tier suite below.
     expect((await importInto({ app, accountId: "a1", id: "ec4", cookie })).statusCode).toBe(403);
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it.each([
     ["direct PUT", false],
     ["atomic batch", true],
@@ -448,7 +605,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       expect(getRow(db, "projects", "internal-project")?.clientId).toBe("legacy-internal");
     },
   );
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("resolves the membership role once for a scoped state read", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -477,7 +636,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
 
     expect(membershipRoleReads).toBe(1);
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("resolves one membership role per account/action in each batch authorization pass", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -534,7 +695,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     // The two reads are deliberately independent: one before lock acquisition and one after it.
     expect(membershipRoleReads).toBe(2);
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it.each(["admin", "owner"] as const)("%s of a1: row writes succeed; only owner may import", async (role) => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -551,7 +714,9 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
       role === "owner" ? 200 : 403,
     );
   });
+});
 
+describe("P1.5 authorize — auth-on 403 matrix", () => {
   it("generic account create is CLOSED auth-on: POST /api/accounts → 403 directing to /api/orgs", async () => {
     const { app, db } = await appWithAuth();
     const { cookie } = await signUp(app, "onboarding@capacitylens.dev"); // no membership → no account yet
@@ -566,7 +731,7 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
     // none is ever backfilled), so every generic auth-on create is now refused. Even the zero-
     // account first-run goes through /api/orgs, which handles it atomically.
     expect(res.statusCode).toBe(403);
-    expect(res.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(res)).toContain("/api/orgs");
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
     // …and /api/orgs DOES let the same user bootstrap their first company (201 + owner membership).
     const orgs = await call(app, {
@@ -579,41 +744,44 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
   });
 });
 
-describe("scoped generic writes conceal foreign row existence", () => {
-  const foreignIds = {
-    disciplines: "d-loft-design",
-    resources: "r-jo",
-    clients: "c-internal-loft",
-    projects: "p-loft-app",
-    phases: "ph-loft",
-    activities: "t-loft-screens",
-    allocations: "a-jo-1",
-    timeOff: "to-loft",
-  } as const;
+const scopedForeignIds = {
+  disciplines: "d-loft-design",
+  resources: "r-jo",
+  clients: "c-internal-loft",
+  projects: "p-loft-app",
+  phases: "ph-loft",
+  activities: "t-loft-screens",
+  allocations: "a-jo-1",
+  timeOff: "to-loft",
+} as const;
 
-  type ScopedEntity = keyof typeof foreignIds;
+type ScopedEntity = keyof typeof scopedForeignIds;
+
+function seedScopedOracleRows(db: Db, foreignIds: typeof scopedForeignIds): void {
+  const data = seed();
+  data.phases.push({
+    id: foreignIds.phases,
+    accountId: "a-loft",
+    name: "Loft discovery",
+    projectId: "p-loft-app",
+    ...meta(),
+  });
+  data.timeOff.push({
+    id: foreignIds.timeOff,
+    accountId: "a-loft",
+    resourceId: "r-jo",
+    startDate: "2026-06-08",
+    endDate: "2026-06-09",
+    type: "holiday",
+    ...meta(),
+  });
+  insertAll(db, data);
+}
+
+function scopedWriteFixture() {
+  const foreignIds = scopedForeignIds;
   const scopedEntities = Object.keys(foreignIds) as ScopedEntity[];
-
-  function seedOracleRows(db: Db): void {
-    const data = seed();
-    data.phases.push({
-      id: foreignIds.phases,
-      accountId: "a-loft",
-      name: "Loft discovery",
-      projectId: "p-loft-app",
-      ...meta(),
-    });
-    data.timeOff.push({
-      id: foreignIds.timeOff,
-      accountId: "a-loft",
-      resourceId: "r-jo",
-      startDate: "2026-06-08",
-      endDate: "2026-06-09",
-      type: "holiday",
-      ...meta(),
-    });
-    insertAll(db, data);
-  }
+  const seedOracleRows = (db: Db) => seedScopedOracleRows(db, foreignIds);
 
   const responseShape = (response: LightMyRequestResponse) => ({
     statusCode: response.statusCode,
@@ -666,6 +834,11 @@ describe("scoped generic writes conceal foreign row existence", () => {
       headers: { cookie },
     });
 
+  return { foreignIds, scopedEntities, seedOracleRows, responseShape, patch, put, remove };
+}
+
+describe("scoped generic writes conceal foreign row existence", () => {
+  const { foreignIds, scopedEntities, seedOracleRows, responseShape, patch, put, remove } = scopedWriteFixture();
   it("gives a membership-less principal byte-identical absent/foreign responses for every scoped verb and entity", async () => {
     const { app, db } = await appWithAuth();
     seedOracleRows(db);
@@ -686,7 +859,10 @@ describe("scoped generic writes conceal foreign row existence", () => {
       );
     }
   });
+});
 
+describe("scoped generic writes conceal foreign row existence", () => {
+  const { responseShape, patch } = scopedWriteFixture();
   it("conceals a foreign account whose built-in client has its deterministic account-derived id", async () => {
     const { app, db } = await appWithAuth();
     const accountId = "derived-account";
@@ -722,7 +898,10 @@ describe("scoped generic writes conceal foreign row existence", () => {
       ),
     );
   });
+});
 
+describe("scoped generic writes conceal foreign row existence", () => {
+  const { foreignIds, scopedEntities, seedOracleRows, responseShape, patch, remove } = scopedWriteFixture();
   it("gives a member byte-identical absent/foreign PATCH and DELETE responses across every scoped entity", async () => {
     const { app, db } = await appWithAuth();
     seedOracleRows(db);
@@ -754,8 +933,6 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
   // we assert BOTH the parsed `note` is absent AND the sentinel appears NOWHERE in the raw body — the
   // latter is what proves the redaction is server-side (the string was never serialized), not a
   // client-side hide.
-  const noteOf = (res: LightMyRequestResponse): string | undefined => (res.json().timeOff[0] as { note?: string }).note;
-
   it.each([
     ["owner", true],
     ["editor", false],
@@ -767,11 +944,11 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
     const res = await getState(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(res.json().timeOff[0]).toMatchObject({ id: "to1", resourceId: "r1" });
+    expect(readFirstTimeOff(res)).toMatchObject({ id: "to1", resourceId: "r1" });
     if (canSeeNote) {
-      expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
+      expect(readTimeOffNote(res)).toBe(SENTINEL_TIMEOFF_NOTE);
     } else {
-      expect(res.json().timeOff[0]).not.toHaveProperty("note");
+      expect(readFirstTimeOff(res)).not.toHaveProperty("note");
       expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE);
     }
   });
@@ -784,7 +961,7 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
     const res = await getState(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
+    expect(readTimeOffNote(res)).toBe(SENTINEL_TIMEOFF_NOTE);
     expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE);
   });
 
@@ -796,9 +973,9 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
     const res = await getState(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(res.json().timeOff.length).toBe(1); // the row is returned…
-    expect("note" in (res.json().timeOff[0] as object)).toBe(false); // …minus its note key
-    expect(noteOf(res)).toBeUndefined();
+    expect(readTimeOffRows(res).length).toBe(1); // the row is returned…
+    expect("note" in readFirstTimeOff(res)).toBe(false); // …minus its note key
+    expect(readTimeOffNote(res)).toBeUndefined();
     // The clincher: the sentinel was never serialized onto the wire (server-side redaction).
     expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE);
   });
@@ -809,12 +986,12 @@ describe("P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
     seedTwo(db);
     const res = await getState(app, "a1"); // no cookie needed in OFF
     expect(res.statusCode).toBe(200);
-    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE);
+    expect(readTimeOffNote(res)).toBe(SENTINEL_TIMEOFF_NOTE);
     expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE);
   });
 });
 
-describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+function timeOffWriteFixture() {
   // The write-side counterpart of the read redaction above. An editor's reads have the `note`
   // REDACTED, so every row they round-trip back (PUT / batch PUT — the client's real save paths)
   // is note-less by construction; without the sanitizeWrite pin, upsertRow would store NULL and
@@ -841,6 +1018,11 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     return { app, db, cookie };
   }
 
+  return { SENTINEL, stampedTimeOff, noteInDb, memberApp };
+}
+
+describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+  const { SENTINEL, stampedTimeOff, noteInDb, memberApp } = timeOffWriteFixture();
   it("editor PUT of a redacted round-trip (no note key, edited dates) → 200 and the note SURVIVES", async () => {
     const { app, db, cookie } = await memberApp("editor");
     const res = await call(app, {
@@ -872,7 +1054,10 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     expect(noteInDb(db)).toBe(SENTINEL);
     expect((db.prepare(`SELECT type FROM timeOff WHERE id = 'to1'`).get() as { type: string }).type).toBe("sick");
   });
+});
 
+describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+  const { SENTINEL, stampedTimeOff, noteInDb, memberApp } = timeOffWriteFixture();
   it("editor STALE write (optimistic concurrency) → the 409's `current` payload is note-REDACTED too", async () => {
     // The conflict path is a READ of the stored row: without redaction, an editor could learn a
     // note they can't read simply by sending a stale write. Both write paths must redact it.
@@ -881,7 +1066,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
 
     const put = await call(app, { method: "PUT", url: "/api/timeOff/to1", payload: stale, headers: { cookie } });
     expect(put.statusCode).toBe(409);
-    expect((put.json() as { current?: Record<string, unknown> }).current?.id).toBe("to1"); // payload present…
+    expect(readCurrentObject(put)).toMatchObject({ id: "to1" }); // payload present…
     expect(put.body).not.toContain(SENTINEL); // …but the note never rides it
 
     const batch = await call(app, {
@@ -891,7 +1076,7 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       headers: { cookie },
     });
     expect(batch.statusCode).toBe(409);
-    expect((batch.json() as { current?: Record<string, unknown> }).current?.id).toBe("to1");
+    expect(readCurrentObject(batch)).toMatchObject({ id: "to1" });
     expect(batch.body).not.toContain(SENTINEL);
   });
 
@@ -909,7 +1094,10 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
     // it for a note-blind patcher, closing the pre-existing merge-echo leak.
     expect(patched.body).not.toContain(SENTINEL);
   });
+});
 
+describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+  const { stampedTimeOff, noteInDb, memberApp } = timeOffWriteFixture();
   it("editor CREATE of NEW time off works; a note they cannot see is stripped, not stored", async () => {
     const { app, db, cookie } = await memberApp("editor");
     const res = await call(app, {
@@ -945,7 +1133,10 @@ describe("P1.6 time-off note preservation on WRITE — a note-blind writer canno
       expect(noteInDb(db)).toBeNull();
     },
   );
+});
 
+describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
+  const { stampedTimeOff, noteInDb } = timeOffWriteFixture();
   it("OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact", async () => {
     const db = openDb(":memory:");
     const app = createApp(db, { optimisticConcurrency: false }); // OFF ⇒ the writer always "sees" the note
@@ -962,23 +1153,6 @@ describe("P1.5 authorize — account hard-delete is owner-only and dedicated-rou
   // DELETE /api/accounts/:id route may invoke it; generic sync rejects account DELETE operations
   // before authorization. The route gates the owner-only `deleteAccount` capability against the
   // account's own id; admin-tier record purge remains a separate action.
-
-  const deleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
-    call(app, { method: "DELETE", url: `/api/accounts/${id}`, headers: cookie ? { cookie } : {} });
-
-  const batchDeleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
-    call(app, {
-      method: "POST",
-      url: "/api/batch",
-      payload: { ops: [{ method: "DELETE", table: "accounts", id }] },
-      headers: cookie ? { cookie } : {},
-    });
-
-  /** Does the accounts row still exist? Read it back through an authorized member session. */
-  const accountExists = async (app: FastifyInstance, id: string, cookie: string): Promise<boolean> => {
-    const res = await getState(app, id, cookie);
-    return res.statusCode === 200 && Array.isArray(res.json().accounts) && res.json().accounts.length === 1;
-  };
 
   it("non-member: direct DELETE is 403 and generic batch DELETE is 400; a1 survives", async () => {
     const { app, db } = await appWithAuth();
@@ -1093,7 +1267,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
 
     const res = await importSlice(app, "a1", cookie);
     expect(res.statusCode).toBe(200);
-    expect(res.json().imported).toBeGreaterThan(0);
+    expect(readImportedCount(res)).toBeGreaterThan(0);
   });
 
   it("refuses an admin re-import of their redacted export without changing private database names", async () => {
@@ -1104,19 +1278,16 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
 
     const exported = await getState(app, "a1", cookie);
     expect(exported.statusCode).toBe(200);
-    expect(exported.json().clients.find((row: { id: string }) => row.id === "c1")).toMatchObject({
-      name: '"Nightwing"',
-      isPrivate: true,
-    });
+    const exportedBody = expectPrivateClientExport(exported);
 
     const res = await call(app, {
       method: "POST",
       url: "/api/import",
-      payload: { accountId: "a1", data: exported.json() },
+      payload: { accountId: "a1", data: exportedBody },
       headers: { cookie },
     });
     expect(res.statusCode).toBe(403);
-    expect(res.json().error).toMatch(/account owner/i);
+    expect(readErrorMessage(res)).toMatch(/account owner/i);
     expect(getRow(db, "clients", "c1")).toMatchObject({
       name: REAL_CLIENT_NAME,
       codeName: "Nightwing",
@@ -1128,7 +1299,7 @@ describe("P1.5 authorize — /api/import is owner-only", () => {
   });
 });
 
-describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+function accountWriteFixture() {
   // The scoped tables carry accountId and pass through the isScopedTable() authorize gate; `accounts`
   // does NOT (top-level, no accountId column), so a bare account UPDATE (rename / colour / scheduling
   // mode / feature toggles) needs its OWN gate — else any signed-in user could rewrite another tenant's
@@ -1154,6 +1325,11 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
       headers: cookie ? { cookie } : {},
     });
 
+  return { putAccount, patchAccount, batchPutAccount };
+}
+
+describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+  const { putAccount, patchAccount, batchPutAccount } = accountWriteFixture();
   it("non-member (signed in): PUT / PATCH / batch-PUT updating a1 → 403", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1172,7 +1348,10 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     expect((await patchAccount(app, "a2", cookie)).statusCode).toBe(403);
     expect((await batchPutAccount(app, "a2", cookie)).statusCode).toBe(403);
   });
+});
 
+describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+  const { putAccount, patchAccount, batchPutAccount } = accountWriteFixture();
   it("viewer of a1: account update → 403 (write tier); editor of a1: → 2xx", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
@@ -1184,10 +1363,13 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     upsertMember(db, { accountId: "a1", userId: editor.userId, role: "editor", status: "active", createdAt: TS });
     expect((await putAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
     expect((await patchAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
-    expect((await getState(app, "a1", editor.cookie)).json().accounts[0].workingDays).toEqual([1, 2, 3, 4]);
+    expect(readWorkingDays(await getState(app, "a1", editor.cookie))).toEqual([1, 2, 3, 4]);
     expect((await batchPutAccount(app, "a1", editor.cookie)).statusCode).toBe(200);
   });
+});
 
+describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+  const { putAccount, batchPutAccount } = accountWriteFixture();
   // Auth-on, a CREATE via any generic vector is CLOSED outright — 403 directing to POST /api/orgs
   // (the atomic account + Internal client + owner-membership path). The refusal is UNCONDITIONAL in
   // auth-on: it fires ahead of the single-company cap, at zero accounts (the bootstrap case now
@@ -1197,14 +1379,14 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     const { cookie: putCookie } = await signUp(put.app, "acct-onboard-put@capacitylens.dev"); // no membership
     const putRes = await putAccount(put.app, "brandNew1", putCookie);
     expect(putRes.statusCode).toBe(403);
-    expect(putRes.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(putRes)).toContain("/api/orgs");
     expect((put.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
 
     const batch = await appWithAuth(); // separate fresh instance — also zero accounts
     const { cookie: batchCookie } = await signUp(batch.app, "acct-onboard-batch@capacitylens.dev");
     const batchRes = await batchPutAccount(batch.app, "brandNew2", batchCookie);
     expect(batchRes.statusCode).toBe(403);
-    expect(batchRes.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(batchRes)).toContain("/api/orgs");
     expect((batch.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0);
   });
 
@@ -1215,14 +1397,17 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 
     const put = await putAccount(app, "brandNew3", cookie);
     expect(put.statusCode).toBe(403);
-    expect(put.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(put)).toContain("/api/orgs");
 
     const batch = await batchPutAccount(app, "brandNew4", cookie);
     expect(batch.statusCode).toBe(403);
-    expect(batch.json().error).toContain("/api/orgs");
+    expect(readErrorMessage(batch)).toContain("/api/orgs");
     // /api/orgs then applies the single-company cap itself (its own GATE 0) — see app.orgs.test.ts.
   });
+});
 
+describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE", () => {
+  const { putAccount, patchAccount, batchPutAccount } = accountWriteFixture();
   it("(c) multiAccount: true does NOT reopen the generic vectors auth-on — creation still goes through /api/orgs", async () => {
     const { app, db } = await appWithAuth({ multiAccount: true });
     seedTwo(db);
@@ -1244,14 +1429,14 @@ describe("P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   });
 });
 
-describe("private client/project names — owner-only server projection", () => {
-  interface PrivateIdentityProjectionInput {
-    role: "owner" | "admin" | "editor" | "viewer";
-    clientName: string;
-    projectName: string;
-    seesCodeNameField: boolean;
-  }
+interface PrivateIdentityProjectionInput {
+  role: "owner" | "admin" | "editor" | "viewer";
+  clientName: string;
+  projectName: string;
+  seesCodeNameField: boolean;
+}
 
+describe("private client/project names — owner-only server projection", () => {
   it.each([
     { role: "owner", clientName: REAL_CLIENT_NAME, projectName: REAL_PROJECT_NAME, seesCodeNameField: true },
     { role: "admin", clientName: '"Nightwing"', projectName: '"Aurora"', seesCodeNameField: false },
@@ -1267,18 +1452,20 @@ describe("private client/project names — owner-only server projection", () => 
 
       const res = await getState(app, "a1", cookie);
       expect(res.statusCode).toBe(200);
-      const body = res.json() as AppData;
-      expect(body.clients.find((row) => row.id === "c1")?.name).toBe(clientName);
-      expect(body.projects.find((row) => row.id === "p1")?.name).toBe(projectName);
-      expect("codeName" in body.clients.find((row) => row.id === "c1")!).toBe(seesCodeNameField);
-      expect("codeName" in body.projects.find((row) => row.id === "p1")!).toBe(seesCodeNameField);
+      const { client, project } = readPrivateRows(res);
+      expect("name" in client ? client.name : undefined).toBe(clientName);
+      expect("name" in project ? project.name : undefined).toBe(projectName);
+      expect("codeName" in client).toBe(seesCodeNameField);
+      expect("codeName" in project).toBe(seesCodeNameField);
       if (role !== "owner") {
         expect(res.body).not.toContain(REAL_CLIENT_NAME);
         expect(res.body).not.toContain(REAL_PROJECT_NAME);
       }
     },
   );
+});
 
+describe("private client/project names — owner-only server projection", () => {
   it("pins real names and privacy settings when an editor PATCHes or batch-round-trips redacted rows", async () => {
     const { app, db } = await appWithAuth();
     seedPrivateNames(db);
@@ -1295,9 +1482,9 @@ describe("private client/project names — owner-only server projection", () => 
     expect(patched.json()).toMatchObject({ name: '"Nightwing"', isPrivate: true });
     expect(patched.body).not.toContain(REAL_CLIENT_NAME);
 
-    const visible = (await getState(app, "a1", cookie)).json() as AppData;
-    const redactedClient = visible.clients.find((row) => row.id === "c1")!;
-    const redactedProject = visible.projects.find((row) => row.id === "p1")!;
+    const visible = readPrivateRows(await getState(app, "a1", cookie));
+    const redactedClient = visible.client;
+    const redactedProject = visible.project;
     const batch = await call(app, {
       method: "POST",
       url: "/api/batch",
@@ -1324,7 +1511,9 @@ describe("private client/project names — owner-only server projection", () => 
       color: "#2d75da",
     });
   });
+});
 
+describe("private client/project names — owner-only server projection", () => {
   it("redacts a private lifecycle response while retaining the real database name", async () => {
     const { app, db } = await appWithAuth();
     seedPrivateNames(db);
@@ -1348,7 +1537,7 @@ describe("private client/project names — owner-only server projection", () => 
     seedPrivateNames(db);
     const { cookie, userId } = await signUp(app, "private-conflict-editor@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId, role: "editor", status: "active", createdAt: TS });
-    const stale = ((await getState(app, "a1", cookie)).json() as AppData).clients.find((row) => row.id === "c1")!;
+    const stale = readPrivateRows(await getState(app, "a1", cookie)).client;
     db.prepare("UPDATE clients SET updatedAt = ? WHERE id = ?").run("2026-02-01T00:00:00.000Z", "c1");
 
     const res = await call(app, {
@@ -1358,11 +1547,13 @@ describe("private client/project names — owner-only server projection", () => 
       headers: { cookie },
     });
     expect(res.statusCode).toBe(409);
-    expect(res.json().current).toMatchObject({ name: '"Nightwing"', isPrivate: true });
-    expect(res.json().current).not.toHaveProperty("codeName");
+    expect(readCurrentObject(res)).toMatchObject({ name: '"Nightwing"', isPrivate: true });
+    expect(readCurrentObject(res)).not.toHaveProperty("codeName");
     expect(res.body).not.toContain(REAL_CLIENT_NAME);
   });
+});
 
+describe("private client/project names — owner-only server projection", () => {
   it("strips attempted privacy fields from a non-owner create, while an owner may update them", async () => {
     const editorSetup = await appWithAuth();
     seedPrivateNames(editorSetup.db);

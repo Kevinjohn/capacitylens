@@ -59,18 +59,25 @@ const timeOffTypeMessages: LabelMessages<TimeOffType> = {
   other: m.enum_time_off_type_other,
 };
 
+function resolveMessage<K extends string>(messages: Partial<LabelMessages<K>>, key: K): string {
+  return messages[key]?.() ?? "";
+}
+
+function resolveTrimmedValue(value: string | undefined, fallback: string): string {
+  const trimmed = value?.trim();
+  return trimmed === undefined || trimmed.length === 0 ? fallback : trimmed;
+}
+
 /** Label for ONE allocation status — for the render sites that hold a single status and would
  *  otherwise build (and discard) the whole map to read one key out of it. An unrecognised runtime
  *  value from legacy or hand-edited data renders blank instead of taking down the scheduler. */
 export function resolveAllocationStatusLabel(status: AllocationStatus): string {
-  const message = allocationStatusMessages[status];
-  return message ? message() : "";
+  return resolveMessage(allocationStatusMessages, status);
 }
 
 /** Label for ONE time-off type, with the same blank fallback as {@link resolveAllocationStatusLabel}. */
 export function resolveTimeOffTypeLabel(type: TimeOffType): string {
-  const message = timeOffTypeMessages[type];
-  return message ? message() : "";
+  return resolveMessage(timeOffTypeMessages, type);
 }
 
 export function buildAllocationStatusLabels(): Record<AllocationStatus, string> {
@@ -99,8 +106,7 @@ export function resolvePlaceholderDisplayName(): string {
  *  reading as "Placeholder" everywhere else. No behaviour change for non-placeholders. */
 export function resolveResourceDisplayName(resource: Resource): string {
   if (resource.kind === "placeholder") return resolvePlaceholderDisplayName();
-  const name = resource.name?.trim();
-  return name || resource.role;
+  return resolveTrimmedValue(resource.name, resource.role);
 }
 
 export function buildAllocationStatusOptions(): LabelOption<AllocationStatus>[] {

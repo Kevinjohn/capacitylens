@@ -1,6 +1,6 @@
 import { m } from "@/i18n";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
-import { parseDate } from "@capacitylens/shared/lib/dateMath";
+import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
 import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
@@ -66,7 +66,7 @@ export function useAllocationModalState(props: AllocationModalProps) {
     mode,
     resourceById: resourcesById,
     accountWorkingDays,
-    calendarTimeZone,
+    today: todayISO(calendarTimeZone),
   });
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;

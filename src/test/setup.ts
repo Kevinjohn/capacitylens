@@ -62,6 +62,23 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
   Element.prototype.scrollIntoView = () => {};
 }
+const browserGlobals = globalThis as unknown as { HTMLElement?: typeof HTMLElement };
+const pointerCapturePrototype = browserGlobals.HTMLElement?.prototype as
+  Partial<Pick<HTMLElement, "setPointerCapture" | "hasPointerCapture" | "releasePointerCapture">> | undefined;
+if (pointerCapturePrototype && typeof pointerCapturePrototype.setPointerCapture !== "function") {
+  const capturedPointers = new WeakMap<HTMLElement, Set<number>>();
+  pointerCapturePrototype.setPointerCapture = function (this: HTMLElement, pointerId) {
+    const pointers = capturedPointers.get(this) ?? new Set<number>();
+    pointers.add(pointerId);
+    capturedPointers.set(this, pointers);
+  };
+  pointerCapturePrototype.hasPointerCapture = function (this: HTMLElement, pointerId) {
+    return capturedPointers.get(this)?.has(pointerId) ?? false;
+  };
+  pointerCapturePrototype.releasePointerCapture = function (this: HTMLElement, pointerId) {
+    capturedPointers.get(this)?.delete(pointerId);
+  };
+}
 
 // Unmount React trees and reset jsdom between tests.
 afterEach(() => {

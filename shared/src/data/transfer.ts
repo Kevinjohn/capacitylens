@@ -28,10 +28,22 @@ export function serializeData(data: AppData): string {
 // (I.e. the error is reachable, not dead code; keep it.)
 export const MAX_IMPORT_RECORDS = 200_000;
 
+function parseJson(json: string): unknown {
+  return JSON.parse(json) as unknown;
+}
+
+function isUnknownArray(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
+function countRecords(value: unknown): number {
+  return isUnknownArray(value) ? value.length : 0;
+}
+
 export function parseData(json: string): AppData {
   let raw: unknown;
   try {
-    raw = JSON.parse(json);
+    raw = parseJson(json);
   } catch (e) {
     // Forward the SyntaxError as `cause` so the parse failure's chain survives behind our friendly
     // message (ESLint preserve-caught-error enforces this for re-thrown native errors).
@@ -41,15 +53,15 @@ export function parseData(json: string): AppData {
   // letting migrate() silently coerce it to [] and under-report the loss. This must run before
   // the recognisable-shape guard: a file whose only known table is damaged has no array with which
   // to satisfy looksLikeCapacityLens(), but it is still recognisably damaged CapacityLens data.
+  const candidate = importCandidate(raw);
   if (hasNonArrayKnownTable(raw)) {
     throw new Error("This file is damaged: a data table is not a list. Nothing was imported.");
   }
-  if (!looksLikeCapacityLens(raw)) {
+  if (candidate === null || !looksLikeCapacityLens(raw)) {
     throw new Error("This file is not CapacityLens data.");
   }
-  const candidate = importCandidate(raw)!;
   const rawTotal = RECOGNISED_KEYS.reduce(
-    (recordCount, key) => recordCount + (Array.isArray(candidate[key]) ? candidate[key].length : 0),
+    (recordCount, key) => recordCount + (isUnknownArray(candidate[key]) ? candidate[key].length : 0),
     0,
   );
   if (rawTotal > MAX_IMPORT_RECORDS) {
@@ -61,7 +73,7 @@ export function parseData(json: string): AppData {
   // native property-access errors inside migration helpers.
   for (const key of RECOGNISED_KEYS) {
     const rows = candidate[key];
-    if (!Array.isArray(rows)) continue;
+    if (!isUnknownArray(rows)) continue;
     if (rows.some((row) => row === null || typeof row !== "object" || Array.isArray(row))) {
       throw new Error(`This file is damaged: the ${key} table contains an invalid record. Nothing was imported.`);
     }
@@ -72,10 +84,7 @@ export function parseData(json: string): AppData {
   // (remapAndValidateImport) later counts only the SCOPED_KEYS it actually brings into the active
   // account, so its "imported N" can be smaller than this total by exactly the accounts array.
   // The two counts answer different questions on purpose; don't "reconcile" them into one.
-  const total = Object.values(data).reduce(
-    (recordCount, rows) => recordCount + (Array.isArray(rows) ? rows.length : 0),
-    0,
-  );
+  const total = Object.values(data).reduce<number>((recordCount, rows) => recordCount + countRecords(rows), 0);
   if (total > MAX_IMPORT_RECORDS) {
     throw new Error(`This file has too many records (${total.toLocaleString()}).`);
   }

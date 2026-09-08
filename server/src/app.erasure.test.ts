@@ -26,9 +26,10 @@ const client = (id: string, accountId: string) => ({ id, accountId, name: "Acme"
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
-  const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
-  await runAuthMigrations(auth!);
-  return { app: createApp(db, { authMode: mode, auth }), db };
+  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+  if (!configured.auth) throw new Error("Password test auth was not configured");
+  await runAuthMigrations(configured.auth);
+  return { app: createApp(db, { authMode: configured.mode, auth: configured.auth }), db };
 }
 
 interface DeleteAccountRouteInput {
@@ -138,6 +139,187 @@ function seedMembershipAndInvite({ db, accountId, userId, role }: SeedMembership
   });
 }
 
+function seedCrossTenantCommands(db: Db, retainedUserId: string): void {
+  reserveAccountCommand(db, {
+    applicationId: "capacitylens",
+    operation: "prior-workspace-command",
+    idempotencyKey: "prior-workspace-idempotency",
+    commandId: "prior-workspace-command",
+    actorPrincipalId: retainedUserId,
+    workspaceId: "a1",
+    payloadHash: "c".repeat(64),
+  });
+  finishAccountCommand(db, {
+    applicationId: "capacitylens",
+    operation: "prior-workspace-command",
+    idempotencyKey: "prior-workspace-idempotency",
+    status: "completed",
+    resultJson: "{}",
+  });
+  reserveAccountCommand(db, {
+    applicationId: "capacitylens",
+    operation: "retained-workspace-command",
+    idempotencyKey: "retained-workspace-idempotency",
+    commandId: "retained-workspace-command",
+    actorPrincipalId: retainedUserId,
+    workspaceId: "a2",
+    payloadHash: "d".repeat(64),
+  });
+}
+
+function assertCrossTenantErasure(db: Db, retainedUserId: string): void {
+  expect(accountCount(db, "a1")).toBe(0);
+  expect(scopedClientCount(db, "a1")).toBe(0);
+  expect(memberCount(db, "a1")).toBe(0);
+  expect(inviteCount(db, "a1")).toBe(0);
+  expect(commandExists(db, "prior-workspace-command")).toBe(false);
+  expect(accountCount(db, "a2")).toBe(1);
+  expect(scopedClientCount(db, "a2")).toBe(1);
+  expect(memberCount(db, "a2")).toBe(1);
+  expect(inviteCount(db, "a2")).toBe(1);
+  expect(commandExists(db, "retained-workspace-command")).toBe(true);
+  expect(userRow(db, retainedUserId)?.email).toBe("a-owner2@capacitylens.dev");
+}
+
+function seedLastCompanyIdentity(db: Db, userId: string): void {
+  seedResetToken(db, userId);
+  seedResetToken(db, "unrelated-user", "verification-unrelated-scalar");
+  reserveAccountCommand(db, {
+    applicationId: "capacitylens",
+    operation: "password-reset:actor:prior-admin",
+    idempotencyKey: "prior-reset-idempotency",
+    commandId: "prior-reset-command",
+    actorPrincipalId: "prior-admin",
+    targetPrincipalId: userId,
+    payloadHash: "a".repeat(64),
+  });
+  seedAccountLinkState({ db, userId, email: "sole-owner@capacitylens.dev", id: "link-sole-owner" });
+  seedAccountLinkState({ db, userId: "unrelated-user", email: "unrelated@capacitylens.dev", id: "link-unrelated" });
+  db.prepare(
+    `INSERT INTO twoFactor (id, secret, backupCodes, userId, verified, failedVerificationCount)
+     VALUES (?, ?, ?, ?, 1, 0)`,
+  ).run("two-factor-sole-owner", "totp-secret", "encrypted-recovery-codes", userId);
+}
+
+function assertLastCompanyIdentityErased(db: Db, userId: string): void {
+  expect(userRow(db, userId)).toBeUndefined();
+  expect(authAccountCount(db, userId)).toBe(0);
+  expect(sessionCount(db, userId)).toBe(0);
+  expect(sessionAssuranceCount(db, userId)).toBe(0);
+  expect(twoFactorCount(db, userId)).toBe(0);
+  expect(verificationCount(db, userId)).toBe(0);
+  expect(verificationExists(db, "link-sole-owner")).toBe(false);
+  expect(verificationExists(db, "link-unrelated")).toBe(true);
+  expect(verificationExists(db, "verification-unrelated-scalar")).toBe(true);
+  expect(countUsers(db)).toBe(0);
+  expect(db.prepare(`SELECT 1 FROM account_commands WHERE commandId = 'prior-reset-command'`).get()).toBeUndefined();
+  expect(
+    db
+      .prepare(
+        `SELECT actorPrincipalId, targetPrincipalId, workspaceId, status
+           FROM account_commands
+          WHERE operation = 'workspace-erasure'`,
+      )
+      .get(),
+  ).toEqual({ actorPrincipalId: null, targetPrincipalId: null, workspaceId: null, status: "completed" });
+}
+
+const replayCommand = {
+  commandId: "workspace-erasure-command-replay-01",
+  idempotencyKey: "workspace-erasure-idempotency-replay-01",
+};
+
+async function replayErasureCommand(app: FastifyInstance, cookie: string): Promise<void> {
+  expect((await deleteAccountRoute({ app, id: "a1", cookie, command: replayCommand })).statusCode).toBe(204);
+}
+
+function assertReplayCommand(db: Db): void {
+  expect(
+    (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS n FROM account_commands
+             WHERE operation = 'workspace-erasure' AND commandId = ? AND status = 'completed'`,
+        )
+        .get(replayCommand.commandId) as { n: number }
+    ).n,
+  ).toBe(1);
+}
+
+async function testRetainedMember(): Promise<void> {
+  const { app, db } = await appWithAuth();
+  insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
+  const member = await signUp(app, "multi-account-member@capacitylens.dev");
+  upsertMember(db, { accountId: "a1", userId: member.userId, role: "owner", status: "active", createdAt: TS });
+  upsertMember(db, { accountId: "a2", userId: member.userId, role: "editor", status: "active", createdAt: TS });
+  seedResetToken(db, member.userId);
+  seedAccountLinkState({
+    db,
+    userId: member.userId,
+    email: "multi-account-member@capacitylens.dev",
+    id: "link-multi-account",
+  });
+
+  expect((await deleteAccountRoute({ app, id: "a1", cookie: member.cookie })).statusCode).toBe(204);
+  expect(memberCount(db, "a1")).toBe(0);
+  expect(memberCount(db, "a2")).toBe(1);
+  expect(
+    (
+      db
+        .prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'a2' AND userId = ?`)
+        .get(member.userId) as {
+        n: number;
+      }
+    ).n,
+  ).toBe(1);
+  const row = userRow(db, member.userId);
+  expect(row).toMatchObject({ name: "Tester", email: "multi-account-member@capacitylens.dev" });
+  expect(authAccountCount(db, member.userId)).toBeGreaterThanOrEqual(1);
+  expect(sessionCount(db, member.userId)).toBeGreaterThanOrEqual(1);
+  expect(verificationCount(db, member.userId)).toBe(0);
+  expect(verificationExists(db, "link-multi-account")).toBe(true);
+}
+
+async function testIdentityRetention(
+  status: "inactive" | "active",
+  otherAccountId: "a2" | "missing-account",
+  shouldRetainIdentity: boolean,
+): Promise<void> {
+  const { app, db } = await appWithAuth();
+  insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
+  const member = await signUp(app, `${status}-${otherAccountId}@capacitylens.dev`);
+  upsertMember(db, { accountId: "a1", userId: member.userId, role: "owner", status: "active", createdAt: TS });
+  upsertMember(db, {
+    accountId: otherAccountId,
+    userId: member.userId,
+    role: "editor",
+    status: "active",
+    createdAt: TS,
+  });
+  if (status === "inactive") {
+    // Historical/corrupt databases can contain a status outside the current active-only contract.
+    // The erasure boundary must fail closed even though new typed writes cannot create this row.
+    db.prepare(`UPDATE account_members SET status = 'inactive' WHERE accountId = ? AND userId = ?`).run(
+      otherAccountId,
+      member.userId,
+    );
+  }
+
+  expect((await deleteAccountRoute({ app, id: "a1", cookie: member.cookie })).statusCode).toBe(204);
+  if (shouldRetainIdentity) {
+    // Any control row in a surviving workspace retains its principal so the row cannot dangle,
+    // even when its status grants no live access.
+    expect(userRow(db, member.userId)).toMatchObject({ email: "inactive-a2@capacitylens.dev" });
+    expect(authAccountCount(db, member.userId)).toBeGreaterThanOrEqual(1);
+    expect(sessionCount(db, member.userId)).toBeGreaterThanOrEqual(1);
+  } else {
+    // A row targeting a missing workspace has no retention authority and is cleaned up with the identity.
+    expect(userRow(db, member.userId)).toBeUndefined();
+    expect(authAccountCount(db, member.userId)).toBe(0);
+    expect(sessionCount(db, member.userId)).toBe(0);
+  }
+}
+
 describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-tenant)", () => {
   it("via the dedicated route: a1 is wiped whole and a2 stays wholly intact", async () => {
     const { app, db } = await appWithAuth();
@@ -152,32 +334,7 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     seedMembershipAndInvite({ db, accountId: "a1", userId: u1.userId, role: "owner" });
     seedMembershipAndInvite({ db, accountId: "a2", userId: u2.userId, role: "owner" });
     // Use the retained a2 owner as actor so identity cleanup cannot incidentally remove this row.
-    // The only reason the target command disappears must be its a1 workspace correlation.
-    reserveAccountCommand(db, {
-      applicationId: "capacitylens",
-      operation: "prior-workspace-command",
-      idempotencyKey: "prior-workspace-idempotency",
-      commandId: "prior-workspace-command",
-      actorPrincipalId: u2.userId,
-      workspaceId: "a1",
-      payloadHash: "c".repeat(64),
-    });
-    finishAccountCommand(db, {
-      applicationId: "capacitylens",
-      operation: "prior-workspace-command",
-      idempotencyKey: "prior-workspace-idempotency",
-      status: "completed",
-      resultJson: "{}",
-    });
-    reserveAccountCommand(db, {
-      applicationId: "capacitylens",
-      operation: "retained-workspace-command",
-      idempotencyKey: "retained-workspace-idempotency",
-      commandId: "retained-workspace-command",
-      actorPrincipalId: u2.userId,
-      workspaceId: "a2",
-      payloadHash: "d".repeat(64),
-    });
+    seedCrossTenantCommands(db, u2.userId);
 
     // Sanity: everything is present before the delete.
     expect(accountCount(db, "a1")).toBe(1);
@@ -188,20 +345,8 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     const res = await deleteAccountRoute({ app, id: "a1", cookie: u1.cookie });
     expect(res.statusCode).toBe(204);
 
-    // a1 is GONE everywhere: account row, scoped clients, membership row, invite.
-    expect(accountCount(db, "a1")).toBe(0);
-    expect(scopedClientCount(db, "a1")).toBe(0);
-    expect(memberCount(db, "a1")).toBe(0);
-    expect(inviteCount(db, "a1")).toBe(0);
-    expect(commandExists(db, "prior-workspace-command")).toBe(false);
-
-    // a2 is wholly INTACT: account row, scoped clients, membership row, invite, and its user PII.
-    expect(accountCount(db, "a2")).toBe(1);
-    expect(scopedClientCount(db, "a2")).toBe(1);
-    expect(memberCount(db, "a2")).toBe(1);
-    expect(inviteCount(db, "a2")).toBe(1);
-    expect(commandExists(db, "retained-workspace-command")).toBe(true);
-    expect(userRow(db, u2.userId)?.email).toBe("a-owner2@capacitylens.dev");
+    // a1 is gone everywhere and a2 is wholly intact, including its user PII.
+    assertCrossTenantErasure(db, u2.userId);
   });
 
   it("via the dedicated route: refuses a corrupt FK edge that would mutate another account", async () => {
@@ -252,25 +397,7 @@ describe("P2.6b erasure — (b) last-company identity removal reopens password s
     insertAll(db, { ...emptyAppData(), accounts: [account("a1")] } as unknown as AppData);
     const u = await signUp(app, "sole-owner@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: u.userId, role: "owner", status: "active", createdAt: TS });
-    seedResetToken(db, u.userId);
-    seedResetToken(db, "unrelated-user", "verification-unrelated-scalar");
-    reserveAccountCommand(db, {
-      applicationId: "capacitylens",
-      operation: "password-reset:actor:prior-admin",
-      idempotencyKey: "prior-reset-idempotency",
-      commandId: "prior-reset-command",
-      actorPrincipalId: "prior-admin",
-      targetPrincipalId: u.userId,
-      payloadHash: "a".repeat(64),
-    });
-    seedAccountLinkState({ db, userId: u.userId, email: "sole-owner@capacitylens.dev", id: "link-sole-owner" });
-    seedAccountLinkState({ db, userId: "unrelated-user", email: "unrelated@capacitylens.dev", id: "link-unrelated" });
-    db.prepare(
-      `
-      INSERT INTO twoFactor (id, secret, backupCodes, userId, verified, failedVerificationCount)
-      VALUES (?, ?, ?, ?, 1, 0)
-    `,
-    ).run("two-factor-sole-owner", "totp-secret", "encrypted-recovery-codes", u.userId);
+    seedLastCompanyIdentity(db, u.userId);
 
     // Pre-state: real identity, credential link, live session, and outstanding reset token.
     expect(userRow(db, u.userId)?.email).toBe("sole-owner@capacitylens.dev");
@@ -284,39 +411,19 @@ describe("P2.6b erasure — (b) last-company identity removal reopens password s
 
     expect((await deleteAccountRoute({ app, id: "a1", cookie: u.cookie })).statusCode).toBe(204);
 
-    expect(userRow(db, u.userId)).toBeUndefined();
-    expect(authAccountCount(db, u.userId)).toBe(0);
-    expect(sessionCount(db, u.userId)).toBe(0);
-    expect(sessionAssuranceCount(db, u.userId)).toBe(0);
-    expect(twoFactorCount(db, u.userId)).toBe(0);
-    expect(verificationCount(db, u.userId)).toBe(0);
-    expect(verificationExists(db, "link-sole-owner")).toBe(false);
-    expect(verificationExists(db, "link-unrelated")).toBe(true);
-    expect(verificationExists(db, "verification-unrelated-scalar")).toBe(true);
-    expect(countUsers(db)).toBe(0);
-    expect(db.prepare(`SELECT 1 FROM account_commands WHERE commandId = 'prior-reset-command'`).get()).toBeUndefined();
-    expect(
-      db
-        .prepare(
-          `
-      SELECT actorPrincipalId, targetPrincipalId, workspaceId, status
-        FROM account_commands
-       WHERE operation = 'workspace-erasure'
-    `,
-        )
-        .get(),
-    ).toEqual({
-      actorPrincipalId: null,
-      targetPrincipalId: null,
-      workspaceId: null,
-      status: "completed",
-    });
+    assertLastCompanyIdentityErased(db, u.userId);
 
     // The dead cookie now sees a genuine first-run state, and the live signup gate consults the
     // same zero-user fact per request. No restart or manual DB repair is required.
     const me = await call(app, { method: "GET", url: "/api/auth/me", headers: { cookie: u.cookie } });
     expect(me.statusCode).toBe(401);
-    expect(me.json().needsSetup).toBe(true);
+    const meBody: unknown = me.json();
+    const isRecord = (value: unknown): value is Record<string, unknown> =>
+      typeof value === "object" && value !== null && !Array.isArray(value);
+    expect(isRecord(meBody)).toBe(true);
+    if (!isRecord(meBody)) throw new Error("Expected an object response from /api/auth/me");
+    expect(typeof meBody.needsSetup).toBe("boolean");
+    expect(meBody.needsSetup).toBe(true);
     const replacement = await signUp(app, "replacement-owner@capacitylens.dev");
     expect(userRow(db, replacement.userId)?.email).toBe("replacement-owner@capacitylens.dev");
     expect(countUsers(db)).toBe(1);
@@ -330,26 +437,10 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
     const actor = await signUp(app, "erasure-replay@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: actor.userId, role: "owner", status: "active", createdAt: TS });
     upsertMember(db, { accountId: "a2", userId: actor.userId, role: "editor", status: "active", createdAt: TS });
-    const command = {
-      commandId: "workspace-erasure-command-replay-01",
-      idempotencyKey: "workspace-erasure-idempotency-replay-01",
-    };
-
-    expect((await deleteAccountRoute({ app, id: "a1", cookie: actor.cookie, command })).statusCode).toBe(204);
+    await replayErasureCommand(app, actor.cookie);
     expect(accountCount(db, "a1")).toBe(0);
-    expect((await deleteAccountRoute({ app, id: "a1", cookie: actor.cookie, command })).statusCode).toBe(204);
-    expect(
-      (
-        db
-          .prepare(
-            `
-      SELECT COUNT(*) AS n FROM account_commands
-       WHERE operation = 'workspace-erasure' AND commandId = ? AND status = 'completed'
-    `,
-          )
-          .get(command.commandId) as { n: number }
-      ).n,
-    ).toBe(1);
+    await replayErasureCommand(app, actor.cookie);
+    assertReplayCommand(db);
 
     const unrelated = await deleteAccountRoute({
       app,
@@ -363,88 +454,12 @@ describe("P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)", (
     expect(unrelated.statusCode).toBe(403);
   });
 
-  it("M owns a1 AND is a member of a2: deleting a1 drops M's a1 membership but NEVER erases M", async () => {
-    const { app, db } = await appWithAuth();
-    insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
-    const m = await signUp(app, "multi-account-member@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: m.userId, role: "owner", status: "active", createdAt: TS });
-    upsertMember(db, { accountId: "a2", userId: m.userId, role: "editor", status: "active", createdAt: TS });
-    seedResetToken(db, m.userId);
-    seedAccountLinkState({
-      db,
-      userId: m.userId,
-      email: "multi-account-member@capacitylens.dev",
-      id: "link-multi-account",
-    });
-
-    expect((await deleteAccountRoute({ app, id: "a1", cookie: m.cookie })).statusCode).toBe(204);
-
-    // a1's membership for M is gone; a2's membership survives.
-    expect(memberCount(db, "a1")).toBe(0);
-    expect(memberCount(db, "a2")).toBe(1);
-    expect(
-      (
-        db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'a2' AND userId = ?`).get(m.userId) as {
-          n: number;
-        }
-      ).n,
-    ).toBe(1);
-
-    // M's identity is UNCHANGED (real name + email), and the account/session rows are intact — M is
-    // still an active member of a2, so the retention rule must leave them completely alone.
-    const row = userRow(db, m.userId);
-    expect(row!.name).toBe("Tester");
-    expect(row!.email).toBe("multi-account-member@capacitylens.dev");
-    expect(authAccountCount(db, m.userId)).toBeGreaterThanOrEqual(1);
-    expect(sessionCount(db, m.userId)).toBeGreaterThanOrEqual(1);
-    // Removing any membership advances the identity-security revision and conservatively burns
-    // outstanding reset ceremonies, even when the local identity remains for another account.
-    expect(verificationCount(db, m.userId)).toBe(0);
-    expect(verificationExists(db, "link-multi-account")).toBe(true);
-  });
+  it("M owns a1 AND is a member of a2: deleting a1 drops M's a1 membership but NEVER erases M", testRetainedMember);
 
   it.each([
     ["inactive", "a2", true],
     ["active", "missing-account", false],
-  ] as const)(
-    "handles identity retention for a remaining %s membership row in %s",
-    async (status, otherAccountId, shouldRetainIdentity) => {
-      const { app, db } = await appWithAuth();
-      insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
-      const member = await signUp(app, `${status}-${otherAccountId}@capacitylens.dev`);
-      upsertMember(db, { accountId: "a1", userId: member.userId, role: "owner", status: "active", createdAt: TS });
-      upsertMember(db, {
-        accountId: otherAccountId,
-        userId: member.userId,
-        role: "editor",
-        status: "active",
-        createdAt: TS,
-      });
-      if (status === "inactive") {
-        // Historical/corrupt databases can contain a status outside the current active-only contract.
-        // The erasure boundary must fail closed even though new typed writes cannot create this row.
-        db.prepare(`UPDATE account_members SET status = 'inactive' WHERE accountId = ? AND userId = ?`).run(
-          otherAccountId,
-          member.userId,
-        );
-      }
-
-      expect((await deleteAccountRoute({ app, id: "a1", cookie: member.cookie })).statusCode).toBe(204);
-
-      // Any control row in a surviving workspace retains its principal so the row cannot dangle,
-      // even when its status grants no live access. A row targeting a missing workspace has no
-      // retention authority and is cleaned up with the identity.
-      if (shouldRetainIdentity) {
-        expect(userRow(db, member.userId)).toMatchObject({ email: "inactive-a2@capacitylens.dev" });
-        expect(authAccountCount(db, member.userId)).toBeGreaterThanOrEqual(1);
-        expect(sessionCount(db, member.userId)).toBeGreaterThanOrEqual(1);
-      } else {
-        expect(userRow(db, member.userId)).toBeUndefined();
-        expect(authAccountCount(db, member.userId)).toBe(0);
-        expect(sessionCount(db, member.userId)).toBe(0);
-      }
-    },
-  );
+  ] as const)("handles identity retention for a remaining %s membership row in %s", testIdentityRetention);
 });
 
 describe("P2.6b erasure — (d) account_members + invites for the deleted account are gone (direct count)", () => {

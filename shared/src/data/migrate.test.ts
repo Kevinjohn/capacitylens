@@ -27,7 +27,9 @@ describe("migrate", () => {
       }),
     ).toThrow(UnsupportedSchemaVersionError);
   });
+});
 
+describe("migrate current schema", () => {
   it("accepts v17 data without attribution and preserves v18 attribution", () => {
     const allocation = {
       id: "a1",
@@ -69,7 +71,9 @@ describe("migrate", () => {
       }),
     ).toThrow(InvalidSchemaVersionError);
   });
+});
 
+describe("migrate legacy wrappers", () => {
   it("accepts a bare AppData (legacy, no wrapper)", () => {
     const data = {
       ...emptyAppData(),
@@ -114,7 +118,9 @@ describe("migrate", () => {
     expect(out.resources[0]).toMatchObject({ employmentType: "freelancer" });
     expect("isFreelancer" in (out.resources[0] ?? {})).toBe(false);
   });
+});
 
+describe("migrate missing versions", () => {
   it("treats a missing version as legacy and still migrates", () => {
     const out = migrate({
       resources: [
@@ -133,7 +139,9 @@ describe("migrate", () => {
     });
     expect(out.resources[0]).toMatchObject({ employmentType: "permanent" });
   });
+});
 
+describe("migrate versionless resource data", () => {
   it("retains a versionless wrapper as supported legacy data", () => {
     const out = migrate({
       data: {
@@ -178,7 +186,9 @@ describe("migrate", () => {
       resources: [{ ...data.resources[0], halfDays: [] }],
     });
   });
+});
 
+describe("migrate privacy defaults", () => {
   it("leaves a v7 account without internalColourMode absent so it reads as grey", () => {
     const data = {
       ...emptyAppData(),
@@ -195,7 +205,9 @@ describe("migrate", () => {
     const out = migrate({ schemaVersion: 7, data });
     expect(out.accounts[0]?.internalColourMode).toBeUndefined();
   });
+});
 
+describe("migrate account and client defaults", () => {
   it("keeps schema-v6 clients and projects without privacy fields public", () => {
     const out = migrate({
       schemaVersion: 6,
@@ -234,7 +246,9 @@ describe("migrate", () => {
       expect(row).not.toHaveProperty("codeName");
     }
   });
+});
 
+describe("migrate schedule visibility defaults", () => {
   it("leaves a v8 account without the schedule view prefs absent so they read as shown/enabled (v8 → v9)", () => {
     // v8→v9 is a metadata-only step (like v7→v8): the three new optional booleans stay ABSENT so the
     // client's `?? true` reads them as shown/enabled — the migration materialises no defaults.
@@ -255,7 +269,9 @@ describe("migrate", () => {
     expect(out.accounts[0]?.showInternalActivities).toBeUndefined();
     expect(out.accounts[0]?.inlineActivityCreateEnabled).toBeUndefined();
   });
+});
 
+describe("migrate schedule preference defaults", () => {
   it("preserves explicit false schedule view prefs across migration (v8 → v9)", () => {
     const data = {
       ...emptyAppData(),
@@ -277,7 +293,9 @@ describe("migrate", () => {
     expect(out.accounts[0]?.showInternalActivities).toBe(false);
     expect(out.accounts[0]?.inlineActivityCreateEnabled).toBe(false);
   });
+});
 
+describe("migrate legacy resource defaults", () => {
   it("leaves legacy resources not favourite unless the optional flag is present (v9 → v10)", () => {
     const data = {
       ...emptyAppData(),
@@ -302,7 +320,9 @@ describe("migrate", () => {
     expect(out.resources[0]?.isFavourite).toBeUndefined();
     expect(out.resources[0]?.engagement).toBe("studio");
   });
+});
 
+describe("migrate half-day defaults", () => {
   it("migrates v10 resources to an empty half-day subset without changing custom full-day capacity", () => {
     const resource = {
       id: "r1",
@@ -321,7 +341,9 @@ describe("migrate", () => {
     const out = migrate({ schemaVersion: 10, data: { ...emptyAppData(), resources: [resource] } });
     expect(out.resources[0]).toEqual({ ...resource, halfDays: [], engagement: "studio" });
   });
+});
 
+describe("migrate engagement defaults", () => {
   it("migrates v11 resources to Studio engagement", () => {
     const resource = {
       id: "r1",
@@ -376,7 +398,9 @@ describe("migrate", () => {
     expect(out.accounts[0]).toEqual({ ...account, workingDays: [1, 2, 3, 4, 5] });
     expect(out.accounts[0]?.groupResourcesByEngagement).toBeUndefined();
   });
+});
 
+describe("migrate activity and client repairs", () => {
   it("backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable", () => {
     // Legacy input still carries the OLD `tasks` key (pre-rename); migrate renames it to
     // `activities` (v4→v5) so the OUTPUT is asserted on `out.activities`.
@@ -405,7 +429,9 @@ describe("migrate", () => {
     expect(out.activities[0]).toMatchObject({ id: "t1", kind: "project" });
     expect(out.activities[1]).toMatchObject({ id: "t2", kind: "repeatable" });
   });
+});
 
+describe("migrate activity kinds", () => {
   it("backfills kind in a versionless blob that already uses the activities key", () => {
     const out = migrate({
       activities: [
@@ -460,7 +486,9 @@ describe("migrate", () => {
     expect(out.clients.map((client) => client.id)).toEqual(["internal:a1", "internal:a1:1"]);
     expect(out.clients[1]).toMatchObject({ accountId: "a1", builtin: true });
   });
+});
 
+describe("migrate account working days", () => {
   it("backfills account working days from week start at v13 to v14", () => {
     const out = migrate({
       schemaVersion: 13,
@@ -515,7 +543,9 @@ describe("migrate", () => {
     expect(out.allocations).toEqual([legacy]);
     expect(out.allocations[0]).not.toHaveProperty("seriesId");
   });
+});
 
+describe("migrate later allocation fields", () => {
   it("keeps existing personal time off unchanged at v15 to v16", () => {
     const legacy = {
       id: "to1",
@@ -531,7 +561,9 @@ describe("migrate", () => {
 
     expect(out.timeOff).toEqual([legacy]);
   });
+});
 
+describe("migrate activity renames", () => {
   it("renames the legacy `tasks` table → `activities` and `taskId` → `activityId` (v4 → v5)", () => {
     const out = migrate({
       schemaVersion: 4,
@@ -571,7 +603,9 @@ describe("migrate", () => {
     expect(out.allocations[0]).toMatchObject({ activityId: "t1" });
     expect("taskId" in (out.allocations[0] ?? {})).toBe(false);
   });
+});
 
+describe("migrate mixed activity renames", () =>
   it("merges a mixed v4 rename state without losing legacy-only work or modern conflicts", () => {
     const out = migrate({
       schemaVersion: 4,
@@ -631,8 +665,9 @@ describe("migrate", () => {
     expect(out.allocations[0]).toMatchObject({ activityId: "legacy-only" });
     expect(out.allocations[1]).toMatchObject({ activityId: "modern-only" });
     expect(out.allocations.every((allocation) => !("taskId" in allocation))).toBe(true);
-  });
+  }));
 
+describe("migrate legacy task table", () => {
   it("treats a bare (versionless) legacy `tasks` blob as pre-v5 and renames it", () => {
     const out = migrate({
       tasks: [
@@ -649,7 +684,9 @@ describe("migrate", () => {
     expect(out.activities).toHaveLength(1);
     expect("tasks" in out).toBe(false);
   });
+});
 
+describe("migrate complete shape", () => {
   it("fills in any missing arrays so the shape is always complete", () => {
     const out = migrate({
       schemaVersion: 1,

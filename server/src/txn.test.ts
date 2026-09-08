@@ -16,7 +16,7 @@ afterEach(() => {
   databases.splice(0).forEach((db) => db.close());
 });
 
-describe("synchronous transaction boundary", () => {
+describe("synchronous transaction boundary: thenable callbacks", () => {
   it("rolls back a top-level callback that returns a thenable", () => {
     const db = testDb();
     const callback = (() => {
@@ -48,7 +48,9 @@ describe("synchronous transaction boundary", () => {
     ]);
     expect(db.isTransaction).toBe(false);
   });
+});
 
+describe("synchronous transaction boundary: transaction modes", () => {
   it("rejects a nested immediate request under a deferred outer transaction", () => {
     const db = testDb();
     let nestedRan = false;
@@ -88,7 +90,9 @@ describe("synchronous transaction boundary", () => {
 
     expect(db.prepare("SELECT name FROM events").all()).toEqual([{ name: "nested" }]);
   });
+});
 
+describe("synchronous transaction boundary: rollback reporting", () => {
   it("reports a rollback failure through the injected structured seam and preserves the original error", () => {
     const original = new Error("operation failed");
     const rollback = new Error("rollback failed");
@@ -113,6 +117,33 @@ describe("synchronous transaction boundary", () => {
     expect(report).toHaveBeenCalledWith({ scope: "transaction", error: rollback });
   });
 
+  it("preserves an explicit undefined mode before a positional rollback reporter", () => {
+    const original = new Error("operation failed");
+    const rollback = new Error("rollback failed");
+    const db = {
+      isTransaction: false,
+      exec: vi.fn((sql: string) => {
+        if (sql === "ROLLBACK") throw rollback;
+      }),
+    } as unknown as Db;
+    const report = vi.fn();
+
+    expect(() =>
+      tx(
+        db,
+        () => {
+          throw original;
+        },
+        undefined,
+        report,
+      ),
+    ).toThrow(original);
+    expect(db.exec).toHaveBeenNthCalledWith(1, "BEGIN");
+    expect(report).toHaveBeenCalledWith({ scope: "transaction", error: rollback });
+  });
+});
+
+describe("synchronous transaction boundary: reporter error precedence", () => {
   it("does not let a failing rollback reporter mask the original transaction error", () => {
     const original = new Error("operation failed");
     const rollback = new Error("rollback failed");
@@ -130,9 +161,10 @@ describe("synchronous transaction boundary", () => {
         () => {
           throw original;
         },
-        "deferred",
-        () => {
-          throw new Error("reporter failed");
+        {
+          reportRollbackFailure: () => {
+            throw new Error("reporter failed");
+          },
         },
       ),
     ).toThrow(original);
@@ -140,6 +172,9 @@ describe("synchronous transaction boundary", () => {
 });
 
 function compileOnlyAsyncCallbackRejection(db: DatabaseSync): void {
+  void tx(db, () => undefined, undefined);
+  void tx(db, () => undefined, "deferred", undefined);
+  void tx(db, () => undefined, undefined, undefined);
   // @ts-expect-error Transaction callbacks must complete synchronously.
   void tx(db, async () => undefined);
   const maybeAsync = (): void | Promise<void> => undefined;

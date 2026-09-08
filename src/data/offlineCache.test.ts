@@ -618,6 +618,12 @@ describe("offline tenant cache", () => {
     await expect(setOfflineReadEnabled(true)).rejects.toThrow("Web Crypto is unavailable");
   });
 
+  it("fails enabling when Web Crypto has no subtle implementation", async () => {
+    vi.stubGlobal("crypto", {});
+    vi.stubGlobal("navigator", { serviceWorker: {} });
+    await expect(setOfflineReadEnabled(true)).rejects.toThrow("Web Crypto is unavailable");
+  });
+
   it("repairs a malformed durable boundary once and then preserves the stored token", async () => {
     await putRawKey({ id: "wrong-id", token: 123 });
     const originalPut = FakeIDBObjectStore.prototype.put;

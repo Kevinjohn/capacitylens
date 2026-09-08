@@ -25,9 +25,9 @@ strictly separate from the real seam (it disappears the moment real auth is enab
 off). Start from a clean state (DevTools → Console → `localStorage.clear()` → reload).
 
 1. Open the app. The first screen is **Choose an account** — a Google-style card with the
-   **Jordan Avery** account (avatar, name, email) and a **Use another account** row.
+   **Bruce Wayne** account (avatar, name, email) and a **Use another account** row.
 2. Click the account. With no password and no popup, you advance to the **company picker**
-   ("Choose a company"), which now reads **Signed in as Jordan Avery** with a **Sign out** link.
+   ("Choose a company"), which now reads **Signed in as Bruce Wayne** with a **Sign out** link.
 3. Pick **Wayne Enterprises** → the scheduler loads as normal.
 4. Reload the tab → you skip the demo sign-in and land straight on the company picker (the
    "signed in" choice persists per-browser).
@@ -39,7 +39,7 @@ off). Start from a clean state (DevTools → Console → `localStorage.clear()` 
 - The **Choose an account** screen appears **before** the company picker on a clean load; the
   picker is not present until you continue.
 - Clicking the account (or "Use another account") advances to the picker — no popup, no password.
-- The picker shows **Signed in as Jordan Avery** and a working **Sign out**.
+- The picker shows **Signed in as Bruce Wayne** and a working **Sign out**.
 - Being signed in **persists across reload** (you skip the demo sign-in); **Sign out** returns to
   it and that also persists across reload.
 - The demo sign-in is **never** shown when the real auth wall is on (US-NAV-10) — the two don't

@@ -22,6 +22,12 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+function readWorker(workers: readonly FakeWorker[], index: number): FakeWorker {
+  const worker = workers[index];
+  if (!worker) throw new Error(`Expected worker at index ${index}.`);
+  return worker;
+}
+
 class FakeWorker extends EventEmitter {
   readonly postMessage = vi.fn();
   readonly terminate: ReturnType<typeof vi.fn<() => Promise<number>>>;
@@ -72,15 +78,26 @@ describe("bounded import worker runner", () => {
     const replacement = run(replacementController);
     const activeRejection = expect(active).rejects.toThrow("active request gone");
     activeController.abort(new Error("active request gone"));
-    expect(workers[0]!.terminate).toHaveBeenCalledOnce();
+    expect(readWorker(workers, 0).terminate).toHaveBeenCalledOnce();
     await Promise.resolve();
     expect(workers).toHaveLength(1);
 
     firstTermination.resolve(0);
     await activeRejection;
     await vi.waitFor(() => expect(workers).toHaveLength(2));
-    workers[1]!.emit("message", { ok: true, result });
+    readWorker(workers, 1).emit("message", { ok: true, result });
     await expect(replacement).resolves.toEqual(result);
-    expect(workers[1]!.postMessage).toHaveBeenCalledWith(request);
+    expect(readWorker(workers, 1).postMessage).toHaveBeenCalledWith(request);
+  });
+
+  it("rejects when a completed worker cannot terminate", async () => {
+    const terminationError = new Error("termination failed");
+    const worker = new FakeWorker(Promise.reject(terminationError));
+    const runner = createImportWorkerRunner({ createWorker: () => worker });
+
+    const pendingResult = runner(request);
+    worker.emit("message", { ok: true, result });
+
+    await expect(pendingResult).rejects.toBe(terminationError);
   });
 });

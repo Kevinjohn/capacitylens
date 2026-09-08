@@ -38,6 +38,13 @@ function authenticatedApp(overrides: Record<string, unknown> = {}) {
   return app;
 }
 
+function readGlobalIssues(value: unknown): unknown[] {
+  if (typeof value !== "object" || value === null || !("globalIssues" in value) || !Array.isArray(value.globalIssues)) {
+    throw new Error("Expected SSO readiness global issues");
+  }
+  return value.globalIssues;
+}
+
 describe("SSO cutover routes", () => {
   it("returns 404 when no strict provider is configured and maps provider inspection failures", async () => {
     const withoutProvider = authenticatedApp({ auth: {} as Auth });
@@ -53,7 +60,9 @@ describe("SSO cutover routes", () => {
     expect(response.json()).toEqual({ error: "mapped dependency failure" });
     await failing.close();
   });
+});
 
+describe("SSO provider linking", () => {
   it("requires a fresh session and string callback URLs before beginning a provider link", async () => {
     const beginFederatedLink = vi.fn();
     const stale = Fastify();
@@ -84,7 +93,9 @@ describe("SSO cutover routes", () => {
     expect(beginFederatedLink).not.toHaveBeenCalled();
     await app.close();
   });
+});
 
+describe("SSO provider-link failures", () => {
   it.each([
     ["SESSION_EXPIRED", 401],
     ["INVALID_CALLBACK_URL", 400],
@@ -111,17 +122,24 @@ describe("SSO cutover routes", () => {
     );
     await app.close();
   });
+});
 
+describe("SSO cutover readiness authorization", () => {
   it("enforces readiness authorization and provider configuration before inventory reads", async () => {
-    const authorize = vi.fn(() => false);
+    const authorize = vi.fn((input: Parameters<Parameters<typeof registerSsoCutoverRoutes>[1]["authorize"]>[0]) => {
+      void input;
+      return false;
+    });
     const identity = { readSsoCutoverSnapshot: vi.fn() } as unknown as SsoCutoverIdentityPort;
     const refused = authenticatedApp({ authorize, identity });
     expect((await refused.inject({ method: "GET", url: "/api/accounts/workspace-1/sso-readiness" })).statusCode).toBe(
       200,
     );
+    const authorization = authorize.mock.calls[0]?.[0];
+    if (!authorization) throw new Error("Expected readiness authorization");
     expect(authorize).toHaveBeenCalledWith({
-      req: expect.anything(),
-      reply: expect.anything(),
+      req: authorization.req,
+      reply: authorization.reply,
       accountId: "workspace-1",
       action: "manageMembers",
     });
@@ -135,7 +153,9 @@ describe("SSO cutover routes", () => {
     expect(identity.readSsoCutoverSnapshot).not.toHaveBeenCalled();
     await noProvider.close();
   });
+});
 
+describe("SSO cutover readiness disclosure", () => {
   it("does not disclose absent or other workspaces and collapses principal-scoped issues", async () => {
     const identity = {
       readSsoCutoverSnapshot: (read: () => unknown) => read(),
@@ -174,7 +194,7 @@ describe("SSO cutover routes", () => {
     expect(serialized).not.toContain("secret@example.com");
     expect(serialized).not.toContain("missing-secret");
     expect(serialized).not.toContain("Secret Workspace");
-    expect(response.json().globalIssues).toEqual(
+    expect(readGlobalIssues(response.json<unknown>())).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ reason: "operator_identity_repair_required" }),
         expect.objectContaining({ reason: "other_workspace_not_ready" }),
@@ -182,6 +202,9 @@ describe("SSO cutover routes", () => {
     );
     await app.close();
   });
+});
+
+describe("SSO provider inspection", () => {
   it("uses the principal-scoped provider query and treats duplicate rows as connected repair state", async () => {
     const app = Fastify();
     app.addHook("preHandler", async (request) => {
@@ -218,7 +241,9 @@ describe("SSO cutover routes", () => {
     expect(inspectSsoCutover).not.toHaveBeenCalled();
     await app.close();
   });
+});
 
+describe("SSO cutover repairs", () => {
   it("rejects credential rows before the federated-link repair port", async () => {
     const app = Fastify();
     app.addHook("preHandler", async (request) => {
@@ -252,7 +277,46 @@ describe("SSO cutover routes", () => {
     expect(removeFederatedLink).not.toHaveBeenCalled();
     await app.close();
   });
+});
 
+describe("SSO cutover repair identity", () => {
+  it("uses the authorized path principal when a link-removal body contains extra identity fields", async () => {
+    const removeFederatedLink = vi.fn(async (input: Parameters<SsoCutoverIdentityPort["removeFederatedLink"]>[0]) => {
+      void input;
+      return true;
+    });
+    const administration = {
+      evaluateIdentityAdminAuthority: vi.fn(async () => ({
+        allowed: true as const,
+        revision: "revision-1",
+        policyVersion: "policy-1",
+      })),
+    } as unknown as SsoCutoverAccountAdminPort;
+    const app = authenticatedApp({
+      identity: { removeFederatedLink } as unknown as SsoCutoverIdentityPort,
+      administration,
+    });
+
+    const response = await app.inject({
+      method: "DELETE",
+      url: "/api/accounts/workspace-1/members/member-1/federated-link",
+      payload: {
+        rowId: "link-1",
+        providerId: "workforce",
+        subject: "subject-1",
+        principalId: "attacker-selected-principal",
+      },
+    });
+
+    expect(response.statusCode).toBe(204);
+    const removal = removeFederatedLink.mock.calls[0]?.[0];
+    expect(removal?.principalId).toBe("member-1");
+    expect(removal?.audit.targetPrincipalId).toBe("member-1");
+    await app.close();
+  });
+});
+
+describe("SSO cutover repair transactions", () => {
   it.each([
     {
       name: "email correction",
@@ -269,11 +333,6 @@ describe("SSO cutover routes", () => {
       action: "remove-federated-link",
     },
   ])("reconfirms requested-workspace authority inside the $name transaction", async (testCase) => {
-    const app = Fastify();
-    app.addHook("preHandler", async (request) => {
-      request.user = { id: "owner-1" } as never;
-      request.accountActor = { principalId: "owner-1", fresh: true } as never;
-    });
     const assertIdentityRepairAuthorityInTx = vi.fn();
     const evaluateIdentityAdminAuthority = vi.fn(async () => ({
       allowed: true as const,
@@ -287,23 +346,12 @@ describe("SSO cutover routes", () => {
       input.authorizeInTransaction();
       return true;
     });
-    registerSsoCutoverRoutes(app, {
-      auth: {
-        strictProvider: { id: "workforce", label: "Workforce", kind: "oidc", experimental: false },
-      } as Auth,
-      authMode: "password",
+    const app = authenticatedApp({
       identity: { correctPrincipalEmail, removeFederatedLink } as unknown as SsoCutoverIdentityPort,
       administration: {
         evaluateIdentityAdminAuthority,
         assertIdentityRepairAuthorityInTx,
       } as unknown as SsoCutoverAccountAdminPort,
-      applicationId: "capacitylens",
-      openSignup: false,
-      authorize: () => true,
-      fail: (_reply, error) => {
-        throw error;
-      },
-      toWebHeaders: () => new Headers(),
     });
 
     const response = await app.inject({ method: testCase.method, url: testCase.url, payload: testCase.payload });
@@ -318,7 +366,9 @@ describe("SSO cutover routes", () => {
     });
     await app.close();
   });
+});
 
+describe("SSO cutover repair preconditions", () => {
   it.each([
     ["PATCH", "/api/accounts/workspace-1/members/member-1/email", { email: "member@example.com" }],
     [
@@ -360,7 +410,9 @@ describe("SSO cutover routes", () => {
       await app.close();
     },
   );
+});
 
+describe("SSO cutover repair authority", () => {
   it.each([
     {
       name: "email correction",
@@ -391,7 +443,9 @@ describe("SSO cutover routes", () => {
     expect(identityMethod).not.toHaveBeenCalled();
     await app.close();
   });
+});
 
+describe("SSO cutover repair failures", () => {
   it.each([
     {
       name: "email correction",
@@ -421,7 +475,9 @@ describe("SSO cutover routes", () => {
     expect(response.json()).toEqual({ error: "mapped dependency failure" });
     await app.close();
   });
+});
 
+describe("SSO cutover repair conflicts", () => {
   it("reports a conflict when a provider link changes after inspection", async () => {
     const identity = { removeFederatedLink: vi.fn(async () => false) } as unknown as SsoCutoverIdentityPort;
     const administration = {

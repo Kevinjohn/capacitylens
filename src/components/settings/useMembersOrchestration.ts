@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamMember as Member } from "../../account/teamAccessClient";
+import type { TeamInvitation, TeamMember as Member } from "../../account/teamAccessClient";
 import { resolveStrictOidcProvider, useAuth } from "../../auth/authContext";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useOfflineState } from "../../data/useOfflineState";
@@ -16,6 +16,49 @@ import { createMemberMutations } from "./createMemberMutations";
 import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
+import type { WorkspaceReadiness } from "./ssoReadiness";
+
+const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
+
+function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory>["directory"]) {
+  switch (directory.kind) {
+    case "ready":
+      return directory.snapshot;
+    case "error":
+      return directory.content.kind === "authorized" ? directory.content.snapshot : null;
+    case "hidden":
+    case "loading":
+      return null;
+  }
+}
+
+function assertNeverReadinessState(state: never): never {
+  throw new Error(`Unexpected workspace readiness state: ${JSON.stringify(state)}`);
+}
+
+function resolveReadinessPresentation(state: ReturnType<typeof useWorkspaceReadiness>["readinessState"]): {
+  readiness: WorkspaceReadiness | null;
+  readinessError: boolean;
+} {
+  switch (state.kind) {
+    case "loading":
+      return { readiness: null, readinessError: false };
+    case "ready":
+      return { readiness: state.readiness, readinessError: false };
+    case "error":
+      return { readiness: null, readinessError: true };
+  }
+  return assertNeverReadinessState(state);
+}
+
+function pickNextInviteDeadline(invites: readonly TeamInvitation[], clock: number): number | null {
+  const nextExpiry = invites
+    .filter((invite) => invite.usedAt === null)
+    .map((invite) => Date.parse(invite.expiresAt))
+    .filter((expiry) => Number.isFinite(expiry) && expiry > clock)
+    .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY);
+  return Number.isFinite(nextExpiry) ? nextExpiry : null;
+}
 
 export function useMembersOrchestration(activeAccountId: string | null) {
   const { authMode, providers, refreshAuth } = useAuth();
@@ -54,24 +97,17 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const [inactiveOpen, setInactiveOpen] = useState(false);
   const { reconcileMintedInvite, createActions, ...inviteState } = useMemberInvites();
   const enabled = authMode !== "off" && isServerConfigured();
-  const {
-    members,
-    invites,
-    signInTrackingEnabled,
-    replaceDirectory,
-    gate,
-    reload,
-    reloadInvites,
-    busyAction,
-    beginAction,
-    endAction,
-  } = useTeamDirectory({
-    enabled,
-    activeAccountId,
-    offlineReadOnly: offline.readOnly,
-    fail,
-    onInvitesLoaded: reconcileMintedInvite,
-  });
+  const { directory, replaceAuthorizedDirectory, reload, reloadInvites, busyAction, beginAction, endAction } =
+    useTeamDirectory({
+      enabled,
+      activeAccountId,
+      offlineReadOnly: offline.readOnly,
+      fail,
+      onInvitesLoaded: reconcileMintedInvite,
+    });
+  const authorizedDirectory = selectAuthorizedDirectory(directory);
+  const members = authorizedDirectory?.members ?? null;
+  const invites = authorizedDirectory?.invites ?? NO_INVITES;
   const assertActiveAccountId = (): string => {
     if (!activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return activeAccountId;
@@ -125,13 +161,9 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   // An outstanding invite row flips to "expired" on a wall-clock boundary nothing else re-renders,
   // so the section keeps an alarm on the nearest expiry STILL AHEAD of the clock it renders with —
   // which is why the clock is the picker's argument rather than a `Date.now()` read of its own.
-  const renderedAt = useDeadlineClock((clock) => {
-    const nextExpiry = invites
-      .filter((invite) => invite.usedAt === null)
-      .map((invite) => Date.parse(invite.expiresAt))
-      .filter((expiry) => Number.isFinite(expiry) && expiry > clock)
-      .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY);
-    return Number.isFinite(nextExpiry) ? nextExpiry : null;
+  const renderedAt = useDeadlineClock({
+    pickNextDeadline: (clock) => pickNextInviteDeadline(invites, clock),
+    readNow: Date.now,
   });
   const actionDependencies = {
     requestAccountId: assertActiveAccountId,
@@ -140,15 +172,16 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     fail,
     setNotice,
   };
-  const { bumpReadiness, ...readinessState } = useWorkspaceReadiness({
+  const { bumpReadiness, readinessState, ...readinessActions } = useWorkspaceReadiness({
     activeAccountId,
     strictProviderId,
-    gate,
+    directory,
     offlineReadOnly: offline.readOnly,
     members,
     refreshDirectory: () => refreshDirectory(),
     ...actionDependencies,
   });
+  const readinessPresentation = resolveReadinessPresentation(readinessState);
   /** The pair nearly every membership write needs: re-read the directory, then the readiness that is
    *  derived from it. */
   const refreshDirectory = () => {
@@ -162,7 +195,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     closeActiveAccount,
     ...actionDependencies,
     bumpReadiness,
-    replaceDirectory,
+    replaceAuthorizedDirectory,
     reconcileMintedInvite,
   });
   const actions = createMemberMutations({
@@ -186,14 +219,14 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   /** Pick an action from a row's gear menu: dismiss the menu, then raise its confirmation. */
   const chooseMemberAction = (action: MemberConfirmationAction, member: Member) => {
     setOpenMenuFor(null);
-    setMemberConfirmation({ action, member });
+    setMemberConfirmation({ kind: action, member });
   };
 
   const confirmMemberAction = () => {
     if (!memberConfirmation) return;
     const pending = memberConfirmation;
     setMemberConfirmation(null);
-    switch (pending.action) {
+    switch (pending.kind) {
       case "masquerade":
         if (activeAccountId) {
           void startMasquerade(activeAccountId, pending.member.userId);
@@ -211,7 +244,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       case "disable":
       case "archive":
       case "restore":
-        void changeStatus(pending.member, STATUS_FOR_ACTION[pending.action]);
+        void changeStatus(pending.member, STATUS_FOR_ACTION[pending.kind]);
         return;
     }
   };
@@ -221,22 +254,21 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   return {
     authMode,
     enabled,
-    gate,
+    directory,
     error,
     errorField,
     errorId,
     clear,
     reload,
-    ...readinessState,
+    ...readinessActions,
+    ...readinessPresentation,
     members,
     ...presentation,
-    signInTrackingEnabled,
     changeSignInTracking: actions.changeSignInTracking,
     busyAction,
     resetLink,
     ...inviteState,
     ...inviteActions,
-    invites,
     renderedAt,
     roleEdit,
     setRoleEdit,

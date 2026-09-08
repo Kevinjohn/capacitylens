@@ -246,12 +246,14 @@ export function evaluateAuthorities({
   targetPrincipalId,
   actions,
 }: EvaluateAuthoritiesInput): ReadonlyMap<IdentityAdminAction, IdentityAdminAuthorityDecision> {
-  return evaluateAuthoritiesForTargets({
+  const authorities = evaluateAuthoritiesForTargets({
     db,
     actorPrincipalId: actor.principalId,
     targetPrincipalIds: [targetPrincipalId],
     actions,
-  }).get(targetPrincipalId)!;
+  }).get(targetPrincipalId);
+  if (!authorities) throw createAccountFailure("FORBIDDEN", "Forbidden.");
+  return authorities;
 }
 
 interface EvaluateAuthorityInput {
@@ -267,8 +269,54 @@ export function evaluateAuthority({
   targetPrincipalId,
   action,
 }: EvaluateAuthorityInput): IdentityAdminAuthorityDecision {
-  return evaluateAuthorities({ db, actor, targetPrincipalId, actions: [action] }).get(action)!;
+  const authority = evaluateAuthorities({ db, actor, targetPrincipalId, actions: [action] }).get(action);
+  if (!authority) throw createAccountFailure("FORBIDDEN", "Forbidden.");
+  return authority;
 }
+
+interface AssertIdentityRepairAuthorityInput {
+  db: Db;
+  trustedLocal: boolean;
+  requireMfa: boolean;
+  actor: ActorContext;
+  workspaceId: string;
+  targetPrincipalId: string;
+  action: IdentityAdminAction;
+  expectedRevision: string;
+}
+
+function assertIdentityRepairAuthority({
+  db,
+  trustedLocal,
+  requireMfa,
+  actor,
+  workspaceId,
+  targetPrincipalId,
+  action,
+  expectedRevision,
+}: AssertIdentityRepairAuthorityInput): void {
+  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+  assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
+  // Status-agnostic: this asks "is there a membership here to repair?", not "may this login act?".
+  // An active-only probe would 404 the compromised-account case that identity repair exists for —
+  // an admin disables the account FIRST and then kills its sessions / rotates its password, and
+  // an active-only read here reports the person they just disabled as a non-member. The
+  // authority question is answered below by evaluateAuthority, which still ranks roles.
+  if (!getMembershipRow(db, workspaceId, targetPrincipalId)) {
+    throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.");
+  }
+  const current = evaluateAuthority({ db, actor, targetPrincipalId, action });
+  if (!current.allowed) {
+    throw createAccountFailure(
+      current.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
+      "Identity repair authority is no longer available.",
+    );
+  }
+  if (current.revision !== expectedRevision) {
+    throw createAccountFailure("CONFLICT", "Identity repair authority changed. Refresh and try again.");
+  }
+}
+
 export function createAuthority(
   context: Pick<AdminPortContext, "db" | "trustedLocal" | "requireMfa">,
 ): Pick<
@@ -316,26 +364,16 @@ export function createAuthority(
       return current.allowed && current.revision === expectedRevision;
     },
     assertIdentityRepairAuthorityInTx({ actor, workspaceId, targetPrincipalId, action, expectedRevision }) {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
-      assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
-      // Status-agnostic: this asks "is there a membership here to repair?", not "may this login act?".
-      // An active-only probe would 404 the compromised-account case that identity repair exists for —
-      // an admin disables the account FIRST and then kills its sessions / rotates its password, and
-      // an active-only read here reports the person they just disabled as a non-member. The
-      // authority question is answered below by evaluateAuthority, which still ranks roles.
-      if (!getMembershipRow(db, workspaceId, targetPrincipalId)) {
-        throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.");
-      }
-      const current = evaluateAuthority({ db, actor, targetPrincipalId, action });
-      if (!current.allowed) {
-        throw createAccountFailure(
-          current.reason === "target-not-member" ? "NOT_FOUND" : "FORBIDDEN",
-          "Identity repair authority is no longer available.",
-        );
-      }
-      if (current.revision !== expectedRevision) {
-        throw createAccountFailure("CONFLICT", "Identity repair authority changed. Refresh and try again.");
-      }
+      assertIdentityRepairAuthority({
+        db,
+        trustedLocal,
+        requireMfa,
+        actor,
+        workspaceId,
+        targetPrincipalId,
+        action,
+        expectedRevision,
+      });
     },
   };
 }

@@ -7,7 +7,8 @@ describe("data transfer", () => {
   it("round-trips through serialize -> parse (deep equal)", () => {
     const data = seed();
     const serialized = serializeData(data);
-    expect(JSON.parse(serialized).schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
+    const parsed = JSON.parse(serialized) as { schemaVersion: number };
+    expect(parsed.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
     expect(parseData(serialized)).toEqual(data);
   });
 
@@ -19,7 +20,9 @@ describe("data transfer", () => {
     expect(() => parseData('"hello"')).toThrow(/not CapacityLens data/i);
     expect(() => parseData('{"resources":"oops"}')).toThrow(/data table is not a list/i);
   });
+});
 
+describe("data transfer wrapper validation", () => {
   it.each([
     ["null", null],
     ["string", "not a wrapper"],
@@ -40,7 +43,9 @@ describe("data transfer", () => {
       /damaged: a data table is not a list/i,
     );
   });
+});
 
+describe("data transfer limits and repair", () => {
   it.each([
     ["string", String(10)],
     ["null", null],

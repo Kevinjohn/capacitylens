@@ -3,6 +3,15 @@ import { describe, expect, it, vi } from "vitest";
 import { resetLocalStorage, StorageRecovery, StorageResetError } from "./StorageRecovery";
 
 describe("resetLocalStorage", () => {
+  it("preserves native cause property presence semantics", () => {
+    const omittedCause = new StorageResetError({ offlineDataCleared: false });
+    const explicitUndefinedCause = new StorageResetError({ offlineDataCleared: false, cause: undefined });
+
+    expect(Object.hasOwn(omittedCause, "cause")).toBe(false);
+    expect(Object.hasOwn(explicitUndefinedCause, "cause")).toBe(true);
+    expect(explicitUndefinedCause.cause).toBeUndefined();
+  });
+
   it("attempts both backends and reloads after both clear successfully", async () => {
     const clearOfflineData = vi.fn().mockResolvedValue(undefined);
     const clearLocalStorage = vi.fn();
@@ -53,31 +62,69 @@ describe("resetLocalStorage", () => {
 
   it("reports a partial failure without reloading when only local storage fails", async () => {
     const clearOfflineData = vi.fn().mockResolvedValue(undefined);
+    const localStorageError = new Error("localStorage blocked");
     const clearLocalStorage = vi.fn(() => {
-      throw new Error("localStorage blocked");
+      throw localStorageError;
     });
     const reload = vi.fn();
 
-    await expect(resetLocalStorage({ clearOfflineData, clearLocalStorage, reload })).rejects.toMatchObject({
-      name: "StorageResetError",
-      offlineDataCleared: true,
-    });
+    let caught: unknown;
+    try {
+      await resetLocalStorage({ clearOfflineData, clearLocalStorage, reload });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(StorageResetError);
+    if (!(caught instanceof StorageResetError)) {
+      throw new Error("Expected resetLocalStorage to reject with StorageResetError");
+    }
+    expect(caught.name).toBe("StorageResetError");
+    expect(caught.message).toBe("Browser storage could not be fully reset.");
+    expect(caught.offlineDataCleared).toBe(true);
+    expect(caught.cause).toBeInstanceOf(AggregateError);
+    if (!(caught.cause instanceof AggregateError)) {
+      throw new Error("Expected StorageResetError.cause to be an AggregateError");
+    }
+    expect(caught.cause.message).toBe("One or more browser storage backends could not be cleared.");
+    expect(caught.cause.errors).toHaveLength(1);
+    expect(caught.cause.errors[0]).toBe(localStorageError);
     expect(clearOfflineData).toHaveBeenCalledOnce();
     expect(clearLocalStorage).toHaveBeenCalledOnce();
     expect(reload).not.toHaveBeenCalled();
   });
 
   it("reports a full failure after both backend attempts fail", async () => {
-    const clearOfflineData = vi.fn().mockRejectedValue(new Error("IndexedDB blocked"));
+    const offlineError = new Error("IndexedDB blocked");
+    const localStorageError = new Error("localStorage blocked");
+    const clearOfflineData = vi.fn().mockRejectedValue(offlineError);
     const clearLocalStorage = vi.fn(() => {
-      throw new Error("localStorage blocked");
+      throw localStorageError;
     });
     const reload = vi.fn();
 
-    await expect(resetLocalStorage({ clearOfflineData, clearLocalStorage, reload })).rejects.toMatchObject({
-      name: "StorageResetError",
-      offlineDataCleared: false,
-    });
+    let caught: unknown;
+    try {
+      await resetLocalStorage({ clearOfflineData, clearLocalStorage, reload });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(StorageResetError);
+    if (!(caught instanceof StorageResetError)) {
+      throw new Error("Expected resetLocalStorage to reject with StorageResetError");
+    }
+    expect(caught.name).toBe("StorageResetError");
+    expect(caught.message).toBe("Browser storage could not be fully reset.");
+    expect(caught.offlineDataCleared).toBe(false);
+    expect(caught.cause).toBeInstanceOf(AggregateError);
+    if (!(caught.cause instanceof AggregateError)) {
+      throw new Error("Expected StorageResetError.cause to be an AggregateError");
+    }
+    expect(caught.cause.message).toBe("One or more browser storage backends could not be cleared.");
+    expect(caught.cause.errors).toHaveLength(2);
+    expect(caught.cause.errors[0]).toBe(localStorageError);
+    expect(caught.cause.errors[1]).toBe(offlineError);
     expect(clearOfflineData).toHaveBeenCalledOnce();
     expect(clearLocalStorage).toHaveBeenCalledOnce();
     expect(reload).not.toHaveBeenCalled();
@@ -152,7 +199,7 @@ describe("StorageRecovery", () => {
       "Neither the unreadable browser data nor offline snapshots could be cleared. Check your browser’s storage/privacy settings and try again.",
     ],
   ])("surfaces the specific backend outcome after a reset failure", async (offlineDataCleared, message) => {
-    const onReset = vi.fn().mockRejectedValue(new StorageResetError(offlineDataCleared));
+    const onReset = vi.fn().mockRejectedValue(new StorageResetError({ offlineDataCleared }));
     render(<StorageRecovery onReset={onReset} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Reset data" }));

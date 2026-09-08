@@ -17,7 +17,6 @@ import { formatShortDate } from "../../lib/dateDisplay";
 import { AllocationControlColumn, AllocationSpanRow, DateRangeFields } from "./AllocationModalFieldLayout";
 import type { AllocationModalState } from "./useAllocationModalState";
 
-/** 2-dp rounding for the human-readable "…h/day" hint only — never fed back into a value. */
 const roundDisplayHours = (numericValue: number) => Math.round(numericValue * 100) / 100;
 
 const buildRepeatOptions = (): Option[] => [
@@ -36,165 +35,196 @@ const buildHoursPerDayOptions = (): Option[] => [
   { value: "8", label: m.form_allocation_hours_per_day_full_day() },
 ];
 
-type AllocationScheduleFieldsProps = AllocationModalState["scheduleFields"];
+type ScheduleProps = AllocationModalState["scheduleFields"];
+type TypedSpanProps = Pick<
+  ScheduleProps,
+  | "isExternal"
+  | "startDate"
+  | "setStartDate"
+  | "endDate"
+  | "setEndDate"
+  | "hoursPerDay"
+  | "setHoursPerDay"
+  | "errorField"
+  | "errorId"
+>;
 
-export function AllocationScheduleFields({
-  usesTypedDateRange,
-  isExternal,
-  isDays,
-  startDate,
-  setStartDate,
-  endDate,
-  setEndDate,
-  hoursPerDay,
-  setHoursPerDay,
-  endDateHint,
-  effHoursPerDay: effectiveHoursPerDay,
-  daysOfWork,
-  setDaysOfWork,
-  daysOver,
-  setDaysOver,
-  maximumDaysOver,
-  daysOverDisabled,
-  ignoreWeekends,
-  setIgnoreWeekends,
-  create,
-  repeat,
-  onRepeatChange,
-  repeatUntil,
-  onRepeatUntilChange,
-  repeatUntilMinimum,
-  repeatUntilMaximum,
-  repeatProjection,
-  repeatLastStart,
-  status,
-  setStatus,
-  note,
-  setNote,
-  setNoteEdited,
-  advisory,
-  error,
-  errorField,
-  errorId,
-}: AllocationScheduleFieldsProps) {
+function TypedSpanFields(props: TypedSpanProps) {
+  return (
+    <AllocationSpanRow columns={props.isExternal ? 2 : 3}>
+      <DateRangeFields
+        startDate={props.startDate}
+        endDate={props.endDate}
+        onStartChange={props.setStartDate}
+        onEndChange={props.setEndDate}
+        invalid={props.errorField === "dates"}
+        describedById={props.errorId}
+      />
+      {!props.isExternal && (
+        <SelectField
+          label={m.form_allocation_hours_per_day_label()}
+          value={String(props.hoursPerDay)}
+          onChange={(value) => props.setHoursPerDay(Number(value))}
+          options={buildHoursPerDayOptions()}
+          required
+          invalid={props.errorField === "hours"}
+          describedById={props.errorId}
+        />
+      )}
+    </AllocationSpanRow>
+  );
+}
+
+type CountedSpanProps = Pick<
+  ScheduleProps,
+  | "isDays"
+  | "startDate"
+  | "setStartDate"
+  | "endDateHint"
+  | "effHoursPerDay"
+  | "daysOfWork"
+  | "setDaysOfWork"
+  | "daysOver"
+  | "setDaysOver"
+  | "maximumDaysOver"
+  | "daysOverDisabled"
+  | "errorField"
+  | "errorId"
+>;
+
+function countedSpanHint(props: CountedSpanProps) {
+  if (!props.startDate || !props.endDateHint) return undefined;
+  const message = props.isDays
+    ? m.form_allocation_ends_hint_hours({
+        date: props.endDateHint,
+        hours: roundDisplayHours(props.effHoursPerDay),
+      })
+    : m.form_allocation_ends_hint({ date: props.endDateHint });
+  return <p className="text-xs text-muted-foreground">{message}</p>;
+}
+
+function CountedSpanFields(props: CountedSpanProps) {
+  return (
+    <AllocationSpanRow columns={props.isDays ? 3 : 2} hint={countedSpanHint(props)}>
+      <DateField
+        label={m.form_allocation_start_date_label()}
+        value={props.startDate}
+        onChange={props.setStartDate}
+        required
+        invalid={props.errorField === "dates"}
+        describedById={props.errorId}
+      />
+      {props.isDays && (
+        <NumberField
+          label={m.form_allocation_days_of_work_label()}
+          value={props.daysOfWork}
+          onChange={props.setDaysOfWork}
+          min={0}
+          step={0.5}
+          required
+          invalid={props.errorField === "daysOfWork"}
+          describedById={props.errorId}
+        />
+      )}
+      <NumberField
+        label={m.form_allocation_days_over_label()}
+        value={props.daysOver}
+        onChange={props.setDaysOver}
+        min={1}
+        max={props.maximumDaysOver}
+        step={1}
+        disabled={props.daysOverDisabled}
+        invalid={props.errorField === "daysOver"}
+        describedById={props.errorId}
+      />
+    </AllocationSpanRow>
+  );
+}
+
+type RepeatProps = Pick<
+  ScheduleProps,
+  | "repeat"
+  | "onRepeatChange"
+  | "repeatUntil"
+  | "onRepeatUntilChange"
+  | "repeatUntilMinimum"
+  | "repeatUntilMaximum"
+  | "repeatProjection"
+  | "repeatLastStart"
+  | "errorField"
+  | "errorId"
+>;
+
+function RepeatFields(props: RepeatProps) {
   return (
     <>
-      {usesTypedDateRange ? (
-        <AllocationSpanRow columns={isExternal ? 2 : 3}>
-          <DateRangeFields
-            startDate={startDate}
-            endDate={endDate}
-            onStartChange={setStartDate}
-            onEndChange={setEndDate}
-            invalid={errorField === "dates"}
-            describedById={errorId}
-          />
-          {/* Externals carry no load (hoursPerDay 0), so only the hourly arm asks for one. */}
-          {!isExternal && (
-            <SelectField
-              label={m.form_allocation_hours_per_day_label()}
-              value={String(hoursPerDay)}
-              onChange={(value) => setHoursPerDay(Number(value))}
-              options={buildHoursPerDayOptions()}
-              required
-              invalid={errorField === "hours"}
-              describedById={errorId}
-            />
-          )}
-        </AllocationSpanRow>
-      ) : (
-        // Blocks and days are the same span control — a start plus a "days over" count — differing
-        // only by the work-volume field days adds, and by whether the derived-end hint also states
-        // the rescaled load.
-        <AllocationSpanRow
-          columns={isDays ? 3 : 2}
-          hint={
-            startDate && endDateHint ? (
-              <p className="text-xs text-muted-foreground">
-                {isDays
-                  ? m.form_allocation_ends_hint_hours({
-                      date: endDateHint,
-                      hours: roundDisplayHours(effectiveHoursPerDay),
-                    })
-                  : m.form_allocation_ends_hint({ date: endDateHint })}
-              </p>
-            ) : undefined
-          }
-        >
-          <DateField
-            label={m.form_allocation_start_date_label()}
-            value={startDate}
-            onChange={setStartDate}
-            required
-            invalid={errorField === "dates"}
-            describedById={errorId}
-          />
-          {isDays && (
-            <NumberField
-              label={m.form_allocation_days_of_work_label()}
-              value={daysOfWork}
-              onChange={setDaysOfWork}
-              min={0}
-              step={0.5}
-              required
-              invalid={errorField === "daysOfWork"}
-              describedById={errorId}
-            />
-          )}
-          <NumberField
-            label={m.form_allocation_days_over_label()}
-            value={daysOver}
-            onChange={setDaysOver}
-            min={1}
-            max={maximumDaysOver}
-            step={1}
-            // No effective working days ⇒ a working span is undefined; the count stays at its
-            // neutral seed so a permitted edit cannot silently rescale the stored volume.
-            disabled={daysOverDisabled}
-            invalid={errorField === "daysOver"}
-            describedById={errorId}
-          />
-        </AllocationSpanRow>
+      <SelectField
+        label={m.form_allocation_repeat_label()}
+        value={props.repeat}
+        onChange={props.onRepeatChange}
+        options={buildRepeatOptions()}
+        layout="label-control"
+      />
+      {props.repeat !== "none" && (
+        <DateField
+          label={m.form_allocation_repeat_until_label()}
+          value={props.repeatUntil}
+          onChange={props.onRepeatUntilChange}
+          required
+          invalid={props.errorField === "repeatUntil"}
+          describedById={props.errorId}
+          min={props.repeatUntilMinimum}
+          {...(props.repeatUntilMaximum ? { max: props.repeatUntilMaximum } : {})}
+          layout="label-control"
+        />
       )}
-      {create && (
-        <>
-          <SelectField
-            label={m.form_allocation_repeat_label()}
-            value={repeat}
-            onChange={onRepeatChange}
-            options={buildRepeatOptions()}
-            layout="label-control"
-          />
-          {repeat !== "none" && (
-            <DateField
-              label={m.form_allocation_repeat_until_label()}
-              value={repeatUntil}
-              onChange={onRepeatUntilChange}
-              required
-              invalid={errorField === "repeatUntil"}
-              describedById={errorId}
-              min={repeatUntilMinimum}
-              {...(repeatUntilMaximum ? { max: repeatUntilMaximum } : {})}
-              layout="label-control"
-            />
-          )}
-          {repeatProjection && repeatLastStart && (
-            <AllocationControlColumn>
-              <p className="text-xs text-muted-foreground">
-                {m.form_allocation_repeat_preview({
-                  count: repeatProjection.startDates.length,
-                  repeatUntil: formatShortDate(repeatUntil),
-                  lastStart: formatShortDate(repeatLastStart),
-                })}
-              </p>
-            </AllocationControlColumn>
-          )}
-        </>
-      )}
+      {props.repeatProjection && props.repeatLastStart && <RepeatPreview {...props} />}
+    </>
+  );
+}
+
+function RepeatPreview(props: RepeatProps) {
+  if (!props.repeatProjection || !props.repeatLastStart) return null;
+  return (
+    <AllocationControlColumn>
+      <p className="text-xs text-muted-foreground">
+        {m.form_allocation_repeat_preview({
+          count: props.repeatProjection.startDates.length,
+          repeatUntil: formatShortDate(props.repeatUntil),
+          lastStart: formatShortDate(props.repeatLastStart),
+        })}
+      </p>
+    </AllocationControlColumn>
+  );
+}
+
+type DetailProps = Pick<
+  ScheduleProps,
+  | "isExternal"
+  | "status"
+  | "setStatus"
+  | "note"
+  | "setNote"
+  | "setNoteEdited"
+  | "ignoreWeekends"
+  | "setIgnoreWeekends"
+  | "advisory"
+  | "error"
+  | "errorField"
+  | "errorId"
+>;
+
+function DetailFields(props: DetailProps) {
+  const setNote = (value: string) => {
+    props.setNoteEdited(true);
+    props.setNote(value);
+  };
+  return (
+    <>
       <SegmentedField
         label={m.form_allocation_status_label()}
-        value={status}
-        onChange={setStatus}
+        value={props.status}
+        onChange={props.setStatus}
         options={buildAllocationStatusOptions()}
         geometry="connected"
         fullWidth
@@ -202,37 +232,40 @@ export function AllocationScheduleFields({
       />
       <TextField
         label={m.form_allocation_note_label()}
-        value={note}
-        onChange={(value) => {
-          setNoteEdited(true);
-          setNote(value);
-        }}
+        value={props.note}
+        onChange={setNote}
         maxLength={MAX_NOTE_INPUT_CODE_UNITS}
-        invalid={errorField === "note"}
-        describedById={errorId}
+        invalid={props.errorField === "note"}
+        describedById={props.errorId}
         layout="label-control"
       />
-
-      {/* Externals have no working pattern — their booking is already a literal start/end span, so
-          this checkbox is meaningless and hidden (they store ignoreWeekends: true). */}
-      {!isExternal && (
+      {!props.isExternal && (
         <CheckboxField
           label={m.form_allocation_ignore_working_days()}
-          checked={ignoreWeekends}
-          onChange={setIgnoreWeekends}
+          checked={props.ignoreWeekends}
+          onChange={props.setIgnoreWeekends}
           layout="label-control"
         />
       )}
-
-      {advisory && (
+      {props.advisory && (
         <Alert variant="warn" role="status">
-          <AlertDescription>{advisory}</AlertDescription>
+          <AlertDescription>{props.advisory}</AlertDescription>
         </Alert>
       )}
-      <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
-        {error}
+      <FieldError id={props.errorId} tabIndex={props.error && props.errorField === null ? -1 : undefined}>
+        {props.error}
       </FieldError>
       <RequiredLegend />
+    </>
+  );
+}
+
+export function AllocationScheduleFields(props: ScheduleProps) {
+  return (
+    <>
+      {props.usesTypedDateRange ? <TypedSpanFields {...props} /> : <CountedSpanFields {...props} />}
+      {props.create && <RepeatFields {...props} />}
+      <DetailFields {...props} />
     </>
   );
 }
