@@ -83,6 +83,7 @@ let noopSink: AuditSink;
 let streamSink: AuditSink;
 let compositeSink: AuditSink;
 let backupController: ReturnType<typeof startBackups>;
+let backupHealth: { degraded: boolean; lastSuccessAt: string | null };
 
 function createSink(): AuditSink {
   return { append: () => true, appendMany: () => true, degraded: false };
@@ -109,8 +110,11 @@ beforeEach(() => {
   noopSink = createSink();
   streamSink = createSink();
   compositeSink = createSink();
+  backupHealth = { degraded: false, lastSuccessAt: "2026-09-09T08:00:00.000Z" };
   backupController = {
-    health: { degraded: false, lastSuccessAt: "2026-09-09T08:00:00.000Z" },
+    get health() {
+      return backupHealth;
+    },
     snapshotNow: vi.fn(async () => "/snapshots/capacitylens-2026-09-09.sqlite"),
     stop: vi.fn(async () => {}),
   };
@@ -209,6 +213,8 @@ describe("startServerRuntime audit and backup composition", () => {
     if (!options.backupHealth) throw new Error("backup health was not supplied to the application");
     expect(options).toMatchObject({ application, audit: compositeSink });
     expect(options.backupHealth()).toEqual({ degraded: false, lastSuccessAt: "2026-09-09T08:00:00.000Z" });
+    backupHealth = { degraded: true, lastSuccessAt: "2026-09-09T09:00:00.000Z" };
+    expect(options.backupHealth()).toEqual({ degraded: true, lastSuccessAt: "2026-09-09T09:00:00.000Z" });
     const backupInput = runtime.startBackups.mock.calls[0]?.[0];
     if (!backupInput) throw new Error("backup startup was not requested");
     expect(backupInput.db).toBe(db);
