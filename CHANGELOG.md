@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Hardened imports, account updates, invitation signup, masquerade transitions, scheduler
+  interactions and development launchers against overlapping actions and stale asynchronous
+  completions.
+
 ### Security
 
 - Updated transitive `browserslist` and `qs` dependencies to patched releases, resolving four

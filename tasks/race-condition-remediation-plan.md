@@ -414,3 +414,17 @@ affected focused checks and an explicit decision on repeating the complete gates
 - No shared contract, schema, migration or wire field changes without separate approval.
 - Focused checks and integrated gates pass on the recorded revision.
 - An independent final review finds no unresolved concurrency regression in changed scope.
+
+## Integrated validation record
+
+The complete application, server and browser gates passed on code revision
+`dd323397b898a8a7a2e31a1a7c47d98c15dfdffc` using Node 24.19.0:
+
+```text
+pnpm run gate
+pnpm run gate:server
+pnpm run e2e # 257 passed
+```
+
+The only later changes are this validation record and the prose-only changelog entry required for
+the user-visible fixes; neither changes runtime code or invalidates the recorded gate evidence.
