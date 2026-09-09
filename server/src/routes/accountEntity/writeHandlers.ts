@@ -12,6 +12,27 @@ import { ACCOUNT_CREATE_CLOSED_MESSAGE, isAccountCreateCapped, buildCanonicalAcc
 
 type AccountActor = NonNullable<FastifyRequest["accountActor"]>;
 
+type AccountWriteDependencies = Pick<
+  AccountEntityRouteDependencies,
+  | "db"
+  | "store"
+  | "authMode"
+  | "multiAccount"
+  | "optimisticConcurrency"
+  | "flows"
+  | "authorize"
+  | "command"
+  | "fieldVisibility"
+  | "redact"
+  | "commitProductAudit"
+  | "drainProductAudit"
+  | "ownsRow"
+  | "isStaleWrite"
+  | "enqueueAudit"
+  | "fail"
+  | "accountFail"
+>;
+
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -44,7 +65,7 @@ function readCreatedAt(row: Record<string, unknown>): string {
 }
 
 interface AccountWriteInput {
-  dependencies: AccountEntityRouteDependencies;
+  dependencies: AccountWriteDependencies;
   req: FastifyRequest;
   reply: FastifyReply;
   id: string;
@@ -72,7 +93,7 @@ function createPutAuditRecord(input: {
 }
 
 async function persistPut(input: {
-  dependencies: AccountEntityRouteDependencies;
+  dependencies: AccountWriteDependencies;
   req: FastifyRequest;
   reply: FastifyReply;
   id: string;
@@ -80,7 +101,7 @@ async function persistPut(input: {
   row: Record<string, unknown>;
   scopedState: PreparedWrite["scopedState"];
   auditRecord: AuditRecord;
-  workspaceCommand: ReturnType<AccountEntityRouteDependencies["command"]>;
+  workspaceCommand: ReturnType<AccountWriteDependencies["command"]>;
 }): Promise<Record<string, unknown>> {
   const { dependencies, req, reply, id, existing, row, scopedState, auditRecord, workspaceCommand } = input;
   const { db, flows, multiAccount, enqueueAudit, commitProductAudit, drainProductAudit } = dependencies;
@@ -126,8 +147,8 @@ function allowPut(input: AccountWriteInput, existing: Record<string, unknown> | 
 async function replayPut(
   input: AccountWriteInput & {
     existing: Record<string, unknown> | undefined;
-    workspaceCommand: ReturnType<AccountEntityRouteDependencies["command"]>;
-    visibility: Parameters<AccountEntityRouteDependencies["redact"]>[2];
+    workspaceCommand: ReturnType<AccountWriteDependencies["command"]>;
+    visibility: Parameters<AccountWriteDependencies["redact"]>[2];
   },
 ): Promise<boolean> {
   const { dependencies, req, reply, id, body, existing, workspaceCommand, visibility } = input;
@@ -203,7 +224,7 @@ async function applyPut(input: AccountWriteInput): Promise<FastifyReply | undefi
   return reply.code(200).send(redact("accounts", responseRow, visibility));
 }
 
-async function put(dependencies: AccountEntityRouteDependencies, req: FastifyRequest, reply: FastifyReply) {
+async function put(dependencies: AccountWriteDependencies, req: FastifyRequest, reply: FastifyReply) {
   const id = readRouteId(req);
   const bodyCheck = checkEntityWriteBody({
     verb: "replace",
@@ -263,7 +284,7 @@ function applyPatch(input: AccountWriteInput): FastifyReply | undefined {
   return reply.code(200).send(redact("accounts", stamped, visibility));
 }
 
-function patch(dependencies: AccountEntityRouteDependencies, req: FastifyRequest, reply: FastifyReply) {
+function patch(dependencies: AccountWriteDependencies, req: FastifyRequest, reply: FastifyReply) {
   const id = readRouteId(req);
   const bodyCheck = checkEntityWriteBody({
     verb: "patch",
@@ -280,7 +301,7 @@ function patch(dependencies: AccountEntityRouteDependencies, req: FastifyRequest
   }
 }
 
-export function createAccountWriteHandlers(dependencies: AccountEntityRouteDependencies) {
+export function createAccountWriteHandlers(dependencies: AccountWriteDependencies) {
   return {
     put: (req: FastifyRequest, reply: FastifyReply) => put(dependencies, req, reply),
     patch: (req: FastifyRequest, reply: FastifyReply) => patch(dependencies, req, reply),
