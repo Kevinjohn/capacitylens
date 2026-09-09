@@ -78,6 +78,7 @@ const invalidPayloadCases = [
     (payload) => ({ ...payload, provider: { ...payload.provider, experimental: true } }),
   ],
   ["a non-array member collection", (payload) => ({ ...payload, members: {} })],
+  ["a null member entry", (payload) => ({ ...payload, members: [null] })],
   [
     "a member with a malformed principal id",
     (payload) => ({ ...payload, members: [{ ...payload.members[0], principalId: null }] }),
@@ -115,6 +116,10 @@ const invalidPayloadCases = [
     (payload) => ({ ...payload, members: [{ ...payload.members[0], repairLinks: {} }] }),
   ],
   [
+    "a null repair-link entry",
+    (payload) => ({ ...payload, members: [{ ...payload.members[0], repairLinks: [null] }] }),
+  ],
+  [
     "an empty repair-link row id",
     (payload) => ({
       ...payload,
@@ -144,7 +149,38 @@ const invalidPayloadCases = [
       })),
     }),
   ],
+  [
+    "a non-string repair-link row id",
+    (payload) => ({
+      ...payload,
+      members: payload.members.map((member) => ({
+        ...member,
+        repairLinks: member.repairLinks.map((link) => ({ ...link, rowId: null })),
+      })),
+    }),
+  ],
+  [
+    "a non-string repair-link provider id",
+    (payload) => ({
+      ...payload,
+      members: payload.members.map((member) => ({
+        ...member,
+        repairLinks: member.repairLinks.map((link) => ({ ...link, providerId: false })),
+      })),
+    }),
+  ],
+  [
+    "a non-string repair-link subject",
+    (payload) => ({
+      ...payload,
+      members: payload.members.map((member) => ({
+        ...member,
+        repairLinks: member.repairLinks.map((link) => ({ ...link, subject: 0 })),
+      })),
+    }),
+  ],
   ["a non-array issue collection", (payload) => ({ ...payload, issues: {} })],
+  ["a null issue entry", (payload) => ({ ...payload, issues: [null] })],
   [
     "an issue with a malformed message",
     (payload) => ({ ...payload, issues: [{ ...payload.issues[0], message: null }] }),
@@ -170,6 +206,7 @@ const invalidPayloadCases = [
     (payload) => ({ ...payload, issues: [{ ...payload.issues[0], principalId: false }] }),
   ],
   ["a non-array global-issue collection", (payload) => ({ ...payload, globalIssues: {} })],
+  ["a null global-issue entry", (payload) => ({ ...payload, globalIssues: [null] })],
   [
     "a global issue with a malformed message",
     (payload) => ({ ...payload, globalIssues: [{ ...payload.globalIssues[0], message: null }] }),
@@ -197,6 +234,19 @@ const invalidPayloadCases = [
 ] satisfies readonly [string, PayloadMutation][];
 
 describe("parseWorkspaceReadiness", () => {
+  it("accepts the unchanged valid payload with nullable member identity fields", () => {
+    const payload = createValidPayload();
+
+    expect(parseWorkspaceReadiness(payload)).toEqual(payload);
+  });
+
+  it("accepts nonempty issue coordinates", () => {
+    const payload = createValidPayload();
+    payload.issues = payload.issues.map((issue) => ({ ...issue, workspaceId: "a-studio", principalId: "bruce-wayne" }));
+
+    expect(parseWorkspaceReadiness(payload)).toEqual(payload);
+  });
+
   it("accepts valid data with nullable identity fields and preserves allowed empty strings", () => {
     const payload = createValidPayload();
     payload.provider.id = "";
