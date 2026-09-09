@@ -472,6 +472,112 @@ it("validates admission before identity creation or durable command reservation"
   await expect(flows.reconcileCommand({ command, operation: "invite-password-signup" })).resolves.toBeNull();
 });
 
+it("records a compensated contract failure when provisional identity creation fails", async () => {
+  const creationFailure = contractError("DEPENDENCY_UNAVAILABLE");
+  const compensate = vi.fn();
+  const { flows } = harness({
+    identity: identityPort({
+      createCorrelatedProvisionalCredentialPrincipal: vi.fn(async () => {
+        throw creationFailure;
+      }),
+      compensateProvisionalPrincipal: compensate,
+    }),
+  });
+
+  await expect(
+    flows.acceptInviteWithPasswordSignup({
+      token: "creation-failure-token",
+      email: "bruce.wayne@example.com",
+      displayName: "Bruce Wayne",
+      password: "not-stored-password",
+      command,
+    }),
+  ).rejects.toBe(creationFailure);
+
+  expect(compensate).not.toHaveBeenCalled();
+  expect(
+    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({ status: "compensated", failureCode: "DEPENDENCY_UNAVAILABLE" });
+});
+
+it("uses the documented conflict fallback for a non-contract invite claim failure", async () => {
+  const claimFailure = new Error("unexpected claim failure");
+  const compensate = vi.fn(async () => {});
+  const { flows } = harness({
+    identity: identityPort({ compensateProvisionalPrincipal: compensate }),
+    administration: administrationPort({
+      claimInvitationForPrincipal: vi.fn(async () => {
+        throw claimFailure;
+      }),
+    }),
+  });
+
+  await expect(
+    flows.acceptInviteWithPasswordSignup({
+      token: "non-contract-failure-token",
+      email: "diana.prince@example.com",
+      displayName: "Diana Prince",
+      password: "not-stored-password",
+      command,
+    }),
+  ).rejects.toBe(claimFailure);
+
+  expect(compensate).toHaveBeenCalledOnce();
+  expect(
+    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({ status: "compensated", failureCode: "CONFLICT" });
+});
+
+it("retains claim and compensation failures when invite terminal persistence fails", async () => {
+  const claimFailure = contractError("INVITATION_USED");
+  const compensationFailure = contractError("DEPENDENCY_UNAVAILABLE");
+  const { flows } = harness({
+    identity: identityPort({
+      compensateProvisionalPrincipal: vi.fn(async () => {
+        throw compensationFailure;
+      }),
+    }),
+    administration: administrationPort({
+      claimInvitationForPrincipal: vi.fn(async () => {
+        throw claimFailure;
+      }),
+    }),
+  });
+  currentDb().exec(`
+    CREATE TRIGGER fail_invite_terminal_persistence
+    BEFORE UPDATE OF status ON account_commands
+    WHEN OLD.operation = 'invite-password-signup' AND NEW.status = 'reconciliation_required'
+    BEGIN
+      SELECT RAISE(ABORT, 'simulated invite terminal persistence failure');
+    END;
+  `);
+
+  const failure = await flows
+    .acceptInviteWithPasswordSignup({
+      token: "terminal-persistence-failure-token",
+      email: "clark.kent@example.com",
+      displayName: "Clark Kent",
+      password: "not-stored-password",
+      command,
+    })
+    .then(
+      () => null,
+      (error: unknown) => error,
+    );
+
+  expect(failure).toBeInstanceOf(AggregateError);
+  if (!(failure instanceof AggregateError)) {
+    throw new Error("Expected terminal-persistence failure to preserve aggregate evidence");
+  }
+  expect(failure.errors).toHaveLength(2);
+  expect(failure.errors[0]).toBeInstanceOf(AggregateError);
+  if (!(failure.errors[0] instanceof AggregateError)) {
+    throw new Error("Expected claim and compensation failures to remain aggregated");
+  }
+  expect(failure.errors[0].errors).toEqual([claimFailure, compensationFailure]);
+  expect(failure.errors[1]).toMatchObject({ message: "simulated invite terminal persistence failure" });
+});
+
 it("binds workspace-provisioning idempotency to the complete canonical product payload", async () => {
   const { flows } = harness();
   const base = {
