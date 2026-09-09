@@ -1,4 +1,4 @@
-import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import { m } from "@/i18n";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
@@ -298,8 +298,11 @@ function isKeyboardGestureBlocked({ options, mode, current, next }: KeyboardGate
   return leavesTimeline;
 }
 
-function focusAllocation(allocationId: ID) {
-  requestAnimationFrame(() => {
+function focusAllocation(focusRafRef: RefObject<number>, allocationId: ID, accountId: ID | null) {
+  if (focusRafRef.current) cancelAnimationFrame(focusRafRef.current);
+  focusRafRef.current = requestAnimationFrame(() => {
+    focusRafRef.current = 0;
+    if (useStore.getState().activeAccountId !== accountId) return;
     const element = Array.from(document.querySelectorAll<HTMLElement>("[data-alloc-id]")).find(
       (candidate) => candidate.dataset.allocId === allocationId,
     );
@@ -310,11 +313,12 @@ function focusAllocation(allocationId: ID) {
 
 function saveKeyboardGesture(
   options: ControllerOptions,
-  next: DateRange,
-  rescale: ReturnType<typeof resolveVolumePreservingHours> | null,
+  focusRafRef: RefObject<number>,
+  input: { next: DateRange; rescale: ReturnType<typeof resolveVolumePreservingHours> | null },
 ) {
   const { bar } = options;
-  const { setNotice, updateAllocation, announceCapacity } = useStore.getState();
+  const { next, rescale } = input;
+  const { activeAccountId, setNotice, updateAllocation, announceCapacity } = useStore.getState();
   try {
     const updated = updateAllocation(bar.allocation.id, {
       ...next,
@@ -325,14 +329,19 @@ function saveKeyboardGesture(
       setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY, shortcut: buildUndoShortcut() }), "warning");
     }
     announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
-    focusAllocation(bar.allocation.id);
+    focusAllocation(focusRafRef, bar.allocation.id, activeAccountId);
   } catch (error) {
     setNotice(error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_disallowed(), "error");
   }
 }
 
-function nudgeAllocation(options: ControllerOptions, mode: DragMode, deltaDays: number) {
+function nudgeAllocation(
+  options: ControllerOptions,
+  focusRafRef: RefObject<number>,
+  input: { mode: DragMode; deltaDays: number },
+) {
   const { bar } = options;
+  const { mode, deltaDays } = input;
   if (refuseIneffectiveResize(bar, mode, bar.allocation.resourceId)) return;
   const { current, next, gestureOptions } = resolveKeyboardGesture(options, mode, deltaDays);
   if (isKeyboardGestureBlocked({ options, mode, current, next })) return;
@@ -350,7 +359,7 @@ function nudgeAllocation(options: ControllerOptions, mode: DragMode, deltaDays: 
     next.endDate === current.endDate &&
     (rescale === null || rescale.hours === bar.allocation.hoursPerDay);
   if (unchanged) return;
-  saveKeyboardGesture(options, next, rescale);
+  saveKeyboardGesture(options, focusRafRef, { next, rescale });
 }
 
 function startPointerGesture(runtime: GestureRuntime) {
@@ -361,6 +370,13 @@ function startPointerGesture(runtime: GestureRuntime) {
 export function useAllocationGestureController(options: ControllerOptions, runtime: GestureRuntime) {
   const { bar, indexAtClientX, onEdit } = options;
   const [preview, setPreview] = useState<GesturePreview | null>(null);
+  const focusRafRef = useRef(0);
+  useEffect(
+    () => () => {
+      if (focusRafRef.current) cancelAnimationFrame(focusRafRef.current);
+    },
+    [],
+  );
   // Read store actions at call time because handlers commit against live state.
   const setDragging = (id: ID | null) => useStore.getState().setDraggingAllocation(id);
   const { onPointerDown: armPointerGesture } = useDragResize({
@@ -395,6 +411,6 @@ export function useAllocationGestureController(options: ControllerOptions, runti
   return {
     preview,
     onPointerDown: beginPointerGesture,
-    nudge: (mode: DragMode, delta: number) => nudgeAllocation(options, mode, delta),
+    nudge: (mode: DragMode, delta: number) => nudgeAllocation(options, focusRafRef, { mode, deltaDays: delta }),
   };
 }
