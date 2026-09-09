@@ -53,6 +53,7 @@ function registerImportRouteGroup(input: RegisterRouteGroupInput): void {
     authMode: config.authMode,
     allowReset: options.allowReset === true,
     accountAdminPort: runtime.accountAdminPort,
+    accountLock: runtime.accountLock,
     authorize: authorization.authorizeAllowed,
     executeImportWorker: config.executeImportWorker,
     commitProductAudit: runtime.commitProductAudit,
