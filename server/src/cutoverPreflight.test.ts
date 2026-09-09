@@ -1,13 +1,31 @@
-import { DatabaseSync } from "node:sqlite";
+import { constants, DatabaseSync } from "node:sqlite";
+import type { SsoCutoverAccountAdminPort } from "./accounts/adminPort/contracts";
+import type { SsoCutoverIdentityPort } from "./accounts/identityPort/contracts";
+import type { assertAccountControlPlaneCurrent } from "./accounts/sqliteAccountAdminPort";
+import type { ssoCutoverReadiness } from "./accounts/ssoCutover";
+import type { AuthProviderInfo } from "./authConfig/authTypes";
+import type { assertAuditOutboxCurrent } from "./auditOutbox";
+import type { assertFederatedIdentitySchemaCurrent } from "./auth";
+import type { mixedModeCutoverContext } from "./cutoverContext";
+import type { Db, planDatabaseMigrations } from "./db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+type Environment = Record<string, string | undefined>;
+type ContextFixture = {
+  provider: AuthProviderInfo;
+  auth: Pick<Awaited<ReturnType<typeof mixedModeCutoverContext>>["auth"], "providers">;
+  identity: SsoCutoverIdentityPort;
+  administration: SsoCutoverAccountAdminPort;
+  resolvedEnvironment: Pick<Awaited<ReturnType<typeof mixedModeCutoverContext>>["resolvedEnvironment"], "env">;
+};
+
 const dependencies = vi.hoisted(() => ({
-  assertAccountControlPlaneCurrent: vi.fn(),
-  assertAuditOutboxCurrent: vi.fn(),
-  assertFederatedIdentitySchemaCurrent: vi.fn(),
-  mixedModeCutoverContext: vi.fn(),
-  planDatabaseMigrations: vi.fn(),
-  ssoCutoverReadiness: vi.fn(),
+  assertAccountControlPlaneCurrent: vi.fn<typeof assertAccountControlPlaneCurrent>(),
+  assertAuditOutboxCurrent: vi.fn<typeof assertAuditOutboxCurrent>(),
+  assertFederatedIdentitySchemaCurrent: vi.fn<typeof assertFederatedIdentitySchemaCurrent>(),
+  mixedModeCutoverContext: vi.fn<(db: Db, environment: Environment) => Promise<ContextFixture>>(),
+  planDatabaseMigrations: vi.fn<typeof planDatabaseMigrations>(),
+  ssoCutoverReadiness: vi.fn<typeof ssoCutoverReadiness>(),
 }));
 
 vi.mock("./accounts/sqliteAccountAdminPort", () => ({
@@ -21,114 +39,227 @@ vi.mock("./db", () => ({ planDatabaseMigrations: dependencies.planDatabaseMigrat
 
 import { inspectSsoCutoverPreflight } from "./cutoverPreflight";
 
-const provider = { id: "workforce", label: "Wayne Enterprises", kind: "oidc", experimental: false };
-const identity = { source: "identity" };
-const administration = { source: "administration" };
+const provider = {
+  id: "workforce",
+  label: "Wayne Enterprises",
+  kind: "oidc",
+  experimental: false,
+} satisfies AuthProviderInfo;
+const otherProvider = { ...provider, id: "partner", label: "Stark Industries" } satisfies AuthProviderInfo;
+const environment = { DISTINCTIVE_PREFLIGHT_ENVIRONMENT: "forwarded" };
+
+function unused(): never {
+  throw new Error("Unused fixture operation was called.");
+}
+
+async function unusedAsync(): Promise<never> {
+  return unused();
+}
+
+const identity: SsoCutoverIdentityPort = {
+  verifyApplicationSession: unusedAsync,
+  getPrincipalSummaries: unusedAsync,
+  findPrincipalByFederatedSubject: unusedAsync,
+  signOut: unusedAsync,
+  listSessions: unusedAsync,
+  revokeOwnSession: unusedAsync,
+  createProvisionalCredentialPrincipal: unusedAsync,
+  compensateProvisionalPrincipal: unusedAsync,
+  deprovisionLocalPrincipal: unusedAsync,
+  issuePasswordReset: unusedAsync,
+  revokePasswordResetCeremony: unusedAsync,
+  revokePrincipalSessions: unusedAsync,
+  createCorrelatedProvisionalCredentialPrincipal: unusedAsync,
+  deprovisionLocalPrincipalInTx: unused,
+  deprovisionLocalPrincipalsInTx: unused,
+  commitMasqueradeSessionEnds: unused,
+  readSsoCutoverSnapshot: (read) => read(),
+  inspectProviderLinks: unused,
+  inspectSsoCutover: unused,
+  revokeAllForSsoCutover: unusedAsync,
+  correctPrincipalEmail: unusedAsync,
+  removeFederatedLink: unusedAsync,
+  removeFederatedLinkForStoppedRepair: unusedAsync,
+};
+
+const administration: SsoCutoverAccountAdminPort = {
+  listWorkspacesForPrincipal: unusedAsync,
+  getMembership: unusedAsync,
+  listMemberships: unusedAsync,
+  listInvitations: unusedAsync,
+  previewInvitation: unusedAsync,
+  preparePasswordInvitationClaim: unusedAsync,
+  createInvitation: unusedAsync,
+  acceptInvitation: unusedAsync,
+  claimInvitationForPrincipal: unusedAsync,
+  revokeInvitation: unusedAsync,
+  changeMemberRole: unusedAsync,
+  changeMemberStatus: unusedAsync,
+  removeMember: unusedAsync,
+  transferOwnership: unusedAsync,
+  evaluateIdentityAdminAuthority: unusedAsync,
+  evaluateIdentityAdminAuthorities: unusedAsync,
+  evaluateIdentityAdminAuthoritiesForTargets: unusedAsync,
+  confirmIdentityAdminAuthority: unusedAsync,
+  roleForPrincipalInWorkspace: unused,
+  workspacePrincipalIds: unused,
+  projectIdentityAdminAuthoritiesForTargets: unused,
+  evaluateWorkspaceProvisioningAuthorityInTx: unused,
+  provisionOwnerMembershipInTx: unused,
+  assertWorkspaceErasureAuthorityInTx: unused,
+  eraseWorkspaceAdministrationInTx: unused,
+  inspectSsoCutoverWorkspaces: unused,
+  assertIdentityRepairAuthorityInTx: unused,
+  repairOwnerlessWorkspaceInTx: unused,
+};
+
 const readiness = { ready: true, provider, workspaces: [], issues: [] };
 
-describe("inspectSsoCutoverPreflight", () => {
-  let db: DatabaseSync;
+function createContext(openSignup: string | undefined): ContextFixture {
+  return {
+    provider,
+    auth: { providers: [otherProvider, provider] },
+    identity,
+    administration,
+    resolvedEnvironment: { env: { CAPACITYLENS_ALLOW_OPEN_SIGNUP: openSignup } },
+  };
+}
 
-  beforeEach(() => {
-    db = new DatabaseSync(":memory:");
-    vi.resetAllMocks();
-    dependencies.planDatabaseMigrations.mockReturnValue({ fromVersion: 33, toVersion: 34, migrations: [] });
-    dependencies.mixedModeCutoverContext.mockResolvedValue({
-      provider,
-      auth: { providers: [provider] },
-      identity,
-      administration,
-      resolvedEnvironment: { env: {} },
-    });
-    dependencies.ssoCutoverReadiness.mockReturnValue(readiness);
-  });
+const staleAssertions = [
+  {
+    name: "account control plane",
+    assertion: dependencies.assertAccountControlPlaneCurrent,
+    message: "account control plane is stale",
+    accounts: 1,
+    audit: 0,
+    identity: 0,
+  },
+  {
+    name: "audit outbox",
+    assertion: dependencies.assertAuditOutboxCurrent,
+    message: "audit outbox is stale",
+    accounts: 1,
+    audit: 1,
+    identity: 0,
+  },
+  {
+    name: "federated identity schema",
+    assertion: dependencies.assertFederatedIdentitySchemaCurrent,
+    message: "identity schema is stale",
+    accounts: 1,
+    audit: 1,
+    identity: 1,
+  },
+];
 
-  afterEach(() => db.close());
+let db: DatabaseSync;
 
-  registerPendingMigrationTest(() => db);
-  registerCurrentSchemaFailureTests(() => db);
-  registerContextMappingTests(() => db);
-  registerNoMutationTest(() => db);
+beforeEach(() => {
+  db = new DatabaseSync(":memory:");
+  vi.resetAllMocks();
+  dependencies.planDatabaseMigrations.mockReturnValue({ fromVersion: 33, toVersion: 34, fresh: false, migrations: [] });
+  dependencies.mixedModeCutoverContext.mockImplementation(async () => createContext(undefined));
+  dependencies.ssoCutoverReadiness.mockReturnValue(readiness);
 });
 
-function registerPendingMigrationTest(database: () => DatabaseSync): void {
+afterEach(() => db.close());
+
+describe("inspectSsoCutoverPreflight refusals", () => {
   it("refuses pending migrations before creating the cutover context", async () => {
     dependencies.planDatabaseMigrations.mockReturnValue({
       fromVersion: 33,
       toVersion: 34,
+      fresh: false,
       migrations: [{ version: 34, name: "current", checksum: "checksum" }],
     });
 
-    await expect(inspectSsoCutoverPreflight(database(), {})).rejects.toThrow(
+    await expect(inspectSsoCutoverPreflight(db, environment)).rejects.toThrow(
       "Database schema v33 is not current (expected v34); start this release normally before preflight.",
     );
 
+    expect(dependencies.planDatabaseMigrations).toHaveBeenCalledWith(db);
     expect(dependencies.mixedModeCutoverContext).not.toHaveBeenCalled();
     expect(dependencies.assertAccountControlPlaneCurrent).not.toHaveBeenCalled();
     expect(dependencies.assertAuditOutboxCurrent).not.toHaveBeenCalled();
     expect(dependencies.assertFederatedIdentitySchemaCurrent).not.toHaveBeenCalled();
     expect(dependencies.ssoCutoverReadiness).not.toHaveBeenCalled();
   });
-}
 
-function registerCurrentSchemaFailureTests(database: () => DatabaseSync): void {
-  it.each([
-    ["account control plane", dependencies.assertAccountControlPlaneCurrent, "account control plane is stale"],
-    ["audit outbox", dependencies.assertAuditOutboxCurrent, "audit outbox is stale"],
-    ["federated identity schema", dependencies.assertFederatedIdentitySchemaCurrent, "identity schema is stale"],
-  ])("surfaces a stale %s assertion before evaluating readiness", async (_name, assertion, message) => {
-    assertion.mockImplementation(() => {
-      throw new Error(message);
+  it.each(staleAssertions)(
+    "surfaces a stale $name assertion before evaluating readiness",
+    async ({ assertion, message, accounts, audit, identity }) => {
+      assertion.mockImplementation(() => {
+        throw new Error(message);
+      });
+
+      await expect(inspectSsoCutoverPreflight(db, environment)).rejects.toThrow(message);
+
+      expect(dependencies.planDatabaseMigrations).toHaveBeenCalledWith(db);
+      expect(dependencies.mixedModeCutoverContext).toHaveBeenCalledWith(db, environment);
+      expect(dependencies.assertAccountControlPlaneCurrent).toHaveBeenCalledTimes(accounts);
+      expect(dependencies.assertAuditOutboxCurrent).toHaveBeenCalledTimes(audit);
+      expect(dependencies.assertFederatedIdentitySchemaCurrent).toHaveBeenCalledTimes(identity);
+      expect(dependencies.ssoCutoverReadiness).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not call later assertions after the audit outbox refusal", async () => {
+    dependencies.assertAuditOutboxCurrent.mockImplementation(() => {
+      throw new Error("audit outbox is stale");
     });
 
-    await expect(inspectSsoCutoverPreflight(database(), {})).rejects.toThrow(message);
+    await expect(inspectSsoCutoverPreflight(db, environment)).rejects.toThrow("audit outbox is stale");
 
+    expect(dependencies.assertAccountControlPlaneCurrent).toHaveBeenCalledWith(db);
+    expect(dependencies.assertFederatedIdentitySchemaCurrent).not.toHaveBeenCalled();
     expect(dependencies.ssoCutoverReadiness).not.toHaveBeenCalled();
   });
+});
 
-  it("stops at each stale-schema assertion in order", async () => {
-    dependencies.assertAccountControlPlaneCurrent.mockImplementation(() => {
-      throw new Error("account control plane is stale");
-    });
-
-    await expect(inspectSsoCutoverPreflight(database(), {})).rejects.toThrow("account control plane is stale");
-
-    expect(dependencies.assertAuditOutboxCurrent).not.toHaveBeenCalled();
-    expect(dependencies.assertFederatedIdentitySchemaCurrent).not.toHaveBeenCalled();
-  });
-}
-
-function registerContextMappingTests(database: () => DatabaseSync): void {
+describe("inspectSsoCutoverPreflight valid context", () => {
   it.each([
     ["1", true],
+    ["0", false],
     [undefined, false],
-  ])("maps the valid context to readiness with open signup %s", async (openSignup, expectedOpenSignup) => {
-    dependencies.mixedModeCutoverContext.mockResolvedValue({
-      provider,
-      auth: { providers: [provider, { ...provider, id: "partner" }] },
-      identity,
-      administration,
-      resolvedEnvironment: { env: { CAPACITYLENS_ALLOW_OPEN_SIGNUP: openSignup } },
-    });
+  ])("maps a valid context with open signup %s", async (openSignup, expectedOpenSignup) => {
+    dependencies.mixedModeCutoverContext.mockImplementation(async () => createContext(openSignup));
 
-    await expect(inspectSsoCutoverPreflight(database(), {})).resolves.toBe(readiness);
+    await expect(inspectSsoCutoverPreflight(db, environment)).resolves.toBe(readiness);
 
+    expect(dependencies.assertAccountControlPlaneCurrent).toHaveBeenCalledWith(db);
+    expect(dependencies.assertAuditOutboxCurrent).toHaveBeenCalledWith(db);
+    expect(dependencies.assertFederatedIdentitySchemaCurrent).toHaveBeenCalledWith(db);
     expect(dependencies.ssoCutoverReadiness).toHaveBeenCalledWith({
       provider,
-      providers: [provider, { ...provider, id: "partner" }],
+      providers: [otherProvider, provider],
       identity,
       administration,
       openSignup: expectedOpenSignup,
     });
+    const callOrder = [
+      dependencies.planDatabaseMigrations,
+      dependencies.mixedModeCutoverContext,
+      dependencies.assertAccountControlPlaneCurrent,
+      dependencies.assertAuditOutboxCurrent,
+      dependencies.assertFederatedIdentitySchemaCurrent,
+      dependencies.ssoCutoverReadiness,
+    ].map((mock) => {
+      const order = mock.mock.invocationCallOrder[0];
+      if (order === undefined) throw new Error("Expected preflight dependency to be called.");
+      return order;
+    });
+    expect(callOrder).toEqual([...callOrder].sort((left, right) => left - right));
   });
-}
 
-function registerNoMutationTest(database: () => DatabaseSync): void {
-  it("does not mutate the database while inspecting a valid context", async () => {
-    const db = database();
-    await inspectSsoCutoverPreflight(db, {});
+  it("does not authorize any database operation while inspecting a valid context", async () => {
+    const authorizationEvents: number[] = [];
+    db.setAuthorizer((action) => {
+      authorizationEvents.push(action);
+      return constants.SQLITE_DENY;
+    });
 
-    expect(db.prepare("PRAGMA user_version").get()).toEqual({ user_version: 0 });
-    expect(db.prepare("SELECT name FROM sqlite_schema WHERE type = 'table'").all()).toEqual([]);
+    await expect(inspectSsoCutoverPreflight(db, environment)).resolves.toBe(readiness);
+
+    expect(authorizationEvents).toEqual([]);
   });
-}
+});
