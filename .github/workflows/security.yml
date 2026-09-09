@@ -15,7 +15,10 @@ on:
     - cron: "19 4 * * 2"
 
 concurrency:
-  group: security-${{ github.ref }}
+  group: >-
+    security-${{ github.ref }}-${{
+      github.event_name == 'workflow_dispatch' && inputs.secret_scan_only && 'secret-only' || 'full'
+    }}
   cancel-in-progress: true
 
 permissions:
