@@ -75,6 +75,17 @@ const allocation = (id: string, startDate: Allocation["startDate"]): Allocation 
   createdAt: TS1,
   updatedAt: TS1,
 });
+const timeOff = (id: string, startDate: TimeOff["startDate"], note?: string): TimeOff => ({
+  id,
+  accountId: "a1",
+  resourceId: "r1",
+  startDate,
+  endDate: startDate,
+  type: "holiday",
+  ...(note === undefined ? {} : { note }),
+  createdAt: TS1,
+  updatedAt: TS1,
+});
 
 const withData = (over: Partial<AppData>): AppData => ({
   ...emptyAppData(),
@@ -881,6 +892,56 @@ const batchOps = (call: unknown[] | undefined): ReceiptOp[] => {
   return parseReceiptOps(init.body);
 };
 
+function registerIndependentTimeOffBatchTest(): void {
+  it("dispatches multiple independent time-off entries as PUTs in one eventual batch", async () => {
+    const fetchImpl = okFetch() as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const entries = [
+      timeOff("timeoff-repeat-1", "2026-06-01", "First entry"),
+      timeOff("timeoff-repeat-2", "2026-06-08", "Second entry"),
+      timeOff("timeoff-repeat-3", "2026-06-15", "Third entry"),
+    ];
+
+    await adapter.saveAll(withData({ timeOff: entries }));
+
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls;
+    expect(calls).toHaveLength(1);
+    expect(batchOps(calls[0])).toEqual(
+      entries.map((entry) =>
+        expect.objectContaining({
+          method: "PUT",
+          table: "timeOff",
+          id: entry.id,
+          row: entry,
+        }),
+      ),
+    );
+  });
+}
+
+function registerTimeOffRetryTest(): void {
+  it("retries a failed multi-entry time-off batch with the same stored IDs", async () => {
+    let failNext = true;
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/api/batch") && failNext) return new Response("boom", { status: 500 });
+      return commitReceipt(init);
+    }) as unknown as typeof fetch;
+    const adapter = new ServerSyncAdapter("http://x", fetchImpl);
+    const entries = [timeOff("retry-timeoff-1", "2026-07-06"), timeOff("retry-timeoff-2", "2026-07-13")];
+
+    await expect(adapter.saveAll(withData({ timeOff: entries }))).rejects.toThrow();
+    const firstOps = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]);
+
+    failNext = false;
+    (fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await adapter.saveAll(withData({ timeOff: entries }));
+    const retryOps = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]);
+
+    expect(retryOps.map((op) => op.id)).toEqual(firstOps.map((op) => op.id));
+    expect(retryOps.map((op) => op.id)).toEqual(entries.map((entry) => entry.id));
+  });
+}
+
 function registerBasicSaveTests(): void {
   it("announces an audit warning returned by the batch endpoint", async () => {
     const warning = vi.fn();
@@ -1569,7 +1630,9 @@ function registerQueuedRebaseTests(): void {
 
 describe("ServerSyncAdapter.saveAll", () => {
   registerBasicSaveTests();
+  registerIndependentTimeOffBatchTest();
   registerBatchFailureAndUnloadTests();
+  registerTimeOffRetryTest();
   registerInFlightKeepaliveTests();
   registerCompensatingKeepaliveTests();
   registerScopedDeleteSaveTests();

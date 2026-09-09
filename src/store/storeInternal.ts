@@ -1,8 +1,8 @@
 import type { StoreApi } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
-import { assertDateRange, remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
+import { assertDateRange, assertResourceExists, remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
-import type { Allocation, AppData, Entity, ID, ScopedEntityKey } from "@capacitylens/shared/types/entities";
+import type { Allocation, AppData, Entity, ID, ScopedEntityKey, TimeOff } from "@capacitylens/shared/types/entities";
 import {
   clearEntityLenses,
   type Draft,
@@ -105,6 +105,14 @@ interface AllocationCreationDependencies {
   mutate: (producer: (data: AppData) => AppData) => void;
 }
 
+interface TimeOffCreationDependencies {
+  get: StoreApi<StoreState>["getState"];
+  requireAccount: ReturnType<typeof createGuards>["requireAccount"];
+  blockedByViewer: ReturnType<typeof createGuards>["blockedByViewer"];
+  assertResourceExists: typeof assertResourceExists;
+  mutate: (producer: (data: AppData) => AppData) => void;
+}
+
 function createAllocationCreator(dependencies: AllocationCreationDependencies) {
   return (inputs: readonly Draft<Allocation>[]): Allocation[] => {
     if (inputs.length === 0) throw new Error("At least one allocation is required.");
@@ -131,6 +139,27 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
     }
     dependencies.mutate((current) => ({ ...current, allocations: [...current.allocations, ...allocations] }));
     return allocations;
+  };
+}
+
+function createTimeOffCreator(dependencies: TimeOffCreationDependencies) {
+  return (inputs: readonly Draft<TimeOff>[]): TimeOff[] => {
+    if (inputs.length === 0) throw new Error("At least one time off entry is required.");
+    const accountId = dependencies.requireAccount();
+    const timeOffs = inputs.map((input) => ({
+      ...input,
+      id: newId(),
+      accountId,
+      ...stamp(),
+    }));
+    if (dependencies.blockedByViewer()) return timeOffs;
+    const data = dependencies.get().data;
+    for (const timeOff of timeOffs) {
+      dependencies.assertResourceExists(data, accountId, timeOff.resourceId);
+      assertDateRange(timeOff.startDate, timeOff.endDate);
+    }
+    dependencies.mutate((current) => ({ ...current, timeOff: [...current.timeOff, ...timeOffs] }));
+    return timeOffs;
   };
 }
 
@@ -173,6 +202,7 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
   const { createGuardedAction, createGuardedAddAction } = createGuardedActions(blockedByViewer);
   const updateOwned = createOwnedUpdater({ get, resolveOwnedRow, mutate });
   const createAllocations = createAllocationCreator({ get, requireAccount, blockedByViewer, assertAllocation, mutate });
+  const createTimeOffs = createTimeOffCreator({ get, requireAccount, blockedByViewer, assertResourceExists, mutate });
   const importSlice = createImportAction(set, get, createGuardedAction);
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
@@ -197,6 +227,7 @@ export function createStoreInternals(set: StoreApi<StoreState>["setState"], get:
     createGuardedAddAction,
     updateOwned,
     createAllocations,
+    createTimeOffs,
     importSlice,
   };
 }

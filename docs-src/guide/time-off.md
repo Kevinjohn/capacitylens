@@ -16,14 +16,42 @@ the same canvas as work, so capacity never has to be checked against a separate 
    person's row.
 2. Choose the person, start and end dates, and whether the entry is holiday, sick,
    unpaid or other.
-3. Add a short, single-line note if you need to — for example, "Conference" or a return
+3. Leave **Repeat** as **Doesn’t repeat**, or choose a weekly or monthly pattern and set
+   **Repeat until**. The preview shows every entry that will be created.
+4. Add a short, single-line note if you need to — for example, "Conference" or a return
    date. Notes are only visible to Admins and Owners; other roles see that time off
    exists without the detail. See
    [Roles and permissions](/getting-started/roles-and-permissions).
+5. Check the final date range in the preview, then click **Save**.
 
-![The Add time off form with Resource, Start, End and Type controls plus a compact single-line Note containing Conference](../screenshots/flows/timeoff_form.jpg)
+![The Add time off form previewing 13 entries repeating every four weeks through August 2027](../screenshots/flows/timeoff_form.jpg)
 
 ![The schedule with draw mode switched to Time off: work allocations dim and a holiday block is highlighted](../screenshots/flows/timeoff-draw.jpg)
+
+## Repeat personal time off
+
+Weekly repeats can run every one, two, three or four weeks. Monthly repeats can use the
+same calendar date or the last matching weekday. Same-date repeats keep their original
+anchor after a shorter month: 31 January becomes 28 February, then 31 March. For the
+last-weekday pattern, start on the last Friday of January and choose **Monthly on the
+last Friday** to avoid treating every fourth Friday as the last one. The start must
+already be that month's last matching weekday; CapacityLens never moves the first entry
+for you.
+
+**Repeat until** includes an occurrence that starts on the cutoff. A multi-day entry may
+therefore finish after it. The suggested cutoff is the final day of a twelve-calendar-month
+window: the starting month plus the following eleven months. This is also the latest
+allowed cutoff; you can choose an earlier date. Every repeat must create between 2 and
+54 entries.
+
+Each occurrence keeps the original whole-day calendar span. A Tuesday–Wednesday entry
+always remains two consecutive dates, even across weekends, holidays or non-working days.
+The preview and the saved entries use those same ranges. Overlapping time off is allowed
+and is not merged or skipped.
+
+Saving creates one undoable batch, but the entries are independent afterwards. Edit or
+delete one without changing the others. Repeat controls appear only while adding time off;
+editing an existing entry never regenerates its neighbours.
 
 ## Review current and upcoming time off
 

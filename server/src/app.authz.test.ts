@@ -1021,8 +1021,75 @@ function timeOffWriteFixture() {
   return { SENTINEL, stampedTimeOff, noteInDb, memberApp };
 }
 
+type TimeOffMemberApp = (role: Role) => Promise<{ app: FastifyInstance; db: Db; cookie: string }>;
+
+function batchTimeOff<T extends { id: string }>(app: FastifyInstance, cookie: string, rows: readonly T[]) {
+  return call(app, {
+    method: "POST",
+    url: "/api/batch",
+    payload: { ops: rows.map((row) => ({ method: "PUT", table: "timeOff", id: row.id, row })) },
+    headers: { cookie },
+  });
+}
+
+function timeOffNoteInDb(db: Db, id: string): unknown {
+  return (db.prepare(`SELECT note FROM timeOff WHERE id = ?`).get(id) as { note: unknown }).note;
+}
+
+function registerAuthorisedMultiRowTimeOffTest(memberApp: TimeOffMemberApp): void {
+  it.each(["owner", "admin"] as const)(
+    "%s multi-row batch PUT preserves an authorised note on every independent occurrence",
+    async (role) => {
+      const { app, db, cookie } = await memberApp(role);
+      const rows = [
+        timeOff({ id: `${role}-repeat-1`, accountId: "a1", resourceId: "r1", note: `${role}-note-1` }),
+        timeOff({ id: `${role}-repeat-2`, accountId: "a1", resourceId: "r1", note: `${role}-note-2` }),
+      ];
+
+      const response = await batchTimeOff(app, cookie, rows);
+
+      expect(response.statusCode).toBe(200);
+      for (const row of rows) expect(timeOffNoteInDb(db, row.id)).toBe(row.note);
+    },
+  );
+}
+
+function registerEditorMultiRowTimeOffTest(memberApp: TimeOffMemberApp): void {
+  it("editor multi-row batch creates entries but cannot inject a note into any new row", async () => {
+    const { app, db, cookie } = await memberApp("editor");
+    const rows = [
+      timeOff({ id: "editor-repeat-1", accountId: "a1", resourceId: "r1", note: "editor-secret-1" }),
+      timeOff({ id: "editor-repeat-2", accountId: "a1", resourceId: "r1", note: "editor-secret-2" }),
+    ];
+    const response = await batchTimeOff(app, cookie, rows);
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).not.toContain("editor-secret-1");
+    expect(response.body).not.toContain("editor-secret-2");
+    for (const row of rows) expect(timeOffNoteInDb(db, row.id)).toBeNull();
+  });
+}
+
+function registerViewerMultiRowTimeOffTest(memberApp: TimeOffMemberApp): void {
+  it("viewer multi-row batch cannot create entries", async () => {
+    const { app, db, cookie } = await memberApp("viewer");
+    const rows = [
+      timeOff({ id: "viewer-repeat-1", accountId: "a1", resourceId: "r1", note: "viewer-secret-1" }),
+      timeOff({ id: "viewer-repeat-2", accountId: "a1", resourceId: "r1", note: "viewer-secret-2" }),
+    ];
+    const response = await batchTimeOff(app, cookie, rows);
+
+    expect(response.statusCode).toBe(403);
+    for (const row of rows) expect(getRow(db, "timeOff", row.id)).toBeNull();
+  });
+}
+
 describe("P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note", () => {
   const { SENTINEL, stampedTimeOff, noteInDb, memberApp } = timeOffWriteFixture();
+  registerAuthorisedMultiRowTimeOffTest(memberApp);
+  registerEditorMultiRowTimeOffTest(memberApp);
+  registerViewerMultiRowTimeOffTest(memberApp);
+
   it("editor PUT of a redacted round-trip (no note key, edited dates) → 200 and the note SURVIVES", async () => {
     const { app, db, cookie } = await memberApp("editor");
     const res = await call(app, {

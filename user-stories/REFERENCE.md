@@ -436,6 +436,33 @@ The company section has its own **Add closure** button and empty state. It uses
 span. Closure rows have the same edit, confirm-delete and undo/redo behaviour and permissions as
 personal entries.
 
+**Repeat personal time-off creation.** New personal time-off forms opened from either **Add time
+off** or a drawn schedule range include a create-only **Repeat** dropdown with
+`data-testid="timeoff-repeat"`. It defaults to **Doesn’t repeat** and offers **Weekly**, **Every 2
+weeks**, **Every 3 weeks**, **Every 4 weeks**, **Monthly on day <day>** and **Monthly on the last
+<weekday>**, both derived from the initial start. Choosing the last-weekday option when the start is
+not that month's final matching weekday produces a field error; the original entry never moves.
+Choosing a cadence
+reveals a required **Repeat until** date with `data-testid="timeoff-repeat-until"`. Its suggested
+cutoff is the final day of the twelfth calendar month counting the initial month, clamped to
+9999-12-31. The suggestion follows start-date changes until the planner edits it. The cutoff may be
+earlier but never later than that horizon, is inclusive by occurrence start, and may therefore be
+before a multi-day final occurrence's end. A repeat must create at least two and at most 54 entries.
+Every occurrence preserves the original inclusive calendar-day duration, including weekends and
+holidays; invalid dates, a reversed range, a mismatched last-weekday start, an overflowing generated
+end or an invalid cutoff reject the whole draft without creating anything.
+
+The form shows the entry count and final occurrence's complete start–end range in
+`data-testid="timeoff-repeat-preview"`, plus an expandable list of every generated range in
+`data-testid="timeoff-repeat-ranges"`. Preview and save use the same generated drafts, including
+the optional note that permitted roles deliberately copy to every occurrence. Saving publishes all
+entries in one mutation and one undo/redo step; a repeated submit event from the same open form
+cannot create a second batch. The entries remain independent dated records with no series identity:
+each can be edited or deleted normally, and edits never regenerate siblings. The form explains this
+before save. Edit forms do not show repeat controls. Time off remains whole-day; working patterns do
+not move or filter its dates, and overlaps with existing time off remain permitted without merging,
+skipping or deduplication.
+
 **Company closures (#407, replacing #372's Everyone workflow).** The **Add closure** form contains
 only required `Name`, required `Start` and required `End`; Start and End share one full-width date
 row. Empty names and end-before-start ranges are rejected inline. One closure record covers every

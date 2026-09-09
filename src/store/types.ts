@@ -333,6 +333,9 @@ export interface StoreState {
   deleteAllocationSeriesFrom: (id: ID) => void;
 
   addTimeOff: (input: Draft<TimeOff>) => TimeOff;
+  /** Create a non-empty time-off batch in one mutation/history step. Every draft is validated before
+   * anything commits; a tenancy, resource or date-range failure throws and leaves state untouched. */
+  addTimeOffs: (inputs: readonly Draft<TimeOff>[]) => TimeOff[];
   updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void;
   deleteTimeOff: (id: ID) => void;
 
