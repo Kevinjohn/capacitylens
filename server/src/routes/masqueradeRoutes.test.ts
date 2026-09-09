@@ -2,6 +2,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession, PrincipalSummary, Role } from "@capacitylens/shared/account/types";
+import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import { MasqueradeRegistry, type MasqueradeRecord } from "../MasqueradeRegistry";
 import type { MasqueradeRouteDependencies } from "./masqueradeRoutes";
 import { registerMasqueradeRoutes } from "./masqueradeRoutes";
@@ -102,7 +103,16 @@ describe("masquerade route adapter authentication", () => {
       ).toBe(400);
     }
 
-    const missingSession = appFor({}, null);
+    let missingSessionAuditCount = 0;
+    const missingSession = appFor(
+      {
+        accountAudit: audit(() => {
+          missingSessionAuditCount += 1;
+          return true;
+        }),
+      },
+      null,
+    );
     expect(
       (
         await missingSession.app.inject({
@@ -113,6 +123,16 @@ describe("masquerade route adapter authentication", () => {
       ).statusCode,
     ).toBe(403);
     expect((await missingSession.app.inject({ method: "GET", url: "/api/masquerade" })).statusCode).toBe(401);
+    expect(
+      (
+        await missingSession.app.inject({
+          method: "DELETE",
+          url: "/api/masquerade",
+          payload: { token: "valid-token", reason: "explicit" },
+        })
+      ).statusCode,
+    ).toBe(204);
+    expect(missingSessionAuditCount).toBe(0);
 
     const authOff = appFor({ authMode: "off" });
     for (const request of [
@@ -146,11 +166,15 @@ describe("masquerade route adapter status", () => {
 
     const ended = appFor({ effectiveRole: () => ({ kind: "ended" }) });
     ended.registry.start(record(), () => undefined);
-    expect((await ended.app.inject({ method: "GET", url: "/api/masquerade" })).statusCode).toBe(403);
+    const endedStatus = await ended.app.inject({ method: "GET", url: "/api/masquerade" });
+    expect(endedStatus.statusCode).toBe(403);
+    expect(endedStatus.json()).toMatchObject({ code: MASQUERADE_ERROR_CODES.ended });
 
     const roleless = appFor({ effectiveRole: () => ({ kind: "resolved", role: null }) });
     roleless.registry.start(record(), () => undefined);
-    expect((await roleless.app.inject({ method: "GET", url: "/api/masquerade" })).statusCode).toBe(403);
+    const rolelessStatus = await roleless.app.inject({ method: "GET", url: "/api/masquerade" });
+    expect(rolelessStatus.statusCode).toBe(403);
+    expect(rolelessStatus.json()).toEqual({ error: "Forbidden." });
   });
 });
 
@@ -201,10 +225,13 @@ describe("masquerade route adapter start races and audit failures", () => {
         return true;
       },
     });
-    expect(
-      (await app.inject({ method: "POST", url: "/api/accounts/a1/masquerade", payload: { targetUserId: "target-1" } }))
-        .statusCode,
-    ).toBe(409);
+    const raced = await app.inject({
+      method: "POST",
+      url: "/api/accounts/a1/masquerade",
+      payload: { targetUserId: "target-1" },
+    });
+    expect(raced.statusCode).toBe(409);
+    expect(raced.json()).toMatchObject({ code: MASQUERADE_ERROR_CODES.active });
   });
 
   it("surfaces audit failures before either start or end transition", async () => {
