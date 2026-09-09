@@ -15,7 +15,7 @@ permissions:
   security-events: write
 
 concurrency:
-  group: codeql-${{ github.ref }}
+  group: codeql-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:

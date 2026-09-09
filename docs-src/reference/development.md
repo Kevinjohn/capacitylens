@@ -544,17 +544,18 @@ thread-pool reuse or a larger outer timeout.
 
 ### When CI runs
 
-No workflow is triggered by a pull request. Work still lands through one, but the checks
-run when the merge reaches `main`, plus their own weekly or monthly schedules. To see a
-green run before merging, dispatch the workflows against the branch:
+CodeQL analyzes every pull request targeting `main`. The other workflows run when the merge
+reaches `main`, plus their own weekly or monthly schedules. To see those gates green before
+merging, dispatch them against the branch:
 
 ```bash
 gh workflow run gate.yml --ref <branch>
 gh workflow run e2e.yml --ref <branch>
 ```
 
-Opening a pull request and pushing to its branch previously fired `gate`, `e2e`, `docker`,
-`security` and `CodeQL` on every event — several full passes per change. The local
+Opening a pull request and pushing to its branch previously fired `gate`, `e2e`, `docker` and
+`security` on every event — several full passes per change. CodeQL remains the deliberately
+smaller exception so static analysis covers every proposed commit. The local
 `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` are the fast feedback loop; CI
 is the record.
 
@@ -576,8 +577,9 @@ trace directory; failed jobs retain those artifacts for seven days, and the OIDC
 includes timestamped Dex logs. Docker Compose smoke tests stay separate so the README
 badges report independent status.
 
-CodeQL runs on `main` and its weekly schedule. OpenSSF Scorecard runs on `main` and
-weekly. The security workflow performs full-history secret scanning, dependency review,
+CodeQL runs on pull requests targeting `main`, on `main` itself and on its weekly schedule.
+Its commit-specific concurrency key preserves analysis for each revision even when changes arrive
+quickly. OpenSSF Scorecard runs on `main` and weekly. The security workflow performs full-history secret scanning, dependency review,
 source SBOM generation, container vulnerability scanning and two OWASP ZAP
 baselines. A separate release-only workflow packages each published tag, generates its SBOM,
 creates GitHub build attestations and attaches the artifacts plus the recognized
