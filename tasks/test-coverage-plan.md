@@ -135,6 +135,58 @@ disposition: `missing test`, `covered outside headline report`, `uncovered compo
 - Residual account-flow cases are confirmed before Tasks 7–9 are dispatched.
 - Threshold failure is evidence, not permission to edit thresholds.
 
+### P0 evidence record
+
+Recorded 2026-09-09 at revision `3c24277072398ca5b18e75cf0a2bcac28eb17b81` with Node
+`v24.19.0` and pnpm `11.4.0`.
+
+| Report                         | Exact command                                                                                                                                                                                                                                                                                                                                      |             Statements |             Branches |            Functions |                  Lines | Result                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------: | -------------------: | -------------------: | ---------------------: | -------------------------------------------------------- |
+| App and shared headline        | `pnpm run coverage`                                                                                                                                                                                                                                                                                                                                | 94.50% (12,142/12,848) | 89.46% (7,861/8,787) | 95.31% (3,522/3,695) | 96.47% (10,552/10,938) | 204 files and 3,767 tests passed; zero-file check passed |
+| Server headline                | `pnpm --filter capacitylens-server run test:coverage`                                                                                                                                                                                                                                                                                              |   89.96% (7,996/8,888) | 82.86% (4,728/5,706) | 93.95% (1,926/2,050) |   92.14% (7,188/7,801) | 95 files and 1,793 tests passed                          |
+| Account flows, separate report | `pnpm --filter capacitylens-server exec vitest run src/accounts/conformance/accountFlows.conformance.test.ts --config vitest.config.ts --pool=forks --no-file-parallelism --coverage --coverage.include='src/accounts/flows/**/*.ts' --coverage.reporter=text-summary --coverage.reporter=lcov --coverage.reportsDirectory=coverage-account-flows` |       84.53% (328/388) |     67.64% (115/170) |      85.21% (98/115) |       86.74% (314/362) | One file and 44 tests passed; CLI arguments accepted     |
+
+The account-flow figures are an isolated measurement of a suite excluded from the server headline
+report. They are not combined with or averaged into the server figures.
+
+#### Gap dispositions
+
+| Item                                    | Disposition                                                  | Existing evidence or confirmed residual                                                                                                                                                                                                              |
+| --------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Task 1, OAuth callback redirect         | Missing test                                                 | No test calls `createErrorRedirect`; all listed validation, trust and storage-failure branches remain in scope.                                                                                                                                      |
+| Task 2, permission races                | Missing test                                                 | Existing `PermissionProvider.test.tsx` cases cover initial pending/failure, refresh and generation invalidation, but not cross-account stale completion/rejection, immediate fail-closed state or malformed/absent membership results.               |
+| Task 3, scoped data                     | Missing test                                                 | `multitenancy.test.ts` exercises direct scoping for clients and projects only; hook behaviour, all collections and projection-reference stability remain in scope.                                                                                   |
+| Task 4, identity policy and guards      | Missing test                                                 | `policy.test.ts` covers lower-level standing and preserves the four-argument arity assertion, but not the action dispatcher. The deployment-profile and SSO-reason runtime guards lack direct positive and negative tests.                           |
+| Task 5, SSO readiness parser            | Missing test                                                 | No test directly exercises `parseWorkspaceReadiness` or `resolveReadinessMemberLabel`.                                                                                                                                                               |
+| Task 6, focus recovery                  | Missing test                                                 | No test directly exercises `restoreFocus`.                                                                                                                                                                                                           |
+| Task 6, scheduler view                  | Uncovered composition boundary                               | Toolbar and grid have individual tests, but no test mounts their real composition and asserts user-facing output from both.                                                                                                                          |
+| Tasks 7–9, account flows                | Covered outside headline report, with residual missing tests | The isolated conformance suite covers the cases cited below. Only the confirmed residuals are dispatched.                                                                                                                                            |
+| Task 10, masquerade adapter             | Missing test                                                 | `app.masquerade.test.ts` covers the authentication integration, but the listed route-adapter validation, fallback, race and audit-failure branches remain.                                                                                           |
+| Task 11, server runtime                 | Uncovered composition boundary                               | Shutdown helpers have tests; `serverRuntime` wiring, startup cleanup and event forwarding do not.                                                                                                                                                    |
+| Task 12, import worker                  | Uncovered composition boundary                               | `runImportWorker.test.ts` covers queue/cancellation behaviour but imports the worker module only as a type, leaving its protocol boundary unexecuted.                                                                                                |
+| Task 13, SSO cutover preflight          | Uncovered composition boundary                               | Lower-level readiness and selected real-database failures are covered; dependency mapping and fail-fast composition remain.                                                                                                                          |
+| Task 14, v33 migration helper           | Missing test                                                 | Existing migration tests reach v33 indirectly but do not cover its missing-column refusal, nullable no-op or rebuild preservation branches.                                                                                                          |
+| Task 14, v34 migration helper           | Covered outside the proposed new file                        | `db.migrate.test.ts` already proves v34 filtering, indexes, triggers, foreign keys, constraints and closures. No duplicate v34 case will be added.                                                                                                   |
+| Coverage floors and zero-file allowlist | Policy/documentation issue                                   | Documentation reports app/shared floors of 84/78/85/86 while configuration enforces 92/87/92/94; server enforces 87/80/90/89 without an equivalent table. `SchedulerView` is one of three exact zero-file exceptions. Wave 6 owns these corrections. |
+
+#### Confirmed account-flow residuals
+
+- Task 7 retains all three candidates. Existing admission coverage stops before provisional creation;
+  contract-error compensation tests do not exercise a non-contract fallback code; and no invite
+  test makes terminal-outcome persistence fail while asserting preservation of the original claim
+  and compensation evidence.
+- Task 8 adds `VALIDATION_FAILED` and `UNSUPPORTED_CAPABILITY` beside the existing `NOT_FOUND`
+  no-ceremony case; a post-ceremony failure with ceremony-ID/no-token reconciliation metadata; a
+  failed reservation or issuance followed by proof that capacity was released; and exactly-once
+  durable completion and success audit. The changed-authority replay case is already covered by
+  `rechecks current authority before replaying a write-once password-reset token` and will be cited,
+  not duplicated.
+- Task 9 retains successful sign-in tracking cleanup and audit, completed replay idempotency, the
+  pre-revocation authority-failure compensated outcome, and terminal-persistence preservation. The
+  post-start reconciliation-required branch is already covered by
+  `records unknown reset and session-revocation outcomes for operator repair` and will be cited,
+  not duplicated.
+
 ## Test packets
 
 ### Task 1: OAuth callback error redirect
