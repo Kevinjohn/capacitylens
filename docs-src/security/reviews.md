@@ -1,6 +1,6 @@
 ---
 title: Reviews and compliance
-description: An index of CapacityLens's dated security review, threat model, control inventories, ASVS ledger and mutation-testing reviews.
+description: An index of CapacityLens's security reviews, threat model, control inventories, ASVS ledger and OpenSSF Baseline assessment.
 ---
 
 # Reviews and compliance
@@ -17,6 +17,12 @@ Dated 2026-08-18 for alpha4. Every one of the 345 requirements in the OWASP Appl
 Verification Standard 5.0.0 (covering Levels 1 to 3), assessed as Pass, Partial, Gap or Not
 Applicable, with the repository evidence behind each one. Read this when you need to check a
 specific control by ASVS requirement id, or want the complete picture rather than a summary.
+
+## [OpenSSF Baseline self-assessment](/security/OpenSSF-best-practices-dev)
+
+Dated 2026-09-09. Answers every control in OpenSSF Baseline Levels 1–3 with repository evidence,
+including explicit unmet controls instead of treating configured tools as proof of enforcement.
+Read this when completing or checking the project's public OpenSSF badge entry.
 
 ## [Security review — 2026-08-18](/security/security-review-2026-08-18)
 

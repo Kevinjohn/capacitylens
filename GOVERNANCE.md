@@ -2,6 +2,15 @@
 
 CapacityLens is currently a maintainer-led project.
 
+## Maintainers and sensitive access
+
+- Kevinjohn Gallagher (GitHub: [@Kevinjohn](https://github.com/Kevinjohn)) is the project maintainer
+  and repository administrator. This role holds merge, release, repository-settings and private
+  vulnerability-report access.
+
+No other project member currently holds sensitive repository access. Changes to this list and to
+the responsibilities attached to access are recorded here.
+
 The maintainer sets product direction, reviews pull requests, manages releases and handles the
 security response. Decisions are guided by the documented product boundary, user safety,
 maintainability and evidence from tests or real use. Discussion is welcome; merge authority remains
