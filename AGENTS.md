@@ -177,6 +177,14 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   visual correctness. Shared chrome and layout changes invalidate every capture that
   contains them, so the stale set is usually far larger than it looks.
 
+## Docker
+
+- Do not build or run Docker images, test in Docker, or change or maintain Dockerfiles, Compose
+  configurations, Docker tests or Docker workflows unless the user explicitly requests that
+  Docker work. This applies during releases too: a release request alone is not Docker
+  authorisation. Use native local development and validation by default; existing Docker support
+  does not make Docker work part of routine changes.
+
 ## Validation environment
 
 - Run focused tests during implementation. Select submission checks using “Green gate” below.
