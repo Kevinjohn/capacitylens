@@ -319,7 +319,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         prepared = await restoreDrainTarget({ state: this.state, target, prepared: initialTarget, targetSeedGen });
       }
       if (!prepared) continue;
-      // Lifecycle-entity deletes (clients/projects/resources) CANNOT ride the atomic batch — the
+      // Lifecycle-entity deletes (clients/projects/resources/activities) CANNOT ride the atomic batch — the
       // server 400-rejects them, which would poison the whole batch and permanently strand every
       // later edit re-including the poisoned op. Split them out and converge them by ARCHIVING through
       // the dedicated archive route AFTER the batch (see archiveLifecycleRow for the archive-only

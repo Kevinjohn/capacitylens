@@ -236,9 +236,8 @@ test("restores an archived attributed project and preserves it through a drag", 
     .getByRole("alertdialog", { name: "Archive project?" })
     .getByRole("button", { name: "Archive", exact: true })
     .click();
-  await page.getByRole("link", { name: "Settings" }).click();
-  await page.getByRole("button", { name: "Archived & deleted", exact: true }).click();
   await page
+    .getByTestId("archived-projects-section")
     .getByTestId("archived-row")
     .filter({ hasText: "Project Watchtower" })
     .getByRole("button", { name: "Restore Project Watchtower" })
@@ -269,7 +268,7 @@ test("project purge clears attribution without deleting the shared booking", asy
   await page.getByRole("link", { name: "Schedule" }).click();
   await expect(page.getByTestId("allocation-bar").filter({ hasText: "Shared Planning" })).toHaveCount(0);
   await page.getByRole("link", { name: "Settings" }).click();
-  await page.getByRole("button", { name: "Archived & deleted", exact: true }).click();
+  await page.getByRole("button", { name: "Deleted items", exact: true }).click();
   const projectRow = page.getByTestId("deleted-row").filter({ hasText: "Old Project" });
   await projectRow.getByTestId("archived-purge").click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete permanently", exact: true }).click();

@@ -109,6 +109,7 @@ function sanitizeActivity(record: Record<string, unknown>): void {
   cleanRequiredField(record, "name", "Untitled");
   const defaultKind = record.projectId !== undefined ? "project" : "repeatable";
   record.kind = oneOf(record.kind, VALID_ACTIVITY_KIND, defaultKind);
+  repairLifecycleFieldsInPlace(record);
 }
 
 /** Project one imported scoped record onto its declared schema, then repair constrained values in

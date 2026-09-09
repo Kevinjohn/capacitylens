@@ -212,6 +212,11 @@ export interface Activity extends ScopedEntity {
    *  allocations may carry their own project attribution. */
   projectId?: ID;
   phaseId?: ID;
+  /** ISO 8601 timestamp of when this activity was archived (soft, reversible): hidden from
+   *  scheduling but fully retained. Absent = active (not archived). */
+  archivedAt?: ISOTimestamp;
+  /** ISO 8601 timestamp of the soft-delete tombstone. Absent = not deleted. */
+  deletedAt?: ISOTimestamp;
 }
 
 export interface Allocation extends ScopedEntity {
@@ -291,8 +296,9 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
  *  adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
  *  TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone; v17
  *  separates company closures into their own table and restores required TimeOff.resourceId; v18
- *  adds optional per-allocation project attribution for repeatable activities.) */
-export const EXPORT_SCHEMA_VERSION = 18;
+ *  adds optional per-allocation project attribution for repeatable activities; v19 adds optional
+ *  Activity lifecycle tombstones archivedAt/deletedAt.) */
+export const EXPORT_SCHEMA_VERSION = 19;
 
 export interface PersistedState {
   schemaVersion: number;

@@ -4,7 +4,7 @@ import { FALLBACK_PRESET_COLOR, snapToPresetColor } from "./color";
 import { SCOPED_KEYS } from "../types/entities";
 import { softDelete } from "../domain/lifecycle";
 
-type LifecycleKey = "resources" | "clients" | "projects";
+type LifecycleKey = "resources" | "clients" | "projects" | "activities";
 
 describe("sanitizeImportedRecord", () => {
   registerImportedRecordBasics();
@@ -375,10 +375,10 @@ function registerImportedLifecycleTests(): void {
 }
 
 // Lifecycle timestamps (archivedAt / deletedAt — P2.1) are optional ISO strings on
-// resources / clients / projects; a valid string is kept, anything non-string is dropped
-// (its absence reads back as active / not-deleted). Inert plumbing today.
+// resources / clients / projects / activities; a valid string is kept, anything non-string is
+// dropped (its absence reads back as active / not-deleted).
 function registerImportedLifecycleSuites(): void {
-  describe.each(["resources", "clients", "projects"] as const)("%s lifecycle timestamps (P2.1)", (key) => {
+  describe.each(["resources", "clients", "projects", "activities"] as const)("%s lifecycle timestamps", (key) => {
     registerLifecycleTimestampBasics(key);
     registerLifecycleTimestampOrdering(key);
   });

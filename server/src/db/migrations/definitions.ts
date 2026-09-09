@@ -92,6 +92,14 @@ export const V22_DEFINITION = [
   "mutation:clear archivedAt/deletedAt and advance updatedAt past both its previous value and the migration clock",
 ].join("\n");
 
+/** v36 adds Activity lifecycle tombstones. Kept as a standalone manifest so the migration ledger
+ * checksum covers both optional columns and the idempotent repair guard. */
+export const ACTIVITY_LIFECYCLE_V36_DEFINITION = [
+  "guard:PRAGMA table_info(activities):archivedAt/deletedAt-missing",
+  "ALTER TABLE activities ADD COLUMN archivedAt TEXT;",
+  "ALTER TABLE activities ADD COLUMN deletedAt TEXT;",
+].join("\n");
+
 // The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
 // checksum, so the definition can never drift from what actually runs.
 const TIME_OFF_REBUILD_V33_SQL = `

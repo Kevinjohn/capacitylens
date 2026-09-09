@@ -9,10 +9,11 @@ import { readApiError } from "../lib/readApiError";
 import { m } from "@/i18n";
 import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
+import { notifyInactiveDataChanged } from "../data/inactiveDataEvents";
 
 // The SINGLE dispatch seam for the Active → Archived → Soft-deleted → Purged data-lifecycle (P2.5b),
 // shared by BOTH the management lists' Archive affordance (ResourceList/ClientList/ProjectList) and
-// the Settings → "Archived & deleted" admin view (ArchivedSection). Extracted so the server/local
+// the inline archive sections and Settings deleted-items view. Extracted so the server/local
 // branch + the post-mutation reload live in ONE place rather than being duplicated across four call
 // sites.
 //
@@ -247,7 +248,10 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return;
       const reloaded = await dispatchServerLifecycle({ activeAccountId, setNotice }, { verb, entity, id });
-      if (reloaded) onReloaded?.();
+      if (reloaded) {
+        notifyInactiveDataChanged(activeAccountId);
+        onReloaded?.();
+      }
     },
     [activeAccountId, setNotice, onReloaded],
   );

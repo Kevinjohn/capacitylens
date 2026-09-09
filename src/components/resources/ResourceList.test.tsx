@@ -423,7 +423,7 @@ describe("ResourceList display", () => {
 });
 
 // P2.5b: the per-row "Delete" affordance now ARCHIVES (the simplest coherent flow — soft-delete is
-// reached LATER from Settings → Archived & deleted on an archived row). DEMO build here, so the
+// reached LATER from the inline archive section on an archived row). DEMO build here, so the
 // archive affordance dispatches the store's archiveEntity directly (no fetch, no reload): the row
 // gets `archivedAt` set (still in `data`) and vanishes from this list (which reads
 // useActiveScopedData → active-only). The button + confirm copy read "Archive". Server is the app
@@ -452,7 +452,7 @@ describe("ResourceList archive flow", () => {
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
-  it("archives a resource after confirming (kept in data, hidden from the list)", async () => {
+  it("archives a resource after confirming and shows it below the active sections", async () => {
     const user = userEvent.setup();
     useStore.getState().addResource(personDraft("Alice"));
     render(<ResourceList />);
@@ -461,10 +461,11 @@ describe("ResourceList archive flow", () => {
     const dialog = screen.getByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
-    // Still in the data (archived, not destroyed) but hidden from the active-only list.
+    // Still in the data and immediately recoverable below the active-only list.
     expect(useStore.getState().data.resources).toHaveLength(1);
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
-    expect(screen.queryByText("Alice")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("resource-row")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("archived-resources-section")).getByText("Alice")).toBeInTheDocument();
   });
 });
 
@@ -497,7 +498,8 @@ describe("ResourceList archive flow", () => {
     );
     expect(bob.archivedAt).toBeTruthy();
     expect(screen.getByText("Alice")).toBeInTheDocument();
-    expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+    expect(screen.getAllByTestId("resource-row")).toHaveLength(1);
+    expect(within(screen.getByTestId("archived-resources-section")).getByText("Bob")).toBeInTheDocument();
   });
 });
 
@@ -517,7 +519,8 @@ describe("ResourceList archive flow", () => {
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
-    expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("resource-row")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("archived-resources-section")).getByText("Bob")).toBeInTheDocument();
   });
 
   it("archives a placeholder resource", async () => {

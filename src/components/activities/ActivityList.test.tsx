@@ -5,6 +5,7 @@ import type { ComponentProps } from "react";
 import { ActivityList } from "./ActivityList";
 import { useStore } from "../../store/useStore";
 import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "../../test/fixtures";
+import { MemoryRouter } from "react-router-dom";
 
 beforeEach(() => resetStoreWithAccount());
 
@@ -120,8 +121,8 @@ describe("ActivityList", () => {
 
     expect(screen.getByRole("button", { name: "Edit Planning" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Edit Operations" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Planning" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Delete Operations" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive Planning" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Archive Operations" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
   });
 
@@ -211,26 +212,40 @@ describe("ActivityList", () => {
   });
 
   it("hides an activity under an archived project", () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
     useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
     useStore.getState().archiveEntity("projects", project.id);
 
-    render(<ActivityList />);
+    render(
+      <MemoryRouter>
+        <ActivityList />
+      </MemoryRouter>,
+    );
 
-    expect(screen.queryByText("My Activity")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("archived-activities-section")).getByText("My Activity")).toBeInTheDocument();
+    expect(screen.getByText("Hidden because Project Lightning is archived.")).toBeInTheDocument();
     expect(screen.queryByTestId("project-specific-activities")).not.toBeInTheDocument();
+    vi.unstubAllEnvs();
   });
 
   it("hides an activity whose project belongs to an archived client", () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
     useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
     useStore.getState().archiveEntity("clients", client.id);
 
-    render(<ActivityList />);
+    render(
+      <MemoryRouter>
+        <ActivityList />
+      </MemoryRouter>,
+    );
 
-    expect(screen.queryByText("My Activity")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("archived-activities-section")).getByText("My Activity")).toBeInTheDocument();
+    expect(screen.getByText("Hidden because Client Acme is archived.")).toBeInTheDocument();
+    vi.unstubAllEnvs();
   });
 
   // An unresolvable projectId means different things per mode (mirrors ProjectList's clientName
@@ -280,7 +295,8 @@ describe("ActivityList", () => {
     vi.unstubAllEnvs();
   });
 
-  it("confirms before deleting and removes the activity from the list", async () => {
+  it("confirms before archiving and shows the activity in its archive section", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
     const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
     const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
@@ -289,49 +305,51 @@ describe("ActivityList", () => {
 
     expect(screen.getByTestId("activity-row")).toBeInTheDocument();
 
-    // Click Delete on the activity row — a confirm dialog appears
-    await user.click(screen.getByRole("button", { name: "Delete My Activity" }));
+    await user.click(screen.getByRole("button", { name: "Archive My Activity" }));
     const dialog = screen.getByRole("alertdialog");
-    expect(dialog).toHaveTextContent(/Delete activity\?/i);
+    expect(dialog).toHaveTextContent(/Archive activity\?/i);
 
     // Cancel keeps the activity
     await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(useStore.getState().data.activities).toHaveLength(1);
 
-    // Confirm removes the activity
-    await user.click(screen.getByRole("button", { name: "Delete My Activity" }));
-    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete" }));
+    await user.click(screen.getByRole("button", { name: "Archive My Activity" }));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Archive" }));
 
-    expect(useStore.getState().data.activities).toHaveLength(0);
+    expect(useStore.getState().data.activities).toHaveLength(1);
+    expect(useStore.getState().data.activities[0]?.archivedAt).toBeTruthy();
     expect(screen.queryByTestId("activity-row")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("archived-activities-section")).getByText("My Activity")).toBeInTheDocument();
+    vi.unstubAllEnvs();
   });
 
-  it("keeps deletion open and surfaces a store integrity failure", async () => {
+  it("surfaces an archive integrity failure without removing the activity", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
     const activity = useStore.getState().addActivity({ name: "Internal sync", kind: "internal" });
-    const originalDelete = useStore.getState().deleteActivity;
+    const originalArchive = useStore.getState().archiveEntity;
     useStore.setState({
-      deleteActivity: () => {
+      archiveEntity: () => {
         throw new Error("Stored activity is inconsistent.");
       },
     });
     try {
       render(<ActivityList />);
       await user.click(
-        within(screen.getByTestId("activity-row")).getByRole("button", { name: "Delete Internal sync" }),
+        within(screen.getByTestId("activity-row")).getByRole("button", { name: "Archive Internal sync" }),
       );
       const dialog = screen.getByRole("alertdialog");
 
-      await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+      await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
-      expect(dialog).toBeInTheDocument();
       expect(useStore.getState().data.activities).toContainEqual(activity);
       expect(useStore.getState().notice).toMatchObject({
         message: "Stored activity is inconsistent.",
         tone: "error",
       });
     } finally {
-      useStore.setState({ deleteActivity: originalDelete });
+      useStore.setState({ archiveEntity: originalArchive });
+      vi.unstubAllEnvs();
     }
   });
 

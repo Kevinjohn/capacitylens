@@ -106,6 +106,11 @@ const V35_MIGRATION = {
   name: "add-allocation-project-id",
   checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
 } as const;
+const V36_MIGRATION = {
+  version: 36,
+  name: "add-activity-lifecycle",
+  checksum: "84f944631288597d07740bd183ae549486c68dd642c001bced8108bc1c11b1f2",
+} as const;
 const RELEASED_MIGRATION_HISTORY = [
   {
     version: 8,
@@ -207,6 +212,7 @@ const RELEASED_MIGRATION_HISTORY = [
   V33_MIGRATION,
   V34_MIGRATION,
   V35_MIGRATION,
+  V36_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -224,6 +230,7 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V33_MIGRATION,
   V34_MIGRATION,
   V35_MIGRATION,
+  V36_MIGRATION,
 ] as const;
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34] as const;
@@ -448,6 +455,10 @@ function dropAllocationProjectAttribution(db: DatabaseSync): void {
   `);
 }
 
+function dropActivityLifecycleColumns(db: DatabaseSync): void {
+  db.exec("ALTER TABLE activities DROP COLUMN archivedAt; ALTER TABLE activities DROP COLUMN deletedAt;");
+}
+
 function prepareV14ResetCeremonyFixture(path: string): void {
   const db = openDb(path);
   insertRow(db, "accounts", {
@@ -479,6 +490,7 @@ function prepareV14ResetCeremonyFixture(path: string): void {
   db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
   db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
   dropAllocationProjectAttribution(db);
+  dropActivityLifecycleColumns(db);
   db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
   db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
   db.exec(`PRAGMA user_version = 13`);
@@ -503,6 +515,7 @@ function prepareV16AccountViewPreferencesFixture(path: string): void {
   db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
   db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
   dropAllocationProjectAttribution(db);
+  dropActivityLifecycleColumns(db);
   db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
   db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
   db.exec(`PRAGMA user_version = 15`);
@@ -522,6 +535,7 @@ function rollBackCurrentDatabaseToV25(db: DatabaseSync): void {
     DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 26;
     PRAGMA user_version = 25;
   `);
+  dropActivityLifecycleColumns(db);
 }
 
 function assertPresentAccountViewPreferences(db: Db): void {
@@ -939,6 +953,7 @@ describe("schema migration of an existing on-disk DB", () => {
       db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
       db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
       dropAllocationProjectAttribution(db);
+      dropActivityLifecycleColumns(db);
       db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
       db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`);
       db.exec(`PRAGMA user_version = 12`);
@@ -1680,7 +1695,9 @@ describe("schema migration of an existing on-disk DB", () => {
         },
       }) as Db;
 
-      expect(plannedBeforeWinner).toEqual([17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]);
+      expect(plannedBeforeWinner).toEqual([
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
+      ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
       expect(
@@ -1711,7 +1728,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
-      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -1886,6 +1903,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V33_MIGRATION,
       V34_MIGRATION,
       V35_MIGRATION,
+      V36_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -1973,7 +1991,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2032,6 +2050,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V33_MIGRATION,
       V34_MIGRATION,
       V35_MIGRATION,
+      V36_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2082,6 +2101,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V33_MIGRATION,
       V34_MIGRATION,
       V35_MIGRATION,
+      V36_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2139,6 +2159,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V33_MIGRATION,
       V34_MIGRATION,
       V35_MIGRATION,
+      V36_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2179,6 +2200,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V33_MIGRATION,
       V34_MIGRATION,
       V35_MIGRATION,
+      V36_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2403,6 +2425,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V33_MIGRATION,
       V34_MIGRATION,
       V35_MIGRATION,
+      V36_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(
@@ -2483,6 +2506,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V33_MIGRATION,
       V34_MIGRATION,
       V35_MIGRATION,
+      V36_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2617,12 +2641,45 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
+function registerActivityLifecycleMigrationTest(): void {
+  it("v36 adds Activity lifecycle tombstones and preserves existing rows", () => {
+    const db = openDb(":memory:");
+    seedIfUninitialized(db, seed());
+    const before = readState(db);
+    const activityBefore = before.activities.find(({ id }) => id === "t-wires");
+    const allocationsBefore = before.allocations.filter(({ activityId }) => activityId === "t-wires");
+    expect(activityBefore).toBeDefined();
+    expect(allocationsBefore.length).toBeGreaterThan(0);
+    db.exec(`
+      ALTER TABLE activities DROP COLUMN archivedAt;
+      ALTER TABLE activities DROP COLUMN deletedAt;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 36;
+      PRAGMA user_version = 35;
+    `);
+    expect(planDatabaseMigrations(db).migrations).toEqual([V36_MIGRATION]);
+    initializeOpenDb(db, ":memory:");
+    expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "archivedAt", type: "TEXT", notnull: 0 }),
+        expect.objectContaining({ name: "deletedAt", type: "TEXT", notnull: 0 }),
+      ]),
+    );
+    expect(planDatabaseMigrations(db).migrations).toEqual([]);
+    const after = readState(db);
+    expect(after.activities.find(({ id }) => id === "t-wires")).toEqual(activityBefore);
+    expect(after.allocations.filter(({ activityId }) => activityId === "t-wires")).toEqual(allocationsBefore);
+    db.close();
+  });
+}
+
+describe("schema migration of an existing on-disk DB", registerActivityLifecycleMigrationTest);
+
 describe("schema migration of an existing on-disk DB", () => {
   it("v35 adds allocation project attribution with its FK, tenant guards and child index", () => {
     const copied = copyFixture("v34-off.db");
     try {
       const db = openDbConnection(copied.path);
-      expect(planDatabaseMigrations(db).migrations).toEqual([V35_MIGRATION]);
+      expect(planDatabaseMigrations(db).migrations).toEqual([V35_MIGRATION, V36_MIGRATION]);
       initializeOpenDb(db, copied.path);
 
       expect(

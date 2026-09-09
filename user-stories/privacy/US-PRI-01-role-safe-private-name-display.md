@@ -29,7 +29,7 @@ activity and allocation under the project. The account also has an admin, editor
    their network response from `GET /api/state?accountId=…`.
 3. As an admin/editor, open an allowed edit form for a private row. As a viewer, confirm the normal
    whole-app read-only rules still remove edit affordances.
-4. Archive a private row as a permitted role and inspect **Settings → Archived & deleted** and its
+4. Archive a private row as a permitted role and inspect its inline **Archived clients/projects** section and
    confirmation dialogs.
 
 ## Acceptance criteria

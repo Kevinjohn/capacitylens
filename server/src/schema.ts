@@ -10,6 +10,7 @@ import {
   V32_TABLES,
   V33_TABLES,
   V34_TABLES,
+  V35_TABLES,
   V8_TABLES,
   V9_TABLES,
 } from "./schema/historicalSpecs";
@@ -73,6 +74,11 @@ export function assertSchemaV33(db: Db): void {
 /** Assert the released v34 shape before allocation project attribution exists. */
 export function assertSchemaV34(db: Db): void {
   assertSchemaVersion(db, V34_TABLES, true);
+}
+
+/** Assert the released v35 shape before Activity lifecycle tombstones are added. */
+export function assertSchemaV35(db: Db): void {
+  assertSchemaVersion(db, V35_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

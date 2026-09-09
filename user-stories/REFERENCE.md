@@ -167,7 +167,7 @@ that section. Unknown extensionless URLs still reach the in-app
 **Page not found** screen; missing asset and API paths remain real HTTP errors.
 
 The **Import & export** card (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
-near the bottom of Settings, below **Archived & deleted** and above the compact account-options
+near the bottom of Settings, below **Deleted items** and above the compact account-options
 summary. It used to be a "Data" section in the sidebar; it moved because a full-slice export or
 replacement is a rare administrative act that does not warrant permanent navigation real estate.
 In an authenticated
@@ -1193,9 +1193,11 @@ frozen, P1.14),
 whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
 or under auth-on the caller lacks owner/admin standing on any account),
 `clear-local-storage` (Settings → Device data danger button; opens a destructive confirm),
-`archived-section` (Settings → Archived & deleted; shows in local mode and for admins on an auth-on
-server, self-hidden on a 403), `archived-row` (one per archived resource/client/project; carries a
-**Restore <name>** + **Delete <name>** button), `deleted-row` (one per soft-deleted tombstone; carries
+`archived-resources-section`, `archived-clients-section`, `archived-projects-section` and
+`archived-activities-section` (expanded sections below their active management lists; shown in local
+mode and to owners/admins on an auth-on server), `archived-row` (one per directly archived row;
+carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Settings → Deleted items),
+`deleted-row` (one per soft-deleted tombstone; carries
 `archived-purge` — the **Permanently delete <name>** button, disabled with a locked hint until the
 30-day grace elapses, purge-tier/admin-only),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
@@ -1304,26 +1306,26 @@ multiple).
   tab (with a labelled question-mark explainer modal + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
   their data is kept. The old standalone `/external` route now **redirects to `/resources`**.
-- **Archived & soft-deleted resources/clients/projects are hidden from all normal views** (the
-  scheduler, the management lists, the forms' option-pickers, and the command palette) — they remain
-  in the DB **and in export**, and surface in the **admin "Archived & deleted" view** (P2.4/P2.5).
+- **Archived & soft-deleted resources/clients/projects/activities are hidden from scheduling,
+  active list sections, form option-pickers and the command palette** — they remain in the DB **and
+  in export**. Archived rows surface in the owner/admin section at the bottom of their management
+  page; soft-deleted rows surface under **Settings → Deleted items**.
   A non-active entity is one with `archivedAt` set (archived) or `deletedAt` set (soft-deleted); the
   hide is applied by the shared `activeOnly` projection in both the client view seam
   (`useActiveScopedData`) and the server per-account read (`GET /api/state?accountId=` →
   `includeInactive:false`). The tester-facing affordances are: each management list's **per-row
-  archive** action (Resources / Clients / Projects — see below) and the **Settings → Archived &
-  deleted** admin view (see below) that restores / deletes / permanently-deletes them. The server
+  archive** action (Resources / Clients / Projects / Activities — see below), inline archive sections
+  that restore or soft-delete them, and **Settings → Deleted items**, which permanently deletes them. The server
   lifecycle routes (below) enforce the same machine server-side. The **"archived vanishes"
   end-to-end story is `e2e/archived.spec.ts`** (LOCAL mode).
 
 ### List archive affordance (P2.5b)
 
-On the **Resources**, **Clients** and **Projects** management lists, the per-row destructive action
-is **Archive** (not a hard delete — the simplest coherent flow; soft-delete + permanent delete are
-reached later from Settings → Archived & deleted). The row's icon button has the accessible name
+On the **Resources**, **Clients**, **Projects** and **Activities** management lists, the per-row destructive action
+is **Archive**. The row's icon button has the accessible name
 **"Archive <name>"** (e.g. _Archive Barry Rivera_); clicking it opens a confirm dialog (title
 **"Archive resource?" / "Archive client?" / "Archive project?"**, body _"Archive '<name>'? … You can
-restore it or permanently delete it from Settings → Archived & deleted."_, confirm button
+restore it from the archived section below this list."_, confirm button
 **"Archive"**). Confirming hides the row from the list **and** from the schedule (it becomes
 archived), but the record + its children are **retained** (archiving is reversible, unlike the old
 cascade-delete). Client and project confirmations count the projects, phases and allocations the
@@ -1333,21 +1335,23 @@ the row POSTs `POST /api/:entity/:id/archive {accountId}` and reloads the active
 button (it's hidden from the Clients list and the store/server backstop it). Hook:
 `src/hooks/useLifecycleActions.ts` (the shared server/local dispatch).
 
-### Settings → Archived & deleted (P2.5b)
+### Inline archives and Settings → Deleted items
 
-Settings gains an **"Archived & deleted"** section (heading `Archived & deleted`,
-`data-testid="archived-section"`) — the admin view of the data-lifecycle, the counterpart to the
-normal active-only views. Its independent disclosure is closed by default. Unlike Members it **also
-shows in LOCAL mode** (everyone is owner locally);
+Each management page ends with an expanded **Archived resources/clients/projects/activities** section
+for owners and administrators. Resources places it after External. Directly archived rows offer
+Restore and Delete. Active descendants hidden by an archived client or project explain that ancestry
+and link to the controlling parent's archived section instead of presenting a false independent
+archive action. In LOCAL mode everyone has owner access;
 in **server mode** it self-gates by trying the `GET /api/state?accountId=…&includeInactive=1` read and
 rendering **nothing** if the server replies **403** (a non-admin — the inactive read is purge-tier).
 The inactive-row **source** is the store (`useInactiveScopedData`) in local mode and that
-`includeInactive=1` fetch in server mode. Rows are partitioned into two groups:
+`includeInactive=1` fetch in server mode. Server inactive data stays outside the ordinary store so it
+cannot leak into scheduling or persistence. Each successful lifecycle action refetches this source.
 
-- **Archived** (`data-testid="archived-row"`, one per archived resource/client/project) — each shows
-  the entity name + a type tag (Resource / Client / Project) and two actions: **Restore** (aria
+- **Archived** (`data-testid="archived-row"`, one per archived resource/client/project/activity) — each shows
+  the entity name and two actions: **Restore** (aria
   _"Restore <name>"_ → unarchive, back to active) and **Delete** (aria _"Delete <name>"_ → a confirm
-  dialog _"Delete this item?"_, then soft-delete: it moves to the Deleted group and a resource's name
+  dialog _"Delete this item?"_, then soft-delete: it moves to Settings → Deleted items and a resource's name
   is scrubbed to _"Removed person #…"_).
 - **Deleted** (`data-testid="deleted-row"`, one per soft-deleted tombstone) — shows the (for a
   resource, already-obfuscated _"Removed person #…"_) name + type tag and a **Delete permanently**
@@ -1357,7 +1361,7 @@ The inactive-row **source** is the store (`useInactiveScopedData`) in local mode
   permanently"_) is required. The permanent-delete button is **purge-tier (admin+)**: it is shown only
   when the caller may purge (always in OFF/local; admin+ on an auth-on server) — the server 403 is the
   backstop. There is **no Restore on a tombstone**. An **empty state** (_"Nothing archived or
-  deleted."_) shows when nothing is inactive. The component is
+  deleted."_) shows when nothing is deleted. The Settings component is
   `src/components/settings/ArchivedSection.tsx`; spec `e2e/archived.spec.ts`.
 
 ### Generic scoped write privacy

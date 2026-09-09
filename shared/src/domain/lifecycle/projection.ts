@@ -71,7 +71,9 @@ export function activeOnly(data: AppData): AppData {
   // normal app (which previously left orphan-labelled projects and allocation bars on screen).
   const projects = data.projects.filter((project) => isActive(project) && hasVisibleAncestry("projects", project));
   const phases = data.phases.filter((phase) => hasVisibleAncestry("phases", phase));
-  const activities = data.activities.filter((activity) => hasVisibleAncestry("activities", activity));
+  const activities = data.activities.filter(
+    (activity) => isActive(activity) && hasVisibleAncestry("activities", activity),
+  );
   return {
     ...data,
     resources,

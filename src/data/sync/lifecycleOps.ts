@@ -16,7 +16,7 @@ import {
 import { rememberRevisions } from "./snapshot";
 import type { SyncState } from "./state";
 
-// The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources) — those
+// The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources/activities) — those
 // deletions must converge through the dedicated archive route instead (see archiveLifecycleRow).
 // Partition an op set into the atomic-batch ops and the lifecycle deletes the caller drives
 // out-of-band by archiving (see drain/flushUnload).
@@ -137,7 +137,7 @@ export async function unarchiveLifecycleRow(state: SyncState, op: Op): Promise<E
   return body as unknown as Entity;
 }
 
-// Converge a sync-originated lifecycle-entity disappearance (clients/projects/resources) by ARCHIVING
+// Converge a sync-originated lifecycle-entity disappearance (clients/projects/resources/activities) by ARCHIVING
 // the row through the dedicated POST /api/{table}/{id}/archive route. It cannot ride the atomic batch
 // (POST /api/batch 400-rejects a lifecycle DELETE op, to keep the retained-tombstone data-lifecycle
 // from being bypassed).

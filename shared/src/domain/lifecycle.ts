@@ -1,6 +1,6 @@
 // Entity lifecycle — the pure, environment-agnostic state machine for the
-// `Active → Archived → Soft-deleted → Purged` data-lifecycle that Resource, Client and Project all
-// share (each carries the optional `archivedAt`/`deletedAt` tombstone fields added in P2.1). This
+// `Active → Archived → Soft-deleted → Purged` data-lifecycle that Resource, Client, Project and
+// Activity all share (each carries the optional `archivedAt`/`deletedAt` tombstone fields). This
 // module is a pure leaf: no I/O, no React/Zustand/DOM, no server route, no store method — just the
 // derive helpers, the transition guards (`can*`) and the transition functions. Time math is done by
 // INJECTING `nowISO` and parsing the string args (a deterministic function of inputs); it NEVER

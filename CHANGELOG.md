@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Owners and administrators can find archived resources, clients, projects and activities directly
+  below each management list, restore them immediately, or move them into the deletion retention
+  period; activities now use the same reversible archive lifecycle as the other planning data.
 - Repeated personal time off creates a previewed, finite batch of independent whole-day entries
   with weekly, monthly-date and last-weekday choices, one-step undo and duplicate-submit protection
   (#705).

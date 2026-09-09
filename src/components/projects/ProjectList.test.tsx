@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { ProjectList } from "./ProjectList";
 import { useStore } from "../../store/useStore";
 import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount, requireValue } from "../../test/fixtures";
+import { MemoryRouter } from "react-router-dom";
 
 beforeEach(() => {
   resetStoreWithAccount();
@@ -26,7 +27,11 @@ describe("ProjectList", () => {
     useStore.getState().addProject({ name: "Bravo Project", clientId: alphaClient.id, color: "#555555" });
     const storedIds = useStore.getState().data.projects.map((project) => project.id);
 
-    render(<ProjectList />);
+    render(
+      <MemoryRouter>
+        <ProjectList />
+      </MemoryRouter>,
+    );
 
     expect(screen.getAllByTestId("project-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
       "alpha project",
@@ -93,7 +98,7 @@ describe("ProjectList", () => {
   });
 
   // P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
-  // Settings → Archived & deleted). DEMO mode here → archiveEntity: the project gets `archivedAt`
+  // the inline archive section). DEMO mode here → archiveEntity: the project gets `archivedAt`
   // set (its activities are RETAINED — reversible) and vanishes from this active-only list.
   it("shows the Archive ConfirmDialog when the archive button is clicked", async () => {
     const user = userEvent.setup();
@@ -108,7 +113,7 @@ describe("ProjectList", () => {
     const dialog = screen.getByRole("alertdialog", { name: "Archive project?" });
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveTextContent(/Archive "Doomed Project"/);
-    expect(dialog).toHaveTextContent(/Archived & deleted/);
+    expect(dialog).toHaveTextContent(/Archived projects/);
     expect(dialog).toHaveTextContent(
       "This also hides 1 phase and 0 allocations from the schedule; restore the project to bring them back.",
     );
@@ -163,7 +168,8 @@ describe("ProjectList", () => {
     expect(useStore.getState().data.projects).toHaveLength(1);
     expect(useStore.getState().data.projects[0]?.archivedAt).toBeTruthy();
     expect(useStore.getState().data.activities).toHaveLength(1);
-    expect(screen.queryByText("Doomed Project")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-row")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("archived-projects-section")).getByText("Doomed Project")).toBeInTheDocument();
     expect(screen.getByText("No projects yet.")).toBeInTheDocument();
   });
 
@@ -172,9 +178,15 @@ describe("ProjectList", () => {
     useStore.getState().addProject({ name: "Alpha Project", clientId: client.id, color: "#ec4899" });
     useStore.getState().archiveEntity("clients", client.id);
 
-    render(<ProjectList />);
+    render(
+      <MemoryRouter>
+        <ProjectList />
+      </MemoryRouter>,
+    );
 
-    expect(screen.queryByText("Alpha Project")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("project-row")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("archived-projects-section")).getByText("Alpha Project")).toBeInTheDocument();
+    expect(screen.getByText("Hidden because Client Acme Corp is archived.")).toBeInTheDocument();
     expect(screen.getByText("No projects yet.")).toBeInTheDocument();
   });
 

@@ -17,7 +17,7 @@ export type LifecycleState = "active" | "archived" | "deleted";
 
 /**
  * The minimal structural shape the lifecycle machine reads and writes — the two optional tombstone
- * timestamps. Resource, Client and Project (P2.1) all satisfy this by carrying the same two fields,
+ * timestamps. Resource, Client, Project and Activity all satisfy this by carrying the same two fields,
  * so the machine is generic over the shape rather than coupled to those concrete types: a transition
  * takes `<T extends LifecycleFields>` and returns `T`, so `archive(aResource)` yields a `Resource`
  * with its other fields untouched.
@@ -38,9 +38,9 @@ export interface LifecycleFields {
  * server import) so the server's lifecycle-route allow-list (`isLifecycleEntity` in app.ts) and the
  * `sanitizeWrite` tombstone-pin (validate.ts) can't drift apart — two hand-rolled copies of this set
  * is exactly what silently rots if a 4th entity ever grows tombstones. Every other table
- * (phases/activities/allocations/timeOff/disciplines/accounts) is deliberately OUT.
+ * (phases/allocations/timeOff/disciplines/accounts) is deliberately OUT.
  */
-export const LIFECYCLE_ENTITY_KEYS = Object.freeze(["resources", "clients", "projects"] as const);
+export const LIFECYCLE_ENTITY_KEYS = Object.freeze(["resources", "clients", "projects", "activities"] as const);
 export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number];
 /** Narrowing guard: is `entityKey` one of the tombstone-carrying tables? */
 export const isLifecycleEntityKey = (entityKey: string): entityKey is LifecycleEntityKey =>

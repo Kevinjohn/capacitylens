@@ -147,6 +147,8 @@ const activitiesColumns = [
   { name: "kind" },
   { name: "projectId", optional: true },
   { name: "phaseId", optional: true },
+  { name: "archivedAt", optional: true },
+  { name: "deletedAt", optional: true },
   ...META,
 ] as const satisfies ColumnSpec[];
 
