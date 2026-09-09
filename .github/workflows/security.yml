@@ -2,6 +2,12 @@ name: security
 
 on:
   workflow_dispatch:
+    inputs:
+      secret_scan_only:
+        description: Run only the full-history secret scan
+        required: true
+        type: boolean
+        default: false
   push:
     branches: [main]
     tags: ["v*"]
@@ -9,7 +15,10 @@ on:
     - cron: "19 4 * * 2"
 
 concurrency:
-  group: security-${{ github.ref }}
+  group: >-
+    security-${{ github.ref }}-${{
+      github.event_name == 'workflow_dispatch' && inputs.secret_scan_only && 'secret-only' || 'full'
+    }}
   cancel-in-progress: true
 
 permissions:
@@ -54,6 +63,7 @@ jobs:
 
   sbom:
     name: Source SBOM
+    if: github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -70,6 +80,7 @@ jobs:
 
   containers:
     name: Container vulnerability scan
+    if: github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -114,6 +125,7 @@ jobs:
   # deliberately leaves off, and those findings are accepted visibility, not regressions.
   dast:
     name: OWASP ZAP baseline (hardened posture)
+    if: github.event_name != 'workflow_dispatch' || inputs.secret_scan_only != true
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -173,7 +185,9 @@ jobs:
     name: OWASP ZAP baseline (default posture, informational)
     # Weekly + manual only: this job documents the accepted residual surface of the relaxed
     # default posture. It uploads its report as an artifact and never blocks a push.
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: >-
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      inputs.secret_scan_only != true
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

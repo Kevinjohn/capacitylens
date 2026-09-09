@@ -45,7 +45,7 @@ describe("reset-token capture across the auth facade", () => {
     await configuredAuth.createCredentialUser({
       email: "bruce@example.com",
       name: "Bruce Wayne",
-      password: "unique-passphrase-2026",
+      password: "password-123456",
     });
 
     expect(await mintPasswordResetToken(configuredAuth, "bruce@example.com")).toEqual(expect.any(String));

@@ -38,4 +38,7 @@ regexes = [
   '''^(?:[a-z0-9]+-)*(?:fixture|test|e2e)-secret-(?:0123456789abcdef|[0-9a-f]{16})(?:-[0-9a-f]+)?$''',
   # The matching local e2e bootstrap token, e.g. "auth-e2e-bootstrap-token-0123456789abcdef".
   '''^(?:[a-z0-9]+-)*bootstrap-token-(?:0123456789abcdef|[0-9a-f]{16})$''',
+  # An immutable historical test fixture introduced before the naming convention above. Keep this
+  # exact and anchored: the current test uses the standard low-entropy fixture password instead.
+  '''^unique-passphrase-2026$''',
 ]
