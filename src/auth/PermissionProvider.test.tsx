@@ -430,12 +430,14 @@ describe("PermissionProvider fail-closed responses", () => {
     expect(useStore.getState().activeRole).toBeNull();
     expect(useStore.getState().activeRoleStatus).toBe("not-applicable");
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
 
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const demoView = renderProvider();
     expect(screen.getAllByText("not-applicable:none:edit")).toHaveLength(2);
     expect(useStore.getState().activeRole).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
 
     offView.unmount();
     demoView.unmount();
@@ -446,5 +448,6 @@ describe("PermissionProvider fail-closed responses", () => {
     expect(useStore.getState().activeRole).toBeNull();
     expect(useStore.getState().activeRoleStatus).toBe("not-applicable");
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(permissionMocks.masqueradeStatus).not.toHaveBeenCalled();
   });
 });
