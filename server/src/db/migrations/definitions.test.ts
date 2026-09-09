@@ -64,6 +64,12 @@ function prepareNotNullTimeOff(db: DatabaseSync): void {
   insertTimeOff(db, row);
 }
 
+function expectNullableResourceId(db: DatabaseSync): void {
+  expect(db.prepare("PRAGMA table_info(timeOff)").all()).toContainEqual(
+    expect.objectContaining({ name: "resourceId", notnull: 0 }),
+  );
+}
+
 describe("migrateTimeOffResourceNullableV33", () => {
   it("refuses to run when timeOff has no resourceId column", () => {
     const db = openDatabase();
@@ -86,14 +92,16 @@ describe("migrateTimeOffResourceNullableV33", () => {
       insertTimeOff(db, row);
       const beforeRows = db.prepare("SELECT * FROM timeOff ORDER BY id").all();
       const beforeObjects = secondaryObjects(db);
+      const beforeTable = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'timeOff'").get();
 
       migrateTimeOffResourceNullableV33(db);
 
       expect(db.prepare("SELECT * FROM timeOff ORDER BY id").all()).toEqual(beforeRows);
       expect(secondaryObjects(db)).toEqual(beforeObjects);
-      expect(db.prepare("PRAGMA table_info(timeOff)").all()).toContainEqual(
-        expect.objectContaining({ name: "resourceId", notnull: 0 }),
+      expect(db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'timeOff'").get()).toEqual(
+        beforeTable,
       );
+      expectNullableResourceId(db);
     } finally {
       db.close();
     }
@@ -110,9 +118,7 @@ describe("migrateTimeOffResourceNullableV33", () => {
 
       expect(db.prepare("SELECT * FROM timeOff ORDER BY id").all()).toEqual(beforeRows);
       expect(secondaryObjects(db)).toEqual(beforeObjects);
-      expect(db.prepare("PRAGMA table_info(timeOff)").all()).toContainEqual(
-        expect.objectContaining({ name: "resourceId", notnull: 0 }),
-      );
+      expectNullableResourceId(db);
       expect(() =>
         db
           .prepare(
