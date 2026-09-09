@@ -7,12 +7,23 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.61.0-alpha.1] - 2026-09-10
+
+This minor release adds repeated personal time off as a complete planning flow, from preview to
+independent saved entries on one schedule. It also hardens overlapping actions and updates
+security-sensitive dependencies.
+
 ### Added
 
 - Plan repeated personal time off with weekly, monthly-date or last-weekday patterns and preview
   every generated range before saving. One save creates a finite, all-or-nothing batch with one-step
   undo. The entries remain separately editable and deletable while appearing together on the
   person's single schedule row (#705).
+
+### Changed
+
+- Expanded the Time off guide with genuine screenshots that follow one repeat from its generated
+  date preview to the individual saved entries and the person's combined schedule.
 
 ### Fixed
 
@@ -4167,7 +4178,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.2-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.61.0-alpha.1...HEAD
+[0.61.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.2-alpha.1...v0.61.0-alpha.1
 [0.60.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.1-alpha.1...v0.60.2-alpha.1
 [0.60.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.0-alpha.1...v0.60.1-alpha.1
 [0.60.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.59.1-alpha.1...v0.60.0-alpha.1
