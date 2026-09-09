@@ -22,6 +22,7 @@ beforeEach(() => {
   seed();
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -74,15 +75,19 @@ describe("Settings deleted items", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
-  it("enables permanent deletion at the exact 30-day boundary and purges after confirmation", async () => {
+  it("enables permanent deletion after crossing the 30-day boundary and purges after confirmation", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-02-01T00:00:00.000Z"));
+    vi.setSystemTime(new Date("2026-01-31T23:59:59.950Z"));
     const deletedAt = "2026-01-02T00:00:00.000Z";
     seed({
       clients: [makeClient({ accountId: DEFAULT_ACCOUNT_ID, name: "Old client", archivedAt: deletedAt, deletedAt })],
     });
     render(<ArchivedSection />);
     const purge = screen.getByRole("button", { name: "Permanently delete Old client" });
+    expect(purge).toBeDisabled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(51);
+    });
     expect(purge).toBeEnabled();
     fireEvent.click(purge);
     fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete permanently" }));
@@ -93,7 +98,7 @@ describe("Settings deleted items", () => {
     vi.useRealTimers();
   });
 
-  it("keeps a young tombstone locked across a delay longer than a 32-bit timer", () => {
+  it("re-arms a 32-bit timer and enables purge when the full retention period ends", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     seed({
@@ -108,8 +113,14 @@ describe("Settings deleted items", () => {
     });
     render(<ArchivedSection />);
     expect(screen.getByRole("button", { name: "Permanently delete Young client" })).toBeDisabled();
-    vi.advanceTimersByTime(2_147_483_647);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_147_483_647);
+    });
     expect(screen.getByRole("button", { name: "Permanently delete Young client" })).toBeDisabled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30 * 24 * 60 * 60 * 1000 - 2_147_483_647 + 1);
+    });
+    expect(screen.getByRole("button", { name: "Permanently delete Young client" })).toBeEnabled();
     vi.useRealTimers();
   });
 

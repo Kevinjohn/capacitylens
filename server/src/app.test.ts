@@ -3215,8 +3215,8 @@ function createAcceptedAndChangedBatchOperationsTest() {
       },
       {
         method: "DELETE",
-        table: "activities",
-        id: "missing-activity",
+        table: "allocations",
+        id: "missing-allocation",
         accountId: "a1",
       },
     ]);
