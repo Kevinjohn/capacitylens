@@ -11,6 +11,7 @@ import type {
 } from "@capacitylens/shared/account/types";
 import { openDb, type Db } from "../../db";
 import type { LocalIdentityPort } from "../betterAuthIdentityPort";
+import { wasAccountCommandReplayed } from "../commands";
 import { createLocalAccountFlows } from "../createLocalAccountFlows";
 import { KeyedOperationLock } from "../KeyedOperationLock";
 import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
@@ -470,6 +471,141 @@ it("validates admission before identity creation or durable command reservation"
   expect(create).not.toHaveBeenCalled();
   expect(currentDb().prepare(`SELECT COUNT(*) AS count FROM account_commands`).get()).toEqual({ count: 0 });
   await expect(flows.reconcileCommand({ command, operation: "invite-password-signup" })).resolves.toBeNull();
+});
+
+it("records a compensated contract failure when provisional identity creation fails", async () => {
+  const creationFailure = contractError("DEPENDENCY_UNAVAILABLE");
+  const compensate = vi.fn();
+  const { flows } = harness({
+    identity: identityPort({
+      createCorrelatedProvisionalCredentialPrincipal: vi.fn(async () => {
+        throw creationFailure;
+      }),
+      compensateProvisionalPrincipal: compensate,
+    }),
+  });
+
+  await expect(
+    flows.acceptInviteWithPasswordSignup({
+      token: "creation-failure-token",
+      email: "bruce.wayne@example.com",
+      displayName: "Bruce Wayne",
+      password: "not-stored-password",
+      command,
+    }),
+  ).rejects.toBe(creationFailure);
+
+  expect(compensate).not.toHaveBeenCalled();
+  expect(
+    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({ status: "compensated", failureCode: "DEPENDENCY_UNAVAILABLE" });
+});
+
+it("uses the documented conflict fallback when provisional identity creation throws a non-contract error", async () => {
+  const creationFailure = new Error("unexpected provisional identity creation failure");
+  const compensate = vi.fn();
+  const { flows } = harness({
+    identity: identityPort({
+      createCorrelatedProvisionalCredentialPrincipal: vi.fn(async () => {
+        throw creationFailure;
+      }),
+      compensateProvisionalPrincipal: compensate,
+    }),
+  });
+
+  await expect(
+    flows.acceptInviteWithPasswordSignup({
+      token: "non-contract-creation-failure-token",
+      email: "barry.allen@example.com",
+      displayName: "Barry Allen",
+      password: "not-stored-password",
+      command,
+    }),
+  ).rejects.toBe(creationFailure);
+
+  expect(compensate).not.toHaveBeenCalled();
+  expect(
+    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({ status: "compensated", failureCode: "CONFLICT" });
+});
+
+it("uses the documented conflict fallback for a non-contract invite claim failure", async () => {
+  const claimFailure = new Error("unexpected claim failure");
+  const compensate = vi.fn(async () => {});
+  const { flows } = harness({
+    identity: identityPort({ compensateProvisionalPrincipal: compensate }),
+    administration: administrationPort({
+      claimInvitationForPrincipal: vi.fn(async () => {
+        throw claimFailure;
+      }),
+    }),
+  });
+
+  await expect(
+    flows.acceptInviteWithPasswordSignup({
+      token: "non-contract-failure-token",
+      email: "diana.prince@example.com",
+      displayName: "Diana Prince",
+      password: "not-stored-password",
+      command,
+    }),
+  ).rejects.toBe(claimFailure);
+
+  expect(compensate).toHaveBeenCalledOnce();
+  expect(
+    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({ status: "compensated", failureCode: "CONFLICT" });
+});
+
+it("retains claim and compensation failures when invite terminal persistence fails", async () => {
+  const claimFailure = contractError("INVITATION_USED");
+  const compensationFailure = contractError("DEPENDENCY_UNAVAILABLE");
+  const { flows } = harness({
+    identity: identityPort({
+      compensateProvisionalPrincipal: vi.fn(async () => {
+        throw compensationFailure;
+      }),
+    }),
+    administration: administrationPort({
+      claimInvitationForPrincipal: vi.fn(async () => {
+        throw claimFailure;
+      }),
+    }),
+  });
+  currentDb().exec(`
+    CREATE TRIGGER fail_invite_terminal_persistence
+    BEFORE UPDATE OF status ON account_commands
+    WHEN OLD.operation = 'invite-password-signup' AND NEW.status = 'reconciliation_required'
+    BEGIN
+      SELECT RAISE(ABORT, 'simulated invite terminal persistence failure');
+    END;
+  `);
+
+  const failure = await flows
+    .acceptInviteWithPasswordSignup({
+      token: "terminal-persistence-failure-token",
+      email: "clark.kent@example.com",
+      displayName: "Clark Kent",
+      password: "not-stored-password",
+      command,
+    })
+    .then(
+      () => null,
+      (error: unknown) => error,
+    );
+
+  expect(failure).toBeInstanceOf(AggregateError);
+  if (!(failure instanceof AggregateError)) {
+    throw new Error("Expected terminal-persistence failure to preserve aggregate evidence");
+  }
+  expect(failure.errors).toHaveLength(2);
+  expect(failure.errors[0]).toBeInstanceOf(AggregateError);
+  if (!(failure.errors[0] instanceof AggregateError)) {
+    throw new Error("Expected claim and compensation failures to remain aggregated");
+  }
+  expect(failure.errors[0].errors[0]).toBe(claimFailure);
+  expect(failure.errors[0].errors[1]).toBe(compensationFailure);
+  expect(failure.errors[1]).toMatchObject({ message: "simulated invite terminal persistence failure" });
 });
 
 it("binds workspace-provisioning idempotency to the complete canonical product payload", async () => {
@@ -1307,38 +1443,218 @@ it("marks reset revocation failure as reconciliation-required", async () => {
   expect(events.filter((event) => event.action === "flow.reconciliation_required")).toHaveLength(1);
 });
 
-it("records and audits a known no-identity reset refusal as compensated rather than outcome-unknown", async () => {
-  const missing = contractError("NOT_FOUND");
+it.each(["NOT_FOUND", "VALIDATION_FAILED", "UNSUPPORTED_CAPABILITY"] as const)(
+  "records and audits a known no-ceremony reset refusal (%s) as compensated rather than outcome-unknown",
+  async (code) => {
+    const refusal = contractError(code);
+    const { flows, events } = harness({
+      identity: identityPort({
+        issuePasswordReset: vi.fn(async () => {
+          throw refusal;
+        }),
+      }),
+    });
+
+    await expect(
+      flows.issuePasswordReset({
+        actor,
+        targetPrincipalId: "principal-1",
+        command,
+      }),
+    ).rejects.toBe(refusal);
+    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
+      status: "compensated",
+    });
+    expect(events).toEqual([
+      expect.objectContaining({
+        action: "flow.compensated",
+        outcome: "compensated",
+        commandId: command.commandId,
+      }),
+    ]);
+  },
+);
+
+it("records post-ceremony reset failure reconciliation metadata without persisting the token", async () => {
+  const ceremony: PasswordResetCeremony = {
+    ceremonyId: "ceremony-after-issuance",
+    token: "plaintext-reset-token-must-not-persist",
+    expiresAt: "2026-01-02T00:00:00.000Z",
+  };
+  const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
   const { flows, events } = harness({
-    identity: identityPort({
-      issuePasswordReset: vi.fn(async () => {
-        throw missing;
+    identity: identityPort({ issuePasswordReset: vi.fn(async () => ceremony) }),
+    administration: administrationPort({
+      confirmIdentityAdminAuthority: vi.fn(async () => {
+        throw unavailable;
       }),
     }),
   });
 
-  await expect(
-    flows.issuePasswordReset({
-      actor,
-      targetPrincipalId: "principal-1",
-      command,
-    }),
-  ).rejects.toBe(missing);
-  await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
-    status: "compensated",
+  await expect(flows.issuePasswordReset({ actor, targetPrincipalId: "principal-1", command })).rejects.toBe(
+    unavailable,
+  );
+
+  const stored = currentDb()
+    .prepare(`SELECT status, failureCode, resultJson FROM account_commands WHERE commandId = ?`)
+    .get(command.commandId) as { status: string; failureCode: string; resultJson: string };
+  expect(stored).toMatchObject({
+    status: "reconciliation_required",
+    failureCode: "DEPENDENCY_UNAVAILABLE",
   });
+  expect(JSON.parse(stored.resultJson)).toEqual({
+    kind: "password-reset-issued",
+    workspaceId: null,
+    targetPrincipalId: "principal-1",
+    provisionalPrincipalId: null,
+    ceremonyId: ceremony.ceremonyId,
+  });
+  expect(stored.resultJson).not.toContain(ceremony.token);
   expect(events).toEqual([
     expect.objectContaining({
-      action: "flow.compensated",
-      outcome: "compensated",
+      action: "flow.reconciliation_required",
+      outcome: "failed",
       commandId: command.commandId,
     }),
   ]);
 });
 
-it("audits a session-revocation authority dependency failure exactly once", async () => {
+it("releases failed reset issuance replay capacity for a subsequent command", async () => {
   const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
-  const { flows, events } = harness({
+  const issue = vi
+    .fn<LocalIdentityPort["issuePasswordReset"]>()
+    .mockRejectedValueOnce(unavailable)
+    .mockResolvedValueOnce({
+      ceremonyId: "ceremony-retry",
+      token: "write-once-retry-token",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+    });
+  const { flows } = harness({
+    identity: identityPort({ issuePasswordReset: issue }),
+    writeOnceReplayCapacity: 1,
+  });
+
+  await expect(flows.issuePasswordReset({ actor, targetPrincipalId: "principal-1", command })).rejects.toBe(
+    unavailable,
+  );
+  await expect(
+    flows.issuePasswordReset({
+      actor,
+      targetPrincipalId: "principal-2",
+      command: { commandId: "retry-command", idempotencyKey: "retry-idempotency" },
+    }),
+  ).resolves.toMatchObject({ ceremonyId: "ceremony-retry" });
+  expect(issue).toHaveBeenCalledTimes(2);
+});
+
+it("persists and audits a successful password reset exactly once across replay", async () => {
+  const issue = vi.fn<LocalIdentityPort["issuePasswordReset"]>(async () => ({
+    ceremonyId: "ceremony-success",
+    token: "write-once-success-token",
+    expiresAt: "2026-01-02T00:00:00.000Z",
+  }));
+  const { flows, events } = harness({ identity: identityPort({ issuePasswordReset: issue }) });
+  const input = { actor, targetPrincipalId: "principal-1", command };
+
+  const issued = await flows.issuePasswordReset(input);
+  expect(wasAccountCommandReplayed(issued)).toBe(false);
+  const replayed = await flows.issuePasswordReset(input);
+  expect(replayed).toEqual(issued);
+  expect(wasAccountCommandReplayed(replayed)).toBe(true);
+
+  expect(issue).toHaveBeenCalledOnce();
+  expect(
+    currentDb().prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({
+    status: "completed",
+    resultJson: JSON.stringify({ ceremonyId: issued.ceremonyId, expiresAt: issued.expiresAt }),
+  });
+  expect(events.filter((event) => event.action === "identity.password_reset_issued")).toEqual([
+    expect.objectContaining({ outcome: "success", commandId: command.commandId }),
+  ]);
+});
+
+it("clears tracked member sign-in confirmation and records one successful session-revocation audit", async () => {
+  const { flows, events } = harness();
+  currentDb().prepare(`INSERT INTO account_member_sign_in_tracking (accountId) VALUES (?)`).run("wayne-enterprises");
+  currentDb()
+    .prepare(
+      `INSERT INTO account_members (accountId, userId, role, status, createdAt, signInConfirmed)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run("wayne-enterprises", "principal-1", "editor", "active", "2026-01-01T00:00:00.000Z", "true");
+
+  await expect(flows.revokeMemberSessions({ actor, targetPrincipalId: "principal-1", command })).resolves.toMatchObject(
+    {
+      commandId: command.commandId,
+    },
+  );
+
+  expect(
+    currentDb()
+      .prepare(`SELECT signInConfirmed FROM account_members WHERE accountId = ? AND userId = ?`)
+      .get("wayne-enterprises", "principal-1"),
+  ).toEqual({ signInConfirmed: "false" });
+  expect(events.filter((event) => event.action === "identity.sessions_revoked")).toEqual([
+    expect.objectContaining({ outcome: "success", commandId: command.commandId }),
+  ]);
+});
+
+it("does not revoke sessions or audit twice when replaying a completed command", async () => {
+  const revoke = vi.fn<LocalIdentityPort["revokePrincipalSessions"]>(async ({ command: value }) => ({
+    commandId: value.commandId,
+    completedAt: "2026-01-01T00:00:00.000Z",
+  }));
+  const { flows, events } = harness({ identity: identityPort({ revokePrincipalSessions: revoke }) });
+  const input = { actor, targetPrincipalId: "principal-1", command };
+
+  const completed = await flows.revokeMemberSessions(input);
+  const replayed = await flows.revokeMemberSessions(input);
+
+  expect(replayed).toEqual(completed);
+  expect(wasAccountCommandReplayed(replayed)).toBe(true);
+  expect(revoke).toHaveBeenCalledOnce();
+  expect(events.filter((event) => event.action === "identity.sessions_revoked")).toEqual([
+    expect.objectContaining({ outcome: "success", commandId: command.commandId }),
+  ]);
+});
+
+it("retains the original session-revocation failure when terminal persistence fails", async () => {
+  const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
+  const { flows } = harness({
+    identity: identityPort({
+      revokePrincipalSessions: vi.fn(async () => {
+        throw unavailable;
+      }),
+    }),
+  });
+  currentDb().exec(`
+    CREATE TRIGGER fail_session_revocation_terminal_persistence
+    BEFORE UPDATE OF status ON account_commands
+    WHEN OLD.operation = 'session-revocation:actor:actor-1' AND NEW.status = 'reconciliation_required'
+    BEGIN
+      SELECT RAISE(ABORT, 'simulated session-revocation terminal persistence failure');
+    END;
+  `);
+
+  const failure = await flows.revokeMemberSessions({ actor, targetPrincipalId: "principal-1", command }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+
+  expect(failure).toBeInstanceOf(AggregateError);
+  if (!(failure instanceof AggregateError)) {
+    throw new Error("Expected terminal-persistence failure to preserve session-revocation evidence");
+  }
+  expect(failure.errors).toEqual([
+    unavailable,
+    expect.objectContaining({ message: "simulated session-revocation terminal persistence failure" }),
+  ]);
+});
+
+it("compensates and audits a session-revocation authority dependency failure exactly once", async () => {
+  const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
+  const { flows, identity, events } = harness({
     administration: administrationPort({
       evaluateIdentityAdminAuthority: vi.fn(async () => {
         throw unavailable;
@@ -1354,6 +1670,10 @@ it("audits a session-revocation authority dependency failure exactly once", asyn
     }),
   ).rejects.toBe(unavailable);
 
+  expect(identity.revokePrincipalSessions).not.toHaveBeenCalled();
+  expect(
+    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({ status: "compensated", failureCode: "DEPENDENCY_UNAVAILABLE" });
   expect(events).toEqual([
     expect.objectContaining({
       action: "identity.sessions_revoked",
