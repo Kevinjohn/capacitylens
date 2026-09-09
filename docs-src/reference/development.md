@@ -299,14 +299,14 @@ exempt the source from linting. Real temporary production and test files prove t
 and misused promises fail in all three typed packages; handled promises pass. Category-specific
 regressions also check browser/worker isolation, shared purity and documentation source coverage.
 
-The enforced browser/shared coverage floors:
+The enforced coverage floors:
 
-| Metric     | Floor |
-| ---------- | ----- |
-| Statements | 84%   |
-| Branches   | 78%   |
-| Functions  | 85%   |
-| Lines      | 86%   |
+| Metric     | Browser/shared floor | Server floor |
+| ---------- | -------------------: | -----------: |
+| Statements |                  92% |          87% |
+| Branches   |                  87% |          80% |
+| Functions  |                  92% |          90% |
+| Lines      |                  94% |          89% |
 
 The build also enforces a raw and gzip byte budget on the main JavaScript entry chunk;
 route-level lazy chunks stay separate so authentication and settings code don't inflate

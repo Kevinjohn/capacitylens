@@ -184,8 +184,43 @@ report. They are not combined with or averaged into the server figures.
 - Task 9 retains successful sign-in tracking cleanup and audit, completed replay idempotency, the
   pre-revocation authority-failure compensated outcome, and terminal-persistence preservation. The
   post-start reconciliation-required branch is already covered by
-  `records unknown reset and session-revocation outcomes for operator repair` and will be cited,
-  not duplicated.
+  `records unknown reset and session-revocation outcomes for operator reconciliation` and will be
+  cited, not duplicated.
+
+### Integrated evidence record
+
+Recorded 2026-09-09 at revision `33117d61b967008515dc01b7903d6d76562f31c7` with Node
+`v24.19.0` and pnpm `11.4.0`, after Tasks 1–14 were integrated.
+
+- App and shared headline: `pnpm run coverage`.
+- Server headline: `pnpm --filter capacitylens-server run test:coverage`.
+- Account flows, separate report:
+  `pnpm --filter capacitylens-server exec vitest run src/accounts/conformance/accountFlows.conformance.test.ts --config vitest.config.ts --pool=forks --no-file-parallelism --coverage --coverage.include='src/accounts/flows/**/*.ts' --coverage.reporter=text-summary --coverage.reporter=lcov --coverage.reportsDirectory=coverage-account-flows`.
+
+| Report                         |             Statements |             Branches |            Functions |                  Lines | Result                                                    |
+| ------------------------------ | ---------------------: | -------------------: | -------------------: | ---------------------: | --------------------------------------------------------- |
+| App and shared headline        | 94.66% (12,163/12,848) | 89.74% (7,886/8,787) | 95.45% (3,527/3,695) | 96.58% (10,564/10,938) | 209 files and 3,844 tests passed; zero-file check passed  |
+| Server headline                |   91.05% (8,093/8,888) | 83.96% (4,791/5,706) | 94.82% (1,944/2,050) |   93.18% (7,269/7,801) | 101 files and 1,845 tests passed                          |
+| Account flows, separate report |       86.59% (336/388) |     71.17% (121/170) |     87.82% (101/115) |       88.67% (321/362) | One isolated file and 56 tests passed; not combined above |
+
+Every headline metric improved from P0. The account-flow report also improved in every metric and
+remains separate because its denominator is intentionally excluded from the server headline report.
+One new integrated sample is insufficient evidence of the repeated stable headroom required by the
+standing ratchet policy, so the configured thresholds remain unchanged.
+
+The remaining distance from complete coverage is recorded for transparency, not as a 100% target:
+
+| Report                         | Statements shortfall | Branches shortfall | Functions shortfall | Lines shortfall |
+| ------------------------------ | -------------------: | -----------------: | ------------------: | --------------: |
+| App and shared headline        |        5.34 pp (685) |     10.26 pp (901) |       4.55 pp (168) |   3.42 pp (374) |
+| Server headline                |        8.95 pp (795) |     16.04 pp (915) |       5.18 pp (106) |   6.82 pp (532) |
+| Account flows, separate report |        13.41 pp (52) |      28.83 pp (49) |       12.18 pp (14) |   11.33 pp (41) |
+
+Tasks 1–14 add regression coverage for every confirmed missing behaviour and composition boundary.
+The existing changed-authority password-reset replay, post-start session-revocation reconciliation,
+and v34 migration recreation tests remain the cited evidence for the cases deliberately not
+duplicated. `SchedulerView` now has meaningful composition coverage, so its exact zero-file
+allowlist entry is removed in Wave 6. The remaining zero-file entries are unchanged and explicit.
 
 ## Test packets
 
