@@ -3,27 +3,20 @@ import type { SsoCutoverAccountAdminPort } from "./accounts/adminPort/contracts"
 import type { SsoCutoverIdentityPort } from "./accounts/identityPort/contracts";
 import type { assertAccountControlPlaneCurrent } from "./accounts/sqliteAccountAdminPort";
 import type { ssoCutoverReadiness } from "./accounts/ssoCutover";
-import type { AuthProviderInfo } from "./authConfig/authTypes";
+import type { Auth, AuthProviderInfo } from "./authConfig/authTypes";
 import type { assertAuditOutboxCurrent } from "./auditOutbox";
 import type { assertFederatedIdentitySchemaCurrent } from "./auth";
 import type { mixedModeCutoverContext } from "./cutoverContext";
-import type { Db, planDatabaseMigrations } from "./db";
+import type { planDatabaseMigrations } from "./db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-type Environment = Record<string, string | undefined>;
-type ContextFixture = {
-  provider: AuthProviderInfo;
-  auth: Pick<Awaited<ReturnType<typeof mixedModeCutoverContext>>["auth"], "providers">;
-  identity: SsoCutoverIdentityPort;
-  administration: SsoCutoverAccountAdminPort;
-  resolvedEnvironment: Pick<Awaited<ReturnType<typeof mixedModeCutoverContext>>["resolvedEnvironment"], "env">;
-};
+type ContextFixture = Awaited<ReturnType<typeof mixedModeCutoverContext>>;
 
 const dependencies = vi.hoisted(() => ({
   assertAccountControlPlaneCurrent: vi.fn<typeof assertAccountControlPlaneCurrent>(),
   assertAuditOutboxCurrent: vi.fn<typeof assertAuditOutboxCurrent>(),
   assertFederatedIdentitySchemaCurrent: vi.fn<typeof assertFederatedIdentitySchemaCurrent>(),
-  mixedModeCutoverContext: vi.fn<(db: Db, environment: Environment) => Promise<ContextFixture>>(),
+  mixedModeCutoverContext: vi.fn<typeof mixedModeCutoverContext>(),
   planDatabaseMigrations: vi.fn<typeof planDatabaseMigrations>(),
   ssoCutoverReadiness: vi.fn<typeof ssoCutoverReadiness>(),
 }));
@@ -113,15 +106,35 @@ const administration: SsoCutoverAccountAdminPort = {
   repairOwnerlessWorkspaceInTx: unused,
 };
 
+const auth = {
+  handler: unusedAsync,
+  api: {
+    getSession: unusedAsync,
+    requestPasswordReset: unusedAsync,
+  },
+  options: {} as Auth["options"],
+  providers: [otherProvider, provider],
+  federatedIssuers: new Map([[provider.id, "https://identity.wayne.example"]]),
+  strictProvider: provider,
+  ensureProviderBindings: unused,
+  assertProviderBindings: unused,
+  createCredentialUser: unusedAsync,
+  deleteCredentialUser: unusedAsync,
+  revokeUserSessions: unusedAsync,
+} satisfies Auth;
+
 const readiness = { ready: true, provider, workspaces: [], issues: [] };
 
 function createContext(openSignup: string | undefined): ContextFixture {
   return {
     provider,
-    auth: { providers: [otherProvider, provider] },
+    auth,
     identity,
     administration,
-    resolvedEnvironment: { env: { CAPACITYLENS_ALLOW_OPEN_SIGNUP: openSignup } },
+    resolvedEnvironment: {
+      env: { CAPACITYLENS_ALLOW_OPEN_SIGNUP: openSignup },
+      profile: "self-hosted-mixed",
+    },
   };
 }
 
