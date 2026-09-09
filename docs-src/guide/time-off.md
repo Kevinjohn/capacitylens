@@ -24,7 +24,7 @@ the same canvas as work, so capacity never has to be checked against a separate 
    [Roles and permissions](/getting-started/roles-and-permissions).
 5. Check the final date range in the preview, then click **Save**.
 
-![The Add time off form previewing 13 entries repeating every four weeks through August 2027](../screenshots/flows/timeoff_form.jpg)
+![The Add time off form previewing seven three-day holiday entries, with every generated date range expanded](../screenshots/flows/timeoff_repeat_form.jpg)
 
 ![The schedule with draw mode switched to Time off: work allocations dim and a holiday block is highlighted](../screenshots/flows/timeoff-draw.jpg)
 
@@ -49,9 +49,26 @@ always remains two consecutive dates, even across weekends, holidays or non-work
 The preview and the saved entries use those same ranges. Overlapping time off is allowed
 and is not merged or skipped.
 
-Saving creates one undoable batch, but the entries are independent afterwards. Edit or
-delete one without changing the others. Repeat controls appear only while adding time off;
+Saving creates one undoable batch, but the entries are independent afterwards. The Time off
+page shows a separate dated row, Edit button and Delete button for every occurrence. Editing or
+deleting one does not change the others. Repeat controls appear only while adding time off;
 editing an existing entry never regenerates its neighbours.
+
+![Seven weekly three-day entries listed separately for Diana Prince, each with its own Edit and Delete buttons](../screenshots/flows/timeoff_independent_entries.jpg)
+
+### Independent entries on one schedule
+
+Independent entries do not create separate schedules. Every occurrence still belongs to the
+person selected in the form. The Schedule page gathers all of that person's dated time off and
+draws it on their one row, alongside their work. In the example below, the seven separate entries
+for Diana Prince become seven hatched **Holiday** blocks on Diana's single schedule row.
+
+Selecting, editing or deleting one block changes only that dated entry. The other blocks stay on
+the same row because CapacityLens does not keep a hidden repeat series after saving. Use the Time
+off page when you need the individual date list, and the Schedule when you need to see how all of
+those dates affect the person's availability beside their allocations.
+
+![The eight-week schedule showing seven separate Holiday blocks together on Diana Prince's single row](../screenshots/flows/schedule_repeated_timeoff.jpg)
 
 ## Review current and upcoming time off
 

@@ -188,9 +188,11 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 ## Validation environment
 
 - Run focused tests during implementation. Select submission checks using “Green gate” below.
-- CapacityLens requires Node >= 24. Under Node 22, server tests fail with
-  `db.setAuthorizer is not a function`. Restricted environments may also produce EPERM errors;
-  only Node >= 24 runs are valid gate evidence.
+- Before running Node or pnpm commands, activate the version selected by `.nvmrc` in that
+  worktree and verify `node --version`; do not use the machine default. Include this requirement
+  in delegated briefs and reapply it when switching shells or execution tools.
+- Under Node 22, server tests fail with `db.setAuthorizer is not a function`. Restricted
+  environments may also produce EPERM errors; use the `.nvmrc` version for valid gate evidence.
 - Treat failures seen only in unsupported runtimes or restricted filesystems as
   environment-specific until they are reproduced in the supported validation environment.
 
