@@ -25,12 +25,22 @@ function readMessageListener(port: ReturnType<typeof createPort>) {
   return registration[1];
 }
 
-function mockWorkerModule(isMainThread: boolean, parentPort: ReturnType<typeof createPort> | undefined) {
+function mockWorkerModule(isMainThread: boolean, parentPort: ReturnType<typeof createPort> | null) {
   vi.doMock("node:worker_threads", () => ({ isMainThread, parentPort }));
 }
 
 function mockDomain(remapAndValidateImport: ReturnType<typeof vi.fn>) {
   vi.doMock("@capacitylens/shared/domain/mutations", () => ({ remapAndValidateImport }));
+}
+
+function expectDomainInvocation(remapAndValidateImport: ReturnType<typeof vi.fn>) {
+  expect(remapAndValidateImport).toHaveBeenCalledOnce();
+  const importArguments = remapAndValidateImport.mock.calls[0];
+  if (!importArguments) throw new Error("Expected the import worker to invoke the domain import.");
+  expect(importArguments[0]).toBe(request.current);
+  expect(importArguments[1]).toBe(request.accountId);
+  expect(importArguments[2]).toBe(request.incoming);
+  expect(importArguments[3]).toBe(request.now);
 }
 
 afterEach(() => {
@@ -52,7 +62,7 @@ describe("import worker protocol", () => {
   });
 
   it("refuses to start without a parent port", async () => {
-    mockWorkerModule(false, undefined);
+    mockWorkerModule(false, null);
     mockDomain(vi.fn());
 
     await expect(import("./importWorker")).rejects.toThrow("Import worker started without a parent port.");
@@ -70,42 +80,43 @@ describe("import worker protocol", () => {
 
     expect(port.once).toHaveBeenCalledOnce();
     expect(port.once).toHaveBeenCalledWith("message", expect.any(Function));
-    expect(remapAndValidateImport).toHaveBeenCalledWith(
-      request.current,
-      request.accountId,
-      request.incoming,
-      request.now,
-    );
-    expect(port.postMessage).toHaveBeenCalledWith({ ok: true, result });
+    expectDomainInvocation(remapAndValidateImport);
+    expect(port.postMessage).toHaveBeenCalledOnce();
+    expect(port.postMessage.mock.calls[0]).toStrictEqual([{ ok: true, result }]);
   });
 
   it("serializes Error failures", async () => {
     const port = createPort();
     const failure = new TypeError("invalid import");
+    const remapAndValidateImport = vi.fn(() => {
+      throw failure;
+    });
     mockWorkerModule(false, port);
-    mockDomain(
-      vi.fn(() => {
-        throw failure;
-      }),
-    );
+    mockDomain(remapAndValidateImport);
 
     await import("./importWorker");
     readMessageListener(port)(request);
 
-    expect(port.postMessage).toHaveBeenCalledWith({
-      ok: false,
-      error: { name: "TypeError", message: "invalid import", stack: failure.stack },
-    });
+    expect(port.once).toHaveBeenCalledOnce();
+    expectDomainInvocation(remapAndValidateImport);
+    expect(port.postMessage).toHaveBeenCalledOnce();
+    expect(port.postMessage.mock.calls[0]).toStrictEqual([
+      { ok: false, error: { name: "TypeError", message: "invalid import", stack: failure.stack } },
+    ]);
   });
 
   it("serializes non-Error failures", async () => {
     const port = createPort();
+    const remapAndValidateImport = vi.fn(() => runInNewContext("throw 42"));
     mockWorkerModule(false, port);
-    mockDomain(vi.fn(() => runInNewContext("throw 42")));
+    mockDomain(remapAndValidateImport);
 
     await import("./importWorker");
     readMessageListener(port)(request);
 
-    expect(port.postMessage).toHaveBeenCalledWith({ ok: false, error: { message: "42" } });
+    expect(port.once).toHaveBeenCalledOnce();
+    expectDomainInvocation(remapAndValidateImport);
+    expect(port.postMessage).toHaveBeenCalledOnce();
+    expect(port.postMessage.mock.calls[0]).toStrictEqual([{ ok: false, error: { message: "42" } }]);
   });
 });
