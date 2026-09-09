@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MasqueradeState, MasqueradeStatus } from "@capacitylens/shared/domain/masquerade";
 import { resetStoreWithAccount } from "../test/fixtures";
 import { useStore } from "../store/useStore";
+import type { FlushPendingWritesResult } from "../data/persist";
 import { MasqueradeController, type MasqueradeControllerDependencies } from "./masqueradeController";
 
 const state: MasqueradeState = {
@@ -12,6 +13,16 @@ const state: MasqueradeState = {
   startedAt: "2026-09-01T10:00:00.000Z",
   token: "token-1",
 };
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((settle, fail) => {
+    resolve = settle;
+    reject = fail;
+  });
+  return { promise, resolve, reject };
+}
 
 function harness(overrides: Partial<MasqueradeControllerDependencies> = {}) {
   const resume = vi.fn();
@@ -94,6 +105,85 @@ describe("MasqueradeController", () => {
     await expect(controller.start(state.accountId, state.targetUserId)).resolves.toBe(false);
     expect(useStore.getState().masquerade).toMatchObject({ kind: "starting", state });
     expect(resume).not.toHaveBeenCalled();
+  });
+});
+
+describe("MasqueradeController transitions", () => {
+  it("allows only one start to cross a pending flush", async () => {
+    const flush = deferred<FlushPendingWritesResult>();
+    const { controller, dependencies } = harness({ flush: vi.fn(() => flush.promise) });
+
+    const first = controller.start(state.accountId, state.targetUserId);
+    const second = controller.start(state.accountId, "u-editor");
+    flush.resolve({ kind: "clean" });
+
+    await expect(second).resolves.toBe(false);
+    await expect(first).resolves.toBe(true);
+    expect(dependencies.flush).toHaveBeenCalledOnce();
+    expect(dependencies.api.start).toHaveBeenCalledOnce();
+  });
+
+  it("does not let a stale start rejection overwrite server-end restoration", async () => {
+    const initialProjection = deferred<boolean>();
+    const reproject = vi
+      .fn()
+      .mockImplementationOnce(() => initialProjection.promise)
+      .mockResolvedValueOnce(true);
+    const { controller, resume } = harness({ reproject });
+
+    const starting = controller.start(state.accountId, state.targetUserId);
+    await vi.waitFor(() => expect(useStore.getState().masquerade).toMatchObject({ kind: "starting", state }));
+    controller.adoptStatus({ active: false });
+    await vi.waitFor(() => expect(useStore.getState().masquerade).toEqual({ kind: "inactive" }));
+    useStore.getState().setNotice("newer transition", "info");
+
+    initialProjection.reject(new Error("stale projection failure"));
+    await expect(starting).resolves.toBe(false);
+    expect(useStore.getState().notice).toMatchObject({ message: "newer transition", tone: "info" });
+    expect(resume).toHaveBeenCalledOnce();
+  });
+});
+
+describe("MasqueradeController generation fencing", () => {
+  it("does not let a projection retry publish after an explicit end", async () => {
+    const retryProjection = deferred<boolean>();
+    const reproject = vi
+      .fn()
+      .mockResolvedValueOnce(false)
+      .mockImplementationOnce(() => retryProjection.promise)
+      .mockResolvedValueOnce(true);
+    const { controller } = harness({ reproject });
+    await controller.start(state.accountId, state.targetUserId);
+
+    const retrying = controller.retryProjection();
+    await vi.waitFor(() => expect(reproject).toHaveBeenCalledTimes(2));
+    await expect(controller.end()).resolves.toBe(true);
+    retryProjection.resolve(true);
+
+    await expect(retrying).resolves.toBe(false);
+    expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
+  });
+
+  it("does not let server-end restoration release suspension owned by a newer end", async () => {
+    const restoration = deferred<boolean>();
+    const reproject = vi
+      .fn()
+      .mockImplementationOnce(() => restoration.promise)
+      .mockResolvedValueOnce(true);
+    const { controller, resume } = harness({ reproject });
+    controller.adoptStatus({ active: true, ...state });
+    controller.adoptStatus({ active: false });
+    await vi.waitFor(() => expect(reproject).toHaveBeenCalledOnce());
+
+    await expect(controller.end()).resolves.toBe(true);
+    expect(resume).toHaveBeenCalledOnce();
+    useStore.getState().setNotice("newer transition", "info");
+    restoration.resolve(true);
+    await Promise.resolve();
+
+    expect(resume).toHaveBeenCalledOnce();
+    expect(useStore.getState().masquerade).toEqual({ kind: "inactive" });
+    expect(useStore.getState().notice).toMatchObject({ message: "newer transition", tone: "info" });
   });
 });
 

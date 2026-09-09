@@ -6,6 +6,7 @@ const activeTransactionModes = new WeakMap<Db, "deferred" | "immediate">();
 // told us the transaction ended, so later acknowledged writes could land outside any durability
 // boundary; the only safe continuation is refusal.
 const poisonedHandles = new WeakSet<Db>();
+const taintedTransactions = new WeakMap<Db, unknown>();
 
 export type SynchronousCallback<Fn extends () => unknown> = Fn &
   ([Extract<ReturnType<Fn>, PromiseLike<unknown>>] extends [never] ? unknown : never);
@@ -56,6 +57,10 @@ function assertSynchronousResult(result: unknown): void {
   }
 }
 
+function assertTransactionUntainted(db: Db): void {
+  if (taintedTransactions.has(db)) throw taintedTransactions.get(db);
+}
+
 type TransactionConfiguration =
   | []
   | [mode: TransactionMode | undefined]
@@ -93,6 +98,7 @@ function runNestedTransaction<Result>(db: Db, callback: () => Result, options: R
   try {
     const result = callback();
     assertSynchronousResult(result);
+    assertTransactionUntainted(db);
     db.exec(`RELEASE SAVEPOINT ${savepoint}`);
     return result;
   } catch (e) {
@@ -100,6 +106,7 @@ function runNestedTransaction<Result>(db: Db, callback: () => Result, options: R
       db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
       db.exec(`RELEASE SAVEPOINT ${savepoint}`);
     } catch (rollbackError) {
+      if (!taintedTransactions.has(db)) taintedTransactions.set(db, e);
       reportRollbackFailureSafely(options.reportRollbackFailure, { scope: "savepoint", error: rollbackError });
     }
     throw e;
@@ -112,6 +119,7 @@ function runTopLevelTransaction<Result>(db: Db, callback: () => Result, options:
   try {
     const result = callback();
     assertSynchronousResult(result);
+    assertTransactionUntainted(db);
     db.exec("COMMIT");
     return result;
   } catch (e) {
@@ -131,6 +139,7 @@ function runTopLevelTransaction<Result>(db: Db, callback: () => Result, options:
     throw e;
   } finally {
     activeTransactionModes.delete(db);
+    taintedTransactions.delete(db);
   }
 }
 

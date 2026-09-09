@@ -7,6 +7,7 @@ import { InMemoryDemoAdapter } from "../data/InMemoryDemoAdapter";
 import { useStore } from "../store/useStore";
 import { DEFAULT_ACCOUNT_ID, makeAppData, makeResourceDraft, resetStoreWithAccount } from "../test/fixtures";
 import { ImportExport } from "./ImportExport";
+import { useServerImport } from "./import-export/useServerImport";
 
 vi.mock("../data/apiConfig", () => ({
   API_BASE: "",
@@ -44,6 +45,20 @@ async function chooseAndConfirmImport(): Promise<void> {
   Object.defineProperty(input, "files", { value: [incomingFile()], configurable: true });
   fireEvent.change(input);
   fireEvent.click(await screen.findByRole("button", { name: "Replace data" }));
+}
+
+function RepeatedConfirmationHarness() {
+  const { confirm } = useServerImport();
+  return (
+    <button
+      onClick={() => {
+        void confirm(importedSlice());
+        void confirm(importedSlice());
+      }}
+    >
+      Confirm twice
+    </button>
+  );
 }
 
 function importedSlice(): AppData {
@@ -183,6 +198,19 @@ async function reschedulesParkedEditDuringZeroRecordImport(): Promise<void> {
 }
 
 describe("ImportExport with the real persistence coordinator", () => {
+  it("starts only one server import for repeated immediate confirmation", async () => {
+    const fetchMock = vi.fn(() => new Promise<Response>(() => undefined));
+    vi.stubGlobal("fetch", fetchMock);
+    render(<RepeatedConfirmationHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm twice" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    useStore.getState().addClient({ name: "Parked during import", color: "#dc2626" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveAll).not.toHaveBeenCalled();
+  });
+
   it("drops an edit parked during a committed import and surfaces the loss", async () => {
     await dropsParkedEditDuringCommittedImport();
   });

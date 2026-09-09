@@ -15,7 +15,7 @@
 
 import { spawn } from "node:child_process";
 import { parsePort } from "./port.mjs";
-import { killProcessTree, portInUse, requireNode24 } from "./dev-processes.mjs";
+import { portInUse, requireNode24, terminateProcessTrees } from "./dev-processes.mjs";
 
 // Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
 // Node surfaces as a raw "No such built-in module: node:sqlite" from inside the API child's tsx
@@ -75,11 +75,14 @@ let shuttingDown = false;
  * back to `taskkill /T` which walks the tree there.
  */
 /** Tear down every still-running child, then exit. Idempotent (first caller wins). */
-function shutdown(code) {
+async function shutdown(code) {
   if (shuttingDown) return;
   shuttingDown = true;
-  for (const child of children) killProcessTree(child);
-  process.exit(code);
+  try {
+    await terminateProcessTrees(children);
+  } finally {
+    process.exit(code);
+  }
 }
 
 function start(label, args, env) {
@@ -99,12 +102,12 @@ function start(label, args, env) {
   child.on("exit", (code, signal) => {
     if (shuttingDown) return;
     console.error(`dev: ${label} exited (${signal ? `signal ${signal}` : `code ${code}`}); shutting down.`);
-    shutdown(code ?? 1);
+    void shutdown(code ?? 1);
   });
   child.on("error", (err) => {
     if (shuttingDown) return;
     console.error(`dev: failed to launch ${label}: ${err.message}`);
-    shutdown(1);
+    void shutdown(1);
   });
   return child;
 }
@@ -121,5 +124,5 @@ start("api", ["--filter", "capacitylens-server", "run", "dev"], {
 start("web", ["run", "dev:web"], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) });
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.on(signal, () => shutdown(0));
+  process.on(signal, () => void shutdown(0));
 }

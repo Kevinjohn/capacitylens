@@ -50,6 +50,7 @@ function useInviteRefs(user: ReturnType<typeof useAuth>["user"], state: InviteAc
     currentUser,
     routeActive,
     accepting: useRef(false),
+    signupInFlight: useRef(false),
     acceptCommand: useRef<BrowserAccountCommand | null>(null),
     ...focusRefs,
   };
@@ -145,6 +146,7 @@ interface InviteActionOptions {
   acceptCommand: RefObject<BrowserAccountCommand | null>;
   routeActive: ReturnType<typeof useRouteActiveRef>;
   signupCommand: RefObject<BrowserAccountCommand | null>;
+  signupInFlight: RefObject<boolean>;
   name: string;
   email: string;
   password: string;
@@ -200,6 +202,7 @@ function useInviteFlow(
     acceptCommand: refs.acceptCommand,
     routeActive: refs.routeActive,
     signupCommand,
+    signupInFlight: refs.signupInFlight,
     name: inviteState.name,
     email: inviteState.email,
     password: inviteState.password,

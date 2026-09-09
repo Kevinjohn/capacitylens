@@ -101,3 +101,75 @@ describe("bounded import worker runner", () => {
     await expect(pendingResult).rejects.toBe(terminationError);
   });
 });
+
+describe("import worker terminal settlement", () => {
+  it("terminates after synchronous post failure before releasing queue capacity", async () => {
+    const termination = deferred<number>();
+    const workers: FakeWorker[] = [];
+    const postError = new Error("post failed");
+    const runner = createImportWorkerRunner({
+      maxActive: 1,
+      createWorker: () => {
+        const worker = new FakeWorker(workers.length === 0 ? termination.promise : Promise.resolve(0));
+        if (workers.length === 0)
+          worker.postMessage.mockImplementation(() => {
+            throw postError;
+          });
+        workers.push(worker);
+        return worker;
+      },
+    });
+
+    const failed = runner(request);
+    const failedResult = expect(failed).rejects.toBe(postError);
+    const queued = runner(request);
+    expect(readWorker(workers, 0).terminate).toHaveBeenCalledOnce();
+    expect(workers).toHaveLength(1);
+
+    termination.resolve(0);
+    await failedResult;
+    await vi.waitFor(() => expect(workers).toHaveLength(2));
+    readWorker(workers, 1).emit("message", { ok: true, result });
+    await expect(queued).resolves.toEqual(result);
+  });
+
+  it.each([0, 7])("rejects an exit with status %i before a valid response", async (code) => {
+    const worker = new FakeWorker();
+    const runner = createImportWorkerRunner({ createWorker: () => worker });
+
+    const pending = runner(request);
+    worker.emit("exit", code);
+
+    await expect(pending).rejects.toThrow(`Import worker exited with status ${code}.`);
+    expect(worker.terminate).toHaveBeenCalledOnce();
+  });
+});
+
+describe("import worker competing terminal events", () => {
+  it("settles only once when a valid response is followed by exit", async () => {
+    const worker = new FakeWorker();
+    const runner = createImportWorkerRunner({ createWorker: () => worker });
+
+    const pending = runner(request);
+    worker.emit("message", { ok: true, result });
+    worker.emit("exit", 0);
+
+    await expect(pending).resolves.toEqual(result);
+    expect(worker.terminate).toHaveBeenCalledOnce();
+  });
+
+  it("keeps abort authoritative when a response races worker termination", async () => {
+    const termination = deferred<number>();
+    const worker = new FakeWorker(termination.promise);
+    const controller = new AbortController();
+    const runner = createImportWorkerRunner({ createWorker: () => worker });
+
+    const pending = runner(request, controller.signal);
+    controller.abort(new Error("request aborted"));
+    worker.emit("message", { ok: true, result });
+    termination.resolve(0);
+
+    await expect(pending).rejects.toThrow("request aborted");
+    expect(worker.terminate).toHaveBeenCalledOnce();
+  });
+});

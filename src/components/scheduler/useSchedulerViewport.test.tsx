@@ -15,16 +15,18 @@ import { useStore } from "../../store/useStore";
 // but stripped to just the viewport hook, no grid chrome.
 function Harness({
   minimiseWeekends = false,
+  snapToWeekStart = false,
   calendarWeekStartsOn = 1,
 }: {
   minimiseWeekends?: boolean;
+  snapToWeekStart?: boolean;
   calendarWeekStartsOn?: 0 | 1;
 }) {
   const ui = useStore((s) => s.ui);
   const { scrollRef, leftEdgeIdx, onScroll, visibleStartDate, geom } = useSchedulerViewport({
     ui,
     minimiseWeekends,
-    snapToWeekStart: false,
+    snapToWeekStart,
     calendarWeekStartsOn,
   });
   return (
@@ -165,5 +167,125 @@ describe("useSchedulerViewport — viewport changes", () => {
     });
 
     expect(grid.scrollLeft).toBe(0);
+  });
+});
+
+describe("useSchedulerViewport — pending week snapping", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setupViewport();
+  });
+  afterEach(() => {
+    teardownViewport();
+    vi.useRealTimers();
+  });
+
+  it("cancels an idle snap when snapping is disabled before the timer fires", () => {
+    const { rerender } = render(<Harness snapToWeekStart />);
+    const grid = screen.getByTestId("scroll");
+    const boundary = Number(screen.getByTestId("boundary-2").textContent);
+
+    act(() => {
+      grid.scrollLeft = boundary;
+      grid.dispatchEvent(new Event("scroll"));
+    });
+    rerender(<Harness snapToWeekStart={false} />);
+    expect(vi.getTimerCount()).toBe(0);
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(grid.scrollLeft).toBe(boundary);
+  });
+
+  it("cancels an idle snap when the calendar week changes", () => {
+    const { rerender } = render(<Harness snapToWeekStart calendarWeekStartsOn={1} />);
+    const grid = screen.getByTestId("scroll");
+    const boundary = Number(screen.getByTestId("boundary-2").textContent);
+
+    act(() => {
+      grid.scrollLeft = boundary;
+      grid.dispatchEvent(new Event("scroll"));
+    });
+    rerender(<Harness snapToWeekStart calendarWeekStartsOn={0} />);
+    expect(vi.getTimerCount()).toBe(0);
+    act(() => {
+      vi.runAllTimers();
+    });
+
+    expect(grid.scrollLeft).toBe(boundary);
+  });
+
+  it("cancels an idle snap when zoom changes semantic geometry", () => {
+    render(<Harness snapToWeekStart />);
+    const grid = screen.getByTestId("scroll");
+
+    act(() => {
+      grid.scrollLeft = Number(screen.getByTestId("boundary-2").textContent);
+      grid.dispatchEvent(new Event("scroll"));
+    });
+    act(() => {
+      useStore.setState((state) => ({ ui: { ...state.ui, zoom: 2 } }));
+    });
+
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("useSchedulerViewport — week snap lifecycle", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setupViewport();
+  });
+  afterEach(() => {
+    teardownViewport();
+    vi.useRealTimers();
+  });
+
+  it("cancels a pending animation frame and permits new scroll work after semantics change", () => {
+    const requestFrame = vi.mocked(window.requestAnimationFrame).mockImplementation(() => 42);
+    const cancelFrame = vi.spyOn(window, "cancelAnimationFrame");
+    const { rerender } = render(<Harness snapToWeekStart />);
+    const grid = screen.getByTestId("scroll");
+
+    act(() => {
+      grid.dispatchEvent(new Event("scroll"));
+    });
+    rerender(<Harness snapToWeekStart={false} />);
+
+    expect(cancelFrame).toHaveBeenCalledWith(42);
+    act(() => {
+      grid.dispatchEvent(new Event("scroll"));
+    });
+    expect(requestFrame).toHaveBeenCalledTimes(2);
+  });
+
+  it("snaps normally when its semantics remain current", () => {
+    render(<Harness snapToWeekStart />);
+    const grid = screen.getByTestId("scroll");
+    const boundary = Number(screen.getByTestId("boundary-2").textContent);
+
+    act(() => {
+      grid.scrollLeft = boundary;
+      grid.dispatchEvent(new Event("scroll"));
+      vi.runAllTimers();
+    });
+
+    expect(grid.scrollLeft).toBe(0);
+  });
+
+  it("clears an idle snap when the viewport unmounts", () => {
+    const { unmount } = render(<Harness snapToWeekStart />);
+    const grid = screen.getByTestId("scroll");
+
+    act(() => {
+      grid.scrollLeft = Number(screen.getByTestId("boundary-2").textContent);
+      grid.dispatchEvent(new Event("scroll"));
+    });
+    expect(vi.getTimerCount()).toBe(1);
+
+    unmount();
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

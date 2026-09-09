@@ -1,8 +1,9 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { FastifyInstance, InjectOptions } from "fastify";
 import { createApp } from "./app";
-import { openDb } from "./db";
+import { getRow, openDb } from "./db";
 import { call } from "./testHelpers";
+import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 
 // ROUTING-BOUNDARY contract for the dedicated `accounts` write routes (routes/accountEntityRoutes.ts).
 //
@@ -16,6 +17,14 @@ import { call } from "./testHelpers";
 // deeper parametric routes nor let an account write fall back into scoped-entity semantics.
 
 const TS = "2026-01-01T00:00:00.000Z";
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
 
 function freshApp(): FastifyInstance {
   return createApp(openDb(":memory:"), { optimisticConcurrency: false });
@@ -144,5 +153,57 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
     });
     expect(res.statusCode).toBe(404);
     expect((await call(app, { method: "GET", url: "/api/accounts" })).json()).toEqual([]);
+  });
+});
+
+describe("dedicated /api/accounts routes — replay concurrency", () => {
+  it("checks staleness against the account revision current after a replay miss", async () => {
+    const db = openDb(":memory:");
+    const app = createApp(db, { optimisticConcurrency: true });
+    await createAccount(app, "a1");
+    const original = getRow(db, "accounts", "a1");
+    expect(original).toBeDefined();
+    const replayEntered = deferred();
+    const releaseReplay = deferred();
+    const commandId = "account-put-command-0001";
+    const originalWithKeys = KeyedOperationLock.prototype.withKeys;
+    const lockSpy = vi.spyOn(KeyedOperationLock.prototype, "withKeys").mockImplementation(async function (
+      this: KeyedOperationLock,
+      keys,
+      operation,
+    ) {
+      if (keys.some((key) => key.includes(commandId))) {
+        replayEntered.resolve();
+        await releaseReplay.promise;
+      }
+      return originalWithKeys.call(this, keys, operation);
+    });
+
+    try {
+      const stalePut = call(app, {
+        method: "PUT",
+        url: "/api/accounts/a1",
+        headers: {
+          "idempotency-key": "account-put-replay-0001",
+          "x-account-command-id": commandId,
+        },
+        payload: { ...original, name: "Stale replacement" } as NonNullable<InjectOptions["payload"]>,
+      });
+      await replayEntered.promise;
+      const concurrentPatch = await call(app, {
+        method: "PATCH",
+        url: "/api/accounts/a1",
+        payload: { name: "Concurrent winner" } as NonNullable<InjectOptions["payload"]>,
+      });
+      expect(concurrentPatch.statusCode).toBe(200);
+      releaseReplay.resolve();
+
+      const response = await stalePut;
+      expect(response.statusCode).toBe(409);
+      expect(getRow(db, "accounts", "a1")).toMatchObject({ name: "Concurrent winner" });
+    } finally {
+      lockSpy.mockRestore();
+      await app.close();
+    }
   });
 });
