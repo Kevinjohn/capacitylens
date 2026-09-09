@@ -319,6 +319,76 @@ pnpm --filter capacitylens-server exec vitest run src/app.accountRoutes.test.ts
 pnpm --filter capacitylens-server exec tsc -p tsconfig.json --noEmit
 ```
 
+### Evidence disposition D02 — deferred external-identity admission boundary
+
+The installed Better Auth 1.6.30 `internal-adapter.mjs` places OAuth user/link creation inside
+`runWithTransaction`, but its Kysely adapter reports `transaction: undefined` when CapacityLens
+passes the raw `node:sqlite` `DatabaseSync`. The configured asynchronous user-create hook therefore
+checks `hasLivePreauthorizedInvitation` before insertion without a database transaction that can
+exclude invitation revocation or consumption. A stale positive admission can create the Better Auth
+principal/link after the invite ceases to be live.
+
+This is reproduced by the source-level adapter topology, not rejected as safe. It remains deferred
+because a correct fix needs a shared admission reservation or a transaction-capable Better Auth
+adapter boundary spanning invite state and principal/link creation. A hook-local recheck still ends
+before insertion and does not close the race; introducing reservation schema or replacing the auth
+adapter transaction contract is outside this plan's no-schema/no-contract scope. Prerequisite:
+approve one of those complete boundaries with migration, sanitisation and failure-recovery design.
+
+### Evidence disposition D03 — deferred identity-global reset linearization
+
+`issuePasswordReset` owns the account `KeyedOperationLock` for the target principal, but
+`correctPrincipalEmail` enters the identity adapter's SQLite transaction without that lock. Token
+minting reads the old email before awaiting Better Auth; correction can then update the email and
+revoke existing tokens before the delayed mint inserts a new token for the old address. The inverse
+ordering can likewise mint immediately before correction revokes it. The surviving token in the
+first ordering identifies the old email and is inert after correction, but its existence violates
+the intended revocation boundary and relies on Better Auth lookup behavior for safety.
+
+This remains deferred because the shared linearization seam must live below both account-flow and
+direct identity-adapter callers. A route-local lock would leave bypass callers racy. Prerequisite:
+approve an identity-global principal-operation coordinator injected into every reset issuer,
+revoker and email/federated-link correction path, with both orderings pinned in conformance tests.
+
+### Evidence disposition D04 — rejected duplicate allocation submit
+
+A public UI regression sends two real submit events at the mounted form while `onClose` synchronously
+unmounts it after the first save. The second event cannot reach the React submit handler; exactly one
+allocation is stored. The test is `saves once when two real submit events target a form closed by the
+first` in `src/components/scheduler/AllocationModal.test.tsx`. No modal latch is justified.
+
+### Evidence disposition D05 — rejected auth E2E shared-state collision
+
+Every auth-backed spec that creates shared rows uses a distinct scenario prefix plus a run stamp;
+each file has one stateful scenario. `login.auth.spec.ts` deliberately reuses only
+`tester@capacitylens.dev` in one idempotent seed path, while its parallel scenarios use unique
+emails and organizations. No common principal, workspace, invitation, token or setting is mutated
+by two tests. Fresh browser contexts therefore complement—not mask—the database isolation. No
+failing collision exists, so auth workers remain parallel.
+
+### Approved addendum A06 — launcher ownership and bounded termination
+
+**Evidence:** Both launchers call a fire-and-forget tree signal and immediately `process.exit`, so
+they never wait for descendants or escalate a stuck SIGTERM. The access-lab checks ports and then
+unconditionally deletes its database; two launches can both pass the probes and race through setup
+and deletion because neither owns an exclusive pre-delete resource.
+
+**Fixed decision:** Add shared process-tree termination that sends SIGTERM, waits a bounded grace
+period, escalates remaining POSIX groups to SIGKILL (or Windows trees to forced `taskkill`), and
+waits a final bounded interval. Add an exclusive file owner acquired before access-lab port checks
+or database deletion, released on normal shutdown and every handled partial-start failure.
+
+**Editable:** `scripts/dev-processes.mjs`, `scripts/dev-fullstack.mjs`,
+`scripts/dev-access-lab.mjs`, new `scripts/dev-processes.test.mjs`.
+
+**Preserved contracts:** Ports, child commands, environment isolation, process-group ownership,
+exit codes and fail-fast collision diagnostics remain unchanged.
+
+**Deterministic tests:** exclusive owner collision/release; graceful exit; POSIX SIGKILL escalation;
+Windows forced-tree escalation.
+
+**Focused command:** `node --test scripts/dev-processes.test.mjs`.
+
 Wave C implements only follow-up packets approved from reproduced Wave B evidence. Each addendum
 must state a fixed decision, exact editable paths, preserved contracts, deterministic test and
 focused commands. Rejected and deferred findings remain recorded; they are not described as fixed.

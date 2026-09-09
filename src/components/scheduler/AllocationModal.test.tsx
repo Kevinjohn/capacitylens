@@ -2582,6 +2582,32 @@ const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
   await chooseOption(user, "Activity", "Wireframes");
 };
 
+describe("AllocationModal submit exclusion", () => {
+  it("saves once when two real submit events target a form closed by the first", async () => {
+    const resource = addPerson();
+    const addAllocation = vi.spyOn(useStore.getState(), "addAllocation");
+    const user = userEvent.setup();
+    let closeModal = () => {};
+    const view = render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId: resource.id, startDate: "2099-06-01", endDate: "2099-06-03" }}
+        onClose={() => closeModal()}
+      />,
+    );
+    closeModal = view.unmount;
+    await completeAssignment(user);
+    const form = closestForm(screen.getByRole("button", { name: "Save" }));
+
+    fireEvent.submit(form);
+    fireEvent.submit(form);
+
+    expect(addAllocation).toHaveBeenCalledOnce();
+    expect(useStore.getState().data.allocations).toHaveLength(1);
+    addAllocation.mockRestore();
+  });
+});
+
 function registerRepeatOptionsTest() {
   it("shows all six create-only options, defaults to one-off and dirty-tracks repeat changes", async () => {
     const resource = addPerson();
