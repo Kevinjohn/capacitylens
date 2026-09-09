@@ -11,6 +11,7 @@ import type {
 } from "@capacitylens/shared/account/types";
 import { openDb, type Db } from "../../db";
 import type { LocalIdentityPort } from "../betterAuthIdentityPort";
+import { wasAccountCommandReplayed } from "../commands";
 import { createLocalAccountFlows } from "../createLocalAccountFlows";
 import { KeyedOperationLock } from "../KeyedOperationLock";
 import type { LocalAccountAdminPort } from "../sqliteAccountAdminPort";
@@ -1556,7 +1557,10 @@ it("persists and audits a successful password reset exactly once across replay",
   const input = { actor, targetPrincipalId: "principal-1", command };
 
   const issued = await flows.issuePasswordReset(input);
-  await expect(flows.issuePasswordReset(input)).resolves.toEqual(issued);
+  expect(wasAccountCommandReplayed(issued)).toBe(false);
+  const replayed = await flows.issuePasswordReset(input);
+  expect(replayed).toEqual(issued);
+  expect(wasAccountCommandReplayed(replayed)).toBe(true);
 
   expect(issue).toHaveBeenCalledOnce();
   expect(
