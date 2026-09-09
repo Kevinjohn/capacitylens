@@ -234,7 +234,7 @@ describe("masquerade route adapter start races and audit failures", () => {
     expect(raced.json()).toMatchObject({ code: MASQUERADE_ERROR_CODES.active });
   });
 
-  it("surfaces audit failures before either start or end transition", async () => {
+  it("surfaces audit failures without permitting unauthorized transitions", async () => {
     const startFailure = appFor({
       accountAudit: audit(() => {
         throw new Error("audit unavailable");
