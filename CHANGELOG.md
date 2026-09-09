@@ -9,9 +9,10 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
-- Repeated personal time off creates a previewed, finite batch of independent whole-day entries
-  with weekly, monthly-date and last-weekday choices, one-step undo and duplicate-submit protection
-  (#705).
+- Plan repeated personal time off with weekly, monthly-date or last-weekday patterns and preview
+  every generated range before saving. One save creates a finite, all-or-nothing batch with one-step
+  undo. The entries remain separately editable and deletable while appearing together on the
+  person's single schedule row (#705).
 
 ### Fixed
 
