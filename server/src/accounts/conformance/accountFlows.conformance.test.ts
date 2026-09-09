@@ -1442,32 +1442,131 @@ it("marks reset revocation failure as reconciliation-required", async () => {
   expect(events.filter((event) => event.action === "flow.reconciliation_required")).toHaveLength(1);
 });
 
-it("records and audits a known no-identity reset refusal as compensated rather than outcome-unknown", async () => {
-  const missing = contractError("NOT_FOUND");
+it.each(["NOT_FOUND", "VALIDATION_FAILED", "UNSUPPORTED_CAPABILITY"] as const)(
+  "records and audits a known no-ceremony reset refusal (%s) as compensated rather than outcome-unknown",
+  async (code) => {
+    const refusal = contractError(code);
+    const { flows, events } = harness({
+      identity: identityPort({
+        issuePasswordReset: vi.fn(async () => {
+          throw refusal;
+        }),
+      }),
+    });
+
+    await expect(
+      flows.issuePasswordReset({
+        actor,
+        targetPrincipalId: "principal-1",
+        command,
+      }),
+    ).rejects.toBe(refusal);
+    await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
+      status: "compensated",
+    });
+    expect(events).toEqual([
+      expect.objectContaining({
+        action: "flow.compensated",
+        outcome: "compensated",
+        commandId: command.commandId,
+      }),
+    ]);
+  },
+);
+
+it("records post-ceremony reset failure reconciliation metadata without persisting the token", async () => {
+  const ceremony: PasswordResetCeremony = {
+    ceremonyId: "ceremony-after-issuance",
+    token: "plaintext-reset-token-must-not-persist",
+    expiresAt: "2026-01-02T00:00:00.000Z",
+  };
+  const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
   const { flows, events } = harness({
-    identity: identityPort({
-      issuePasswordReset: vi.fn(async () => {
-        throw missing;
+    identity: identityPort({ issuePasswordReset: vi.fn(async () => ceremony) }),
+    administration: administrationPort({
+      confirmIdentityAdminAuthority: vi.fn(async () => {
+        throw unavailable;
       }),
     }),
   });
 
+  await expect(flows.issuePasswordReset({ actor, targetPrincipalId: "principal-1", command })).rejects.toBe(
+    unavailable,
+  );
+
+  const stored = currentDb()
+    .prepare(`SELECT status, failureCode, resultJson FROM account_commands WHERE commandId = ?`)
+    .get(command.commandId) as { status: string; failureCode: string; resultJson: string };
+  expect(stored).toMatchObject({
+    status: "reconciliation_required",
+    failureCode: "DEPENDENCY_UNAVAILABLE",
+  });
+  expect(JSON.parse(stored.resultJson)).toEqual({
+    kind: "password-reset-issued",
+    workspaceId: null,
+    targetPrincipalId: "principal-1",
+    provisionalPrincipalId: null,
+    ceremonyId: ceremony.ceremonyId,
+  });
+  expect(stored.resultJson).not.toContain(ceremony.token);
+  expect(events).toEqual([
+    expect.objectContaining({
+      action: "flow.reconciliation_required",
+      outcome: "failed",
+      commandId: command.commandId,
+    }),
+  ]);
+});
+
+it("releases failed reset issuance replay capacity for a subsequent command", async () => {
+  const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
+  const issue = vi
+    .fn<LocalIdentityPort["issuePasswordReset"]>()
+    .mockRejectedValueOnce(unavailable)
+    .mockResolvedValueOnce({
+      ceremonyId: "ceremony-retry",
+      token: "write-once-retry-token",
+      expiresAt: "2026-01-02T00:00:00.000Z",
+    });
+  const { flows } = harness({
+    identity: identityPort({ issuePasswordReset: issue }),
+    writeOnceReplayCapacity: 1,
+  });
+
+  await expect(flows.issuePasswordReset({ actor, targetPrincipalId: "principal-1", command })).rejects.toBe(
+    unavailable,
+  );
   await expect(
     flows.issuePasswordReset({
       actor,
-      targetPrincipalId: "principal-1",
-      command,
+      targetPrincipalId: "principal-2",
+      command: { commandId: "retry-command", idempotencyKey: "retry-idempotency" },
     }),
-  ).rejects.toBe(missing);
-  await expect(flows.reconcileCommand({ command, operation: "password-reset" })).resolves.toMatchObject({
-    status: "compensated",
+  ).resolves.toMatchObject({ ceremonyId: "ceremony-retry" });
+  expect(issue).toHaveBeenCalledTimes(2);
+});
+
+it("persists and audits a successful password reset exactly once across replay", async () => {
+  const issue = vi.fn<LocalIdentityPort["issuePasswordReset"]>(async () => ({
+    ceremonyId: "ceremony-success",
+    token: "write-once-success-token",
+    expiresAt: "2026-01-02T00:00:00.000Z",
+  }));
+  const { flows, events } = harness({ identity: identityPort({ issuePasswordReset: issue }) });
+  const input = { actor, targetPrincipalId: "principal-1", command };
+
+  const issued = await flows.issuePasswordReset(input);
+  await expect(flows.issuePasswordReset(input)).resolves.toEqual(issued);
+
+  expect(issue).toHaveBeenCalledOnce();
+  expect(
+    currentDb().prepare(`SELECT status, resultJson FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({
+    status: "completed",
+    resultJson: JSON.stringify({ ceremonyId: issued.ceremonyId, expiresAt: issued.expiresAt }),
   });
-  expect(events).toEqual([
-    expect.objectContaining({
-      action: "flow.compensated",
-      outcome: "compensated",
-      commandId: command.commandId,
-    }),
+  expect(events.filter((event) => event.action === "identity.password_reset_issued")).toEqual([
+    expect.objectContaining({ outcome: "success", commandId: command.commandId }),
   ]);
 });
 
