@@ -500,6 +500,34 @@ it("records a compensated contract failure when provisional identity creation fa
   ).toEqual({ status: "compensated", failureCode: "DEPENDENCY_UNAVAILABLE" });
 });
 
+it("uses the documented conflict fallback when provisional identity creation throws a non-contract error", async () => {
+  const creationFailure = new Error("unexpected provisional identity creation failure");
+  const compensate = vi.fn();
+  const { flows } = harness({
+    identity: identityPort({
+      createCorrelatedProvisionalCredentialPrincipal: vi.fn(async () => {
+        throw creationFailure;
+      }),
+      compensateProvisionalPrincipal: compensate,
+    }),
+  });
+
+  await expect(
+    flows.acceptInviteWithPasswordSignup({
+      token: "non-contract-creation-failure-token",
+      email: "barry.allen@example.com",
+      displayName: "Barry Allen",
+      password: "not-stored-password",
+      command,
+    }),
+  ).rejects.toBe(creationFailure);
+
+  expect(compensate).not.toHaveBeenCalled();
+  expect(
+    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({ status: "compensated", failureCode: "CONFLICT" });
+});
+
 it("uses the documented conflict fallback for a non-contract invite claim failure", async () => {
   const claimFailure = new Error("unexpected claim failure");
   const compensate = vi.fn(async () => {});
@@ -574,7 +602,8 @@ it("retains claim and compensation failures when invite terminal persistence fai
   if (!(failure.errors[0] instanceof AggregateError)) {
     throw new Error("Expected claim and compensation failures to remain aggregated");
   }
-  expect(failure.errors[0].errors).toEqual([claimFailure, compensationFailure]);
+  expect(failure.errors[0].errors[0]).toBe(claimFailure);
+  expect(failure.errors[0].errors[1]).toBe(compensationFailure);
   expect(failure.errors[1]).toMatchObject({ message: "simulated invite terminal persistence failure" });
 });
 
