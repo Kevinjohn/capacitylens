@@ -24,13 +24,24 @@ import { useStore } from "./useStore";
 const ACCOUNT_A = "a-studio";
 const ACCOUNT_B = "a-loft";
 
+function accountRows() {
+  return [
+    makeAccount({ id: ACCOUNT_A, name: "Wayne Enterprises" }),
+    makeAccount({ id: ACCOUNT_B, name: "Stark Industries" }),
+  ];
+}
+
+function clientRows() {
+  return [
+    makeClient({ id: "c-a", accountId: ACCOUNT_A, name: "Wayne Foundation" }),
+    makeClient({ id: "c-b", accountId: ACCOUNT_B, name: "Stark Industries" }),
+  ];
+}
+
 function twoAccountData(): AppData {
   return {
     ...emptyAppData(),
-    accounts: [
-      makeAccount({ id: ACCOUNT_A, name: "Wayne Enterprises" }),
-      makeAccount({ id: ACCOUNT_B, name: "Stark Industries" }),
-    ],
+    accounts: accountRows(),
     disciplines: [
       { id: "d-a", accountId: ACCOUNT_A, createdAt: "t", updatedAt: "t", name: "Design", sortOrder: 1 },
       { id: "d-b", accountId: ACCOUNT_B, createdAt: "t", updatedAt: "t", name: "Engineering", sortOrder: 1 },
@@ -39,10 +50,10 @@ function twoAccountData(): AppData {
       makeResource({ id: "r-a", accountId: ACCOUNT_A, name: "Bruce Wayne" }),
       makeResource({ id: "r-b", accountId: ACCOUNT_B, name: "Tony Stark" }),
     ],
-    clients: [makeClient({ id: "c-a", accountId: ACCOUNT_A }), makeClient({ id: "c-b", accountId: ACCOUNT_B })],
+    clients: clientRows(),
     projects: [
-      makeProject({ id: "p-a", accountId: ACCOUNT_A, clientId: "c-a" }),
-      makeProject({ id: "p-b", accountId: ACCOUNT_B, clientId: "c-b" }),
+      makeProject({ id: "p-a", accountId: ACCOUNT_A, clientId: "c-a", name: "Batcave Upgrade" }),
+      makeProject({ id: "p-b", accountId: ACCOUNT_B, clientId: "c-b", name: "Arc Reactor" }),
     ],
     phases: [
       { id: "phase-a", accountId: ACCOUNT_A, createdAt: "t", updatedAt: "t", name: "Discovery", projectId: "p-a" },
@@ -102,7 +113,9 @@ describe("scoped data", () => {
     expect(b).not.toBe(a);
     expect(resolveSharedScopedData({ ...data, clients: [...data.clients] }, ACCOUNT_A)).not.toBe(a);
   });
+});
 
+describe("scoped data hooks", () => {
   it("updates useScopedData on account changes without retaining the previous account rows", () => {
     useStore.getState().replaceAll(twoAccountData());
     useStore.getState().setActiveAccount(ACCOUNT_A);
@@ -118,17 +131,22 @@ describe("scoped data", () => {
 
   it("projects archived and soft-deleted rows out of active data while retaining them in inactive data", () => {
     const data = twoAccountData();
+    data.resources.push(makeResource({ id: "r-a-active", accountId: ACCOUNT_A, name: "Diana Prince" }));
+    data.clients.push(makeClient({ id: "c-a-active", accountId: ACCOUNT_A, name: "Queen Industries" }));
+    data.projects.push(
+      makeProject({ id: "p-a-active", accountId: ACCOUNT_A, clientId: "c-a-active", name: "Themyscira Archive" }),
+    );
     data.resources[0] = { ...requireValue(data.resources[0]), archivedAt: "2026-01-01T00:00:00.000Z" };
     data.clients[0] = { ...requireValue(data.clients[0]), deletedAt: "2026-01-02T00:00:00.000Z" };
     useStore.getState().replaceAll(data);
     useStore.getState().setActiveAccount(ACCOUNT_A);
     const { result } = renderHook(() => ({ active: useActiveScopedData(), inactive: useInactiveScopedData() }));
 
-    expect(result.current.active.resources).toEqual([]);
-    expect(result.current.active.clients).toEqual([]);
-    expect(result.current.active.projects).toEqual([]);
-    expect(result.current.inactive.resources.map((resource) => resource.id)).toEqual(["r-a"]);
-    expect(result.current.inactive.clients.map((client) => client.id)).toEqual(["c-a"]);
+    expect(result.current.active.resources.map((resource) => resource.id)).toEqual(["r-a-active"]);
+    expect(result.current.active.clients.map((client) => client.id)).toEqual(["c-a-active"]);
+    expect(result.current.active.projects.map((project) => project.id)).toEqual(["p-a-active"]);
+    expect(result.current.inactive.resources.map((resource) => resource.id)).toEqual(["r-a", "r-a-active"]);
+    expect(result.current.inactive.clients.map((client) => client.id)).toEqual(["c-a", "c-a-active"]);
     expect(resolveSharedActiveData(result.current.inactive)).toBe(result.current.active);
   });
 
