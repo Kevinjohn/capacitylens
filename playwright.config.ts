@@ -215,7 +215,7 @@ export default defineConfig({
                 command: "pnpm run start:e2e",
                 cwd: "./server",
                 url: `http://localhost:${API_PORT}/api/health`,
-                reuseExistingServer: !process.env.CI,
+                reuseExistingServer: false,
                 timeout: 120_000,
               },
               {
@@ -223,7 +223,7 @@ export default defineConfig({
                 // Warm and verify the browser's real Vite → API path before the first page mounts.
                 // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
                 url: `http://localhost:${DB_WEB_PORT}/api/health`,
-                reuseExistingServer: !process.env.CI,
+                reuseExistingServer: false,
                 timeout: 120_000,
                 // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
                 // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
@@ -246,7 +246,7 @@ export default defineConfig({
               {
                 command: "pnpm run dev:auth",
                 url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
-                reuseExistingServer: !process.env.CI,
+                reuseExistingServer: false,
                 timeout: 120_000,
                 env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },
               },
