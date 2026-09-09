@@ -134,6 +134,7 @@ export default defineConfig({
             items: [
               { text: "Threat model", link: "/security/threat-model" },
               { text: "OWASP ASVS 5.0.0 mapping", link: "/security/owasp-asvs-5.0.0" },
+              { text: "OpenSSF Baseline assessment", link: "/security/OpenSSF-best-practices-dev" },
               { text: "Control inventories", link: "/security/control-inventories" },
               { text: "Security review — 2026-08-18", link: "/security/security-review-2026-08-18" },
               { text: "Mutation-test security review — 2026-07-15", link: "/security/mutation-review-2026-07-15" },
