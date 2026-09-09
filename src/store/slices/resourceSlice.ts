@@ -20,6 +20,7 @@ import type { Draft, Patch, StoreState } from "../types";
 type ResourceSlice = Pick<
   StoreState,
   | "addResource"
+  | "addTimeOffs"
   | "updateResource"
   | "addTimeOff"
   | "updateTimeOff"
@@ -116,19 +117,15 @@ function createResourceAddAction(internals: StoreInternals, get: StoreApi<StoreS
 function createTimeOffActions(
   internals: StoreInternals,
   get: StoreApi<StoreState>["getState"],
-): Pick<ResourceSlice, "addTimeOff" | "updateTimeOff" | "deleteTimeOff"> {
-  const { createGuardedAction, createGuardedAddAction, requireAccount, mutate, updateOwned, resolveOwnedRow } =
-    internals;
+): Pick<ResourceSlice, "addTimeOff" | "addTimeOffs" | "updateTimeOff" | "deleteTimeOff"> {
+  const { createGuardedAction, createTimeOffs, mutate, updateOwned, resolveOwnedRow } = internals;
   return {
-    addTimeOff: createGuardedAddAction(
-      (input: Draft<TimeOff>): TimeOff => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
-      (entity, input) => {
-        assertResourceExists(get().data, entity.accountId, input.resourceId);
-        assertDateRange(input.startDate, input.endDate);
-        mutate((data) => ({ ...data, timeOff: [...data.timeOff, entity] }));
-        return entity;
-      },
-    ),
+    addTimeOff: (input) => {
+      const timeOff = createTimeOffs([input])[0];
+      if (!timeOff) throw new Error("Time-off creation produced no row.");
+      return timeOff;
+    },
+    addTimeOffs: createTimeOffs,
     updateTimeOff: createGuardedAction((id: ID, patch: Patch<TimeOff>) => {
       updateOwned({
         key: "timeOff",

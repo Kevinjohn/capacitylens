@@ -15,8 +15,9 @@ This is the short, present-tense record of decisions that constrain future work.
   attribute the booking to a project; project-specific and internal allocations must not.
 - Resources are people, placeholders or external parties. External parties have no capacity and
   do not contribute to utilisation.
-- Time off does not recur. Neither a personal entry nor a company closure has a repeat or series
-  field; a holiday or shutdown is a specific set of dates. Repeat belongs to allocations.
+- Personal time-off creation may repeat into a finite batch of independent dated, whole-day records;
+  each resulting entry is edited or deleted on its own and carries no series field. Company closures
+  do not recur. Working patterns never move or filter time-off dates.
 - Company closures are separate entities from personal time off, not a variant of it. A closure
   covers every person and placeholder, never an external party, and carries no resource reference.
 - Shared role and status badges use a compact pill silhouette. Their semantic colours continue to

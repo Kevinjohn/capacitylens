@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Repeated personal time off creates a previewed, finite batch of independent whole-day entries
+  with weekly, monthly-date and last-weekday choices, one-step undo and duplicate-submit protection
+  (#705).
+
 ### Fixed
 
 - Hardened imports, account updates, invitation signup, masquerade transitions, scheduler

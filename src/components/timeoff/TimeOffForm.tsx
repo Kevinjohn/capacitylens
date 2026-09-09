@@ -1,13 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useStore } from "../../store/useStore";
 import { hasPlaceholdersEnabled, resolveTimeZone } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
 import { todayISO } from "@capacitylens/shared/lib/dateMath";
 import { MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
-import { validateText } from "../../lib/validation";
-import { isStaleEdit } from "../../lib/isStaleEdit";
-import { resolveErrorMessage } from "../../lib/errorMessage";
 import { m } from "@/i18n";
 import { DateField, FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError } from "../ui/field";
@@ -16,13 +13,15 @@ import { isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate, TimeOff, TimeOffType } from "@capacitylens/shared/types/entities";
 import { canSeeTimeOffNote } from "@capacitylens/shared/domain/access";
 import { useRole } from "../../auth/permissionContext";
+import { useTimeOffRepeat } from "./useTimeOffRepeat";
+import { TimeOffRepeatFields } from "./TimeOffRepeatFields";
+import { saveTimeOff } from "./timeOffFormSubmission";
 
 interface TimeOffFormProps {
   timeOff?: TimeOff;
   defaults?: { resourceId?: string; startDate?: ISODate; endDate?: ISODate };
   onClose: () => void;
 }
-
 interface TimeOffFieldsProps {
   resourceId: string;
   setResourceId: (value: string) => void;
@@ -38,6 +37,7 @@ interface TimeOffFieldsProps {
   canEditNote: boolean;
   errorField: string | null;
   errorId: string;
+  repeatFields?: ReactNode;
 }
 
 interface TimeOffDraftOptions {
@@ -62,41 +62,6 @@ function useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote }: T
   return { resourceId, setResourceId, startDate, setStartDate, endDate, setEndDate, type, setType, note, setNote };
 }
 
-type Fail = ReturnType<typeof useFieldError>["fail"];
-
-function validateTimeOffDraft(options: {
-  resources: ReturnType<typeof useActiveScopedData>["resources"];
-  resourceId: string;
-  startDate: ISODate | "";
-  endDate: ISODate | "";
-  type: TimeOffType;
-  note: string;
-  canEditNote: boolean;
-  fail: Fail;
-}) {
-  const { resources, resourceId, startDate, endDate, type, note, canEditNote, fail } = options;
-  const chosen = resources.find((resource) => resource.id === resourceId);
-  if (!chosen || isExternalResource(chosen)) {
-    fail("resource", m.form_timeoff_err_choose_resource());
-    return null;
-  }
-  if (!startDate || !endDate) {
-    fail("dates", m.form_timeoff_err_dates_required());
-    return null;
-  }
-  if (endDate < startDate) {
-    fail("dates", m.form_timeoff_err_end_before_start());
-    return null;
-  }
-  let cleanNote: string | undefined;
-  if (canEditNote) {
-    const validatedNote = validateText(note, fail, { field: "note", required: false, multiline: true });
-    if (validatedNote === null) return null;
-    cleanNote = validatedNote || undefined;
-  }
-  return { basePatch: { resourceId, startDate, endDate, type }, cleanNote };
-}
-
 function useTimeOffResourceOptions(
   resources: ReturnType<typeof useActiveScopedData>["resources"],
   placeholdersEnabled: boolean,
@@ -115,70 +80,74 @@ function useTimeOffResourceOptions(
   }));
 }
 
-function saveTimeOff(options: {
+function buildTimeOffRepeatFields(options: {
   timeOff: TimeOff | undefined;
-  resources: ReturnType<typeof useActiveScopedData>["resources"];
-  resourceId: string;
   startDate: ISODate | "";
-  endDate: ISODate | "";
-  type: TimeOffType;
-  note: string;
-  canEditNote: boolean;
-  fail: Fail;
-  add: ReturnType<typeof useStore.getState>["addTimeOff"];
-  update: ReturnType<typeof useStore.getState>["updateTimeOff"];
-  onClose: () => void;
-}) {
-  const { timeOff, add, update, onClose, canEditNote, fail } = options;
-  const draft = validateTimeOffDraft(options);
-  if (!draft) return;
-  const { basePatch, cleanNote } = draft;
-  const patch = canEditNote ? { ...basePatch, note: cleanNote } : basePatch;
-  try {
-    if (timeOff) {
-      if (isStaleEdit(useStore.getState().data.timeOff, timeOff.id, timeOff.updatedAt)) {
-        fail(null, m.form_timeoff_err_changed());
-        return;
-      }
-      update(timeOff.id, patch);
-    } else add({ ...basePatch, ...(cleanNote ? { note: cleanNote } : {}) });
-    onClose();
-  } catch (error) {
-    fail(null, error instanceof Error ? resolveErrorMessage(error) : m.form_timeoff_err_save_failed());
-  }
+  repeatState: ReturnType<typeof useTimeOffRepeat>;
+  errorField: string | null;
+  errorId: string;
+}): ReactNode {
+  if (options.timeOff) return undefined;
+  const { repeat, repeatUntil, maximum, preview, changeRepeat, changeRepeatUntil } = options.repeatState;
+  return (
+    <TimeOffRepeatFields
+      startDate={options.startDate}
+      repeat={repeat}
+      repeatUntil={repeatUntil}
+      repeatUntilMaximum={maximum}
+      projection={preview}
+      errorField={options.errorField}
+      errorId={options.errorId}
+      onRepeatChange={changeRepeat}
+      onRepeatUntilChange={changeRepeatUntil}
+    />
+  );
+}
+
+/** Null is OFF/demo mode, where there is no server note projection to enforce. */
+function useCanEditTimeOffNote(): boolean {
+  const role = useRole();
+  return role === null || canSeeTimeOffNote(role);
 }
 
 export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
   const add = useStore((state) => state.addTimeOff);
+  const addMany = useStore((state) => state.addTimeOffs);
   const update = useStore((state) => state.updateTimeOff);
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const resources = useActiveScopedData().resources;
-  const role = useRole();
-  // Null is the OFF/demo/no-provider mode, where there is no server field projection to enforce.
-  const canEditNote = role === null || canSeeTimeOffNote(role);
+  const canEditNote = useCanEditTimeOffNote();
 
-  const { resourceId, setResourceId, startDate, setStartDate, endDate, setEndDate, type, setType, note, setNote } =
-    useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote });
+  const fields = useTimeOffDraft({ timeOff, defaults, calendarTimeZone, canEditNote });
+  const acceptedSubmission = useRef(false);
+  const repeatState = useTimeOffRepeat(fields);
   const fieldError = useFieldError();
   const { error, errorField, errorId, fail, clear } = fieldError;
   useFieldErrorFocus(fieldError);
 
-  const resourceOptions = useTimeOffResourceOptions(resources, placeholdersEnabled, resourceId);
+  const resourceOptions = useTimeOffResourceOptions(resources, placeholdersEnabled, fields.resourceId);
+  const repeatFields = buildTimeOffRepeatFields({
+    timeOff,
+    startDate: fields.startDate,
+    repeatState,
+    errorField,
+    errorId,
+  });
 
   const submit = () =>
     saveTimeOff({
       timeOff,
       resources,
-      resourceId,
-      startDate,
-      endDate,
-      type,
-      note,
+      ...fields,
       canEditNote,
       fail,
       add,
+      addMany,
       update,
+      repeat: repeatState.repeat,
+      repeatUntil: repeatState.repeatUntil,
+      acceptedSubmission,
       onClose,
     });
 
@@ -191,20 +160,12 @@ export function TimeOffForm({ timeOff, defaults, onClose }: TimeOffFormProps) {
       footer={<FormActions onCancel={onClose} />}
     >
       <TimeOffFields
-        resourceId={resourceId}
-        setResourceId={setResourceId}
+        {...fields}
         resourceOptions={resourceOptions}
-        startDate={startDate}
-        setStartDate={setStartDate}
-        endDate={endDate}
-        setEndDate={setEndDate}
-        type={type}
-        setType={setType}
-        note={note}
-        setNote={setNote}
         canEditNote={canEditNote}
         errorField={errorField}
         errorId={errorId}
+        repeatFields={repeatFields}
       />
       <FieldError id={errorId} tabIndex={error && errorField === null ? -1 : undefined}>
         {error}
@@ -229,6 +190,7 @@ function TimeOffFields({
   canEditNote,
   errorField,
   errorId,
+  repeatFields,
 }: TimeOffFieldsProps) {
   return (
     <>
@@ -258,6 +220,7 @@ function TimeOffFields({
         options={buildTimeOffTypeOptions()}
         layout="label-control"
       />
+      {repeatFields}
       {canEditNote && (
         <TextField
           label={m.form_timeoff_note_label()}

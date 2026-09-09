@@ -184,6 +184,7 @@ export function DateField({
   describedById,
   min,
   max,
+  testId,
   layout = "stacked",
 }: {
   label: string;
@@ -194,6 +195,7 @@ export function DateField({
   describedById?: string;
   min?: string;
   max?: string;
+  testId?: string;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
 }) {
@@ -210,6 +212,7 @@ export function DateField({
         aria-describedby={invalid ? describedById : undefined}
         min={min}
         max={max}
+        data-testid={testId}
         onChange={(e) => onChange(e.target.value)}
       />
     </Field>

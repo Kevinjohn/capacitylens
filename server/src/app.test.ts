@@ -2047,6 +2047,31 @@ function createMissingTimeOffResourceTest() {
   });
 }
 
+function createRepeatedTimeOffRollbackTest() {
+  it("rolls back a valid time-off row when a later repeated row is invalid", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+
+    const response = await batch(app, [
+      {
+        method: "PUT",
+        table: "timeOff",
+        id: "repeat-good",
+        row: timeOff({ id: "repeat-good", accountId: "a1", resourceId: "r1" }),
+      },
+      {
+        method: "PUT",
+        table: "timeOff",
+        id: "repeat-bad",
+        row: timeOff({ id: "repeat-bad", accountId: "a1", resourceId: "missing" }),
+      },
+    ]);
+
+    expect(response.statusCode).toBe(400);
+    expect((await readValidatedState(app)).timeOff).toHaveLength(0);
+  });
+}
+
 function createLifecycleDeletePreScanTest() {
   it("rejects a lifecycle DELETE before executing any batch operation", async () => {
     const { app } = freshApp();
@@ -2216,6 +2241,7 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
   createClearingBeforeArchiveTest();
   createClosureWriteTest();
   createMissingTimeOffResourceTest();
+  createRepeatedTimeOffRollbackTest();
   createLifecycleDeletePreScanTest();
   createAtomicRollbackTest();
   createRepeatedAllocationRollbackTest();
