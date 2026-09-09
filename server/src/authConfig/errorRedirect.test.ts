@@ -25,9 +25,16 @@ function callbackRequest(state?: string) {
 }
 
 describe("createErrorRedirect", () => {
-  it.each([undefined, ""])("does not read storage for a missing or empty state", (state) => {
+  it("returns fresh fallback URLs without reading storage for missing or empty state", () => {
     const { readVerificationValues, redirect } = createRedirect();
-    expect(redirect(callbackRequest(state))).toEqual(fallbackUrl);
+    const missingState = redirect(callbackRequest());
+    const emptyState = redirect(callbackRequest(""));
+
+    expect(missingState).toEqual(fallbackUrl);
+    expect(emptyState).toEqual(fallbackUrl);
+    expect(missingState).not.toBe(fallbackUrl);
+    expect(emptyState).not.toBe(fallbackUrl);
+    expect(missingState).not.toBe(emptyState);
     expect(readVerificationValues).not.toHaveBeenCalled();
   });
 
@@ -36,7 +43,9 @@ describe("createErrorRedirect", () => {
     expect(redirect(callbackRequest("opaque"))).toEqual(fallbackUrl);
     expect(readVerificationValues).toHaveBeenCalledWith(opaqueStateIdentifier);
   });
+});
 
+describe("createErrorRedirect validation", () => {
   it.each([
     ["a null storage result", null],
     ["an empty storage result", []],
@@ -47,6 +56,7 @@ describe("createErrorRedirect", () => {
     ["a missing error URL", [JSON.stringify({ oauthState: "opaque" })]],
     ["a non-string error URL", [JSON.stringify({ oauthState: "opaque", errorURL: 42 })]],
     ["a relative error URL", [JSON.stringify({ oauthState: "opaque", errorURL: "/error" })]],
+    ["a malformed absolute error URL", [JSON.stringify({ oauthState: "opaque", errorURL: "https://[invalid" })]],
     [
       "an untrusted error URL",
       [JSON.stringify({ oauthState: "opaque", errorURL: "https://untrusted.example.test/error" })],
@@ -58,15 +68,16 @@ describe("createErrorRedirect", () => {
     expect(readVerificationValues).toHaveBeenCalledWith(opaqueStateIdentifier);
   });
 
-  it.each(["https://user@trusted.example.test/error", "https://user:secret@trusted.example.test/error"])(
-    "rejects a trusted URL containing credentials",
-    (errorURL) => {
-      const { readVerificationValues, redirect } = createRedirect([JSON.stringify({ oauthState: "opaque", errorURL })]);
+  it.each([
+    "https://user@trusted.example.test/error",
+    "https://user:secret@trusted.example.test/error",
+    "https://:secret@trusted.example.test/error",
+  ])("rejects a trusted URL containing credentials", (errorURL) => {
+    const { readVerificationValues, redirect } = createRedirect([JSON.stringify({ oauthState: "opaque", errorURL })]);
 
-      expect(redirect(callbackRequest("opaque"))).toEqual(fallbackUrl);
-      expect(readVerificationValues).toHaveBeenCalledWith(opaqueStateIdentifier);
-    },
-  );
+    expect(redirect(callbackRequest("opaque"))).toEqual(fallbackUrl);
+    expect(readVerificationValues).toHaveBeenCalledWith(opaqueStateIdentifier);
+  });
 
   it("selects a later matching trusted URL after an invalid row", () => {
     const target = new URL(`${trustedOrigin}/retry?reason=provider_denied`);
