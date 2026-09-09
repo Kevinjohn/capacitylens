@@ -9,6 +9,23 @@ import type { AccountEntityRouteDependencies } from "./dependencies";
 import { sendAccountRouteFailure } from "./guards";
 import { ACCOUNT_CREATE_CLOSED_MESSAGE, buildCanonicalAccountProductPayload } from "./policy";
 
+type AccountLifecycleDependencies = Pick<
+  AccountEntityRouteDependencies,
+  | "db"
+  | "store"
+  | "authMode"
+  | "multiAccount"
+  | "flows"
+  | "authorize"
+  | "command"
+  | "replayCommand"
+  | "fieldVisibility"
+  | "drainProductAudit"
+  | "enqueueAudit"
+  | "fail"
+  | "accountFail"
+>;
+
 function requireRequestContext(req: FastifyRequest) {
   if (!req.user || !req.accountActor) throw new Error("Authenticated request context is required.");
   return { user: req.user, actor: req.accountActor };
@@ -31,7 +48,7 @@ function requireRowString(row: Record<string, unknown>, field: "id" | "createdAt
   return value;
 }
 
-async function createAccount(req: FastifyRequest, reply: FastifyReply, dependencies: AccountEntityRouteDependencies) {
+async function createAccount(req: FastifyRequest, reply: FastifyReply, dependencies: AccountLifecycleDependencies) {
   const { db, store, multiAccount, flows, command, fieldVisibility, drainProductAudit, enqueueAudit } = dependencies;
   const requestRow = requireRequestRow(req.body);
   const { user, actor } = requireRequestContext(req);
@@ -82,7 +99,7 @@ async function createAccount(req: FastifyRequest, reply: FastifyReply, dependenc
   return reply.code(201).send(provisioned.product);
 }
 
-function createPostHandler(dependencies: AccountEntityRouteDependencies) {
+function createPostHandler(dependencies: AccountLifecycleDependencies) {
   return async (req: FastifyRequest, reply: FastifyReply) => {
     // Keep the shape guard outside try so malformed bodies remain caller-fault 400s, not 500s.
     const bodyCheck = checkEntityWriteBody({
@@ -105,7 +122,7 @@ function createPostHandler(dependencies: AccountEntityRouteDependencies) {
   };
 }
 
-function createDeleteHandler(dependencies: AccountEntityRouteDependencies) {
+function createDeleteHandler(dependencies: AccountLifecycleDependencies) {
   const { db, authMode, flows, authorize, command, replayCommand, drainProductAudit, enqueueAudit } = dependencies;
   return async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
     const { id } = req.params;
@@ -151,6 +168,6 @@ function createDeleteHandler(dependencies: AccountEntityRouteDependencies) {
   };
 }
 
-export function createAccountLifecycleHandlers(dependencies: AccountEntityRouteDependencies) {
+export function createAccountLifecycleHandlers(dependencies: AccountLifecycleDependencies) {
   return { post: createPostHandler(dependencies), delete: createDeleteHandler(dependencies) };
 }
