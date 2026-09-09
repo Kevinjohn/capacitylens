@@ -1,7 +1,7 @@
 # Test coverage improvement plan
 
-Status: documented proposal, prepared 2026-09-09. Implementation starts only when this plan is
-selected for execution. Base reviewed: `135cc016a39f9ed6c7dc8ff363d6d1a37014c854`.
+Status: completed 2026-09-09. Base reviewed:
+`135cc016a39f9ed6c7dc8ff363d6d1a37014c854`.
 
 This plan closes confirmed behavioural test gaps, distinguishes existing tests that are excluded
 from the headline coverage report, and refreshes the evidence before changing any coverage policy.
@@ -549,6 +549,26 @@ The programme is complete when:
 - low/no-coverage exceptions are explicit and no exception was added to make a gate pass; and
 - remaining uncovered behaviour and percentage shortfall are recorded by metric without claiming
   that 100% is required or practical.
+
+### Completion validation record
+
+The completion gate ran at merged revision `2a63b11a08e93d470b0d9f683ee2bd99a35da8d6`
+under Node `v24.19.0` on 2026-09-09:
+
+- `pnpm run gate` passed, including 209 test files, 3,844 tests, the app/shared coverage report,
+  the zero-file check, typechecks, lint, formatting, policy checks and production build.
+- `pnpm run gate:server` passed, including 101 headline test files and 1,845 tests, the server
+  coverage report, 56 isolated account-flow tests, three credential-durability tests, three
+  migration-rehearsal tests, typecheck, lint, formatting and runtime build.
+- `pnpm run e2e` passed all 257 Chromium, database-backed and authentication-backed scenarios.
+- The separate account-flow coverage command recorded above was refreshed after the gates at the
+  same revision: statements 86.59% (336/388), branches 71.17% (121/170), functions 87.82%
+  (101/115), and lines 88.67% (321/362).
+
+All required behaviours are covered by new regression tests or the existing citations recorded
+above. No exclusions, allowlist entries, skips, coverage-ignore comments or denominator reductions
+were added. The only allowlist change removes `SchedulerView`, and every measured metric improved
+from P0.
 
 ## Risks and mitigations
 
