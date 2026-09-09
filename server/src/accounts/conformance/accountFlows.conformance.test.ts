@@ -1619,32 +1619,6 @@ it("does not revoke sessions or audit twice when replaying a completed command",
   ]);
 });
 
-it("compensates an authority dependency failure before session revocation starts", async () => {
-  const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
-  const { flows, identity, events } = harness({
-    administration: administrationPort({
-      evaluateIdentityAdminAuthority: vi.fn(async () => {
-        throw unavailable;
-      }),
-    }),
-  });
-
-  await expect(flows.revokeMemberSessions({ actor, targetPrincipalId: "principal-1", command })).rejects.toBe(
-    unavailable,
-  );
-
-  expect(identity.revokePrincipalSessions).not.toHaveBeenCalled();
-  expect(
-    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
-  ).toEqual({ status: "compensated", failureCode: "DEPENDENCY_UNAVAILABLE" });
-  expect(events).toEqual([
-    expect.objectContaining({ action: "identity.sessions_revoked", outcome: "failed", commandId: command.commandId }),
-  ]);
-  await expect(flows.reconcileCommand({ command, operation: "session-revocation" })).resolves.toMatchObject({
-    status: "compensated",
-  });
-});
-
 it("retains the original session-revocation failure when terminal persistence fails", async () => {
   const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
   const { flows } = harness({
@@ -1678,9 +1652,9 @@ it("retains the original session-revocation failure when terminal persistence fa
   ]);
 });
 
-it("audits a session-revocation authority dependency failure exactly once", async () => {
+it("compensates and audits a session-revocation authority dependency failure exactly once", async () => {
   const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
-  const { flows, events } = harness({
+  const { flows, identity, events } = harness({
     administration: administrationPort({
       evaluateIdentityAdminAuthority: vi.fn(async () => {
         throw unavailable;
@@ -1696,6 +1670,10 @@ it("audits a session-revocation authority dependency failure exactly once", asyn
     }),
   ).rejects.toBe(unavailable);
 
+  expect(identity.revokePrincipalSessions).not.toHaveBeenCalled();
+  expect(
+    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({ status: "compensated", failureCode: "DEPENDENCY_UNAVAILABLE" });
   expect(events).toEqual([
     expect.objectContaining({
       action: "identity.sessions_revoked",
