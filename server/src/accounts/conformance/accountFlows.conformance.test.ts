@@ -1574,6 +1574,110 @@ it("persists and audits a successful password reset exactly once across replay",
   ]);
 });
 
+it("clears tracked member sign-in confirmation and records one successful session-revocation audit", async () => {
+  const { flows, events } = harness();
+  currentDb().prepare(`INSERT INTO account_member_sign_in_tracking (accountId) VALUES (?)`).run("wayne-enterprises");
+  currentDb()
+    .prepare(
+      `INSERT INTO account_members (accountId, userId, role, status, createdAt, signInConfirmed)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+    .run("wayne-enterprises", "principal-1", "editor", "active", "2026-01-01T00:00:00.000Z", "true");
+
+  await expect(flows.revokeMemberSessions({ actor, targetPrincipalId: "principal-1", command })).resolves.toMatchObject(
+    {
+      commandId: command.commandId,
+    },
+  );
+
+  expect(
+    currentDb()
+      .prepare(`SELECT signInConfirmed FROM account_members WHERE accountId = ? AND userId = ?`)
+      .get("wayne-enterprises", "principal-1"),
+  ).toEqual({ signInConfirmed: "false" });
+  expect(events.filter((event) => event.action === "identity.sessions_revoked")).toEqual([
+    expect.objectContaining({ outcome: "success", commandId: command.commandId }),
+  ]);
+});
+
+it("does not revoke sessions or audit twice when replaying a completed command", async () => {
+  const revoke = vi.fn<LocalIdentityPort["revokePrincipalSessions"]>(async ({ command: value }) => ({
+    commandId: value.commandId,
+    completedAt: "2026-01-01T00:00:00.000Z",
+  }));
+  const { flows, events } = harness({ identity: identityPort({ revokePrincipalSessions: revoke }) });
+  const input = { actor, targetPrincipalId: "principal-1", command };
+
+  const completed = await flows.revokeMemberSessions(input);
+  const replayed = await flows.revokeMemberSessions(input);
+
+  expect(replayed).toEqual(completed);
+  expect(wasAccountCommandReplayed(replayed)).toBe(true);
+  expect(revoke).toHaveBeenCalledOnce();
+  expect(events.filter((event) => event.action === "identity.sessions_revoked")).toEqual([
+    expect.objectContaining({ outcome: "success", commandId: command.commandId }),
+  ]);
+});
+
+it("compensates an authority dependency failure before session revocation starts", async () => {
+  const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
+  const { flows, identity, events } = harness({
+    administration: administrationPort({
+      evaluateIdentityAdminAuthority: vi.fn(async () => {
+        throw unavailable;
+      }),
+    }),
+  });
+
+  await expect(flows.revokeMemberSessions({ actor, targetPrincipalId: "principal-1", command })).rejects.toBe(
+    unavailable,
+  );
+
+  expect(identity.revokePrincipalSessions).not.toHaveBeenCalled();
+  expect(
+    currentDb().prepare(`SELECT status, failureCode FROM account_commands WHERE commandId = ?`).get(command.commandId),
+  ).toEqual({ status: "compensated", failureCode: "DEPENDENCY_UNAVAILABLE" });
+  expect(events).toEqual([
+    expect.objectContaining({ action: "identity.sessions_revoked", outcome: "failed", commandId: command.commandId }),
+  ]);
+  await expect(flows.reconcileCommand({ command, operation: "session-revocation" })).resolves.toMatchObject({
+    status: "compensated",
+  });
+});
+
+it("retains the original session-revocation failure when terminal persistence fails", async () => {
+  const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
+  const { flows } = harness({
+    identity: identityPort({
+      revokePrincipalSessions: vi.fn(async () => {
+        throw unavailable;
+      }),
+    }),
+  });
+  currentDb().exec(`
+    CREATE TRIGGER fail_session_revocation_terminal_persistence
+    BEFORE UPDATE OF status ON account_commands
+    WHEN OLD.operation = 'session-revocation:actor:actor-1' AND NEW.status = 'reconciliation_required'
+    BEGIN
+      SELECT RAISE(ABORT, 'simulated session-revocation terminal persistence failure');
+    END;
+  `);
+
+  const failure = await flows.revokeMemberSessions({ actor, targetPrincipalId: "principal-1", command }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+
+  expect(failure).toBeInstanceOf(AggregateError);
+  if (!(failure instanceof AggregateError)) {
+    throw new Error("Expected terminal-persistence failure to preserve session-revocation evidence");
+  }
+  expect(failure.errors).toEqual([
+    unavailable,
+    expect.objectContaining({ message: "simulated session-revocation terminal persistence failure" }),
+  ]);
+});
+
 it("audits a session-revocation authority dependency failure exactly once", async () => {
   const unavailable = contractError("DEPENDENCY_UNAVAILABLE");
   const { flows, events } = harness({
