@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Security
+
+- Updated transitive `browserslist` and `qs` dependencies to patched releases, resolving four
+  denial-of-service advisories reported by OpenSSF Scorecard.
+
 ## [0.60.2-alpha.1] - 2026-09-07
 
 ### Added
