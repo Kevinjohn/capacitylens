@@ -427,6 +427,35 @@ registerInviteAcceptTest(() =>
 );
 
 registerInviteAcceptTest(() =>
+  it("starts only one signup flow for immediate repeated form submissions", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/preview")) return Promise.resolve(previewResponse());
+      if (url.endsWith("/signup") && init?.method === "POST") return new Promise<Response>(() => undefined);
+      return Promise.reject(new Error(`Unexpected request: ${url}`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+
+    renderInvite({ ...signedInAuth, user: null });
+    await screen.findByTestId("invite-preview");
+    await fillInviteCredentials(user);
+    const create = screen.getByRole("button", { name: m.invite_create_account() });
+
+    act(() => {
+      create.click();
+      create.click();
+    });
+
+    await vi.waitFor(() => {
+      const signupCalls = fetchMock.mock.calls.filter(([input]) => String(input).endsWith("/signup"));
+      expect(signupCalls).toHaveLength(1);
+    });
+    expect(authClientMock.signInEmail).not.toHaveBeenCalled();
+  }),
+);
+
+registerInviteAcceptTest(() =>
   it("hands a newly-created invitee to a fresh boot for the verified joined company", async () => {
     resetStoreWithAccount();
     useStore.getState().setActiveAccount(null);
