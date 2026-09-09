@@ -144,6 +144,20 @@ function allowPut(input: AccountWriteInput, existing: Record<string, unknown> | 
   return !existing || dependencies.authorize({ req, reply, accountId: id, action: "write" });
 }
 
+function enforcePutPreflight(input: AccountWriteInput, existing: Record<string, unknown> | undefined): boolean {
+  const { dependencies, reply, body } = input;
+  if (!allowPut(input, existing)) return true;
+  return enforceAccountWriteGuards({
+    reply,
+    existing,
+    ownsRow: dependencies.ownsRow,
+    isStaleWrite: dependencies.isStaleWrite,
+    redact: dependencies.redact,
+    checkOwnsRow: { accountId: body.accountId },
+    checkFrozen: { candidate: sanitizeWrite({ table: "accounts", row: body, existing }) },
+  });
+}
+
 async function replayPut(
   input: AccountWriteInput & {
     existing: Record<string, unknown> | undefined;
@@ -174,22 +188,12 @@ async function applyPut(input: AccountWriteInput): Promise<FastifyReply | undefi
   // Parse the command before reading state, and attempt trusted-local replay before the stale-write
   // guard so a completed command is returned rather than rejected by a newer stored revision.
   const workspaceCommand = command(req);
-  const existing = getRow(db, "accounts", id) ?? undefined;
-  if (!allowPut(input, existing)) return;
-  if (
-    enforceAccountWriteGuards({
-      reply,
-      existing,
-      ownsRow: dependencies.ownsRow,
-      isStaleWrite: dependencies.isStaleWrite,
-      redact,
-      checkOwnsRow: { accountId: body.accountId },
-      checkFrozen: { candidate: sanitizeWrite({ table: "accounts", row: body, existing }) },
-    })
-  )
-    return;
+  let existing = getRow(db, "accounts", id) ?? undefined;
+  if (enforcePutPreflight(input, existing)) return;
   const visibility = fieldVisibility(req, "accounts", body.accountId);
   if (await replayPut({ ...input, existing, workspaceCommand, visibility })) return;
+  existing = getRow(db, "accounts", id) ?? undefined;
+  if (enforcePutPreflight(input, existing)) return;
   if (
     enforceAccountWriteGuards({
       reply,
