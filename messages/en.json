@@ -980,6 +980,8 @@
   "picker_week_monday": "Monday",
   "picker_week_sunday": "Sunday",
   "picker_timezone": "Timezone",
+  "picker_timezone_search": "Search time zones",
+  "picker_timezone_no_results": "No time zones found.",
   "picker_language": "Language",
   "picker_language_english": "English",
   "picker_cancel": "Cancel",

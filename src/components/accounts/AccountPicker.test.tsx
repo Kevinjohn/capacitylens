@@ -10,6 +10,7 @@ import { AuthProvider } from "../../auth/AuthProvider";
 import { useStore } from "../../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import { resolveBrowserTimeZone } from "../../lib/timezones";
 
 // The picker now branches server-vs-demo (create → POST /api/orgs; delete → DELETE /api/accounts/:id
 // in server mode), so apiConfig is mocked with a MUTABLE flag — the ArchivedSection.test idiom: most
@@ -163,7 +164,7 @@ function registerCreateAndActivateTests() {
     // The three frozen-after-creation fields render with concrete defaults.
     expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = screen.getByLabelText("Timezone");
-    expect(tz).toHaveTextContent("GMT");
+    expect(tz).toHaveTextContent(/(?:GMT|UTC|London)/);
     expect(screen.getByTestId("create-language")).toHaveTextContent("English");
 
     // Change the two editable-at-creation ones, then create.
@@ -181,6 +182,31 @@ function registerCreateAndActivateTests() {
     // listbox + 9 typed keystrokes, ~0.6s on dev hardware) and it deterministically exceeded 5s
     // on contended CI runners (gate run 29868452988, twice) while every other test passed.
   }, 15_000);
+
+  it("detects the browser zone, searches friendly names, and selects it with the keyboard", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      locale: "en-GB",
+      timeZone: "Europe/London",
+    } as Intl.ResolvedDateTimeFormatOptions);
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "New company" }));
+    const timezone = screen.getByRole("combobox", { name: "Timezone" });
+    expect(timezone).toHaveTextContent("London");
+    await user.click(timezone);
+    const search = screen.getByRole("combobox", { name: "Search time zones" });
+    await user.type(search, "London");
+    await user.keyboard("{Enter}");
+
+    expect(timezone).toHaveTextContent("London");
+    expect(timezone).toHaveAttribute("aria-expanded", "false");
+    expect(document.activeElement).toBe(timezone);
+
+    await user.type(screen.getByLabelText("Company name"), "London Co");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    await waitFor(() => expect(requireAccount("London Co").timezone).toBe("Europe/London"));
+  });
 }
 
 function registerCreateFormValidationTests() {
@@ -431,7 +457,7 @@ function registerServerCreateRequestTest() {
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body.name).toBe("Stark Industries");
     expect(body.weekStartsOn).toBe(1);
-    expect(body.timezone).toBe("Etc/GMT");
+    expect(body.timezone).toBe(resolveBrowserTimeZone());
     expect(body.internalColourMode).toBe("grey");
     // Summary seeded (the picker lists it; setActiveAccount validated against it)…
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain("org-1");

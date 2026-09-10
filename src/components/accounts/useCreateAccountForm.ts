@@ -9,14 +9,18 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { readApiError } from "../../lib/readApiError";
-import { listSupportedTimeZones, resolveTimeZoneOptionLabel } from "../../lib/timezones";
+import {
+  LIKELY_TIME_ZONES,
+  listSupportedTimeZones,
+  resolveBrowserTimeZone,
+  resolveTimeZoneOptionLabel,
+} from "../../lib/timezones";
 import { validateName } from "../../lib/validation";
 import { useStore } from "../../store/useStore";
 import type { StoreState } from "../../store/types";
 
 import {
   DEFAULT_LANGUAGE,
-  DEFAULT_TIMEZONE,
   DEFAULT_WEEK_STARTS_ON,
   parseCreatedAccount,
   WEEK_START_OPTIONS,
@@ -128,7 +132,14 @@ function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
 }
 
 function useAccountSelectOptions() {
-  const timeZoneOptions = listSupportedTimeZones();
+  const timeZoneOptions = useMemo(() => {
+    const supported = listSupportedTimeZones();
+    const local = resolveBrowserTimeZone(supported);
+    const prioritized = [local, ...LIKELY_TIME_ZONES].filter(
+      (timeZone, index, values) => supported.includes(timeZone) && values.indexOf(timeZone) === index,
+    );
+    return [...prioritized, ...supported.filter((timeZone) => !prioritized.includes(timeZone))];
+  }, []);
   // Locale-sensitive labels are safe to memoize against this module-cached frozen list while the
   // app ships one locale and this pre-account form unmounts before account-driven locale changes.
   const timeZoneSelectOptions = useMemo(
@@ -154,7 +165,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   const [name, setName] = useState("");
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON);
-  const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE);
+  const [timezone, setTimezone] = useState<string>(() => resolveBrowserTimeZone());
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const { timeZoneSelectOptions, weekStartSelectOptions } = useAccountSelectOptions();
   const resetForm = () => {
@@ -162,7 +173,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
     setCreating(false);
     setName("");
     setWeekStartsOn(DEFAULT_WEEK_STARTS_ON);
-    setTimezone(DEFAULT_TIMEZONE);
+    setTimezone(resolveBrowserTimeZone());
   };
 
   const submit = createAccountSubmit({

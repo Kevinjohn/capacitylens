@@ -91,8 +91,9 @@ it, so re-enabling the setting restores existing tasks.
 ## Calendar
 
 The company's week start and time zone apply to the whole team. Week start controls the
-order of days and where each week begins. Time zone determines which calendar date counts
-as "today".
+order of days and where each week begins. Time zone is selected during company creation from a
+searchable list of supported IANA zones, with the browser's local zone preselected. It determines
+which calendar date counts as "today".
 
 Both choices are frozen after the company is created. Settings shows them in the
 read-only **Account Options Selected at Creation** summary so everyone can check the

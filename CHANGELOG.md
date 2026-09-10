@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Make company creation actions responsive and spaced, use equal-width week-start choices, and
+  replace the overwhelming timezone select with a searchable browser-aware IANA combobox that
+  presents local/common zones first and reflects daylight-saving abbreviations (#740).
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
   and simplify drawer entries to a compact activity-first agenda (#753, #754).
 

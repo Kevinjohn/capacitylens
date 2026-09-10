@@ -22,8 +22,10 @@ week-start or time zone after work is scheduled would silently re-interpret ever
 
 1. From the company picker, click **New company**.
 2. The inline form shows **Company name**, **Week starts on** (Monday/Sunday, default Monday),
-   **Timezone** (default _GMT_, with its numeric UTC offset shown in every option), and a read-only **Language** row
-   (**English**). The company colour uses the default preset automatically.
+   and a searchable **Timezone** combobox preselected to the browser's IANA zone. Its options
+   keep the local and common zones first and show a friendly name, current abbreviation and
+   numeric UTC offset. A read-only **Language** row shows **English**. The company colour uses
+   the default preset automatically.
 3. Choose e.g. **Sunday** and **Europe/London**, type a name, click **Create company** → you land in
    the app for the new company.
 
@@ -33,11 +35,11 @@ card shows four compact read-only rows: **Company name**, **Week starts on**, **
 
 ## Acceptance criteria
 
-- The company-create form captures Week-starts-on, Timezone and Language with concrete defaults
-  (Monday / GMT / English); creating passes them to the new account.
-- Every Timezone option shows both its display name and a numeric offset such as **GMT
-  (UTC+00:00)** or **Europe/London (UTC+01:00)** for the date being represented; the offset helper
-  handles daylight-saving changes rather than showing an unexplained IANA identifier alone.
+- The company-create form captures Week-starts-on, Timezone and Language (Monday / detected
+  browser zone / English); creating passes them to the new account.
+- Every Timezone option shows a friendly display name, its current abbreviation and a numeric
+  offset such as **London — Europe/London (BST, UTC+01:00)**; the label handles daylight-saving
+  changes rather than showing an unexplained IANA identifier alone.
 - In Settings, **Account Options Selected at Creation** is the final card and shows Company name,
   Week starts on, Time zone (with numeric offset) and Language in a read-only table; no disabled
   form controls or ordinary company-name editing control are shown.

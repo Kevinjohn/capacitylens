@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openNewCompanyForm, createCompany, selectShadOption } from "./helpers";
+import { openNewCompanyForm, createCompany } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -18,16 +18,18 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     // The three frozen-after-creation fields are present with concrete defaults.
     await expect(page.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = page.getByLabel("Timezone");
-    await expect(tz).toHaveText("GMT (UTC+00:00)");
+    await expect(tz).toContainText(/(?:London|UTC|GMT)/);
     await tz.click();
-    await expect(page.getByRole("option", { name: "GMT (UTC+00:00)" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "Europe/London (UTC+01:00)" })).toBeVisible();
+    await expect(page.getByRole("option", { name: /(?:GMT|UTC)/ })).toBeVisible();
+    await expect(page.getByRole("option", { name: /London.*Europe\/London/ })).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByTestId("create-language")).toHaveText("English");
 
     // Capture a non-default week-start and time zone, then create.
     await page.getByRole("radio", { name: "Sunday" }).click();
-    await selectShadOption(tz, "Europe/London");
+    await tz.click();
+    await page.getByRole("combobox", { name: "Search time zones" }).fill("Europe/London");
+    await page.getByRole("option", { name: /London.*Europe\/London/ }).click();
     await createCompany(page, "Onboarded Co");
 
     // Navigate to Settings via the in-app nav (a full reload would drop the never-persisted
@@ -38,7 +40,7 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
       .locator('xpath=ancestor::*[@data-slot="card"]');
     await expect(accountOptions.getByRole("row", { name: "Company name Onboarded Co" })).toBeVisible();
     await expect(accountOptions.getByRole("row", { name: "Week starts on Sunday" })).toBeVisible();
-    await expect(accountOptions.getByRole("row", { name: "Time zone Europe/London (UTC+01:00)" })).toBeVisible();
+    await expect(accountOptions.getByRole("row", { name: /Time zone London.*Europe\/London.*BST/ })).toBeVisible();
     await expect(page.getByTestId("settings-language")).toHaveText("English");
   });
 });
