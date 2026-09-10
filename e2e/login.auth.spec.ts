@@ -111,7 +111,7 @@ function registerSuiteScenario3() {
     // password. This proves the escape hatch end-to-end. Give a separate user a company first so
     // the bootstrap admin exercises the existing-company, no-membership invitation journey.
     const suffix = `${Date.now()}-${testInfo.workerIndex}`;
-    const controlOrgName = `Bootstrap Control ${suffix}`;
+    const controlOrgName = `Wayne Enterprises ${suffix}`;
     const controlOwner = await signUpUser(`bootstrap-control-${suffix}@capacitylens.dev`);
     await bootstrapOrg(request, controlOwner.cookie, controlOrgName);
 
