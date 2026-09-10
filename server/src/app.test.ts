@@ -350,6 +350,7 @@ interface AllocationSnapshot {
   id: string;
   ignoreWeekends?: boolean;
   note?: string;
+  task?: string;
   projectId?: string;
   resourceId: string;
   seriesId?: string;
@@ -409,6 +410,7 @@ interface AccountSnapshot {
   schedulingMode?: string;
   showInternalActivities?: boolean;
   showInternalProjects?: boolean;
+  showTaskFieldInSchedule?: boolean;
   timezone?: string;
   updatedAt: string;
   weekStartsOn?: number;
@@ -714,12 +716,14 @@ function readAllocationSnapshots(rows: unknown[]): AllocationSnapshot[] {
         "seriesId",
         "startDate",
         "status",
+        "task",
         "updatedAt",
       ],
       "allocation row",
     );
     const ignoreWeekends = readOptionalBoolean(row, "ignoreWeekends", "allocation row");
     const note = readOptionalString(row, "note", "allocation row");
+    const task = readOptionalString(row, "task", "allocation row");
     const projectId = readOptionalString(row, "projectId", "allocation row");
     const seriesId = readOptionalString(row, "seriesId", "allocation row");
     const snapshot: AllocationSnapshot = {
@@ -736,6 +740,7 @@ function readAllocationSnapshots(rows: unknown[]): AllocationSnapshot[] {
     };
     if (ignoreWeekends !== undefined) snapshot.ignoreWeekends = ignoreWeekends;
     if (note !== undefined) snapshot.note = note;
+    if (task !== undefined) snapshot.task = task;
     if (projectId !== undefined) snapshot.projectId = projectId;
     if (seriesId !== undefined) snapshot.seriesId = seriesId;
     return snapshot;
@@ -816,9 +821,11 @@ function addAccountWorkflowOptions(snapshot: AccountSnapshot, row: Record<string
   const inlineActivityCreateEnabled = readOptionalBoolean(row, "inlineActivityCreateEnabled", "account row");
   const showInternalActivities = readOptionalBoolean(row, "showInternalActivities", "account row");
   const showInternalProjects = readOptionalBoolean(row, "showInternalProjects", "account row");
+  const showTaskFieldInSchedule = readOptionalBoolean(row, "showTaskFieldInSchedule", "account row");
   if (inlineActivityCreateEnabled !== undefined) snapshot.inlineActivityCreateEnabled = inlineActivityCreateEnabled;
   if (showInternalActivities !== undefined) snapshot.showInternalActivities = showInternalActivities;
   if (showInternalProjects !== undefined) snapshot.showInternalProjects = showInternalProjects;
+  if (showTaskFieldInSchedule !== undefined) snapshot.showTaskFieldInSchedule = showTaskFieldInSchedule;
 }
 
 function readAccountSnapshot(row: Record<string, unknown>): AccountSnapshot {
@@ -839,6 +846,7 @@ function readAccountSnapshot(row: Record<string, unknown>): AccountSnapshot {
       "schedulingMode",
       "showInternalActivities",
       "showInternalProjects",
+      "showTaskFieldInSchedule",
       "timezone",
       "updatedAt",
       "weekStartsOn",

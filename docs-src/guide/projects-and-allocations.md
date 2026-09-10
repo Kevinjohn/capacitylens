@@ -118,7 +118,9 @@ When enabled, adding one under a real project creates a project-specific activit
 places it in that group.
 
 Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
-single-line.
+single-line. If **Show task field in schedule** is enabled in [Settings](/guide/settings),
+the form also offers an optional single-line **Task** description beneath the activity controls.
+The task is shown above Notes in schedule details and is preserved when the setting is turned off.
 
 When the company plans in Hours, **Hours / day** is a four-option select: **1 hour**,
 **Quarter day (2h)**, **Half day (4h)** or **Full day (8h)**. If an existing allocation

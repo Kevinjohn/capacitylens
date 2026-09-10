@@ -37,6 +37,7 @@ export interface AllocationModalSnapshot {
   status: AllocationStatus;
   note: string;
   noteEdited: boolean;
+  task: string;
   repeat: RepeatSelection;
   repeatUntil: string;
   repeatToday: ISODate;

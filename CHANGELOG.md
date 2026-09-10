@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Add an optional account-wide allocation **Task** field, with preserved text when the field is
+  hidden and task details above Notes in schedule popovers and person drawers (#720).
+
 ## [0.63.0-alpha.1] - 2026-09-10
 
 This minor release adds a focused way to understand one person's near-term commitments without

@@ -81,6 +81,7 @@ function sanitizeAllocation(record: Record<string, unknown>): void {
   record.startDate = normalizeISODate(record.startDate);
   record.endDate = normalizeISODate(record.endDate);
   cleanField({ record, field: "note", multiline: true });
+  cleanField({ record, field: "task" });
 }
 
 function sanitizeClient(record: Record<string, unknown>): void {

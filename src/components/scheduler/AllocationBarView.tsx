@@ -28,6 +28,7 @@ interface AllocationBarViewProps {
   popoverFooter: string;
   popoverOpen: boolean;
   showSeriesIcon: boolean;
+  showTaskFieldInSchedule: boolean;
   translateY: number;
   onBlur: FocusEventHandler<HTMLDivElement>;
   onFocus: FocusEventHandler<HTMLDivElement>;
@@ -136,7 +137,8 @@ function BarPopover({
   bar,
   hideHours,
   popoverFooter,
-}: Pick<AllocationBarViewProps, "background" | "bar" | "hideHours" | "popoverFooter">) {
+  showTaskFieldInSchedule,
+}: Pick<AllocationBarViewProps, "background" | "bar" | "hideHours" | "popoverFooter" | "showTaskFieldInSchedule">) {
   return (
     <TooltipContent
       side="bottom"
@@ -172,6 +174,9 @@ function BarPopover({
           <Repeat2 aria-hidden className="mr-1 inline size-3" />
           {m.scheduler_bar_pop_series({ end: formatDayMonth(bar.seriesEnd) })}
         </div>
+      )}
+      {showTaskFieldInSchedule && bar.allocation.task && (
+        <div className="mt-1 break-words border-t border-line pt-1 text-muted-foreground">{bar.allocation.task}</div>
       )}
       {bar.allocation.note && (
         <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>

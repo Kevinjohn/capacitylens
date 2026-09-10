@@ -2507,6 +2507,90 @@ describe("AllocationModal inline activity creation pref", () => {
   registerInlineActivityUnavailableTests();
 });
 
+function registerTaskCreateTest() {
+  it("shows and saves an optional single-line task when the workspace setting is enabled", async () => {
+    const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await user.type(screen.getByLabelText("Task"), "Launch review");
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations[0]?.task).toBe("Launch review");
+  });
+}
+
+function registerTaskClearTest() {
+  it("allows an existing task to be cleared", async () => {
+    const resourceId = addInlineActivityTestPerson();
+    const allocation = useStore.getState().addAllocation({
+      resourceId,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+      task: "Original task",
+    });
+    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    const user = userEvent.setup();
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    await user.clear(screen.getByLabelText("Task"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations[0]).not.toHaveProperty("task");
+  });
+}
+
+function registerHiddenTaskPreservationTest() {
+  it("preserves a hidden task while an unrelated allocation is edited and restores it when enabled", async () => {
+    const resourceId = addInlineActivityTestPerson();
+    const taskAllocation = useStore.getState().addAllocation({
+      resourceId,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+      task: "Keep this task",
+    });
+    const unrelated = useStore.getState().addAllocation({
+      resourceId,
+      activityId: "t1",
+      startDate: "2026-06-08",
+      endDate: "2026-06-10",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: false });
+    const user = userEvent.setup();
+    const view = render(<AllocationModal kind="edit" allocationId={unrelated.id} onClose={vi.fn()} />);
+    expect(screen.queryByLabelText("Task")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "Tentative" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    view.unmount();
+
+    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    render(<AllocationModal kind="edit" allocationId={taskAllocation.id} onClose={vi.fn()} />);
+    expect(screen.getByLabelText("Task")).toHaveValue("Keep this task");
+    expect(useStore.getState().data.allocations.find(({ id }) => id === taskAllocation.id)?.task).toBe(
+      "Keep this task",
+    );
+  });
+}
+
+describe("AllocationModal task field", () => {
+  registerTaskCreateTest();
+  registerTaskClearTest();
+  registerHiddenTaskPreservationTest();
+});
+
 function registerEnterSubmissionTests() {
   it("operates the Hours / day select with the keyboard", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));

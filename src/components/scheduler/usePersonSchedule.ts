@@ -8,6 +8,7 @@ import { m } from "../../i18n";
 import { resolveResourceDisplayName } from "../../lib/metadata";
 import {
   hasExternalResourcesEnabled,
+  hasVisibleTaskFieldInSchedule,
   hasPlaceholdersEnabled,
   resolveInternalColourMode,
   resolveSchedulingMode,
@@ -69,6 +70,7 @@ function buildAvailableSchedule(input: AvailableScheduleInput) {
     window: { startDate, endDate: addDaysISO(startDate, 27) },
     schedulingMode: resolveSchedulingMode(input.accountView, accountId),
     internalColourMode: resolveInternalColourMode(input.accountView, accountId),
+    showTaskFieldInSchedule: hasVisibleTaskFieldInSchedule(input.accountView, accountId),
     canSeeTimeOffNotes: input.canSeeTimeOffNotes,
     title: resolvePersonScheduleIdentity(resource, input.data),
     activityFallback: m.scheduler_person_schedule_activity_fallback(),

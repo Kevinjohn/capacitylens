@@ -40,6 +40,7 @@ const IMPORTED_FIELDS = {
     "hoursPerDay",
     "status",
     "note",
+    "task",
     "ignoreWeekends",
   ],
   timeOff: [...SCOPED_META_FIELDS, "resourceId", "startDate", "endDate", "type", "note"],

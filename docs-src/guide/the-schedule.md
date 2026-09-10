@@ -97,6 +97,11 @@ for each overlapping allocation. Project work includes its project and client; o
 work keeps its activity attribution. A linked repeat also reports the last surviving
 date in its series.
 
+When **Show task field in schedule** is enabled in [Settings](/guide/settings), an allocation can
+also carry a short **Task** description. It appears above Notes when you hover or focus a bar and
+in the person's schedule drawer. The setting is off by default; turning it off hides the field and
+details but preserves existing task text for when it is enabled again.
+
 ![The schedule with repeat cues at the start of two linked CMS Review allocation bars for Clark Kent](../screenshots/flows/schedule_repeat_cue.jpg)
 
 ## Reading overwork

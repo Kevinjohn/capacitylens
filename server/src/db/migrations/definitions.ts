@@ -100,6 +100,14 @@ export const ACTIVITY_LIFECYCLE_V36_DEFINITION = [
   "ALTER TABLE activities ADD COLUMN deletedAt TEXT;",
 ].join("\n");
 
+/** v37 adds optional allocation task text and account-wide schedule visibility. */
+export const ALLOCATION_TASK_V37_DEFINITION = [
+  "guard:PRAGMA table_info(accounts):showTaskFieldInSchedule-missing",
+  "ALTER TABLE accounts ADD COLUMN showTaskFieldInSchedule TEXT;",
+  "guard:PRAGMA table_info(allocations):task-missing",
+  "ALTER TABLE allocations ADD COLUMN task TEXT;",
+].join("\n");
+
 // The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
 // checksum, so the definition can never drift from what actually runs.
 const TIME_OFF_REBUILD_V33_SQL = `

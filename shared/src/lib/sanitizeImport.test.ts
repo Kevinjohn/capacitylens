@@ -7,6 +7,10 @@ import { softDelete } from "../domain/lifecycle";
 type LifecycleKey = "resources" | "clients" | "projects" | "activities";
 
 describe("sanitizeImportedRecord", () => {
+  it("sanitizes an optional allocation task as single-line text", () => {
+    expect(sanitizeImportedRecord("allocations", { task: "  Fix   launch\ncheck  " }).task).toBe("Fix launch check");
+  });
+
   registerImportedRecordBasics();
   registerImportedResourceTests();
   registerImportedFieldTests();

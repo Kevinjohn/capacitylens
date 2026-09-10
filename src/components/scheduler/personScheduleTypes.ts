@@ -23,6 +23,7 @@ export interface PersonScheduleAllocationEntry extends PersonScheduleEntryBase {
   client?: string;
   hoursPerDay?: number;
   seriesEnd?: ISODate;
+  task?: string;
   note?: string;
 }
 
