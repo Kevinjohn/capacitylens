@@ -9,7 +9,7 @@ data or credentials.
 
 ## Acceptance criteria
 
-- Settings shows a Diagnostics card near the bottom in server and demo modes with a `Copy diagnostics` action.
+- Settings shows a Diagnostics card at the bottom in server and demo modes with a `Copy diagnostics` action.
 - The projection includes only app version, validated build revision when available, deployment mode,
   export schema, server connectivity, database schema, persistence status and backup status/last
   success where observable.

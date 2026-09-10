@@ -16,7 +16,7 @@ text on the page.
 
 ## Diagnostics
 
-Near the bottom of Settings, **Diagnostics** provides a **Copy diagnostics** action for a support
+At the bottom of Settings, **Diagnostics** provides a **Copy diagnostics** action for a support
 report in both server and demo builds. The copied projection includes the app version, validated
 build revision when available, deployment mode and export schema. Server connectivity, database
 schema, persistence and backup health are listed separately; demo builds and unavailable server
