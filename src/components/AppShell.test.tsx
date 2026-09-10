@@ -450,6 +450,15 @@ function registerExpectedNavigationLinksTest(): void {
     expect(screen.getByRole("link", { name: "Activities" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Time off" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
+  });
+}
+
+function registerAccountNavigationStateTest(): void {
+  it("marks the personal Account destination active and gives it a descriptive page title", async () => {
+    renderAppShell(["/account"]);
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
+    await waitFor(() => expect(document.title).toBe("Account · CapacityLens"));
   });
 }
 
@@ -1001,6 +1010,7 @@ describe("AppShell navigation links", () => {
   registerLoadingAccountLocaleTest();
   registerOfflineSnapshotLabelTest();
   registerExpectedNavigationLinksTest();
+  registerAccountNavigationStateTest();
   registerNavigationBrandNameTest();
   registerImportExportAbsenceTest();
   registerSidebarSignOutTest();

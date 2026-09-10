@@ -1,4 +1,4 @@
-# US-NAV-01 — Navigate between all nine sections
+# US-NAV-01 — Navigate between all ten sections
 
 **Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "sidebar links route to each section", "valid deep link … survives a browser reload"; `e2e/navigation.db.spec.ts` → single-company reload and picker boundaries
 
@@ -10,7 +10,7 @@ Reach every part of CapacityLens from the left sidebar, so each section's screen
 
 The sidebar is the only way around the app. If any link is mis-wired or a screen
 fails to render, that whole area of the tool is unreachable — and a manager can't
-trust the schedule they can't navigate to. This story proves all nine routes are live.
+trust the schedule they can't navigate to. This story proves all ten routes are live.
 
 ## How (end-to-end)
 
@@ -20,7 +20,7 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 1. Confirm the sidebar shows, in order: **Schedule**, **Resources**, **Disciplines**, **Clients**,
    **Projects**, **Activities**, **Time off**, then — below a divider, pinned to the bottom of the
    list as the administration group — **Team & access** and **Settings**. Below those sits the
-   account block (company name, **Switch company**, and the avatar'd **Sign out** row).
+   account block (company name, **Switch company**, **Account**, and the avatar'd **Sign out** row).
 2. Click **Schedule**. The URL is `/` and the timeline grid (`scheduler-grid`) renders.
 3. Click **Resources**. The URL is `/resources` and the Resource list shows
    (seed rows include _Bruce Wayne_).
@@ -35,11 +35,13 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 9. Click **Team & access**. The URL is `/team` and the current access summary shows.
 10. Click **Settings**. The URL is `/settings` and the Settings screen shows (ending with the
     **Account Options Selected at Creation** summary).
+11. Click **Account**. The URL is `/account` and the personal identity and available security
+    controls show independently of the active company.
 
 ## Acceptance criteria
 
-- ✅ Each of the nine links routes to its mapped path, in nav order: `/`, `/resources`,
-  `/disciplines`, `/clients`, `/projects`, `/activities`, `/timeoff`, `/team`, `/settings`.
+- ✅ Each of the ten links routes to its mapped path: `/`, `/resources`, `/disciplines`, `/clients`,
+  `/projects`, `/activities`, `/timeoff`, `/team`, `/settings`, `/account`.
 - ✅ **Team & access** and **Settings** are the last two links, in that order, below the divider —
   they never appear among the working destinations above it.
 - ✅ **Schedule** renders the scheduler grid (`data-testid="scheduler-grid"`).

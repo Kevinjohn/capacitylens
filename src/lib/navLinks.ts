@@ -8,11 +8,13 @@ import {
   SunIcon,
   TagIcon,
   UsersIcon,
+  UserRoundIcon,
   type LucideIcon,
 } from "lucide-react";
 import { m } from "@/i18n";
 import {
   ROUTE_ACTIVITIES,
+  ROUTE_ACCOUNT,
   ROUTE_CLIENTS,
   ROUTE_DISCIPLINES,
   ROUTE_PROJECTS,
@@ -63,3 +65,9 @@ export const ADMIN_LINKS: NavigationLinkDefinition[] = [
   { to: ROUTE_TEAM, label: () => m.nav_team_access(), icon: ShieldCheckIcon },
   { to: ROUTE_SETTINGS, label: () => m.nav_settings(), icon: SlidersHorizontalIcon },
 ];
+
+export const ACCOUNT_LINK: NavigationLinkDefinition = {
+  to: ROUTE_ACCOUNT,
+  label: () => m.nav_account(),
+  icon: UserRoundIcon,
+};

@@ -1,36 +1,9 @@
 import { m } from "@/i18n";
-import { DEFAULT_COLORS } from "@/lib/palette";
 import { resolveTimeZoneOptionLabel } from "@/lib/timezones";
-import { Avatar } from "../common/ui";
-import { Button } from "../ui/button";
 import { SettingsSection } from "./SettingsSection";
 import type { useSettingsViewController } from "./useSettingsViewController";
 
 type Controller = ReturnType<typeof useSettingsViewController>;
-
-export function SettingsAccountSection({ auth }: Pick<Controller, "auth">) {
-  if (auth.authMode === "off") return null;
-  const identity = auth.user?.name ?? auth.user?.email ?? m.settings_signed_in_unknown();
-  return (
-    <SettingsSection title={m.settings_account_heading()} help={m.settings_account_help()}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Avatar
-            name={identity}
-            color={DEFAULT_COLORS.account}
-            {...(auth.user?.image ? { imageUrl: auth.user.image } : {})}
-          />
-          <p className="text-sm text-muted-foreground">
-            {m.settings_signed_in_as({ who: auth.user?.email ?? identity })}
-          </p>
-        </div>
-        <Button size="sm" variant="outline" onClick={() => void auth.signOut()}>
-          {m.settings_account_sign_out()}
-        </Button>
-      </div>
-    </SettingsSection>
-  );
-}
 
 export function SettingsAccountOptions({
   activeAccount,

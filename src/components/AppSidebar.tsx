@@ -9,7 +9,7 @@ import { FAKE_USER } from "../lib/fakeAuth";
 import demoAvatarUrl from "../assets/avatar-demo.svg";
 import { DEFAULT_COLORS } from "../lib/palette";
 import { Avatar } from "./common/ui";
-import type { NavigationLinkDefinition } from "../lib/navLinks";
+import { ACCOUNT_LINK, type NavigationLinkDefinition } from "../lib/navLinks";
 import { Badge } from "./ui/badge";
 import {
   Sidebar,
@@ -93,6 +93,8 @@ export function AppSidebar({
         demoAuthActive={demoAuthActive}
         onSignOut={onSignOut}
         onSwitchAccount={onSwitchAccount}
+        onNavigate={closeOnMobile}
+        pathname={pathname}
       />
 
       <SidebarRail aria-hidden="true" />
@@ -161,11 +163,15 @@ function SidebarAccountFooter({
   demoAuthActive,
   onSignOut,
   onSwitchAccount,
+  onNavigate,
+  pathname,
 }: {
   activeAccount: AppSidebarProps["activeAccount"];
   demoAuthActive: boolean;
   onSignOut: () => void;
   onSwitchAccount: () => void;
+  onNavigate: () => void;
+  pathname: string;
 }) {
   if (!activeAccount) return null;
 
@@ -184,7 +190,12 @@ function SidebarAccountFooter({
             {m.nav_switch_company()}
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SessionMenuItem demoAuthActive={demoAuthActive} onSignOutDemo={onSignOut} />
+        <SessionMenuItem
+          demoAuthActive={demoAuthActive}
+          onNavigate={onNavigate}
+          onSignOutDemo={onSignOut}
+          pathname={pathname}
+        />
       </SidebarMenu>
     </SidebarFooter>
   );
@@ -232,9 +243,20 @@ function NavMenu({
  * entry gate (AppEntryGate / LoginScreen) means the shell — and therefore this footer — only ever
  * renders for someone already signed in, so offering "Sign in" here would be a dead affordance.
  */
-function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: boolean; onSignOutDemo: () => void }) {
+function SessionMenuItem({
+  demoAuthActive,
+  onNavigate,
+  onSignOutDemo,
+  pathname,
+}: {
+  demoAuthActive: boolean;
+  onNavigate: () => void;
+  onSignOutDemo: () => void;
+  pathname: string;
+}) {
   const { authMode, signOut, user } = useAuth();
-  if (!demoAuthActive && authMode === "off") return null;
+  const AccountIcon = ACCOUNT_LINK.icon;
+  const showSignOut = demoAuthActive || authMode !== "off";
 
   let name: string = FAKE_USER.name;
   let imageUrl: string | undefined = demoAvatarUrl;
@@ -246,17 +268,29 @@ function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: bo
   }
 
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        size="sm"
-        data-testid="nav-sign-out"
-        title={m.nav_signed_in_as({ who: name })}
-        onClick={onSignOut}
-      >
-        <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
-        <span className="truncate">{m.nav_sign_out()}</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
+    <>
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild size="sm" isActive={pathname === ACCOUNT_LINK.to}>
+          <NavLink to={ACCOUNT_LINK.to} onClick={onNavigate}>
+            <AccountIcon aria-hidden="true" focusable="false" />
+            <span>{ACCOUNT_LINK.label()}</span>
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      {showSignOut && (
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            size="sm"
+            data-testid="nav-sign-out"
+            title={m.nav_signed_in_as({ who: name })}
+            onClick={onSignOut}
+          >
+            <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
+            <span className="truncate">{m.nav_sign_out()}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      )}
+    </>
   );
 }
 

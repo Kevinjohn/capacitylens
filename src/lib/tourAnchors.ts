@@ -14,6 +14,7 @@ export const ROUTE_ACTIVITIES = "/activities";
 export const ROUTE_TIMEOFF = "/timeoff";
 export const ROUTE_TEAM = "/team";
 export const ROUTE_SETTINGS = "/settings";
+export const ROUTE_ACCOUNT = "/account";
 
 export const TOUR_ANCHORS = [
   '[data-testid="scheduler-grid"]',

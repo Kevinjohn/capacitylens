@@ -2,8 +2,7 @@ import { m } from "@/i18n";
 import { ListPage } from "../common/ui";
 import { ImportExport } from "../ImportExport";
 import { ArchivedSection } from "./ArchivedSection";
-import { SecuritySection } from "./SecuritySection";
-import { SettingsAccountOptions, SettingsAccountSection, SettingsBuildDetails } from "./SettingsAccountSections";
+import { SettingsAccountOptions, SettingsBuildDetails } from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import { SettingsDataSection } from "./SettingsDataSection";
 import { SettingsSchedulingSection } from "./SettingsSchedulingSection";
@@ -46,8 +45,6 @@ export function SettingsView() {
           offlineState={controller.offlineState}
           {...localData}
         />
-        <SettingsAccountSection auth={auth} />
-        {auth.authMode === "password" && <SecuritySection />}
         <ArchivedSection collapsible defaultOpen={false} />
         <SettingsSection
           title={m.settings_data_heading()}
