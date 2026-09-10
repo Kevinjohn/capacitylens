@@ -28,7 +28,7 @@ export function ClosureBand({
       data-start-date={closure.startDate}
       data-end-date={closure.endDate}
       aria-hidden="true"
-      className="pointer-events-none absolute top-0 flex items-start justify-center overflow-hidden border-x border-line text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
+      className="pointer-events-none absolute top-0 z-0 flex items-start justify-center overflow-hidden border-x border-line text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
       style={{
         left: leftOffset + geometry.xForDateInGeom(start),
         width,
