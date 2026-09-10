@@ -1577,6 +1577,30 @@ function registerEditScopeTests() {
 }
 
 function registerEditScopeAndHoursTests() {
+  it("allows a metadata-only full-form save for a retained availability conflict", async () => {
+    const resource = useStore.getState().addResource({ ...person("Clark Kent"), workingDays: [1, 2, 3, 4, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    useStore.getState().updateResource(resource.id, { firstAvailableDate: "2026-06-08" });
+    const user = userEvent.setup();
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "Retained scheduling context" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
+      note: "Retained scheduling context",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+    });
+  });
+
   it("clears attributed All-projects work when its scope changes", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
@@ -3178,6 +3202,26 @@ function registerRepeatEffectiveWeekAndDuplicateTests() {
     expect(useStore.getState().data.allocations).toHaveLength(2);
     oneSpy.mockRestore();
     bulkSpy.mockRestore();
+  });
+
+  it("surfaces an availability error when duplication would recreate retained conflicting dates", async () => {
+    const resource = addPerson();
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    useStore.getState().updateResource(resource.id, { firstAvailableDate: "2026-06-08" });
+    const user = userEvent.setup();
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Duplicate" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/before this person is available/i);
+    expect(useStore.getState().data.allocations).toHaveLength(1);
   });
 }
 

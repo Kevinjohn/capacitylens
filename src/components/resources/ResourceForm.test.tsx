@@ -67,6 +67,35 @@ describe("ResourceForm availability dates", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it("clears one existing boundary while preserving the other and metadata", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Dinah Lance",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+      firstAvailableDate: "2026-09-01",
+      lastAvailableDate: "2026-09-30",
+    });
+    render(<ResourceForm resource={resource} onClose={onClose} />);
+
+    await user.clear(screen.getByLabelText("First available date"));
+    await user.clear(screen.getByLabelText("Role"));
+    await user.type(screen.getByLabelText("Role"), "Design lead");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const updated = requireValue(useStore.getState().data.resources[0], "updated resource");
+    expect(updated).not.toHaveProperty("firstAvailableDate");
+    expect(updated).toMatchObject({ lastAvailableDate: "2026-09-30", role: "Design lead" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it("rejects a reversed availability range accessibly", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

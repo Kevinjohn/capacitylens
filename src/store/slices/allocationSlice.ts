@@ -1,7 +1,8 @@
 import type { StateCreator, StoreApi } from "zustand";
 import { assertAllocationWithinResourceAvailability, assertDateRange } from "@capacitylens/shared/domain/mutations";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
-import type { Allocation, ID } from "@capacitylens/shared/types/entities";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import type { Allocation, AppData, ID } from "@capacitylens/shared/types/entities";
 import type { StoreInternals } from "../storeInternal";
 import type { Patch, StoreState } from "../types";
 
@@ -14,6 +15,21 @@ export type AllocationSliceInternals = Pick<
   StoreInternals,
   "createGuardedAction" | "createAllocations" | "updateOwned" | "assertAllocation" | "resolveOwnedRow" | "mutate"
 >;
+
+function assertAvailabilityAfterPlacementChange(data: AppData, effective: Allocation, existing: Allocation): void {
+  const placementChanged =
+    effective.resourceId !== existing.resourceId ||
+    effective.startDate !== existing.startDate ||
+    effective.endDate !== existing.endDate ||
+    (effective.ignoreWeekends === true) !== (existing.ignoreWeekends === true);
+  if (!placementChanged) return;
+  const resource = data.resources.find(
+    (candidate) => candidate.accountId === existing.accountId && candidate.id === effective.resourceId,
+  );
+  const account = data.accounts.find((candidate) => candidate.id === existing.accountId);
+  const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1);
+  if (resource) assertAllocationWithinResourceAvailability({ allocation: effective, resource, accountWorkingDays });
+}
 
 export function createAllocationSlice(
   internals: AllocationSliceInternals,
@@ -57,17 +73,7 @@ export function createAllocationSlice(
                 existing,
               );
               assertDateRange(effective.startDate, effective.endDate);
-              const placementChanged =
-                patch.resourceId !== undefined ||
-                patch.startDate !== undefined ||
-                patch.endDate !== undefined ||
-                patch.ignoreWeekends !== undefined;
-              if (placementChanged) {
-                const resource = get().data.resources.find(
-                  (candidate) => candidate.accountId === existing.accountId && candidate.id === effective.resourceId,
-                );
-                if (resource) assertAllocationWithinResourceAvailability({ allocation: effective, resource });
-              }
+              assertAvailabilityAfterPlacementChange(get().data, effective, existing);
               // Repeat-series membership is system-owned at creation. An ordinary edit may change every
               // visible allocation field but cannot link, unlink or move the row between series.
               const safePatch = { ...clampedPatch };

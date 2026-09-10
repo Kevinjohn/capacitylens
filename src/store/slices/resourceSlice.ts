@@ -42,9 +42,13 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
           id: id,
           patch: patch,
           prepare: (merged, existing) => {
-            const preparedPatch = isPlaceholderResource(merged)
+            const capacityPatch = isPlaceholderResource(merged)
               ? { ...patch, ...placeholderCapacityDefaults() }
               : patch;
+            const preparedPatch =
+              merged.kind === "person"
+                ? capacityPatch
+                : { ...capacityPatch, firstAvailableDate: undefined, lastAvailableDate: undefined };
             const preparedResource = isPlaceholderResource(merged)
               ? { ...merged, ...placeholderCapacityDefaults() }
               : merged;
@@ -118,6 +122,10 @@ function createResourceAddAction(internals: StoreInternals, get: StoreApi<StoreS
       assertScopedRefs(get().data, entity.accountId, "resources", input);
       assertWorkingDays(entity.workingDays);
       assertHalfDays(entity.halfDays, entity.workingDays);
+      if (entity.kind !== "person") {
+        delete entity.firstAvailableDate;
+        delete entity.lastAvailableDate;
+      }
       const availability = validateResourceAvailabilityPair(entity.firstAvailableDate, entity.lastAvailableDate);
       if (!availability.ok) {
         domainError(

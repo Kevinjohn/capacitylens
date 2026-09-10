@@ -203,6 +203,17 @@ describe("resource availability boundaries", () => {
     ).toThrow(/before.*available/i);
   });
 
+  it("uses the company and person working-day intersection for boundary checks", () => {
+    const { resource, draft } = allocationSetup();
+    state().updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
+    state().updateResource(resource.id, { workingDays: [1, 2, 3, 4, 5], lastAvailableDate: "2026-06-04" });
+
+    expect(() => state().addAllocation(draft({ startDate: "2026-06-04", endDate: "2026-06-05" }))).not.toThrow();
+    expect(() =>
+      state().addAllocation(draft({ startDate: "2026-06-04", endDate: "2026-06-05", ignoreWeekends: true })),
+    ).toThrow(/after.*available/i);
+  });
+
   it("retains conflicts after boundary changes and allows metadata-only edits", () => {
     const { resource, draft } = allocationSetup();
     const allocation = state().addAllocation(draft());
@@ -210,14 +221,28 @@ describe("resource availability boundaries", () => {
     expect(() => state().updateResource(resource.id, { firstAvailableDate: "2026-06-08" })).not.toThrow();
     expect(state().data.allocations).toContainEqual(allocation);
     expect(() => state().updateAllocation(allocation.id, { note: "Retained conflict" })).not.toThrow();
+    expect(() =>
+      state().updateAllocation(allocation.id, {
+        resourceId: allocation.resourceId,
+        startDate: allocation.startDate,
+        endDate: allocation.endDate,
+        ignoreWeekends: allocation.ignoreWeekends,
+        status: "tentative",
+        task: "Prepare retained work",
+      }),
+    ).not.toThrow();
     expect(() => state().updateAllocation(allocation.id, { endDate: "2026-06-04" })).toThrow(/before.*available/i);
-    expect(state().data.allocations.find(({ id }) => id === allocation.id)?.note).toBe("Retained conflict");
+    expect(state().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
+      note: "Retained conflict",
+      task: "Prepare retained work",
+      status: "tentative",
+    });
   });
 
   it("rejects moving an allocation after the last date and reassigning into a bounded person", () => {
     const { resource, draft } = allocationSetup();
     const bounded = state().addResource(
-      makeResourceDraft({ name: "Bounded", firstAvailableDate: "2026-06-01", lastAvailableDate: "2026-06-03" }),
+      makeResourceDraft({ name: "Victor Stone", firstAvailableDate: "2026-06-01", lastAvailableDate: "2026-06-03" }),
     );
     const allocation = state().addAllocation(draft({ resourceId: bounded.id }));
 
@@ -225,8 +250,8 @@ describe("resource availability boundaries", () => {
       /after.*available/i,
     );
     expect(() => state().updateAllocation(allocation.id, { resourceId: resource.id })).not.toThrow();
-    state().updateResource(resource.id, { firstAvailableDate: "2026-07-01" });
-    expect(() => state().updateAllocation(allocation.id, { resourceId: resource.id })).toThrow(/before.*available/i);
+    state().updateResource(bounded.id, { firstAvailableDate: "2026-07-01", lastAvailableDate: undefined });
+    expect(() => state().updateAllocation(allocation.id, { resourceId: bounded.id })).toThrow(/before.*available/i);
   });
 });
 

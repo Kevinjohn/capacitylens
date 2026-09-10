@@ -51,7 +51,7 @@ export function prepareBatchBody(
   }
   // Rebase PUT preconditions, then serialize ONCE — the same body feeds both the keepalive
   // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
-  const wireOps = rebaseForWire(state, ops).map((op) =>
+  const wireOps = addResourceAvailabilityClearMarkers(state, rebaseForWire(state, ops)).map((op) =>
     options?.archiveLifecycleDeletes && op.method === "DELETE" && isLifecycleEntityKey(op.table)
       ? { ...op, method: "ARCHIVE" }
       : op,
@@ -61,6 +61,22 @@ export function prepareBatchBody(
     throw new KeepaliveNotDispatchedError("The pending change was too large for a page-teardown keepalive request.");
   }
   return body;
+}
+
+type WireOp = Omit<Op, "row"> & { row?: Record<string, unknown> };
+
+function addResourceAvailabilityClearMarkers(state: SyncState, ops: Op[]): WireOp[] {
+  const previousResources = new Map(state.lastSynced.resources.map((resource) => [resource.id, resource]));
+  return ops.map((op) => {
+    const wireOp: WireOp = { ...op, ...(op.row ? { row: { ...op.row } } : {}) };
+    if (op.method !== "PUT" || op.table !== "resources" || !wireOp.row) return wireOp;
+    const previous = previousResources.get(op.id);
+    if (!previous) return wireOp;
+    for (const field of ["firstAvailableDate", "lastAvailableDate"] as const) {
+      if (previous[field] !== undefined && !Object.hasOwn(wireOp.row, field)) wireOp.row[field] = null;
+    }
+    return wireOp;
+  });
 }
 
 interface DispatchPreparedBatchInput {

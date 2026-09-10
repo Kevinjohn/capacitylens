@@ -1,5 +1,6 @@
 import type { StoreApi } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import {
   assertAllocationWithinResourceAvailability,
   assertDateRange,
@@ -131,6 +132,8 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
     }));
     if (dependencies.blockedByViewer()) return allocations;
     const data = dependencies.get().data;
+    const account = data.accounts.find((candidate) => candidate.id === accountId);
+    const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1);
     for (const allocation of allocations) {
       dependencies.assertAllocation(
         data,
@@ -144,7 +147,7 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
       const resource = data.resources.find(
         (candidate) => candidate.accountId === accountId && candidate.id === allocation.resourceId,
       );
-      if (resource) assertAllocationWithinResourceAvailability({ allocation, resource });
+      if (resource) assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
     }
     dependencies.mutate((current) => ({ ...current, allocations: [...current.allocations, ...allocations] }));
     return allocations;

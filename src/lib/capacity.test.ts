@@ -244,6 +244,16 @@ describe("resource availability boundaries", () => {
   ] as const)("returns boundary-aware capacity on %s", (date, expected) => {
     expect(availableHoursOnDay({ resource: boundedResource, date, timeOff: [] })).toBe(expected);
   });
+
+  it("does not apply person-only boundaries to a non-person row", () => {
+    const placeholder = makeResource({
+      kind: "placeholder",
+      firstAvailableDate: "2026-09-08",
+      lastAvailableDate: "2026-09-10",
+    });
+
+    expect(availableHoursOnDay({ resource: placeholder, date: "2026-09-07", timeOff: [] })).toBe(8);
+  });
 });
 
 function registerSemanticsTableTests(
@@ -801,6 +811,23 @@ function registerAvailabilityAdvisoryTests() {
     });
     expect(overDays).toBe(5); // 4 + 8 > 8 on all five weekdays
     expect(timeOffDays).toBe(0);
+  });
+
+  it("reports retained load outside the person's availability as over capacity", () => {
+    const bounded = makeResource({ firstAvailableDate: "2026-06-03" });
+    const { overDays } = capacityAdvisory({
+      resource: bounded,
+      proposal: makeProposal(bounded)({
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        ignoreWeekends: false,
+      }),
+      otherAllocations: [],
+      timeOff: [],
+    });
+
+    expect(overDays).toBe(2);
   });
 
   it("counts time-off days and excludes them from over (availability is 0 there)", () => {
