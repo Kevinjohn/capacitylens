@@ -7,10 +7,20 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.63.0-alpha.1] - 2026-09-10
+
+This minor release adds a focused way to understand one person's near-term commitments without
+losing the wider planning context.
+
 ### Added
 
-- Added a read-only four-week schedule drawer for each visible person, with allocations,
-  personal time off, privacy-aware names and notes, and grid state preserved while it is open (#709).
+- Open a read-only four-week schedule from the eye action beside any visible person's name.
+- Review confirmed and tentative allocations, repeated work, hours, attribution, notes and eligible
+  personal time off together, independently of the current grid dates and filters.
+- Keep the underlying schedule exactly where it was while the drawer is open, including its dates,
+  filters and scroll position, then return keyboard focus to the same person when it closes.
+- Respect private client and project code names for non-owners, and limit personal time-off notes to
+  owners and administrators in authenticated companies (#709).
 
 ## [0.62.1-alpha.1] - 2026-09-10
 
@@ -4206,7 +4216,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...HEAD
+[0.63.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.1-alpha.1...v0.63.0-alpha.1
 [0.62.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...v0.62.1-alpha.1
 [0.62.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.62.0-alpha.5
 [0.61.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.2-alpha.1...v0.61.0-alpha.1
