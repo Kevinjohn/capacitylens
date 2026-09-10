@@ -130,17 +130,17 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label    | Route          | Screen                                                                                                                                                       |
-| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Schedule      | `/`            | Timeline scheduler                                                                                                                                           |
-| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                  |
-| Disciplines   | `/disciplines` | Discipline list                                                                                                                                              |
-| Clients       | `/clients`     | Client list                                                                                                                                                  |
-| Projects      | `/projects`    | Project list                                                                                                                                                 |
-| Activities    | `/activities`  | Activity list                                                                                                                                                |
-| Time off      | `/timeoff`     | Time-off list                                                                                                                                                |
-| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                            |
-| Settings      | `/settings`    | Settings (scheduling, global working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
+| Link label    | Route          | Screen                                                                                                                                                             |
+| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Schedule      | `/`            | Timeline scheduler                                                                                                                                                 |
+| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                        |
+| Disciplines   | `/disciplines` | Discipline list                                                                                                                                                    |
+| Clients       | `/clients`     | Client list                                                                                                                                                        |
+| Projects      | `/projects`    | Project list                                                                                                                                                       |
+| Activities    | `/activities`  | Activity list                                                                                                                                                      |
+| Time off      | `/timeoff`     | Time-off list                                                                                                                                                      |
+| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                                  |
+| Settings      | `/settings`    | Settings (scheduling, company-wide working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
 
 The last two — **Team & access** and **Settings** — form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
@@ -286,11 +286,11 @@ success for the rebase never hides the independent loss.
   - _Barry Allen_ — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
   - _Senior Designer_ — a **placeholder** (no name), Design, **bound to Project Watchtower**. Shown
     as the literal name **"Placeholder"** with a **"?"** avatar. **Hidden by default** — placeholders
-    are behind the per-account **Show placeholders** pref (Settings → Placeholders, default **off**);
+    are behind the per-account **Show placeholders** pref (Settings → Additional resourcing options, default **off**);
     enable it to see this row in the schedule, the Resources list, and the assignee picker.
   - _Kord Industries_ — an **external / 3rd party** (`r-ext-northstar`): a company, no discipline/
     capacity, booked on Visual Design (Project Watchtower) as a span only. **Hidden by default** —
-    externals are behind the per-account **Show external resources** pref (Settings → External,
+    externals are behind the per-account **Show external resources** pref (Settings → Additional resourcing options,
     default **off**); enable it to see this row in the schedule's bottom band, the **External** section
     of the Resources tab, and the assignee picker.
 - **Clients:** Queen Consolidated, LexCorp. (**Internal** is the built-in, one per account — it is **HIDDEN
@@ -383,7 +383,7 @@ Allocation `Status` is a three-option `Confirmed` / `Tentative` / `Completed` ra
 is a single-line text field. A historical multiline note remains byte-for-byte intact when another
 field is edited and saved; editing the note itself adopts the single-line value shown by the field.
 The allocation checkbox is labelled exactly `Ignore working days`. Unchecked, the allocation follows
-the assignee's effective working week (the company's global working days intersected with their
+the assignee's effective working week (the company's company-wide working days intersected with their
 personal pattern); checked, it uses every calendar day in the date span. The
 control is hidden for external allocations, whose start/end span is already literal.
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
@@ -589,7 +589,7 @@ account and NOT in export) — like the theme and bar-label toggles. On → narr
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See _Weekend
 columns_ above.
 
-**Global working days (account-level).** Settings → **Global working days** exposes a two-row table:
+**Company-wide working days (account-level).** Settings → **Company-wide working days** exposes a two-row table:
 seven abbreviated weekday headings and seven checkboxes directly beneath them, in the account's
 configured week order. A new company selects the first five days of that week by default
 (Monday–Friday for a Monday start; Sunday–Thursday for a Sunday start).
@@ -602,7 +602,7 @@ company week outright, and every repair boundary (import, server write, startup)
 malformed stored selection to the week-start-aware default.
 
 The account selection governs **capacity**, not just interaction. Each person's **effective working
-week** is the intersection of the company's global working days and their personal working pattern;
+week** is the intersection of the company's company-wide working days and their personal working pattern;
 placeholders and External parties use the company set verbatim. A normal allocation
 schedules and loads hours only on effective days — a day it merely spans that is company- or
 personally-non-working stays grey and unavailable, contributes zero scheduled and zero available
@@ -668,9 +668,14 @@ dialogs rather than depending on hidden help copy.
 > server-vs-local clear-storage / "Signed in as …" / status-suffixed error toasts) is deferred to the
 > later toasts/errors i18n area; its visible text is likewise unchanged.
 
-**Placeholders (per-account, default OFF).** Settings → **Placeholders** has a single switch
-**Show placeholders** (`role="switch"`, accessible name `Show placeholders`), **off** by default.
-It's a **per-account** setting (`placeholdersEnabled` on the Account, absent = off, toggled via
+**Additional resourcing options (per-account, default OFF).** Settings → **Additional resourcing options**
+contains two independently configurable switches: **Show placeholders** and **Show external resources**.
+A placeholder is an unfilled role or tentative person used to plan future capacity before someone
+is assigned. An External resource is a third party such as a partner agency, freelancer, supplier or
+subcontractor; it represents work leaving the team and carries no capacity. Both switches are off
+by default.
+These are **per-account** settings (`placeholdersEnabled` and `externalEnabled` on the Account,
+both absent = off, toggled via
 `updateAccount` — mirroring `disciplinesEnabled`; synced but omitted from the scoped planning-data
 export). **Off** (the out-of-the-box state) → every placeholder is hidden:
 no row in the schedule (and no contribution to utilisation), no entry in the assignee picker or
@@ -1327,7 +1332,7 @@ multiple).
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus
   All-projects activities attributed to that project**. Legacy unattributed All-projects bookings
   reopen unchanged until explicitly attributed. They are **hidden by default** behind the
-  per-account **Show placeholders** pref (Settings → Placeholders, `placeholdersEnabled` on the
+  per-account **Show placeholders** pref (Settings → Additional resourcing options, `placeholdersEnabled` on the
   Account, default off); when shown they display as the literal name **"Placeholder"** with a **"?"** avatar.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
   descriptor), assignable to **any** activity with **no hours**, shown in a **neutral band at the bottom
@@ -1336,7 +1341,7 @@ multiple).
   is hidden and every date counts as a plain calendar day); they're excluded from the Time-off picker, and the
   write boundary rejects time off OR a non-zero load for an external on _any_ path (a direct/crafted
   write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
-  **hidden by default** behind the per-account **Show external resources** pref (Settings → External,
+  **hidden by default** behind the per-account **Show external resources** pref (Settings → Additional resourcing options,
   `externalEnabled` on the Account, default off); when on, an **External** section appears under the **Resources**
   tab (with a labelled question-mark explainer modal + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but

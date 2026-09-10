@@ -61,6 +61,8 @@ function registerStoreCrudEntity2(): void {
 
     const sundayStart = s().addAccount({ name: "Sunday company", color: "#2d75da", weekStartsOn: 0 });
     expect(sundayStart?.workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect(sundayStart?.schedulingMode).toBe("days");
+    expect(sundayStart?.inlineActivityCreateEnabled).toBe(false);
     expect(() =>
       s().addAccount({
         name: "Malformed company",

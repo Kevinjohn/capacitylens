@@ -45,7 +45,7 @@ vertically on a narrow screen, while the **Working days** grid remains full widt
 Working days drive the utilisation figures directly: CapacityLens compares that fixed
 8/4/0-hour pattern with the person's bookings to decide whether they're over capacity.
 The days that count are those in both this pattern and the company's
-[global working days](/guide/settings#global-working-days) — a day outside either holds no
+[company-wide working days](/guide/settings#company-wide-working-days) — a day outside either holds no
 capacity for this person. Set the pattern correctly, or the overwork indicators on
 [the schedule](/guide/the-schedule#reading-overwork) will be wrong for that person.
 
@@ -96,7 +96,7 @@ be favourited.
 A [placeholder](/reference/glossary) is a slot on the schedule for a role you know is
 coming but haven't hired or assigned yet — "a Design Lead" instead of a named person.
 Placeholders are off by default; an Owner or Admin turns them on for the company in
-[Settings](/guide/settings).
+[Settings → Additional resourcing options](/guide/settings#additional-resourcing-options).
 
 Once turned on, the Resources page shows a separate **Placeholders** section with its
 own **Add placeholder** button. A placeholder's name is optional — you can leave it
@@ -125,7 +125,7 @@ someone on your own team's capacity, even if you haven't hired or named them yet
 An external party's bookings use their literal start and end dates.
 
 External parties are off by default; an Owner or Admin turns them on for the company in
-[Settings](/guide/settings).
+[Settings → Additional resourcing options](/guide/settings#additional-resourcing-options).
 
 1. Open **Resources**.
 2. Under **External**, click **Add external party**.

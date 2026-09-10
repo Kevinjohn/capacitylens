@@ -90,13 +90,12 @@ describe("SettingsView — section help", () => {
 
     for (const section of [
       "Scheduling",
-      "Global working days",
+      "Company-wide working days",
       "Disciplines",
       "Engagement grouping",
       "Schedule",
       "Internal work colours",
-      "Placeholders",
-      "External",
+      "Additional resourcing options",
       "Internal work",
       "Activity creation",
       "Allocation bars",
@@ -163,7 +162,7 @@ it("warns that calendar changes reinterpret existing allocations without moving 
   const user = userEvent.setup();
   render(<SettingsView />);
 
-  await user.click(screen.getByRole("button", { name: "About Global working days" }));
+  await user.click(screen.getByRole("button", { name: "About Company-wide working days" }));
 
   expect(
     screen.getByText(
@@ -173,7 +172,7 @@ it("warns that calendar changes reinterpret existing allocations without moving 
   ).toBeInTheDocument();
   expect(
     screen.getByText(
-      "Changing global working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
+      "Changing company-wide working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
     ),
   ).toBeInTheDocument();
 });
@@ -431,6 +430,35 @@ describe("SettingsView — account toggle wiring", () => {
     const after = useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
     expect(after).toBe(!(before ?? whenAbsent));
   });
+
+  it("keeps placeholder and external visibility independently configurable in one section", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const section = screen
+      .getByRole("heading", { name: "Additional resourcing options" })
+      .closest('[data-slot="card"]');
+    expect(section).not.toBeNull();
+    expect(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(within(section as HTMLElement).getByRole("switch", { name: "Show external resources" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+
+    await user.click(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" }));
+    expect(useStore.getState().data.accounts[0]?.placeholdersEnabled).toBe(true);
+    expect(useStore.getState().data.accounts[0]?.externalEnabled).toBeUndefined();
+
+    await user.click(screen.getByRole("button", { name: "About Additional resourcing options" }));
+    const dialog = screen.getByRole("dialog", { name: "Additional resourcing options" });
+    expect(within(dialog).getAllByText(/unfilled roles or tentative people/i)).not.toHaveLength(0);
+    expect(within(dialog).getAllByText(/partner agencies, freelancers, suppliers or subcontractors/i)).not.toHaveLength(
+      0,
+    );
+  });
 });
 
 describe("SettingsView — device preference toggle wiring", () => {
@@ -610,6 +638,6 @@ describe("SettingsView — account options selected at creation", () => {
     await user.click(screen.getByRole("button", { name: "About Account Options Selected at Creation" }));
     const dialog = screen.getByRole("dialog", { name: "Account Options Selected at Creation" });
     expect(within(dialog).getByText(/cannot be changed here/i)).toBeInTheDocument();
-    expect(within(dialog).getByText(/sets which day starts the week/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/set which day starts the week/i)).toBeInTheDocument();
   });
 });
