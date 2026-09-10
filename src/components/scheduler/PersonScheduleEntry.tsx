@@ -78,19 +78,8 @@ export function PersonScheduleEntry({ entry }: PersonScheduleEntryProps) {
       data-testid="person-schedule-entry"
       data-entry-id={entry.key}
       data-entry-kind={entry.kind}
-      className={`rounded-md border bg-card p-4 ${entry.kind === "timeOff" ? "relative overflow-hidden pl-6" : ""}`}
+      className="rounded-md border bg-card p-4"
     >
-      {entry.kind === "timeOff" && (
-        <span
-          aria-hidden="true"
-          data-testid="person-schedule-timeoff-accent"
-          className="absolute inset-y-0 left-0 w-2 bg-faint"
-          style={{
-            background:
-              "repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-faint) 28%, transparent) 0 5px, transparent 5px 10px)",
-          }}
-        />
-      )}
       {entry.kind === "allocation" ? <AllocationEntry entry={entry} /> : <TimeOffEntry entry={entry} />}
     </li>
   );
