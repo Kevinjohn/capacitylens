@@ -148,6 +148,7 @@ export default defineConfig({
         items: [
           { text: "Glossary", link: "/reference/glossary" },
           { text: "Development guide", link: "/reference/development" },
+          { text: "Node 26 discovery", link: "/reference/node26-discovery" },
           { text: "Code conventions", link: "/reference/conventions" },
         ],
       },

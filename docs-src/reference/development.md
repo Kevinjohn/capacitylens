@@ -38,7 +38,10 @@ experimental: Node 26.8.2 can delay SQLite backup completion until another timer
 The upstream [callback-scope fix](https://github.com/nodejs/node/pull/65666) passes an
 isolated source-build comparison, but acceptance against an official fixed release is
 still pending. Follow [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710)
-for the current evidence. Do not use a locally patched runtime for deployment.
+for the current decision and the [consolidated discovery record](/reference/node26-discovery)
+for the evidence, corrected findings and remaining acceptance checks. Proposed minimums
+are 24.19.0 and, conditionally, 26.9.0; these are not yet enforced support ranges.
+Do not use a locally patched runtime for deployment.
 
 The `node-compatibility.yml` workflow prepares separate application, server and Chromium
 checks using Node 26. Its manual and weekly triggers take effect only after the workflow
