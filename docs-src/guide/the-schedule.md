@@ -92,10 +92,11 @@ each linked bar. Hover or focus the bar to see the last surviving date in that s
 The cue marks the link between occurrences; each occurrence can still be edited on its
 own.
 
-The individual schedule drawer lists the complete date range, status and daily hours
-for each overlapping allocation. Project work includes its project and client; other
-work keeps its activity attribution. A linked repeat also reports the last surviving
-date in its series.
+Select a person's avatar to open their individual schedule. The avatar changes to an eye
+when you hover it or move keyboard focus to it. The drawer keeps each allocation compact:
+activity first, quieter project and client context, then its date range and daily hours on
+one line. Task and note details remain below when present. Allocation status and repeat-series
+metadata stay out of this scan-first view.
 
 When **Show task field in schedule** is enabled in [Settings](/guide/settings), an allocation can
 also carry a short **Task** description. It appears above Notes when you hover or focus a bar and

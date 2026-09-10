@@ -378,7 +378,7 @@
   "scheduler_person_schedule_title": "{name}'s schedule",
   "scheduler_person_schedule_placeholder_role": "Placeholder — {role}",
   "scheduler_person_schedule_placeholder_discipline": "Placeholder — {role} · {discipline}",
-  "scheduler_person_schedule_description": "Four weeks: {range}",
+  "scheduler_person_schedule_description": "{range}",
   "scheduler_person_schedule_empty": "Nothing scheduled in these four weeks.",
   "scheduler_person_schedule_activity_fallback": "Activity",
   "form_save": "Save",

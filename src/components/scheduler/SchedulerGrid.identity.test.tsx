@@ -42,7 +42,17 @@ describe("SchedulerGrid component identity and row variants", () => {
     expect(screen.getByTestId("scheduler-row")).toBeVisible();
     expect(screen.queryByRole("button", { name: /Add allocation for/ })).not.toBeInTheDocument();
     expect(screen.getByTestId("allocation-bar")).toHaveAttribute("role", "img");
-    expect(screen.getByRole("button", { name: "View Bruce's schedule" })).toBeVisible();
+    const trigger = screen.getByRole("button", { name: "View Bruce's schedule" });
+    expect(trigger).toBeVisible();
+    expect(trigger).toHaveAttribute("data-testid", "person-schedule-trigger");
+    expect(within(trigger).getByTestId("person-schedule-avatar")).toBeVisible();
+    expect(within(trigger).getByTestId("person-schedule-eye")).toHaveClass(
+      "group-hover:opacity-100",
+      "group-focus-visible:opacity-100",
+    );
+    expect(
+      within(screen.getByTestId("scheduler-row")).getAllByRole("button", { name: "View Bruce's schedule" }),
+    ).toHaveLength(1);
   });
 });
 

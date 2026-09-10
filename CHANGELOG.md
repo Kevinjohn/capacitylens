@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
+  and simplify drawer entries to a compact activity-first agenda (#753, #754).
+
 ### Added
 
 - Publish the documentation site to GitHub Pages through a deliberate, manually triggered workflow
