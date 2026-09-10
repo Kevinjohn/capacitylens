@@ -77,7 +77,7 @@ function ResourceFields(props: ResourceFieldsProps) {
   const { form, isPlaceholder, disabled, disciplinesEnabled, disciplines, projectOptions, errorField, errorId } = props;
   const disciplineOptions = disciplines.map((discipline) => ({ value: discipline.id, label: discipline.name }));
   return (
-    <fieldset disabled={disabled}>
+    <fieldset disabled={disabled} className="min-w-0">
       <FieldGroup className="gap-3">
         <TextField
           label={isPlaceholder ? m.form_resource_name_optional_label() : m.form_resource_name_label()}
@@ -159,7 +159,7 @@ function ResourceCapacityFields({
   return (
     <>
       {!isPlaceholder && (
-        <fieldset disabled={disabled}>
+        <fieldset disabled={disabled} className="min-w-0">
           <WorkingDayPicker
             label={m.form_resource_working_days_label()}
             workingDays={form.workingDays}
