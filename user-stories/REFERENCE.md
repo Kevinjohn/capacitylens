@@ -707,8 +707,8 @@ every overlapping occurrence once with its complete stored date range. Entries
 buttons. Allocations lead with activity, then effective project/client context, followed by a
 compact year-free date range and appropriate hours per day on one line. Status and repeat-series
 metadata are deliberately omitted; task and note content remain when available. Personal time off
-includes its type, year-free dates and an authorised note, with a restrained patterned accent
-distinct from the allocation colour dot.
+includes its type, year-free dates and an authorised note, distinguished without an accent rail by
+its calendar icon and explicit type label.
 External-resource time off, company closures and ordinary non-working days are not entries. Empty
 schedules show **Nothing scheduled in these four weeks.**
 (`data-testid="person-schedule-empty"`). The standard modal backdrop, close button and Escape
