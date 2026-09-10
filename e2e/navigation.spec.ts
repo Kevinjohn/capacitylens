@@ -27,11 +27,21 @@ function registerSuiteScenario1() {
 
       const signIn = page.getByTestId("fake-sign-in");
       const company = page.getByRole("button", { name: "Wayne Enterprises", exact: true });
+      const destinationHeading = page.getByRole("heading", { name: heading, exact: true });
+      if (path === "/account") {
+        await signIn.waitFor();
+        await signIn.click();
+        await expect(destinationHeading).toBeVisible();
+        const reloadResponse = await page.reload();
+        expect([200, 304]).toContain(reloadResponse?.status());
+        await expect(page).toHaveURL(/\/account$/);
+        await expect(destinationHeading).toBeVisible();
+        return;
+      }
       await signIn.or(company).first().waitFor();
       if (await signIn.isVisible()) await signIn.click();
       await company.click();
 
-      const destinationHeading = page.getByRole("heading", { name: heading, exact: true });
       await dismissIntroIfPresent(page, destinationHeading);
       await expect(destinationHeading).toBeVisible();
 
