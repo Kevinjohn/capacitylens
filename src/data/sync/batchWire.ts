@@ -24,6 +24,7 @@ import {
   type CommittedRevision,
 } from "./revisions";
 import type { SyncState } from "./state";
+import { addResourceAvailabilityClearMarkers } from "./resourceAvailabilityWire";
 
 // Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
 // over-limit diff is never split into separately committed prefixes.
@@ -61,31 +62,6 @@ export function prepareBatchBody(
     throw new KeepaliveNotDispatchedError("The pending change was too large for a page-teardown keepalive request.");
   }
   return body;
-}
-
-type WireOp = Omit<Op, "row"> & { row?: Record<string, unknown> };
-
-function addResourceAvailabilityClearMarkers(state: SyncState, ops: Op[]): WireOp[] {
-  const availabilityById = new Map<string, { first: boolean; last: boolean }>();
-  const possibleBases = state.dispatchedTarget ? [state.lastSynced, state.dispatchedTarget] : [state.lastSynced];
-  for (const base of possibleBases) {
-    for (const resource of base.resources) {
-      const previous = availabilityById.get(resource.id) ?? { first: false, last: false };
-      availabilityById.set(resource.id, {
-        first: previous.first || resource.firstAvailableDate !== undefined,
-        last: previous.last || resource.lastAvailableDate !== undefined,
-      });
-    }
-  }
-  return ops.map((op) => {
-    const wireOp: WireOp = { ...op, ...(op.row ? { row: { ...op.row } } : {}) };
-    if (op.method !== "PUT" || op.table !== "resources" || !wireOp.row) return wireOp;
-    const previous = availabilityById.get(op.id);
-    if (!previous) return wireOp;
-    if (previous.first && !Object.hasOwn(wireOp.row, "firstAvailableDate")) wireOp.row.firstAvailableDate = null;
-    if (previous.last && !Object.hasOwn(wireOp.row, "lastAvailableDate")) wireOp.row.lastAvailableDate = null;
-    return wireOp;
-  });
 }
 
 interface DispatchPreparedBatchInput {

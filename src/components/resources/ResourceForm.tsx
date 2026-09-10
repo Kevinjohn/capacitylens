@@ -7,19 +7,12 @@ import { resolveErrorMessage } from "../../lib/errorMessage";
 import { validateText, validateWorkingDays } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
-import {
-  FormActions,
-  Modal,
-  RequiredLegend,
-  SelectField,
-  TextField,
-  WorkingDayPicker,
-  type Option,
-} from "../common/ui";
+import { FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError, FieldGroup } from "../ui/field";
 import { buildResourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { useResourceFormState, type ResourceFormState } from "./useResourceFormState";
+import { ResourceAvailabilityFields } from "./ResourceAvailabilityFields";
 import {
   FULL_DAY_HOURS,
   placeholderCapacityDefaults,
@@ -327,69 +320,6 @@ function ResourceFields(props: ResourceFieldsProps) {
   );
 }
 
-type ResourceCapacityFieldsState = Pick<
-  ResourceFormState,
-  | "workingDays"
-  | "setWorkingDays"
-  | "halfDays"
-  | "setHalfDays"
-  | "firstAvailableDate"
-  | "setFirstAvailableDate"
-  | "lastAvailableDate"
-  | "setLastAvailableDate"
->;
-
-type ResourceCapacityFieldsProps = {
-  form: ResourceCapacityFieldsState;
-  isPerson: boolean;
-  error: string | null;
-  errorField: string | null;
-  errorId: string;
-};
-
-function ResourceCapacityFields({ form, isPerson, error, errorField, errorId }: ResourceCapacityFieldsProps) {
-  return (
-    <>
-      {isPerson && (
-        <>
-          <TextField
-            label={m.form_resource_first_available_date_label()}
-            value={form.firstAvailableDate}
-            onChange={form.setFirstAvailableDate}
-            type="date"
-            description={m.form_resource_availability_dates_description()}
-            invalid={errorField === "firstAvailableDate"}
-            describedById={errorId}
-            layout="label-control"
-          />
-          <TextField
-            label={m.form_resource_last_available_date_label()}
-            value={form.lastAvailableDate}
-            onChange={form.setLastAvailableDate}
-            type="date"
-            invalid={errorField === "lastAvailableDate"}
-            describedById={errorId}
-            layout="label-control"
-          />
-          <WorkingDayPicker
-            label={m.form_resource_working_days_label()}
-            workingDays={form.workingDays}
-            halfDays={form.halfDays}
-            onChange={(workingDays, halfDays) => {
-              form.setWorkingDays(workingDays);
-              form.setHalfDays(halfDays);
-            }}
-            invalid={errorField === "workingDays"}
-            describedById={errorId}
-          />
-        </>
-      )}
-      <FieldError id={errorId}>{error}</FieldError>
-      <RequiredLegend />
-    </>
-  );
-}
-
 /** Add or edit a person or placeholder while preserving kind-specific capacity semantics. */
 export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceFormProps) {
   const add = useStore((state) => state.addResource);
@@ -438,7 +368,9 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
         errorField={errorField}
         errorId={errorId}
       />
-      <ResourceCapacityFields form={form} isPerson={isPerson} error={error} errorField={errorField} errorId={errorId} />
+      {isPerson && <ResourceAvailabilityFields form={form} errorField={errorField} errorId={errorId} />}
+      <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   );
 }
