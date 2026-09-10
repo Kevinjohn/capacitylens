@@ -30,9 +30,18 @@ function TimeZoneMenu({
     <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
       <Command label={m.picker_timezone_search()}>
         <div className="flex items-center border-b px-3">
-          <CommandInput autoFocus placeholder={m.picker_timezone_search()} aria-label={m.picker_timezone_search()} />
+          <CommandInput
+            className="h-10"
+            autoFocus
+            placeholder={m.picker_timezone_search()}
+            aria-label={m.picker_timezone_search()}
+          />
         </div>
-        <CommandList id={listId} aria-label={label}>
+        <CommandList
+          id={listId}
+          aria-label={label}
+          className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height)-3rem))]"
+        >
           <CommandEmpty>{m.picker_timezone_no_results()}</CommandEmpty>
           {options.map((option) => (
             <CommandItem
