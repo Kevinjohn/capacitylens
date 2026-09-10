@@ -28,6 +28,8 @@ const DOMAIN_ERROR_MESSAGES: Record<DomainErrorCode, () => string> = {
   resource_external_dependents: m.domain_error_resource_external_dependents,
   placeholder_project_dependents: m.domain_error_placeholder_project_dependents,
   activity_project_dependents: m.domain_error_activity_project_dependents,
+  allocation_before_resource_availability: m.domain_error_allocation_before_resource_availability,
+  allocation_after_resource_availability: m.domain_error_allocation_after_resource_availability,
   date_required: m.domain_error_date_required,
   date_invalid: m.domain_error_date_invalid,
   date_reversed: m.domain_error_date_reversed,
