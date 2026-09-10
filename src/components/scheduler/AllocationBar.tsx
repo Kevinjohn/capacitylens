@@ -42,10 +42,11 @@ interface AriaLabelInput {
   canEdit: boolean;
   hideHours: boolean;
   label: string;
+  showTaskFieldInSchedule: boolean;
   viewerLabel: string;
 }
 
-function buildAriaLabel({ bar, canEdit, hideHours, label, viewerLabel }: AriaLabelInput) {
+function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }: AriaLabelInput) {
   const shared = {
     hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) }),
     status: resolveAllocationStatusLabel(bar.allocation.status),
@@ -53,12 +54,23 @@ function buildAriaLabel({ bar, canEdit, hideHours, label, viewerLabel }: AriaLab
     end: formatDayMonth(bar.allocation.endDate),
     series: bar.seriesEnd ? m.scheduler_bar_aria_series({ end: formatDayMonth(bar.seriesEnd) }) : "",
   };
+  const task =
+    showTaskFieldInSchedule && bar.allocation.task ? m.scheduler_bar_aria_task({ task: bar.allocation.task }) : "";
   if (canEdit) {
     const note = bar.allocation.note ? m.scheduler_bar_aria_has_note() : "";
-    return m.scheduler_bar_aria_editor({ ...shared, label, note });
+    return m.scheduler_bar_aria_editor({ ...shared, label, note, task });
   }
   const note = bar.allocation.note ? m.scheduler_bar_aria_note({ note: bar.allocation.note }) : "";
-  return m.scheduler_bar_aria_viewer({ ...shared, label: viewerLabel, note });
+  return m.scheduler_bar_aria_viewer({ ...shared, label: viewerLabel, note, task });
+}
+
+function useBarAriaLabel(input: AriaLabelInput) {
+  const { bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel } = input;
+  // The name cannot change mid-gesture, so memoise it instead of rebuilding it on every pointermove render.
+  return useMemo(
+    () => buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }),
+    [bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel],
+  );
 }
 
 function closePopoverOnEscape(event: React.KeyboardEvent, input: Parameters<typeof handleBarKeyDown>[1]) {
@@ -81,6 +93,15 @@ function nudgeBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<type
   if (!isArrow || event.ctrlKey || event.metaKey) return;
   event.preventDefault();
   input.nudge(resolveKeyboardMode(event), event.key === "ArrowRight" ? 1 : -1);
+}
+
+function handleBarPointerDown(
+  event: React.PointerEvent<HTMLDivElement>,
+  hidePopover: () => void,
+  onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void,
+) {
+  hidePopover();
+  onPointerDown(event);
 }
 
 function handleBarKeyDown(
@@ -115,7 +136,10 @@ function buildBarLabels(bar: BarLayout, preferences: BarLabelPreferences) {
 }
 
 function useBarLabelText(bar: BarLayout) {
-  return buildBarLabels(bar, useStore((state) => state.barLabelPrefs));
+  return buildBarLabels(
+    bar,
+    useStore((state) => state.barLabelPrefs),
+  );
 }
 
 function buildBarInset(left: number, width: number) {
@@ -130,7 +154,6 @@ function buildBarInset(left: number, width: number) {
  * click and unmount tear those effects down. The first move pins virtualisation until teardown.
  * `onEdit` must remain stable so memoisation can skip untouched sibling bars during a drag.
  */
-// The name cannot change mid-gesture, so avoid rebuilding it on every pointermove render.
 export const AllocationBar = memo(function AllocationBar(props: AllocationBarProps) {
   const { bar, indexAtClientX, onEdit } = props;
   const canEdit = useCanEdit();
@@ -141,16 +164,17 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
   const { insetLeft, insetWidth } = buildBarInset(gesture.left, gesture.width);
   const { label: labelText, viewerLabel: viewerLabelText } = useBarLabelText(bar);
   const showTaskFieldInSchedule = useStore((state) => hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId));
-  const ariaLabel = useMemo(
-    () => buildAriaLabel({ bar, canEdit, hideHours, label: labelText, viewerLabel: viewerLabelText }),
-    [bar, canEdit, hideHours, labelText, viewerLabelText],
-  );
+  const ariaLabel = useBarAriaLabel({
+    bar,
+    canEdit,
+    hideHours,
+    label: labelText,
+    showTaskFieldInSchedule,
+    viewerLabel: viewerLabelText,
+  });
   const hidePopover = () => setPopoverOpen(false);
   const beginPointerGesture: PointerEventHandler<HTMLDivElement> | undefined = canEdit
-    ? (event) => {
-        hidePopover();
-        gesture.onPointerDown(event);
-      }
+    ? (event) => handleBarPointerDown(event, hidePopover, gesture.onPointerDown)
     : undefined;
   const handleKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) =>
     handleBarKeyDown(event, {

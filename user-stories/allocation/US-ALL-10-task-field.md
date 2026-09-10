@@ -2,6 +2,9 @@
 
 **Area:** Allocation editor and schedule details · **Persona:** Studio manager
 
+**Documentation:** [Settings — Allocation task field](../../docs-src/guide/settings.md#allocation-task-field)
+and [Projects and allocations](../../docs-src/guide/projects-and-allocations.md#create-an-allocation)
+
 ## Goal
 
 Give an allocation a short task description that helps the team understand the work behind a
@@ -19,8 +22,9 @@ booking without changing its activity, dates or capacity.
 
 ## Acceptance criteria
 
-- ✅ **Show task field in schedule** is a workspace setting, off by default and shared by everyone in
-  that account.
+- ✅ **Show task field in schedule** is an account-owned workspace setting, off by default and shared
+  by everyone in that account; changing it requires the same edit permission as other workspace
+  settings.
 - ✅ The editor shows an optional single-line **Task** field when enabled, and saves it with the
   allocation without affecting scheduling calculations.
 - ✅ Enabled schedule details show a populated task above Notes; empty tasks do not create empty

@@ -34,9 +34,7 @@ export function assertSchemaV9(db: Db): void {
 
 /** Assert the immutable v16 entity-table shape without requiring fields from later migrations. */
 export function assertSchemaV16(db: Db): void {
-  // Newer optional columns can remain on a database rolled back to v16 for a targeted migration
-  // test. They are harmless extensions and are still validated by the current schema at boot.
-  assertSchemaVersion(db, V16_TABLES, true);
+  assertSchemaVersion(db, V16_TABLES, false);
 }
 
 /** Assert the released v27 shape without requiring the v28 resource half-day column. */

@@ -176,7 +176,7 @@ function BarPopover({
         </div>
       )}
       {showTaskFieldInSchedule && bar.allocation.task && (
-        <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.task}</div>
+        <div className="mt-1 break-words border-t border-line pt-1 text-muted-foreground">{bar.allocation.task}</div>
       )}
       {bar.allocation.note && (
         <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>

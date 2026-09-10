@@ -126,7 +126,6 @@ describe("buildPersonSchedule allocation projection", () => {
       }),
     ]);
   });
-
 });
 
 describe("buildPersonSchedule task visibility", () => {

@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
+import { PermissionContext } from "../../auth/permissionContext";
 import type { BarLayout } from "./schedulerModel";
 import { useStore } from "../../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
-import { makeAllocation as makeAllocationBase, makeBar as makeBarBase } from "../../test/fixtures";
+import { makeAccount, makeAllocation as makeAllocationBase, makeBar as makeBarBase } from "../../test/fixtures";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
 beforeEach(() => {
@@ -32,6 +33,11 @@ function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
 
 function makeBar(allocation: Allocation, labelOverride?: string): BarLayout {
   return makeBarBase({ allocation, width: 336, color: "#ec4899", label: labelOverride ?? "My Activity" });
+}
+
+function setTaskFieldVisibility(enabled: boolean) {
+  useStore.getState().replaceAll({ ...emptyAppData(), accounts: [makeAccount({ showTaskFieldInSchedule: enabled })] });
+  useStore.getState().setActiveAccount("acct-test");
 }
 
 describe("AllocationBar rendering", () => {
@@ -193,6 +199,36 @@ describe("AllocationBar accessible name (status / dates / note)", () => {
     const noNote = makeBar(makeAllocation());
     render(<AllocationBar bar={noNote} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
     expect(screen.getByTestId("allocation-bar").getAttribute("aria-label")).not.toContain("has note");
+  });
+
+  it("announces task text to a viewer only when the account setting enables it", () => {
+    const allocation = makeAllocation({ task: "Review a deliberately long task description" });
+    setTaskFieldVisibility(true);
+    const { rerender } = render(
+      <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
+        <AllocationBar bar={makeBar(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+      </PermissionContext.Provider>,
+    );
+    expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(
+      /task: Review a deliberately long task description/i,
+    );
+
+    setTaskFieldVisibility(false);
+    rerender(
+      <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
+        <AllocationBar bar={makeBar(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+      </PermissionContext.Provider>,
+    );
+    expect(screen.getByTestId("allocation-bar")).not.toHaveAccessibleName(/task:/i);
+  });
+
+  it("wraps a long task token in the fixed-width popover", () => {
+    setTaskFieldVisibility(true);
+    const task = "a".repeat(180);
+    const allocation = makeAllocation({ task });
+    render(<AllocationBar bar={makeBar(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    fireEvent.mouseEnter(screen.getByTestId("allocation-bar"));
+    expect(screen.getByTestId("allocation-popover").querySelector("div.break-words")).toHaveTextContent(task);
   });
 });
 

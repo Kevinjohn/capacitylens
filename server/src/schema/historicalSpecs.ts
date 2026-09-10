@@ -178,5 +178,8 @@ export const V35_TABLES: Record<string, TableSpec> = {
 /** Released v36 shape before v37 adds account task visibility and allocation task text. */
 export const V36_TABLES: Record<string, TableSpec> = {
   ...PRE_V37_TABLES,
-  allocations: PRE_V35_ALLOCATIONS,
+  allocations: {
+    ...liveTableSpec("allocations"),
+    columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "task"),
+  },
 };

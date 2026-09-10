@@ -466,6 +466,25 @@ function dropActivityLifecycleColumns(db: DatabaseSync): void {
   db.exec("ALTER TABLE activities DROP COLUMN archivedAt; ALTER TABLE activities DROP COLUMN deletedAt;");
 }
 
+function dropAllocationTaskFields(db: DatabaseSync): void {
+  db.exec("ALTER TABLE accounts DROP COLUMN showTaskFieldInSchedule; ALTER TABLE allocations DROP COLUMN task;");
+}
+
+function rollbackColourFixtureToV12(db: DatabaseSync): void {
+  db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
+  db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
+  db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
+  db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
+  db.exec(
+    `ALTER TABLE resources DROP COLUMN isFavourite; ALTER TABLE accounts DROP COLUMN showTaskFieldInSchedule; ALTER TABLE allocations DROP COLUMN task`,
+  );
+  dropAllocationProjectAttribution(db);
+  dropActivityLifecycleColumns(db);
+  db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
+  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`);
+  db.exec(`PRAGMA user_version = 12`);
+}
+
 function prepareV14ResetCeremonyFixture(path: string): void {
   const db = openDb(path);
   insertRow(db, "accounts", {
@@ -496,6 +515,7 @@ function prepareV14ResetCeremonyFixture(path: string): void {
   db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
   db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
   db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+  dropAllocationTaskFields(db);
   dropAllocationProjectAttribution(db);
   dropActivityLifecycleColumns(db);
   db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
@@ -521,6 +541,7 @@ function prepareV16AccountViewPreferencesFixture(path: string): void {
   db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
   db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
   db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
+  dropAllocationTaskFields(db);
   dropAllocationProjectAttribution(db);
   dropActivityLifecycleColumns(db);
   db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
@@ -912,7 +933,7 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
-describe("schema migration of an existing on-disk DB", () => {
+function registerV13ColourMigrationTest(): void {
   it("v13 snaps every legacy non-preset account colour to its nearest preset exactly once, leaving preset colours untouched", () => {
     // Before v13, sanitizeWrite('accounts') replaced ANY non-preset stored colour with one FIXED
     // fallback hex on every write, and no migration ever repaired the rows already on disk — so a
@@ -954,16 +975,7 @@ describe("schema migration of an existing on-disk DB", () => {
       // a couple of steps back) so the next openDb() re-runs the v13 migration against these rows.
       // Every row past v12 must go: a leftover future-version ledger row would (rightly) fail the
       // exact-history assertion for user_version = 12.
-      db.exec(`ALTER TABLE accounts DROP COLUMN groupResourcesByEngagement`);
-      db.exec(`ALTER TABLE accounts DROP COLUMN workingDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN engagement`);
-      db.exec(`ALTER TABLE resources DROP COLUMN halfDays`);
-      db.exec(`ALTER TABLE resources DROP COLUMN isFavourite`);
-      dropAllocationProjectAttribution(db);
-      dropActivityLifecycleColumns(db);
-      db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
-      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`);
-      db.exec(`PRAGMA user_version = 12`);
+      rollbackColourFixtureToV12(db);
       db.close();
 
       const upgraded = openDb(path);
@@ -989,7 +1001,9 @@ describe("schema migration of an existing on-disk DB", () => {
       cleanup();
     }
   });
-});
+}
+
+describe("schema migration of an existing on-disk DB", registerV13ColourMigrationTest);
 
 describe("schema migration of an existing on-disk DB", () => {
   it("preserves v13's released malformed-colour outcomes without changing its ledger definition", () => {
@@ -2664,6 +2678,7 @@ function registerActivityLifecycleMigrationTest(): void {
     const allocationsBefore = before.allocations.filter(({ activityId }) => activityId === "t-wires");
     expect(activityBefore).toBeDefined();
     expect(allocationsBefore.length).toBeGreaterThan(0);
+    dropAllocationTaskFields(db);
     db.exec(`
       ALTER TABLE activities DROP COLUMN archivedAt;
       ALTER TABLE activities DROP COLUMN deletedAt;
