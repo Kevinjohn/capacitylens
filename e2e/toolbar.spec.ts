@@ -82,7 +82,8 @@ function registerSuiteScenario5() {
 }
 
 function registerSuiteScenario6() {
-  test("shows and hides the centred filter row from the right-hand toolbar actions", async ({ page }) => {
+  test("shows a responsive filter row with search left and the remaining controls grouped right", async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
     await openApp(page);
     const show = page.getByRole("button", { name: "Show filters" });
     const actions = page.getByTestId("scheduler-toolbar-actions");
@@ -100,8 +101,35 @@ function registerSuiteScenario6() {
 
     const hide = page.getByRole("button", { name: "Hide filters" });
     await expect(hide).toHaveAttribute("aria-expanded", "true");
-    await expect(page.getByLabel("Search people")).toBeVisible();
+    const filterbar = page.locator("#scheduler-filters");
+    const search = page.getByLabel("Search people");
+    const controls = page.getByTestId("scheduler-filter-controls");
+    const clear = page.getByRole("button", { name: "Clear Filters" });
+    await expect(search).toBeVisible();
     await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toBeVisible();
+    await search.fill("Clark");
+    await expect(clear).toBeEnabled();
+
+    const [filterbarBox, searchBox, controlsBox, clearBox] = await Promise.all([
+      box(filterbar),
+      box(search),
+      box(controls),
+      box(clear),
+    ]);
+    expect(searchBox.x).toBeLessThanOrEqual(filterbarBox.x + 17);
+    expect(controlsBox.x).toBeGreaterThan(searchBox.x + searchBox.width);
+    expect(clearBox.x + clearBox.width).toBeLessThanOrEqual(controlsBox.x + controlsBox.width + 1);
+    expect(controlsBox.x + controlsBox.width).toBeLessThanOrEqual(filterbarBox.x + filterbarBox.width);
+
+    await page.setViewportSize({ width: 800, height: 900 });
+    await expect
+      .poll(() => filterbar.evaluate((element) => element.scrollWidth - element.clientWidth))
+      .toBeLessThanOrEqual(0);
+    const narrowLayout = await filterbar.evaluate((element) => ({
+      controlsBottom: element.children[1]?.getBoundingClientRect().bottom,
+      filterbarBottom: element.getBoundingClientRect().bottom,
+    }));
+    expect(narrowLayout.controlsBottom).toBeLessThanOrEqual(narrowLayout.filterbarBottom);
 
     await hide.click();
     await expect(page.getByLabel("Search people")).toHaveCount(0);
