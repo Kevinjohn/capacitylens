@@ -18,6 +18,9 @@ your host:
   Compose. The packaged stack manages the web app and API services.
 - [Install without Docker](/self-hosting/install-without-docker) requires Node 24, pnpm,
   systemd and nginx. You manage the web app and API services directly.
+- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) adapts the direct Node
+  installation for Forge, Ploi, RunCloud and similar platforms that manage nginx,
+  supervised processes and release directories for you.
 
 Docker is not a shared prerequisite. Each installation page lists only what its route
 needs.
@@ -77,8 +80,9 @@ it.
 
 ## What's next
 
-- Installing for the first time: choose [Install with Docker](/self-hosting/install-with-docker)
-  or [Install without Docker](/self-hosting/install-without-docker).
+- Installing for the first time: choose [Install with Docker](/self-hosting/install-with-docker),
+  [Install without Docker](/self-hosting/install-without-docker), or
+  [Deploy on a managed VPS platform](/self-hosting/managed-vps/).
 - Choosing sign-in mode, secrets and other environment variables:
   [Configuration](/self-hosting/configuration).
 - Putting a domain and certificate in front of it:

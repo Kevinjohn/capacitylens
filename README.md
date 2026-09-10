@@ -82,8 +82,9 @@ pnpm run dev
 That starts the web app on `:5173` and the SQLite API on `:8787`, with sample data loaded.
 A fresh production instance starts empty.
 
-For a real deployment with Docker Compose or plain Node 24 — including TLS, backups and
-upgrades — follow the [self-hosting guide](docs-src/self-hosting/index.md).
+For a real deployment with Docker Compose, plain Node 24 or a managed VPS platform —
+including TLS, backups and upgrades — follow the
+[self-hosting guide](docs-src/self-hosting/index.md).
 
 ## Sign-in, in short
 
@@ -107,8 +108,9 @@ server, no build — or read the Markdown sources under [`docs-src/`](docs-src/)
   projects and allocations, time off and settings.
 - [Company login (SSO)](docs-src/company-login/index.md) — connecting your provider and the guided
   password-to-SSO cutover.
-- [Self-hosting](docs-src/self-hosting/index.md) — configuration, TLS, backups, monitoring and
-  incident response.
+- [Self-hosting](docs-src/self-hosting/index.md) — Docker, direct Node and
+  [managed VPS](docs-src/self-hosting/managed-vps/index.md) deployment, plus configuration,
+  TLS, backups, monitoring and incident response.
 - [Security and privacy](docs-src/security/index.md) — posture, stored data and operator
   responsibilities.
 - [Glossary](docs-src/reference/glossary.md) — the terms the docs rely on, in plain language.
@@ -118,7 +120,7 @@ server, no build — or read the Markdown sources under [`docs-src/`](docs-src/)
 React, TypeScript, Vite and Tailwind in the browser; Zustand for UI state and undo/redo; a shared
 TypeScript domain in `shared/` for validation, migrations and the scheduling rules; Fastify and
 Better Auth over Node's built-in SQLite driver on the server. Vitest, Testing Library, Playwright
-and axe keep it honest. Deploy with Docker Compose or plain Node 24.
+and axe keep it honest. Deploy with Docker Compose, plain Node 24 or a managed VPS platform.
 
 The browser always talks to the API; only `VITE_CAPACITYLENS_DEMO=1` swaps in the throwaway
 in-memory demo adapter.
