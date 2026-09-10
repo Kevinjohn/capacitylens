@@ -121,7 +121,7 @@ it("keeps the dialog open and shows the persistence error when the server reject
   });
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText("Name"), "Alice");
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("Resource could not be saved by the server.");
@@ -140,7 +140,7 @@ it("retries a transient rejected save without adding a duplicate person", async 
     .mockResolvedValueOnce({ kind: "clean" });
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText("Name"), "Alice");
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
     await user.click(screen.getByRole("button", { name: "Save" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure.");
     expect(useStore.getState().data.resources).toHaveLength(1);
@@ -157,6 +157,42 @@ it("retries a transient rejected save without adding a duplicate person", async 
   }
 });
 
+it("retries an existing edit from its latest optimistic snapshot", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  const resource = useStore.getState().addResource({
+    kind: "person",
+    name: "Bruce Wayne",
+    role: "Designer",
+    employmentType: "permanent",
+    engagement: "studio",
+    workingHoursPerDay: 8,
+    workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
+    color: "#737373",
+  });
+  vi.spyOn(persistence, "flushPendingWrites")
+    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure.") })
+    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure again.") })
+    .mockResolvedValueOnce({ kind: "clean" });
+  try {
+    render(<ResourceForm resource={resource} onClose={onClose} />);
+    await user.clear(screen.getByLabelText("Role"));
+    await user.type(screen.getByLabelText("Role"), "Lead designer");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure.");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure again.");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(useStore.getState().data.resources[0]).toMatchObject({ name: "Bruce Wayne", role: "Lead designer" });
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
 it("closes after a successful save under StrictMode", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
@@ -165,7 +201,7 @@ it("closes after a successful save under StrictMode", async () => {
       <ResourceForm kind="person" onClose={onClose} />
     </StrictMode>,
   );
-  await user.type(screen.getByLabelText("Name"), "Alice");
+  await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
   await user.click(screen.getByRole("button", { name: "Save" }));
   await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
 });
@@ -181,9 +217,13 @@ it("ignores a second submit while the first persistence round-trip is pending", 
   );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText("Name"), "Alice");
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
     const save = screen.getByRole("button", { name: "Save" });
     await user.click(save);
+    expect(screen.getByLabelText("Name")).toBeDisabled();
+    expect(screen.getByLabelText("Role")).toBeDisabled();
+    expect(screen.getByLabelText("Engagement")).toBeDisabled();
+    expect(screen.getAllByRole("radio")[0]).toBeDisabled();
     await user.click(save);
     expect(useStore.getState().data.resources).toHaveLength(1);
     expect(onClose).not.toHaveBeenCalled();
@@ -206,9 +246,9 @@ it("does not let a late save response close a form after its company changed", a
   );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText("Name"), "Alice");
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
     await user.click(screen.getByRole("button", { name: "Save" }));
-    const other = useStore.getState().addAccount({ name: "Other", color: "#111111" });
+    const other = useStore.getState().addAccount({ name: "Stark Industries", color: "#111111" });
     if (!other) throw new Error("Expected second account");
     useStore.getState().setActiveAccount(other.id);
 
@@ -231,9 +271,9 @@ it("does not surface a late save rejection after its company changed", async () 
   );
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
-    await user.type(screen.getByLabelText("Name"), "Alice");
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
     await user.click(screen.getByRole("button", { name: "Save" }));
-    const other = useStore.getState().addAccount({ name: "Other", color: "#111111" });
+    const other = useStore.getState().addAccount({ name: "Stark Industries", color: "#111111" });
     if (!other) throw new Error("Expected second account");
     useStore.getState().setActiveAccount(other.id);
 

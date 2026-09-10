@@ -131,7 +131,7 @@ function registerFreshCompanyResourceTest(): void {
   it("fresh password-auth company accepts a person with no role through browser sync", async () => {
     const { app, db } = await appWithAuth({ multiAccount: true });
     const { cookie } = await signUp(app, "blank-role@capacitylens.dev");
-    const created = await createOrg(app, { name: "Blank Role Studio" }, { cookie });
+    const created = await createOrg(app, { name: "Wayne Enterprises" }, { cookie });
     expect(created.statusCode, created.body).toBe(201);
     const accountId = readStringField(created, "id");
     const resource = {

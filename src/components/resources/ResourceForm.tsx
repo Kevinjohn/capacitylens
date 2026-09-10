@@ -194,7 +194,6 @@ function refreshPendingCreatedResource(
   resource: Resource | undefined,
   saved: Resource | undefined,
 ) {
-  if (input.resource) return;
   const pendingId = resource?.id ?? saved?.id;
   const latest = pendingId && input.readResources().find(({ id }) => id === pendingId);
   if (latest) input.pendingCreatedResourceRef.current = latest;
@@ -228,7 +227,7 @@ function createSubmit(input: SubmitInput) {
     if (input.submittingRef.current) return;
     const pending = input.pendingCreatedResourceRef.current;
     const retryResource = pending && input.readResources().some(({ id }) => id === pending.id) ? pending : undefined;
-    const resource = input.resource ?? retryResource;
+    const resource = retryResource ?? input.resource;
     const fields = parseFormFields({
       name: input.draft.name,
       role: input.draft.role,
@@ -299,6 +298,7 @@ type ResourceFieldsState = Pick<ResourceFormState, "name" | "setName" | "role" |
 type ResourceFieldsProps = {
   form: ResourceFieldsState;
   isPlaceholder: boolean;
+  disabled: boolean;
   disciplinesEnabled: boolean;
   disciplines: Discipline[];
   projectOptions: Option[];
@@ -307,61 +307,63 @@ type ResourceFieldsProps = {
 };
 
 function ResourceFields(props: ResourceFieldsProps) {
-  const { form, isPlaceholder, disciplinesEnabled, disciplines, projectOptions, errorField, errorId } = props;
+  const { form, isPlaceholder, disabled, disciplinesEnabled, disciplines, projectOptions, errorField, errorId } = props;
   const disciplineOptions = disciplines.map((discipline) => ({ value: discipline.id, label: discipline.name }));
   return (
-    <FieldGroup className="gap-3">
-      <TextField
-        label={isPlaceholder ? m.form_resource_name_optional_label() : m.form_resource_name_label()}
-        value={form.name}
-        onChange={form.setName}
-        required={!isPlaceholder}
-        invalid={errorField === "name"}
-        describedById={errorId}
-        layout="label-control"
-      />
-      <TextField
-        label={m.form_resource_role_label()}
-        value={form.role}
-        onChange={form.setRole}
-        placeholder={m.form_resource_role_placeholder()}
-        invalid={errorField === "role"}
-        describedById={errorId}
-        layout="label-control"
-      />
-      {disciplinesEnabled && disciplines.length > 0 && (
-        <SelectField
-          label={m.form_resource_discipline_label()}
-          value={form.disciplineId}
-          onChange={form.setDisciplineId}
-          options={disciplineOptions}
-          placeholder={m.form_resource_discipline_none_placeholder()}
-          layout="label-control"
-        />
-      )}
-      {!isPlaceholder && (
-        <SelectField
-          label={m.form_resource_engagement_label()}
-          value={form.engagement}
-          onChange={(value) => form.setEngagement(value as ResourceEngagement)}
-          options={buildResourceEngagementOptions()}
-          layout="label-control"
-        />
-      )}
-      {isPlaceholder && (
-        <SelectField
-          label={m.form_resource_bound_project_label()}
-          value={form.projectId}
-          onChange={form.setProjectId}
-          options={projectOptions}
-          placeholder={m.form_resource_select_project_placeholder()}
-          required
-          invalid={errorField === "projectId"}
+    <fieldset disabled={disabled}>
+      <FieldGroup className="gap-3">
+        <TextField
+          label={isPlaceholder ? m.form_resource_name_optional_label() : m.form_resource_name_label()}
+          value={form.name}
+          onChange={form.setName}
+          required={!isPlaceholder}
+          invalid={errorField === "name"}
           describedById={errorId}
           layout="label-control"
         />
-      )}
-    </FieldGroup>
+        <TextField
+          label={m.form_resource_role_label()}
+          value={form.role}
+          onChange={form.setRole}
+          placeholder={m.form_resource_role_placeholder()}
+          invalid={errorField === "role"}
+          describedById={errorId}
+          layout="label-control"
+        />
+        {disciplinesEnabled && disciplines.length > 0 && (
+          <SelectField
+            label={m.form_resource_discipline_label()}
+            value={form.disciplineId}
+            onChange={form.setDisciplineId}
+            options={disciplineOptions}
+            placeholder={m.form_resource_discipline_none_placeholder()}
+            layout="label-control"
+          />
+        )}
+        {!isPlaceholder && (
+          <SelectField
+            label={m.form_resource_engagement_label()}
+            value={form.engagement}
+            onChange={(value) => form.setEngagement(value as ResourceEngagement)}
+            options={buildResourceEngagementOptions()}
+            layout="label-control"
+          />
+        )}
+        {isPlaceholder && (
+          <SelectField
+            label={m.form_resource_bound_project_label()}
+            value={form.projectId}
+            onChange={form.setProjectId}
+            options={projectOptions}
+            placeholder={m.form_resource_select_project_placeholder()}
+            required
+            invalid={errorField === "projectId"}
+            describedById={errorId}
+            layout="label-control"
+          />
+        )}
+      </FieldGroup>
+    </fieldset>
   );
 }
 
@@ -373,26 +375,36 @@ type ResourceCapacityFieldsState = Pick<
 type ResourceCapacityFieldsProps = {
   form: ResourceCapacityFieldsState;
   isPlaceholder: boolean;
+  disabled: boolean;
   error: string | null;
   errorField: string | null;
   errorId: string;
 };
 
-function ResourceCapacityFields({ form, isPlaceholder, error, errorField, errorId }: ResourceCapacityFieldsProps) {
+function ResourceCapacityFields({
+  form,
+  isPlaceholder,
+  disabled,
+  error,
+  errorField,
+  errorId,
+}: ResourceCapacityFieldsProps) {
   return (
     <>
       {!isPlaceholder && (
-        <WorkingDayPicker
-          label={m.form_resource_working_days_label()}
-          workingDays={form.workingDays}
-          halfDays={form.halfDays}
-          onChange={(workingDays, halfDays) => {
-            form.setWorkingDays(workingDays);
-            form.setHalfDays(halfDays);
-          }}
-          invalid={errorField === "workingDays"}
-          describedById={errorId}
-        />
+        <fieldset disabled={disabled}>
+          <WorkingDayPicker
+            label={m.form_resource_working_days_label()}
+            workingDays={form.workingDays}
+            halfDays={form.halfDays}
+            onChange={(workingDays, halfDays) => {
+              form.setWorkingDays(workingDays);
+              form.setHalfDays(halfDays);
+            }}
+            invalid={errorField === "workingDays"}
+            describedById={errorId}
+          />
+        </fieldset>
       )}
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
@@ -403,6 +415,7 @@ function ResourceCapacityFields({ form, isPlaceholder, error, errorField, errorI
 type ResourceFormContentProps = {
   form: ResourceFieldsState & ResourceCapacityFieldsState;
   isPlaceholder: boolean;
+  disabled: boolean;
   disciplinesEnabled: boolean;
   disciplines: Discipline[];
   projectOptions: Option[];
@@ -414,6 +427,7 @@ type ResourceFormContentProps = {
 function ResourceFormContent({
   form,
   isPlaceholder,
+  disabled,
   disciplinesEnabled,
   disciplines,
   projectOptions,
@@ -426,6 +440,7 @@ function ResourceFormContent({
       <ResourceFields
         form={form}
         isPlaceholder={isPlaceholder}
+        disabled={disabled}
         disciplinesEnabled={disciplinesEnabled}
         disciplines={disciplines}
         projectOptions={projectOptions}
@@ -435,6 +450,7 @@ function ResourceFormContent({
       <ResourceCapacityFields
         form={form}
         isPlaceholder={isPlaceholder}
+        disabled={disabled}
         error={error}
         errorField={errorField}
         errorId={errorId}
@@ -493,6 +509,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
       <ResourceFormContent
         form={form}
         isPlaceholder={isPlaceholder}
+        disabled={submitting}
         disciplinesEnabled={disciplinesEnabled}
         disciplines={data.disciplines}
         projectOptions={projectOptions}
