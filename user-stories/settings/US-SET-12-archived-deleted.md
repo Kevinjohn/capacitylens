@@ -29,8 +29,8 @@ surfaces here.
 1. On **Resources**, archive **Barry Allen** via the row's **Archive Barry Allen** button → confirm
    **Archive** in the _"Archive resource?"_ dialog. The row disappears from Resources and from the
    **Schedule**.
-2. In **Archived resources** (`data-testid="archived-resources-section"`), find Barry under
-   `data-testid="archived-row"`.
+2. In the resource archive sections (`data-testid="archived-resources-section"`), find Barry under
+   **Archived Studio**, using `data-testid="archived-row"`.
 3. Click **Restore Barry Allen** — the row leaves the section and Barry reappears on the Schedule and
    the Resources list.
 4. Re-archive Barry and on the archived row click **Delete Barry
@@ -45,8 +45,9 @@ surfaces here.
 
 ## Acceptance criteria
 
-- ✅ Each list's archive section is expanded and visible only to owners/admins. Resources places it
-  after External. A non-admin/viewer never receives or sees inactive rows.
+- ✅ Each list's archive section is expanded and visible only to owners/admins. Resources groups
+  inactive rows as Archived Studio, Archived Supplementary, Archived External, then Archived placeholders
+  when present. A non-admin/viewer never receives or sees inactive rows.
 - ✅ **Settings → Deleted items** is an independent disclosure, closed by default, and lists only
   soft-deleted resources, clients, projects and activities.
 - ✅ **Restore** on an archived row returns it to active (reappears on the schedule + its list).

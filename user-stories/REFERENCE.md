@@ -1337,8 +1337,9 @@ button (it's hidden from the Clients list and the store/server backstop it). Hoo
 
 ### Inline archives and Settings → Deleted items
 
-Each management page ends with an expanded **Archived resources/clients/projects/activities** section
-for owners and administrators. Resources places it after External. Directly archived rows offer
+Each management page ends with expanded archive sections for owners and administrators. The Resources section mirrors the active grouping with non-empty
+**Archived Studio**, **Archived Supplementary** and **Archived External** groups in that order, followed
+by **Archived placeholders** when archived placeholders exist. Directly archived rows offer
 Restore and Delete. Active descendants hidden by an archived client or project explain that ancestry
 and link to the controlling parent's archived section instead of presenting a false independent
 archive action. In LOCAL mode everyone has owner access;
