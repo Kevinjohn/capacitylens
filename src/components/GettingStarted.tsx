@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { APP_NAME } from "@capacitylens/shared/brand";
 import { Link, useLocation } from "react-router-dom";
 import { useRole } from "../auth/permissionContext";
 import { useStore } from "../store/useStore";
@@ -183,7 +184,7 @@ function GettingStartedCardContent({
     <Card aria-label={m.gs_title()} data-testid="getting-started" className="getting-started-popover gap-4 py-4">
       <CardHeader className="px-4">
         <CardTitle className="text-sm">{m.gs_title()}</CardTitle>
-        <CardDescription className="text-xs">{m.gs_subtitle()}</CardDescription>
+        <CardDescription className="text-xs">{m.gs_subtitle({ appName: APP_NAME })}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 px-4">
         <GettingStartedStepsContent
