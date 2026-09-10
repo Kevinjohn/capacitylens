@@ -489,7 +489,7 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
   registerInviteInputTests();
 });
 
-describe("GET /api/invites/:token/preview", () => {
+function registerInvitePreviewProjectionTests(): void {
   it.each([
     {
       kind: "email-bound",
@@ -533,6 +533,10 @@ describe("GET /api/invites/:token/preview", () => {
       expect(JSON.stringify(res.json())).not.toContain("capacitylens.dev");
     },
   );
+}
+
+describe("GET /api/invites/:token/preview", () => {
+  registerInvitePreviewProjectionTests();
 
   it.each([
     ["unknown", "missing-preview", 404],
