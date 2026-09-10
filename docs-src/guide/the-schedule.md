@@ -174,8 +174,12 @@ changing the keyboard order.
 The project menu keeps **All projects** first, then sorts projects by client and project.
 A code name controls the alphabetical position when one is set. In each option, the
 client and slash are grey so the project name is easier to scan; the complete
-**Client / Project** label remains available to assistive technology. Selecting a client
-or project narrows the bars and rows to that work. The active value stays visible, and
+**Client / Project** label remains available to assistive technology. Selecting a client narrows
+the project menu to that client's eligible projects while keeping **All projects** available;
+clearing the client restores the full eligible project list and resets the project filter to
+**All projects**. If the selected project belongs to the newly selected client it remains selected,
+otherwise it resets to **All projects**. Selecting a
+client or project narrows the bars and rows to that work. The active value stays visible, and
 **Clear Filters** turns red so the filtered state cannot be mistaken for the complete
 schedule.
 

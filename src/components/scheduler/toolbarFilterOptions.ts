@@ -11,7 +11,7 @@ export interface FilterOption {
   primaryLabel?: string;
 }
 
-export function buildFilterOptions(data: AppData) {
+export function buildFilterOptions(data: AppData, selectedClientId: string | null = null) {
   const clients = [...data.clients].sort(
     (a, b) => Number(b.builtin === true) - Number(a.builtin === true) || byName(a, b),
   );
@@ -21,14 +21,17 @@ export function buildFilterOptions(data: AppData) {
       .sort(byDisciplineOrder)
       .map((discipline) => ({ id: discipline.id, label: discipline.name })),
     clientOptions: clients.map((client) => ({ id: client.id, label: client.name })),
-    projectOptions: [...data.projects].sort(createClientProjectDisplayNameComparator(data.clients)).map((project) => {
-      const clientName = clientNames.get(project.clientId);
-      return {
-        id: project.id,
-        label: clientName ? `${clientName} / ${project.name}` : project.name,
-        ...(clientName ? { contextLabel: `${clientName} /`, primaryLabel: project.name } : {}),
-      };
-    }),
+    projectOptions: [...data.projects]
+      .filter((project) => selectedClientId === null || project.clientId === selectedClientId)
+      .sort(createClientProjectDisplayNameComparator(data.clients))
+      .map((project) => {
+        const clientName = clientNames.get(project.clientId);
+        return {
+          id: project.id,
+          label: clientName ? `${clientName} / ${project.name}` : project.name,
+          ...(clientName ? { contextLabel: `${clientName} /`, primaryLabel: project.name } : {}),
+        };
+      }),
     // The activity lens covers only the project-LESS kinds — project-specific activities are
     // reached via the Projects dropdown above.
     internalActivities: data.activities.filter((activity) => activity.kind === "internal").sort(byName),
