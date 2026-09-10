@@ -52,7 +52,7 @@ capacity for this person. Set the pattern correctly, or the overwork indicators 
 The current **Engagement** choice has a selected state. Saving **Supplementary** moves the person
 into that section immediately; it does not change their discipline, role or working days.
 
-![The Edit resource form with the always-visible Engagement choices and Supplementary selected](../screenshots/flows/resource_engagement_choice.jpg)
+![The Add resource form with the always-visible Engagement choices and Supplementary selected](../screenshots/flows/resource_engagement_choice.jpg)
 
 The new row appears on the schedule immediately, ready for allocations and time off.
 There's no account to create and nothing for the person to sign in to.
