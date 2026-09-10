@@ -12,6 +12,7 @@ import {
   assertSchemaV35,
   assertSchemaCurrent,
   assertSchemaV36,
+  assertSchemaV37,
 } from "../../schema";
 import { ensureControlTables, assertControlTablesCurrent, SINGLE_OWNER_INDEX } from "../../controlTables";
 import { migrateSingleOwnerControlPlaneV10, assertSingleOwnerControlPlaneV10 } from "../../controlTables";
@@ -30,6 +31,7 @@ import {
   TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION,
   ACTIVITY_LIFECYCLE_V36_DEFINITION,
   ALLOCATION_TASK_V37_DEFINITION,
+  RESOURCE_AVAILABILITY_V38_DEFINITION,
 } from "./definitions";
 import { migrateTimeOffResourceNullableV33, COMPANY_CLOSURES_V34_DEFINITION } from "./definitions";
 import { migrateCompanyClosuresV34 } from "./definitions";
@@ -354,6 +356,15 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     }
     if (!tableHasColumns(db, "allocations", ["task"])) {
       db.exec("ALTER TABLE allocations ADD COLUMN task TEXT;");
+    }
+    assertSchemaV37(db);
+    assertTenantRelationshipIntegrityCurrent(db);
+    assertTenantEntityIndexesCurrent(db);
+  }),
+  defineMigration(38, "add-resource-availability-dates", RESOURCE_AVAILABILITY_V38_DEFINITION, (db) => {
+    assertSchemaV37(db);
+    for (const column of ["firstAvailableDate", "lastAvailableDate"]) {
+      if (!tableHasColumns(db, "resources", [column])) db.exec(`ALTER TABLE resources ADD COLUMN ${column} TEXT;`);
     }
     assertSchemaCurrent(db);
     assertTenantRelationshipIntegrityCurrent(db);

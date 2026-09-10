@@ -5,6 +5,7 @@ import {
   type AppData,
   type AppDataKey,
 } from "@capacitylens/shared/types/entities";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import type { ValidationDataLookup } from "@capacitylens/shared/domain/mutations";
 import type { RewrittenAllocationRevision } from "./db";
 import { withoutAllocationAttribution } from "@capacitylens/shared/lib/integrity";
@@ -194,6 +195,11 @@ export class BatchStateProjection implements ValidationDataLookup {
     return this.relatedRows({ parent: "resources", child: "timeOff", field: "resourceId", parentId: resourceId }).some(
       (row) => row.accountId === accountId,
     );
+  }
+
+  accountWorkingDays(accountId: string) {
+    const account = this.row("accounts", accountId);
+    return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1);
   }
 
   allocationsForResource(accountId: string, resourceId: string): readonly Allocation[] {

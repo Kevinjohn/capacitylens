@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-125 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
+126 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -50,18 +50,19 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Resources — `resources/`
 
-| Story                                                     | Title                                       | Automated coverage                                       |
-| --------------------------------------------------------- | ------------------------------------------- | -------------------------------------------------------- |
-| [US-RES-01](resources/US-RES-01-add-person.md)            | Add a person                                | `e2e/resources.spec.ts`                                  |
-| [US-RES-02](resources/US-RES-02-add-placeholder.md)       | Add a placeholder bound to a project        | `e2e/resources.spec.ts`                                  |
-| [US-RES-03](resources/US-RES-03-edit-resource.md)         | Edit a resource                             | `e2e/resources.spec.ts`                                  |
-| [US-RES-04](resources/US-RES-04-archive-resource.md)      | Archive a resource (retain children + undo) | `e2e/resources.spec.ts`                                  |
-| [US-RES-05](resources/US-RES-05-working-days.md)          | Set working days                            | unit (`capacity.test.ts`) + manual                       |
-| [US-RES-06](resources/US-RES-06-working-hours.md)         | Use fixed working hours                     | unit + `e2e/resources.spec.ts`                           |
-| [US-RES-07](resources/US-RES-07-engagement.md)            | Studio or Supplementary engagement          | `e2e/resources.spec.ts`                                  |
-| [US-RES-08](resources/US-RES-08-discipline-grouping.md)   | Group under a discipline                    | `e2e/resources.spec.ts` + `e2e/disciplines.spec.ts`      |
-| [US-RES-09](resources/US-RES-09-resource-colour.md)       | Colour derives from discipline              | `e2e/resources.spec.ts`                                  |
-| [US-RES-10](resources/US-RES-10-resource-list-display.md) | Resource list display                       | `e2e/resources.spec.ts` + unit (`ResourceList.test.tsx`) |
+| Story                                                     | Title                                       | Automated coverage                                            |
+| --------------------------------------------------------- | ------------------------------------------- | ------------------------------------------------------------- |
+| [US-RES-01](resources/US-RES-01-add-person.md)            | Add a person                                | `e2e/resources.spec.ts` + unit/component/store (availability) |
+| [US-RES-02](resources/US-RES-02-add-placeholder.md)       | Add a placeholder bound to a project        | `e2e/resources.spec.ts`                                       |
+| [US-RES-03](resources/US-RES-03-edit-resource.md)         | Edit a resource                             | `e2e/resources.spec.ts` + component/store (availability)      |
+| [US-RES-04](resources/US-RES-04-archive-resource.md)      | Archive a resource (retain children + undo) | `e2e/resources.spec.ts`                                       |
+| [US-RES-05](resources/US-RES-05-working-days.md)          | Set working days                            | unit (`capacity.test.ts`) + manual                            |
+| [US-RES-06](resources/US-RES-06-working-hours.md)         | Use fixed working hours                     | unit + `e2e/resources.spec.ts`                                |
+| [US-RES-07](resources/US-RES-07-engagement.md)            | Studio or Supplementary engagement          | `e2e/resources.spec.ts`                                       |
+| [US-RES-08](resources/US-RES-08-discipline-grouping.md)   | Group under a discipline                    | `e2e/resources.spec.ts` + `e2e/disciplines.spec.ts`           |
+| [US-RES-09](resources/US-RES-09-resource-colour.md)       | Colour derives from discipline              | `e2e/resources.spec.ts`                                       |
+| [US-RES-10](resources/US-RES-10-resource-list-display.md) | Resource list display                       | `e2e/resources.spec.ts` + unit (`ResourceList.test.tsx`)      |
+| [US-RES-11](resources/US-RES-11-availability-dates.md)    | Set availability dates                      | unit/component/store + server migration; manual (no E2E)      |
 
 ## Disciplines — `disciplines/`
 

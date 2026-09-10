@@ -1,4 +1,4 @@
-import type { Allocation, AppData, AppDataKey, ID, ScopedEntity } from "../types/entities";
+import type { Allocation, AppData, AppDataKey, ID, ScopedEntity, Weekday } from "../types/entities";
 import type { ValidationResult } from "../lib/integrity";
 import { belongsToAccount } from "./tenancy";
 import { domainError } from "./errors";
@@ -50,6 +50,8 @@ export interface ValidationDataLookup {
   allocationsForActivity(accountId: ID, activityId: ID): readonly Allocation[];
   resourceHasLoadedAllocation(accountId: ID, resourceId: ID): boolean;
   resourceHasTimeOff(accountId: ID, resourceId: ID): boolean;
+  /** Resolve the account's canonical working-day set for shared scheduling validation. */
+  accountWorkingDays(accountId: ID): Weekday[];
 }
 
 export const resolveValidationRow = ({
