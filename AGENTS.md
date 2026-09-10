@@ -70,6 +70,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   demo; it must never persist scheduling data.
 - Scoped reads go through `useScopedData` / `scopedTables()`. The server independently authorizes
   every tenant operation from session membership.
+- When locating unfamiliar behaviour, consult the relevant “Task navigation” entry in
+  `docs-src/reference/development.md`; task briefs should name that entry and the exact paths needed.
 
 ## Naming and module contracts
 
