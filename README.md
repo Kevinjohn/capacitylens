@@ -98,8 +98,9 @@ Details: [how sign-in works](docs-src/company-login/index.md) ·
 
 ## Documentation
 
-The docs ship with the repository. Open [`docs/index.html`](docs/) straight from a checkout — no
-server, no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
+Read the [CapacityLens documentation](https://kevinjohn.github.io/capacitylens/) online. The same
+docs ship with the repository: open [`docs/index.html`](docs/) straight from a checkout — no server,
+no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
 
 - [Getting started](docs-src/getting-started/what-is-capacitylens.md) — the two-minute demo, the
   Docker and direct Node installation routes, invites and roles.
