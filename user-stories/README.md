@@ -62,7 +62,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-RES-08](resources/US-RES-08-discipline-grouping.md)   | Group under a discipline                    | `e2e/resources.spec.ts` + `e2e/disciplines.spec.ts`      |
 | [US-RES-09](resources/US-RES-09-resource-colour.md)       | Colour derives from discipline              | `e2e/resources.spec.ts`                                  |
 | [US-RES-10](resources/US-RES-10-resource-list-display.md) | Resource list display                       | `e2e/resources.spec.ts` + unit (`ResourceList.test.tsx`) |
-| [US-RES-11](resources/US-RES-11-availability-dates.md)    | Set availability dates                      | `e2e/resources.spec.ts` + allocation placement checks    |
+| [US-RES-11](resources/US-RES-11-availability-dates.md)    | Set availability dates                      | `e2e/resources.spec.ts` + `e2e/allocation.spec.ts`       |
 
 ## Disciplines — `disciplines/`
 

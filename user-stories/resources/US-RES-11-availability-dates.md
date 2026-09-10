@@ -1,6 +1,6 @@
 # US-RES-11 — Set a person's availability dates
 
-**Area:** Resources · **Persona:** Studio manager · **Coverage:** `e2e/resources.spec.ts` + allocation placement checks
+**Area:** Resources · **Persona:** Studio manager · **Coverage:** `e2e/resources.spec.ts` + `e2e/allocation.spec.ts`
 
 **Documentation:** [People and placeholders — set availability dates](../../docs-src/guide/people-and-placeholders.md#set-availability-dates)
 
