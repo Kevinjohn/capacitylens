@@ -10,6 +10,12 @@ and [Projects and allocations](../../docs-src/guide/projects-and-allocations.md#
 Give an allocation a short task description that helps the team understand the work behind a
 booking without changing its activity, dates or capacity.
 
+## Why
+
+Reusable activities should stay reusable even when a planner needs to identify the specific piece
+of work behind one booking. A separate task label avoids proliferating near-duplicate activities
+and keeps Notes available for longer context.
+
 ## How (end-to-end)
 
 1. Open **Settings** and enable **Show task field in schedule**.
