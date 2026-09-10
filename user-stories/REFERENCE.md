@@ -1260,8 +1260,9 @@ multiple).
   sections; turning it off combines Studio and Supplementary into one People list. Each section
   sorts independently. Favourite people appear first within their engagement partition and
   favourite external parties appear first in External; each favourite and non-favourite partition
-  remains alphabetical. Projects
-  sort by project name; their client label is secondary text. The hidden built-in **Internal** client
+  remains alphabetical. Projects sort by effective client name and then effective project name,
+  where a trimmed, non-empty code name takes precedence over the ordinary name. Their project name
+  remains first in each row and the client label remains secondary text. The hidden built-in **Internal** client
   remains excluded before client rows are sorted. Case- or accent-equivalent names use their exact
   spelling and then stable record id as deterministic tie-breakers. This ordering is display-only:
   stored arrays are unchanged. The schedule keeps its deliberate discipline `sortOrder` and
