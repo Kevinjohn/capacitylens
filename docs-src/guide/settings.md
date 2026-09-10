@@ -141,7 +141,7 @@ The rest of Settings, roughly top to bottom:
 disclosures and start closed. Opening one does not close another. Destructive actions
 still explain their consequences in the confirmation dialog.
 
-![The bottom of Settings with Appearance, closed Device data, Deleted items and Import disclosures, and the account options summary](../screenshots/flows/settings_account_disclosures.jpg)
+![The bottom of Settings with Appearance, closed Device data, Deleted items and Import disclosures, the account options summary, and Diagnostics](../screenshots/flows/settings_account_disclosures.jpg)
 
 ::: tip
 Sections marked "this device" only affect your own browser. Everything else is shared
