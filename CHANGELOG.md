@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.62.1-alpha.1] - 2026-09-10
+
 ### Changed
 
 - Made inline activity creation opt-in, aligned the Schedule filter controls, and sorted project
@@ -4199,7 +4201,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.1-alpha.1...HEAD
+[0.62.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...v0.62.1-alpha.1
 [0.62.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.62.0-alpha.5
 [0.61.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.2-alpha.1...v0.61.0-alpha.1
 [0.60.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.1-alpha.1...v0.60.2-alpha.1
