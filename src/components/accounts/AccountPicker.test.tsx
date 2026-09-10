@@ -195,6 +195,7 @@ function registerCreateAndActivateTests() {
     const timezone = screen.getByRole("combobox", { name: "Timezone" });
     expect(timezone).toHaveTextContent("London");
     await user.click(timezone);
+    expect(document.getElementById(timezone.getAttribute("aria-controls") ?? "")).toHaveAttribute("role", "dialog");
     const search = screen.getByRole("combobox", { name: "Search time zones" });
     await user.type(search, "London");
     await user.keyboard("{Enter}");
@@ -203,9 +204,9 @@ function registerCreateAndActivateTests() {
     expect(timezone).toHaveAttribute("aria-expanded", "false");
     expect(document.activeElement).toBe(timezone);
 
-    await user.type(screen.getByLabelText("Company name"), "London Co");
+    await user.type(screen.getByLabelText("Company name"), "Queen Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
-    await waitFor(() => expect(requireAccount("London Co").timezone).toBe("Europe/London"));
+    await waitFor(() => expect(requireAccount("Queen Industries").timezone).toBe("Europe/London"));
   });
 }
 

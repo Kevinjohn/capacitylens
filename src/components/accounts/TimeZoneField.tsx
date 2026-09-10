@@ -17,17 +17,17 @@ interface TimeZoneFieldProps {
 }
 
 function TimeZoneMenu({
-  listId,
+  popupId,
   label,
   value,
   options,
   onSelect,
 }: Pick<TimeZoneFieldProps, "label" | "value" | "options"> & {
-  listId: string;
+  popupId: string;
   onSelect: (value: string) => void;
 }) {
   return (
-    <PopoverContent align="start" className="w-(--radix-popover-trigger-width) p-0">
+    <PopoverContent id={popupId} aria-label={label} align="start" className="w-(--radix-popover-trigger-width) p-0">
       <Command label={m.picker_timezone_search()}>
         <div className="flex items-center border-b px-3">
           <CommandInput
@@ -38,7 +38,6 @@ function TimeZoneMenu({
           />
         </div>
         <CommandList
-          id={listId}
           aria-label={label}
           className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height)-3rem))]"
         >
@@ -62,7 +61,7 @@ function TimeZoneMenu({
 
 export function TimeZoneField({ label, value, onChange, options }: TimeZoneFieldProps) {
   const id = useId();
-  const listId = `${id}-options`;
+  const popupId = `${id}-options`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const selected = options.find((option) => option.value === value);
@@ -84,8 +83,8 @@ export function TimeZoneField({ label, value, onChange, options }: TimeZoneField
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            aria-controls={open ? listId : undefined}
-            aria-haspopup="listbox"
+            aria-controls={open ? popupId : undefined}
+            aria-haspopup="dialog"
             className="w-full justify-between gap-2 font-normal"
             onKeyDown={(event) => {
               if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
@@ -99,7 +98,7 @@ export function TimeZoneField({ label, value, onChange, options }: TimeZoneField
           </Button>
         </PopoverTrigger>
         <TimeZoneMenu
-          listId={listId}
+          popupId={popupId}
           label={label}
           value={value}
           options={options}
