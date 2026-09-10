@@ -52,6 +52,15 @@ describe("GettingStarted checklist", () => {
 });
 
 describe("GettingStarted entry and return paths", () => {
+  it("does not show company setup when no company is active", () => {
+    useStore.setState({ activeAccountId: null });
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <GettingStartedShortcut />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId("getting-started-shortcut")).not.toBeInTheDocument();
+  });
   it("starts with an import-or-scratch choice and links every setup action to its owner", async () => {
     const user = userEvent.setup();
     renderChecklist("owner");

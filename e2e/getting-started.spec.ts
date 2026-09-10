@@ -79,7 +79,7 @@ function registerSuiteScenario2() {
 
 function registerSuiteScenarioImportPath() {
   test("the import choice opens the focused Settings import section and persists", async ({ page }) => {
-    await openNewCompany(page, "Import Co");
+    await openNewCompany(page, "Queen Industries");
     const card = page.getByTestId("getting-started");
     await card.getByRole("link", { name: "Import existing data" }).click();
     await expect(page).toHaveURL(/\/settings#getting-started-import/);

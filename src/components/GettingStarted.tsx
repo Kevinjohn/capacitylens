@@ -319,7 +319,8 @@ export function GettingStartedShortcut() {
     }
   }, [accountId, importChosen, scratchChosen, settingsReviewed, setupIncomplete, started]);
   const setupDone = progress.importChosen || progress.scratchChosen || hasExistingSetupData(steps);
-  if (pathname === "/" || dismissed || role === "viewer" || isGettingStartedComplete(steps, progress)) return null;
+  if (!accountId || pathname === "/" || dismissed || role === "viewer" || isGettingStartedComplete(steps, progress))
+    return null;
   const done = Object.values(steps).filter(Boolean).length + (setupDone ? 1 : 0) + (progress.settingsReviewed ? 1 : 0);
   const total = Object.keys(steps).length + 2;
   return (
