@@ -346,16 +346,16 @@ function registerServerListEmptyStateTests() {
     expect(useStore.getState().activeAccountId).toBe("a2");
   });
 
-  it("keeps the empty picker focused on the two next steps", () => {
+  it("continues first-owner setup with company creation only", () => {
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setAccountSummaries([]);
     render(<AccountPicker />);
-    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
-    expect(screen.getByText("Create a company to start planning, or ask an admin for an invite.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+    expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
     expect(screen.getByTestId("company-empty-options")).toBeInTheDocument();
     expect(screen.getByText("Set up a new company and start planning right away.")).toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options").children).toHaveLength(2);
+    expect(screen.queryByText("Ask an admin for an invite to join an existing company.")).not.toBeInTheDocument();
+    expect(screen.getByTestId("company-empty-options").children).toHaveLength(1);
     expect(screen.queryByText(/No companies yet/)).not.toBeInTheDocument();
     // Zero accounts ⇒ the server reports canCreateAccount: true when re-asked (no provider here,
     // so the default context value applies — see authContext.ts's fail-open default; the live
@@ -369,10 +369,21 @@ function registerServerListEmptyStateTests() {
     withCanCreateAccount(false, <AccountPicker />);
 
     expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
+    expect(screen.getByText("Ask an admin for an invite to join a company.")).toBeInTheDocument();
     expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
     expect(screen.getByTestId("company-empty-options").children).toHaveLength(1);
     expect(screen.queryByText(/Create a company to start planning/)).not.toBeInTheDocument();
+  });
+
+  it("does not infer company-setup eligibility from an unavailable account directory", () => {
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setAccountSummaries([], useStore.getState().accountSummariesRequestId, false);
+    render(<AccountPicker />);
+
+    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Set up your company" })).not.toBeInTheDocument();
+    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
   });
 
   it("does not ask new-company onboarding users to choose a colour", async () => {

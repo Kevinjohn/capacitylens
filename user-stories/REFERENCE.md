@@ -847,9 +847,12 @@ on the 401 (password mode with an **empty** user table — sign-up is open for e
 bootstrap account and closes the moment it exists), the login wall shows a **Create the owner
 account** screen instead of sign-in: heading `Create the owner account`, fields `Name`
 (`data-testid="owner-setup-name"`), `Email` (`data-testid="owner-setup-email"`), `Password`
-(`data-testid="owner-setup-password"`), and a `Create owner account` button
+(`data-testid="owner-setup-password"`), and `SMALLSASS_ACCOUNT_SETUP_TOKEN`
+(`data-testid="owner-setup-token"`) with guidance to use the value from the server `.env` file or
+installer, plus a `Create owner account` button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
-owner in and reloads into the normal boot flow (company picker → app). On a populated server the
+owner in and reloads into **Set up your company**, where the owner creates the first company before
+entering the app. The setup-token value remains secret and is never displayed by the app. On a populated server the
 flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
 zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential `admin@admin.admin`
 / `auth-e2e-password-2026` — PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since

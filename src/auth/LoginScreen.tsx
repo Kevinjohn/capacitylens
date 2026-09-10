@@ -28,6 +28,17 @@ type LoginScreenProps = {
   onSignedIn: () => void;
 };
 
+function useLoginIds() {
+  return {
+    name: useId(),
+    email: useId(),
+    password: useId(),
+    setupToken: useId(),
+    setupTokenHelp: useId(),
+    error: useId(),
+  };
+}
+
 export function LoginScreen({
   authMode,
   needsSetup = false,
@@ -57,7 +68,7 @@ export function LoginScreen({
     setBusy,
     onSignedIn,
   });
-  const ids = { name: useId(), email: useId(), password: useId(), setupToken: useId(), error: useId() };
+  const ids = useLoginIds();
 
   useEffect(() => {
     document.title = `${m.login_sign_in()} · ${APP_NAME}`;
@@ -114,7 +125,7 @@ type LoginViewProps = {
   busy: boolean;
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
-  ids: { name: string; email: string; password: string; setupToken: string; error: string };
+  ids: { name: string; email: string; password: string; setupToken: string; setupTokenHelp: string; error: string };
   secondFactor: ReturnType<typeof useSecondFactor>;
   passwordSignIn: ReturnType<typeof usePasswordSignIn>;
   ownerSetup: ReturnType<typeof useOwnerSetup>;
@@ -162,7 +173,7 @@ function LoginHeading({ setup }: { setup: boolean }) {
     <div className="mb-6 text-center">
       <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
       <h1 className="text-lg font-semibold text-ink">{setup ? m.login_setup_heading() : m.login_sign_in()}</h1>
-      <p className="text-sm text-muted-foreground">{setup ? m.login_setup_subtitle() : m.login_subtitle()}</p>
+      {!setup && <p className="text-sm text-muted-foreground">{m.login_subtitle()}</p>}
     </div>
   );
 }

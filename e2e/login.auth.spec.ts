@@ -114,7 +114,8 @@ function registerSuiteScenario3() {
     await page.getByLabel("Email").fill(BOOTSTRAP_ADMIN.email);
     await page.getByLabel("Password").fill(BOOTSTRAP_ADMIN.password);
     await page.getByRole("button", { name: "Sign in" }).click();
-    await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Set up your company" })).toBeVisible();
+    await expect(page.getByText("Create your company to start planning.")).toBeVisible();
   });
 }
 

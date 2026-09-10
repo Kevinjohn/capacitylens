@@ -28,9 +28,15 @@ import { useDeleteAccount } from "./useDeleteAccount";
 interface PickerHeadingProps {
   accountCount: number;
   canCreateAccount: boolean;
+  companySetupEligible: boolean;
 }
 
-function PickerHeading({ accountCount, canCreateAccount }: PickerHeadingProps) {
+function resolvePickerTitle({ accountCount, companySetupEligible }: PickerHeadingProps): string {
+  if (accountCount > 0) return m.picker_title();
+  return companySetupEligible ? m.picker_first_company_title() : m.picker_empty_title();
+}
+
+function PickerHeading({ accountCount, canCreateAccount, companySetupEligible }: PickerHeadingProps) {
   let subtitle = canCreateAccount ? m.picker_subtitle() : m.picker_subtitle_capped();
   if (accountCount === 0) {
     subtitle = canCreateAccount ? m.picker_empty_subtitle() : m.picker_empty_subtitle_no_create();
@@ -39,9 +45,11 @@ function PickerHeading({ accountCount, canCreateAccount }: PickerHeadingProps) {
     <div className="mb-6 text-center">
       <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
       <h1 className="text-lg font-semibold text-ink">
-        {accountCount === 0 ? m.picker_empty_title() : m.picker_title()}
+        {resolvePickerTitle({ accountCount, canCreateAccount, companySetupEligible })}
       </h1>
-      <p className="text-sm text-muted-foreground">{subtitle}</p>
+      <p className="text-sm text-muted-foreground">
+        {companySetupEligible ? m.picker_first_company_subtitle() : subtitle}
+      </p>
     </div>
   );
 }
@@ -115,7 +123,15 @@ function AccountItems(input: AccountItemsProps) {
   );
 }
 
-function EmptyAccountOptions({ canCreateAccount, onCreate }: { canCreateAccount: boolean; onCreate: () => void }) {
+function EmptyAccountOptions({
+  canCreateAccount,
+  companySetupEligible,
+  onCreate,
+}: {
+  canCreateAccount: boolean;
+  companySetupEligible: boolean;
+  onCreate: () => void;
+}) {
   return (
     <div data-testid="company-empty-options" className="mt-4 flex flex-col gap-2">
       {canCreateAccount && (
@@ -128,9 +144,11 @@ function EmptyAccountOptions({ canCreateAccount, onCreate }: { canCreateAccount:
           </CardFooter>
         </Card>
       )}
-      <Alert>
-        <AlertDescription>{m.picker_empty_invite()}</AlertDescription>
-      </Alert>
+      {!companySetupEligible && (
+        <Alert>
+          <AlertDescription>{m.picker_empty_invite()}</AlertDescription>
+        </Alert>
+      )}
     </div>
   );
 }
@@ -140,6 +158,7 @@ function AccountPickerHeader({
   previous,
   accountCount,
   canCreateAccount,
+  companySetupEligible,
   onSignOut,
   onActivate,
 }: {
@@ -147,6 +166,7 @@ function AccountPickerHeader({
   previous: AccountSummary | null;
   accountCount: number;
   canCreateAccount: boolean;
+  companySetupEligible: boolean;
   onSignOut: () => void;
   onActivate: (id: string) => void;
 }) {
@@ -162,7 +182,11 @@ function AccountPickerHeader({
           {m.picker_back({ name: previous.name })}
         </Button>
       )}
-      <PickerHeading accountCount={accountCount} canCreateAccount={canCreateAccount} />
+      <PickerHeading
+        accountCount={accountCount}
+        canCreateAccount={canCreateAccount}
+        companySetupEligible={companySetupEligible}
+      />
     </>
   );
 }
@@ -340,6 +364,7 @@ function activateAccount(id: string): void {
 // complete server-backed list of companies this login may open.
 export function AccountPicker() {
   const accounts = useStore((state) => state.accountSummaries);
+  const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
   const previousAccountId = useStore((state) => state.previousAccountId);
   const signOutDemo = useStore((state) => state.signOutDemo);
   const previous = accounts.find((account) => account.id === previousAccountId) ?? null;
@@ -351,6 +376,7 @@ export function AccountPicker() {
   const accountDeletion = useDeleteAccount({ refreshAuth });
   const beginCreating = () => form.setCreating(true);
   const createAccountPanelProps = buildCreateAccountPanelProps(form, submit, reset);
+  const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
 
   return (
     <PickerLayout>
@@ -359,11 +385,16 @@ export function AccountPicker() {
         previous={previous}
         accountCount={accounts.length}
         canCreateAccount={canCreateAccount}
+        companySetupEligible={companySetupEligible}
         onSignOut={signOutDemo}
         onActivate={activateAccount}
       />
       {accounts.length === 0 && !form.creating && (
-        <EmptyAccountOptions canCreateAccount={canCreateAccount} onCreate={beginCreating} />
+        <EmptyAccountOptions
+          canCreateAccount={canCreateAccount}
+          companySetupEligible={companySetupEligible}
+          onCreate={beginCreating}
+        />
       )}
       {accounts.length > 0 && (
         <AccountItems
