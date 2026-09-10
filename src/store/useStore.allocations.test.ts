@@ -177,7 +177,7 @@ describe("atomic allocation creation", () => {
   registerAtomicAllocationPart4();
 });
 
-describe("resource availability boundaries", () => {
+function registerAvailabilityCreationTests(): void {
   it("rejects a batch atomically at its first out-of-bound scheduled day", () => {
     const { resource, draft } = allocationSetup();
     state().updateResource(resource.id, { firstAvailableDate: "2026-06-08", lastAvailableDate: "2026-06-30" });
@@ -213,7 +213,9 @@ describe("resource availability boundaries", () => {
       state().addAllocation(draft({ startDate: "2026-06-04", endDate: "2026-06-05", ignoreWeekends: true })),
     ).toThrow(/after.*available/i);
   });
+}
 
+function registerAvailabilityMutationTests(): void {
   it("retains conflicts after boundary changes and allows metadata-only edits", () => {
     const { resource, draft } = allocationSetup();
     const allocation = state().addAllocation(draft());
@@ -253,6 +255,11 @@ describe("resource availability boundaries", () => {
     state().updateResource(bounded.id, { firstAvailableDate: "2026-07-01", lastAvailableDate: undefined });
     expect(() => state().updateAllocation(allocation.id, { resourceId: bounded.id })).toThrow(/before.*available/i);
   });
+}
+
+describe("resource availability boundaries", () => {
+  registerAvailabilityCreationTests();
+  registerAvailabilityMutationTests();
 });
 
 describe("repeat-series allocation mutations", () => {

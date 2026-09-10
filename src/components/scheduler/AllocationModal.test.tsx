@@ -1576,7 +1576,7 @@ function registerEditScopeTests() {
   );
 }
 
-function registerEditScopeAndHoursTests() {
+function registerRetainedConflictAndScopeTests() {
   it("allows a metadata-only full-form save for a retained availability conflict", async () => {
     const resource = useStore.getState().addResource({ ...person("Clark Kent"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -1624,7 +1624,9 @@ function registerEditScopeAndHoursTests() {
       "projectId",
     );
   });
+}
 
+function registerUnmatchedHoursPreservationTest() {
   it("shows an unmatched hours value and preserves it through an unrelated save", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -2205,7 +2207,8 @@ function registerEditDuplicateAvailabilityTests() {
 
 describe("AllocationModal edit", () => {
   registerEditScopeTests();
-  registerEditScopeAndHoursTests();
+  registerRetainedConflictAndScopeTests();
+  registerUnmatchedHoursPreservationTest();
   registerEditHoursAndNoteTests();
   registerRejectedDeletionTest();
   registerFutureDeletionTest();

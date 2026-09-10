@@ -829,7 +829,11 @@ function registerAvailabilityAdvisoryTests() {
 
     expect(overDays).toBe(2);
   });
+}
 
+function registerAvailabilityAbsenceAdvisoryTests() {
+  const r = makeResource();
+  const proposal = makeProposal(r);
   it("counts time-off days and excludes them from over (availability is 0 there)", () => {
     const others = [makeAlloc({ hoursPerDay: 4 })];
     const timeOff = [makeTimeOff({ startDate: "2026-06-03", endDate: "2026-06-03" })];
@@ -1362,6 +1366,7 @@ describe("over-allocated inside a window", () => {
 
 describe("capacityAdvisory", () => {
   registerAvailabilityAdvisoryTests();
+  registerAvailabilityAbsenceAdvisoryTests();
 
   registerProposalBoundaryTests();
 
