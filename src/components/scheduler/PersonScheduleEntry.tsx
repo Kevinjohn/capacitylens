@@ -1,8 +1,8 @@
-import { CalendarOff, Repeat2 } from "lucide-react";
+import { CalendarOff } from "lucide-react";
 
 import { m } from "@/i18n";
-import { formatScheduleDate, formatScheduleDateRange } from "@/lib/dateDisplay";
-import { resolveAllocationStatusLabel, resolveTimeOffTypeLabel } from "@/lib/metadata";
+import { formatDayMonth } from "@/lib/dateDisplay";
+import { resolveTimeOffTypeLabel } from "@/lib/metadata";
 
 import type {
   PersonScheduleAllocationEntry,
@@ -15,6 +15,11 @@ interface PersonScheduleEntryProps {
 }
 
 const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
+
+const formatCompactDateRange = (
+  startDate: PersonScheduleAllocationEntry["startDate"],
+  endDate: PersonScheduleAllocationEntry["endDate"],
+) => (startDate === endDate ? formatDayMonth(startDate) : `${formatDayMonth(startDate)} – ${formatDayMonth(endDate)}`);
 
 function EntryNote({ note }: { note: string }) {
   return (
@@ -40,19 +45,12 @@ function AllocationEntry({ entry }: { entry: PersonScheduleAllocationEntry }) {
           {attribution && <p className="break-words text-sm text-muted-foreground">{attribution}</p>}
         </div>
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">{formatScheduleDateRange(entry.startDate, entry.endDate)}</p>
-      <p className="text-sm text-muted-foreground">
-        <span>{resolveAllocationStatusLabel(entry.status)}</span>
+      <p className="mt-2 break-words text-sm text-muted-foreground">
+        {formatCompactDateRange(entry.startDate, entry.endDate)}
         {entry.hoursPerDay === undefined
           ? ""
           : m.scheduler_bar_pop_hours({ hours: roundDisplayHours(entry.hoursPerDay) })}
       </p>
-      {entry.seriesEnd && (
-        <p className="mt-1 text-sm text-muted-foreground">
-          <Repeat2 aria-hidden className="mr-1 inline size-3" />
-          {m.scheduler_bar_pop_series({ end: formatScheduleDate(entry.seriesEnd) })}
-        </p>
-      )}
       {entry.task && <p className="mt-3 break-words text-sm text-muted-foreground">{entry.task}</p>}
       {entry.note && <EntryNote note={entry.note} />}
     </>
@@ -66,7 +64,9 @@ function TimeOffEntry({ entry }: { entry: PersonScheduleTimeOffEntry }) {
         <CalendarOff aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
         <h3 className="font-semibold text-foreground">{resolveTimeOffTypeLabel(entry.type)}</h3>
       </div>
-      <p className="mt-2 text-sm text-muted-foreground">{formatScheduleDateRange(entry.startDate, entry.endDate)}</p>
+      <p className="mt-2 break-words text-sm text-muted-foreground">
+        {formatCompactDateRange(entry.startDate, entry.endDate)}
+      </p>
       {entry.note && <EntryNote note={entry.note} />}
     </>
   );
@@ -78,20 +78,8 @@ export function PersonScheduleEntry({ entry }: PersonScheduleEntryProps) {
       data-testid="person-schedule-entry"
       data-entry-id={entry.key}
       data-entry-kind={entry.kind}
-      className={`rounded-md border p-4 ${entry.kind === "allocation" ? "border-l-4 bg-card" : "relative overflow-hidden bg-card pl-6"}`}
-      style={entry.kind === "allocation" ? { borderLeftColor: entry.color } : undefined}
+      className="rounded-md border bg-card p-4"
     >
-      {entry.kind === "timeOff" && (
-        <span
-          aria-hidden="true"
-          data-testid="person-schedule-timeoff-accent"
-          className="absolute inset-y-0 left-0 w-2 bg-faint"
-          style={{
-            background:
-              "repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-faint) 28%, transparent) 0 5px, transparent 5px 10px)",
-          }}
-        />
-      )}
       {entry.kind === "allocation" ? <AllocationEntry entry={entry} /> : <TimeOffEntry entry={entry} />}
     </li>
   );

@@ -49,26 +49,35 @@ function ResourceIdentity({
   const triggerLabel = m.scheduler_person_schedule_trigger({ name: scheduleTitle });
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2" style={{ height: density.identityBandHeight }}>
-      <Avatar
-        name={resource.name ?? resource.role}
-        color={group.color ?? resource.color}
-        placeholder={resource.kind === "placeholder"}
-      />
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon"
+        data-testid="person-schedule-trigger"
+        aria-label={triggerLabel}
+        title={triggerLabel}
+        className="group relative size-7 shrink-0 cursor-pointer rounded-full p-0"
+        onClick={(event) => onViewSchedule(resource.id, event.currentTarget)}
+      >
+        <span
+          data-testid="person-schedule-avatar"
+          className="transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
+        >
+          <Avatar
+            name={resource.name ?? resource.role}
+            color={group.color ?? resource.color}
+            placeholder={resource.kind === "placeholder"}
+          />
+        </span>
+        <Eye
+          aria-hidden
+          data-testid="person-schedule-eye"
+          className="absolute opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+        />
+      </Button>
       <div className="ms-1.5 min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1">
           <span className="min-w-0 truncate text-sm font-medium">{resolveResourceDisplayName(resource)}</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            data-testid="person-schedule-trigger"
-            aria-label={triggerLabel}
-            title={triggerLabel}
-            className="shrink-0 text-muted-foreground"
-            onClick={(event) => onViewSchedule(resource.id, event.currentTarget)}
-          >
-            <Eye aria-hidden />
-          </Button>
         </div>
         <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
       </div>

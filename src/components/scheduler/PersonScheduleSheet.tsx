@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 import { m } from "@/i18n";
-import { formatScheduleDateRange } from "@/lib/dateDisplay";
+import { formatDayMonth } from "@/lib/dateDisplay";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 import { PersonScheduleEntry } from "./PersonScheduleEntry";
@@ -32,7 +32,7 @@ export function PersonScheduleSheet({ open, schedule, onOpenChange, onRestoreFoc
             <SheetTitle>{m.scheduler_person_schedule_title({ name: schedule.model.title })}</SheetTitle>
             <SheetDescription>
               {m.scheduler_person_schedule_description({
-                range: formatScheduleDateRange(schedule.model.window.startDate, schedule.model.window.endDate),
+                range: `${formatDayMonth(schedule.model.window.startDate)} – ${formatDayMonth(schedule.model.window.endDate)}`,
               })}
             </SheetDescription>
           </SheetHeader>
