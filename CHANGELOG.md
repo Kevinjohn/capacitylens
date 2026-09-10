@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep schedule group headers above company closure shading (#766).
+
 ### Changed
 
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
