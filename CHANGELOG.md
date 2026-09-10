@@ -11,6 +11,9 @@ new features and **patch** versions carry fixes.
 
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is
   hidden and task details above Notes in schedule popovers and person drawers (#720).
+- Add optional inclusive **Available from** and **Available until** dates for Studio and
+  Supplementary people. Capacity is zero outside a person's range while existing allocated work
+  remains visible; new or placement-changing work cannot be placed outside the range (#723).
 
 ## [0.63.0-alpha.1] - 2026-09-10
 

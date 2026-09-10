@@ -2,6 +2,8 @@
 
 **Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule"
 
+**Documentation:** [People and placeholders — set availability dates](../../docs-src/guide/people-and-placeholders.md#set-availability-dates)
+
 ## Goal
 
 Add a named person (with a role, discipline and working pattern) so they can be scheduled.
@@ -21,7 +23,8 @@ off that resource record.
 3. Choose **Discipline** = _Design_.
 4. Leave **Engagement** = _Studio_.
 5. In **Working days**, ensure Mon–Fri are **Full day** and Sat/Sun are **Not working**.
-6. Click **Save**. The dialog closes.
+6. Leave **Available from** and **Available until** blank so Dana's capacity is unbounded by date.
+7. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
 
@@ -31,6 +34,9 @@ off that resource record.
 - ✅ Saving with an empty **Name** keeps the dialog open and shows an inline error
   ("Name is required for a person.") associated with the Name field (`aria-invalid`).
 - ✅ The saved resource uses the fixed **8-hour** full-day capacity.
+- ✅ **Available from** and **Available until** are optional inclusive date boundaries for Studio and
+  Supplementary people; leaving them blank leaves that side unbounded. The same date is valid, and
+  a first date after a last date is rejected.
 - ✅ At normal dialog widths, Name, Role, Discipline and Engagement use compact rows with roughly
   one quarter for the label and three quarters for the control; on a narrow screen they stack
   vertically, while Working days remains full width.

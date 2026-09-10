@@ -73,6 +73,27 @@ utilisation figure you see after saving reflects their new working pattern.
 Existing working patterns are preserved after upgrading: a day that was selected remains
 a full day, and a day that was unselected remains not working.
 
+## Set availability dates
+
+Studio and Supplementary people can have optional date boundaries in the resource form. Use
+**Available from** for the first day they can contribute and **Available until** for the last day.
+Both dates are inclusive. Leave either field blank when that side has no boundary. A person who is
+available for one day can use the same date in both fields; a first date after a last date is rejected
+and the form stays open so you can correct it.
+
+Availability dates change capacity, not history. Capacity is zero before **Available from** and after
+**Available until**, while existing allocation bars and their allocated load remain visible. This
+means narrowing a range does not delete or move bookings that now conflict with it. You can still
+edit metadata such as a person's name, role, discipline, engagement or working pattern. Creating
+work, moving or resizing a booking, reassigning it to the person, or placing a repeat occurrence is
+blocked when the placement would land on a scheduled working day outside the range.
+
+The **Ignore working days** option can include recurring non-working days in an allocation's span,
+but it does not bypass availability dates. To plan work beyond the boundary, extend the person's
+availability first. Placeholders and External / 3rd party resources do not have these fields: a
+placeholder follows the company's working days, while an external party keeps its literal calendar
+span.
+
 ## Find people quickly
 
 By default, the Resources page separates people into **Studio** and **Supplementary** sections,
