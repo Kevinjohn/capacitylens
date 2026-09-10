@@ -420,9 +420,9 @@ const registerStartupControlTests = () => {
 
     expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(
       expect.objectContaining({
-        version: 37,
-        name: "add-allocation-task-field",
-        checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
+        version: 38,
+        name: "add-resource-availability-dates",
+        checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
       }),
     );
     initializeOpenDb(db, ":memory:");
@@ -633,6 +633,11 @@ const registerStartupMigrationPlanningTest = () => {
         version: 37,
         name: "add-allocation-task-field",
         checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
+      }),
+      expect.objectContaining({
+        version: 38,
+        name: "add-resource-availability-dates",
+        checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
       }),
     ]);
     const before = await planAuthSchemaMigrations(auth);

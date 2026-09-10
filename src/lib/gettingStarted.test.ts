@@ -70,7 +70,7 @@ describe("deriveGettingStartedSteps", () => {
     const person = {
       ...FIXTURE_PLACEHOLDER,
       kind: "person" as const,
-      name: "Fixture Person",
+      name: "Bruce Wayne",
     };
     delete person.projectId;
     const data = dataWith({

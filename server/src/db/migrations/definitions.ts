@@ -108,6 +108,13 @@ export const ALLOCATION_TASK_V37_DEFINITION = [
   "ALTER TABLE allocations ADD COLUMN task TEXT;",
 ].join("\n");
 
+/** v38 adds optional inclusive availability boundaries for person resources. */
+export const RESOURCE_AVAILABILITY_V38_DEFINITION = [
+  "guard:PRAGMA table_info(resources):firstAvailableDate/lastAvailableDate-missing",
+  "ALTER TABLE resources ADD COLUMN firstAvailableDate TEXT;",
+  "ALTER TABLE resources ADD COLUMN lastAvailableDate TEXT;",
+].join("\n");
+
 // The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
 // checksum, so the definition can never drift from what actually runs.
 const TIME_OFF_REBUILD_V33_SQL = `
