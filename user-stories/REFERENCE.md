@@ -693,6 +693,29 @@ activity-first layout regardless of these toggles. Its visible card contains all
 only; the retained drag/resize/reassign guidance is exposed as the popover's assistive label rather
 than as a footer over the schedule.
 
+**Individual schedule drawer.** Every visible resource row has a 24px eye button immediately after
+the resource name, named **View _name_'s schedule** (`data-testid="person-schedule-trigger"`). It is
+available to every role, including Viewers, and opens one read-only Sheet from the right without
+changing the grid's dates, zoom, filters, dimensions or scroll position. The Sheet
+(`data-testid="person-schedule-sheet"`) lists that resource's project, internal, All-projects and
+personal-time-off commitments for the current company week plus the following three weeks. Its
+window follows the company's timezone and Sunday/Monday week start, ignores grid filters and shows
+every overlapping occurrence once with its complete stored date range. Entries
+(`data-testid="person-schedule-entry"`) are chronological readable text, never edit links or
+buttons. Allocations include activity, effective project/client, dates, status, appropriate hours
+per day, series end and note; personal time off includes its type, dates and an authorised note.
+External-resource time off, company closures and ordinary non-working days are not entries. Empty
+schedules show **Nothing scheduled in these four weeks.**
+(`data-testid="person-schedule-empty"`). The standard modal backdrop, close button and Escape
+dismiss the Sheet and focus returns to its connected eye button, or to the schedule when that row
+has disappeared. Owners see real private client/project names; Admins, Editors and Viewers retain
+the independently projected quoted code names. Time-off notes are visible only to authenticated
+Owners/Admins (and in existing auth-off/demo semantics), and account, permission or resource
+invalidation removes all stale drawer content immediately. See [The schedule](../docs-src/guide/the-schedule.md).
+If the optional allocation Task field from #720 is available and populated under its workspace
+visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
+setting.
+
 **Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
 two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
 **Grey** (the default) or **Use colour palette**. It is stored as `internalColourMode` on the
@@ -1174,7 +1197,8 @@ row plus the expandable draw-mode/filter row; the WCAG 1.4.10 reflow check asser
 state doesn't overflow at 320 CSS px),
 the toolbar rows expose `data-chrome-band="toolbar"|"filterbar"` for depth-tier styling, and shared
 segmented controls expose `data-segmented-control` for their source-owned connected geometry,
-`scheduler-row`, `discipline-group`, `resource-lane`,
+`scheduler-row`, `discipline-group`, `resource-lane`, `person-schedule-trigger`,
+`person-schedule-sheet`, `person-schedule-entry`, `person-schedule-empty`,
 `allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`, `half-day`,
 `scheduler-live-region` (a grid-level visually-hidden `role="status"` `aria-live="polite"` region —
 WCAG 4.1.3; announces the recomputed over-capacity outcome for a resource AFTER a KEYBOARD move/resize

@@ -1,5 +1,5 @@
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
-import { Plus } from "lucide-react";
+import { Eye, Plus } from "lucide-react";
 import { m } from "@/i18n";
 import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
 import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
@@ -33,10 +33,20 @@ export interface SchedulerGridRowProps {
   calendarWeekStartsOn: LaneProps["weekStartsOn"];
   handleEdit: LaneProps["onEdit"];
   handleDraw: LaneProps["onDraw"];
+  personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
+  onViewSchedule: (resourceId: string, opener: HTMLButtonElement) => void;
 }
 
-function ResourceIdentity({ group, row, density }: Pick<SchedulerGridRowProps, "group" | "row" | "density">) {
+function ResourceIdentity({
+  group,
+  row,
+  density,
+  personScheduleTitlesByResourceId,
+  onViewSchedule,
+}: Pick<SchedulerGridRowProps, "group" | "row" | "density" | "personScheduleTitlesByResourceId" | "onViewSchedule">) {
   const { resource } = row;
+  const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
+  const triggerLabel = m.scheduler_person_schedule_trigger({ name: scheduleTitle });
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2" style={{ height: density.identityBandHeight }}>
       <Avatar
@@ -45,9 +55,21 @@ function ResourceIdentity({ group, row, density }: Pick<SchedulerGridRowProps, "
         placeholder={resource.kind === "placeholder"}
       />
       <div className="ms-1.5 min-w-0 flex-1">
-        <span className="flex items-center gap-1 truncate text-sm font-medium">
-          {resolveResourceDisplayName(resource)}
-        </span>
+        <div className="flex min-w-0 items-center gap-1">
+          <span className="min-w-0 truncate text-sm font-medium">{resolveResourceDisplayName(resource)}</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            data-testid="person-schedule-trigger"
+            aria-label={triggerLabel}
+            title={triggerLabel}
+            className="shrink-0 text-muted-foreground"
+            onClick={(event) => onViewSchedule(resource.id, event.currentTarget)}
+          >
+            <Eye aria-hidden />
+          </Button>
+        </div>
         <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
       </div>
     </div>
@@ -134,6 +156,8 @@ type RowHeaderProps = Pick<
   | "canEdit"
   | "visibleStartDate"
   | "setModal"
+  | "personScheduleTitlesByResourceId"
+  | "onViewSchedule"
 >;
 
 function SchedulerGridRowHeader(props: RowHeaderProps) {
@@ -155,7 +179,13 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
           drawMode: ui.drawMode,
         })}
       </span>
-      <ResourceIdentity group={group} row={row} density={density} />
+      <ResourceIdentity
+        group={group}
+        row={row}
+        density={density}
+        personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
+        onViewSchedule={props.onViewSchedule}
+      />
       <ResourceActions {...props} />
     </div>
   );
@@ -187,6 +217,8 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         canEdit={canEdit}
         visibleStartDate={props.visibleStartDate}
         setModal={props.setModal}
+        personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
+        onViewSchedule={props.onViewSchedule}
       />
 
       <ResourceLane

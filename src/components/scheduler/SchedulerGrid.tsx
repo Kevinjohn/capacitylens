@@ -19,6 +19,8 @@ import { SchedulerGridRows } from "./SchedulerGridRows";
 import type { ModalState } from "./schedulerGridModal";
 import { useSchedulerGridPreferences, useSchedulerGridModel } from "./useSchedulerGridModel";
 import { useSchedulerGridVirtualization } from "./useSchedulerGridVirtualization";
+import { PersonScheduleSheet } from "./PersonScheduleSheet";
+import { usePersonScheduleDrawer } from "./usePersonScheduleDrawer";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
@@ -177,6 +179,8 @@ type GridViewProps = {
   clearFilters: ReturnType<typeof useStore.getState>["clearFilters"];
   navigateToResources: () => void;
   interactions: ReturnType<typeof useSchedulerInteractions>;
+  personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
+  onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 };
 
 function SchedulerModalBoundary({ interactions }: Pick<GridViewProps, "interactions">) {
@@ -233,6 +237,8 @@ function SchedulerGridContents(props: GridViewProps) {
         calendarWeekStartsOn={accountPrefs.calendarWeekStartsOn}
         handleEdit={interactions.editAllocation}
         handleDraw={interactions.createFromDraw}
+        personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
+        onViewSchedule={props.onViewSchedule}
       />
       <SchedulerModalBoundary interactions={interactions} />
     </>
@@ -263,6 +269,51 @@ function SchedulerGridFooter({
   );
 }
 
+function SchedulerGridSurface({
+  contents,
+  viewport,
+  personScheduleDrawer,
+}: {
+  contents: GridViewProps;
+  viewport: ReturnType<typeof useSchedulerViewport>;
+  personScheduleDrawer: ReturnType<typeof usePersonScheduleDrawer>;
+}) {
+  const { gridModel, virtualization, interactions, preferences } = contents;
+  const { scrollRef, stickyHeaderHeight, timelineWidth, onScroll } = viewport;
+  return (
+    <div className="h-full">
+      <div
+        ref={scrollRef}
+        className="relative flex h-full flex-col overflow-auto overscroll-x-contain bg-scheduler-canvas"
+        data-testid="scheduler-grid"
+        tabIndex={-1}
+        data-draw-mode={preferences.ui.drawMode}
+        role="grid"
+        aria-label={m.scheduler_grid_aria()}
+        aria-colcount={2}
+        aria-rowcount={virtualization.items.length + 1 + (gridModel.model.length === 0 ? 1 : 0)}
+        onScroll={onScroll}
+        style={{
+          ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
+          ["--sched-visible-width" as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px`,
+        }}
+      >
+        <SchedulerGridContents {...contents} />
+      </div>
+      <PersonScheduleSheet
+        open={personScheduleDrawer.open}
+        schedule={personScheduleDrawer.schedule}
+        onOpenChange={personScheduleDrawer.setOpen}
+        onRestoreFocus={personScheduleDrawer.restoreFocus}
+      />
+      <SchedulerGridFooter
+        virtualization={virtualization}
+        screenReaderAnnouncement={interactions.screenReaderAnnouncement}
+      />
+    </div>
+  );
+}
+
 export function SchedulerGrid() {
   const navigate = useNavigate();
   const preferences = useSchedulerGridPreferences();
@@ -278,8 +329,9 @@ export function SchedulerGrid() {
     calendarWeekStartsOn: accountPrefs.calendarWeekStartsOn,
   });
   const gridModel = useSchedulerGridModel(preferences, viewport);
-  const { scrollRef, headerRef, stickyHeaderHeight, timelineWidth, days, geom, onScroll, visibleStartDate } = viewport;
+  const { scrollRef, headerRef, timelineWidth, days, geom, visibleStartDate } = viewport;
   const virtualization = useGridVirtualization(preferences, viewport, gridModel);
+  const personScheduleDrawer = usePersonScheduleDrawer({ data: preferences.data, fallbackRef: scrollRef });
 
   const contents = {
     preferences,
@@ -295,32 +347,12 @@ export function SchedulerGrid() {
     clearFilters,
     navigateToResources: () => void navigate("/resources"),
     interactions,
+    personScheduleTitlesByResourceId: personScheduleDrawer.titlesByResourceId,
+    onViewSchedule: personScheduleDrawer.viewSchedule,
   };
   return (
     <TooltipProvider>
-      <div className="h-full">
-        <div
-          ref={scrollRef}
-          className="relative flex h-full flex-col overflow-auto overscroll-x-contain bg-scheduler-canvas"
-          data-testid="scheduler-grid"
-          data-draw-mode={ui.drawMode}
-          role="grid"
-          aria-label={m.scheduler_grid_aria()}
-          aria-colcount={2}
-          aria-rowcount={virtualization.items.length + 1 + (gridModel.model.length === 0 ? 1 : 0)}
-          onScroll={onScroll}
-          style={{
-            ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
-            ["--sched-visible-width" as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px`,
-          }}
-        >
-          <SchedulerGridContents {...contents} />
-        </div>
-        <SchedulerGridFooter
-          virtualization={virtualization}
-          screenReaderAnnouncement={interactions.screenReaderAnnouncement}
-        />
-      </div>
+      <SchedulerGridSurface contents={contents} viewport={viewport} personScheduleDrawer={personScheduleDrawer} />
     </TooltipProvider>
   );
 }

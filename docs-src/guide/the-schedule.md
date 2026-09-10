@@ -25,6 +25,13 @@ Each row starts with an avatar and name, with the person's role shown underneath
 placeholder row is labelled with the word "Placeholder" instead of a name, and has a
 faint diagonal hatch on its header so it reads as unfilled at a glance.
 
+Select the eye beside any visible name to open that person's read-only schedule. The
+drawer covers the current company week and the following three weeks, combining every
+allocation and personal time-off entry that overlaps that range. It opens over the grid,
+so your visible dates, filters and scroll position stay exactly where you left them.
+
+![Bruce Wayne's four-week individual schedule drawer with two project allocations and a personal holiday entry](../screenshots/flows/person_schedule_drawer.jpg)
+
 People marked as favourites stay at the top of their discipline, in alphabetical order.
 Everyone else follows alphabetically, then placeholders. Favourite external parties lead
 the separate External group. Favourites are shared with everyone in the company rather
@@ -85,6 +92,11 @@ each linked bar. Hover or focus the bar to see the last surviving date in that s
 The cue marks the link between occurrences; each occurrence can still be edited on its
 own.
 
+The individual schedule drawer lists the complete date range, status and daily hours
+for each overlapping allocation. Project work includes its project and client; other
+work keeps its activity attribution. A linked repeat also reports the last surviving
+date in its series.
+
 ![The schedule with repeat cues at the start of two linked CMS Review allocation bars for Clark Kent](../screenshots/flows/schedule_repeat_cue.jpg)
 
 ## Reading overwork
@@ -116,6 +128,10 @@ range.
 [Time off](/guide/time-off) — holiday, sick leave or unpaid leave — is drawn on the same
 grid as work, as a hatched block with no project colour, so a person's real availability
 is always visible in one place rather than hidden in a separate calendar.
+
+Personal time off also appears in the individual's four-week drawer. Owners and Admins
+can read its note; Editors and Viewers see the dated absence without that private detail.
+Company closures and ordinary non-working days are not repeated in the drawer.
 
 Company closures are created in their own section of the Time off page. Each closure
 appears once as a named band across every person and placeholder it covers, including
@@ -163,6 +179,10 @@ them useful candidates to staff without implying they are already booked to the 
 nothing is filtered, then turns red with a bin icon when a filter is active. One click
 resets the search, every dropdown and **Show unallocated**, and returns tentative work to
 **Show tentative**.
+
+An individual schedule is independent of this grid view. Its fixed four-week range does
+not change when you pan or zoom, and it includes the person's matching commitments even
+when a search, project filter, tentative-work setting or draw mode hides them on the grid.
 
 Every change on the schedule — dragging, resizing, deleting an allocation — can be
 undone and redone from the toolbar, or with Ctrl/Cmd+Z, if you have edit access.
