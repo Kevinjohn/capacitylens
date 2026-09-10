@@ -5,7 +5,7 @@ import { useCanEdit } from "@/auth/permissionContext";
 import { isServerConfigured } from "@/data/apiConfig";
 import { readBuildStamp, readFeedbackMailto } from "@/data/buildInfo";
 import { formatDiagnostics, readDiagnostics, type DiagnosticsReport } from "@/data/buildInfo";
-import { accountClient } from "@/account/accountClient";
+import { accountClient } from "../../account/accountClient";
 import { useOfflineReadEnabled, useOfflineState, usePersistenceDiagnostics } from "@/data/useOfflineState";
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import {
@@ -72,11 +72,8 @@ function useDiagnosticsController(serverMode: boolean) {
     void accountClient
       .diagnostics(controller.signal)
       .then(async (response) => {
-        if (!response.ok) {
-          setDiagnostics(readDiagnostics());
-          return;
-        }
-        setDiagnostics(readDiagnostics(await response.json()));
+        const body = (await response.json().catch(() => null)) as unknown;
+        setDiagnostics(readDiagnostics(body));
       })
       .catch(() => {
         // An unavailable diagnostics read is itself represented in the fixed projection. The

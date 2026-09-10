@@ -86,12 +86,22 @@ function buildBackupHealth(backupHealth: Readonly<{ degraded: boolean; lastSucce
   return { status, lastSuccessAt };
 }
 
+function readBackupHealth(dependencies: PublicRouteDependencies) {
+  if (!dependencies.backupHealth) return { status: "unavailable" as const, lastSuccessAt: null };
+  try {
+    return buildBackupHealth(dependencies.backupHealth());
+  } catch {
+    return { status: "unavailable" as const, lastSuccessAt: null };
+  }
+}
+
 function readBackupTimestamp(value: unknown): string | null {
   if (
     typeof value !== "string" ||
     value.length > 64 ||
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) ||
-    !Number.isFinite(Date.parse(value))
+    !Number.isFinite(Date.parse(value)) ||
+    new Date(value).toISOString() !== value
   )
     return null;
   return value;
@@ -100,7 +110,13 @@ function readBackupTimestamp(value: unknown): string | null {
 function readDatabaseSchemaVersion(statement: { get(): unknown }): number | null {
   try {
     const row = statement.get();
-    if (!isRecord(row) || typeof row.user_version !== "number" || !Number.isSafeInteger(row.user_version)) return null;
+    if (
+      !isRecord(row) ||
+      typeof row.user_version !== "number" ||
+      !Number.isSafeInteger(row.user_version) ||
+      row.user_version < 0
+    )
+      return null;
     return row.user_version;
   } catch {
     // Diagnostics surface the unavailable state; returning a raw SQLite error would disclose
@@ -115,9 +131,7 @@ function registerDiagnosticsRoute(app: FastifyInstance, dependencies: PublicRout
   app.get("/api/diagnostics", (_req, reply) => {
     const schemaVersion = readDatabaseSchemaVersion(dependencies.diagnosticsSchemaStatement);
     const databaseStatus = schemaVersion === null ? "unavailable" : "ok";
-    const backup = dependencies.backupHealth
-      ? buildBackupHealth(dependencies.backupHealth())
-      : { status: "unavailable" as const, lastSuccessAt: null };
+    const backup = readBackupHealth(dependencies);
     if (databaseStatus === "unavailable") {
       return reply.code(503).send({
         server: {
@@ -132,7 +146,7 @@ function registerDiagnosticsRoute(app: FastifyInstance, dependencies: PublicRout
       server: {
         connectivity: "ok",
         database: { status: databaseStatus, schemaVersion },
-        persistence: dependencies.auditSink.degraded ? "degraded" : "ok",
+        persistence: "unknown" as const,
         backup,
       },
     };

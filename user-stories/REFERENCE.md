@@ -789,12 +789,13 @@ failed saves, armed retries, completed reconciliations, superseded reloads, reba
 discarded edits, plus whether writes are currently suspended. It contains counts and state only—no
 company, person, project or note values—and resets when a fresh persistence lifecycle attaches.
 
-**Diagnostics (Settings, server mode).** Near the bottom of Settings, a **Diagnostics** card offers
+**Diagnostics (Settings).** Near the bottom of Settings, a **Diagnostics** card offers
 **Copy diagnostics** (`data-testid="copy-diagnostics"`). The copied text contains a fixed allowlist:
 the app version, a validated build revision when one is present, deployment mode and export schema,
 followed by separately labelled server connectivity, database schema, persistence and backup
-status. A missing or unavailable value is shown as **Unknown** or **Unavailable**; browser constants
-are never presented as the server's database schema. The projection contains no names, emails,
+status. The card is present in demo mode too, with server values unavailable. A missing or
+unavailable value is shown as **Unknown** or **Unavailable**; browser constants are never presented
+as the server's database schema. The projection contains no names, emails,
 identifiers, paths, hostnames, secrets, invite or session values, raw errors or arbitrary response
 fields. The button reports a generic success or clipboard failure message.
 

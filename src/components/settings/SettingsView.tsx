@@ -32,13 +32,11 @@ function SettingsBottomSections({ controller }: { controller: Controller }) {
       >
         <ImportExport />
       </SettingsSection>
-      {controller.serverMode && (
-        <SettingsDiagnostics
-          diagnostics={controller.diagnostics}
-          diagnosticsCopyState={controller.diagnosticsCopyState}
-          copyDiagnostics={controller.copyDiagnostics}
-        />
-      )}
+      <SettingsDiagnostics
+        diagnostics={controller.diagnostics}
+        diagnosticsCopyState={controller.diagnosticsCopyState}
+        copyDiagnostics={controller.copyDiagnostics}
+      />
       <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
       <SettingsBuildDetails
         serverMode={controller.serverMode}

@@ -134,4 +134,18 @@ describe("diagnostics projection", () => {
       backup: { status: "ok", lastSuccessAt: null },
     });
   });
+
+  it("clears schema and rejects non-canonical timestamps from unavailable projections", async () => {
+    const { readDiagnostics } = await freshBuildInfo();
+    const report = readDiagnostics({
+      server: {
+        connectivity: "ok",
+        database: { status: "unavailable", schemaVersion: 38 },
+        persistence: "unknown",
+        backup: { status: "ok", lastSuccessAt: "2026-02-31T12:00:00.000Z" },
+      },
+    });
+    expect(report.server.database).toEqual({ status: "unavailable", schemaVersion: null });
+    expect(report.server.backup).toEqual({ status: "ok", lastSuccessAt: null });
+  });
 });

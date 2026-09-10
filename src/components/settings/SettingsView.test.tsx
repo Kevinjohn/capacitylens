@@ -10,6 +10,8 @@ import { PermissionContext } from "../../auth/permissionContext";
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
 vi.mock("../../lib/reloadPage", () => reloadMock);
 
+const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
+
 const offlineMocks = vi.hoisted(() => ({
   enabled: false,
   setEnabled: vi.fn<(enabled: boolean) => Promise<void>>(),
@@ -49,6 +51,19 @@ beforeEach(() => {
   offlineMocks.clearAll.mockResolvedValue(undefined);
   resetStoreWithAccount();
   useStore.getState().setTheme("light");
+  vi.stubGlobal("fetch", fetchMock.fetch);
+  fetchMock.fetch.mockReset();
+  fetchMock.fetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      server: {
+        connectivity: "ok",
+        database: { status: "ok", schemaVersion: 38 },
+        persistence: "unknown",
+        backup: { status: "unavailable", lastSuccessAt: null },
+      },
+    }),
+  });
 });
 
 describe("SettingsView — scheduling mode", () => {
@@ -299,6 +314,58 @@ describe("SettingsView — build stamp", () => {
       "href",
       `mailto:owner@example.com?subject=${encodeURIComponent("CapacityLens feedback — build a1b2c3d · server")}`,
     );
+  });
+});
+
+describe("SettingsView — diagnostics", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("shows client diagnostics in demo mode without requesting the server route", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
+    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
+    render(<SettingsView />);
+
+    expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Build revision");
+    expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("demo");
+    expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Databaseunavailable");
+    expect(fetchMock.fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps a safe server projection from a non-OK response", async () => {
+    fetchMock.fetch.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        server: {
+          connectivity: "ok",
+          database: { status: "unavailable", schemaVersion: null },
+          persistence: "unknown",
+          backup: { status: "degraded", lastSuccessAt: "2026-09-10T12:00:00.000Z" },
+          secret: "must not render",
+        },
+      }),
+    });
+    render(<SettingsView />);
+
+    const card = screen.getByTestId("settings-diagnostics");
+    await waitFor(() => expect(card).toHaveTextContent("degraded"));
+    expect(card).toHaveTextContent("Databaseunavailable");
+    expect(card).toHaveTextContent("2026-09-10T12:00:00.000Z");
+    expect(card).not.toHaveTextContent("must not render");
+  });
+
+  it("reports both clipboard success and failure", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(navigator, "clipboard", "get").mockReturnValue({ writeText } as unknown as Clipboard);
+    render(<SettingsView />);
+
+    await user.click(screen.getByTestId("copy-diagnostics"));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("CapacityLens diagnostics"));
+    expect(screen.getByRole("status")).toHaveTextContent("Diagnostics copied.");
+
+    writeText.mockRejectedValueOnce(new Error("denied"));
+    await user.click(screen.getByTestId("copy-diagnostics"));
+    expect(screen.getByRole("status")).toHaveTextContent("Diagnostics could not be copied");
   });
 });
 

@@ -17,11 +17,11 @@ text on the page.
 ## Diagnostics
 
 Near the bottom of Settings, **Diagnostics** provides a **Copy diagnostics** action for a support
-report. The copied projection includes the app version, validated build revision when available,
-deployment mode and export schema. Server connectivity, database schema, persistence and backup
-health are listed separately, with **Unknown** or **Unavailable** when a value cannot be observed.
-It contains no company or member data, identifiers, paths, hostnames, secrets, invite or session
-values, raw errors or other server response fields.
+report in both server and demo builds. The copied projection includes the app version, validated
+build revision when available, deployment mode and export schema. Server connectivity, database
+schema, persistence and backup health are listed separately; demo builds and unavailable server
+values show **Unknown** or **Unavailable**. It contains no company or member data, identifiers,
+paths, hostnames, secrets, invite or session values, raw errors or other server response fields.
 
 ## Global working days
 

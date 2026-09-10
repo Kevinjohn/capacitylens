@@ -53,7 +53,8 @@ function readTimestamp(value: unknown): string | null {
     typeof value !== "string" ||
     value.length > 64 ||
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) ||
-    !Number.isFinite(Date.parse(value))
+    !Number.isFinite(Date.parse(value)) ||
+    new Date(value).toISOString() !== value
   )
     return null;
   return value;
@@ -90,7 +91,7 @@ function readSchemaVersion(value: unknown): number | null {
 
 function readDatabaseProjection(primary: unknown, database: Record<string, unknown> | null) {
   const declared = readDatabaseStatus(primary, database?.status);
-  const schemaVersion = readSchemaVersion(database?.schemaVersion);
+  const schemaVersion = declared === "ok" ? readSchemaVersion(database?.schemaVersion) : null;
   return {
     status: declared === "ok" && schemaVersion !== null ? ("ok" as const) : ("unavailable" as const),
     schemaVersion,
