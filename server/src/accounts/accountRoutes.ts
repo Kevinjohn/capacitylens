@@ -58,7 +58,7 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   // Invite PREVIEW: public because a new invitee has no session yet, but still bearer-authorized —
   // only someone holding the unguessable token can read this deliberately small display shape.
-  // No membership/user table is touched, and no account data beyond the company name leaves.
+  // No membership/user table is touched, and the addressed email never leaves the account adapter.
   app.get("/api/invites/:token/preview", async (req, reply) => previewInvitation(req, reply, context));
 
   // Invite ACCEPT (P1.9): a signed-in caller redeems a link, binding the invited role to THEIR

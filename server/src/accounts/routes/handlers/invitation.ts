@@ -184,6 +184,7 @@ export async function previewInvitation(req: FastifyRequest, reply: FastifyReply
       accountName: invite.workspaceName,
       role: invite.role,
       expiresAt: invite.expiresAt,
+      emailBound: invite.emailBound,
     };
   } catch (error) {
     return accountFail(reply, error);

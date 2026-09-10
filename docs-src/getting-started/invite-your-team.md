@@ -34,12 +34,15 @@ permissions](/getting-started/roles-and-permissions) for why.
 
 2. Choose a role in the "Invite someone" panel. The consequences of that role are spelled
    out in plain language underneath it, and you can optionally pre-authorise a specific
-   email address.
+   email address. That restricts acceptance to that address. Leave it empty for a single-use
+   link that another recipient can use. Company-login-only installs require an email address.
 
-3. Copy the one-time link. It's shown exactly once — the server keeps only a hash of it —
-   so copy it now and send it to the [person](/reference/glossary).
+3. Select **Create invite**, then **Copy** the one-time link. It's shown exactly once — the server keeps only a hash of it —
+   so copy it now and send it to the [person](/reference/glossary). The confirmation stays beside
+   the link. CapacityLens does not send it for you. If you lose it, revoke the invite and create
+   another one.
 
-   ![Invite created: single-use link shown with a Copy button](../screenshots/flows/invite-created.jpg)
+   ![Invite created: single-use link shown with a Copy button](../screenshots/flows/invitation_created.png)
 
 ## What the invitee sees
 
@@ -48,13 +51,21 @@ preview what they're joining before anything happens: your company name, the pro
 role, what that role can and can't do, and when the link expires. Just opening the link
 never changes [membership](/reference/glossary).
 
-![Accept invite screen showing company, proposed Editor role, expiry and accept buttons](../screenshots/flows/invite-accept.jpg)
+![Accept invite screen showing complete permissions and separate Sign in and Create account choices](../screenshots/flows/invitation_accept.png)
 
 From there:
 
-- Someone who already has a CapacityLens sign-in signs in and explicitly accepts the
-  invite.
-- Someone new creates a password sign-in and accepts in the same step.
+- Already have a sign-in? Choose **Sign in**, enter your email and password, then check the
+  signed-in identity and select **Accept invite**. Choose **Use a different account** if needed;
+  the invitation stays open.
+- New to this install? Choose **Create account**, enter your name, email and a new password,
+  then select **Create account and accept**. Only this choice asks for your name.
+- Use company login? Choose your configured provider, then review and accept the invitation.
+
+The role description is shown in full. Expiry uses your local date and time, without seconds.
+An email-bound invitation explains that you must use the address it was created for. The page
+does not reveal that address before sign-in. Ask the sender if you are unsure which address
+to use; entering a different one cannot change who the invitation is for.
 
 Either way, they land directly on your schedule with their role visible.
 

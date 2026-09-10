@@ -70,6 +70,11 @@ administrative operation and deliberately requires the same fresh-session assura
 mutations. The shared `membershipRevision` is identity-global: a membership change in one workspace
 invalidates every cached workspace authority summary for that principal.
 
+Invitation previews require possession of a valid bearer link. They expose only the workspace
+name, proposed role, expiry and an `emailBound` boolean. They never disclose the recipient address,
+inviter, identity existence or raw token. The informational boolean does not alter email matching,
+identity verification, single-use claims or membership authorization.
+
 ## Trusted application and identity model
 
 `applicationId` and display branding are supplied by server composition, never a request payload.

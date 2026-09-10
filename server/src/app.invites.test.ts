@@ -490,7 +490,10 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
 });
 
 describe("GET /api/invites/:token/preview", () => {
-  it("returns only safe company, role, and expiry context without requiring a session", async () => {
+  it.each([
+    { kind: "email-bound", preauthEmail: "private-address@capacitylens.dev", emailBound: true },
+    { kind: "generic", preauthEmail: null, emailBound: false },
+  ])("returns safe $kind context without an address, token or session", async ({ preauthEmail, emailBound }) => {
     const { app, db } = await appWithAuth();
     seedOne(db);
     createInvite(db, {
@@ -498,7 +501,7 @@ describe("GET /api/invites/:token/preview", () => {
       id: "preview-id",
       accountId: "a1",
       role: "editor",
-      preauthEmail: "private-address@capacitylens.dev",
+      preauthEmail,
       expiresAt: "2999-01-01T00:00:00.000Z",
       usedAt: null,
       createdAt: TS,
@@ -510,6 +513,7 @@ describe("GET /api/invites/:token/preview", () => {
       accountName: "Studio a1",
       role: "editor",
       expiresAt: "2999-01-01T00:00:00.000Z",
+      emailBound,
     });
     expect(JSON.stringify(res.json())).not.toContain("private-address");
   });

@@ -161,11 +161,14 @@ export interface InvitationSummary {
   createdAt: IsoInstant;
 }
 
-/** Public bearer preview. Intentionally excludes email, inviter, identity existence, and token. */
+/** Public bearer preview. Intentionally excludes the address, inviter, identity existence, and token.
+ * `emailBound` reveals only whether the invitation has an address restriction; it never discloses
+ * that address to a bearer. */
 export interface InvitationPreview {
   workspaceName: string;
   role: InvitationRole;
   expiresAt: IsoInstant;
+  emailBound: boolean;
 }
 
 /** The raw token is returned once on creation and must never appear on a later read path. */

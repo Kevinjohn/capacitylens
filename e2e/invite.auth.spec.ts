@@ -59,6 +59,19 @@ function registerSuiteScenario1() {
     await expect(preview).toContainText("Can edit scheduling data");
     await expect(preview).toContainText("accepting keeps your existing role");
     await expect(preview).toContainText("This single-use invite expires");
+    await expect(page.getByLabel("Name")).toHaveCount(0);
+    const roleBox = await page.getByTestId("invite-role").boundingBox();
+    const companyBox = await preview.getByRole("heading", { name: `Invite Studio ${STAMP}` }).boundingBox();
+    expect(roleBox).not.toBeNull();
+    expect(companyBox).not.toBeNull();
+    expect((roleBox?.y ?? 0) + (roleBox?.height ?? 0)).toBeLessThanOrEqual(companyBox?.y ?? 0);
+    expect(
+      await preview
+        .locator("[data-slot='item-description']")
+        .evaluateAll((descriptions) =>
+          descriptions.every((description) => getComputedStyle(description).webkitLineClamp === "none"),
+        ),
+    ).toBe(true);
     await page.getByLabel("Email").fill(JOINER);
     await page.getByLabel("Password").fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
@@ -67,6 +80,7 @@ function registerSuiteScenario1() {
     // reviewed the invitation under the signed-in identity and activates the explicit accept action.
     const accept = page.getByRole("button", { name: "Accept invite" });
     await expect(accept).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/invite/${token}$`));
     await expect(page.getByTestId("invite-preview")).toContainText("Editor");
     await accept.click();
 
@@ -113,6 +127,7 @@ function registerSuiteScenario2() {
     expect(signupInvite.status()).toBe(201);
     const signupToken = (await signupInvite.json()).token as string;
     await page.goto(`/invite/${signupToken}`);
+    await page.getByRole("tab", { name: "Create account" }).click();
     await page.getByLabel("Name").fill("New Joiner");
     await page.getByLabel("Email").fill(NEW_JOINER);
     await page.getByLabel("Password").fill(PASSWORD);

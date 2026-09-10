@@ -10,6 +10,7 @@ import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { EXTERNAL_NAVIGATION_TIMEOUT_MS } from "./externalSignIn";
+import { formatInviteExpiry } from "./inviteExpiry";
 
 const authClientMock = vi.hoisted(() => ({
   signInEmail: vi.fn(async (): Promise<{ error: { message?: string } | null }> => ({ error: null })),
@@ -111,6 +112,7 @@ function renderInvite(auth?: AuthContextValue, strict = false, path = "/invite/s
 }
 
 async function fillInviteCredentials(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("tab", { name: "Create account" }));
   await user.type(screen.getByLabelText("Name"), "New Person");
   await user.type(screen.getByLabelText("Email"), "new@example.com");
   await user.type(screen.getByLabelText("Password"), "invite-password-123");
@@ -207,6 +209,134 @@ registerInviteAcceptTest(() =>
 );
 
 registerInviteAcceptTest(() =>
+  it("separates sign-in and account-creation credentials into equally prominent tabs", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    const user = userEvent.setup();
+
+    renderInvite();
+    await screen.findByTestId("invite-preview");
+
+    const tablist = screen.getByRole("tablist");
+    expect(tablist).toHaveClass("grid-cols-2");
+    const signInTab = screen.getByRole("tab", { name: "Sign in" });
+    const createAccountTab = screen.getByRole("tab", { name: "Create account" });
+    expect(signInTab).toHaveAttribute("aria-selected", "true");
+    expect(document.getElementById(signInTab.getAttribute("aria-controls") ?? "missing")).toBeInTheDocument();
+    expect(document.getElementById(createAccountTab.getAttribute("aria-controls") ?? "missing")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "current-password");
+
+    screen.getByRole("tab", { name: "Sign in" }).focus();
+    await user.keyboard("{ArrowRight}");
+
+    expect(screen.getByRole("tab", { name: "Create account" })).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Name")).toHaveAttribute("autocomplete", "name");
+    expect(screen.getByLabelText("Password")).toHaveAttribute("autocomplete", "new-password");
+    expect(screen.getByRole("button", { name: "Create account and accept" })).toBeInTheDocument();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("keeps the active credential journey fixed while authentication is in flight", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+    authClientMock.signInEmail.mockImplementationOnce(() => new Promise(() => {}));
+    const user = userEvent.setup();
+
+    renderInvite();
+    await screen.findByTestId("invite-preview");
+    await user.type(screen.getByLabelText("Email"), "barbara.gordon@example.com");
+    await user.type(screen.getByLabelText("Password"), "invite-password-123");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(screen.getByRole("tab", { name: "Sign in" })).toBeDisabled();
+    expect(screen.getByRole("tab", { name: "Create account" })).toBeDisabled();
+    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("keeps the role explanation untruncated and places the role badge on its own row", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
+
+    renderInvite();
+
+    const preview = await screen.findByTestId("invite-preview");
+    expect(preview.querySelectorAll("[data-slot='item-description']")).not.toHaveLength(0);
+    for (const description of preview.querySelectorAll("[data-slot='item-description']")) {
+      expect(description).toHaveClass("line-clamp-none");
+    }
+    expect(screen.getByText("Invitation role").parentElement).toHaveAttribute("data-testid", "invite-role");
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([
+    [true, m.invite_email_bound()],
+    [false, m.invite_email_unbound()],
+    [undefined, m.invite_email_bound_unknown()],
+  ])("explains the invitation identity boundary without exposing an address (%s)", async (emailBound, expected) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ...previewResponse(),
+        json: async () => ({
+          accountName: "Wayne Enterprises",
+          role: "editor",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          ...(emailBound === undefined ? {} : { emailBound }),
+        }),
+      }),
+    );
+
+    renderInvite();
+
+    expect(await screen.findByTestId("invite-preview")).toHaveTextContent(expected);
+    expect(screen.queryByText(/@example\.com/)).not.toBeInTheDocument();
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it("rejects a preview with a malformed identity-boundary flag", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ...previewResponse(),
+        json: async () => ({
+          accountName: "Wayne Enterprises",
+          role: "editor",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          emailBound: "yes",
+        }),
+      }),
+    );
+
+    renderInvite();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_preview_invalid());
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([
+    { expiresAt: "2026-09-10T14:05:37.000Z", month: /Sep/, day: /10/, time: /(?:14:05|02:05 PM)/ },
+    { expiresAt: "2027-01-02T09:07:59.000Z", month: /Jan/, day: /2/, time: /(?:09:07|9:07 AM)/ },
+  ])(
+    "formats expiry $expiresAt without seconds and includes the year only when needed",
+    ({ expiresAt, month, day, time }) => {
+      const formatted = formatInviteExpiry(expiresAt, new Date("2026-09-01T12:00:00.000Z"));
+
+      expect(formatted).toMatch(month);
+      expect(formatted).toMatch(day);
+      expect(formatted).toMatch(time);
+      expect(formatted).not.toMatch(/14:05:37|09:07:59/);
+      if (expiresAt.startsWith("2026")) expect(formatted).not.toContain("2026");
+      if (expiresAt.startsWith("2027")) expect(formatted).toContain("2027");
+    },
+  ),
+);
+
+registerInviteAcceptTest(() =>
   it("strips an external sign-in error marker and surfaces stable SSO failure copy", async () => {
     window.history.replaceState({}, "", "/invite/secret-token?externalSignInError=1&error=provider-secret");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
@@ -249,6 +379,7 @@ registerInviteAcceptTest(() =>
     renderInvite();
 
     await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
     const name = screen.getByLabelText("Name");
     const email = screen.getByLabelText("Email");
     const password = screen.getByLabelText("Password");
@@ -278,6 +409,10 @@ registerInviteAcceptTest(() =>
     expect(password).toHaveAttribute("aria-describedby", passwordError.id);
     expect(name).not.toHaveAttribute("aria-invalid");
     expect(email).not.toHaveAttribute("aria-invalid");
+
+    await user.click(screen.getByRole("tab", { name: "Sign in" }));
+    expect(screen.queryByText("Password must be 15–128 characters.")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).not.toHaveAttribute("aria-invalid");
   }),
 );
 
@@ -291,6 +426,7 @@ registerInviteAcceptTest(() =>
     renderInvite();
 
     await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
     const name = screen.getByLabelText("Name");
     const email = screen.getByLabelText("Email");
     const password = screen.getByLabelText("Password");
@@ -496,6 +632,7 @@ registerInviteAcceptTest(() =>
       refreshAuth,
     });
     await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
     await user.type(screen.getByLabelText("Name"), "New Person");
     await user.type(screen.getByLabelText("Email"), "new@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
@@ -896,6 +1033,7 @@ registerInviteAcceptTest(() =>
 
     renderInvite({ ...signedInAuth, user: null });
     await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
     await user.type(screen.getByLabelText("Name"), "Existing Person");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
@@ -923,6 +1061,7 @@ registerInviteAcceptTest(() =>
 
     renderInvite({ ...signedInAuth, user: null });
     await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
     await user.type(screen.getByLabelText("Name"), "Existing Person");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
@@ -947,6 +1086,7 @@ registerInviteAcceptTest(() =>
 
     renderInvite({ ...signedInAuth, user: null });
     await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
     await user.type(screen.getByLabelText("Name"), "Existing Person");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");
@@ -986,6 +1126,7 @@ registerInviteAcceptTest(() =>
 
     renderInvite({ ...signedInAuth, user: null });
     await screen.findByTestId("invite-preview");
+    await user.click(screen.getByRole("tab", { name: "Create account" }));
     await user.type(screen.getByLabelText("Name"), "Existing Person");
     await user.type(screen.getByLabelText("Email"), "existing@example.com");
     await user.type(screen.getByLabelText("Password"), "invite-password-123");

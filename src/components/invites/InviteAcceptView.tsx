@@ -3,17 +3,16 @@ import { Link } from "react-router-dom";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
-import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
-import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import type { AccountMode, AuthProviderInfo, AuthUser } from "../../auth/authContext";
 import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
 import { m } from "@/i18n";
-import { TextField } from "../common/ui";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { FieldError } from "../ui/field";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "../ui/item";
+import { InvitePasswordContent, InviteProviderButtons } from "./InvitePasswordContent";
+import { formatInviteExpiry } from "./inviteExpiry";
 
 export type InviteAcceptState =
   | { kind: "previewing" }
@@ -34,6 +33,7 @@ export interface InvitePreview {
   accountName: string;
   role: InvitationRole;
   expiresAt: string;
+  emailBound: boolean | null;
 }
 
 interface InviteAcceptViewProps {
@@ -57,6 +57,7 @@ interface InviteAcceptViewProps {
   onSignIn: (event: FormEvent) => void;
   onProviderSignIn: (provider: AuthProviderInfo) => void;
   onCreateAccount: () => void;
+  onClearAuthError: () => void;
   onRetryPreview: () => void;
 }
 
@@ -68,7 +69,7 @@ export function InviteAcceptView(props: InviteAcceptViewProps) {
 
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
-      <main className="w-full max-w-sm">
+      <main className="w-full max-w-lg">
         <Card>
           <CardHeader className="text-center">
             <div className="text-2xl font-bold text-brand">{APP_NAME}</div>
@@ -107,24 +108,31 @@ function resolveFlowStatus(state: InviteAcceptState, preview: InvitePreview | nu
 
 function InvitePreviewDetails({ preview }: { preview: InvitePreview }) {
   return (
-    <Item variant="muted" data-testid="invite-preview">
+    <Item className="flex-col items-stretch" variant="muted" data-testid="invite-preview">
+      <ItemActions className="w-full justify-between" data-testid="invite-role">
+        <p className="text-xs font-medium text-muted-foreground">{m.invite_proposed_role_label()}</p>
+        <Badge>{resolveRoleLabel(preview.role)}</Badge>
+      </ItemActions>
       <ItemContent>
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{m.invite_company_label()}</p>
         <ItemTitle>
           <h2>{preview.accountName}</h2>
         </ItemTitle>
-        <ItemDescription>{resolveRoleSummary(preview.role)}</ItemDescription>
-        <ItemDescription>{m.invite_existing_role_note()}</ItemDescription>
-        <ItemDescription>{m.invite_expires({ when: new Date(preview.expiresAt).toLocaleString() })}</ItemDescription>
+        <ItemDescription className="line-clamp-none">{resolveRoleSummary(preview.role)}</ItemDescription>
+        <ItemDescription className="line-clamp-none">{m.invite_existing_role_note()}</ItemDescription>
+        <ItemDescription className="line-clamp-none">{resolveEmailBoundaryCopy(preview.emailBound)}</ItemDescription>
+        <ItemDescription className="line-clamp-none">
+          {m.invite_expires({ when: formatInviteExpiry(preview.expiresAt) })}
+        </ItemDescription>
       </ItemContent>
-      <ItemActions className="self-start text-right">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">{m.invite_proposed_role_label()}</p>
-          <Badge>{resolveRoleLabel(preview.role)}</Badge>
-        </div>
-      </ItemActions>
     </Item>
   );
+}
+
+function resolveEmailBoundaryCopy(emailBound: boolean | null) {
+  if (emailBound === true) return m.invite_email_bound();
+  if (emailBound === false) return m.invite_email_unbound();
+  return m.invite_email_bound_unknown();
 }
 
 function InviteStateContent(props: InviteAcceptViewProps) {
@@ -187,83 +195,33 @@ function SsoContent({ state, providers, busy, errorId, onProviderSignIn }: Invit
       {providers.length === 0 ? (
         <FieldError>{m.invite_sso_unavailable()}</FieldError>
       ) : (
-        <ProviderButtons providers={providers} busy={busy} onSelect={onProviderSignIn} />
+        <InviteProviderButtons providers={providers} busy={busy} onSelect={onProviderSignIn} />
       )}
     </div>
   );
 }
 
 function PasswordContent(props: InviteAcceptViewProps) {
-  const { state, providers, busy, errorId, onProviderSignIn, onSignIn, onCreateAccount } = props;
+  const { state } = props;
   if (state.kind !== "auth") return null;
   return (
-    <div className="flex flex-col gap-4">
-      {providers.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <ProviderButtons providers={providers} busy={busy} onSelect={onProviderSignIn} />
-          <p className="text-center text-xs text-muted-foreground">{m.invite_use_email_password()}</p>
-        </div>
-      )}
-      <form onSubmit={onSignIn} className="flex flex-col gap-3" noValidate>
-        <p className="text-sm text-muted-foreground">{m.invite_onboard_intro()}</p>
-        <SignInFields {...props} errorField={state.errorField} />
-        <FieldError id={errorId}>{state.message}</FieldError>
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button size="sm" type="submit" variant="outline" disabled={busy}>
-            {m.invite_sign_in_accept()}
-          </Button>
-          <Button size="sm" type="button" disabled={busy} onClick={onCreateAccount}>
-            {m.invite_create_account()}
-          </Button>
-        </div>
-      </form>
-    </div>
-  );
-}
-
-function SignInFields({
-  name,
-  email,
-  password,
-  errorId,
-  errorField,
-  onNameChange,
-  onEmailChange,
-  onPasswordChange,
-}: InviteAcceptViewProps & { errorField: string | null | undefined }) {
-  return (
-    <>
-      <TextField
-        label={m.invite_name()}
-        autoComplete="name"
-        value={name}
-        maxLength={MAX_NAME_INPUT_CODE_UNITS}
-        onChange={onNameChange}
-        invalid={errorField === "name"}
-        describedById={errorId}
-      />
-      <TextField
-        label={m.login_email()}
-        type="email"
-        autoComplete="email"
-        value={email}
-        maxLength={MAX_EMAIL_LENGTH}
-        onChange={onEmailChange}
-        invalid={errorField === "email"}
-        describedById={errorId}
-      />
-      <TextField
-        label={m.login_password()}
-        type="password"
-        autoComplete="current-password"
-        value={password}
-        minLength={MIN_PASSWORD_LENGTH}
-        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-        onChange={onPasswordChange}
-        invalid={errorField === "password"}
-        describedById={errorId}
-      />
-    </>
+    <InvitePasswordContent
+      providers={props.providers}
+      busy={props.busy}
+      errorId={props.errorId}
+      errorMessage={state.message}
+      errorField={state.errorField}
+      name={props.name}
+      email={props.email}
+      password={props.password}
+      onNameChange={props.onNameChange}
+      onEmailChange={props.onEmailChange}
+      onPasswordChange={props.onPasswordChange}
+      onSignIn={props.onSignIn}
+      onProviderSignIn={props.onProviderSignIn}
+      onCreateAccount={props.onCreateAccount}
+      onPathChange={props.onClearAuthError}
+    />
   );
 }
 
@@ -307,32 +265,5 @@ function LocalContent() {
         </Button>
       </div>
     </>
-  );
-}
-
-function ProviderButtons({
-  providers,
-  busy,
-  onSelect,
-}: {
-  providers: readonly AuthProviderInfo[];
-  busy: boolean;
-  onSelect: (provider: AuthProviderInfo) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      {providers.map((provider) => (
-        <Button
-          size="sm"
-          key={provider.id}
-          type="button"
-          className="w-full"
-          disabled={busy}
-          onClick={() => onSelect(provider)}
-        >
-          {m.invite_continue_provider({ provider: provider.label })}
-        </Button>
-      ))}
-    </div>
   );
 }

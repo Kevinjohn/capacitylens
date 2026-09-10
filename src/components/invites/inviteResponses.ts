@@ -19,10 +19,12 @@ export function parsePreview(value: unknown): InvitePreview | null {
   if (typeof row.accountName !== "string" || row.accountName.trim().length === 0) return null;
   if (!isAccountRole(row.role) || row.role === "owner") return null;
   if (!isIsoInstant(row.expiresAt)) return null;
+  if (row.emailBound !== undefined && typeof row.emailBound !== "boolean") return null;
   return {
     accountName: row.accountName,
     role: row.role,
     expiresAt: row.expiresAt,
+    emailBound: typeof row.emailBound === "boolean" ? row.emailBound : null,
   };
 }
 
