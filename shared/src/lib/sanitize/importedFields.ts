@@ -22,6 +22,8 @@ const IMPORTED_FIELDS = {
     "projectId",
     "color",
     "isFavourite",
+    "firstAvailableDate",
+    "lastAvailableDate",
     "archivedAt",
     "deletedAt",
   ],

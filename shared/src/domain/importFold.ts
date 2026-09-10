@@ -14,6 +14,8 @@ import {
   INTERNAL_CLIENT_NAME,
 } from "../data/internalClient";
 import { belongsToAccount } from "./tenancy";
+import { assertAllocationWithinResourceAvailability } from "./resourceAvailability";
+import { DomainError } from "./errors";
 import { obfuscateResource } from "./lifecycle";
 import { isExternalResource, SCOPED_KEYS, scopedTables } from "../types/entities";
 import type {
@@ -236,6 +238,17 @@ function repairAllocation(allocation: Allocation, context: AllocationContext): A
     ? withoutAllocationAttribution(allocation)
     : allocation;
   if (!validateAllocationAssignment(resource, effectiveProjectId(repaired, activity)).ok) return undefined;
+  try {
+    assertAllocationWithinResourceAvailability({ allocation: repaired, resource });
+  } catch (error) {
+    if (
+      error instanceof DomainError &&
+      (error.code === "allocation_before_resource_availability" || error.code === "allocation_after_resource_availability")
+    ) {
+      return undefined;
+    }
+    throw error;
+  }
   if (isExternalResource(resource) && repaired.hoursPerDay !== 0) repaired = { ...repaired, hoursPerDay: 0 };
   return eraseDeletedResourceNote(repaired, resource);
 }

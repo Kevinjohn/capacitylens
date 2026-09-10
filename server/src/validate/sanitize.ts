@@ -144,6 +144,11 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
     if (typeof existing.seriesId === "string") cleaned.seriesId = existing.seriesId;
     else delete cleaned.seriesId;
   }
+  if (table === "resources" && existing) {
+    for (const field of ["firstAvailableDate", "lastAvailableDate"] as const) {
+      if (!Object.hasOwn(copy, field) && typeof existing[field] === "string") cleaned[field] = existing[field];
+    }
+  }
   // Field-confidentiality PINS (note-erasure guard + private-name guard): the fields are
   // single-sourced in GATED_FIELD_POLICIES. A writer who cannot see a gated field has it pinned to
   // the stored value on UPDATE and stripped on CREATE; a writer who can see it passes it through.

@@ -107,6 +107,15 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
     ...liveTableSpec("allocations"),
     columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "task"),
   },
+  resources: {
+    ...liveTableSpec("resources"),
+    columns: liveTableSpec("resources").columns.filter(
+      (column) => column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+    ),
+  },
+};
+const PRE_V38_TABLES: Record<string, TableSpec> = {
+  ...PRE_V37_TABLES,
 };
 const PRE_V34_TABLES = Object.fromEntries(
   Object.entries(PRE_V37_TABLES).filter(([key]) => key !== "closures"),
@@ -121,7 +130,11 @@ export const V27_TABLES: Record<string, TableSpec> = {
   resources: {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
-      (column) => column.name !== "halfDays" && column.name !== "engagement",
+      (column) =>
+        column.name !== "halfDays" &&
+        column.name !== "engagement" &&
+        column.name !== "firstAvailableDate" &&
+        column.name !== "lastAvailableDate",
     ),
   },
 };
@@ -132,7 +145,10 @@ export const V28_TABLES: Record<string, TableSpec> = {
   timeOff: V32_TIME_OFF,
   resources: {
     ...liveTableSpec("resources"),
-    columns: liveTableSpec("resources").columns.filter((column) => column.name !== "engagement"),
+    columns: liveTableSpec("resources").columns.filter(
+      (column) =>
+        column.name !== "engagement" && column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+    ),
   },
 };
 export const V29_TABLES: Record<string, TableSpec> = {
@@ -183,3 +199,4 @@ export const V36_TABLES: Record<string, TableSpec> = {
     columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "task"),
   },
 };
+export const V37_TABLES: Record<string, TableSpec> = PRE_V38_TABLES;

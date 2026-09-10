@@ -138,6 +138,10 @@ export interface Resource extends ScopedEntity {
   color: string;
   /** Account-wide display preference for people and external resources. Absent = not favourite. */
   isFavourite?: boolean;
+  /** Inclusive first date on which this person may be scheduled. Absent = unbounded. */
+  firstAvailableDate?: ISODate;
+  /** Inclusive last date on which this person may be scheduled. Absent = unbounded. */
+  lastAvailableDate?: ISODate;
   /** ISO 8601 timestamp of when this resource was archived (soft, reversible): hidden from
    *  scheduling but fully retained. Absent = active (not archived). Part of the
    *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
@@ -302,8 +306,8 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
  *  separates company closures into their own table and restores required TimeOff.resourceId; v18
  *  adds optional per-allocation project attribution for repeatable activities; v19 adds optional
  *  Activity lifecycle tombstones archivedAt/deletedAt; v20 adds optional allocation task text and
- *  account-wide schedule visibility for it.) */
-export const EXPORT_SCHEMA_VERSION = 20;
+ *  account-wide schedule visibility for it; v21 adds optional person availability boundaries.) */
+export const EXPORT_SCHEMA_VERSION = 21;
 
 export interface PersistedState {
   schemaVersion: number;
