@@ -34,6 +34,8 @@ export function resolveScheduledHoursOnDay(
   date: ISODate,
   effectiveWeek: EffectiveWorkingWeek,
 ): number {
+  if (resource.firstAvailableDate && date < resource.firstAvailableDate) return 0;
+  if (resource.lastAvailableDate && date > resource.lastAvailableDate) return 0;
   return resolveScheduledHoursForWeekday(resource, weekdayOf(date), effectiveWeek);
 }
 
@@ -90,6 +92,8 @@ export function resolveAvailableHoursForWeekday({
   weekday,
   effectiveWeek,
 }: ResolveAvailableHoursForWeekdayInput): number {
+  if (resource.firstAvailableDate && date < resource.firstAvailableDate) return 0;
+  if (resource.lastAvailableDate && date > resource.lastAvailableDate) return 0;
   if (!effectiveWeekIncludes(effectiveWeek, weekday)) return 0;
   if (isUnavailable({ resource: resource, date: date, timeOff: timeOff, closures: closures })) return 0;
   return resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek);

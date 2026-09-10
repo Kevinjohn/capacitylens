@@ -98,6 +98,7 @@ const weekFor = (resource: Resource, accountWorkingDays = DEFAULT_ACCOUNT_WORKIN
   effectiveWorkingWeek(resource, accountWorkingDays);
 const scheduledHoursOnDay = (resource: Resource, date: ISODate, accountWorkingDays?: Weekday[]) =>
   scheduledHoursOnDayWithWeek(resource, date, weekFor(resource, accountWorkingDays));
+
 const availableHoursOnDay = ({ resource, date, timeOff, accountWorkingDays }: AvailableHoursOnDayTestInput) =>
   availableHoursOnDayWithWeek({
     resource: resource,
@@ -227,6 +228,22 @@ const makeClosure = (over: Partial<Closure> = {}): Closure => ({
   startDate: "2026-06-03",
   endDate: "2026-06-03",
   ...over,
+});
+
+describe("resource availability boundaries", () => {
+  const boundedResource = makeResource({
+    firstAvailableDate: "2026-09-08",
+    lastAvailableDate: "2026-09-10",
+  });
+
+  it.each([
+    ["2026-09-07", 0],
+    ["2026-09-08", 8],
+    ["2026-09-10", 8],
+    ["2026-09-11", 0],
+  ] as const)("returns boundary-aware capacity on %s", (date, expected) => {
+    expect(availableHoursOnDay({ resource: boundedResource, date, timeOff: [] })).toBe(expected);
+  });
 });
 
 function registerSemanticsTableTests(

@@ -1,5 +1,5 @@
 import type { StateCreator, StoreApi } from "zustand";
-import { assertDateRange } from "@capacitylens/shared/domain/mutations";
+import { assertAllocationWithinResourceAvailability, assertDateRange } from "@capacitylens/shared/domain/mutations";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
 import type { Allocation, ID } from "@capacitylens/shared/types/entities";
 import type { StoreInternals } from "../storeInternal";
@@ -57,6 +57,17 @@ export function createAllocationSlice(
                 existing,
               );
               assertDateRange(effective.startDate, effective.endDate);
+              const placementChanged =
+                patch.resourceId !== undefined ||
+                patch.startDate !== undefined ||
+                patch.endDate !== undefined ||
+                patch.ignoreWeekends !== undefined;
+              if (placementChanged) {
+                const resource = get().data.resources.find(
+                  (candidate) => candidate.accountId === existing.accountId && candidate.id === effective.resourceId,
+                );
+                if (resource) assertAllocationWithinResourceAvailability({ allocation: effective, resource });
+              }
               // Repeat-series membership is system-owned at creation. An ordinary edit may change every
               // visible allocation field but cannot link, unlink or move the row between series.
               const safePatch = { ...clampedPatch };

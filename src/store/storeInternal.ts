@@ -1,6 +1,11 @@
 import type { StoreApi } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
-import { assertDateRange, assertResourceExists, remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
+import {
+  assertAllocationWithinResourceAvailability,
+  assertDateRange,
+  assertResourceExists,
+  remapAndValidateImport,
+} from "@capacitylens/shared/domain/mutations";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Entity, ID, ScopedEntityKey, TimeOff } from "@capacitylens/shared/types/entities";
 import {
@@ -136,6 +141,10 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
         allocation.projectId,
       );
       assertDateRange(allocation.startDate, allocation.endDate);
+      const resource = data.resources.find(
+        (candidate) => candidate.accountId === accountId && candidate.id === allocation.resourceId,
+      );
+      if (resource) assertAllocationWithinResourceAvailability({ allocation, resource });
     }
     dependencies.mutate((current) => ({ ...current, allocations: [...current.allocations, ...allocations] }));
     return allocations;
