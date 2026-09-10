@@ -2,6 +2,7 @@ import type { Locator, Page, TestInfo } from "@playwright/test";
 import { expect, test } from "./fixtures";
 import {
   dismissLandscapeHint,
+  enableInlineActivityCreation,
   openApp,
   resetSchedulerScroll,
   selectShadOption,
@@ -175,6 +176,11 @@ function registerSuiteScenario2() {
   test("aligns create, repeat, status and error controls, then stacks without narrow overflow", async ({
     page,
   }, testInfo: TestInfo) => {
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await enableInlineActivityCreation(page);
+    await page.getByRole("link", { name: "Schedule", exact: true }).click();
+    await setZoom(page, 4);
+    await resetSchedulerScroll(page);
     const dialog = await openCreate(page, "Clark Kent");
     await assertCreateFields(dialog);
     await assertStatusAlignment(dialog);
