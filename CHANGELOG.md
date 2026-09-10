@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
+  manually triggered workflow (#752).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is
   hidden and task details above Notes in schedule popovers and person drawers (#720).
 - Add optional inclusive **First available date** and **Last available date** fields for Studio and
