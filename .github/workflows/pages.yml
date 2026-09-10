@@ -2,6 +2,8 @@ name: Publish documentation
 
 on:
   workflow_dispatch:
+  release:
+    types: [published]
 
 concurrency:
   group: github-pages
@@ -15,14 +17,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Require the main branch
-        if: github.ref != 'refs/heads/main'
+      - name: Require the main branch for manual publication
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
         run: |
           echo "::error::Documentation can only be published from main."
           exit 1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.ref }}
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
