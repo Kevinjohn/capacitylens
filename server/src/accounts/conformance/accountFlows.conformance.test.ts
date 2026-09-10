@@ -197,6 +197,7 @@ function membershipAdministrationMethods(): MembershipAdministrationMethods {
       role: "editor" as const,
       expiresAt: "2099-01-01T00:00:00.000Z",
       emailBound: true,
+      emailHint: "person@…",
     })),
     preparePasswordInvitationClaim: vi.fn(async () => ({
       emailVerifiedByInvitation: true,

@@ -93,9 +93,11 @@ async function previewInvitation(context: InvitationsContext, { token }: Invitat
     workspaceName: workspace.name,
     role: invite.role,
     expiresAt: invite.expiresAt,
-    // Deliberately disclose only the presence of a binding. The addressed email remains account
-    // administration data and must not travel through this bearer preview.
+    // Disclose only the local part as a hint. The full addressed email remains account
+    // administration data; the hint omits its domain and cannot authenticate anyone.
     emailBound: invite.preauthEmail !== null,
+    emailHint:
+      invite.preauthEmail === null ? null : `${invite.preauthEmail.slice(0, invite.preauthEmail.lastIndexOf("@"))}@…`,
   };
 }
 

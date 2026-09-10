@@ -34,6 +34,7 @@ export interface InvitePreview {
   role: InvitationRole;
   expiresAt: string;
   emailBound: boolean | null;
+  emailHint: string | null;
 }
 
 interface InviteAcceptViewProps {
@@ -120,7 +121,9 @@ function InvitePreviewDetails({ preview }: { preview: InvitePreview }) {
         </ItemTitle>
         <ItemDescription className="line-clamp-none">{resolveRoleSummary(preview.role)}</ItemDescription>
         <ItemDescription className="line-clamp-none">{m.invite_existing_role_note()}</ItemDescription>
-        <ItemDescription className="line-clamp-none">{resolveEmailBoundaryCopy(preview.emailBound)}</ItemDescription>
+        <ItemDescription className="line-clamp-none wrap-anywhere">
+          {resolveEmailBoundaryCopy(preview.emailBound, preview.emailHint)}
+        </ItemDescription>
         <ItemDescription className="line-clamp-none">
           {m.invite_expires({ when: formatInviteExpiry(preview.expiresAt) })}
         </ItemDescription>
@@ -129,8 +132,9 @@ function InvitePreviewDetails({ preview }: { preview: InvitePreview }) {
   );
 }
 
-function resolveEmailBoundaryCopy(emailBound: boolean | null) {
-  if (emailBound === true) return m.invite_email_bound();
+function resolveEmailBoundaryCopy(emailBound: boolean | null, emailHint: string | null) {
+  if (emailBound === true && emailHint !== null) return m.invite_email_bound({ hint: emailHint });
+  if (emailBound === true) return m.invite_email_bound_no_hint();
   if (emailBound === false) return m.invite_email_unbound();
   return m.invite_email_bound_unknown();
 }

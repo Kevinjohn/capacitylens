@@ -63,9 +63,10 @@ From there:
 - Use company login? Choose your configured provider, then review and accept the invitation.
 
 The role description is shown in full. Expiry uses your local date and time, without seconds.
-An email-bound invitation explains that you must use the address it was created for. The page
-does not reveal that address before sign-in. Ask the sender if you are unsure which address
-to use; entering a different one cannot change who the invitation is for.
+An email-bound invitation shows the part before `@`, followed by `@…` (for example,
+`selina.kyle@…`). The domain stays hidden. Enter your full email address to sign in or create
+an account. Ask the sender if the hint is not enough to identify the address; entering a
+different one cannot change who the invitation is for.
 
 Either way, they land directly on your schedule with their role visible.
 

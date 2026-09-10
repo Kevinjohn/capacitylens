@@ -10,7 +10,8 @@ new features and **patch** versions carry fixes.
 ### Changed
 
 - Clarify manual invitation delivery, keep the one-time link confirmation inline, and separate
-  sign-in and account-creation journeys with fully readable permissions and local expiry.
+  sign-in and account-creation journeys with fully readable permissions, local expiry and recipient
+  email hints that hide the domain (#746).
 
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
   and simplify drawer entries to a compact activity-first agenda (#753, #754).

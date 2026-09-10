@@ -149,7 +149,9 @@ intro.
 - Recipients can choose **Sign in** or **Create account** with equally prominent controls. Only the
   selected journey's fields appear. Existing users review and explicitly accept as the signed-in
   identity; changing identity preserves the invitation. New users create their sign-in and accept
-  atomically. The company, role consequences and expiry remain fully readable throughout.
+  atomically. The company, role consequences and expiry remain fully readable throughout. Addressed
+  invitations show a recipient hint containing only the part before `@` followed by `@…`; recipients
+  enter the full email address themselves, and the domain stays hidden in the preview.
 - The invite token is shown **once** at creation (`/invite/<token>`), is stored only as a one-way
   hash, and the invites list carries no token. Accepted (used) invites remain listed (marked _used_)
   for admin visibility; an expired, unaccepted link is pruned.

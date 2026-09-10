@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { m } from "@/i18n";
+import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
@@ -99,7 +100,7 @@ function InviteHeader() {
       <CardTitle>
         <h2>{m.settings_invite_heading()}</h2>
       </CardTitle>
-      <CardDescription>{m.settings_invite_intro()}</CardDescription>
+      <CardDescription>{m.settings_invite_intro({ app: APP_NAME })}</CardDescription>
     </CardHeader>
   );
 }

@@ -59,7 +59,7 @@ function registerSuiteScenario1() {
     await expect(preview).toContainText("Can edit scheduling data");
     await expect(preview).toContainText("accepting keeps your existing role");
     await expect(preview).toContainText("This single-use invite expires");
-    await expect(page.getByLabel("Name")).toHaveCount(0);
+    await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0);
     const roleBox = await page.getByTestId("invite-role").boundingBox();
     const companyBox = await preview.getByRole("heading", { name: `Invite Studio ${STAMP}` }).boundingBox();
     expect(roleBox).not.toBeNull();
@@ -72,8 +72,8 @@ function registerSuiteScenario1() {
           descriptions.every((description) => getComputedStyle(description).webkitLineClamp === "none"),
         ),
     ).toBe(true);
-    await page.getByLabel("Email").fill(JOINER);
-    await page.getByLabel("Password").fill(PASSWORD);
+    await page.getByLabel("Email", { exact: true }).fill(JOINER);
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
 
     // Sign-in reloads onto the same bearer URL. The membership must still be untouched until B has
@@ -127,10 +127,12 @@ function registerSuiteScenario2() {
     expect(signupInvite.status()).toBe(201);
     const signupToken = (await signupInvite.json()).token as string;
     await page.goto(`/invite/${signupToken}`);
+    await expect(page.getByTestId("invite-preview")).toContainText(`${NEW_JOINER.split("@")[0]}@…`);
+    await expect(page.getByTestId("invite-preview")).not.toContainText(NEW_JOINER);
     await page.getByRole("tab", { name: "Create account" }).click();
-    await page.getByLabel("Name").fill("New Joiner");
-    await page.getByLabel("Email").fill(NEW_JOINER);
-    await page.getByLabel("Password").fill(PASSWORD);
+    await page.getByLabel("Name", { exact: true }).fill("New Joiner");
+    await page.getByLabel("Email", { exact: true }).fill(NEW_JOINER);
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
     await page.getByRole("button", { name: "Create account and accept" }).click();
 
     await expect(page).toHaveURL(/\/$/);
@@ -144,4 +146,23 @@ function registerSuiteScenario2() {
 test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
+
+  test("a maximum-length addressed hint wraps within a narrow invitation preview", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 1000 });
+    const emailHint = `${"a".repeat(252)}@…`;
+    await page.route("**/api/invites/*/preview", (route) =>
+      route.fulfill({
+        json: {
+          accountName: "Wayne Enterprises",
+          role: "editor",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          emailBound: true,
+          emailHint,
+        },
+      }),
+    );
+    await page.goto("/invite/long-hint-layout");
+    await expect(page.getByTestId("invite-preview")).toContainText(emailHint);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  });
 });

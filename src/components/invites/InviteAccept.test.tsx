@@ -272,10 +272,43 @@ registerInviteAcceptTest(() =>
 
 registerInviteAcceptTest(() =>
   it.each([
-    [true, m.invite_email_bound()],
-    [false, m.invite_email_unbound()],
-    [undefined, m.invite_email_bound_unknown()],
-  ])("explains the invitation identity boundary without exposing an address (%s)", async (emailBound, expected) => {
+    [true, "selina.kyle@…", "This invite is for selina.kyle@…. Enter the full email address to continue."],
+    [
+      true,
+      `${"a".repeat(252)}@…`,
+      `This invite is for ${"a".repeat(252)}@…. Enter the full email address to continue.`,
+    ],
+    [true, undefined, m.invite_email_bound_no_hint()],
+    [false, null, m.invite_email_unbound()],
+    [undefined, undefined, m.invite_email_bound_unknown()],
+  ])(
+    "explains the invitation identity boundary without exposing an address (%s)",
+    async (emailBound, emailHint, expected) => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue({
+          ...previewResponse(),
+          json: async () => ({
+            accountName: "Wayne Enterprises",
+            role: "editor",
+            expiresAt: "2999-01-01T00:00:00.000Z",
+            ...(emailBound === undefined ? {} : { emailBound }),
+            ...(emailHint === undefined ? {} : { emailHint }),
+          }),
+        }),
+      );
+
+      renderInvite();
+
+      expect(await screen.findByTestId("invite-preview")).toHaveTextContent(expected);
+      expect(document.body).not.toHaveTextContent("capacitylens.dev");
+      expect(document.body).not.toHaveTextContent("selina.kyle@example.com");
+    },
+  ),
+);
+
+registerInviteAcceptTest(() =>
+  it("renders an unusual masked local part as text rather than markup", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -284,15 +317,16 @@ registerInviteAcceptTest(() =>
           accountName: "Wayne Enterprises",
           role: "editor",
           expiresAt: "2999-01-01T00:00:00.000Z",
-          ...(emailBound === undefined ? {} : { emailBound }),
+          emailBound: true,
+          emailHint: "<img>@…",
         }),
       }),
     );
 
     renderInvite();
 
-    expect(await screen.findByTestId("invite-preview")).toHaveTextContent(expected);
-    expect(screen.queryByText(/@example\.com/)).not.toBeInTheDocument();
+    expect(await screen.findByTestId("invite-preview")).toHaveTextContent("<img>@…");
+    expect(document.querySelector("img")).not.toBeInTheDocument();
   }),
 );
 
@@ -307,6 +341,33 @@ registerInviteAcceptTest(() =>
           role: "editor",
           expiresAt: "2999-01-01T00:00:00.000Z",
           emailBound: "yes",
+        }),
+      }),
+    );
+
+    renderInvite();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.invite_err_preview_invalid());
+  }),
+);
+
+registerInviteAcceptTest(() =>
+  it.each([
+    { emailBound: true, emailHint: "selina.kyle@example.com" },
+    { emailBound: true, emailHint: "@…" },
+    { emailBound: false, emailHint: "selina.kyle@…" },
+    { emailHint: "selina.kyle@…" },
+    { emailBound: true, emailHint: 42 },
+  ])("rejects malformed or inconsistent masked email metadata %#", async (metadata) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ...previewResponse(),
+        json: async () => ({
+          accountName: "Wayne Enterprises",
+          role: "editor",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          ...metadata,
         }),
       }),
     );

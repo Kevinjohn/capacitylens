@@ -71,9 +71,11 @@ mutations. The shared `membershipRevision` is identity-global: a membership chan
 invalidates every cached workspace authority summary for that principal.
 
 Invitation previews require possession of a valid bearer link. They expose only the workspace
-name, proposed role, expiry and an `emailBound` boolean. They never disclose the recipient address,
-inviter, identity existence or raw token. The informational boolean does not alter email matching,
-identity verification, single-use claims or membership authorization.
+name, proposed role, expiry, an `emailBound` boolean and a masked recipient hint when addressed.
+The hint exposes only the local part followed by `@…`; the domain and full address never enter
+the preview response. Previews do not disclose the inviter, identity existence or raw token.
+This informational metadata does not alter email matching, identity verification, single-use
+claims or membership authorization.
 
 ## Trusted application and identity model
 

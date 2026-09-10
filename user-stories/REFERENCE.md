@@ -865,9 +865,10 @@ carries a pre-set Admin, Editor or Viewer role for one company; Owner is never i
 Opening `/invite/<token>` shows the **Accept invite** screen (heading `Accept invite`) and safely
 previews the company name, proposed role, role summary and expiry before acceptance using public
 `GET /api/invites/:token/preview`. Possession of the bearer link is required to read that limited
-metadata, including whether it is email-bound; the preview never reveals the bound address,
-company data, membership list or unrelated identity facts. A bound invite asks recipients to use
-the intended address, while a generic link explains that it is transferable and single-use.
+metadata, including whether it is email-bound and a hint showing only the part before `@`,
+followed by `@…`. The domain, full address, company data, membership list and unrelated identity
+facts are never revealed. A bound invite asks recipients to enter the full intended address,
+while a generic link explains that it is transferable and single-use.
 An older preview without binding metadata makes neither claim. Merely
 opening or previewing the URL never changes membership. In a server deploy with auth on, an
 unauthenticated invitee gets the page's own onboarding form with equally prominent **Sign in** and
