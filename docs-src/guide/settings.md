@@ -108,6 +108,8 @@ Open **Account** near **Switch company** and **Sign out** at the bottom of the s
 review your identity and the security controls available for your sign-in method. These are
 personal controls, separate from the company settings on this page.
 
+![The Account page in demo mode showing Bruce Wayne’s fictional identity and Demo access](../screenshots/flows/account.jpg)
+
 In password mode, Account includes password changes, reported multi-factor authentication
 status and active sessions. Company single sign-on shows its connection and session controls
 without a local password form. Demo mode identifies the fictional persona; installations with
