@@ -66,15 +66,24 @@ export function prepareBatchBody(
 type WireOp = Omit<Op, "row"> & { row?: Record<string, unknown> };
 
 function addResourceAvailabilityClearMarkers(state: SyncState, ops: Op[]): WireOp[] {
-  const previousResources = new Map(state.lastSynced.resources.map((resource) => [resource.id, resource]));
+  const availabilityById = new Map<string, { first: boolean; last: boolean }>();
+  const possibleBases = state.dispatchedTarget ? [state.lastSynced, state.dispatchedTarget] : [state.lastSynced];
+  for (const base of possibleBases) {
+    for (const resource of base.resources) {
+      const previous = availabilityById.get(resource.id) ?? { first: false, last: false };
+      availabilityById.set(resource.id, {
+        first: previous.first || resource.firstAvailableDate !== undefined,
+        last: previous.last || resource.lastAvailableDate !== undefined,
+      });
+    }
+  }
   return ops.map((op) => {
     const wireOp: WireOp = { ...op, ...(op.row ? { row: { ...op.row } } : {}) };
     if (op.method !== "PUT" || op.table !== "resources" || !wireOp.row) return wireOp;
-    const previous = previousResources.get(op.id);
+    const previous = availabilityById.get(op.id);
     if (!previous) return wireOp;
-    for (const field of ["firstAvailableDate", "lastAvailableDate"] as const) {
-      if (previous[field] !== undefined && !Object.hasOwn(wireOp.row, field)) wireOp.row[field] = null;
-    }
+    if (previous.first && !Object.hasOwn(wireOp.row, "firstAvailableDate")) wireOp.row.firstAvailableDate = null;
+    if (previous.last && !Object.hasOwn(wireOp.row, "lastAvailableDate")) wireOp.row.lastAvailableDate = null;
     return wireOp;
   });
 }

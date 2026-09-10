@@ -128,7 +128,7 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
   id: "fix-r-person",
   accountId: "fix-a1",
   kind: "person",
-  name: "Fixture Person",
+  name: "Bruce Wayne",
   role: "Fixture Person Role",
   disciplineId: "fix-d1",
   employmentType: "freelancer",

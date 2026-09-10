@@ -21,6 +21,23 @@ const resource = (overrides: Partial<Resource> = {}): Resource => ({
 });
 
 describe("prepareBatchBody resource availability clears", () => {
+  it("emits a null during overlapping teardown when an in-flight new row added then cleared a boundary", () => {
+    const state = new SyncState("http://example.test", vi.fn() as unknown as typeof fetch);
+    const inFlight = resource({ firstAvailableDate: "2026-01-01" });
+    state.lastSynced = emptyAppData();
+    state.dispatchedTarget = { ...emptyAppData(), resources: [inFlight] };
+    const newest = { ...inFlight, updatedAt: "2026-01-03T00:00:00.000Z" };
+    delete newest.firstAvailableDate;
+
+    const body = JSON.parse(
+      prepareBatchBody(state, [{ method: "PUT", table: "resources", id: newest.id, row: newest }], {
+        keepalive: true,
+      }),
+    ) as { ops: Array<{ row: Record<string, unknown> }> };
+
+    expect(body.ops[0]?.row.firstAvailableDate).toBeNull();
+  });
+
   it("serializes independent deleted optional boundaries as explicit null markers", () => {
     const state = new SyncState("http://example.test", vi.fn() as unknown as typeof fetch);
     const previous = resource({ firstAvailableDate: "2026-01-01", lastAvailableDate: "2026-12-31" });
