@@ -114,8 +114,17 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
     ),
   },
 };
-const PRE_V38_TABLES: Record<string, TableSpec> = {
-  ...PRE_V37_TABLES,
+// v37 includes the account/task fields added by #720. It is only the v38 resource boundaries
+// that are absent from this historical contract; keep the v37 fields present so the v38
+// precondition proves the exact released shape before adding its two columns.
+export const V37_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  resources: {
+    ...liveTableSpec("resources"),
+    columns: liveTableSpec("resources").columns.filter(
+      (column) => column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+    ),
+  },
 };
 const PRE_V34_TABLES = Object.fromEntries(
   Object.entries(PRE_V37_TABLES).filter(([key]) => key !== "closures"),
@@ -199,4 +208,3 @@ export const V36_TABLES: Record<string, TableSpec> = {
     columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "task"),
   },
 };
-export const V37_TABLES: Record<string, TableSpec> = PRE_V38_TABLES;

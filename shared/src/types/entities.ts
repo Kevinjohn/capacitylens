@@ -139,9 +139,9 @@ export interface Resource extends ScopedEntity {
   /** Account-wide display preference for people and external resources. Absent = not favourite. */
   isFavourite?: boolean;
   /** Inclusive first date on which this person may be scheduled. Absent = unbounded. */
-  firstAvailableDate?: ISODate;
+  firstAvailableDate?: ISODate | undefined;
   /** Inclusive last date on which this person may be scheduled. Absent = unbounded. */
-  lastAvailableDate?: ISODate;
+  lastAvailableDate?: ISODate | undefined;
   /** ISO 8601 timestamp of when this resource was archived (soft, reversible): hidden from
    *  scheduling but fully retained. Absent = active (not archived). Part of the
    *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in

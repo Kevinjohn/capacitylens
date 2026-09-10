@@ -32,6 +32,7 @@ import {
   type Resource,
   type TimeOff,
 } from "@capacitylens/shared/types/entities";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { ValidationError } from "./validate/errors";
 export { assertIdPresent, ValidationError } from "./validate/errors";
 export { listAcceptedFieldNames, buildAcceptedWriteFields, listAppliedRequestedFieldNames } from "./validate/fields";
@@ -161,7 +162,9 @@ function parseResource(row: Record<string, unknown>): Resource {
   };
 }
 
-function parseResourceAvailability(row: Record<string, unknown>): Pick<Resource, "firstAvailableDate" | "lastAvailableDate"> {
+function parseResourceAvailability(
+  row: Record<string, unknown>,
+): Pick<Resource, "firstAvailableDate" | "lastAvailableDate"> {
   const firstAvailableDate = optionalString(row, "firstAvailableDate");
   const lastAvailableDate = optionalString(row, "lastAvailableDate");
   return {
@@ -255,9 +258,11 @@ function assertAllocationWrite(input: AssertValidWriteInput, accountId: string):
     existing.endDate !== endDate ||
     (existing.ignoreWeekends === true) !== (row.ignoreWeekends === true);
   if (!placementChanged) return;
-  const resourceRow = lookup?.row("resources", resourceId) ?? state.resources.find((resource) => resource.id === resourceId);
+  const resourceRow =
+    lookup?.row("resources", resourceId) ?? state.resources.find((resource) => resource.id === resourceId);
   if (!resourceRow) return;
   const resource = parseResource(resourceRow as Record<string, unknown>);
+  const accountWorkingDays = resolveAccountWorkingDays(state, accountId, lookup);
   assertAllocationWithinResourceAvailability({
     allocation: {
       startDate,
@@ -265,7 +270,14 @@ function assertAllocationWrite(input: AssertValidWriteInput, accountId: string):
       ...(row.ignoreWeekends === true ? { ignoreWeekends: true } : {}),
     },
     resource,
+    accountWorkingDays,
   });
+}
+
+function resolveAccountWorkingDays(state: AppData, accountId: string, lookup: ValidationDataLookup | undefined) {
+  if (lookup) return lookup.accountWorkingDays(accountId);
+  const account = state.accounts.find((candidate) => candidate.id === accountId);
+  return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1);
 }
 
 function assertEntityWrite(input: AssertValidWriteInput, accountId: string): void {

@@ -11,6 +11,7 @@ import {
   FIXTURE_PROJECT,
   FIXTURE_PHASE,
   FIXTURE_RESOURCE,
+  FIXTURE_RESOURCE_PERSON,
   FIXTURE_RESOURCE_EXTERNAL,
   FIXTURE_ACTIVITY,
   FIXTURE_ACTIVITY_INTERNAL,
@@ -329,11 +330,13 @@ interface ResourceSnapshot extends ProjectBinding {
   color: string;
   createdAt: string;
   disciplineId?: string;
+  firstAvailableDate?: string;
   engagement: string;
   employmentType?: string;
   halfDays: number[];
   isFavourite?: boolean;
   kind: string;
+  lastAvailableDate?: string;
   name?: string;
   role: string;
   updatedAt: string;
@@ -664,6 +667,8 @@ function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectB
       "id",
       "isFavourite",
       "kind",
+      "firstAvailableDate",
+      "lastAvailableDate",
       "name",
       "projectId",
       "role",
@@ -676,6 +681,8 @@ function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectB
   const disciplineId = readOptionalString(source, "disciplineId", "resource row");
   const employmentType = readOptionalString(source, "employmentType", "resource row");
   const isFavourite = readOptionalBoolean(source, "isFavourite", "resource row");
+  const firstAvailableDate = readOptionalString(source, "firstAvailableDate", "resource row");
+  const lastAvailableDate = readOptionalString(source, "lastAvailableDate", "resource row");
   const name = readOptionalString(source, "name", "resource row");
   const snapshot: ResourceSnapshot = {
     ...binding,
@@ -693,6 +700,8 @@ function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectB
   if (disciplineId !== undefined) snapshot.disciplineId = disciplineId;
   if (employmentType !== undefined) snapshot.employmentType = employmentType;
   if (isFavourite !== undefined) snapshot.isFavourite = isFavourite;
+  if (firstAvailableDate !== undefined) snapshot.firstAvailableDate = firstAvailableDate;
+  if (lastAvailableDate !== undefined) snapshot.lastAvailableDate = lastAvailableDate;
   if (name !== undefined) snapshot.name = name;
   return snapshot;
 }
@@ -5359,6 +5368,16 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
       employmentType: "permanent",
       engagement: "supplementary",
     });
+  });
+
+  it("person resource: availability boundaries round-trip with all optional fields populated", async () => {
+    const { app } = freshApp();
+    await seedFixtureDeps(app);
+    expect((await post(app, "resources", FIXTURE_RESOURCE_PERSON)).statusCode).toBe(201);
+    expectFixture(
+      readFirstResource((await readValidatedState(app)).resources),
+      stripTombstones(FIXTURE_RESOURCE_PERSON),
+    );
   });
 
   it("external resource: kind + company name round-trip (no discipline/project binding)", async () => {
