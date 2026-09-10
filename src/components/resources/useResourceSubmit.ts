@@ -15,6 +15,7 @@ import {
   type Weekday,
 } from "@capacitylens/shared/types/entities";
 
+/** Editable values submitted by the person or placeholder form. */
 export type ResourceSubmitDraft = {
   name: string;
   role: string;
@@ -199,6 +200,7 @@ function createSubmit(input: SubmitInput) {
   };
 }
 
+/** Save a resource and keep its draft available until persistence acknowledges the write. */
 export function useResourceSubmit(input: SubmitInputBase) {
   const [submitting, setSubmitting] = useState(false);
   const pendingResourceRef = useRef<Resource | undefined>(undefined);
