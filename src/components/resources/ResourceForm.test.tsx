@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { StrictMode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ResourceForm } from "./ResourceForm";
@@ -135,6 +136,7 @@ it("retries a transient rejected save without adding a duplicate person", async 
   const onClose = vi.fn();
   vi.spyOn(persistence, "flushPendingWrites")
     .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure.") })
+    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure again.") })
     .mockResolvedValueOnce({ kind: "clean" });
   try {
     render(<ResourceForm kind="person" onClose={onClose} />);
@@ -144,11 +146,28 @@ it("retries a transient rejected save without adding a duplicate person", async 
     expect(useStore.getState().data.resources).toHaveLength(1);
 
     await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure again.");
+    expect(useStore.getState().data.resources).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
     expect(useStore.getState().data.resources).toHaveLength(1);
   } finally {
     vi.restoreAllMocks();
   }
+});
+
+it("closes after a successful save under StrictMode", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  render(
+    <StrictMode>
+      <ResourceForm kind="person" onClose={onClose} />
+    </StrictMode>,
+  );
+  await user.type(screen.getByLabelText("Name"), "Alice");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
 });
 
 it("ignores a second submit while the first persistence round-trip is pending", async () => {
@@ -196,6 +215,32 @@ it("does not let a late save response close a form after its company changed", a
     resolveFlush({ kind: "clean" });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onClose).not.toHaveBeenCalled();
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
+it("does not surface a late save rejection after its company changed", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  let rejectFlush!: (error: Error) => void;
+  vi.spyOn(persistence, "flushPendingWrites").mockReturnValue(
+    new Promise((_resolve, reject) => {
+      rejectFlush = reject;
+    }),
+  );
+  try {
+    render(<ResourceForm kind="person" onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Alice");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    const other = useStore.getState().addAccount({ name: "Other", color: "#111111" });
+    if (!other) throw new Error("Expected second account");
+    useStore.getState().setActiveAccount(other.id);
+
+    rejectFlush(new Error("stale save failure"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   } finally {
     vi.restoreAllMocks();
   }

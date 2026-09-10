@@ -189,6 +189,40 @@ function saveResource(input: SaveResourceInput) {
   });
 }
 
+function refreshPendingCreatedResource(
+  input: SubmitInput,
+  resource: Resource | undefined,
+  saved: Resource | undefined,
+) {
+  if (input.resource) return;
+  const pendingId = resource?.id ?? saved?.id;
+  const latest = pendingId && input.readResources().find(({ id }) => id === pendingId);
+  if (latest) input.pendingCreatedResourceRef.current = latest;
+}
+
+type FlushResult = Awaited<ReturnType<typeof flushPendingWrites>>;
+
+function handleResourceFlushResult(input: SubmitInput, result: FlushResult, submittedAccountId: string | null) {
+  if (!input.mountedRef.current || input.readActiveAccountId() !== submittedAccountId) return;
+  if (result.kind === "clean") {
+    input.pendingCreatedResourceRef.current = undefined;
+    input.onClose();
+    return;
+  }
+  input.fail(null, result.kind === "failed" ? resolveErrorMessage(result.error) : m.app_persist_error());
+}
+
+function handleResourceFlushError(input: SubmitInput, error: unknown, submittedAccountId: string | null) {
+  if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) {
+    input.fail(null, resolveErrorMessage(error));
+  }
+}
+
+function finishResourceSubmit(input: SubmitInput) {
+  input.submittingRef.current = false;
+  if (input.mountedRef.current) input.setSubmitting(false);
+}
+
 function createSubmit(input: SubmitInput) {
   return () => {
     if (input.submittingRef.current) return;
@@ -221,26 +255,11 @@ function createSubmit(input: SubmitInput) {
       input.submittingRef.current = true;
       input.setSubmitting(true);
       const saved = saveResource({ resource, patch, add: input.add, update: input.update });
-      if (!resource && saved && input.readResources().some(({ id }) => id === saved.id)) {
-        input.pendingCreatedResourceRef.current = saved;
-      }
+      refreshPendingCreatedResource(input, resource, saved);
       void flushPendingWrites()
-        .then((result) => {
-          if (!input.mountedRef.current || input.readActiveAccountId() !== submittedAccountId) return;
-          if (result.kind === "clean") {
-            input.pendingCreatedResourceRef.current = undefined;
-            input.onClose();
-            return;
-          }
-          input.fail(null, result.kind === "failed" ? resolveErrorMessage(result.error) : m.app_persist_error());
-        })
-        .catch((error: unknown) => {
-          if (input.mountedRef.current) input.fail(null, resolveErrorMessage(error));
-        })
-        .finally(() => {
-          input.submittingRef.current = false;
-          if (input.mountedRef.current) input.setSubmitting(false);
-        });
+        .then((result) => handleResourceFlushResult(input, result, submittedAccountId))
+        .catch((error: unknown) => handleResourceFlushError(input, error, submittedAccountId))
+        .finally(() => finishResourceSubmit(input));
     } catch (e) {
       input.submittingRef.current = false;
       input.setSubmitting(false);
@@ -256,12 +275,12 @@ function useResourceSubmit(
   const pendingCreatedResourceRef = useRef<Resource | undefined>(undefined);
   const mountedRef = useRef(true);
   const submittingRef = useRef(false);
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+    };
+  }, []);
   const submit = () =>
     createSubmit({
       ...input,
