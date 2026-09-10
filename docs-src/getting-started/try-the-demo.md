@@ -48,10 +48,11 @@ Choose the sample account; no password or pop-up is involved.
 
 Try the things you'd do in a real resourcing meeting:
 
-1. Select **Show filters** at the far right of the Schedule toolbar. The Work/Time off
-   choice, person search and filter dropdowns appear in one row.
+1. Select **Show filters** at the far right of the Schedule toolbar. Person search appears
+   on the left; the filter dropdowns, Work/Time off choice and Clear Filters group on the
+   right.
 
-   ![The open schedule filter row with Work and Time off draw modes, person search and filter dropdowns](../screenshots/flows/schedule_filters_open.jpg)
+   ![The open schedule filter row with person search on the left and the remaining controls grouped on the right](../screenshots/flows/schedule_filters_open.jpg)
 
 2. Open **All projects** and choose **Queen Consolidated / Project Watchtower**. The
    schedule keeps matching work, and **Clear Filters** turns red to show that the view is

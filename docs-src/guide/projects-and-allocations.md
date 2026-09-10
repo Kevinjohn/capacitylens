@@ -48,10 +48,12 @@ activities from the activities in that project's **Project-specific** group.
 4. Click **Add project**. Every project belongs to a client, so choose one from the
    list.
 
-![The Projects page listing Metropolis Rebrand before Project Watchtower alphabetically, with client names and an Add project button](../screenshots/flows/projects-page.jpg)
+![The Projects page ordered by client then project, with project names first, client names in grey and an Add project button](../screenshots/flows/projects-page.jpg)
 
-The Clients and Projects pages keep their rows alphabetical. A project is sorted by its
-project name; its client appears as supporting information underneath.
+The Clients page keeps its rows alphabetical. The Projects page sorts first by client,
+then by project within that client. A private client's or project's code name controls
+its alphabetical position when one is set. Each row still puts the project name first
+and shows its client in grey as supporting information.
 
 Every company starts with one built-in client called **Internal** for non-billable
 work — general admin, internal meetings, anything that isn't client work. It can't be
@@ -110,10 +112,10 @@ towards a different project. When you edit the booking, choosing **No specific p
 clears that attribution. Existing unattributed bookings stay unattributed until you make
 that choice explicitly.
 
-If the activity you need doesn't exist yet, an "Add activity" option inside the same form
-can create it in the selected scope — unless your company has turned that convenience off
-in [Settings](/guide/settings). Adding one under a real project creates a project-specific
-activity and places it in that group.
+If the activity you need doesn't exist yet, create it on the **Activities** page. Your
+company can opt in to an inline **Add activity** option in [Settings](/guide/settings).
+When enabled, adding one under a real project creates a project-specific activity and
+places it in that group.
 
 Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
 single-line.

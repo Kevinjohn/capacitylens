@@ -520,7 +520,9 @@ The archive flow is reversible and retains children; it must not be described as
 
 **Scheduler toolbar.** A filter-icon button at the right of the toolbar, after **Undo**/**Redo** and
 its own divider, starts as **Show filters** with `aria-expanded="false"`; it becomes **Hide filters**
-with `aria-expanded="true"` while the centred secondary filter row is present. Viewers retain the
+with `aria-expanded="true"` while the secondary filter row is present. Search stays at the left;
+the remaining controls form a right-aligned group that wraps at narrower desktop widths without
+changing their order. Viewers retain the
 filter button in the same right-hand action area while the unavailable history controls are hidden.
 Opening and closing the row moves the schedule body down and back up without changing any filter or
 draw-mode state. A **Weeks visible** dropdown (a `role="combobox"` select whose accessible name
@@ -564,7 +566,8 @@ The expanded filter row starts with `Search people…`, which matches accent-ins
 displayed name, stored name and role as one phrase, so a query may span those fields. The remaining
 controls are `Filter by discipline` (shown only when disciplines are enabled and at least one exists,
 in the scheduler grid's canonical discipline order), `Filter by client` (Internal first, then
-alphabetical), `Filter by project` (Internal-owned projects first, then alphabetical by project name),
+alphabetical), `Filter by project` (`All projects` first, then client-first/project-second order
+using each item's trimmed non-empty code name when present, otherwise its ordinary name),
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
 `Internal — All` + each internal activity, then an `All projects` optgroup with `All projects — All` +
 each group's activities alphabetically; shown only when the account has internal/All-projects activities. Project-specific activities
@@ -574,8 +577,10 @@ clears the client/project filter and vice-versa. The `Tentative visibility` radi
 `Work`/`Time off` (note "Time off" here is the _toggle_, distinct from the "Time off" _nav link_), then `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
 resources with no matching work in the displayed timeline; ticking it brings them back
-visible-but-dimmed so you can see who's free to staff), `Clear Filters` (always shown at the far
-right; disabled and visually quiet with no active filters, then red with a bin icon while active).
+visible-but-dimmed so you can see who's free to staff), `Clear Filters` (always shown last in the
+right-hand group; disabled and visually quiet with no active filters, then red with a bin icon while
+active). Project options visually mute the client and slash while preserving the complete
+`Client / Project` accessible label and ordinary keyboard selection.
 
 **Schedule display (minimise weekends).** Settings → **Schedule** has a switch
 **Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.

@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Made inline activity creation opt-in, aligned the Schedule filter controls, and sorted project
+  choices and the Projects page consistently by client then project, including code names
+  (#724, #712, #713, #718).
+
 ## [0.62.0-alpha.5] - 2026-09-10
 
 CapacityLens Alpha 5 makes archived work easier to find and recover. This public milestone also

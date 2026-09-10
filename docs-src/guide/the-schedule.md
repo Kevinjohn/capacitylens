@@ -136,13 +136,20 @@ Use **Show filters** at the right of the toolbar, after Undo and Redo, to open t
 row. Select **Hide filters** when you want the extra vertical space back. Hiding the row
 does not clear an active filter.
 
-![The open schedule filter row with person search, four filter dropdowns, Show tentative and Hide tentative, then Work and Time off draw modes](../screenshots/flows/schedule_filters_open.jpg)
+![The open schedule filter row with person search on the left and the filter, visibility, draw-mode and Clear Filters controls grouped on the right](../screenshots/flows/schedule_filters_open.jpg)
 
-The row starts with person search and the discipline, client, project and activity
-filters. Next are the **Show tentative** / **Hide tentative** and **Work** / **Time off**
-segmented controls. Selecting a client or project narrows the bars and rows to that work.
-The active value stays visible in the row, and **Clear Filters** turns red so the filtered
-state cannot be mistaken for the complete schedule.
+Person search stays on the left. The discipline, client, project and activity filters sit
+in a group on the right, followed by the **Show tentative** / **Hide tentative** and
+**Work** / **Time off** controls. The group wraps at narrower desktop widths without
+changing the keyboard order.
+
+The project menu keeps **All projects** first, then sorts projects by client and project.
+A code name controls the alphabetical position when one is set. In each option, the
+client and slash are grey so the project name is easier to scan; the complete
+**Client / Project** label remains available to assistive technology. Selecting a client
+or project narrows the bars and rows to that work. The active value stays visible, and
+**Clear Filters** turns red so the filtered state cannot be mistaken for the complete
+schedule.
 
 ![The Schedule filtered to Queen Consolidated and Project Watchtower, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.jpg)
 
