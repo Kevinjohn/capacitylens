@@ -20,14 +20,25 @@ function availabilityPresenceByResource(state: SyncState): Map<string, Availabil
   return availabilityById;
 }
 
+function toWireOp(op: Op): WireOp {
+  // Entity is a closed domain union, while the wire copy deliberately accepts the explicit
+  // null clear markers added below. The spread creates the mutable JSON-object representation.
+  const row = op.row ? ({ ...op.row } as Record<string, unknown>) : undefined;
+  return {
+    method: op.method,
+    table: op.table,
+    id: op.id,
+    ...(op.accountId === undefined ? {} : { accountId: op.accountId }),
+    ...(op.updatedAt === undefined ? {} : { updatedAt: op.updatedAt }),
+    ...(row ? { row } : {}),
+  };
+}
+
 /** Preserve explicit availability clears across ordinary and teardown saves in flight together. */
 export function addResourceAvailabilityClearMarkers(state: SyncState, ops: Op[]): WireOp[] {
   const availabilityById = availabilityPresenceByResource(state);
   return ops.map((op) => {
-    // Entity is a closed domain union, while the wire copy deliberately accepts the explicit
-    // null clear marker below. The spread creates the mutable JSON-object representation.
-    const row = op.row ? ({ ...op.row } as Record<string, unknown>) : undefined;
-    const wireOp: WireOp = { ...op, ...(row ? { row } : {}) };
+    const wireOp = toWireOp(op);
     if (op.method !== "PUT" || op.table !== "resources" || !wireOp.row) return wireOp;
     const previous = availabilityById.get(op.id);
     if (!previous) return wireOp;

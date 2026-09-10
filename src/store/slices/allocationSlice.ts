@@ -57,13 +57,9 @@ export function createAllocationSlice(
                 patch.hoursPerDay !== undefined
                   ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) }
                   : patch;
-              const { projectId: mergedProjectId, ...mergedWithoutProjectId } = merged;
-              const { projectId: patchedProjectId, ...patchWithoutProjectId } = clampedPatch;
-              const effectiveProjectId = Object.hasOwn(clampedPatch, "projectId") ? patchedProjectId : mergedProjectId;
               const effective: Allocation = {
-                ...mergedWithoutProjectId,
-                ...patchWithoutProjectId,
-                ...(effectiveProjectId === undefined ? {} : { projectId: effectiveProjectId }),
+                ...merged,
+                ...(clampedPatch.hoursPerDay === undefined ? {} : { hoursPerDay: clampedPatch.hoursPerDay }),
               };
               // The server re-runs assertAllocationRefs on the full merged row on EVERY write, so a
               // note/status/date-only edit of an allocation whose resource is now EXTERNAL with a
