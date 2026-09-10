@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../../store/useStore";
 import { hasDisciplinesEnabled } from "../../store/selectors";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
+import { flushPendingWrites } from "../../data/persist";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { validateText, validateWorkingDays } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
@@ -86,6 +87,11 @@ type SubmitInput = {
   onClose: () => void;
   add: AddResource;
   update: UpdateResource;
+  pendingCreatedResourceRef: { current: Resource | undefined };
+  mountedRef: { current: boolean };
+  submittingRef: { current: boolean };
+  readActiveAccountId: () => string | null;
+  setSubmitting: (submitting: boolean) => void;
 };
 
 type ValidatedFields = { name: string; role: string };
@@ -166,9 +172,9 @@ function saveResource(input: SaveResourceInput) {
   const { resource, patch, add, update } = input;
   if (resource) {
     update(resource.id, patch);
-    return;
+    return undefined;
   }
-  add({
+  return add({
     role: patch.role,
     employmentType: patch.employmentType,
     engagement: patch.engagement,
@@ -185,6 +191,10 @@ function saveResource(input: SaveResourceInput) {
 
 function createSubmit(input: SubmitInput) {
   return () => {
+    if (input.submittingRef.current) return;
+    const pending = input.pendingCreatedResourceRef.current;
+    const retryResource = pending && input.readResources().some(({ id }) => id === pending.id) ? pending : undefined;
+    const resource = input.resource ?? retryResource;
     const fields = parseFormFields({
       name: input.draft.name,
       role: input.draft.role,
@@ -195,7 +205,7 @@ function createSubmit(input: SubmitInput) {
     });
     if (!fields) return;
     const patch = buildResourcePatch({
-      resource: input.resource,
+      resource,
       kind: input.kind,
       isPlaceholder: input.isPlaceholder,
       disciplineId: input.draft.disciplineId,
@@ -205,14 +215,62 @@ function createSubmit(input: SubmitInput) {
       projectId: input.draft.projectId,
       fields,
     });
+    const submittedAccountId = input.readActiveAccountId();
     try {
-      if (!validateResourceFreshness(input.resource, input.readResources(), input.fail)) return;
-      saveResource({ resource: input.resource, patch, add: input.add, update: input.update });
-      input.onClose();
+      if (!validateResourceFreshness(resource, input.readResources(), input.fail)) return;
+      input.submittingRef.current = true;
+      input.setSubmitting(true);
+      const saved = saveResource({ resource, patch, add: input.add, update: input.update });
+      if (!resource && saved && input.readResources().some(({ id }) => id === saved.id)) {
+        input.pendingCreatedResourceRef.current = saved;
+      }
+      void flushPendingWrites()
+        .then((result) => {
+          if (!input.mountedRef.current || input.readActiveAccountId() !== submittedAccountId) return;
+          if (result.kind === "clean") {
+            input.pendingCreatedResourceRef.current = undefined;
+            input.onClose();
+            return;
+          }
+          input.fail(null, result.kind === "failed" ? resolveErrorMessage(result.error) : m.app_persist_error());
+        })
+        .catch((error: unknown) => {
+          if (input.mountedRef.current) input.fail(null, resolveErrorMessage(error));
+        })
+        .finally(() => {
+          input.submittingRef.current = false;
+          if (input.mountedRef.current) input.setSubmitting(false);
+        });
     } catch (e) {
+      input.submittingRef.current = false;
+      input.setSubmitting(false);
       input.fail(null, resolveErrorMessage(e));
     }
   };
+}
+
+function useResourceSubmit(
+  input: Omit<SubmitInput, "pendingCreatedResourceRef" | "mountedRef" | "submittingRef" | "setSubmitting">,
+) {
+  const [submitting, setSubmitting] = useState(false);
+  const pendingCreatedResourceRef = useRef<Resource | undefined>(undefined);
+  const mountedRef = useRef(true);
+  const submittingRef = useRef(false);
+  useEffect(
+    () => () => {
+      mountedRef.current = false;
+    },
+    [],
+  );
+  const submit = () =>
+    createSubmit({
+      ...input,
+      pendingCreatedResourceRef,
+      mountedRef,
+      submittingRef,
+      setSubmitting,
+    })();
+  return { submit, submitting };
 }
 
 type ResourceFieldsState = Pick<ResourceFormState, "name" | "setName" | "role" | "setRole"> &
@@ -323,6 +381,49 @@ function ResourceCapacityFields({ form, isPlaceholder, error, errorField, errorI
   );
 }
 
+type ResourceFormContentProps = {
+  form: ResourceFieldsState & ResourceCapacityFieldsState;
+  isPlaceholder: boolean;
+  disciplinesEnabled: boolean;
+  disciplines: Discipline[];
+  projectOptions: Option[];
+  error: string | null;
+  errorField: string | null;
+  errorId: string;
+};
+
+function ResourceFormContent({
+  form,
+  isPlaceholder,
+  disciplinesEnabled,
+  disciplines,
+  projectOptions,
+  error,
+  errorField,
+  errorId,
+}: ResourceFormContentProps) {
+  return (
+    <>
+      <ResourceFields
+        form={form}
+        isPlaceholder={isPlaceholder}
+        disciplinesEnabled={disciplinesEnabled}
+        disciplines={disciplines}
+        projectOptions={projectOptions}
+        errorField={errorField}
+        errorId={errorId}
+      />
+      <ResourceCapacityFields
+        form={form}
+        isPlaceholder={isPlaceholder}
+        error={error}
+        errorField={errorField}
+        errorId={errorId}
+      />
+    </>
+  );
+}
+
 /** Add or edit a person or placeholder while preserving kind-specific capacity semantics. */
 export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceFormProps) {
   const add = useStore((state) => state.addResource);
@@ -351,26 +452,31 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     projectId: form.projectId,
   };
   const readResources = () => useStore.getState().data.resources;
-  const submit = createSubmit({ resource, kind, isPlaceholder, draft, readResources, fail, onClose, add, update });
+  const { submit, submitting } = useResourceSubmit({
+    resource,
+    kind,
+    isPlaceholder,
+    draft,
+    readResources,
+    fail,
+    onClose,
+    add,
+    update,
+    readActiveAccountId: () => useStore.getState().activeAccountId,
+  });
   return (
     <Modal
       title={resolveFormTitle(resource, isPlaceholder)}
       onClose={onClose}
       onSubmit={submit}
-      footer={<FormActions onCancel={onClose} />}
+      footer={<FormActions onCancel={onClose} disabled={submitting} />}
     >
-      <ResourceFields
+      <ResourceFormContent
         form={form}
         isPlaceholder={isPlaceholder}
         disciplinesEnabled={disciplinesEnabled}
         disciplines={data.disciplines}
         projectOptions={projectOptions}
-        errorField={errorField}
-        errorId={errorId}
-      />
-      <ResourceCapacityFields
-        form={form}
-        isPlaceholder={isPlaceholder}
         error={error}
         errorField={errorField}
         errorId={errorId}

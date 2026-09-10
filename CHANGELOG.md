@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
   and simplify drawer entries to a compact activity-first agenda (#753, #754).
+- Keep the Add person dialog open when a self-hosted save is rejected, and allow people whose
+  optional Role is blank to persist (#736).
 
 ### Added
 

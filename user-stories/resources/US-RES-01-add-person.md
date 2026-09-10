@@ -1,6 +1,6 @@
 # US-RES-01 — Add a person resource
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule"
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule" · **Docs:** [People and placeholders](/guide/people-and-placeholders#add-a-person)
 
 ## Goal
 
@@ -30,6 +30,9 @@ off that resource record.
 - ✅ Going to **Schedule** shows a _Dana Lee_ row under the **Design** group.
 - ✅ Saving with an empty **Name** keeps the dialog open and shows an inline error
   ("Name is required for a person.") associated with the Name field (`aria-invalid`).
+- ✅ Role is optional; leaving it blank still saves the person.
+- ✅ If a self-hosted server rejects the save, the dialog stays open and shows the server error
+  instead of implying that the person was saved.
 - ✅ The saved resource uses the fixed **8-hour** full-day capacity.
 - ✅ At normal dialog widths, Name, Role, Discipline and Engagement use compact rows with roughly
   one quarter for the label and three quarters for the control; on a narrow screen they stack

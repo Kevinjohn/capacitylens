@@ -55,7 +55,7 @@ class WriteQueueOwner {
   private handleSaveFailure(data: AppData, error: unknown): void {
     const { owner, serverMode, onError } = this.input;
     if (owner.current.disposed) return;
-    owner.update({ failedSinceSuccess: true });
+    owner.update({ failedSinceSuccess: true, lastError: error });
     incrementPersistenceDiagnostic("savesFailed");
     onError?.(error);
     if (this.beginAuthoritativeReloadFor(error)) return;

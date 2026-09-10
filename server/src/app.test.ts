@@ -1387,6 +1387,17 @@ function createCrudMutationTests(): void {
 }
 
 function createCrudResourceMutationTests(): void {
+  it("batch persists a person whose optional role is blank", async () => {
+    const { app } = freshApp();
+    await post(app, "accounts", account("a1"));
+    const resource = { ...person("r1", "a1"), role: "" };
+    const response = await batch(app, [{ method: "PUT", table: "resources", id: resource.id, row: resource }]);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const state = await readValidatedState(app);
+    expect(readFirstResource(state.resources)).toMatchObject({ id: "r1", role: "" });
+  });
+
   it("PATCH is a partial merge: omitted fields keep their stored value", async () => {
     const { app } = freshApp();
     await scaffold(app);
