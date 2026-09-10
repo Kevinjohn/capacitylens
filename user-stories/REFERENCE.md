@@ -103,9 +103,10 @@ If the app changes, update this file first, then the affected stories.
    by `src/lib/introCopy.ts`), pending a human edit.
 6. On an account that still has an onboarding step to do, the schedule shows a floating **Getting
    started** checklist card (`data-testid="getting-started"`) over the schedule without shifting
-   the toolbar or grid, with four
-   state-driven steps — **Add your first client / project / person** (links to those pages) and
-   **Assign them to the project** (done once any allocation exists). A step ticks itself off from
+   the toolbar or grid. It first asks the user to **Import existing data** or explicitly **Start
+   from scratch**, then tracks adding a client, project, activity and person, assigning that person
+   to the project, and reviewing the company's focused scheduling, availability and optional-feature
+   defaults in Settings. An entity step ticks itself off from
    the account's actual data (the built-in Internal client does NOT count as "your first
    client", and placeholder or external resources do NOT count as "your first person"); the card
    self-hides once ALL steps are done, so the seeded companies never show it.
@@ -119,7 +120,8 @@ If the app changes, update this file first, then the affected stories.
    (`capacitylens/gettingStartedDismissed`, default off, never in `AppData`/export). Hidden for a
    Viewer (every schedule-setup CTA is a write they can't do). In an authenticated company, Owner
    and Admin additionally see an optional **Invite your team** link to `/team`; it is deliberately
-   outside the four completion steps, so a solo owner can finish setup without inviting anyone.
+   outside the completion steps, so a solo owner can finish setup without inviting anyone. Away
+   from Schedule, a compact progress link returns to the full card without covering page content.
 7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
 8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these

@@ -4,6 +4,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import {
   FIXTURE_ALLOCATION,
+  FIXTURE_ACTIVITY,
   FIXTURE_CLIENT,
   FIXTURE_PROJECT,
   FIXTURE_RESOURCE as FIXTURE_PLACEHOLDER,
@@ -27,6 +28,7 @@ describe("deriveGettingStartedSteps", () => {
     expect(buildGettingStartedSteps(emptyAppData())).toEqual({
       client: false,
       project: false,
+      activity: false,
       person: false,
       assign: false,
     });
@@ -45,6 +47,10 @@ describe("deriveGettingStartedSteps", () => {
       clients: [buildInternalClient("a1", NOW), activeClient],
     });
     expect(buildGettingStartedSteps(data).client).toBe(true);
+  });
+
+  it("counts an imported activity without requiring a disposable replacement", () => {
+    expect(buildGettingStartedSteps(dataWith({ activities: [FIXTURE_ACTIVITY] })).activity).toBe(true);
   });
 
   it("relies on the caller to remove deleted clients from its active projection", () => {
@@ -69,12 +75,14 @@ describe("deriveGettingStartedSteps", () => {
     delete person.projectId;
     const data = dataWith({
       projects: [FIXTURE_PROJECT],
+      activities: [FIXTURE_ACTIVITY],
       resources: [person],
       allocations: [FIXTURE_ALLOCATION],
     });
     expect(buildGettingStartedSteps(data)).toEqual({
       client: false,
       project: true,
+      activity: true,
       person: true,
       assign: true,
     });
@@ -83,14 +91,17 @@ describe("deriveGettingStartedSteps", () => {
 
 describe("allStepsDone", () => {
   it("is true only when every step is complete", () => {
-    expect(hasCompletedAllSteps({ client: true, project: true, person: true, assign: true })).toBe(true);
+    expect(hasCompletedAllSteps({ client: true, project: true, activity: true, person: true, assign: true })).toBe(
+      true,
+    );
   });
 
   it.each([
-    ["client", { client: false, project: true, person: true, assign: true }],
-    ["project", { client: true, project: false, person: true, assign: true }],
-    ["person", { client: true, project: true, person: false, assign: true }],
-    ["assign", { client: true, project: true, person: true, assign: false }],
+    ["client", { client: false, project: true, activity: true, person: true, assign: true }],
+    ["project", { client: true, project: false, activity: true, person: true, assign: true }],
+    ["activity", { client: true, project: true, activity: false, person: true, assign: true }],
+    ["person", { client: true, project: true, activity: true, person: false, assign: true }],
+    ["assign", { client: true, project: true, activity: true, person: true, assign: false }],
   ] as const)("is false when %s is incomplete", (_label, steps) => {
     expect(hasCompletedAllSteps(steps)).toBe(false);
   });

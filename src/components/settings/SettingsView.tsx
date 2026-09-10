@@ -18,6 +18,7 @@ export function SettingsView() {
     <ListPage title={m.settings_title()}>
       <div className="flex flex-col gap-6">
         <SettingsSchedulingSection
+          id="getting-started-settings"
           canEdit={controller.canEdit}
           {...scheduling}
           workingDaysMinimumId={controller.workingDaysMinimumId}
@@ -50,10 +51,11 @@ export function SettingsView() {
         {auth.authMode === "password" && <SecuritySection />}
         <ArchivedSection collapsible defaultOpen={false} />
         <SettingsSection
+          id="getting-started-import"
           title={m.settings_data_heading()}
           help={m.settings_data_description()}
           collapsible
-          defaultOpen={false}
+          defaultOpen={window.location.hash === "#getting-started-import"}
         >
           <ImportExport />
         </SettingsSection>
