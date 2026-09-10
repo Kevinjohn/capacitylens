@@ -177,6 +177,25 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   visual correctness. Shared chrome and layout changes invalidate every capture that
   contains them, so the stale set is usually far larger than it looks.
 
+### Stories and documentation checkpoint
+
+Use this lightweight workflow for user-facing changes:
+
+- When understanding an issue, identify the existing story in `user-stories/` that covers
+  the user's problem. Update it when expected behaviour changes; add a story for a new
+  capability. Stories describe lasting user needs, not individual issues or implementation steps.
+- Keep stories focused on the user need and observable outcomes, including relevant defaults
+  and access restrictions. Use those outcomes to guide tests, with technical edge cases covered
+  separately. Follow existing story conventions rather than introducing another template.
+- Give each affected story a link to the documentation page or section that explains how to
+  accomplish it. Several stories can share a page; prefer updating an existing guide when it fits.
+- Before finishing, compare the story and documentation with the implemented behaviour,
+  including affected screenshots. Update them together and mention deliberate omissions briefly
+  in the delivery summary.
+- Apply judgment: purely visual fixes and internal changes may need no story update, although
+  affected documentation or screenshots may still need refreshing. No new story per issue,
+  separate tracking document, or repository-wide backfill is required.
+
 ## Docker
 
 - Do not build or run Docker images, test in Docker, or change or maintain Dockerfiles, Compose
