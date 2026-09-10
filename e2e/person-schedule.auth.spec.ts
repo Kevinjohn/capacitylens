@@ -140,7 +140,8 @@ test("viewer cannot read personal time-off notes, while the owner can", async ({
   const viewerSheet = await openPrivacyDrawer(page);
   await expect(viewerSheet).toBeVisible();
   await expect(viewerSheet).toContainText("Sick");
-  await expect(viewerSheet).toContainText("10 Jun – 11 Jun 2026");
+  await expect(viewerSheet).toContainText("10 Jun – 11 Jun");
+  await expect(viewerSheet).not.toContainText("2026");
   await expect(viewerSheet).not.toContainText(PRIVATE_NOTE);
   await expect(page.locator(`[title*="${PRIVATE_NOTE}"]`)).toHaveCount(0);
   await expect(viewerSheet).not.toContainText(REAL_CLIENT);

@@ -23,6 +23,11 @@ async function assertReadOnlySchedule(page: import("@playwright/test").Page) {
   // Visual Design is tentative and hidden in the grid, but the personal view ignores that filter.
   await expect(sheet).toContainText("Visual Design");
   await expect(sheet).toContainText("Long weekend");
+  await expect(sheet.getByTestId("person-schedule-header")).toContainText(
+    /\d{1,2} [A-Z][a-z]{2} – \d{1,2} [A-Z][a-z]{2}/,
+  );
+  await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/Four weeks:|2026/);
+  await expect(sheet).not.toContainText(/Confirmed|Tentative|Completed|Series through/);
   await expect(sheet.getByRole("button", { name: /Edit|Delete|Save|Duplicate|Reassign/ })).toHaveCount(0);
   return sheet;
 }
@@ -161,13 +166,26 @@ test("opens from the trigger with both keyboard activation keys", async ({ page 
   await expect(dialog).toHaveCount(0);
 });
 
-test("keeps the trigger and identity column within their layout budgets", async ({ page }) => {
+test("uses the avatar as the sole trigger with resting, hover, and focus cues", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
   const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
   const triggerBox = await boundingBoxOrThrow(trigger);
-  expect(triggerBox.width).toBe(24);
-  expect(triggerBox.height).toBe(24);
+  expect(triggerBox.width).toBe(28);
+  expect(triggerBox.height).toBe(28);
+
+  const avatar = trigger.getByTestId("person-schedule-avatar");
+  const eye = trigger.getByTestId("person-schedule-eye");
+  await expect(avatar).toHaveCSS("opacity", "1");
+  await expect(eye).toHaveCSS("opacity", "0");
+  await trigger.hover();
+  await expect(avatar).toHaveCSS("opacity", "0");
+  await expect(eye).toHaveCSS("opacity", "1");
+  await trigger.focus();
+  await page.mouse.move(900, 700);
+  await expect(avatar).toHaveCSS("opacity", "0");
+  await expect(eye).toHaveCSS("opacity", "1");
+  await expect(trigger).toHaveCSS("cursor", "pointer");
 
   const identityColumn = page
     .getByTestId("scheduler-row")

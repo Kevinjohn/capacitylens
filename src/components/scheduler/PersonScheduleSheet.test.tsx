@@ -47,7 +47,8 @@ describe("PersonScheduleSheet content", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
     expect(dialog).toHaveAttribute("data-testid", "person-schedule-sheet");
     expect(dialog).toHaveClass("w-full", "max-w-[400px]", "sm:max-w-[400px]", "gap-0", "p-0");
-    expect(within(dialog).getByText("Four weeks: 7 Sep – 4 Oct 2026")).toBeVisible();
+    expect(within(dialog).getByText("7 Sep – 4 Oct")).toBeVisible();
+    expect(within(dialog).queryByText(/Four weeks:|2026/)).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Close" })).toBeVisible();
     expect(within(dialog).getByTestId("person-schedule-header")).toHaveClass("shrink-0");
     const list = within(dialog).getByRole("list");

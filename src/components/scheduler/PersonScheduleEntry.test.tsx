@@ -5,7 +5,7 @@ import type { PersonScheduleAllocationEntry, PersonScheduleTimeOffEntry } from "
 import { PersonScheduleEntry } from "./PersonScheduleEntry";
 
 describe("PersonScheduleEntry", () => {
-  it("renders every allocation detail as readable, read-only content", () => {
+  it("renders compact allocation details as readable, read-only content", () => {
     const entry: PersonScheduleAllocationEntry = {
       kind: "allocation",
       key: "allocation:a1",
@@ -32,12 +32,11 @@ describe("PersonScheduleEntry", () => {
     expect(item).toHaveAttribute("data-entry-id", "allocation:a1");
     expect(within(item).getByText("Prototype discovery")).toBeVisible();
     expect(within(item).getByText("Project Gotham · Wayne Enterprises")).toBeVisible();
-    expect(within(item).getByText("28 Dec 2026 – 8 Jan 2027")).toBeVisible();
-    expect(within(item).getByText(/6\.25h\/day/)).toBeVisible();
-    expect(within(item).getByText("Confirmed")).toBeVisible();
-    expect(within(item).getByText("Series through 15 Jan 2027")).toBeVisible();
+    expect(within(item).getByText("28 Dec – 8 Jan · 6.25h/day")).toBeVisible();
+    expect(within(item).queryByText(/2026|2027|Confirmed|Series through/)).not.toBeInTheDocument();
     expect(within(item).getByText(/Review the research/)).toHaveClass("whitespace-pre-wrap");
     expect(within(item).getByTestId("person-schedule-colour")).toHaveAttribute("aria-hidden", "true");
+    expect(item).not.toHaveClass("border-l-4");
     expect(within(item).queryByRole("button")).not.toBeInTheDocument();
     expect(within(item).queryByRole("link")).not.toBeInTheDocument();
   });
@@ -62,7 +61,8 @@ describe("PersonScheduleEntry", () => {
     const item = screen.getByTestId("person-schedule-entry");
     expect(item).toHaveAttribute("data-entry-kind", "timeOff");
     expect(within(item).getByText("Holiday")).toBeVisible();
-    expect(within(item).getByText("10 Sep 2026")).toBeVisible();
+    expect(within(item).getByText("10 Sep")).toBeVisible();
+    expect(within(item).queryByText(/2026/)).not.toBeInTheDocument();
     expect(within(item).getByText("Family day")).toHaveClass("whitespace-pre-wrap");
     expect(within(item).getByTestId("person-schedule-timeoff-accent")).toHaveAttribute("aria-hidden", "true");
     expect(within(item).queryByRole("button")).not.toBeInTheDocument();
