@@ -1,6 +1,12 @@
 import type { StoreApi } from "zustand";
 import { newId } from "@capacitylens/shared/lib/id";
-import { assertDateRange, assertResourceExists, remapAndValidateImport } from "@capacitylens/shared/domain/mutations";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import {
+  assertAllocationWithinResourceAvailability,
+  assertDateRange,
+  assertResourceExists,
+  remapAndValidateImport,
+} from "@capacitylens/shared/domain/mutations";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Entity, ID, ScopedEntityKey, TimeOff } from "@capacitylens/shared/types/entities";
 import {
@@ -126,6 +132,8 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
     }));
     if (dependencies.blockedByViewer()) return allocations;
     const data = dependencies.get().data;
+    const account = data.accounts.find((candidate) => candidate.id === accountId);
+    const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1);
     for (const allocation of allocations) {
       dependencies.assertAllocation(
         data,
@@ -136,6 +144,10 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
         allocation.projectId,
       );
       assertDateRange(allocation.startDate, allocation.endDate);
+      const resource = data.resources.find(
+        (candidate) => candidate.accountId === accountId && candidate.id === allocation.resourceId,
+      );
+      if (resource) assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
     }
     dependencies.mutate((current) => ({ ...current, allocations: [...current.allocations, ...allocations] }));
     return allocations;

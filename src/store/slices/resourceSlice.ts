@@ -6,6 +6,7 @@ import {
   assertResourceKindAllowsDependents,
   assertResourceProjectAllowsDependents,
   assertScopedRefs,
+  validateResourceAvailabilityPair,
 } from "@capacitylens/shared/domain/mutations";
 import { domainError } from "@capacitylens/shared/domain/errors";
 import {
@@ -41,9 +42,13 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
           id: id,
           patch: patch,
           prepare: (merged, existing) => {
-            const preparedPatch = isPlaceholderResource(merged)
+            const capacityPatch = isPlaceholderResource(merged)
               ? { ...patch, ...placeholderCapacityDefaults() }
               : patch;
+            const preparedPatch =
+              merged.kind === "person"
+                ? capacityPatch
+                : { ...capacityPatch, firstAvailableDate: undefined, lastAvailableDate: undefined };
             const preparedResource = isPlaceholderResource(merged)
               ? { ...merged, ...placeholderCapacityDefaults() }
               : merged;
@@ -53,6 +58,18 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
             assertScopedRefs(get().data, existing.accountId, "resources", preparedPatch, existing);
             assertResourceProjectAllowsDependents(get().data, existing.accountId, id, preparedResource, existing);
             assertResourceKindAllowsDependents(get().data, existing.accountId, id, preparedResource.kind);
+            const availability = validateResourceAvailabilityPair(
+              preparedResource.firstAvailableDate,
+              preparedResource.lastAvailableDate,
+            );
+            if (!availability.ok) {
+              domainError(
+                availability.code,
+                availability.code === "date_reversed"
+                  ? "First available date cannot be after last available date."
+                  : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
+              );
+            }
             if (preparedPatch.workingDays !== undefined) assertWorkingDays(preparedPatch.workingDays);
             if (preparedPatch.workingDays !== undefined || preparedPatch.halfDays !== undefined) {
               assertHalfDays(preparedResource.halfDays, preparedResource.workingDays);
@@ -105,6 +122,19 @@ function createResourceAddAction(internals: StoreInternals, get: StoreApi<StoreS
       assertScopedRefs(get().data, entity.accountId, "resources", input);
       assertWorkingDays(entity.workingDays);
       assertHalfDays(entity.halfDays, entity.workingDays);
+      if (entity.kind !== "person") {
+        delete entity.firstAvailableDate;
+        delete entity.lastAvailableDate;
+      }
+      const availability = validateResourceAvailabilityPair(entity.firstAvailableDate, entity.lastAvailableDate);
+      if (!availability.ok) {
+        domainError(
+          availability.code,
+          availability.code === "date_reversed"
+            ? "First available date cannot be after last available date."
+            : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
+        );
+      }
       // Colour snap runs LAST, right before persisting — never before the asserts above, so a
       // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
       const safe = applySnappedColor({ patch: entity, allowNeutral: entity.kind === "external" });

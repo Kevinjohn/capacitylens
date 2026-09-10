@@ -12,6 +12,11 @@ export {
   assertResourceExists,
 } from "./assertions/dependents";
 export { remapAndValidateImport } from "./importFold";
+export {
+  assertAllocationWithinResourceAvailability,
+  validateResourceAvailabilityPair,
+  type ResourceAvailabilityInput,
+} from "./resourceAvailability";
 
 // Pure, environment-agnostic domain mutations + integrity assertions extracted
 // from the Zustand store so the SAME logic can run on a future server (and be
