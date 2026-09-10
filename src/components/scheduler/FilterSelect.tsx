@@ -36,8 +36,22 @@ export function FilterSelect({
         <SelectGroup>
           <SelectItem value="all">{allLabel()}</SelectItem>
           {options.map((option) => (
-            <SelectItem key={option.id} value={option.id}>
-              {option.label}
+            <SelectItem key={option.id} value={option.id} className={option.contextLabel ? "group" : undefined}>
+              {option.contextLabel && option.primaryLabel ? (
+                <>
+                  <span
+                    data-slot="project-option-client"
+                    className="text-muted-foreground group-focus:text-accent-foreground/70"
+                  >
+                    {option.contextLabel}
+                  </span>{" "}
+                  <span data-slot="project-option-name" className="text-current">
+                    {option.primaryLabel}
+                  </span>
+                </>
+              ) : (
+                option.label
+              )}
             </SelectItem>
           ))}
         </SelectGroup>
