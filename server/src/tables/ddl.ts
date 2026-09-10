@@ -111,7 +111,7 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
 )
   .replace(
     "  color TEXT NOT NULL,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
-    "  color TEXT NOT NULL, isFavourite TEXT,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
+    "  color TEXT NOT NULL, isFavourite TEXT, firstAvailableDate TEXT, lastAvailableDate TEXT,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
   )
   .replace(
     "  workingDays TEXT NOT NULL,\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,",

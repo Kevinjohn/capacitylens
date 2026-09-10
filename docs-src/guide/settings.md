@@ -40,7 +40,11 @@ nothing, and a typed start date, a duplicate or a reassignment is rejected with 
 draw that begins on an allowed date may still cross blocked dates. The per-allocation
 **Ignore working days** checkbox makes that allocation use every calendar day in its span and lets
 an existing allocation be dragged or extended onto closed days — it never changes where a new
-allocation may start — and time off stays a separate, visible conflict.
+allocation may start — and time off stays a separate, visible conflict. A person's optional
+**First available date** and **Last available date** add an inclusive
+date boundary: capacity is zero outside the range, existing load remains visible, and Ignore
+working days does not bypass it. New or placement-changing work outside the range is rejected, while
+metadata edits and existing conflicting allocations remain allowed.
 
 For example, if the company works Monday to Friday and Bruce Wayne works Monday, Wednesday and
 Friday, his capacity and ordinary allocations use Monday, Wednesday and Friday.

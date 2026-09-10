@@ -11,6 +11,8 @@ export function useResourceFormState(resource?: Resource) {
   const [engagement, setEngagement] = useState<ResourceEngagement>(capacity.engagement);
   const [workingDays, setWorkingDays] = useState<Weekday[]>(capacity.workingDays);
   const [halfDays, setHalfDays] = useState<Weekday[]>(capacity.halfDays);
+  const [firstAvailableDate, setFirstAvailableDate] = useState(capacity.firstAvailableDate);
+  const [lastAvailableDate, setLastAvailableDate] = useState(capacity.lastAvailableDate);
   return {
     name,
     setName,
@@ -24,6 +26,10 @@ export function useResourceFormState(resource?: Resource) {
     setWorkingDays,
     halfDays,
     setHalfDays,
+    firstAvailableDate,
+    setFirstAvailableDate,
+    lastAvailableDate,
+    setLastAvailableDate,
     projectId,
     setProjectId,
   };
@@ -43,6 +49,8 @@ function buildInitialCapacityState(resource?: Resource) {
     engagement: resource?.engagement ?? "studio",
     workingDays: resource?.workingDays ?? [1, 2, 3, 4, 5],
     halfDays: resource?.halfDays ?? [],
+    firstAvailableDate: resource?.firstAvailableDate ?? "",
+    lastAvailableDate: resource?.lastAvailableDate ?? "",
   };
 }
 

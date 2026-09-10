@@ -1,5 +1,5 @@
 import { cleanText } from "../strings";
-import { parseISOTimestamp } from "../integrity";
+import { isValidISODate, parseISOTimestamp } from "../integrity";
 import { normalizeCodeName, privateCodeNameFallback } from "../../domain/privateNames";
 import { defaultAccountWorkingDays } from "../accountWorkingDays";
 import { clampHoursPerDay, clampWorkingHoursPerDay, FULL_DAY_HOURS, type Weekday } from "../../types/entities";
@@ -47,6 +47,28 @@ export const normalizeISODate = (value: unknown): unknown => {
   const [, year, month, day] = match;
   if (year === undefined || month === undefined || day === undefined) return value;
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+};
+
+/** Repair optional person availability boundaries; malformed or reversed pairs are unbounded. */
+export const repairResourceAvailability = (record: Record<string, unknown>): void => {
+  if (record.kind !== "person") {
+    delete record.firstAvailableDate;
+    delete record.lastAvailableDate;
+    return;
+  }
+  for (const field of ["firstAvailableDate", "lastAvailableDate"] as const) {
+    const normalized = normalizeISODate(record[field]);
+    if (typeof normalized === "string" && isValidISODate(normalized)) record[field] = normalized;
+    else delete record[field];
+  }
+  if (
+    typeof record.firstAvailableDate === "string" &&
+    typeof record.lastAvailableDate === "string" &&
+    record.firstAvailableDate > record.lastAvailableDate
+  ) {
+    delete record.firstAvailableDate;
+    delete record.lastAvailableDate;
+  }
 };
 
 // DE-DUPLICATE: the scheduling math keys weekend-awareness on workingDays.length (a

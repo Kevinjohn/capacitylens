@@ -1,7 +1,8 @@
 import type { StateCreator, StoreApi } from "zustand";
-import { assertDateRange } from "@capacitylens/shared/domain/mutations";
+import { assertAllocationWithinResourceAvailability, assertDateRange } from "@capacitylens/shared/domain/mutations";
 import { clampHoursPerDay } from "@capacitylens/shared/types/entities";
-import type { Allocation, ID } from "@capacitylens/shared/types/entities";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
+import type { Allocation, AppData, ID } from "@capacitylens/shared/types/entities";
 import type { StoreInternals } from "../storeInternal";
 import type { Patch, StoreState } from "../types";
 
@@ -14,6 +15,21 @@ export type AllocationSliceInternals = Pick<
   StoreInternals,
   "createGuardedAction" | "createAllocations" | "updateOwned" | "assertAllocation" | "resolveOwnedRow" | "mutate"
 >;
+
+function assertAvailabilityAfterPlacementChange(data: AppData, effective: Allocation, existing: Allocation): void {
+  const placementChanged =
+    effective.resourceId !== existing.resourceId ||
+    effective.startDate !== existing.startDate ||
+    effective.endDate !== existing.endDate ||
+    (effective.ignoreWeekends === true) !== (existing.ignoreWeekends === true);
+  if (!placementChanged) return;
+  const resource = data.resources.find(
+    (candidate) => candidate.accountId === existing.accountId && candidate.id === effective.resourceId,
+  );
+  const account = data.accounts.find((candidate) => candidate.id === existing.accountId);
+  const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1);
+  if (resource) assertAllocationWithinResourceAvailability({ allocation: effective, resource, accountWorkingDays });
+}
 
 export function createAllocationSlice(
   internals: AllocationSliceInternals,
@@ -41,7 +57,10 @@ export function createAllocationSlice(
                 patch.hoursPerDay !== undefined
                   ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) }
                   : patch;
-              const effective = { ...merged, ...clampedPatch };
+              const effective: Allocation = {
+                ...merged,
+                ...(clampedPatch.hoursPerDay === undefined ? {} : { hoursPerDay: clampedPatch.hoursPerDay }),
+              };
               // The server re-runs assertAllocationRefs on the full merged row on EVERY write, so a
               // note/status/date-only edit of an allocation whose resource is now EXTERNAL with a
               // non-zero load (legacy pre-v0.8.1 data, or after a resource kind-flip) would 400 there
@@ -57,6 +76,7 @@ export function createAllocationSlice(
                 existing,
               );
               assertDateRange(effective.startDate, effective.endDate);
+              assertAvailabilityAfterPlacementChange(get().data, effective, existing);
               // Repeat-series membership is system-owned at creation. An ordinary edit may change every
               // visible allocation field but cannot link, unlink or move the row between series.
               const safePatch = { ...clampedPatch };
