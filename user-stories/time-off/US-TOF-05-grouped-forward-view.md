@@ -23,6 +23,8 @@ multiple entries for one person and an entry that ended before the current compa
 3. Within a resource section, read its time-off rows from top to bottom.
 4. Edit or delete one dated row using its date-specific action.
 
+See [Review current and upcoming time off](../../docs-src/guide/time-off.md#review-current-and-upcoming-time-off).
+
 ## Acceptance criteria
 
 - ✅ Entries are grouped into one bordered list per resource. The resource name appears once as the
@@ -34,6 +36,7 @@ multiple entries for one person and an entry that ended before the current compa
   after the boundary; an entry that ended before it is hidden without being deleted.
 - ✅ Placeholder time off still follows **Show placeholders**. An unexpected dangling resource is
   shown safely in a final **(unknown)** section. Time off beneath an archived resource remains hidden.
-- ✅ Empty-state behavior is unchanged when the view filter leaves no entries.
+- ✅ Empty sections explain their purpose. **Add closure** and **Add time off** appear once each,
+  beside their section headings, including when no entries remain in the forward view.
 - ✅ Each row keeps its date-specific Edit/Delete accessible name. Editing, deleting, confirmation,
   Undo and role-based mutation visibility target the correct underlying entry after sorting.
