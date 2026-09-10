@@ -23,9 +23,7 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 2. Click **Add resource**.
 3. Fill in the fields below and save.
 
-![The Add resource form with compact label-and-control rows, Studio engagement and a right-aligned seven-day radio grid for Full day, Half day and Not working](../screenshots/flows/resource-form.jpg)
-
-<!-- screenshot note: Refresh this image to show the First available date and Last available date fields added to the resource form. -->
+![The Add resource form with optional First available date and Last available date fields above a seven-day working-pattern grid](../screenshots/flows/resource_form.jpg)
 
 At normal dialog widths, the resource details use compact label-and-control rows. They stack
 vertically on a narrow screen, while the **Working days** grid remains full width.
@@ -57,8 +55,6 @@ does not change their discipline, role or working days.
 
 ![The Edit resource form with the Engagement menu open and Supplementary selected below Studio](../screenshots/flows/resource_engagement_choice.jpg)
 
-<!-- screenshot note: Refresh this image to show the First available date and Last available date fields added to the resource form. -->
-
 The new row appears on the schedule immediately, ready for allocations and time off.
 There's no account to create and nothing for the person to sign in to.
 
@@ -73,8 +69,6 @@ For example, if someone goes part-time, open their row and change the relevant d
 utilisation figure you see after saving reflects their new working pattern.
 
 ![The Edit resource form with Wednesday set to Half day in Bruce Wayne's seven-row working pattern](../screenshots/flows/resource_half_day.jpg)
-
-<!-- screenshot note: Refresh this image to show the First available date and Last available date fields added to the resource form. -->
 
 Existing working patterns are preserved after upgrading: a day that was selected remains
 a full day, and a day that was unselected remains not working.
