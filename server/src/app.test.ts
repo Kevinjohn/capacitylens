@@ -11,6 +11,7 @@ import {
   FIXTURE_PROJECT,
   FIXTURE_PHASE,
   FIXTURE_RESOURCE,
+  FIXTURE_RESOURCE_PERSON,
   FIXTURE_RESOURCE_EXTERNAL,
   FIXTURE_ACTIVITY,
   FIXTURE_ACTIVITY_INTERNAL,
@@ -329,11 +330,13 @@ interface ResourceSnapshot extends ProjectBinding {
   color: string;
   createdAt: string;
   disciplineId?: string;
+  firstAvailableDate?: string;
   engagement: string;
   employmentType?: string;
   halfDays: number[];
   isFavourite?: boolean;
   kind: string;
+  lastAvailableDate?: string;
   name?: string;
   role: string;
   updatedAt: string;
@@ -664,6 +667,8 @@ function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectB
       "id",
       "isFavourite",
       "kind",
+      "firstAvailableDate",
+      "lastAvailableDate",
       "name",
       "projectId",
       "role",
@@ -676,6 +681,8 @@ function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectB
   const disciplineId = readOptionalString(source, "disciplineId", "resource row");
   const employmentType = readOptionalString(source, "employmentType", "resource row");
   const isFavourite = readOptionalBoolean(source, "isFavourite", "resource row");
+  const firstAvailableDate = readOptionalString(source, "firstAvailableDate", "resource row");
+  const lastAvailableDate = readOptionalString(source, "lastAvailableDate", "resource row");
   const name = readOptionalString(source, "name", "resource row");
   const snapshot: ResourceSnapshot = {
     ...binding,
@@ -693,6 +700,8 @@ function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectB
   if (disciplineId !== undefined) snapshot.disciplineId = disciplineId;
   if (employmentType !== undefined) snapshot.employmentType = employmentType;
   if (isFavourite !== undefined) snapshot.isFavourite = isFavourite;
+  if (firstAvailableDate !== undefined) snapshot.firstAvailableDate = firstAvailableDate;
+  if (lastAvailableDate !== undefined) snapshot.lastAvailableDate = lastAvailableDate;
   if (name !== undefined) snapshot.name = name;
   return snapshot;
 }
@@ -2258,6 +2267,149 @@ describe("batch sync (/api/batch — transactional, ordered)", () => {
   createMissingDeleteAccountTest();
   createInvalidBatchOperationTest();
   createNullBatchOperationTest();
+});
+
+function createDirectAvailabilityBoundaryTests(): void {
+  it.each([
+    {
+      direction: "before",
+      boundary: { firstAvailableDate: "2026-06-08" },
+      date: "2026-06-01",
+      code: "allocation_before_resource_availability",
+    },
+    {
+      direction: "after",
+      boundary: { lastAvailableDate: "2026-06-03" },
+      date: "2026-06-08",
+      code: "allocation_after_resource_availability",
+    },
+  ] as const)("rejects a direct allocation $direction the person's boundary", async ({ boundary, date, code }) => {
+    const { app } = freshApp();
+    await scaffold(app);
+    expect((await patch({ app, entity: "resources", id: "r1", payload: boundary })).statusCode).toBe(200);
+
+    const response = await post(
+      app,
+      "allocations",
+      allocation({
+        id: "outside",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "t1",
+        o: { startDate: date, endDate: date },
+      }),
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code });
+  });
+}
+
+function createAvailabilityCalendarProjectionTest(): void {
+  it("uses the stored company calendar through the database projection", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+    await patch({ app, entity: "accounts", id: "a1", payload: { workingDays: [1, 2, 3, 4] } });
+    await patch({ app, entity: "resources", id: "r1", payload: { lastAvailableDate: "2026-06-04" } });
+
+    const normal = await post(
+      app,
+      "allocations",
+      allocation({
+        id: "normal",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "t1",
+        o: { startDate: "2026-06-04", endDate: "2026-06-05" },
+      }),
+    );
+    const ignored = await post(
+      app,
+      "allocations",
+      allocation({
+        id: "ignored",
+        accountId: "a1",
+        resourceId: "r1",
+        activityId: "t1",
+        o: { startDate: "2026-06-04", endDate: "2026-06-05", ignoreWeekends: true },
+      }),
+    );
+
+    expect(normal.statusCode).toBe(201);
+    expect(ignored.statusCode).toBe(400);
+    expect(ignored.json()).toMatchObject({ code: "allocation_after_resource_availability" });
+  });
+}
+
+function createRetainedAvailabilityConflictTest(): void {
+  it("allows metadata edits on a retained conflict through the authoritative API", async () => {
+    const { app } = freshApp();
+    await scaffold(app);
+    expect(
+      (
+        await post(
+          app,
+          "allocations",
+          allocation({ id: "retained", accountId: "a1", resourceId: "r1", activityId: "t1" }),
+        )
+      ).statusCode,
+    ).toBe(201);
+    await patch({ app, entity: "resources", id: "r1", payload: { firstAvailableDate: "2026-06-08" } });
+
+    const response = await patch({ app, entity: "allocations", id: "retained", payload: { note: "Keep context" } });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ note: "Keep context", startDate: "2026-01-01" });
+  });
+}
+
+function createAvailabilityBatchRollbackTest(): void {
+  it.each([
+    {
+      boundary: { firstAvailableDate: "2026-06-01" },
+      outsideDate: "2026-05-29",
+      code: "allocation_before_resource_availability",
+    },
+    {
+      boundary: { lastAvailableDate: "2026-06-01" },
+      outsideDate: "2026-06-08",
+      code: "allocation_after_resource_availability",
+    },
+  ] as const)("rolls back an atomic batch for $code", async ({ boundary, outsideDate, code }) => {
+    const { app } = freshApp();
+    await scaffold(app);
+    await patch({ app, entity: "resources", id: "r1", payload: boundary });
+    const inside = allocation({
+      id: "inside",
+      accountId: "a1",
+      resourceId: "r1",
+      activityId: "t1",
+      o: { startDate: "2026-06-01", endDate: "2026-06-01" },
+    });
+    const outside = allocation({
+      id: "outside",
+      accountId: "a1",
+      resourceId: "r1",
+      activityId: "t1",
+      o: { startDate: outsideDate, endDate: outsideDate },
+    });
+
+    const response = await batch(app, [
+      { method: "PUT", table: "allocations", id: "inside", row: inside },
+      { method: "PUT", table: "allocations", id: "outside", row: outside },
+    ]);
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code });
+    expect((await state(app)).allocations).toHaveLength(0);
+  });
+}
+
+describe("resource availability API enforcement", () => {
+  createDirectAvailabilityBoundaryTests();
+  createAvailabilityCalendarProjectionTest();
+  createRetainedAvailabilityConflictTest();
+  createAvailabilityBatchRollbackTest();
 });
 
 describe("batch pre-scan validation", () => {
@@ -5359,6 +5511,16 @@ describe("full-fixture round-trip (every optional field set; catches column-spec
       employmentType: "permanent",
       engagement: "supplementary",
     });
+  });
+
+  it("person resource: availability boundaries round-trip with all optional fields populated", async () => {
+    const { app } = freshApp();
+    await seedFixtureDeps(app);
+    expect((await post(app, "resources", FIXTURE_RESOURCE_PERSON)).statusCode).toBe(201);
+    expectFixture(
+      readFirstResource((await readValidatedState(app)).resources),
+      stripTombstones(FIXTURE_RESOURCE_PERSON),
+    );
   });
 
   it("external resource: kind + company name round-trip (no discipline/project binding)", async () => {

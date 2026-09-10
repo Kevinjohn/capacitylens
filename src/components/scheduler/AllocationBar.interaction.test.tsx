@@ -294,6 +294,21 @@ function registerKeyboardMovementTests() {
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-05"]); // end extended, start fixed
   });
 
+  it("rejects and announces a keyboard move beyond the person's availability", () => {
+    const allocation = seedAllocation();
+    useStore.getState().updateResource(allocation.resourceId, { lastAvailableDate: "2026-06-03" });
+    render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+
+    expect(getStoredAllocation(allocation.id)).toMatchObject({
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+    });
+    expect(useStore.getState().notice).toMatchObject({ tone: "error" });
+    expect(useStore.getState().notice?.message).toMatch(/after this person is available/i);
+  });
+
   it("refuses a keyboard nudge that would unmount the bar beyond the visible timeline", () => {
     useStore.getState().setOriginDate("2026-06-01");
     useStore.getState().setZoom(1);
