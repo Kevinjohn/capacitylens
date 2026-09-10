@@ -63,6 +63,7 @@ const BLOCKED_ROUTES: ReadonlyArray<{ name: string; opts: InjectOptions }> = [
   { name: "GET /api/state?accountId=", opts: { method: "GET", url: "/api/state?accountId=a1" } },
   { name: "GET /api/state (no-arg)", opts: { method: "GET", url: "/api/state" } },
   { name: "GET /api/meta", opts: { method: "GET", url: "/api/meta" } },
+  { name: "GET /api/diagnostics", opts: { method: "GET", url: "/api/diagnostics" } },
   { name: "POST /api/:entity", opts: { method: "POST", url: "/api/clients", payload: client } },
   { name: "PUT /api/:entity/:id", opts: { method: "PUT", url: "/api/clients/c1", payload: client } },
   { name: "PATCH /api/:entity/:id", opts: { method: "PATCH", url: "/api/clients/c1", payload: { name: "X" } } },

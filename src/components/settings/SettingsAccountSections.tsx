@@ -113,3 +113,50 @@ export function SettingsBuildDetails({
     </>
   );
 }
+
+export function SettingsDiagnostics({
+  diagnostics,
+  diagnosticsCopyState,
+  copyDiagnostics,
+}: Pick<Controller, "diagnostics" | "diagnosticsCopyState" | "copyDiagnostics">) {
+  const { server } = diagnostics;
+  return (
+    <SettingsSection
+      title={m.settings_diagnostics_heading()}
+      help={m.settings_diagnostics_help()}
+      testId="settings-diagnostics"
+    >
+      <div className="grid gap-1 text-sm sm:grid-cols-2">
+        <span className="text-muted-foreground">{m.settings_diagnostics_app_version()}</span>
+        <span>{diagnostics.appVersion}</span>
+        <span className="text-muted-foreground">{m.settings_diagnostics_build_revision()}</span>
+        <span>{diagnostics.buildRevision ?? m.settings_diagnostics_unknown()}</span>
+        <span className="text-muted-foreground">{m.settings_diagnostics_deployment_mode()}</span>
+        <span>{diagnostics.deploymentMode}</span>
+        <span className="text-muted-foreground">{m.settings_diagnostics_export_schema()}</span>
+        <span>{diagnostics.exportSchema}</span>
+        <span className="text-muted-foreground">{m.settings_diagnostics_server_connectivity()}</span>
+        <span>{server.connectivity}</span>
+        <span className="text-muted-foreground">{m.settings_diagnostics_database()}</span>
+        <span>{server.database.status}</span>
+        <span className="text-muted-foreground">{m.settings_diagnostics_database_schema()}</span>
+        <span>{server.database.schemaVersion ?? m.settings_diagnostics_unknown()}</span>
+        <span className="text-muted-foreground">{m.settings_diagnostics_persistence()}</span>
+        <span>{server.persistence}</span>
+        <span className="text-muted-foreground">{m.settings_diagnostics_backup()}</span>
+        <span>{server.backup.status}</span>
+        <span className="text-muted-foreground">{m.settings_diagnostics_backup_last_success()}</span>
+        <span>{server.backup.lastSuccessAt ?? m.settings_diagnostics_unknown()}</span>
+      </div>
+      <Button size="sm" variant="outline" data-testid="copy-diagnostics" onClick={() => void copyDiagnostics()}>
+        {m.settings_diagnostics_copy()}
+      </Button>
+      {diagnosticsCopyState === "copied" && <p role="status">{m.settings_diagnostics_copied()}</p>}
+      {diagnosticsCopyState === "failed" && (
+        <p role="status" className="text-danger">
+          {m.settings_diagnostics_copy_failed()}
+        </p>
+      )}
+    </SettingsSection>
+  );
+}

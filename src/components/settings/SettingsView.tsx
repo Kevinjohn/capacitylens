@@ -3,12 +3,52 @@ import { ListPage } from "../common/ui";
 import { ImportExport } from "../ImportExport";
 import { ArchivedSection } from "./ArchivedSection";
 import { SecuritySection } from "./SecuritySection";
-import { SettingsAccountOptions, SettingsAccountSection, SettingsBuildDetails } from "./SettingsAccountSections";
+import {
+  SettingsAccountOptions,
+  SettingsAccountSection,
+  SettingsBuildDetails,
+  SettingsDiagnostics,
+} from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import { SettingsDataSection } from "./SettingsDataSection";
 import { SettingsSchedulingSection } from "./SettingsSchedulingSection";
 import { SettingsSection } from "./SettingsSection";
 import { useSettingsViewController } from "./useSettingsViewController";
+
+type Controller = ReturnType<typeof useSettingsViewController>;
+
+function SettingsBottomSections({ controller }: { controller: Controller }) {
+  const { auth, scheduling } = controller;
+  return (
+    <>
+      <SettingsAccountSection auth={auth} />
+      {auth.authMode === "password" && <SecuritySection />}
+      <ArchivedSection collapsible defaultOpen={false} />
+      <SettingsSection
+        title={m.settings_data_heading()}
+        help={m.settings_data_description()}
+        collapsible
+        defaultOpen={false}
+      >
+        <ImportExport />
+      </SettingsSection>
+      {controller.serverMode && (
+        <SettingsDiagnostics
+          diagnostics={controller.diagnostics}
+          diagnosticsCopyState={controller.diagnosticsCopyState}
+          copyDiagnostics={controller.copyDiagnostics}
+        />
+      )}
+      <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
+      <SettingsBuildDetails
+        serverMode={controller.serverMode}
+        persistenceDiagnostics={controller.persistenceDiagnostics}
+        stamp={controller.stamp}
+        feedback={controller.feedback}
+      />
+    </>
+  );
+}
 
 export function SettingsView() {
   const controller = useSettingsViewController();
@@ -46,24 +86,7 @@ export function SettingsView() {
           offlineState={controller.offlineState}
           {...localData}
         />
-        <SettingsAccountSection auth={auth} />
-        {auth.authMode === "password" && <SecuritySection />}
-        <ArchivedSection collapsible defaultOpen={false} />
-        <SettingsSection
-          title={m.settings_data_heading()}
-          help={m.settings_data_description()}
-          collapsible
-          defaultOpen={false}
-        >
-          <ImportExport />
-        </SettingsSection>
-        <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
-        <SettingsBuildDetails
-          serverMode={controller.serverMode}
-          persistenceDiagnostics={controller.persistenceDiagnostics}
-          stamp={controller.stamp}
-          feedback={controller.feedback}
-        />
+        <SettingsBottomSections controller={controller} />
       </div>
     </ListPage>
   );

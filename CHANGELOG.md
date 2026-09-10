@@ -14,6 +14,8 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
+  server health metadata that can be copied for support reports (#745).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
   manually triggered workflow (#752).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is

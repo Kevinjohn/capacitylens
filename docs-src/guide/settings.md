@@ -14,6 +14,15 @@ text on the page.
 
 ![The top of Settings with Scheduling, the compact two-row Global working days table, Disciplines and Engagement grouping, each with an About button](../screenshots/flows/settings_overview.jpg)
 
+## Diagnostics
+
+Near the bottom of Settings, **Diagnostics** provides a **Copy diagnostics** action for a support
+report. The copied projection includes the app version, validated build revision when available,
+deployment mode and export schema. Server connectivity, database schema, persistence and backup
+health are listed separately, with **Unknown** or **Unavailable** when a value cannot be observed.
+It contains no company or member data, identifiers, paths, hostnames, secrets, invite or session
+values, raw errors or other server response fields.
+
 ## Global working days
 
 **Global working days** is the company's shared working week. Seven abbreviated
@@ -122,6 +131,7 @@ The rest of Settings, roughly top to bottom:
 | Deleted items                 | A closed-by-default disclosure for permanently deleting items after their 30-day retention period. Archived items are restored or deleted from the bottom of their Resources, Clients, Projects or Activities page. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                     |
 | Import & export               | A closed-by-default disclosure for downloading this company's data as JSON or replacing it from an earlier export. Importing asks you to confirm first.                                                                                                                                                                                |
 | Account Options Selected at Creation | A compact, read-only summary of the company name, week start, time zone and language. Week start and time zone affect the whole team but are frozen after company creation; see [Calendar](#calendar).                                                                                                                             |
+| Diagnostics                   | Copy a privacy-safe, fixed allowlist of app and observable server health metadata for support reports.                                                                                                                                                                                                                              |
 
 **Device data**, **Deleted items** and **Import & export** are independent
 disclosures and start closed. Opening one does not close another. Destructive actions
