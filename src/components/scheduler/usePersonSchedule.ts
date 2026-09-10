@@ -34,7 +34,7 @@ function isResourceFeatureVisible(resource: Resource, data: AppData, accountId: 
   return true;
 }
 
-function resolveScheduleIdentity(resource: Resource, data: AppData): string {
+export function resolvePersonScheduleIdentity(resource: Resource, data: AppData): string {
   if (resource.kind !== "placeholder") return resolveResourceDisplayName(resource);
   const discipline = resource.disciplineId
     ? data.disciplines.find((candidate) => candidate.id === resource.disciplineId)
@@ -70,7 +70,7 @@ function buildAvailableSchedule(input: AvailableScheduleInput) {
     schedulingMode: resolveSchedulingMode(input.accountView, accountId),
     internalColourMode: resolveInternalColourMode(input.accountView, accountId),
     canSeeTimeOffNotes: input.canSeeTimeOffNotes,
-    title: resolveScheduleIdentity(resource, input.data),
+    title: resolvePersonScheduleIdentity(resource, input.data),
     activityFallback: m.scheduler_person_schedule_activity_fallback(),
   });
 }

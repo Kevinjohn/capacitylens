@@ -11,7 +11,8 @@ export function PersonScheduleSheet({ open, schedule, onOpenChange, onRestoreFoc
   const available = schedule.kind === "available";
 
   useEffect(() => {
-    if (open && !available) onOpenChange(false);
+    if (!open || available) return;
+    onOpenChange(false);
   }, [available, onOpenChange, open]);
 
   return (

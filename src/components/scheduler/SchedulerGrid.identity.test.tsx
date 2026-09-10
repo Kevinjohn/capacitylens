@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { PermissionContext } from "../../auth/permissionContext";
 import { DEFAULT_ACCOUNT_ID, makeResource } from "../../test/fixtures";
@@ -41,6 +42,50 @@ describe("SchedulerGrid component identity and row variants", () => {
     expect(screen.getByTestId("scheduler-row")).toBeVisible();
     expect(screen.queryByRole("button", { name: /Add allocation for/ })).not.toBeInTheDocument();
     expect(screen.getByTestId("allocation-bar")).toHaveAttribute("role", "img");
+    expect(screen.getByRole("button", { name: "View Bruce's schedule" })).toBeVisible();
+  });
+});
+
+describe("SchedulerGrid individual schedule drawer", () => {
+  it("opens one read-only schedule sheet without replacing the grid", async () => {
+    const user = userEvent.setup();
+    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    const grid = screen.getByTestId("scheduler-grid");
+
+    await user.click(screen.getByRole("button", { name: "View Bruce's schedule" }));
+
+    expect(screen.getByRole("dialog", { name: "Bruce's schedule" })).toBeVisible();
+    expect(screen.getByTestId("scheduler-grid")).toBe(grid);
+    expect(screen.getAllByTestId("person-schedule-sheet")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /Edit|Delete|Save|Duplicate/ })).not.toBeInTheDocument();
+  });
+
+  it("returns focus to the grid without scrolling when the opener disconnects", async () => {
+    const user = userEvent.setup();
+    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    const grid = screen.getByTestId("scheduler-grid");
+    grid.scrollLeft = 37;
+    grid.scrollTop = 19;
+    const trigger = screen.getByRole("button", { name: "View Bruce's schedule" });
+    await user.click(trigger);
+    trigger.remove();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    await waitFor(() => expect(grid).toHaveFocus());
+    expect(grid.scrollLeft).toBe(37);
+    expect(grid.scrollTop).toBe(19);
+  });
+
+  it("removes selected account content synchronously on an account switch", async () => {
+    const user = userEvent.setup();
+    render(<SchedulerGrid />, { wrapper: MemoryRouter });
+    await user.click(screen.getByRole("button", { name: "View Bruce's schedule" }));
+    expect(screen.getByRole("dialog", { name: "Bruce's schedule" })).toBeVisible();
+
+    act(() => useStore.getState().setActiveAccount("a2"));
+
+    expect(screen.queryByText("Bruce's schedule")).not.toBeInTheDocument();
   });
 
   it("preserves the dimmed placeholder surface and work-mode creation affordance", () => {

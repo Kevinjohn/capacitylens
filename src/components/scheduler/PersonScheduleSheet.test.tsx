@@ -105,8 +105,14 @@ describe("PersonScheduleSheet lifecycle", () => {
 
   it("synchronously removes safe content and requests closure when the schedule becomes unavailable", async () => {
     const onOpenChange = vi.fn();
+    const onRestoreFocus = vi.fn();
     const { rerender } = render(
-      <PersonScheduleSheet open schedule={availableSchedule} onOpenChange={onOpenChange} onRestoreFocus={() => {}} />,
+      <PersonScheduleSheet
+        open
+        schedule={availableSchedule}
+        onOpenChange={onOpenChange}
+        onRestoreFocus={onRestoreFocus}
+      />,
     );
     expect(screen.getByText("Prototype discovery")).toBeVisible();
 
@@ -115,12 +121,13 @@ describe("PersonScheduleSheet lifecycle", () => {
         open
         schedule={{ kind: "unavailable" }}
         onOpenChange={onOpenChange}
-        onRestoreFocus={() => {}}
+        onRestoreFocus={onRestoreFocus}
       />,
     );
 
     expect(screen.queryByText("Diana Prince")).not.toBeInTheDocument();
     expect(screen.queryByText("Prototype discovery")).not.toBeInTheDocument();
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(onRestoreFocus).toHaveBeenCalledOnce();
   });
 });
