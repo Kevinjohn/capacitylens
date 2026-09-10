@@ -24,6 +24,7 @@ import {
   type CommittedRevision,
 } from "./revisions";
 import type { SyncState } from "./state";
+import { addResourceAvailabilityClearMarkers } from "./resourceAvailabilityWire";
 
 // Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
 // over-limit diff is never split into separately committed prefixes.
@@ -51,7 +52,7 @@ export function prepareBatchBody(
   }
   // Rebase PUT preconditions, then serialize ONCE — the same body feeds both the keepalive
   // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
-  const wireOps = rebaseForWire(state, ops).map((op) =>
+  const wireOps = addResourceAvailabilityClearMarkers(state, rebaseForWire(state, ops)).map((op) =>
     options?.archiveLifecycleDeletes && op.method === "DELETE" && isLifecycleEntityKey(op.table)
       ? { ...op, method: "ARCHIVE" }
       : op,

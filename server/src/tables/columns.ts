@@ -135,6 +135,8 @@ const resourcesColumns = [
   { name: "projectId", optional: true },
   { name: "color" },
   { name: "isFavourite", json: true, optional: true },
+  { name: "firstAvailableDate", optional: true },
+  { name: "lastAvailableDate", optional: true },
   // Lifecycle timestamps (P2.1) — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
   { name: "archivedAt", optional: true },
   { name: "deletedAt", optional: true },

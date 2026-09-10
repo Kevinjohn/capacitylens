@@ -125,6 +125,17 @@ function assertScopedWriteFields(
 }
 
 function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedWriteInput): Record<string, unknown> {
+  // Availability boundaries use an explicit-null clear in full-row PUTs. Capture presence before
+  // the import sanitiser drops null/malformed values, otherwise the preservation pass below would
+  // mistake a deliberate clear (or a person→non-person kind change) for an omitted legacy field
+  // and restore the old person's dates.
+  const availabilityRequested =
+    table === "resources"
+      ? {
+          firstAvailableDate: Object.hasOwn(copy, "firstAvailableDate"),
+          lastAvailableDate: Object.hasOwn(copy, "lastAvailableDate"),
+        }
+      : undefined;
   assertScopedWriteFields(table, copy, options);
   const cleaned = sanitizeImportedRecord(table, copy);
   // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated
@@ -143,6 +154,11 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
   if (table === "allocations" && existing) {
     if (typeof existing.seriesId === "string") cleaned.seriesId = existing.seriesId;
     else delete cleaned.seriesId;
+  }
+  if (table === "resources" && existing && cleaned.kind === "person") {
+    for (const field of ["firstAvailableDate", "lastAvailableDate"] as const) {
+      if (!availabilityRequested?.[field] && typeof existing[field] === "string") cleaned[field] = existing[field];
+    }
   }
   // Field-confidentiality PINS (note-erasure guard + private-name guard): the fields are
   // single-sourced in GATED_FIELD_POLICIES. A writer who cannot see a gated field has it pinned to

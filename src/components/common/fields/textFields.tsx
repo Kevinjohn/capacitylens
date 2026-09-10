@@ -18,7 +18,7 @@ type TextFieldProps = {
   describedById?: string;
   disabled?: boolean;
   maxLength?: number;
-  type?: "text" | "email" | "password";
+  type?: "text" | "email" | "password" | "date";
   autoComplete?: string;
   minLength?: number;
   ariaLabel?: string;

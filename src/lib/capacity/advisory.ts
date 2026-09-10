@@ -3,7 +3,7 @@ import { MAX_SPAN_DAYS } from "@capacitylens/shared/lib/schedulingDays";
 import { effectiveWeekIncludes, type EffectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import type { Allocation, Closure, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { hasAllocationLoadOnDay, hasOverCapacity } from "./primitives";
-import { isWorkingDay, isUnavailable, resolveScheduledHoursForWeekday } from "./availability";
+import { isWorkingDay, isUnavailable, resolveScheduledHoursOnDay } from "./availability";
 
 export interface CapacityAdvisory {
   overDays: number; // days the proposed allocation works where existing + proposed hours exceed availability
@@ -130,7 +130,9 @@ function tallyAdvisory({
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
     const weekday = weekdayOf(day);
     const working = effectiveWeekIncludes(effectiveWeek, weekday);
-    const onTimeOff = working && isUnavailable({ resource: resource, date: day, timeOff: timeOff, closures: closures });
+    const scheduledCapacity = resolveScheduledHoursOnDay(resource, day, effectiveWeek);
+    const onTimeOff =
+      scheduledCapacity > 0 && isUnavailable({ resource: resource, date: day, timeOff: timeOff, closures: closures });
     // Time off is its own category (counted, surfaced separately) and never folded into overDays —
     // a holiday only costs capacity on a day the resource would have worked, and it reads as "on
     // time off", not "over". `continue` so it can't also be tallied as over below.
@@ -149,7 +151,7 @@ function tallyAdvisory({
       continue;
     // Mirrors resolveAvailableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
     // 0 capacity, so any proposed hours there read as over — exactly like the per-day over-marker.
-    const available = working ? resolveScheduledHoursForWeekday(resource, weekday, effectiveWeek) : 0;
+    const available = working ? scheduledCapacity : 0;
     if (hasOverCapacity((loadByDay.get(day) ?? 0) + proposal.hoursPerDay, available)) overDays++;
   }
   return { overDays, timeOffDays };

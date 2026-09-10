@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { InjectOptions, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { getRow, insertRow, openDb } from "./db";
-import { emptyAppData, type AppData, type Discipline } from "@capacitylens/shared/types/entities";
+import { emptyAppData, type AppData, type Discipline, type Resource } from "@capacitylens/shared/types/entities";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
 interface SyncAdapter {
@@ -51,6 +51,28 @@ const withDiscipline = (row?: Discipline): AppData => ({
   accounts: [account],
   clients: [buildInternalClient(account.id, TS1)],
   disciplines: row ? [row] : [],
+});
+const person = (updatedAt: string, firstAvailableDate?: string): Resource => ({
+  id: "r1",
+  accountId: "a1",
+  name: "Bruce Wayne",
+  role: "Director",
+  kind: "person",
+  employmentType: "permanent",
+  engagement: "studio",
+  workingHoursPerDay: 8,
+  workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
+  color: "#5c34d4",
+  createdAt: TS1,
+  updatedAt,
+  ...(firstAvailableDate ? { firstAvailableDate } : {}),
+});
+const withResource = (row: Resource): AppData => ({
+  ...emptyAppData(),
+  accounts: [account],
+  clients: [buildInternalClient(account.id, TS1)],
+  resources: [row],
 });
 
 const responseFromInject = (result: LightMyRequestResponse): Response =>
@@ -119,6 +141,26 @@ function integrationHarness(arrivalOrder: ArrivalOrder, initial?: Discipline) {
 }
 
 describe("ServerSyncAdapter ordered batch integration", () => {
+  it.each(["ordinary-first", "teardown-first"] as const)(
+    "authoritatively clears an in-flight availability boundary when requests reach SQLite %s",
+    async (arrivalOrder) => {
+      const { app, db, adapter, waitForFirstBatch, releaseFirstBatch } = integrationHarness(arrivalOrder);
+      insertRow(db, "resources", person(TS1) as unknown as Record<string, unknown>);
+      await adapter.loadAll("a1");
+      const ordinary = adapter.saveAll(withResource(person(TS2, "2026-02-01")));
+      await waitForFirstBatch();
+      const teardown = adapter.saveAll(withResource(person(TS3)), { unload: true });
+      releaseFirstBatch();
+      await Promise.all([ordinary, teardown]);
+
+      const saved = getRow(db, "resources", "r1");
+      expect(saved).not.toBeNull();
+      expect(saved).not.toHaveProperty("firstAvailableDate");
+      await app.close();
+      db.close();
+    },
+  );
+
   it.each(["ordinary-first", "teardown-first"] as const)(
     "persists the teardown edit when requests reach real SQLite %s",
     async (arrivalOrder) => {
