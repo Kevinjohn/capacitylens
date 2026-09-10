@@ -31,6 +31,10 @@ Store the setup token in a password manager before saving the environment. It is
 claim the first Owner account. Never commit either value or paste it into deployment logs, support
 messages or public issue reports.
 
+If you use a browser-based environment editor, save the token before copying any later
+configuration or process identifier. Copying text from another editor replaces the clipboard. If
+that happens, reveal the saved environment privately and copy only the setup-token value again.
+
 ## 2. Set the production environment
 
 Open the platform's environment editor. Replace every placeholder below:
@@ -136,6 +140,10 @@ With deep health enabled, the response should contain at least:
 Stop here if the command fails. Read the background-process log and correct the first startup
 error before editing nginx.
 
+Some managed command runners display their own temporary output-file error after the command has
+finished. That message does not prove the API failed. Check the process log and run the same health
+request from another trusted shell. Continue only when you can read a successful JSON response.
+
 ## 5. Add the nginx routes
 
 Open the platform's nginx configuration for this site. Preserve the platform's generated includes,
@@ -149,7 +157,7 @@ location /api/ {
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```

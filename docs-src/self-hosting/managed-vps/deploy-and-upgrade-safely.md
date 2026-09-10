@@ -67,6 +67,12 @@ The order is load-bearing:
 Do not replace stop and start with a process-manager reload that overlaps workers. Do not activate
 before stopping the old process.
 
+The first deployment is deliberately different from every later deployment. It activates the
+initial build without Supervisor commands. Create the background process from that active release,
+record its generated group name, then save the permanent script above. Run one rehearsal deployment
+of the same commit before relying on the workflow for an upgrade. The rehearsal must show the API
+stop, activation, restart and successful public health check in that order.
+
 Vite may print a warning that `NODE_ENV=production` is not supported inside `.env`. CapacityLens
 still needs that value at API runtime, while Vite already makes a production build when `pnpm run
 build` runs. The warning is expected for a shared build-and-runtime environment file; it is not a

@@ -132,6 +132,11 @@ On a shared server, watch:
 Deploy shared-server installations one at a time. Dependency installation and frontend builds can
 use much more CPU and memory than normal application traffic.
 
+When staging and production select the same project and branch, deploy staging first and finish its
+smoke test before clicking **Deploy** on production. Do not run the two builds concurrently on a
+small shared server. The sites remain independent: each manual deployment records and activates its
+own checkout even though both read the same branch.
+
 If one installation can exhaust resources needed by another, move it to a separate server. Site
 users isolate files and permissions, not CPU, memory or the operating-system kernel.
 

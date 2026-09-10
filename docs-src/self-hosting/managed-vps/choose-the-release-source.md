@@ -103,6 +103,26 @@ CapacityLens publishes a release
 Do not add a scheduled job that pulls the public project automatically. Automation would undo the
 release boundary this page creates.
 
+### Use one branch for staged manual promotion
+
+A staging installation and a production installation may select the same private project and the
+same pinned branch. They do not need separate Git branches when the release candidate is identical.
+The manual **Deploy** actions create the promotion boundary:
+
+```text
+advance production-01 to the approved release
+  -> click Deploy on staging
+  -> complete the staging smoke tests
+  -> click Deploy on production
+```
+
+Both installations must have automatic deployment disabled. Advancing the branch makes the release
+eligible for both sites, but neither site changes until an operator deploys it. Record the deployed
+commit for each installation because staging and production may temporarily run different commits.
+
+Use separate branches only when staging must run code that is not yet an approved production
+candidate. Do not create an installation-specific branch merely to delay a manual deployment.
+
 ## 5. Record the release
 
 Record these values in your private operations notes:

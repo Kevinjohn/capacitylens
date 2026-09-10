@@ -132,6 +132,17 @@ Platforms routinely delete old releases.
 For the first deployment only, let the platform create and activate the release after the build.
 Do not add Supervisor stop/start commands yet because the background process does not exist.
 
+This order is required on a new site:
+
+1. Save the temporary deployment script.
+2. Run the first deployment and confirm both build outputs exist.
+3. Create the background process on the next page.
+4. Record the process manager's generated service or group name.
+5. Replace the temporary script with the permanent stop, activate and start sequence.
+
+Do not invent a Supervisor group name before Forge creates the process. Forge assigns the name,
+and the permanent deployment script must use that exact value.
+
 In Laravel Forge, the temporary script can end with:
 
 ```bash
