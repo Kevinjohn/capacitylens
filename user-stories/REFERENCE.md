@@ -342,7 +342,7 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline` (when disciplines are
-enabled and at least one exists), `Engagement`, `Available from`, `Available until` (for Studio and
+enabled and at least one exists), `Engagement`, `First available date`, `Last available date` (for Studio and
 Supplementary people only), `Bound project`, `Working days` (for people only: a
 full-width Monday–Sunday radio grid aligned with the field label whose `Full day`, `Half day` and
 `Not working` column headings appear once; every cell's native radio is labelled by both its weekday
@@ -1464,7 +1464,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   retained employment field; editing preserves the existing employment value. Placeholders are
   always Studio and do not show the Engagement control.
 - **Optional availability dates apply to capacity-tracked people.** Studio and Supplementary
-  people may have an inclusive **Available from** date and **Available until** date. Leaving either
+  people may have an inclusive **First available date** and **Last available date**. Leaving either
   field blank leaves that side unbounded; the same date in both fields is valid, while a first date
   after the last date is rejected. Placeholders and External / 3rd party resources keep their
   existing company-wide or literal behaviour and never show these controls. Outside a person's

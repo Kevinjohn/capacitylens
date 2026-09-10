@@ -32,7 +32,7 @@ draw that begins on an allowed date may still cross blocked dates. The per-alloc
 **Ignore working days** checkbox makes that allocation use every calendar day in its span and lets
 an existing allocation be dragged or extended onto closed days — it never changes where a new
 allocation may start — and time off stays a separate, visible conflict. A person's optional
-**Available from** and **Available until** dates add an inclusive
+**First available date** and **Last available date** add an inclusive
 date boundary: capacity is zero outside the range, existing load remains visible, and Ignore
 working days does not bypass it. New or placement-changing work outside the range is rejected, while
 metadata edits and existing conflicting allocations remain allowed.

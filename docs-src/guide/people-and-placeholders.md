@@ -25,6 +25,8 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 
 ![The Add resource form with compact label-and-control rows, Studio engagement and a right-aligned seven-day radio grid for Full day, Half day and Not working](../screenshots/flows/resource-form.jpg)
 
+<!-- screenshot note: Refresh this image to show the First available date and Last available date fields added to the resource form. -->
+
 At normal dialog widths, the resource details use compact label-and-control rows. They stack
 vertically on a narrow screen, while the **Working days** grid remains full width.
 
@@ -55,6 +57,8 @@ does not change their discipline, role or working days.
 
 ![The Edit resource form with the Engagement menu open and Supplementary selected below Studio](../screenshots/flows/resource_engagement_choice.jpg)
 
+<!-- screenshot note: Refresh this image to show the First available date and Last available date fields added to the resource form. -->
+
 The new row appears on the schedule immediately, ready for allocations and time off.
 There's no account to create and nothing for the person to sign in to.
 
@@ -70,19 +74,21 @@ utilisation figure you see after saving reflects their new working pattern.
 
 ![The Edit resource form with Wednesday set to Half day in Bruce Wayne's seven-row working pattern](../screenshots/flows/resource_half_day.jpg)
 
+<!-- screenshot note: Refresh this image to show the First available date and Last available date fields added to the resource form. -->
+
 Existing working patterns are preserved after upgrading: a day that was selected remains
 a full day, and a day that was unselected remains not working.
 
 ## Set availability dates
 
 Studio and Supplementary people can have optional date boundaries in the resource form. Use
-**Available from** for the first day they can contribute and **Available until** for the last day.
+**First available date** for the first day they can contribute and **Last available date** for the last day.
 Both dates are inclusive. Leave either field blank when that side has no boundary. A person who is
 available for one day can use the same date in both fields; a first date after a last date is rejected
 and the form stays open so you can correct it.
 
-Availability dates change capacity, not history. Capacity is zero before **Available from** and after
-**Available until**, while existing allocation bars and their allocated load remain visible. This
+Availability dates change capacity, not history. Capacity is zero before **First available date** and after
+**Last available date**, while existing allocation bars and their allocated load remain visible. This
 means narrowing a range does not delete or move bookings that now conflict with it. You can still
 edit metadata such as a person's name, role, discipline, engagement or working pattern. Creating
 work, moving or resizing a booking, reassigning it to the person, or placing a repeat occurrence is

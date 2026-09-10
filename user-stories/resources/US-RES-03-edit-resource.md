@@ -1,6 +1,6 @@
 # US-RES-03 — Edit a resource's fields
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "edits a resource and the change persists"
+**Area:** Resources · **Persona:** Studio manager · **Coverage:** component (`src/components/resources/ResourceForm.test.tsx`) + store availability coverage · **Linked E2E:** `e2e/resources.spec.ts` → "edits a resource and the change persists" (base flow; no availability-date assertions)
 
 **Documentation:** [People and placeholders — set availability dates](../../docs-src/guide/people-and-placeholders.md#set-availability-dates)
 
@@ -24,7 +24,7 @@ there's no second place to keep in sync.
 2. Change **Role** = `Lead Developer`.
 3. Change **Discipline** = _Design_.
 4. Change Wednesday to **Half day**.
-5. Set **Available from** = `2026-06-08` and leave **Available until** blank.
+5. Set **First available date** = `2026-06-08` and leave **Last available date** blank.
 6. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
