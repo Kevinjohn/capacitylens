@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
   and simplify drawer entries to a compact activity-first agenda (#753, #754).
+- Make first-run setup-token pastes resilient to edge whitespace and reject invisible characters
+  before request construction, without exposing token values in client logs (#738).
 
 ### Added
 

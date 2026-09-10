@@ -846,9 +846,13 @@ on the 401 (password mode with an **empty** user table — sign-up is open for e
 bootstrap account and closes the moment it exists), the login wall shows a **Create the owner
 account** screen instead of sign-in: heading `Create the owner account`, fields `Name`
 (`data-testid="owner-setup-name"`), `Email` (`data-testid="owner-setup-email"`), `Password`
-(`data-testid="owner-setup-password"`), and a `Create owner account` button
+(`data-testid="owner-setup-password"`), `Setup token` (`data-testid="owner-setup-token"`), and a
+`Create owner account` button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
-owner in and reloads into the normal boot flow (company picker → app). On a populated server the
+owner in and reloads into the normal boot flow (company picker → app). Ordinary edge whitespace
+around a pasted setup token is ignored; a token containing characters that cannot be represented
+in an HTTP header stays in the form and shows an actionable inline error without sending a request.
+On a populated server the
 flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
 zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential `admin@admin.admin`
 / `auth-e2e-password-2026` — PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since

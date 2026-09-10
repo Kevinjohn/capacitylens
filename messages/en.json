@@ -934,6 +934,7 @@
   "login_setup_taken": "Someone has already set this workspace up — sign in below.",
   "login_setup_token": "Setup token",
   "login_setup_token_placeholder": "Token configured by the server operator",
+  "login_setup_token_invalid": "Paste the setup token again without invisible characters.",
   "login_mfa_recovery_prompt": "Enter one unused recovery code.",
   "login_mfa_authenticator_prompt": "Enter the six-digit code from your authenticator app.",
   "login_mfa_recovery_code": "Recovery code",

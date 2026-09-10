@@ -34,6 +34,33 @@ function validateOwnerInput({
   return { cleanName, cleanEmail };
 }
 
+const SETUP_TOKEN_HEADER = "x-capacitylens-setup-token";
+
+/**
+ * Keep the setup token safe for the browser's HTTP header implementation. Operators commonly
+ * paste a token with ordinary edge whitespace; trim that harmless formatting, but reject values
+ * containing characters that the request headers cannot represent before Better Auth constructs
+ * the request. The comparison also catches header implementations that silently rewrite a value.
+ */
+export function normalizeSetupToken(value: string): string | null {
+  const normalized = value.trim();
+  // Fetch may silently strip CR/LF and accepts some other C0 bytes in a Headers value. Reject all
+  // control characters explicitly so the token is never changed between validation and sending.
+  if (
+    Array.from(normalized).some((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return (codePoint >= 0 && codePoint <= 0x1f) || (codePoint >= 0x7f && codePoint <= 0x9f);
+    })
+  )
+    return null;
+  try {
+    const headers = new Headers({ [SETUP_TOKEN_HEADER]: normalized });
+    return headers.get(SETUP_TOKEN_HEADER) === normalized ? normalized : null;
+  } catch {
+    return null;
+  }
+}
+
 export function useOwnerSetup({
   email,
   password,
@@ -59,6 +86,12 @@ export function useOwnerSetup({
     e.preventDefault();
     const input = validateOwnerInput({ name, email, password, setError });
     if (!input) return;
+    const cleanSetupToken = normalizeSetupToken(setupToken);
+    if (cleanSetupToken === null) {
+      setError(m.login_setup_token_invalid());
+      setBusy(false);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -68,7 +101,7 @@ export function useOwnerSetup({
         email: input.cleanEmail,
         password,
         name: input.cleanName,
-        fetchOptions: { headers: { "x-capacitylens-setup-token": setupToken } },
+        fetchOptions: { headers: { [SETUP_TOKEN_HEADER]: cleanSetupToken } },
       });
       if (failure) {
         // The live per-request gate (server/src/auth.ts) closes the instant a user exists, so a
@@ -90,10 +123,11 @@ export function useOwnerSetup({
         return;
       }
       onSignedIn();
-    } catch (error) {
+    } catch {
       // Same contract as the sign-in path: a THROW is a pre-response network/transport error —
-      // surface a generic message + reset busy so the button never sticks disabled; log the cause.
-      console.error("LoginScreen: owner-setup sign-up request failed", error);
+      // surface a generic message + reset busy so the button never sticks disabled. Keep the raw
+      // error out of logs because request construction and transport errors may contain the token.
+      console.error("LoginScreen: owner-setup sign-up request failed");
       setError(m.login_network_error());
       setBusy(false);
     }
