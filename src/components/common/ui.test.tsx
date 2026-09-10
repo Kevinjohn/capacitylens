@@ -808,6 +808,36 @@ describe("TextField", () => {
       "label-control",
     );
   });
+
+  it("keeps describedById conditional on invalid state by default", () => {
+    render(
+      <>
+        <TextField label="Name" value="Barbara Gordon" onChange={vi.fn()} describedById="name-error" />
+        <p id="name-error">Name has an issue.</p>
+      </>,
+    );
+
+    expect(screen.getByLabelText("Name")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("supports a persistent external description alongside a conditional error description", () => {
+    render(
+      <>
+        <TextField
+          label="Name"
+          value="Barbara Gordon"
+          onChange={vi.fn()}
+          externalDescriptionId="name-help"
+          describedById="name-error"
+          invalid
+        />
+        <p id="name-help">Use your full name.</p>
+        <p id="name-error">Name has an issue.</p>
+      </>,
+    );
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("aria-describedby", "name-help name-error");
+  });
 });
 
 // ─── NumberField ───────────────────────────────────────────────────────────

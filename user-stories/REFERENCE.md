@@ -867,7 +867,7 @@ previews the company name, proposed role, role summary and expiry before accepta
 `GET /api/invites/:token/preview`. Possession of the bearer link is required to read that limited
 metadata, including whether it is email-bound and a hint showing only the part before `@`,
 followed by `@…`. The domain, full address, company data, membership list and unrelated identity
-facts are never revealed. A bound invite asks recipients to enter the full intended address,
+facts are never revealed. A bound invite explains that only the intended email address can accept it,
 while a generic link explains that it is transferable and single-use.
 An older preview without binding metadata makes neither claim. Merely
 opening or previewing the URL never changes membership. In a server deploy with auth on, an
@@ -1022,7 +1022,8 @@ The management section has four parts:
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
   shown again. The panel explicitly says CapacityLens does not send invitation emails: the creator
-  copies and sends the link. Creation confirmation stays beside the link, with instructions to
+  copies and sends the link. Email guidance is associated with the field before validation and
+  remains available alongside any validation error. Creation confirmation stays beside the link, with instructions to
   revoke and recreate it if lost, rather than overlaying the panel in a toast.
   If any membership, invite or reset-token mutation loses its response after dispatch,
   the section reloads memberships, invites and authentication before enabling a retry. A lost invite

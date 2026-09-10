@@ -50,6 +50,27 @@ describe("InviteMemberPanel creation guidance", () => {
     expect(screen.getByText("The invitee must use this email with their verified company login.")).toBeInTheDocument();
   });
 
+  it.each([
+    [
+      "password",
+      "Supply an email to restrict this invite to that recipient. Leave it empty for a generic one-use link that can be shared with anyone.",
+    ],
+    ["sso", "The invitee must use this email with their verified company login."],
+  ] as const)("describes a valid %s pre-authorised email field persistently", (authMode, description) => {
+    renderInvite({ authMode });
+
+    expect(screen.getByTestId("invite-preauth")).toHaveAccessibleDescription(description);
+  });
+
+  it("keeps the persistent helper alongside the conditional error description", () => {
+    renderInvite({ error: "Enter a valid email address.", errorField: "invite" });
+
+    expect(screen.getByTestId("invite-preauth")).toHaveAttribute(
+      "aria-describedby",
+      "invite-error-email-help invite-error",
+    );
+  });
+
   it("keeps the minted link and its recovery instructions in an inline status", () => {
     renderInvite({
       mintedLink: { inviteId: "invite-1", link: "https://app.example/invite/secret" },

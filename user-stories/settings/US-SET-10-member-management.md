@@ -145,7 +145,8 @@ intro.
     to Owner and demoting the caller to Admin, and both membership projections are re-read afterwards
     so the caller's role badge and affordances reflect the demotion.
 - Invitation creation explains that CapacityLens sends no email: the administrator must copy and
-  send the link. Success and recovery instructions remain inline with the one-time link.
+  send the link. Email guidance is available to screen readers before validation and alongside
+  any error. Success and recovery instructions remain inline with the one-time link.
 - Recipients can choose **Sign in** or **Create account** with equally prominent controls. Only the
   selected journey's fields appear. Existing users review and explicitly accept as the signed-in
   identity; changing identity preserves the invitation. New users create their sign-in and accept

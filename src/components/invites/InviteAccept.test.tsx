@@ -272,11 +272,11 @@ registerInviteAcceptTest(() =>
 
 registerInviteAcceptTest(() =>
   it.each([
-    [true, "selina.kyle@…", "This invite is for selina.kyle@…. Enter the full email address to continue."],
+    [true, "selina.kyle@…", "This invite is for selina.kyle@…. Only the intended email address can accept it."],
     [
       true,
       `${"a".repeat(252)}@…`,
-      `This invite is for ${"a".repeat(252)}@…. Enter the full email address to continue.`,
+      `This invite is for ${"a".repeat(252)}@…. Only the intended email address can accept it.`,
     ],
     [true, undefined, m.invite_email_bound_no_hint()],
     [false, null, m.invite_email_unbound()],

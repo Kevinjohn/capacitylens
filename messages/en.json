@@ -822,7 +822,7 @@
   "settings_invite_suffix_expires": " · expires {date}",
   "settings_invite_suffix_email": " · {email}",
   "invite_create_account_tab": "Create account",
-  "invite_email_bound": "This invite is for {hint}. Enter the full email address to continue.",
+  "invite_email_bound": "This invite is for {hint}. Only the intended email address can accept it.",
   "invite_email_bound_no_hint": "Only the intended email address can accept this invite. Ask the sender which address to use.",
   "invite_email_unbound": "Anyone with this one-use link can sign in or create an account to accept it.",
   "invite_email_bound_unknown": "Sign in or create an account to continue with this invite.",
