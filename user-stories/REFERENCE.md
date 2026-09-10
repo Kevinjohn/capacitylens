@@ -643,8 +643,9 @@ via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the
 governs **free scroll only** — the always-on **navigation** snap (Weeks visible / Prev-Next / Today,
 see _Scheduler toolbar_ above) re-anchors to the week start regardless of this switch.
 
-**Account options selected at creation (per-account, FROZEN after creation — P1.14).** The final
-Settings card is a compact, read-only four-row table: **Company name**, **Week starts on**,
+**Account options selected at creation (per-account, FROZEN after creation — P1.14).** Near the
+bottom of Settings, this compact, read-only four-row table appears before the Diagnostics card:
+**Company name**, **Week starts on**,
 **Time zone** (including its numeric UTC offset) and **Language** (`data-testid="settings-language"`,
 **English**). It replaces the editable Company card and the disabled Calendar controls. These values
 are captured ONCE in the company-create form (see _Launching the app_ above), and the help modal

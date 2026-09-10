@@ -1,4 +1,4 @@
-# US-SET-05 — Copy privacy-safe diagnostics
+# US-SET-16 — Copy privacy-safe diagnostics
 
 **Area:** Settings · **Persona:** A person reporting a server problem
 
