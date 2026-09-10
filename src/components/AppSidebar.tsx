@@ -238,14 +238,15 @@ function NavMenu({
 }
 
 /**
- * The signed-in identity + sign-out control at the very bottom of the nav (issue #169).
+ * The personal Account destination plus signed-in identity/sign-out controls at the very bottom
+ * of the nav (issue #169).
  *
  * Two identities can be signed in here and they never overlap: the COSMETIC demo persona
  * (`demoAuthActive` — real auth is off, see fakeAuth.ts) and a REAL Better Auth session
- * (`authMode !== "off"`). An auth-off server with no demo build has neither, and renders nothing —
- * exactly as before. The control always reads "Sign out" rather than toggling to "Sign in": the
- * entry gate (AppEntryGate / LoginScreen) means the shell — and therefore this footer — only ever
- * renders for someone already signed in, so offering "Sign in" here would be a dead affordance.
+ * (`authMode !== "off"`). The Account destination remains available for an auth-off local identity;
+ * the sign-out control appears only for the demo persona or a real session. It always reads
+ * "Sign out" rather than toggling to "Sign in": the entry gate (AppEntryGate / LoginScreen) means
+ * the shell only renders after demo sign-in or a real session has passed its outer gate.
  */
 function SessionMenuItem({
   demoAuthActive,
