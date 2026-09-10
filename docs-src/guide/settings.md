@@ -102,6 +102,17 @@ Both choices are frozen after the company is created. Settings shows them in the
 read-only **Account Options Selected at Creation** summary so everyone can check the
 company-wide values, but nobody can change them there.
 
+## Your personal account
+
+Open **Account** near **Switch company** and **Sign out** at the bottom of the sidebar to
+review your identity and the security controls available for your sign-in method. These are
+personal controls, separate from the company settings on this page.
+
+In password mode, Account includes password changes, reported multi-factor authentication
+status and active sessions. Company single sign-on shows its connection and session controls
+without a local password form. Demo mode identifies the fictional persona; installations with
+sign-in off have no credential controls. **Sign out** remains in the sidebar.
+
 ## Everything else on the page
 
 The rest of Settings, roughly top to bottom:
@@ -121,11 +132,8 @@ The rest of Settings, roughly top to bottom:
 | Appearance (this device)      | Light, dark, or match your system theme.                                                                                                                                                                                                                                                                                               |
 | Offline access                | Keep the last company you opened available on this device for seven days, read only. See [Offline access](/guide/offline-access).                                                                                                                                                                                                      |
 | Device data                   | Clear everything CapacityLens has stored on this device.                                                                                                                                                                                                                                                                               |
-| Account                       | Your sign-in email and a sign-out button.                                                                                                                                                                                                                                                                                              |
-| Security                      | Change your password and review your active sign-in sessions, in password mode.                                                                                                                                                                                                                                                        |
 | Deleted items                 | A closed-by-default disclosure for permanently deleting items after their 30-day retention period. Archived items are restored or deleted from the bottom of their Resources, Clients, Projects or Activities page. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                     |
 | Import & export               | A closed-by-default disclosure for downloading this company's data as JSON or replacing it from an earlier export. Importing asks you to confirm first.                                                                                                                                                                                |
-| Account Options Selected at Creation | A compact, read-only summary of the company name, week start, time zone and language. Week start and time zone affect the whole team but are frozen after company creation; see [Calendar](#calendar).                                                                                                                             |
 
 **Device data**, **Deleted items** and **Import & export** are independent
 disclosures and start closed. Opening one does not close another. Destructive actions

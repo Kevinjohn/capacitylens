@@ -379,6 +379,12 @@ function registerTrailingSlashTitleTest(): void {
 
     await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
   });
+
+  it("keeps Account active on its accepted trailing-slash route", () => {
+    renderAppShell(["/account/"]);
+
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
+  });
 }
 
 function registerLocaleChangeNavigationTest(): void {
@@ -459,6 +465,15 @@ function registerAccountNavigationStateTest(): void {
     renderAppShell(["/account"]);
     expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
     await waitFor(() => expect(document.title).toBe("Account · CapacityLens"));
+  });
+
+  it("keeps the personal Account route available before a company is selected", () => {
+    useStore.setState({ activeAccountId: null, accountSummaries: [] });
+    renderAppShell(["/account"]);
+
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
+    expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
   });
 }
 
@@ -583,6 +598,7 @@ function registerPersistedSidebarCollapseTest(): void {
 
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
     expect(within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Expand menu" })).toHaveAttribute(
       "aria-expanded",

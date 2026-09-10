@@ -173,23 +173,27 @@ function SidebarAccountFooter({
   onNavigate: () => void;
   pathname: string;
 }) {
-  if (!activeAccount) return null;
-
   return (
-    <SidebarFooter className="group-data-[collapsible=icon]:hidden">
-      <SidebarSeparator className="mx-0" />
-      <div className="min-w-0 px-2">
-        <div className="truncate text-sm font-semibold" title={activeAccount.name}>
-          {activeAccount.name}
+    <SidebarFooter>
+      {activeAccount && (
+        <div className="group-data-[collapsible=icon]:hidden">
+          <SidebarSeparator className="mx-0" />
+          <div className="min-w-0 px-2">
+            <div className="truncate text-sm font-semibold" title={activeAccount.name}>
+              {activeAccount.name}
+            </div>
+            <ActiveRoleBadge />
+          </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
+                {m.nav_switch_company()}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </div>
-        <ActiveRoleBadge />
-      </div>
+      )}
       <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
-            {m.nav_switch_company()}
-          </SidebarMenuButton>
-        </SidebarMenuItem>
         <SessionMenuItem
           demoAuthActive={demoAuthActive}
           onNavigate={onNavigate}
@@ -270,7 +274,12 @@ function SessionMenuItem({
   return (
     <>
       <SidebarMenuItem>
-        <SidebarMenuButton asChild size="sm" isActive={pathname === ACCOUNT_LINK.to}>
+        <SidebarMenuButton
+          asChild
+          size="sm"
+          isActive={matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null}
+          tooltip={ACCOUNT_LINK.label()}
+        >
           <NavLink to={ACCOUNT_LINK.to} onClick={onNavigate}>
             <AccountIcon aria-hidden="true" focusable="false" />
             <span>{ACCOUNT_LINK.label()}</span>
@@ -278,7 +287,7 @@ function SessionMenuItem({
         </SidebarMenuButton>
       </SidebarMenuItem>
       {showSignOut && (
-        <SidebarMenuItem>
+        <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
           <SidebarMenuButton
             size="sm"
             data-testid="nav-sign-out"
