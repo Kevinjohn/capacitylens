@@ -8,6 +8,7 @@ import { useOfflineReadEnabled, useOfflineState, usePersistenceDiagnostics } fro
 import { resolveErrorMessage } from "@/lib/errorMessage";
 import {
   canCreateInlineActivity,
+  hasVisibleTaskFieldInSchedule,
   hasDisciplinesEnabled,
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
@@ -56,6 +57,7 @@ function readSchedulingSettings(data: ReturnType<(typeof useStore)["getState"]>[
     showInternalProjects: hasVisibleInternalProjects(data, accountId),
     showInternalActivities: hasVisibleInternalActivities(data, accountId),
     inlineActivityCreateEnabled: canCreateInlineActivity(data, accountId),
+    showTaskFieldInSchedule: hasVisibleTaskFieldInSchedule(data, accountId),
   };
 }
 

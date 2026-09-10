@@ -1,4 +1,4 @@
-import { MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
+import { MAX_NAME_INPUT_CODE_UNITS, MAX_NOTE_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import { m } from "@/i18n";
 import {
   CheckboxField,
@@ -36,6 +36,23 @@ const buildHoursPerDayOptions = (): Option[] => [
 ];
 
 type ScheduleProps = AllocationModalState["scheduleFields"];
+type TaskProps = Pick<ScheduleProps, "task" | "setTask" | "showTaskFieldInSchedule" | "errorField" | "errorId">;
+
+function TaskField(props: TaskProps) {
+  if (!props.showTaskFieldInSchedule) return null;
+  return (
+    <TextField
+      label={m.form_allocation_task_label()}
+      value={props.task}
+      onChange={props.setTask}
+      maxLength={MAX_NAME_INPUT_CODE_UNITS}
+      invalid={props.errorField === "task"}
+      describedById={props.errorId}
+      layout="label-control"
+    />
+  );
+}
+
 type TypedSpanProps = Pick<
   ScheduleProps,
   | "isExternal"
@@ -263,6 +280,7 @@ function DetailFields(props: DetailProps) {
 export function AllocationScheduleFields(props: ScheduleProps) {
   return (
     <>
+      <TaskField {...props} />
       {props.usesTypedDateRange ? <TypedSpanFields {...props} /> : <CountedSpanFields {...props} />}
       {props.create && <RepeatFields {...props} />}
       <DetailFields {...props} />

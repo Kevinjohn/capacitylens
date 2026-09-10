@@ -7,6 +7,7 @@ import { formatDayMonth } from "../../lib/dateDisplay";
 import type { BarLabelPreferences } from "../../lib/displayPrefs";
 import { resolveAllocationStatusLabel } from "../../lib/metadata";
 import { useStore } from "../../store/useStore";
+import { hasVisibleTaskFieldInSchedule } from "../../store/selectors";
 import { AllocationBarView } from "./AllocationBarView";
 import type { ColumnGeometry } from "./columnGeometry";
 import { LAYOUT } from "./layout";
@@ -113,6 +114,10 @@ function buildBarLabels(bar: BarLayout, preferences: BarLabelPreferences) {
   return { label, viewerLabel };
 }
 
+function useBarLabelText(bar: BarLayout) {
+  return buildBarLabels(bar, useStore((state) => state.barLabelPrefs));
+}
+
 function buildBarInset(left: number, width: number) {
   const inset = Math.min(LAYOUT.barInset, width / 3);
   return { insetLeft: left + inset, insetWidth: Math.max(1, width - inset * 2) };
@@ -125,6 +130,7 @@ function buildBarInset(left: number, width: number) {
  * click and unmount tear those effects down. The first move pins virtualisation until teardown.
  * `onEdit` must remain stable so memoisation can skip untouched sibling bars during a drag.
  */
+// The name cannot change mid-gesture, so avoid rebuilding it on every pointermove render.
 export const AllocationBar = memo(function AllocationBar(props: AllocationBarProps) {
   const { bar, indexAtClientX, onEdit } = props;
   const canEdit = useCanEdit();
@@ -133,16 +139,12 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
   const [popoverOpen, setPopoverOpen] = useState(false);
   const { bg: background, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color]);
   const { insetLeft, insetWidth } = buildBarInset(gesture.left, gesture.width);
-  const { label: labelText, viewerLabel: viewerLabelText } = buildBarLabels(
-    bar,
-    useStore((state) => state.barLabelPrefs),
-  );
-  // The name cannot change mid-gesture, so avoid rebuilding it on every pointermove render.
+  const { label: labelText, viewerLabel: viewerLabelText } = useBarLabelText(bar);
+  const showTaskFieldInSchedule = useStore((state) => hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId));
   const ariaLabel = useMemo(
     () => buildAriaLabel({ bar, canEdit, hideHours, label: labelText, viewerLabel: viewerLabelText }),
     [bar, canEdit, hideHours, labelText, viewerLabelText],
   );
-
   const hidePopover = () => setPopoverOpen(false);
   const beginPointerGesture: PointerEventHandler<HTMLDivElement> | undefined = canEdit
     ? (event) => {
@@ -160,7 +162,6 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
       nudge: gesture.nudge,
       ...(onEdit ? { onEdit } : {}),
     });
-
   return (
     <AllocationBarView
       bar={bar}
@@ -177,6 +178,7 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
       popoverFooter={canEdit ? m.scheduler_bar_pop_footer() : m.scheduler_bar_pop_footer_viewer()}
       popoverOpen={popoverOpen}
       showSeriesIcon={bar.seriesEnd !== undefined && insetWidth >= 48}
+      showTaskFieldInSchedule={showTaskFieldInSchedule}
       translateY={gesture.translateY}
       onBlur={hidePopover}
       onFocus={() => setPopoverOpen(true)}

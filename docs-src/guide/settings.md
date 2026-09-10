@@ -81,6 +81,13 @@ default. Turning it on adds the inline **Add activity** controls for everyone wh
 edit allocations; turning it off again hides only those controls and does not remove
 activities or allocations.
 
+## Allocation task field
+
+Turn on **Show task field in schedule** to add an optional single-line **Task** description to the
+allocation editor. It is off by default. Enabled task text appears above Notes in schedule details
+and the person's schedule drawer. Turning the setting off hides the field and text without deleting
+it, so re-enabling the setting restores existing tasks.
+
 ## Calendar
 
 The company's week start and time zone apply to the whole team. Week start controls the

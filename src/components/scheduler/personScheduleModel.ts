@@ -32,6 +32,7 @@ export interface BuildPersonScheduleInput {
   window: PersonScheduleWindow;
   schedulingMode: SchedulingMode;
   internalColourMode: InternalColourMode;
+  showTaskFieldInSchedule: boolean;
   canSeeTimeOffNotes: boolean;
   title: string;
   activityFallback: string;
@@ -135,6 +136,7 @@ function buildAllocationEntry(
       ? { hoursPerDay: allocation.hoursPerDay }
       : {}),
     ...(seriesEnd ? { seriesEnd } : {}),
+    ...(input.showTaskFieldInSchedule && allocation.task ? { task: allocation.task } : {}),
     ...(allocation.note ? { note: allocation.note } : {}),
   };
 }

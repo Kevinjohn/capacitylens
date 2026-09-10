@@ -69,6 +69,9 @@ export const hasVisibleInternalActivities = createAccountFieldSelector("showInte
  *  FALSE (disabled). Single source so Settings and the modal use the same workspace value. */
 export const canCreateInlineActivity = createAccountFieldSelector("inlineActivityCreateEnabled", false);
 
+/** Whether populated allocation task text is shown in schedule details. Absent reads as false. */
+export const hasVisibleTaskFieldInSchedule = createAccountFieldSelector("showTaskFieldInSchedule", false);
+
 /** Primitive calendar selectors avoid fresh-object Zustand snapshots while keeping defaults single-sourced. */
 export const resolveTimeZone = createAccountFieldSelector("timezone", DEFAULT_CALENDAR_TIME_ZONE);
 

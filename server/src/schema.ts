@@ -11,6 +11,7 @@ import {
   V33_TABLES,
   V34_TABLES,
   V35_TABLES,
+  V36_TABLES,
   V8_TABLES,
   V9_TABLES,
 } from "./schema/historicalSpecs";
@@ -33,7 +34,9 @@ export function assertSchemaV9(db: Db): void {
 
 /** Assert the immutable v16 entity-table shape without requiring fields from later migrations. */
 export function assertSchemaV16(db: Db): void {
-  assertSchemaVersion(db, V16_TABLES, false);
+  // Newer optional columns can remain on a database rolled back to v16 for a targeted migration
+  // test. They are harmless extensions and are still validated by the current schema at boot.
+  assertSchemaVersion(db, V16_TABLES, true);
 }
 
 /** Assert the released v27 shape without requiring the v28 resource half-day column. */
@@ -79,6 +82,11 @@ export function assertSchemaV34(db: Db): void {
 /** Assert the released v35 shape before Activity lifecycle tombstones are added. */
 export function assertSchemaV35(db: Db): void {
   assertSchemaVersion(db, V35_TABLES, true);
+}
+
+/** Assert the released v36 shape before allocation task fields are added. */
+export function assertSchemaV36(db: Db): void {
+  assertSchemaVersion(db, V36_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

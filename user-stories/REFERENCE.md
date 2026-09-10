@@ -714,7 +714,7 @@ Owners/Admins (and in existing auth-off/demo semantics), and account, permission
 invalidation removes all stale drawer content immediately. See [The schedule](../docs-src/guide/the-schedule.md).
 If the optional allocation Task field from #720 is available and populated under its workspace
 visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
-setting.
+setting. See [US-ALL-10](allocation/US-ALL-10-task-field.md).
 
 **Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
 two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):

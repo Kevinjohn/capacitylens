@@ -66,6 +66,7 @@ const accountsColumns = [
   { name: "showInternalProjects", json: true, optional: true },
   { name: "showInternalActivities", json: true, optional: true },
   { name: "inlineActivityCreateEnabled", json: true, optional: true },
+  { name: "showTaskFieldInSchedule", json: true, optional: true },
   ...META,
 ] as const satisfies ColumnSpec[];
 
@@ -163,6 +164,7 @@ const allocationsColumns = [
   { name: "hoursPerDay", sqlType: "REAL" },
   { name: "status" },
   { name: "note", optional: true },
+  { name: "task", optional: true },
   // JSON so node:sqlite (which can't bind a raw boolean) round-trips it as
   // "true"/"false"; absent → NULL → omitted on read, matching the client object.
   { name: "ignoreWeekends", json: true, optional: true },

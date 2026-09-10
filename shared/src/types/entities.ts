@@ -100,6 +100,8 @@ export interface Account extends Entity {
    *  Absent = false (hidden). When false the inline creator is not rendered; the Activity picker
    *  itself still works normally. */
   inlineActivityCreateEnabled?: boolean;
+  /** Whether populated allocation task text is shown in schedule details. Absent = false. */
+  showTaskFieldInSchedule?: boolean;
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */
@@ -232,6 +234,8 @@ export interface Allocation extends ScopedEntity {
   hoursPerDay: number;
   status: AllocationStatus;
   note?: string;
+  /** Optional short, single-line work description shown in schedule details when enabled. */
+  task?: string | undefined;
   /** When true, this allocation treats weekends / non-working days as normal
    *  working days (drag/move does not auto-extend across them). Absent =
    *  weekend-aware (the default). */
@@ -297,8 +301,9 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
  *  TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone; v17
  *  separates company closures into their own table and restores required TimeOff.resourceId; v18
  *  adds optional per-allocation project attribution for repeatable activities; v19 adds optional
- *  Activity lifecycle tombstones archivedAt/deletedAt.) */
-export const EXPORT_SCHEMA_VERSION = 19;
+ *  Activity lifecycle tombstones archivedAt/deletedAt; v20 adds optional allocation task text and
+ *  account-wide schedule visibility for it.) */
+export const EXPORT_SCHEMA_VERSION = 20;
 
 export interface PersistedState {
   schemaVersion: number;

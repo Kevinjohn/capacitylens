@@ -42,6 +42,7 @@ export const FIXTURE_ACCOUNT: Account = {
   showInternalActivities: false,
   // Inline creation defaults false; keeping the explicit value exercises boolean persistence.
   inlineActivityCreateEnabled: false,
+  showTaskFieldInSchedule: true,
   createdAt: TS1,
   updatedAt: TS2,
 };
@@ -178,6 +179,7 @@ export const FIXTURE_ALLOCATION: Allocation = {
   hoursPerDay: 0,
   status: "tentative",
   note: "Fixture note",
+  task: "Fixture task",
   ignoreWeekends: true,
   createdAt: TS1,
   updatedAt: TS2,

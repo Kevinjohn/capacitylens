@@ -63,16 +63,23 @@ ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;`);
 const V29_ACCOUNTS: TableSpec = {
   ...liveTableSpec("accounts"),
   columns: liveTableSpec("accounts").columns.filter(
-    (column) => column.name !== "groupResourcesByEngagement" && column.name !== "workingDays",
+    (column) =>
+      column.name !== "groupResourcesByEngagement" &&
+      column.name !== "workingDays" &&
+      column.name !== "showTaskFieldInSchedule",
   ),
 };
 const V30_ACCOUNTS: TableSpec = {
   ...liveTableSpec("accounts"),
-  columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "workingDays"),
+  columns: liveTableSpec("accounts").columns.filter(
+    (column) => column.name !== "workingDays" && column.name !== "showTaskFieldInSchedule",
+  ),
 };
 const PRE_V35_ALLOCATIONS: TableSpec = {
   ...liveTableSpec("allocations"),
-  columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "projectId"),
+  columns: liveTableSpec("allocations").columns.filter(
+    (column) => column.name !== "projectId" && column.name !== "task",
+  ),
 };
 const PRE_V36_ACTIVITIES: TableSpec = {
   ...liveTableSpec("activities"),
@@ -90,10 +97,20 @@ const V32_TIME_OFF: TableSpec = {
     column.name === "resourceId" ? { name: column.name } : column,
   ),
 };
-const PRE_V34_TABLES = Object.fromEntries(Object.entries(TABLES).filter(([key]) => key !== "closures")) as Record<
-  string,
-  TableSpec
->;
+const PRE_V37_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: {
+    ...liveTableSpec("accounts"),
+    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "showTaskFieldInSchedule"),
+  },
+  allocations: {
+    ...liveTableSpec("allocations"),
+    columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "task"),
+  },
+};
+const PRE_V34_TABLES = Object.fromEntries(
+  Object.entries(PRE_V37_TABLES).filter(([key]) => key !== "closures"),
+) as Record<string, TableSpec>;
 PRE_V34_TABLES.allocations = PRE_V35_ALLOCATIONS;
 PRE_V34_TABLES.activities = PRE_V36_ACTIVITIES;
 export const V27_TABLES: Record<string, TableSpec> = {
@@ -149,12 +166,17 @@ export const V33_TABLES: Record<string, TableSpec> = {
   },
 };
 export const V34_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V37_TABLES,
   activities: PRE_V36_ACTIVITIES,
   allocations: PRE_V35_ALLOCATIONS,
 };
 /** Released v35 shape before v36 adds Activity lifecycle tombstones. */
 export const V35_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V37_TABLES,
   activities: PRE_V36_ACTIVITIES,
+};
+/** Released v36 shape before v37 adds account task visibility and allocation task text. */
+export const V36_TABLES: Record<string, TableSpec> = {
+  ...PRE_V37_TABLES,
+  allocations: PRE_V35_ALLOCATIONS,
 };

@@ -2507,6 +2507,26 @@ describe("AllocationModal inline activity creation pref", () => {
   registerInlineActivityUnavailableTests();
 });
 
+describe("AllocationModal task field", () => {
+  it("shows and saves an optional single-line task when the workspace setting is enabled", async () => {
+    const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await user.type(screen.getByLabelText("Task"), "Launch review");
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations[0]?.task).toBe("Launch review");
+  });
+});
+
 function registerEnterSubmissionTests() {
   it("operates the Hours / day select with the keyboard", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));

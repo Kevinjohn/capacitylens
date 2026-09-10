@@ -23,6 +23,7 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "showInternalProjects",
       "showInternalActivities",
       "inlineActivityCreateEnabled",
+      "showTaskFieldInSchedule",
     ],
     clients: [
       "id",
@@ -98,6 +99,7 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "hoursPerDay",
       "status",
       "note",
+      "task",
       "ignoreWeekends",
       "createdAt",
       "updatedAt",

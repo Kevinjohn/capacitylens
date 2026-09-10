@@ -28,6 +28,7 @@ function build(overrides: Partial<Parameters<typeof buildPersonSchedule>[0]> = {
     window: { startDate: "2026-09-07", endDate: "2026-10-04" },
     schedulingMode: "hourly",
     internalColourMode: "grey",
+    showTaskFieldInSchedule: true,
     canSeeTimeOffNotes: false,
     title: "Diana Prince's schedule",
     activityFallback: "Activity",
@@ -89,6 +90,7 @@ describe("buildPersonSchedule allocation projection", () => {
       endDate: "2026-09-11",
       hoursPerDay: 4,
       note: "Bring prototypes",
+      task: "Prototype review",
     });
     const laterOtherResource = makeAllocation({
       id: "occurrence-2",
@@ -120,8 +122,25 @@ describe("buildPersonSchedule allocation projection", () => {
         hoursPerDay: 4,
         seriesEnd: "2027-02-03",
         note: "Bring prototypes",
+        task: "Prototype review",
       }),
     ]);
+  });
+
+});
+
+describe("buildPersonSchedule task visibility", () => {
+  it("omits task text when the workspace visibility setting is off", () => {
+    const result = build({
+      data: {
+        ...emptyAppData(),
+        resources: [resource],
+        activities: [activity],
+        allocations: [makeAllocation({ task: "Hidden task", startDate: "2026-09-10", endDate: "2026-09-10" })],
+      },
+      showTaskFieldInSchedule: false,
+    });
+    expect(result.model.entries[0]).not.toHaveProperty("task");
   });
 });
 

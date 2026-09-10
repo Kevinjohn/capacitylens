@@ -53,6 +53,7 @@ function AllocationEntry({ entry }: { entry: PersonScheduleAllocationEntry }) {
           {m.scheduler_bar_pop_series({ end: formatScheduleDate(entry.seriesEnd) })}
         </p>
       )}
+      {entry.task && <p className="mt-3 break-words text-sm text-muted-foreground">{entry.task}</p>}
       {entry.note && <EntryNote note={entry.note} />}
     </>
   );

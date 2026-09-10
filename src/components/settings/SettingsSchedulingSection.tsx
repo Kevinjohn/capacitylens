@@ -26,6 +26,7 @@ type SettingsSchedulingSectionProps = {
   showInternalProjects: boolean;
   showInternalActivities: boolean;
   inlineActivityCreateEnabled: boolean;
+  showTaskFieldInSchedule: boolean;
   internalColourMode: InternalColourMode;
   minimiseWeekends: StoreState["minimiseWeekends"];
   setMinimiseWeekends: StoreState["setMinimiseWeekends"];
@@ -185,6 +186,7 @@ type SchedulingFeatureSectionProps = Pick<
   | "showInternalProjects"
   | "showInternalActivities"
   | "inlineActivityCreateEnabled"
+  | "showTaskFieldInSchedule"
   | "updateSetting"
 >;
 
@@ -195,6 +197,7 @@ function SchedulingFeatureSections({
   showInternalProjects,
   showInternalActivities,
   inlineActivityCreateEnabled,
+  showTaskFieldInSchedule,
   updateSetting,
 }: SchedulingFeatureSectionProps) {
   const externalHelp = (
@@ -234,6 +237,14 @@ function SchedulingFeatureSections({
         checked={inlineActivityCreateEnabled}
         canEdit={canEdit}
         onChange={(next) => updateSetting({ inlineActivityCreateEnabled: next })}
+      />
+      <AccountToggleSection
+        title={m.settings_task_field_heading()}
+        help={m.settings_task_field_intro()}
+        label={m.settings_task_field_toggle()}
+        checked={showTaskFieldInSchedule}
+        canEdit={canEdit}
+        onChange={(next) => updateSetting({ showTaskFieldInSchedule: next })}
       />
     </>
   );
@@ -290,6 +301,7 @@ export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps)
         showInternalProjects={props.showInternalProjects}
         showInternalActivities={props.showInternalActivities}
         inlineActivityCreateEnabled={props.inlineActivityCreateEnabled}
+        showTaskFieldInSchedule={props.showTaskFieldInSchedule}
         updateSetting={props.updateSetting}
       />
     </>

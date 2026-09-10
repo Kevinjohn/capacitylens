@@ -84,6 +84,7 @@ describe("PersonScheduleEntry wrapping", () => {
       startDate: "2026-06-01",
       endDate: "2026-06-05",
       note: "A long note with a line break\nthat remains readable without horizontal overflow.",
+      task: "Prototype review",
     };
 
     render(
@@ -96,5 +97,6 @@ describe("PersonScheduleEntry wrapping", () => {
     expect(within(item).getByRole("heading")).toHaveClass("break-words");
     expect(within(item).getByText(/very long project attribution/)).toHaveClass("break-words");
     expect(within(item).getByText(/long note with a line break/)).toHaveClass("whitespace-pre-wrap", "break-words");
+    expect(within(item).getByText("Prototype review")).toBeInTheDocument();
   });
 });
