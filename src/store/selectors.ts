@@ -66,8 +66,8 @@ export const hasVisibleInternalProjects = createAccountFieldSelector("showIntern
 export const hasVisibleInternalActivities = createAccountFieldSelector("showInternalActivities", true);
 
 /** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as
- *  TRUE (enabled). Single source so the modal gates on the same per-account value. */
-export const canCreateInlineActivity = createAccountFieldSelector("inlineActivityCreateEnabled", true);
+ *  FALSE (disabled). Single source so Settings and the modal use the same workspace value. */
+export const canCreateInlineActivity = createAccountFieldSelector("inlineActivityCreateEnabled", false);
 
 /** Primitive calendar selectors avoid fresh-object Zustand snapshots while keeping defaults single-sourced. */
 export const resolveTimeZone = createAccountFieldSelector("timezone", DEFAULT_CALENDAR_TIME_ZONE);

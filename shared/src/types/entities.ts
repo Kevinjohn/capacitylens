@@ -97,7 +97,7 @@ export interface Account extends Entity {
    *  removes only the bars, never the underlying load from capacity/utilisation. */
   showInternalActivities?: boolean;
   /** Whether the scheduler's Allocation modal offers the inline "Add activity" input + button.
-   *  Absent = true (shown). When false the inline creator is not rendered; the Activity picker
+   *  Absent = false (hidden). When false the inline creator is not rendered; the Activity picker
    *  itself still works normally. */
   inlineActivityCreateEnabled?: boolean;
 }
