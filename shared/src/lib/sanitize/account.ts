@@ -11,7 +11,7 @@ import { INTERNAL_COLOUR_MODES, type Account } from "../../types/entities";
  *   externalEnabled               absent = false (external resources hidden out of the box)
  *   showInternalProjects          absent = true  (Internal-client bars shown)
  *   showInternalActivities        absent = true  (internal-kind bars shown)
- *   inlineActivityCreateEnabled   absent = true  (inline "Add activity" offered)
+ *   inlineActivityCreateEnabled   absent = false (inline "Add activity" hidden)
  * Dropping junk — rather than coercing it — is what keeps a `false`-defaulting flag from turning on
  * because someone typed "no" into the file.
  */

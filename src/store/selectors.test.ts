@@ -159,7 +159,7 @@ const accountFeatureCases: Array<{
   {
     name: "inline activity creation",
     selector: canCreateInlineActivity,
-    fallback: true,
+    fallback: false,
     explicit: [true, false],
     values: (inlineActivityCreateEnabled) => ({
       inlineActivityCreateEnabled: inlineActivityCreateEnabled as boolean,

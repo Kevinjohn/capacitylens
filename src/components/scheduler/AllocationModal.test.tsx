@@ -506,6 +506,7 @@ function expectAllocationSpanRow(controls: HTMLElement[]) {
 function registerCompactCreateLayoutTest() {
   it("aligns Hours-mode create fields, the full-width scheduling row, inline creation and repeat hints", async () => {
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -2394,8 +2395,9 @@ function addInlineActivityTestPerson() {
 }
 
 function registerInlineActivityEnabledTests() {
-  it('renders the inline "Add activity" input + button by default (pref absent → enabled)', () => {
+  it('renders the inline "Add activity" input + button when explicitly enabled', () => {
     const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     render(
       <AllocationModal
         kind="create"
@@ -2410,6 +2412,7 @@ function registerInlineActivityEnabledTests() {
   it("places an inline-created project activity in the project-specific group", async () => {
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -2437,6 +2440,20 @@ function registerInlineActivityEnabledTests() {
 }
 
 function registerInlineActivityUnavailableTests() {
+  it('hides the inline "Add activity" controls by default while retaining the Activity picker', () => {
+    const resourceId = addInlineActivityTestPerson();
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByLabelText("New activity name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add activity" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Activity" })).toBeInTheDocument();
+  });
+
   it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', () => {
     const resourceId = addInlineActivityTestPerson();
     useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
@@ -2456,6 +2473,7 @@ function registerInlineActivityUnavailableTests() {
 
   it("removes inline activity creation when an open editor modal is downgraded to viewer", async () => {
     const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     const view = render(
       <PermissionContext.Provider value={{ role: "editor" }}>
@@ -2547,6 +2565,7 @@ function registerInlineActivityEnterTest() {
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = first(useStore.getState().data.resources).id;
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
