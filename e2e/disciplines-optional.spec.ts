@@ -46,11 +46,11 @@ test("turning disciplines off hides every surface; turning it back on restores t
   // Sidebar nav link is gone.
   await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
 
-  // …and the collapsed icon mode drops it too: 8 destinations, no Disciplines.
+  // …and the collapsed icon mode drops it too: 9 destinations, no Disciplines.
   // (External is no longer a standalone nav link — it lives inside Resources.)
   await page.getByRole("button", { name: "Collapse menu" }).click();
   await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
-  await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(8);
+  await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(9);
   await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
   await page.getByTestId("app-sidebar").getByRole("button", { name: "Expand menu" }).click();
 

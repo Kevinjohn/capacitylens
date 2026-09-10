@@ -84,12 +84,47 @@ describe("SettingsView — scheduling mode", () => {
   });
 });
 
+describe("SettingsView — Capacity Overview access", () => {
+  it("defaults to Owner and Admin and lets an administrator widen access", async () => {
+    const user = userEvent.setup();
+    render(
+      <PermissionContext.Provider value={{ role: "admin", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    const restricted = screen.getByRole("radio", { name: "Owner and Admin only" });
+    const everyone = screen.getByRole("radio", { name: "Everyone" });
+    expect(restricted).toHaveAttribute("aria-checked", "true");
+
+    await user.click(everyone);
+
+    expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)).toHaveProperty(
+      "capacityOverviewAccess",
+      "everyone",
+    );
+  });
+
+  it("shows the policy read-only to editors", () => {
+    render(
+      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.getByRole("radio", { name: "Owner and Admin only" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Owner, Admin, and Editors" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Everyone" })).toBeDisabled();
+  });
+});
+
 describe("SettingsView — section help", () => {
   it("gives every default settings section its labelled question-mark action", () => {
     render(<SettingsView />);
 
     for (const section of [
       "Scheduling",
+      "Capacity Overview access",
       "Global working days",
       "Disciplines",
       "Engagement grouping",

@@ -2,7 +2,9 @@ import { Suspense, type CSSProperties } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { useStore } from "../store/useStore";
-import { hasDisciplinesEnabled } from "../store/selectors";
+import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from "../store/selectors";
+import { usePermissionStatus, useRole } from "../auth/permissionContext";
+import { resolveCapacityOverviewAccessDecision } from "../auth/capacityOverviewAccess";
 import { useDemoAuthActive } from "../lib/fakeAuth";
 import { CommandPalette } from "./CommandPalette";
 import { PermissionProvider } from "../auth/PermissionProvider";
@@ -19,6 +21,7 @@ import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
 import { transitionAccount } from "../auth/accountTransition";
 import { masqueradeController } from "../auth/masqueradeController";
 import { Button } from "./ui/button";
+import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
 
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
@@ -178,6 +181,13 @@ function GatedSidebar({
   signOutDemo,
   sidebarOpen,
 }: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "signOutDemo" | "sidebarOpen">) {
+  const role = useRole();
+  const permissionStatus = usePermissionStatus();
+  const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
+  const visibleNavLinks =
+    resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed"
+      ? navLinks
+      : navLinks.filter(({ to }) => to !== ROUTE_CAPACITY_OVERVIEW);
   return (
     <>
       <a
@@ -190,7 +200,7 @@ function GatedSidebar({
         activeAccount={activeAccount}
         adminLinks={ADMIN_LINKS}
         demoAuthActive={demoAuthActive}
-        navLinks={navLinks}
+        navLinks={visibleNavLinks}
         onSignOut={signOutDemo}
         onSwitchAccount={() => void transitionAccount(null)}
         open={sidebarOpen}

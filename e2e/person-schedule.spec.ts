@@ -184,7 +184,7 @@ test("uses the avatar as the sole trigger with resting, hover, and focus cues", 
   await page.mouse.move(900, 700);
   for (
     let tabs = 0;
-    tabs < 20 && !(await trigger.evaluate((element) => element === document.activeElement));
+    tabs < 30 && !(await trigger.evaluate((element) => element === document.activeElement));
     tabs += 1
   ) {
     await page.keyboard.press("Tab");

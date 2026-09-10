@@ -19,6 +19,7 @@ export function SettingsView() {
       <div className="flex flex-col gap-6">
         <SettingsSchedulingSection
           canEdit={controller.canEdit}
+          canManageCapacityOverviewAccess={controller.canManageCapacityOverviewAccess}
           {...scheduling}
           workingDaysMinimumId={controller.workingDaysMinimumId}
           updateSetting={controller.updateSetting}

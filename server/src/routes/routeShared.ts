@@ -89,6 +89,7 @@ export function isStaleWrite(input: StaleWriteInput): input is StaleWriteInput &
 export const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
   canSeeTimeOffNote: true,
   canSeePrivateNames: true,
+  canChangeCapacityOverviewAccess: true,
 });
 
 export type AuthorizeRoute = (input: AuthorizeRouteInput) => AuthorizationResult;
