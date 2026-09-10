@@ -7,13 +7,20 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.62.0-alpha.5] - 2026-09-10
+
+CapacityLens Alpha 5 makes archived work easier to find and recover. This public milestone also
+includes repeated personal time off, project attribution for shared activities and a read-only
+member access preview introduced since Alpha 4.
+
 ### Added
 
-- Owners and administrators can find archived resources, clients, projects and activities directly
-  below each management list, restore them immediately, or move them into the deletion retention
-  period; activities now use the same reversible archive lifecycle as the other planning data. The
-  Resources archive now mirrors the active Studio, Supplementary and External grouping, with archived
-  placeholders retained in their own group.
+- Find archived resources, clients, projects and activities directly below their usual lists.
+  Owners and administrators can restore an accidentally archived item without searching Settings.
+- Browse archived resources in familiar groups: **Archived Studio**, **Archived Supplementary** and
+  **Archived External**, with archived placeholders kept separately when present. Empty groups stay hidden.
+- Archive activities reversibly, just like the other planning data. Archived items offer **Restore**
+  and **Delete**; deleted items remain in Settings during the 30-day retention period before permanent deletion.
 
 ## [0.61.0-alpha.1] - 2026-09-10
 
@@ -4186,7 +4193,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.61.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...HEAD
+[0.62.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.62.0-alpha.5
 [0.61.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.2-alpha.1...v0.61.0-alpha.1
 [0.60.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.1-alpha.1...v0.60.2-alpha.1
 [0.60.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.0-alpha.1...v0.60.1-alpha.1
