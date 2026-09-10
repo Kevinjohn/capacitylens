@@ -20,7 +20,7 @@ credentials, identifiers or implementation details.
 **Precondition:** Sign in to a server-mode company and open **Settings**. For a demo-mode check,
 open Settings in a build with `VITE_CAPACITYLENS_DEMO=1`.
 
-1. Scroll near the bottom of Settings and open the **Diagnostics** card.
+1. Scroll to the **Diagnostics** card at the bottom of Settings.
 2. Review the app version, build revision, deployment mode and export schema, followed by the
    server connectivity, database, persistence and backup values that are available.
 3. Click **Copy diagnostics**. A generic success message confirms that the report was copied.
