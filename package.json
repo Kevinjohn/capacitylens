@@ -70,6 +70,7 @@
     "gate": "node scripts/run-gate.mjs app",
     "mutation": "pnpm run paraglide:compile && stryker run",
     "rehearse:migrations": "pnpm --filter capacitylens-server rehearse:migrations",
+    "smoke:packaged-server": "node scripts/smoke-packaged-server.mjs",
     "test:server": "pnpm --filter capacitylens-server test",
     "gate:server": "node scripts/run-gate.mjs server",
     "policy:sonner-csp:test": "node --test scripts/check-sonner-csp.test.mjs",
@@ -79,6 +80,7 @@
     "policy:server-script-lint:test": "node --test scripts/check-server-script-lint.test.mjs",
     "policy:shared-environment:test": "node --test scripts/check-shared-environment.test.mjs",
     "policy:script-environments:test": "node --test scripts/check-script-environments.test.mjs",
+    "policy:packaged-smoke:test": "node --test scripts/smoke-packaged-server.test.mjs",
     "policy:lint-coverage:test": "node --test scripts/check-lint-coverage.test.mjs"
   },
   "dependencies": {

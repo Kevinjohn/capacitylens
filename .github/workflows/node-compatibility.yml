@@ -1,0 +1,96 @@
+name: Node compatibility
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 5 * * 2"
+
+concurrency:
+  group: node-compatibility-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  application:
+    name: Node 26 application gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: 26
+      - run: pnpm run gate
+
+  server:
+    name: Node 26 server gate and migration rehearsal
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: 26
+      - run: pnpm run gate:server
+      - name: Rehearse released database migrations
+        run: timeout --signal=TERM --kill-after=30s 7m pnpm run rehearse:migrations
+
+  packaged-server:
+    name: Node 26 deployed server and import worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: 26
+      - name: Test the packaged smoke harness
+        run: pnpm run policy:packaged-smoke:test
+      - name: Build deployed server bundles
+        run: pnpm --filter capacitylens-server build:runtime
+      - name: Assemble the production dependency tree
+        run: pnpm --filter capacitylens-server deploy --prod "$RUNNER_TEMP/capacitylens-server"
+      - name: Smoke test deployed server, import worker, and backups
+        env:
+          CAPACITYLENS_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/packaged-smoke-artifacts
+        run: timeout --signal=TERM --kill-after=30s 3m pnpm run smoke:packaged-server "$RUNNER_TEMP/capacitylens-server"
+      - name: Upload packaged smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: node-26-packaged-smoke-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/packaged-smoke-artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+
+  chromium:
+    name: Node 26 Chromium E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          node-version: 26
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run e2e
+      - name: Upload browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: node-26-chromium-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          retention-days: 7

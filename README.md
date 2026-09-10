@@ -73,6 +73,7 @@ asked "can we take this on?" and need a shared, honest answer.
 ## Run it for real
 
 Node 24 and pnpm are required; the pinned version is in `.nvmrc`.
+Node 26 compatibility is still under investigation; see [the compatibility notes](docs-src/reference/development.md#check-node-26-compatibility).
 
 ```bash
 nvm use
