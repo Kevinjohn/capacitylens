@@ -234,13 +234,22 @@ describe("SchedulerToolbar discipline and client ordering", () => {
 });
 
 describe("SchedulerToolbar project and activity ordering", () => {
-  it("pins Internal-owned projects before alphabetically ordered external projects", () => {
+  it("orders projects by effective client name, then effective project name", () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
     useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
-    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
+    const queen = useStore
+      .getState()
+      .addClient({ name: "Queen Consolidated", color: "#111", isPrivate: true, codeName: "Xavier" });
     const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
-    useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    useStore.getState().addProject({
+      name: "Project Watchtower",
+      clientId: queen.id,
+      color: "#333",
+      isPrivate: true,
+      codeName: "Alpha",
+    });
     useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: lex.id, color: "#444" });
+    useStore.getState().addProject({ name: "Annual report", clientId: lex.id, color: "#777" });
     useStore.getState().addProject({ name: "Website", clientId: internal.id, color: "#555" });
     useStore.getState().addProject({ name: "Admin", clientId: internal.id, color: "#666" });
     render(<SchedulerToolbar />);
@@ -250,9 +259,29 @@ describe("SchedulerToolbar project and activity ordering", () => {
       "All projects",
       "Internal / Admin",
       "Internal / Website",
+      "LexCorp / Annual report",
       "LexCorp / Metropolis Rebrand",
       "Queen Consolidated / Project Watchtower",
     ]);
+  });
+});
+
+describe("SchedulerToolbar project option presentation", () => {
+  it("mutes client context while preserving the complete accessible label and keyboard selection", async () => {
+    const user = userEvent.setup();
+    const client = useStore.getState().addClient({ name: "LexCorp", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: client.id, color: "#222" });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    const trigger = screen.getByRole("combobox", { name: "Filter by project" });
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    const option = screen.getByRole("option", { name: "LexCorp / Metropolis Rebrand" });
+    expect(option.querySelector('[data-slot="project-option-client"]')).toHaveClass("text-muted-foreground");
+    expect(option.querySelector('[data-slot="project-option-name"]')).toHaveClass("text-current");
+
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(useStore.getState().ui.filters.projectId).toBe(project.id);
   });
 
   it("alphabetises activities within the existing Internal and All projects groups", () => {

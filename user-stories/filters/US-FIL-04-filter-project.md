@@ -24,3 +24,8 @@ When focused on one project's delivery, the manager wants the schedule reduced t
 - ✅ Ticking **Show unallocated** (off by default) brings the non-matching resources back **visible but dimmed**, still showing their full real utilisation.
 - ✅ Setting the select back to **All projects** restores every bar.
 - ✅ While a project filter is active, the **Clear Filters** button is enabled.
+- ✅ The project picker keeps **All projects** first, then sorts by client and project using each
+  item's trimmed code name when available, otherwise its ordinary name. Comparison is
+  case-insensitive and deterministic.
+- ✅ Each project option keeps its complete `Client / Project` accessible label while visually
+  muting the client and slash so the project name remains prominent in every interaction state.

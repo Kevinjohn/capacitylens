@@ -7,6 +7,8 @@ interface CompareDisplayNamesInput {
 
 type Identified = { id: string };
 type Named = Identified & { name: string };
+type EffectivelyNamed = Named & { codeName?: string };
+type ClientProject = EffectivelyNamed & { clientId: string };
 
 // CapacityLens is currently English-only. Pinning the locale keeps management-list order independent
 // of the host/browser locale; exact spelling and id then make every collation tie deterministic.
@@ -42,6 +44,37 @@ export function createDisplayNameComparator<T extends Identified>(displayName: (
       rightName: displayName(right),
       rightId: right.id,
     });
+}
+
+/** The identity an owner uses to order private names. Redacted account slices omit `codeName` and
+ * already project the safe quoted code name into `name`, so this never reaches behind that boundary. */
+export function effectiveDisplayName(item: { name: string; codeName?: string }): string {
+  const codeName = item.codeName?.trim();
+  return codeName?.length ? codeName : item.name;
+}
+
+/** Shared client-first project ordering for project selectors and management views. */
+export function createClientProjectDisplayNameComparator<T extends ClientProject>(clients: EffectivelyNamed[]) {
+  const clientsById = new Map(clients.map((client) => [client.id, client]));
+  return (left: T, right: T): number => {
+    const leftClient = clientsById.get(left.clientId);
+    const rightClient = clientsById.get(right.clientId);
+    const clientOrder = compareDisplayNames({
+      leftName: leftClient ? effectiveDisplayName(leftClient) : "",
+      leftId: left.clientId,
+      rightName: rightClient ? effectiveDisplayName(rightClient) : "",
+      rightId: right.clientId,
+    });
+    return (
+      clientOrder ||
+      compareDisplayNames({
+        leftName: effectiveDisplayName(left),
+        leftId: left.id,
+        rightName: effectiveDisplayName(right),
+        rightId: right.id,
+      })
+    );
+  };
 }
 
 export function createFavouriteDisplayNameComparator<T extends Identified & { isFavourite?: boolean }>(
