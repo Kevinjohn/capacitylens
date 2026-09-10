@@ -498,6 +498,8 @@ function registerSidebarSignOutTest(): void {
   it("offers an avatar'd sign-out below Switch company", () => {
     renderAppShell();
 
+    expect(screen.getByText("Test Co")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch company" })).toBeInTheDocument();
     const signOut = screen.getByTestId("nav-sign-out");
     expect(signOut).toHaveTextContent("Sign out");
     expect(signOut).toHaveAttribute("title", "Signed in as Bruce Wayne");
