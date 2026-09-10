@@ -1,11 +1,13 @@
 import { expect, test } from "./fixtures";
 import {
+  boundingBoxOrThrow,
   dismissLandscapeHint,
   goToSeedWeek,
   nudgeScheduler,
   openApp,
   probeSchedulerGeometry,
   resetSchedulerScroll,
+  setTheme,
   setZoom,
   showScheduleFilters,
 } from "./helpers";
@@ -139,6 +141,60 @@ function registerLayoutScenario() {
     await expect(narrowSheet).toHaveCount(0);
   });
 }
+
+test("opens from the trigger with both keyboard activation keys", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
+
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+
+  await page.keyboard.press("Space");
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+});
+
+test("keeps the trigger and identity column within their layout budgets", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
+  const triggerBox = await boundingBoxOrThrow(trigger);
+  expect(triggerBox.width).toBe(24);
+  expect(triggerBox.height).toBe(24);
+
+  const identityColumn = page
+    .getByTestId("scheduler-row")
+    .filter({ hasText: "Bruce Wayne" })
+    .locator('[role="rowheader"]');
+  const identityBox = await boundingBoxOrThrow(identityColumn);
+  expect(identityBox.width).toBe(256);
+});
+
+test("renders the drawer and wrap-safe entries in the dark theme", async ({ page }) => {
+  await setTheme(page, "dark");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openApp(page);
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByTestId("person-schedule-entry")).toHaveCount(3);
+  const colours = await dialog.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return { background: styles.backgroundColor, foreground: styles.color };
+  });
+  expect(colours.background).not.toBe("rgba(0, 0, 0, 0)");
+  expect(colours.foreground).not.toBe("");
+});
 
 test.describe("Individual schedule drawer", () => {
   registerPreservationScenario();

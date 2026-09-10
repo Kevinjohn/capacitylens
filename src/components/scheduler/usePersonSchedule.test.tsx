@@ -8,7 +8,14 @@ import { useStore } from "../../store/useStore";
 import { makeAccount, makeActivity, makeAllocation, makeAppData, makeResource, makeTimeOff } from "../../test/fixtures";
 import { usePersonSchedule } from "./usePersonSchedule";
 
-vi.mock("./useCalendarToday", () => ({ useCalendarToday: () => "2026-09-10" }));
+const calendarToday = vi.hoisted(() => ({ today: "2026-09-10", timeZone: "" }));
+
+vi.mock("./useCalendarToday", () => ({
+  useCalendarToday: (timeZone: string) => {
+    calendarToday.timeZone = timeZone;
+    return calendarToday.today;
+  },
+}));
 
 function wrapper({
   role = null,
@@ -63,7 +70,11 @@ function seed(overrides: Parameters<typeof makeAppData>[0] = {}) {
   useStore.getState().setActiveAccount("a1");
 }
 
-beforeEach(() => seed());
+beforeEach(() => {
+  calendarToday.today = "2026-09-10";
+  calendarToday.timeZone = "";
+  seed();
+});
 
 describe("usePersonSchedule availability", () => {
   it("builds the current account-local four-week window independently of grid dates", () => {
@@ -103,6 +114,52 @@ describe("usePersonSchedule availability", () => {
     act(() => seed({ resources: [makeResource({ ...resource, kind: "placeholder" })] }));
     rerender({ accountId: "a1", resourceId: "r1" });
     expect(result.current).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("usePersonSchedule calendar rollover", () => {
+  it("recomputes the drawer window and entries across a timezone-aware year rollover", () => {
+    const oldAllocation = makeAllocation({
+      id: "old-allocation",
+      accountId: "a1",
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-12-28",
+      endDate: "2026-12-31",
+    });
+    const newAllocation = makeAllocation({
+      id: "new-allocation",
+      accountId: "a1",
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2027-01-20",
+      endDate: "2027-01-21",
+    });
+    calendarToday.today = "2026-12-31";
+    seed({
+      accounts: [makeAccount({ id: "a1", timezone: "Pacific/Kiritimati", weekStartsOn: 1 })],
+      allocations: [oldAllocation, newAllocation],
+    });
+
+    const { result, rerender } = renderHook(() => usePersonSchedule({ accountId: "a1", resourceId: "r1" }));
+    expect(calendarToday.timeZone).toBe("Pacific/Kiritimati");
+    expect(result.current).toMatchObject({
+      kind: "available",
+      model: {
+        window: { startDate: "2026-12-28", endDate: "2027-01-24" },
+        entries: [{ sourceId: "old-allocation" }, { sourceId: "new-allocation" }],
+      },
+    });
+
+    calendarToday.today = "2027-01-04";
+    rerender();
+    expect(result.current).toMatchObject({
+      kind: "available",
+      model: {
+        window: { startDate: "2027-01-04", endDate: "2027-01-31" },
+        entries: [{ sourceId: "new-allocation" }],
+      },
+    });
   });
 });
 

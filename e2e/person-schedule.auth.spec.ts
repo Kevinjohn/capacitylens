@@ -5,12 +5,18 @@ import { dismissIntroIfPresent, freezeBrowserDate, goToSeedWeek, setZoom } from 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 const STAMP = Date.now();
-const ACCOUNT = `Starlight Privacy Studio ${STAMP}`;
+const ACCOUNT = `Wayne Privacy Studio ${STAMP}`;
 const OWNER = `clark-kent-${STAMP}@capacitylens.dev`;
 const VIEWER = `kara-zor-el-${STAMP}@capacitylens.dev`;
 const RESOURCE_ID = `privacy-person-${STAMP}`;
 const TIME_OFF_ID = `privacy-timeoff-${STAMP}`;
+const CLIENT_ID = `privacy-client-${STAMP}`;
+const PROJECT_ID = `privacy-project-${STAMP}`;
+const ACTIVITY_ID = `privacy-activity-${STAMP}`;
+const ALLOCATION_ID = `privacy-allocation-${STAMP}`;
 const PRIVATE_NOTE = "Owner-only medical appointment";
+const REAL_CLIENT = "Kane Industries Acquisition";
+const REAL_PROJECT = "Gotham Renewal";
 
 async function putEntity(
   request: APIRequestContext,
@@ -24,6 +30,43 @@ async function putEntity(
     data: { id, ...data },
   });
   expect(response.status(), `seed ${entity}/${id}`).toBe(200);
+}
+
+async function seedPrivateScheduleEntities(
+  request: APIRequestContext,
+  cookie: string,
+  scoped: { accountId: string; createdAt: string; updatedAt: string },
+) {
+  await putEntity(request, cookie, "clients", CLIENT_ID, {
+    ...scoped,
+    name: REAL_CLIENT,
+    color: "#3b82f6",
+    isPrivate: true,
+    codeName: "Nightwing",
+  });
+  await putEntity(request, cookie, "projects", PROJECT_ID, {
+    ...scoped,
+    clientId: CLIENT_ID,
+    name: REAL_PROJECT,
+    color: "#ec4899",
+    isPrivate: true,
+    codeName: "Aurora",
+  });
+  await putEntity(request, cookie, "activities", ACTIVITY_ID, {
+    ...scoped,
+    name: "Private project delivery",
+    kind: "project",
+    projectId: PROJECT_ID,
+  });
+  await putEntity(request, cookie, "allocations", ALLOCATION_ID, {
+    ...scoped,
+    resourceId: RESOURCE_ID,
+    activityId: ACTIVITY_ID,
+    startDate: "2026-06-01",
+    endDate: "2026-06-05",
+    hoursPerDay: 8,
+    status: "confirmed",
+  });
 }
 
 async function seedPrivacyScenario(request: APIRequestContext) {
@@ -53,6 +96,7 @@ async function seedPrivacyScenario(request: APIRequestContext) {
     type: "sick",
     note: PRIVATE_NOTE,
   });
+  await seedPrivateScheduleEntities(request, owner.cookie, scoped);
 
   const invitation = await request.post(`${AUTH_API}/api/invites`, {
     headers: { cookie: owner.cookie },
@@ -99,6 +143,15 @@ test("viewer cannot read personal time-off notes, while the owner can", async ({
   await expect(viewerSheet).toContainText("10 Jun – 11 Jun 2026");
   await expect(viewerSheet).not.toContainText(PRIVATE_NOTE);
   await expect(page.locator(`[title*="${PRIVATE_NOTE}"]`)).toHaveCount(0);
+  await expect(viewerSheet).not.toContainText(REAL_CLIENT);
+  await expect(viewerSheet).not.toContainText(REAL_PROJECT);
+  await expect(viewerSheet).toContainText('"Nightwing"');
+  await expect(viewerSheet).toContainText('"Aurora"');
+  await expect(
+    page.locator(
+      `[aria-label*="${REAL_CLIENT}"], [title*="${REAL_CLIENT}"], [aria-label*="${REAL_PROJECT}"], [title*="${REAL_PROJECT}"]`,
+    ),
+  ).toHaveCount(0);
   await page.keyboard.press("Escape");
   await expect(viewerSheet).toHaveCount(0);
 
@@ -107,4 +160,6 @@ test("viewer cannot read personal time-off notes, while the owner can", async ({
   const ownerSheet = await openPrivacyDrawer(page);
   await expect(ownerSheet).toBeVisible();
   await expect(ownerSheet).toContainText(PRIVATE_NOTE);
+  await expect(ownerSheet).toContainText(REAL_CLIENT);
+  await expect(ownerSheet).toContainText(REAL_PROJECT);
 });

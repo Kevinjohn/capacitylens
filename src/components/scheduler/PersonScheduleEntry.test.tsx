@@ -68,3 +68,33 @@ describe("PersonScheduleEntry", () => {
     expect(within(item).queryByRole("button")).not.toBeInTheDocument();
   });
 });
+
+describe("PersonScheduleEntry wrapping", () => {
+  it("keeps long activity, attribution, and note content wrap-safe", () => {
+    const entry: PersonScheduleAllocationEntry = {
+      kind: "allocation",
+      key: "allocation:long-content",
+      sourceId: "long-content",
+      activity: "A very long activity name that must wrap inside the drawer instead of widening it",
+      project: "A very long project attribution that must wrap inside the drawer",
+      client: "A very long client attribution that must wrap inside the drawer",
+      color: "#2563eb",
+      status: "tentative",
+      hoursPerDay: 8,
+      startDate: "2026-06-01",
+      endDate: "2026-06-05",
+      note: "A long note with a line break\nthat remains readable without horizontal overflow.",
+    };
+
+    render(
+      <ul>
+        <PersonScheduleEntry entry={entry} />
+      </ul>,
+    );
+
+    const item = screen.getByTestId("person-schedule-entry");
+    expect(within(item).getByRole("heading")).toHaveClass("break-words");
+    expect(within(item).getByText(/very long project attribution/)).toHaveClass("break-words");
+    expect(within(item).getByText(/long note with a line break/)).toHaveClass("whitespace-pre-wrap", "break-words");
+  });
+});
