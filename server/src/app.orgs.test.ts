@@ -71,6 +71,7 @@ function assertUsableOrg(db: Db, accountId: string, userId: string): void {
   const acc = state.accounts.find((a) => a.id === accountId);
   expect(acc, "account row exists").toBeDefined();
   expect(acc?.schedulingMode, "new companies use Days scheduling").toBe("days");
+  expect(acc?.inlineActivityCreateEnabled, "new companies disable inline activity creation").toBe(false);
   const internal = state.clients.filter((c) => c.accountId === accountId && c.builtin === true);
   expect(internal, "exactly one built-in Internal client").toHaveLength(1);
   expect(getMemberRole(db, accountId, userId)).toBe("owner");

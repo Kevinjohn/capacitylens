@@ -383,7 +383,7 @@ Allocation `Status` is a three-option `Confirmed` / `Tentative` / `Completed` ra
 is a single-line text field. A historical multiline note remains byte-for-byte intact when another
 field is edited and saved; editing the note itself adopts the single-line value shown by the field.
 The allocation checkbox is labelled exactly `Ignore working days`. Unchecked, the allocation follows
-the assignee's effective working week (the company's company-wide working days intersected with their
+the assignee's effective working week (company-wide working days intersected with their
 personal pattern); checked, it uses every calendar day in the date span. The
 control is hidden for external allocations, whose start/end span is already literal.
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
@@ -602,7 +602,7 @@ company week outright, and every repair boundary (import, server write, startup)
 malformed stored selection to the week-start-aware default.
 
 The account selection governs **capacity**, not just interaction. Each person's **effective working
-week** is the intersection of the company's company-wide working days and their personal working pattern;
+week** is the intersection of company-wide working days and their personal working pattern;
 placeholders and External parties use the company set verbatim. A normal allocation
 schedules and loads hours only on effective days — a day it merely spans that is company- or
 personally-non-working stays grey and unavailable, contributes zero scheduled and zero available

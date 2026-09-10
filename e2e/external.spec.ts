@@ -49,8 +49,8 @@ function registerSuiteScenario3() {
     await enableExternal(page);
 
     // Settings keeps the fuller explainer behind the section's help action.
-    await page.getByRole("button", { name: "About External" }).click();
-    const helpDialog = page.getByRole("dialog", { name: "External" });
+    await page.getByRole("button", { name: "About Additional resourcing options" }).click();
+    const helpDialog = page.getByRole("dialog", { name: "Additional resourcing options" });
     await expect(helpDialog.getByText(/outside companies you hand work to but/i)).toBeVisible();
     await helpDialog.getByRole("button", { name: "Close" }).click();
 
