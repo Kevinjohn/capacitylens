@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Prepare experimental Node 26 compatibility checks while retaining Node 24 as the default;
+  official fixed-runtime acceptance remains pending (#710).
+
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
   and simplify drawer entries to a compact activity-first agenda (#753, #754).
 

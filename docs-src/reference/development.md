@@ -31,6 +31,65 @@ corepack enable
 pnpm install
 ```
 
+## Check Node 26 compatibility
+
+Node 24 remains the default development and deployment runtime. Node 26 coverage is
+experimental: Node 26.8.2 can delay SQLite backup completion until another timer fires.
+The upstream [callback-scope fix](https://github.com/nodejs/node/pull/65666) passes an
+isolated source-build comparison, but acceptance against an official fixed release is
+still pending. Follow [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710)
+for the current evidence. Do not use a locally patched runtime for deployment.
+
+The `node-compatibility.yml` workflow prepares separate application, server and Chromium
+checks using Node 26. Its manual and weekly triggers take effect only after the workflow
+is merged; activation is held pending the compatibility decision in #710. Existing
+workflows continue selecting `.nvmrc`. The shared setup action accepts a `node-version`
+override containing a numeric major (for example, `26`) and verifies the repository's pnpm pin.
+
+For isolated compatibility testing on macOS or Linux, select the intended Node 26 binary
+in your shell without changing `.nvmrc`. Confirm its exact version:
+
+```bash
+node --version
+```
+
+Node 26 does not bundle Corepack. Install the pinned pnpm with the
+[standalone installer](https://pnpm.io/installation#using-a-standalone-script).
+From the repository root, download the installer:
+
+```bash
+curl --fail --show-error --location https://get.pnpm.io/install.sh --output /tmp/install-pnpm.sh
+```
+
+Install the version named by `packageManager`:
+
+```bash
+env PNPM_VERSION="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; console.log(JSON.parse(readFileSync("package.json", "utf8")).packageManager.split("@")[1])')" sh /tmp/install-pnpm.sh
+```
+
+Follow the installer's printed shell setup instructions, then check the selected versions:
+
+```bash
+node --version
+```
+
+```bash
+pnpm --version
+```
+
+The pnpm version must match `package.json` (currently `11.4.0`). Install dependencies
+without changing the lockfile:
+
+```bash
+pnpm install --frozen-lockfile
+```
+
+Run the normal application and server gates, migration rehearsal and Chromium suite listed
+below. Also run the packaged server/import-worker smoke from the compatibility workflow:
+source-based browser tests alone do not execute those production bundles. Record the
+commit, exact runtime and platform with the results. A failed check remains a failed
+compatibility result; do not add timers or relax timeouts to conceal the backup defect.
+
 ## Run modes
 
 ```bash
