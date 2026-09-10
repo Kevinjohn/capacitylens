@@ -8,6 +8,7 @@ export function ClosureBand({
   geom: geometry,
   leftOffset,
   height,
+  labelTop,
 }: {
   closure: Closure;
   visibleStart: ISODate;
@@ -15,6 +16,7 @@ export function ClosureBand({
   geom: ColumnGeometry;
   leftOffset: number;
   height: number;
+  labelTop: number;
 }) {
   const start = closure.startDate < visibleStart ? visibleStart : closure.startDate;
   const end = closure.endDate > visibleEnd ? visibleEnd : closure.endDate;
@@ -38,9 +40,17 @@ export function ClosureBand({
       }}
     >
       {width > 44 ? (
-        <span className="truncate px-1 py-1">{closure.name}</span>
+        <span data-testid="scheduler-closure-label" className="truncate px-1 py-1" style={{ marginTop: labelTop }}>
+          {closure.name}
+        </span>
       ) : (
-        <span className="max-h-full truncate py-1 [writing-mode:vertical-rl]">{closure.name}</span>
+        <span
+          data-testid="scheduler-closure-label"
+          className="max-h-full truncate py-1 [writing-mode:vertical-rl]"
+          style={{ marginTop: labelTop }}
+        >
+          {closure.name}
+        </span>
       )}
     </div>
   );

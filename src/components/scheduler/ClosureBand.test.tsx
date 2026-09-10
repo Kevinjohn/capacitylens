@@ -18,6 +18,7 @@ describe("ClosureBand", () => {
         geom={GEOM}
         leftOffset={256}
         height={180}
+        labelTop={30}
       />,
     );
 
@@ -25,6 +26,7 @@ describe("ClosureBand", () => {
     expect(band).toHaveTextContent("Long weekend");
     expect(band.style.left).toBe(`${256 + GEOM.xForDateInGeom("2026-06-05")}px`);
     expect(band.style.width).toBe(`${GEOM.widthForDates("2026-06-05", "2026-06-08")}px`);
+    expect(screen.getByTestId("scheduler-closure-label")).toHaveStyle({ marginTop: "30px" });
     expect(screen.getAllByTestId("scheduler-closure-band")).toHaveLength(1);
   });
 });

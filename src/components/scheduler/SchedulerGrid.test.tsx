@@ -255,6 +255,9 @@ describe("SchedulerGrid", () => {
     expect(screen.getAllByTestId("scheduler-closure-band")).toHaveLength(1);
     expect(band).toHaveTextContent("Long weekend");
     expect(band).toHaveClass("z-0");
+    expect(screen.getByTestId("scheduler-closure-label")).toHaveStyle({
+      marginTop: `${buildSchedulerDensity({ compact: false }).groupHeaderHeight}px`,
+    });
     expect(screen.getAllByTestId("discipline-group")[0]).toHaveClass("relative", "z-10");
     expect(within(firstRow).getByTestId("timeoff-block")).toBeInTheDocument();
     expect(within(secondRow).queryByTestId("timeoff-block")).not.toBeInTheDocument();
