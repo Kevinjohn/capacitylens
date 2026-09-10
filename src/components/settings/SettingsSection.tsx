@@ -61,6 +61,7 @@ export function SettingsSection({
   return (
     <Card
       id={id}
+      tabIndex={id ? -1 : undefined}
       data-testid={testId}
       className={cn({ "border-danger/40": danger, "py-4": collapsible, "gap-0": collapsible && !open })}
     >

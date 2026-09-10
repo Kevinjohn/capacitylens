@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useRole } from "../auth/permissionContext";
 import { useStore } from "../store/useStore";
@@ -7,6 +7,7 @@ import { startTour } from "../lib/tour";
 import {
   buildGettingStartedSteps,
   hasExistingSetupData,
+  hasCompletedAllSteps,
   isGettingStartedComplete,
   readGettingStartedProgress,
   writeGettingStartedProgress,
@@ -18,9 +19,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 // First-run "Getting started" checklist, rendered at the top of the schedule. State-driven, not
 // scripted: each step ticks itself off by reading the ACTIVE account's scoped data (has a client /
-// project / person / allocation), so it survives the user wandering off mid-flow and never gets out
-// of step with reality. The companion "Show me around" button runs the loose driver.js orientation
-// tour (lib/tour.ts) — where things live, not do-this-now.
+// project / activity / person / allocation, plus the device's setup choices), so it survives the
+// user wandering off mid-flow and never gets out of step with reality. The companion "Show me
+// around" button runs the loose driver.js orientation tour (lib/tour.ts) — where things live, not
+// do-this-now.
 //
 // Visibility: hidden once dismissed (device-global `capacitylens/gettingStartedDismissed` pref —
 // like `introSeen`, NOT account data) OR once every step is complete (derived, per account — a
@@ -99,7 +101,13 @@ function GettingStartedCard({ accountId }: { accountId: string | null }) {
   const activeRole = useRole();
   const data = useActiveScopedData();
   const steps = buildGettingStartedSteps(data);
-  const [progress, setProgress] = useState(() => readGettingStartedProgress(accountId));
+  const [progress, setProgress] = useState(() => {
+    const saved = readGettingStartedProgress(accountId);
+    return { ...saved, started: saved.started || !hasCompletedAllSteps(steps) };
+  });
+  useEffect(() => {
+    if (accountId && progress.started) writeGettingStartedProgress(accountId, progress);
+  }, [accountId, progress]);
   const { tourBusy, showTour } = useTourAction(setNotice);
 
   const updateProgress = (patch: Partial<typeof progress>) => {
@@ -303,6 +311,13 @@ export function GettingStartedShortcut() {
   const data = useActiveScopedData();
   const steps = buildGettingStartedSteps(data);
   const progress = readGettingStartedProgress(accountId);
+  const setupIncomplete = !hasCompletedAllSteps(steps);
+  const { started, importChosen, scratchChosen, settingsReviewed } = progress;
+  useEffect(() => {
+    if (accountId && setupIncomplete && !started) {
+      writeGettingStartedProgress(accountId, { started: true, importChosen, scratchChosen, settingsReviewed });
+    }
+  }, [accountId, importChosen, scratchChosen, settingsReviewed, setupIncomplete, started]);
   const setupDone = progress.importChosen || progress.scratchChosen || hasExistingSetupData(steps);
   if (pathname === "/" || dismissed || role === "viewer" || isGettingStartedComplete(steps, progress)) return null;
   const done = Object.values(steps).filter(Boolean).length + (setupDone ? 1 : 0) + (progress.settingsReviewed ? 1 : 0);

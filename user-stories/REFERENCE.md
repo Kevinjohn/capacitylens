@@ -120,7 +120,10 @@ If the app changes, update this file first, then the affected stories.
    (`capacitylens/gettingStartedDismissed`, default off, never in `AppData`/export). Hidden for a
    Viewer (every schedule-setup CTA is a write they can't do). In an authenticated company, Owner
    and Admin additionally see an optional **Invite your team** link to `/team`; it is deliberately
-   outside the completion steps, so a solo owner can finish setup without inviting anyone. Away
+   outside the completion steps, so a solo owner can finish setup without inviting anyone. New
+   setup keeps the Settings review pending even when the user begins by adding records directly;
+   established companies do not reopen onboarding. Import and Settings links scroll to and focus
+   their destination section. Away
    from Schedule, a compact progress link returns to the full card without covering page content.
 7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
 8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking

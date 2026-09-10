@@ -86,6 +86,8 @@ describe("GettingStarted entry and return paths", () => {
     );
 
     expect(screen.getByRole("link", { name: "Getting started: 0 of 7 complete" })).toHaveAttribute("href", "/");
+    const accountId = useStore.getState().activeAccountId;
+    expect(localStorage.getItem(`capacitylens/gettingStartedProgress/${accountId}`)).toContain('"started":true');
   });
 });
 

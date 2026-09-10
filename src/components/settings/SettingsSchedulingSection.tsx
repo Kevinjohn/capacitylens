@@ -253,7 +253,7 @@ function SchedulingFeatureSections({
 
 export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps) {
   return (
-    <div id={props.id} className="flex scroll-mt-4 flex-col gap-6">
+    <div id={props.id} tabIndex={props.id ? -1 : undefined} className="flex scroll-mt-4 flex-col gap-6">
       <SchedulingModeSection
         canEdit={props.canEdit}
         schedulingMode={props.schedulingMode}

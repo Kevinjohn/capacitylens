@@ -39,17 +39,24 @@ function registerSuiteScenario2() {
     expect(cardBox!.y).toBeGreaterThanOrEqual(gridAfter!.y);
     await showScheduleFilters(page);
 
-    // All four steps are pending — the first three are links to where the step happens.
-    // (The account's built-in Internal client must NOT tick the client step.)
+    // The setup choice and all five entity/schedule steps are pending. The built-in Internal client
+    // must NOT tick the client step, and every linked step must reach its owning surface.
+    await expect(card.getByRole("link", { name: "Import existing data" })).toBeVisible();
+    await card.getByRole("button", { name: "Start from scratch" }).click();
+    await expect(card.getByText("Choose how to begin")).toContainText("Done: Choose how to begin");
     const clientStep = card.getByRole("link", { name: "Add your first client" });
     await expect(clientStep).toBeVisible();
     await expect(card.getByRole("link", { name: "Add your first project" })).toBeVisible();
+    await expect(card.getByRole("link", { name: "Add your first activity" })).toBeVisible();
     await expect(card.getByRole("link", { name: "Add your first person" })).toBeVisible();
+    await expect(card.getByRole("link", { name: "Review company settings" })).toBeVisible();
     await expect(card.getByText("Assign them to the project")).toBeVisible();
 
     // Follow the first step and actually add a client…
     await clientStep.click();
     await expect(page).toHaveURL(/\/clients$/);
+    await expect(page.getByTestId("getting-started-shortcut")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Getting started: 1 of 7 complete" })).toBeVisible();
     await page.getByRole("button", { name: "Add client" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Acme");
     await page.getByRole("button", { name: "Save" }).click();
@@ -60,6 +67,28 @@ function registerSuiteScenario2() {
     await expect(card.getByRole("link", { name: "Add your first client" })).toHaveCount(0);
     await expect(card.getByText("Add your first client")).toBeVisible();
     await expect(card.getByRole("link", { name: "Add your first project" })).toBeVisible();
+
+    await card.getByRole("link", { name: "Review company settings" }).click();
+    await expect(page).toHaveURL(/\/settings#getting-started-settings/);
+    await expect(page.locator("#getting-started-settings")).toBeFocused();
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect(card.getByText("Review company settings")).toBeVisible();
+    await expect(card.getByRole("link", { name: "Review company settings" })).toHaveCount(0);
+  });
+}
+
+function registerSuiteScenarioImportPath() {
+  test("the import choice opens the focused Settings import section and persists", async ({ page }) => {
+    await openNewCompany(page, "Import Co");
+    const card = page.getByTestId("getting-started");
+    await card.getByRole("link", { name: "Import existing data" }).click();
+    await expect(page).toHaveURL(/\/settings#getting-started-import/);
+    const importSection = page.locator("#getting-started-import");
+    await expect(importSection).toBeFocused();
+    await expect(importSection).toContainText("Import JSON");
+
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect(page.getByTestId("getting-started")).toContainText("Done: Choose how to begin");
   });
 }
 
@@ -132,6 +161,7 @@ function registerSuiteScenario5() {
 test.describe("getting started checklist", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
+  registerSuiteScenarioImportPath();
   registerSuiteScenario3();
   registerSuiteScenario4();
   registerSuiteScenario5();

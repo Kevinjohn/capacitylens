@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildGettingStartedSteps, hasCompletedAllSteps } from "./gettingStarted";
+import { buildGettingStartedSteps, hasCompletedAllSteps, isGettingStartedComplete } from "./gettingStarted";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import {
@@ -104,5 +104,29 @@ describe("allStepsDone", () => {
     ["assign", { client: true, project: true, activity: true, person: true, assign: false }],
   ] as const)("is false when %s is incomplete", (_label, steps) => {
     expect(hasCompletedAllSteps(steps)).toBe(false);
+  });
+});
+
+describe("onboarding completion", () => {
+  const steps = { client: true, project: true, activity: true, person: true, assign: true };
+  it("keeps Settings review pending for someone who started setup without choosing a path", () => {
+    expect(
+      isGettingStartedComplete(steps, {
+        started: true,
+        importChosen: false,
+        scratchChosen: false,
+        settingsReviewed: false,
+      }),
+    ).toBe(false);
+  });
+  it("does not reopen onboarding for an established company", () => {
+    expect(
+      isGettingStartedComplete(steps, {
+        started: false,
+        importChosen: false,
+        scratchChosen: false,
+        settingsReviewed: false,
+      }),
+    ).toBe(true);
   });
 });

@@ -39,12 +39,18 @@ export function hasExistingSetupData(steps: GettingStartedSteps): boolean {
 }
 
 export interface GettingStartedProgress {
+  started: boolean;
   importChosen: boolean;
   scratchChosen: boolean;
   settingsReviewed: boolean;
 }
 
-const emptyProgress: GettingStartedProgress = { importChosen: false, scratchChosen: false, settingsReviewed: false };
+const emptyProgress: GettingStartedProgress = {
+  started: false,
+  importChosen: false,
+  scratchChosen: false,
+  settingsReviewed: false,
+};
 
 function progressKey(accountId: string): string {
   return `${STORAGE_KEY_PREFIX}gettingStartedProgress/${accountId}`;
@@ -57,6 +63,7 @@ export function readGettingStartedProgress(accountId: string | null): GettingSta
       localStorage.getItem(progressKey(accountId)) ?? "null",
     ) as Partial<GettingStartedProgress> | null;
     return {
+      started: parsed?.started === true,
       importChosen: parsed?.importChosen === true,
       scratchChosen: parsed?.scratchChosen === true,
       settingsReviewed: parsed?.settingsReviewed === true,
@@ -76,7 +83,7 @@ export function writeGettingStartedProgress(accountId: string, progress: Getting
 
 export function isGettingStartedComplete(steps: GettingStartedSteps, progress: GettingStartedProgress): boolean {
   if (!hasCompletedAllSteps(steps)) return false;
-  return (!progress.importChosen && !progress.scratchChosen) || progress.settingsReviewed;
+  return (!progress.started && !progress.importChosen && !progress.scratchChosen) || progress.settingsReviewed;
 }
 
 /** Whether every step is complete (the card hides once true). `Object.values(...).every(Boolean)`
