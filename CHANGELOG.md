@@ -11,7 +11,9 @@ new features and **patch** versions carry fixes.
 
 - Owners and administrators can find archived resources, clients, projects and activities directly
   below each management list, restore them immediately, or move them into the deletion retention
-  period; activities now use the same reversible archive lifecycle as the other planning data.
+  period; activities now use the same reversible archive lifecycle as the other planning data. The
+  Resources archive now mirrors the active Studio, Supplementary and External grouping, with archived
+  placeholders retained in their own group.
 
 ## [0.61.0-alpha.1] - 2026-09-10
 

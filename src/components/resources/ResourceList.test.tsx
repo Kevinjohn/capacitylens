@@ -469,6 +469,71 @@ describe("ResourceList archive flow", () => {
   });
 });
 
+describe("ResourceList archived grouping", () => {
+  beforeEach(() => vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1"));
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("groups archived resources by kind and engagement, hides empty groups, and preserves placeholders", () => {
+    const studio = useStore.getState().addResource(personDraft("Bruce Wayne"));
+    const supplementary = useStore
+      .getState()
+      .addResource({ ...personDraft("Barry Allen"), engagement: "supplementary" });
+    const external = useStore
+      .getState()
+      .addResource({ ...personDraft("Kord Industries"), kind: "external", engagement: "studio" });
+    const placeholder = useStore.getState().addResource({
+      kind: "placeholder",
+      role: "Senior Designer",
+      employmentType: "permanent" as const,
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: WORKDAYS,
+      halfDays: [],
+      color: "#a855f7",
+    });
+    for (const id of [studio.id, supplementary.id, external.id, placeholder.id]) {
+      useStore.getState().archiveEntity("resources", id);
+    }
+
+    render(<ResourceList />);
+
+    const archived = screen.getByTestId("archived-resources-section");
+    const headings = within(archived)
+      .getAllByRole("heading")
+      .map((heading) => heading.textContent);
+    expect(headings).toEqual([
+      "Archived Studio (1)",
+      "Archived Supplementary (1)",
+      "Archived External (1)",
+      "Archived placeholders (1)",
+    ]);
+    expect(within(screen.getByTestId("archived-resources-studio-group")).getByText("Bruce Wayne")).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("archived-resources-supplementary-group")).getByText("Barry Allen"),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId("archived-resources-external-group")).getByText("Kord Industries"),
+    ).toBeInTheDocument();
+    const placeholders = screen.getByTestId("archived-resources-placeholders-group");
+    expect(within(placeholders).getByTestId("archived-row").querySelector(".font-medium")).toHaveTextContent(
+      "Senior Designer",
+    );
+  });
+
+  it("omits empty archived resource groups", () => {
+    const studio = useStore.getState().addResource(personDraft("Bruce Wayne"));
+    useStore.getState().archiveEntity("resources", studio.id);
+
+    render(<ResourceList />);
+
+    const archived = screen.getByTestId("archived-resources-section");
+    expect(within(archived).getByRole("heading", { name: "Archived Studio (1)" })).toBeInTheDocument();
+    expect(within(archived).queryByRole("heading", { name: "Archived Supplementary (0)" })).not.toBeInTheDocument();
+    expect(within(archived).queryByRole("heading", { name: "Archived External (0)" })).not.toBeInTheDocument();
+    expect(within(archived).queryByRole("heading", { name: "Archived placeholders (0)" })).not.toBeInTheDocument();
+  });
+});
+
 describe("ResourceList archive flow", () => {
   beforeEach(() => vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1"));
   afterEach(() => vi.unstubAllEnvs());
@@ -554,7 +619,10 @@ describe("ResourceList archive flow", () => {
     await user.click(within(dialog).getByRole("button", { name: "Archive" }));
 
     expect(useStore.getState().data.resources[0]?.archivedAt).toBeTruthy();
-    expect(screen.queryByText("Placeholder")).not.toBeInTheDocument();
+    const archived = screen.getByTestId("archived-resources-section");
+    expect(within(archived).getByTestId("archived-row").querySelector(".font-medium")).toHaveTextContent(
+      "Senior Designer",
+    );
     expect(screen.queryByText("placeholder")).not.toBeInTheDocument();
   });
 });

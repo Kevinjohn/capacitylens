@@ -147,8 +147,9 @@ picker but keeps their history, so past allocations and reports aren't rewritten
 2. Click the delete icon next to the person's row.
 3. Confirm **Archive resource?**
 
-Owners and administrators see **Archived resources** at the bottom of the Resources page,
-after External. Restore someone there, or delete the archived record to begin the 30-day
+Owners and administrators see grouped archived resources at the bottom of the Resources page:
+**Archived Studio**, **Archived Supplementary** and **Archived External**, followed by
+**Archived placeholders** when needed. Restore someone there, or delete the archived record to begin the 30-day
 retention period before permanent deletion becomes available in [Settings](/guide/settings).
 
 ## What's next

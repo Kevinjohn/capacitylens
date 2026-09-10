@@ -6,7 +6,7 @@
 
 Remove a resource from the schedule **reversibly** — archive it (with a clear warning and one-step
 undo), so its allocations and time off are retained and it can be restored or, later, permanently
-deleted from Archived resources below the Resources list.
+deleted from the grouped archive sections below the Resources list.
 
 ## How (end-to-end)
 
@@ -17,7 +17,7 @@ so the seed bars and time off are in view. **Bruce Wayne** has both allocations
 1. Note that Bruce's row shows allocation bars and a hatched time-off block in early June.
 2. Go to **Resources**; on the **Bruce Wayne** row click the **Archive Bruce Wayne** (trash) icon.
 3. A dialog titled **"Archive resource?"** appears, naming Bruce and explaining the row will be hidden
-   from the schedule and can be restored or deleted from **Archived resources** below the list.
+   from the schedule and can be restored or deleted from the archive sections below the list.
 4. Click **Cancel** first — the dialog closes and Bruce is still present (nothing archived).
 5. Click the **Archive Bruce Wayne** icon again, then click **Archive** to confirm.
 6. Go back to **Schedule** (click **Today** if needed) and observe Bruce is gone (hidden, not
@@ -30,16 +30,17 @@ so the seed bars and time off are in view. **Bruce Wayne** has both allocations
 A departing or paused team member must be removed from the schedule cleanly, but a mis-click
 shouldn't quietly destroy months of allocations and booked leave. Archiving is reversible: the data
 stays, the row simply leaves the active views. Soft-delete (which anonymises) and permanent removal
-are deliberately separate, later steps reached from Archived resources and Settings → Deleted items — so the
+are deliberately separate, later steps reached from the resource archive sections and Settings → Deleted items — so the
 confirm-warn-undo flow here is safe.
 
 ## Acceptance criteria
 
 - ✅ The confirm dialog is titled **"Archive resource?"**, names the resource, and explains it will be
-  hidden from the schedule and is restorable from Archived resources.
+  hidden from the schedule and is restorable from the appropriate Archived Studio, Archived Supplementary,
+  Archived External or Archived placeholders group.
 - ✅ Choosing **Cancel** leaves the resource, its bars and its time off untouched and visible.
 - ✅ After confirming **Archive**, the **Bruce Wayne** row disappears from Resources, and on
   **Schedule** Bruce's row, allocation bars and time-off block are all hidden — but the records are
-  **retained** (not cascade-deleted), and Bruce appears under Archived resources.
+  **retained** (not cascade-deleted), and Bruce appears under the appropriate archive group.
 - ✅ (LOCAL mode) Pressing **⌘Z** restores Bruce (back to active) with all of his allocations and
-  time off; in server mode, **Restore** from Archived resources brings him back.
+  time off; in server mode, **Restore** from the resource archive sections brings him back.
