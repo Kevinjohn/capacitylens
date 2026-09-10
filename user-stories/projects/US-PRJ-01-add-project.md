@@ -30,6 +30,9 @@ A project is meaningless without an owning client; that invariant keeps the whol
 - ✅ The **Client** picker pins **Internal** first, separates it with a genuinely non-selectable
   divider, then lists active ordinary clients alphabetically.
 - ✅ After choosing _LexCorp_ and Save, the dialog closes and **Spring Campaign** appears in the Projects list with its "Client / Project" label showing _LexCorp_.
+- ✅ Active projects are ordered alphabetically by client and then project, using each record's
+  trimmed non-empty code name instead of its ordinary name when one is set. This display-only order
+  does not change the project-first, grey-client row presentation or the stored project order.
 - ✅ **Spring Campaign** is selectable in the schedule's **Filter by project**.
 - ✅ When allocating, **Spring Campaign** is selectable in the **Project** picker.
 - ✅ Saving with an empty **Name** is also rejected (required-field error, dialog stays open).
