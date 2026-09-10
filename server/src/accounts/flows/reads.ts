@@ -26,6 +26,7 @@ export function createAccountReadFlows(
         actor,
         workspaceId,
         includeInactive: true,
+        requireFresh: false,
       });
       const principals = await identity.getPrincipalSummaries({
         principalIds: memberships.map((entry) => entry.principalId),

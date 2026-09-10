@@ -124,11 +124,15 @@ function denyInsufficientRole(
   return { kind: "denied" };
 }
 
+function optsOutOfFreshnessForRead(req: FastifyRequest, options: AuthorizeRouteInput["options"]): boolean {
+  return options?.requireFreshSession === false && (req.method === "GET" || req.method === "HEAD");
+}
+
 function requireFreshSession(
-  { req, reply, accountId, action }: AuthorizeRouteInput,
+  { req, reply, accountId, action, options = {} }: AuthorizeRouteInput,
   securityEvent: RootHelpers["securityEvent"],
 ): boolean {
-  if (action === "read" || action === "write") return true;
+  if (action === "read" || action === "write" || optsOutOfFreshnessForRead(req, options)) return true;
   // Privileged actions fail closed when their session timestamp is absent or malformed. A fresh
   // sign-in always restores access by minting a dated session, so this cannot permanently lock out
   // an administrator. Date.parse of the empty fallback is NaN, which fails the finite check.

@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Keep Team & access member and invitation directories available as read-only information without a
+  fresh-session prompt; require fresh confirmation only for initiated sensitive actions and name the
+  action in that confirmation (#737).
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
   and simplify drawer entries to a compact activity-first agenda (#753, #754).
 
