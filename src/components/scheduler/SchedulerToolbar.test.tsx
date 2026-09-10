@@ -102,7 +102,7 @@ describe("SchedulerToolbar filter panel", () => {
     expect(hide).toHaveAttribute("aria-controls", "scheduler-filters");
     expect(screen.getByLabelText("Search people")).toBeInTheDocument();
     expect(screen.getByRole("radiogroup", { name: "Draw mode" })).toBeInTheDocument();
-    expect(document.getElementById("scheduler-filters")).toHaveClass("justify-center");
+    expect(document.getElementById("scheduler-filters")).toHaveClass("flex-wrap");
 
     await user.click(hide);
     expect(screen.getByRole("button", { name: "Show filters" })).toHaveAttribute("aria-expanded", "false");
@@ -149,7 +149,7 @@ function optionNames(label: string) {
 }
 
 describe("SchedulerToolbar filter ordering", () => {
-  it("orders search, lenses, tentative visibility, draw mode, unallocated, and Clear", () => {
+  it("keeps search left of one wrapping right-aligned group with Clear last", () => {
     useStore.getState().addDiscipline({ name: "Design", color: "#111", sortOrder: 0 });
     const client = useStore.getState().addClient({ name: "Queen Consolidated", color: "#222" });
     useStore.getState().addProject({ name: "Project Watchtower", clientId: client.id, color: "#333" });
@@ -160,6 +160,7 @@ describe("SchedulerToolbar filter ordering", () => {
 
     const filterbar = document.getElementById("scheduler-filters");
     if (!filterbar) throw new Error("Expected the scheduler filters container.");
+    const rightGroup = screen.getByTestId("scheduler-filter-controls");
     const controls = [
       screen.getByRole("textbox", { name: "Search people" }),
       screen.getByRole("combobox", { name: "Filter by discipline" }),
@@ -171,13 +172,20 @@ describe("SchedulerToolbar filter ordering", () => {
       screen.getByRole("checkbox", { name: "Show unallocated" }),
       screen.getByRole("button", { name: "Clear Filters" }),
     ];
-    const childIndexes = controls.map((control) =>
-      Array.from(filterbar.children).findIndex((child) => child === control || child.contains(control)),
-    );
+    const rightGroupControls = controls.slice(1);
 
-    expect(childIndexes).toEqual([...childIndexes].sort((a, b) => a - b));
-    expect(childIndexes.every((index) => index >= 0)).toBe(true);
-    expect(childIndexes.at(-1)).toBe(filterbar.children.length - 1);
+    expect(filterbar.children).toHaveLength(2);
+    expect(filterbar.children[0]).toBe(controls[0]);
+    expect(filterbar.children[1]).toBe(rightGroup);
+    expect(filterbar).toHaveClass("flex-wrap");
+    expect(rightGroup).toHaveClass("ml-auto", "flex-wrap", "justify-end");
+    expect(rightGroupControls.every((control) => rightGroup.contains(control))).toBe(true);
+    expect(
+      rightGroupControls.map((control) =>
+        Array.from(rightGroup.children).findIndex((child) => child === control || child.contains(control)),
+      ),
+    ).toEqual(rightGroupControls.map((_, index) => index));
+    expect(rightGroup.lastElementChild).toBe(controls.at(-1));
   });
 
   it("hides the discipline filter when disciplines are enabled but none exist", () => {
@@ -327,7 +335,7 @@ describe("SchedulerToolbar Clear filter presentation", () => {
     const clear = screen.getByRole("button", { name: "Clear Filters" });
     expect(clear).toBeDisabled();
     expect(clear).toHaveAttribute("data-variant", "outline");
-    expect(clear).toHaveClass("ml-auto");
+    expect(clear).toBe(screen.getByTestId("scheduler-filter-controls").lastElementChild);
     expect(clear.querySelector("svg")).toBeNull();
   });
 

@@ -108,13 +108,6 @@ export function SchedulerToolbarChrome(props: ChromeProps) {
 function EntityFilters(props: FiltersProps) {
   return (
     <>
-      <Input
-        value={props.searchInput}
-        onChange={(event) => props.onSearchChange(event.target.value)}
-        placeholder={m.scheduler_search_people_placeholder()}
-        aria-label={m.scheduler_search_people_aria()}
-        className="h-8 w-44 @max-[680px]:w-full"
-      />
       {props.disciplinesEnabled && props.disciplineOptions.length > 0 && (
         <FilterSelect
           value={props.filters.disciplineId}
@@ -191,7 +184,6 @@ function ViewFilters(props: FiltersProps) {
       <Button
         size="sm"
         variant={props.filtersActive ? "danger-soft" : "outline"}
-        className="ml-auto"
         onClick={props.onClear}
         disabled={!props.filtersActive}
       >
@@ -207,10 +199,19 @@ export function SchedulerToolbarFilters(props: FiltersProps) {
     <div
       id="scheduler-filters"
       data-chrome-band="filterbar"
-      className={`flex flex-wrap items-center justify-center gap-x-2 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 text-sm text-chrome-filterbar-ink ${props.compactView ? "gap-y-2 py-2" : "gap-y-3 py-3"}`}
+      className={`flex flex-wrap items-center gap-x-2 border-b border-chrome-filterbar-border bg-chrome-filterbar px-4 text-sm text-chrome-filterbar-ink ${props.compactView ? "gap-y-2 py-2" : "gap-y-3 py-3"}`}
     >
-      <EntityFilters {...props} />
-      <ViewFilters {...props} />
+      <Input
+        value={props.searchInput}
+        onChange={(event) => props.onSearchChange(event.target.value)}
+        placeholder={m.scheduler_search_people_placeholder()}
+        aria-label={m.scheduler_search_people_aria()}
+        className="h-8 w-44 @max-[680px]:w-full"
+      />
+      <div data-testid="scheduler-filter-controls" className="ml-auto flex flex-wrap items-center justify-end gap-2">
+        <EntityFilters {...props} />
+        <ViewFilters {...props} />
+      </div>
     </div>
   );
 }
