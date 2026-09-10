@@ -370,7 +370,7 @@ describe("SettingsView — diagnostics", () => {
 });
 
 describe("SettingsView — Import & export card (issue #169)", () => {
-  it("keeps the import/export tools closed by default above the final account-options card", async () => {
+  it("keeps import/export closed by default and account options before final diagnostics", async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
 
@@ -385,7 +385,7 @@ describe("SettingsView — Import & export card (issue #169)", () => {
     expect(screen.getByTestId("import-input")).toHaveAttribute("type", "file");
 
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings.at(-1)).toBe("Account Options Selected at Creation");
+    expect(headings.slice(-2)).toEqual(["Account Options Selected at Creation", "Diagnostics"]);
   });
 });
 
