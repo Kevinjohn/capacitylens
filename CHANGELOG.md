@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Added a read-only four-week schedule drawer for each visible person, with allocations,
+  personal time off, privacy-aware names and notes, and grid state preserved while it is open (#709).
+
 ## [0.62.1-alpha.1] - 2026-09-10
 
 ### Changed

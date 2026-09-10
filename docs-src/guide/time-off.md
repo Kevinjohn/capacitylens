@@ -19,8 +19,8 @@ the same canvas as work, so capacity never has to be checked against a separate 
 3. Leave **Repeat** as **Doesn’t repeat**, or choose a weekly or monthly pattern and set
    **Repeat until**. The preview shows every entry that will be created.
 4. Add a short, single-line note if you need to — for example, "Conference" or a return
-   date. Notes are only visible to Admins and Owners; other roles see that time off
-   exists without the detail. See
+   date. Notes are only visible to Admins and Owners, including in an individual's
+   read-only schedule drawer; other roles see that time off exists without the detail. See
    [Roles and permissions](/getting-started/roles-and-permissions).
 5. Check the final date range in the preview, then click **Save**.
 
@@ -89,6 +89,12 @@ Placeholder time off follows the company's **Show placeholders** setting.
 Time off renders as a hatched block on the person's row — no project colour, so it's
 never mistaken for booked work. It sits in the same lane as allocation bars, which
 means a quick glance at a row tells you whether someone is busy, off, or free.
+
+Select the eye beside a person's name to review all of their allocations and personal
+time off for the current company week and the following three weeks. This read-only
+drawer ignores the grid's filters and visible date range. It excludes company closures
+and ordinary non-working days because those are company and availability rules rather
+than personal entries.
 
 [External parties](/reference/glossary) — outside companies like print shops or overflow
 studios you hand work to but don't manage — can't have personal time off recorded against
