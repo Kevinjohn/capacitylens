@@ -7,7 +7,7 @@ import { resolveErrorMessage } from "../../lib/errorMessage";
 import { validateText, validateWorkingDays } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
+import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError, FieldGroup } from "../ui/field";
 import { buildResourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
@@ -295,10 +295,10 @@ function ResourceFields(props: ResourceFieldsProps) {
         />
       )}
       {!isPlaceholder && (
-        <SelectField
+        <SegmentedField
           label={m.form_resource_engagement_label()}
           value={form.engagement}
-          onChange={(value) => form.setEngagement(value as ResourceEngagement)}
+          onChange={form.setEngagement}
           options={buildResourceEngagementOptions()}
           layout="label-control"
         />

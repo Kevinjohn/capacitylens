@@ -210,7 +210,7 @@ test("groups Studio before Supplementary and restores one People order when disa
 
   const barry = page.getByTestId("resource-row").filter({ hasText: "Barry Allen" });
   await barry.getByRole("button", { name: "Edit Barry Allen" }).click();
-  await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+  await page.getByRole("radio", { name: "Supplementary" }).click();
   await page.getByRole("button", { name: "Save" }).click();
   await barry.getByRole("button", { name: "Add Barry Allen to favourites" }).click();
 
@@ -292,11 +292,11 @@ test("edits Engagement while Employment stays hidden and unbadged", async ({ pag
   await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
 
   await expect(page.getByLabel("Employment")).toHaveCount(0);
-  await expect(page.getByLabel("Engagement")).toContainText("Studio");
-  await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+  await expect(page.getByRole("radio", { name: "Studio" })).toBeChecked();
+  await page.getByRole("radio", { name: "Supplementary" }).click();
   await page.getByRole("button", { name: "Save" }).click();
 
   await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
-  await expect(page.getByLabel("Engagement")).toContainText("Supplementary");
+  await expect(page.getByRole("radio", { name: "Supplementary" })).toBeChecked();
   await expect(page.getByText("Temp", { exact: true })).toHaveCount(0);
 });

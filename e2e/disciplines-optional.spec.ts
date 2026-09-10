@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./fixtures";
-import { openApp, selectShadOption, showScheduleFilters } from "./helpers";
+import { openApp, showScheduleFilters } from "./helpers";
 
 async function moveDianaToSupplementary(page: Page) {
   await page
@@ -7,7 +7,7 @@ async function moveDianaToSupplementary(page: Page) {
     .filter({ hasText: "Diana Prince" })
     .getByRole("button", { name: "Edit Diana Prince" })
     .click();
-  await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+  await page.getByRole("radio", { name: "Supplementary" }).click();
   await page.getByRole("button", { name: "Save" }).click();
   await page.getByRole("link", { name: "Settings" }).click();
 }
