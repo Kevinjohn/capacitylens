@@ -923,6 +923,11 @@ edit its companies. In an authenticated server deploy, Owner/Admin additionally 
 management section
 (heading `Members`, `data-testid="members-section"`). Editor/Viewer see their own access explanation
 but no company directory, invitations or management controls; the server's 403 remains the backstop.
+Owner/Admin can read the member directory, outstanding invites and SSO readiness without a fresh
+authentication prompt. Sensitive mutations still require fresh authentication; their **Confirm it's
+you** dialog names the requested action. Cancelling leaves the directory visible and does not apply
+the requested change.
+
 The management section has four parts:
 
 - **SSO cutover readiness** (`data-testid="sso-readiness"`, mixed mode with strict OIDC only) shows
