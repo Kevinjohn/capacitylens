@@ -19,15 +19,14 @@ One screen. People down the side, days across the top, the work in between. Red 
 over capacity that day. The percentage next to each name is how full they are across the window
 you're looking at.
 
-## Alpha 4
+## Alpha 5
 
-Alpha 4 is the most complete CapacityLens prerelease yet. Company working days now govern capacity
-everywhere, bank holidays and shutdowns are recorded as first-class company closures, allocation
-hours are four clear day fractions, and the schedule's filters and controls are quicker to drive.
-It follows a codebase-wide simplification pass.
+Find archived people and work beneath their usual lists, and restore an accidental archive where
+you expect to find it. Plan repeated personal time off with a preview before saving, book shared
+activities against real projects, and check what a team member can see through a read-only access preview.
 
-[Read the Alpha 4 release notes](https://github.com/Kevinjohn/capacitylens/releases/tag/v0.55.0-alpha.4)
-for the user-facing highlights and upgrade notes.
+[Read the Alpha 5 release notes](https://github.com/Kevinjohn/capacitylens/releases/tag/v0.62.0-alpha.5)
+for the highlights and upgrade notes.
 
 ## Try it in two minutes
 
