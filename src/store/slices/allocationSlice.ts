@@ -57,7 +57,14 @@ export function createAllocationSlice(
                 patch.hoursPerDay !== undefined
                   ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) }
                   : patch;
-              const effective = { ...merged, ...clampedPatch };
+              const { projectId: mergedProjectId, ...mergedWithoutProjectId } = merged;
+              const { projectId: patchedProjectId, ...patchWithoutProjectId } = clampedPatch;
+              const effectiveProjectId = Object.hasOwn(clampedPatch, "projectId") ? patchedProjectId : mergedProjectId;
+              const effective: Allocation = {
+                ...mergedWithoutProjectId,
+                ...patchWithoutProjectId,
+                ...(effectiveProjectId === undefined ? {} : { projectId: effectiveProjectId }),
+              };
               // The server re-runs assertAllocationRefs on the full merged row on EVERY write, so a
               // note/status/date-only edit of an allocation whose resource is now EXTERNAL with a
               // non-zero load (legacy pre-v0.8.1 data, or after a resource kind-flip) would 400 there
