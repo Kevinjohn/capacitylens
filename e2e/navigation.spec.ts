@@ -31,6 +31,7 @@ function registerSuiteScenario1() {
       if (path === "/account") {
         await signIn.waitFor();
         await signIn.click();
+        await dismissIntroIfPresent(page, destinationHeading);
         await expect(destinationHeading).toBeVisible();
         const reloadResponse = await page.reload();
         expect([200, 304]).toContain(reloadResponse?.status());
