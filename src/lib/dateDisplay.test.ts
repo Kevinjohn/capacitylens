@@ -1,6 +1,25 @@
-import { describe, it, expect } from "vitest";
-import { formatShortDate, formatDayCount, formatDayMonth, formatInstant, formatInstantDate } from "./dateDisplay";
+import { enGB, fr } from "date-fns/locale";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  formatDayCount,
+  formatDayMonth,
+  formatInstant,
+  formatInstantDate,
+  formatScheduleDate,
+  formatScheduleDateRange,
+  formatShortDate,
+} from "./dateDisplay";
 import type { ISODate } from "@capacitylens/shared/types/entities";
+
+const dateLocaleMocks = vi.hoisted(() => ({ readActiveDateLocale: vi.fn() }));
+vi.mock("@/i18n", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/i18n")>()),
+  readActiveDateLocale: dateLocaleMocks.readActiveDateLocale,
+}));
+
+beforeEach(() => {
+  dateLocaleMocks.readActiveDateLocale.mockReturnValue(enGB);
+});
 
 const invalidDate = "not-a-date" as ISODate;
 
@@ -60,6 +79,38 @@ describe("formatDayCount", () => {
   it("surfaces an invalid upstream range instead of rendering a NaN label", () => {
     expect(() => formatDayCount(invalidDate, "2026-07-01")).toThrow(RangeError);
     expect(() => formatDayCount("2026-07-01", invalidDate)).toThrow(RangeError);
+  });
+});
+
+describe("schedule dates", () => {
+  it("shows the year once for a same-year range", () => {
+    expect(formatScheduleDateRange("2026-09-07", "2026-10-04")).toBe("7 Sep – 4 Oct 2026");
+  });
+
+  it("shows both years for a cross-year range", () => {
+    expect(formatScheduleDateRange("2026-12-28", "2027-01-08")).toBe("28 Dec 2026 – 8 Jan 2027");
+  });
+
+  it("shows one full date for a single-day range", () => {
+    expect(formatScheduleDateRange("2026-09-10", "2026-09-10")).toBe("10 Sep 2026");
+  });
+
+  it("always includes the year for a standalone schedule date", () => {
+    expect(formatScheduleDate("2027-01-15")).toBe("15 Jan 2027");
+  });
+
+  it("resolves schedule dates through the active locale on every call", () => {
+    expect(formatScheduleDate("2026-09-10")).toBe("10 Sep 2026");
+
+    dateLocaleMocks.readActiveDateLocale.mockReturnValue(fr);
+
+    expect(formatScheduleDate("2026-09-10")).toBe("10 sept. 2026");
+    expect(formatScheduleDateRange("2026-09-07", "2026-10-04")).toBe("7 sept. – 4 oct. 2026");
+  });
+
+  it("surfaces invalid upstream schedule dates", () => {
+    expect(() => formatScheduleDate(invalidDate)).toThrow(RangeError);
+    expect(() => formatScheduleDateRange(invalidDate, "2026-09-10")).toThrow(RangeError);
   });
 });
 
