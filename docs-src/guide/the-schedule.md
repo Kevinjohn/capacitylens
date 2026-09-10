@@ -69,6 +69,12 @@ a fully non-working day still fills the whole cell.
 
 ![The two-week schedule with the lower half of Diana Prince's unobscured Wednesday cell tinted to show her saved half-day working pattern](../screenshots/flows/schedule_half_days.jpg)
 
+A Studio or Supplementary person's optional availability dates also apply to these columns. Days
+before **First available date** or after **Last available date** have zero capacity. Existing allocation bars
+stay visible, so the work and its allocated load remain available for review even when the dates now
+fall outside the person's range. The zero-capacity state does not create a new control or a separate
+row type.
+
 ## Allocation bars
 
 An [allocation](/reference/glossary) — a person booked on a project for a date range —

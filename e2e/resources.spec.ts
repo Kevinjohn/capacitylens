@@ -3,7 +3,7 @@ import { dismissLandscapeHint, goToSeedWeek, openApp, selectShadOption, setZoom,
 
 async function expectWorkingDaysGeometry(dialog: Locator) {
   const compactFields = dialog.locator('[data-product-layout="label-control"]');
-  await expect(compactFields).toHaveCount(4);
+  await expect(compactFields).toHaveCount(6);
   const fieldGroupBox = await dialog.locator('[data-slot="field-group"]').boundingBox();
   const workingDays = dialog.getByRole("group", { name: "Working days" });
   await expect(workingDays.getByRole("radio")).toHaveCount(21);

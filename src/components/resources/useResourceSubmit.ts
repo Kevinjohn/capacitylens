@@ -23,8 +23,12 @@ export type ResourceSubmitDraft = {
   engagement: ResourceEngagement;
   workingDays: Weekday[];
   halfDays: Weekday[];
+  firstAvailableDate: string;
+  lastAvailableDate: string;
   projectId: string;
 };
+
+const optionalValue = (value: string): string | undefined => (value === "" ? undefined : value);
 
 type Fail = (field: string | null, message: string) => void;
 type AddResource = StoreState["addResource"];
@@ -55,6 +59,8 @@ function parseFormFields(input: {
   role: string;
   projectId: string;
   workingDays: Weekday[];
+  firstAvailableDate: string;
+  lastAvailableDate: string;
   isPlaceholder: boolean;
   fail: Fail;
 }): ValidatedFields | null {
@@ -72,8 +78,28 @@ function parseFormFields(input: {
     return null;
   }
   if (!isPlaceholder && !validateWorkingDays(workingDays, fail)) return null;
+  if (
+    !isPlaceholder &&
+    input.firstAvailableDate &&
+    input.lastAvailableDate &&
+    input.firstAvailableDate > input.lastAvailableDate
+  ) {
+    fail("lastAvailableDate", String(m.form_resource_err_availability_dates_order()));
+    return null;
+  }
   return { name, role };
 }
+
+type ResourcePatch = Pick<
+  Resource,
+  "kind" | "role" | "employmentType" | "engagement" | "workingHoursPerDay" | "workingDays" | "halfDays" | "color"
+> & {
+  name: string | undefined;
+  disciplineId: string | undefined;
+  projectId: string | undefined;
+  firstAvailableDate?: string | undefined;
+  lastAvailableDate?: string | undefined;
+};
 
 function buildResourcePatch(input: {
   resource: Resource | undefined;
@@ -83,9 +109,11 @@ function buildResourcePatch(input: {
   engagement: ResourceEngagement;
   workingDays: Weekday[];
   halfDays: Weekday[];
+  firstAvailableDate: string;
+  lastAvailableDate: string;
   projectId: string;
   fields: ValidatedFields;
-}) {
+}): ResourcePatch {
   const { resource, kind, isPlaceholder, fields } = input;
   const basePatch = {
     name: fields.name || undefined,
@@ -99,10 +127,15 @@ function buildResourcePatch(input: {
   };
   return isPlaceholder
     ? { ...basePatch, kind: "placeholder" as const, ...placeholderCapacityDefaults() }
-    : { ...basePatch, kind, workingDays: input.workingDays, halfDays: input.halfDays };
+    : {
+        ...basePatch,
+        kind,
+        workingDays: input.workingDays,
+        halfDays: input.halfDays,
+        firstAvailableDate: optionalValue(input.firstAvailableDate),
+        lastAvailableDate: optionalValue(input.lastAvailableDate),
+      };
 }
-
-type ResourcePatch = ReturnType<typeof buildResourcePatch>;
 
 function validateResourceFreshness(resource: Resource | undefined, resources: Resource[], fail: Fail): boolean {
   if (!resource) return true;
@@ -134,6 +167,8 @@ function saveResource(input: {
     ...(patch.name ? { name: patch.name } : {}),
     ...(patch.disciplineId ? { disciplineId: patch.disciplineId } : {}),
     ...(patch.projectId ? { projectId: patch.projectId } : {}),
+    ...(patch.firstAvailableDate ? { firstAvailableDate: patch.firstAvailableDate } : {}),
+    ...(patch.lastAvailableDate ? { lastAvailableDate: patch.lastAvailableDate } : {}),
   });
 }
 

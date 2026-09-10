@@ -64,6 +64,8 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "engagement",
       "halfDays",
       "isFavourite",
+      "firstAvailableDate",
+      "lastAvailableDate",
       "workingHoursPerDay",
       "workingDays",
       "projectId",

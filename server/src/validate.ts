@@ -12,11 +12,13 @@ import {
 } from "@capacitylens/shared/domain/lifecycle";
 import {
   assertActivityProjectAllowsDependents,
+  assertAllocationWithinResourceAvailability,
   assertAllocationRefs,
   assertDateRange,
   assertResourceExists,
   assertResourceKindAllowsDependents,
   assertResourceProjectAllowsDependents,
+  validateResourceAvailabilityPair,
   assertScopedRefs,
   type ValidationDataLookup,
 } from "@capacitylens/shared/domain/mutations";
@@ -30,6 +32,7 @@ import {
   type Resource,
   type TimeOff,
 } from "@capacitylens/shared/types/entities";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { ValidationError } from "./validate/errors";
 export { assertIdPresent, ValidationError } from "./validate/errors";
 export { listAcceptedFieldNames, buildAcceptedWriteFields, listAppliedRequestedFieldNames } from "./validate/fields";
@@ -142,6 +145,7 @@ function parseResource(row: Record<string, unknown>): Resource {
   const name = optionalString(row, "name");
   const disciplineId = optionalString(row, "disciplineId");
   const projectId = optionalString(row, "projectId");
+  const availability = parseResourceAvailability(row);
   return {
     id: requireString(row, "id"),
     accountId: requireString(row, "accountId"),
@@ -161,6 +165,18 @@ function parseResource(row: Record<string, unknown>): Resource {
     ...(name === undefined ? {} : { name }),
     ...(disciplineId === undefined ? {} : { disciplineId }),
     ...(projectId === undefined ? {} : { projectId }),
+    ...availability,
+  };
+}
+
+function parseResourceAvailability(
+  row: Record<string, unknown>,
+): Pick<Resource, "firstAvailableDate" | "lastAvailableDate"> {
+  const firstAvailableDate = optionalString(row, "firstAvailableDate");
+  const lastAvailableDate = optionalString(row, "lastAvailableDate");
+  return {
+    ...(firstAvailableDate === undefined ? {} : { firstAvailableDate }),
+    ...(lastAvailableDate === undefined ? {} : { lastAvailableDate }),
   };
 }
 
@@ -210,34 +226,80 @@ function isBuiltinClientRow(row: Record<string, unknown>): boolean {
   return row.builtin === true && hasBuiltinClientPresentation(row);
 }
 
+function assertResourceWrite(input: AssertValidWriteInput, accountId: string): void {
+  const { state, row, existing, lookup } = input;
+  const resource = parseResource(row);
+  const previous = existing ? parseResource(existing) : undefined;
+  assertResourceProjectAllowsDependents(state, accountId, resource.id, resource, previous, lookup);
+  assertResourceKindAllowsDependents(state, accountId, resource.id, resource.kind, lookup);
+  const availability = validateResourceAvailabilityPair(resource.firstAvailableDate, resource.lastAvailableDate);
+  if (!availability.ok) {
+    throw new ValidationError(
+      availability.code === "date_reversed"
+        ? "First available date cannot be after last available date."
+        : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
+    );
+  }
+}
+
+function assertAllocationWrite(input: AssertValidWriteInput, accountId: string): void {
+  const { state, row, existing, lookup } = input;
+  const resourceId = requireString(row, "resourceId");
+  const startDate = requireString(row, "startDate");
+  const endDate = requireString(row, "endDate");
+  assertAllocationRefs(
+    state,
+    accountId,
+    resourceId,
+    requireString(row, "activityId"),
+    requireNumber(row, "hoursPerDay"),
+    optionalString(row, "projectId"),
+    parseAllocationExisting(existing),
+    lookup,
+  );
+  assertDateRange(startDate, endDate);
+  const placementChanged =
+    existing === undefined ||
+    existing.resourceId !== resourceId ||
+    existing.startDate !== startDate ||
+    existing.endDate !== endDate ||
+    (existing.ignoreWeekends === true) !== (row.ignoreWeekends === true);
+  if (!placementChanged) return;
+  const resourceRow =
+    lookup?.row("resources", resourceId) ?? state.resources.find((resource) => resource.id === resourceId);
+  if (!resourceRow) return;
+  const resource = parseResource(resourceRow as Record<string, unknown>);
+  const accountWorkingDays = resolveAccountWorkingDays(state, accountId, lookup);
+  assertAllocationWithinResourceAvailability({
+    allocation: {
+      startDate,
+      endDate,
+      ...(row.ignoreWeekends === true ? { ignoreWeekends: true } : {}),
+    },
+    resource,
+    accountWorkingDays,
+  });
+}
+
+function resolveAccountWorkingDays(state: AppData, accountId: string, lookup: ValidationDataLookup | undefined) {
+  if (lookup) return lookup.accountWorkingDays(accountId);
+  const account = state.accounts.find((candidate) => candidate.id === accountId);
+  return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1);
+}
+
 function assertEntityWrite(input: AssertValidWriteInput, accountId: string): void {
   const { state, table, row, existing, lookup } = input;
   if (isScopedEntityKey(table) && table !== "allocations" && table !== "timeOff" && table !== "closures") {
     assertScopedRefs(state, accountId, table, row, existing, lookup, { fullRow: true });
   }
   if (table === "resources") {
-    const resource = parseResource(row);
-    const previous = existing ? parseResource(existing) : undefined;
-    assertResourceProjectAllowsDependents(state, accountId, resource.id, resource, previous, lookup);
-    assertResourceKindAllowsDependents(state, accountId, resource.id, resource.kind, lookup);
-  }
-  if (table === "activities") {
+    assertResourceWrite(input, accountId);
+  } else if (table === "activities") {
     const activity = parseActivity(row);
     const previous = existing ? parseActivity(existing) : undefined;
     assertActivityProjectAllowsDependents(state, accountId, activity.id, activity, previous, lookup);
-  }
-  if (table === "allocations") {
-    assertAllocationRefs(
-      state,
-      accountId,
-      requireString(row, "resourceId"),
-      requireString(row, "activityId"),
-      requireNumber(row, "hoursPerDay"),
-      optionalString(row, "projectId"),
-      parseAllocationExisting(existing),
-      lookup,
-    );
-    assertDateRange(requireString(row, "startDate"), requireString(row, "endDate"));
+  } else if (table === "allocations") {
+    assertAllocationWrite(input, accountId);
   }
   if (table === "timeOff") {
     assertResourceExists(state, accountId, requireString(row, "resourceId"), parseTimeOffExisting(existing), lookup);

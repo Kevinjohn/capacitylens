@@ -31,6 +31,88 @@ describe("ResourceForm layout", () => {
       "label-control",
     );
   });
+
+  it("shows optional inclusive availability dates for people only", () => {
+    const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
+
+    expect(screen.getByLabelText("First available date")).toHaveAttribute("type", "date");
+    expect(screen.getByLabelText("Last available date")).toHaveAttribute("type", "date");
+    expect(screen.getByText(/leave blank for no boundary/i)).toBeVisible();
+
+    person.unmount();
+    const placeholder = render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
+    expect(screen.queryByLabelText("First available date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Last available date")).not.toBeInTheDocument();
+
+    placeholder.unmount();
+    render(<ResourceForm kind="external" onClose={vi.fn()} />);
+    expect(screen.queryByLabelText("First available date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Last available date")).not.toBeInTheDocument();
+  });
+});
+
+describe("ResourceForm availability dates", () => {
+  it("saves equal inclusive boundaries", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<ResourceForm kind="person" onClose={onClose} />);
+
+    await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
+    fireEvent.change(screen.getByLabelText("First available date"), { target: { value: "2026-09-10" } });
+    fireEvent.change(screen.getByLabelText("Last available date"), { target: { value: "2026-09-10" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      firstAvailableDate: "2026-09-10",
+      lastAvailableDate: "2026-09-10",
+    });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("clears one existing boundary while preserving the other and metadata", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Dinah Lance",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+      firstAvailableDate: "2026-09-01",
+      lastAvailableDate: "2026-09-30",
+    });
+    render(<ResourceForm resource={resource} onClose={onClose} />);
+
+    await user.clear(screen.getByLabelText("First available date"));
+    await user.clear(screen.getByLabelText("Role"));
+    await user.type(screen.getByLabelText("Role"), "Design lead");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    const updated = requireValue(useStore.getState().data.resources[0], "updated resource");
+    expect(updated).not.toHaveProperty("firstAvailableDate");
+    expect(updated).toMatchObject({ lastAvailableDate: "2026-09-30", role: "Design lead" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a reversed availability range accessibly", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<ResourceForm kind="person" onClose={onClose} />);
+
+    await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
+    fireEvent.change(screen.getByLabelText("First available date"), { target: { value: "2026-09-11" } });
+    fireEvent.change(screen.getByLabelText("Last available date"), { target: { value: "2026-09-10" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/first available date.*last available date/i);
+    expect(screen.getByLabelText("Last available date")).toHaveAttribute("aria-invalid", "true");
+    expect(onClose).not.toHaveBeenCalled();
+    expect(useStore.getState().data.resources).toHaveLength(0);
+  });
 });
 
 describe("ResourceForm disciplines", () => {

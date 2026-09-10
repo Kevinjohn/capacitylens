@@ -23,6 +23,7 @@ import {
   normalizeISODate,
   safeWorkingDays,
   safeHalfDays,
+  repairResourceAvailability,
   cleanField,
   cleanRequiredField,
   repairPrivateNameFieldsInPlace,
@@ -65,6 +66,7 @@ function sanitizeResource(record: Record<string, unknown>): void {
   if (typeof record.role === "string") cleanField({ record, field: "role" });
   else record.role = "Team member";
   if (record.isFavourite !== undefined && typeof record.isFavourite !== "boolean") delete record.isFavourite;
+  repairResourceAvailability(record);
   repairLifecycleFieldsInPlace(record);
 }
 

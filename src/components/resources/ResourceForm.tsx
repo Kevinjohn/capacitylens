@@ -4,19 +4,12 @@ import { hasDisciplinesEnabled } from "../../store/selectors";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { m } from "@/i18n";
-import {
-  FormActions,
-  Modal,
-  RequiredLegend,
-  SelectField,
-  TextField,
-  WorkingDayPicker,
-  type Option,
-} from "../common/ui";
+import { FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError, FieldGroup } from "../ui/field";
 import { buildResourceEngagementOptions } from "../../lib/metadata";
 import { useResourceFormState, type ResourceFormState } from "./useResourceFormState";
 import { useResourceSubmit, type ResourceSubmitDraft } from "./useResourceSubmit";
+import { ResourceAvailabilityFields } from "./ResourceAvailabilityFields";
 import {
   type Client,
   type Discipline,
@@ -134,54 +127,10 @@ function ResourceFields(props: ResourceFieldsProps) {
   );
 }
 
-type ResourceCapacityFieldsState = Pick<
-  ResourceFormState,
-  "workingDays" | "setWorkingDays" | "halfDays" | "setHalfDays"
->;
-
-type ResourceCapacityFieldsProps = {
-  form: ResourceCapacityFieldsState;
+type ResourceFormBodyProps = {
+  form: ResourceFormState;
   isPlaceholder: boolean;
-  disabled: boolean;
-  error: string | null;
-  errorField: string | null;
-  errorId: string;
-};
-
-function ResourceCapacityFields({
-  form,
-  isPlaceholder,
-  disabled,
-  error,
-  errorField,
-  errorId,
-}: ResourceCapacityFieldsProps) {
-  return (
-    <>
-      {!isPlaceholder && (
-        <fieldset disabled={disabled} className="min-w-0">
-          <WorkingDayPicker
-            label={m.form_resource_working_days_label()}
-            workingDays={form.workingDays}
-            halfDays={form.halfDays}
-            onChange={(workingDays, halfDays) => {
-              form.setWorkingDays(workingDays);
-              form.setHalfDays(halfDays);
-            }}
-            invalid={errorField === "workingDays"}
-            describedById={errorId}
-          />
-        </fieldset>
-      )}
-      <FieldError id={errorId}>{error}</FieldError>
-      <RequiredLegend />
-    </>
-  );
-}
-
-type ResourceFormContentProps = {
-  form: ResourceFieldsState & ResourceCapacityFieldsState;
-  isPlaceholder: boolean;
+  isPerson: boolean;
   disabled: boolean;
   disciplinesEnabled: boolean;
   disciplines: Discipline[];
@@ -191,9 +140,10 @@ type ResourceFormContentProps = {
   errorId: string;
 };
 
-function ResourceFormContent({
+function ResourceFormBody({
   form,
   isPlaceholder,
+  isPerson,
   disabled,
   disciplinesEnabled,
   disciplines,
@@ -201,7 +151,7 @@ function ResourceFormContent({
   error,
   errorField,
   errorId,
-}: ResourceFormContentProps) {
+}: ResourceFormBodyProps) {
   return (
     <>
       <ResourceFields
@@ -214,16 +164,29 @@ function ResourceFormContent({
         errorField={errorField}
         errorId={errorId}
       />
-      <ResourceCapacityFields
-        form={form}
-        isPlaceholder={isPlaceholder}
-        disabled={disabled}
-        error={error}
-        errorField={errorField}
-        errorId={errorId}
-      />
+      {isPerson && (
+        <fieldset disabled={disabled} className="min-w-0">
+          <ResourceAvailabilityFields form={form} errorField={errorField} errorId={errorId} />
+        </fieldset>
+      )}
+      <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </>
   );
+}
+
+function buildResourceSubmitDraft(form: ResourceFormState): ResourceSubmitDraft {
+  return {
+    name: form.name,
+    role: form.role,
+    disciplineId: form.disciplineId,
+    engagement: form.engagement,
+    workingDays: form.workingDays,
+    halfDays: form.halfDays,
+    firstAvailableDate: form.firstAvailableDate,
+    lastAvailableDate: form.lastAvailableDate,
+    projectId: form.projectId,
+  };
 }
 
 /** Add or edit a person or placeholder while preserving kind-specific capacity semantics. */
@@ -234,6 +197,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
   const raw = useScopedData();
   const kind = resource?.kind ?? kindProp ?? "person";
   const isPlaceholder = kind === "placeholder";
+  const isPerson = kind === "person";
   const form = useResourceFormState(resource);
   const { error, errorField, errorId, fail } = useFieldError();
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
@@ -244,15 +208,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     rawProjects: raw.projects,
     rawClients: raw.clients,
   });
-  const draft: ResourceSubmitDraft = {
-    name: form.name,
-    role: form.role,
-    disciplineId: form.disciplineId,
-    engagement: form.engagement,
-    workingDays: form.workingDays,
-    halfDays: form.halfDays,
-    projectId: form.projectId,
-  };
+  const draft = buildResourceSubmitDraft(form);
   const readResources = () => useStore.getState().data.resources;
   const { submit, submitting } = useResourceSubmit({
     resource,
@@ -273,9 +229,10 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
       onSubmit={submit}
       footer={<FormActions onCancel={onClose} disabled={submitting} />}
     >
-      <ResourceFormContent
+      <ResourceFormBody
         form={form}
         isPlaceholder={isPlaceholder}
+        isPerson={isPerson}
         disabled={submitting}
         disciplinesEnabled={disciplinesEnabled}
         disciplines={data.disciplines}

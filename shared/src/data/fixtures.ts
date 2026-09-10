@@ -121,6 +121,31 @@ export const FIXTURE_RESOURCE: Resource = {
   updatedAt: TS2,
 };
 
+/** A fully-populated person fixture, including both optional availability boundaries. Keep the
+ * placeholder fixture above for resource-kind coverage; this row exercises the person-only fields
+ * that non-person sanitisation intentionally strips. */
+export const FIXTURE_RESOURCE_PERSON: Resource = {
+  id: "fix-r-person",
+  accountId: "fix-a1",
+  kind: "person",
+  name: "Bruce Wayne",
+  role: "Fixture Person Role",
+  disciplineId: "fix-d1",
+  employmentType: "freelancer",
+  engagement: "supplementary",
+  workingHoursPerDay: 7,
+  workingDays: [1, 2, 3, 4],
+  halfDays: [2],
+  color: "#3ace6b",
+  isFavourite: true,
+  firstAvailableDate: "2026-02-01",
+  lastAvailableDate: "2026-11-30",
+  archivedAt: TS1,
+  deletedAt: TS2,
+  createdAt: TS1,
+  updatedAt: TS2,
+};
+
 /** The external / 3rd-party kind: a company name + optional descriptor, and NO discipline or
  *  project binding (externals carry unused silent-default working hours/days). Proves `kind`
  *  round-trips through the server with the optional FK columns left NULL. */

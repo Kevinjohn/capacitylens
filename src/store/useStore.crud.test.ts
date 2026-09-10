@@ -288,9 +288,17 @@ function registerStoreCrudEntity15(): void {
     s().updateResource(placeholder.id, { engagement: "supplementary" });
     expect(s().data.resources.find((resource) => resource.id === placeholder.id)?.engagement).toBe("studio");
 
-    const personToPlaceholder = s().addResource({ ...personDraft, engagement: "supplementary" });
+    const personToPlaceholder = s().addResource({
+      ...personDraft,
+      engagement: "supplementary",
+      firstAvailableDate: "2026-06-01",
+      lastAvailableDate: "2026-06-30",
+    });
     s().updateResource(personToPlaceholder.id, { kind: "placeholder", projectId: project.id });
-    expect(s().data.resources.find((resource) => resource.id === personToPlaceholder.id)?.engagement).toBe("studio");
+    const converted = s().data.resources.find((resource) => resource.id === personToPlaceholder.id);
+    expect(converted?.engagement).toBe("studio");
+    expect(converted).not.toHaveProperty("firstAvailableDate");
+    expect(converted).not.toHaveProperty("lastAvailableDate");
   });
 }
 
