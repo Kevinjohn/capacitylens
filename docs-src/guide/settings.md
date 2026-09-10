@@ -71,13 +71,15 @@ bars come back the moment you turn the switch back on.
 
 ## Inline activity creation
 
-When you're booking an allocation and the [activity](/reference/glossary) you need
-doesn't exist yet, the allocation form normally lets you add it on the spot without
-leaving the form. That
-convenience is controlled by **Inline activity creation** under **Activity creation**,
-on by default. Turning it off means everyone has to create new activities from the
-**Activities** page first, then pick from the existing list when they allocate — useful
-if you'd rather keep activity names tidy and reviewed.
+New activities normally start on the **Activities** page, where your team can agree and
+reuse consistent names. The allocation form still lets everyone pick an existing
+[activity](/reference/glossary).
+
+To let people create an activity without leaving an allocation, turn on **Inline
+activity creation** under **Activity creation**. This workspace setting is off by
+default. Turning it on adds the inline **Add activity** controls for everyone who can
+edit allocations; turning it off again hides only those controls and does not remove
+activities or allocations.
 
 ## Calendar
 
