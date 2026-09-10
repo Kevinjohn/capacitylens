@@ -199,7 +199,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-09](settings/US-SET-09-snap-to-week-start.md)    | Snap the schedule's left edge to the week start       | `e2e/snap-week.spec.ts`                                 |
 | [US-SET-10](settings/US-SET-10-member-management.md)     | Member management (invite / role / revoke / transfer) | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts`  |
 | [US-SET-11](settings/US-SET-11-viewer-readonly.md)       | Viewer read-only mode                                 | `e2e/viewer.auth.spec.ts`                               |
-| [US-SET-12](settings/US-SET-12-archived-deleted.md)      | Archived & deleted (restore / purge)                  | `e2e/archived.spec.ts`                                  |
+| [US-SET-12](settings/US-SET-12-archived-deleted.md)      | Inline archives and Deleted items                     | `e2e/archived.spec.ts`                                  |
 | [US-SET-13](settings/US-SET-13-password-reset-links.md)  | Admin-issued password-reset links                     | `e2e/reset-password.auth.spec.ts`                       |
 | [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours                                 | `e2e/internal-colours.spec.ts`                          |
 | [US-SET-15](settings/US-SET-15-global-working-days.md)   | Global working days                                   | `e2e/global-working-days.spec.ts`                       |

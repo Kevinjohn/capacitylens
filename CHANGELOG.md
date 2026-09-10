@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Owners and administrators can find archived resources, clients, projects and activities directly
+  below each management list, restore them immediately, or move them into the deletion retention
+  period; activities now use the same reversible archive lifecycle as the other planning data.
+
 ## [0.61.0-alpha.1] - 2026-09-10
 
 This minor release adds repeated personal time off as a complete planning flow, from preview to

@@ -2,6 +2,7 @@ import {
   SCOPED_KEYS,
   type Allocation,
   type AppDataKey,
+  type Activity,
   type Client,
   type Project,
   type Resource,
@@ -23,7 +24,7 @@ import { createServerRevision } from "./revision";
 import { fromRow, type Row } from "./rowCodec";
 import { resolveTable } from "./db/introspection";
 
-export type LifecycleRow = Resource | Client | Project;
+export type LifecycleRow = Resource | Client | Project | Activity;
 
 export interface ResourceNoteScrubResult {
   allocationNotes: boolean;

@@ -1,4 +1,9 @@
-import { deleteClientCascade, deleteProjectCascade, deleteResourceCascade } from "@capacitylens/shared/lib/integrity";
+import {
+  deleteActivityCascade,
+  deleteClientCascade,
+  deleteProjectCascade,
+  deleteResourceCascade,
+} from "@capacitylens/shared/lib/integrity";
 import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
 import { buildEmptyFilters, type LifecycleEntity, type SchedulerUI } from "./types";
 import { readNextDataRevision } from "./revisions";
@@ -11,6 +16,7 @@ export const PURGE_CASCADES: Record<LifecycleEntity, (data: AppData, id: ID) => 
   resources: (data, id) => deleteResourceCascade(data, id),
   clients: (data, id) => deleteClientCascade(data, id, readNextDataRevision(data)),
   projects: (data, id) => deleteProjectCascade(data, id, readNextDataRevision(data)),
+  activities: (data, id) => deleteActivityCascade(data, id),
 };
 
 // --- Tenant-boundary resets ----------------------------------------------------------------------

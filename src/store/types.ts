@@ -343,8 +343,8 @@ export interface StoreState {
   updateClosure: (id: ID, patch: Patch<Closure>) => void;
   deleteClosure: (id: ID) => void;
 
-  // --- Data-lifecycle (P2.5b): the Active → Archived → Soft-deleted → Purged machine for the three
-  // tombstone-carrying tables (resources / clients / projects). These are the DEMO-build / OFF path —
+  // --- Data-lifecycle (P2.5b): the Active → Archived → Soft-deleted → Purged machine for the
+  // tombstone-carrying tables (resources / clients / projects / activities). These are the DEMO-build / OFF path —
   // they mutate the local `data` blob through the same mutate()/undo machinery as the CRUD above. In
   // SERVER mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
   // delete,purge}, P2.5a) directly, so the admin view only invokes these in the demo build. They COMPOSE

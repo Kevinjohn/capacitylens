@@ -2,15 +2,15 @@ import { test, expect } from "./fixtures";
 import { openApp } from "./helpers";
 
 // P2.5b — the DEFERRED P2.4 "archived vanishes" end-to-end story, now landable because the client
-// admin UI (the Archive affordance + Settings → Archived & deleted) exists. In-memory demo mode,
+// admin UI (the Archive affordance + inline archive sections + Settings deleted items) exists. In-memory demo mode,
 // no auth server needed. The lifecycle store actions mutate the current demo state, so archiving a
 // row hides it from the scheduler + lists immediately and surfaces it
 // in the admin view. Browser-agnostic — no UA branching.
 
 const RESOURCE = "Barry Allen"; // seed `r-alex` (a freelancer; no over-marker entanglement)
 
-test.describe("Archived & deleted (demo mode)", () => {
-  test("archive a resource → it vanishes from the schedule + list → Settings shows it → restore → re-archive → delete → tombstone (purge locked)", async ({
+test.describe("Inline archives and deleted items (demo mode)", () => {
+  test("archive a resource → it vanishes from the schedule + active list → inline restore → re-archive → delete → Settings tombstone (purge locked)", async ({
     page,
   }) => {
     await openApp(page, "Wayne Enterprises", "/resources");
@@ -27,17 +27,20 @@ test.describe("Archived & deleted (demo mode)", () => {
 
     // GONE from the Resources list…
     await expect(page.getByTestId("resource-row").filter({ hasText: RESOURCE })).toHaveCount(0);
+
+    // The expanded archive section below the Resources list shows it immediately.
+    let section = page.getByTestId("archived-resources-section");
+    await expect(section).toBeVisible();
+    let archivedRow = section.getByTestId("archived-row").filter({ hasText: RESOURCE });
+    await expect(archivedRow).toBeVisible();
+
     // …and GONE from the schedule (no scheduler-row carries the name).
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(page.getByTestId("scheduler-row").filter({ hasText: RESOURCE })).toHaveCount(0);
 
-    // Settings → Archived & deleted shows it as an archived row.
-    await page.getByRole("link", { name: "Settings" }).click();
-    await page.getByRole("button", { name: "Archived & deleted", exact: true }).click();
-    const section = page.getByTestId("archived-section");
-    await expect(section).toBeVisible();
-    const archivedRow = section.getByTestId("archived-row").filter({ hasText: RESOURCE });
-    await expect(archivedRow).toBeVisible();
+    await page.getByRole("link", { name: "Resources" }).click();
+    section = page.getByTestId("archived-resources-section");
+    archivedRow = section.getByTestId("archived-row").filter({ hasText: RESOURCE });
 
     // RESTORE → it reappears on the schedule + list.
     await archivedRow.getByRole("button", { name: `Restore ${RESOURCE}` }).click();
@@ -58,10 +61,8 @@ test.describe("Archived & deleted (demo mode)", () => {
       .getByRole("button", { name: "Archive", exact: true })
       .click();
 
-    // In the admin view, DELETE (soft-delete) the archived row → confirm.
-    await page.getByRole("link", { name: "Settings" }).click();
-    await page.getByRole("button", { name: "Archived & deleted", exact: true }).click();
-    const section2 = page.getByTestId("archived-section");
+    // In the inline archive section, DELETE (soft-delete) the archived row → confirm.
+    const section2 = page.getByTestId("archived-resources-section");
     const archivedRow2 = section2.getByTestId("archived-row").filter({ hasText: RESOURCE });
     await expect(archivedRow2).toBeVisible();
     await archivedRow2.getByRole("button", { name: `Delete ${RESOURCE}` }).click();
@@ -69,12 +70,16 @@ test.describe("Archived & deleted (demo mode)", () => {
     await expect(deleteDialog).toBeVisible();
     await deleteDialog.getByRole("button", { name: "Delete", exact: true }).click();
 
-    // It now shows as a TOMBSTONE with the obfuscated "Removed person #…" name (no original PII).
-    const deletedRow = section2.getByTestId("deleted-row");
+    // It leaves the list, then appears as a tombstone under Settings → Deleted items.
+    await expect(section2).toHaveCount(0);
+    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "Deleted items", exact: true }).click();
+    const deletedSection = page.getByTestId("archived-section");
+    const deletedRow = deletedSection.getByTestId("deleted-row");
     await expect(deletedRow).toBeVisible();
     await expect(deletedRow).toHaveText(/Removed person #/);
     // The original name is gone everywhere in the admin view.
-    await expect(section2.getByText(RESOURCE)).toHaveCount(0);
+    await expect(deletedSection.getByText(RESOURCE)).toHaveCount(0);
 
     // The Purge ("Delete permanently") button is DISABLED (the tombstone is "now", <30 days old) with
     // the locked hint.

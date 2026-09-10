@@ -147,8 +147,9 @@ picker but keeps their history, so past allocations and reports aren't rewritten
 2. Click the delete icon next to the person's row.
 3. Confirm **Archive resource?**
 
-To bring someone back, or to permanently delete an archived record after the appropriate
-waiting period, use **Archived & deleted** in [Settings](/guide/settings).
+Owners and administrators see **Archived resources** at the bottom of the Resources page,
+after External. Restore someone there, or delete the archived record to begin the 30-day
+retention period before permanent deletion becomes available in [Settings](/guide/settings).
 
 ## What's next
 

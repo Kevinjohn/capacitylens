@@ -74,6 +74,12 @@ const PRE_V35_ALLOCATIONS: TableSpec = {
   ...liveTableSpec("allocations"),
   columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "projectId"),
 };
+const PRE_V36_ACTIVITIES: TableSpec = {
+  ...liveTableSpec("activities"),
+  columns: liveTableSpec("activities").columns.filter(
+    (column) => column.name !== "archivedAt" && column.name !== "deletedAt",
+  ),
+};
 const V31_ALLOCATIONS: TableSpec = {
   ...PRE_V35_ALLOCATIONS,
   columns: PRE_V35_ALLOCATIONS.columns.filter((column) => column.name !== "seriesId"),
@@ -89,6 +95,7 @@ const PRE_V34_TABLES = Object.fromEntries(Object.entries(TABLES).filter(([key]) 
   TableSpec
 >;
 PRE_V34_TABLES.allocations = PRE_V35_ALLOCATIONS;
+PRE_V34_TABLES.activities = PRE_V36_ACTIVITIES;
 export const V27_TABLES: Record<string, TableSpec> = {
   ...PRE_V34_TABLES,
   accounts: V29_ACCOUNTS,
@@ -143,5 +150,11 @@ export const V33_TABLES: Record<string, TableSpec> = {
 };
 export const V34_TABLES: Record<string, TableSpec> = {
   ...TABLES,
+  activities: PRE_V36_ACTIVITIES,
   allocations: PRE_V35_ALLOCATIONS,
+};
+/** Released v35 shape before v36 adds Activity lifecycle tombstones. */
+export const V35_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  activities: PRE_V36_ACTIVITIES,
 };

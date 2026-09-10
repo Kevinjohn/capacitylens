@@ -110,15 +110,15 @@ The rest of Settings, roughly top to bottom:
 | Device data                   | Clear everything CapacityLens has stored on this device.                                                                                                                                                                                                                                                                               |
 | Account                       | Your sign-in email and a sign-out button.                                                                                                                                                                                                                                                                                              |
 | Security                      | Change your password and review your active sign-in sessions, in password mode.                                                                                                                                                                                                                                                        |
-| Archived & deleted            | A closed-by-default disclosure for restoring something you archived or permanently deleting it. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                                                                         |
+| Deleted items                 | A closed-by-default disclosure for permanently deleting items after their 30-day retention period. Archived items are restored or deleted from the bottom of their Resources, Clients, Projects or Activities page. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                     |
 | Import & export               | A closed-by-default disclosure for downloading this company's data as JSON or replacing it from an earlier export. Importing asks you to confirm first.                                                                                                                                                                                |
 | Account Options Selected at Creation | A compact, read-only summary of the company name, week start, time zone and language. Week start and time zone affect the whole team but are frozen after company creation; see [Calendar](#calendar).                                                                                                                             |
 
-**Device data**, **Archived & deleted** and **Import & export** are independent
+**Device data**, **Deleted items** and **Import & export** are independent
 disclosures and start closed. Opening one does not close another. Destructive actions
 still explain their consequences in the confirmation dialog.
 
-![The bottom of Settings with Account and Security details, closed Device data, Archived and Import disclosures, and the account options summary](../screenshots/flows/settings_account_disclosures.jpg)
+![The bottom of Settings with Appearance, closed Device data, Deleted items and Import disclosures, and the account options summary](../screenshots/flows/settings_account_disclosures.jpg)
 
 ::: tip
 Sections marked "this device" only affect your own browser. Everything else is shared

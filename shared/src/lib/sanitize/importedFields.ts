@@ -28,7 +28,7 @@ const IMPORTED_FIELDS = {
   clients: [...SCOPED_META_FIELDS, "name", "color", "isPrivate", "codeName", "builtin", "archivedAt", "deletedAt"],
   projects: [...SCOPED_META_FIELDS, "name", "clientId", "color", "isPrivate", "codeName", "archivedAt", "deletedAt"],
   phases: [...SCOPED_META_FIELDS, "name", "projectId"],
-  activities: [...SCOPED_META_FIELDS, "name", "kind", "projectId", "phaseId"],
+  activities: [...SCOPED_META_FIELDS, "name", "kind", "projectId", "phaseId", "archivedAt", "deletedAt"],
   allocations: [
     ...SCOPED_META_FIELDS,
     "resourceId",

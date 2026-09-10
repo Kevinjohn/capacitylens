@@ -1,18 +1,19 @@
-# US-SET-12 — Archived & deleted (restore / delete / permanently delete)
+# US-SET-12 — Inline archives and Deleted items
 
-**Area:** Settings · **Persona:** Studio manager / admin · **Linked E2E:** `e2e/archived.spec.ts` → "archive a resource → it vanishes from the schedule + list → Settings shows it → restore → re-archive → delete → tombstone (purge locked)"
+**Area:** Settings · **Persona:** Studio manager / admin · **Linked E2E:** `e2e/archived.spec.ts` → "archive a resource → it vanishes from the schedule + active list → inline restore → re-archive → delete → Settings tombstone (purge locked)"
 
 ## Goal
 
-Give an admin one place — **Settings → Archived & deleted** — to see the resources, clients and
-projects that have been removed from the schedule, and to **restore** them, **delete** (anonymise +
-start the purge countdown) them, or — once the 30-day grace has passed — **permanently delete** them.
+Give owners and administrators an expanded archive section at the bottom of each Resources, Clients,
+Projects and Activities list, where they can restore an accidental archive immediately or **delete**
+it to start the purge countdown. Keep soft-deleted items in **Settings → Deleted items** until they
+become eligible for permanent deletion.
 
 ## Why
 
 Archiving (the per-row action on each management list) is the reversible "remove from the schedule"
-step; it deliberately does NOT destroy data. The admin view is the counterpart that makes the hidden
-rows visible again so they can be brought back or moved further down the lifecycle. Soft-delete
+step; it deliberately does NOT destroy data. The archive section on the same page makes hidden rows
+visible again so they can be brought back or moved further down the lifecycle. Soft-delete
 anonymises a resource (replaces the name with _"Removed person #…"_) and starts a 30-day grace window;
 only after that window — and only for an admin — can a tombstone be physically purged with its
 children. Keeping the destructive steps gated, staged and clearly labelled means an accidental
@@ -28,13 +29,13 @@ surfaces here.
 1. On **Resources**, archive **Barry Allen** via the row's **Archive Barry Allen** button → confirm
    **Archive** in the _"Archive resource?"_ dialog. The row disappears from Resources and from the
    **Schedule**.
-2. Open **Settings** and expand **Archived & deleted** (`data-testid="archived-section"`). It lists
-   Barry under **Archived** (`data-testid="archived-row"`) with a type tag (**Resource**).
+2. In **Archived resources** (`data-testid="archived-resources-section"`), find Barry under
+   `data-testid="archived-row"`.
 3. Click **Restore Barry Allen** — the row leaves the section and Barry reappears on the Schedule and
    the Resources list.
-4. Re-archive Barry from Resources, return to Settings, and on the archived row click **Delete Barry
+4. Re-archive Barry and on the archived row click **Delete Barry
    Allen** → confirm **Delete** in the _"Delete this item?"_ dialog.
-5. Barry now appears under **Deleted** (`data-testid="deleted-row"`) with the obfuscated name
+5. Open **Settings → Deleted items**. Barry appears under **Deleted** (`data-testid="deleted-row"`) with the obfuscated name
    **"Removed person #…"** (the original name is gone). Its **Delete permanently**
    (`data-testid="archived-purge"`) button is **disabled**, with the hint _"Can be permanently deleted
    30 days after deletion"_ (the tombstone is brand-new, < 30 days).
@@ -44,15 +45,12 @@ surfaces here.
 
 ## Acceptance criteria
 
-- ✅ **Archived & deleted** is an independent disclosure, closed by default. It shows in the
-  **in-memory demo** (always) and in **server mode** for an **admin** (it self-hides on a **403** from
-  the `?includeInactive=1` read — a non-admin/viewer never sees it). It reads inactive rows from the
-  store (local) or that fetch (server).
-- ✅ It partitions inactive resources/clients/projects into **Archived** (`archived-row`) and
-  **Deleted** (`deleted-row`) groups, each row showing the name + a type tag; an **empty state**
-  (_"Nothing archived or deleted."_) shows when nothing is inactive.
+- ✅ Each list's archive section is expanded and visible only to owners/admins. Resources places it
+  after External. A non-admin/viewer never receives or sees inactive rows.
+- ✅ **Settings → Deleted items** is an independent disclosure, closed by default, and lists only
+  soft-deleted resources, clients, projects and activities.
 - ✅ **Restore** on an archived row returns it to active (reappears on the schedule + its list).
-- ✅ **Delete** on an archived row soft-deletes it (a confirm first): it moves to the Deleted group,
+- ✅ **Delete** on an archived row soft-deletes it (a confirm first): it moves to Deleted items,
   and a **resource's name is scrubbed** to _"Removed person #…"_. There is **no Restore** on a
   tombstone.
 - ✅ **Delete permanently** on a tombstone is **disabled** with the locked hint until it is ≥ 30 days

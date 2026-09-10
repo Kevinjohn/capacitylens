@@ -153,7 +153,7 @@ test("edits an activity name", async ({ page }) => {
   await expect(page.getByTestId("activity-row").filter({ hasText: "CMS Build" })).toBeVisible();
 });
 
-test("deletes an activity and removes its allocation bars, restorable with undo", async ({ page }) => {
+test("archives an activity and hides its allocation bars, restorable with undo", async ({ page }) => {
   await openApp(page);
   await setZoom(page, 4);
   await resetSchedulerScroll(page);
@@ -163,9 +163,9 @@ test("deletes an activity and removes its allocation bars, restorable with undo"
   await page
     .getByTestId("activity-row")
     .filter({ hasText: "Wireframes" })
-    .getByRole("button", { name: "Delete" })
+    .getByRole("button", { name: "Archive Wireframes" })
     .click();
-  await page.getByRole("alertdialog", { name: "Delete activity?" }).getByRole("button", { name: "Delete" }).click();
+  await page.getByRole("alertdialog", { name: "Archive activity?" }).getByRole("button", { name: "Archive" }).click();
   await expect(page.getByTestId("activity-row").filter({ hasText: "Wireframes" })).toHaveCount(0);
 
   await page.getByRole("link", { name: "Schedule" }).click();

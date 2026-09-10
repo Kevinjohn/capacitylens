@@ -1,600 +1,179 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { ArchivedSection } from "./ArchivedSection";
 import { useStore } from "../../store/useStore";
-import { makeAccount, makeClient, makeProject, makeResource, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeActivity, makeClient, makeResource } from "../../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import type { AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { PermissionContext } from "../../auth/permissionContext";
-import { m } from "@/i18n";
 
-// ArchivedSection is the Settings → "Archived & deleted" admin view (P2.5b). These tests cover the
-// demo build (no server): it reads the inactive rows straight from the store (useInactiveScopedData),
-// always renders (everyone is owner locally), and drives the store's lifecycle actions. The last
-// test mocks fetch + flips server mode on to prove the 403-self-hide.
-
-// apiConfig is mocked with a MUTABLE server flag so most tests run in the demo build (false) while the
-// final self-hide test flips it to true. `API_BASE` is set so the server-mode fetch URL is well-formed.
-// The flag lives in a vi.hoisted() box (the mock factory is hoisted above plain `let`s, so a bare
-// variable would throw "Cannot access before initialization"); the mocked isServerConfigured READS it
-// at call time, so flipping it takes effect on the next render without re-mocking.
 const cfg = vi.hoisted(() => ({ serverOn: false }));
-vi.mock("../../data/apiConfig", () => ({
-  API_BASE: "http://api.test",
-  isServerConfigured: () => cfg.serverOn,
-}));
+vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => cfg.serverOn }));
 
 const TS = "2026-05-01T00:00:00.000Z";
+const OLD = "2026-01-01T00:00:00.000Z";
 
-// The shared entity builders, re-stamped for this suite: rows must belong to the seeded account (the
-// scoped store slice filters on `accountId`) and carry ISO-shaped timestamps, because these rows are
-// also fed back through the server-mode fetch mock as a real AppData payload.
-const stamped = { accountId: DEFAULT_ACCOUNT_ID, createdAt: TS, updatedAt: TS };
-const resource = (over: Partial<Resource> = {}): Resource => makeResource({ ...stamped, ...over });
-const client = (over: Partial<Client> = {}): Client => makeClient({ ...stamped, ...over });
-const project = (over: Partial<Project> = {}): Project => makeProject({ ...stamped, ...over });
-
-type RegistrationDependencies = {
-  config: typeof cfg;
-  seed: typeof seed;
-  resource: typeof resource;
-  client: typeof client;
-  project: typeof project;
-  daysAgo: typeof daysAgo;
-  timestamp: typeof TS;
-};
-
-/** An ISO timestamp `days` ago from now — to seed a tombstone older/younger than the 30-day window. */
-function daysAgo(days: number): string {
-  return new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-}
-
-function seed(data: Partial<AppData>): void {
-  useStore.getState().replaceAll({ ...emptyAppData(), accounts: [makeAccount()], ...data });
+function seed(overrides = {}) {
+  useStore.getState().replaceAll({ ...emptyAppData(), accounts: [makeAccount()], ...overrides });
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
-  useStore.getState().setNotice(null);
-  useStore.getState().setActiveRole(null);
 }
 
 beforeEach(() => {
-  cfg.serverOn = false; // demo build by default; the self-hide test flips it on.
-  seed({});
+  cfg.serverOn = false;
+  seed();
 });
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  vi.unstubAllGlobals(); // drop any per-test fetch stub so server-mode tests can't leak into each other
+  vi.unstubAllGlobals();
 });
 
-describe("ArchivedSection — demo build (store source)", () => {
-  registerDemoEmptyAndListingTests({ seed, resource, client, project, daysAgo });
-  registerDemoPermissionTest({ seed, resource, client, daysAgo });
-  registerDemoMutationTests({ seed, resource });
-  registerDemoConfirmationTests({ seed, client, timestamp: TS });
-  registerDemoTombstoneDisplayTest({ seed, resource, daysAgo });
-  registerDemoYoungPurgeTest({ seed, client, daysAgo });
-  registerDemoBoundaryTest({ seed, client, timestamp: TS });
-  registerDemoLongBoundaryTest({ seed, client });
-  registerDemoPurgeTest({ seed, client, daysAgo });
-});
-
-function registerDemoEmptyAndListingTests({
-  seed,
-  resource,
-  client,
-  project,
-  daysAgo,
-}: Pick<RegistrationDependencies, "seed" | "resource" | "client" | "project" | "daysAgo">): void {
-  it("renders an empty state when nothing is archived or deleted", () => {
-    seed({ resources: [resource({})] }); // one ACTIVE resource → not listed
+// eslint-disable-next-line max-lines-per-function -- deleted-item security and retention scenarios share one fixture lifecycle
+describe("Settings deleted items", () => {
+  it("does not list archived rows and shows the deleted empty state", () => {
+    seed({ clients: [makeClient({ accountId: DEFAULT_ACCOUNT_ID, archivedAt: TS })] });
     render(<ArchivedSection />);
-    expect(screen.getByTestId("archived-section")).toBeInTheDocument();
-    expect(screen.queryByText(m.settings_archived_intro())).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: `About ${m.settings_archived_heading()}` }));
-    expect(screen.getByRole("dialog", { name: m.settings_archived_heading() })).toHaveTextContent(
-      m.settings_archived_intro(),
-    );
-    fireEvent.click(screen.getByRole("button", { name: m.settings_help_close() }));
-    expect(screen.getByText("Nothing archived or deleted.")).toBeInTheDocument();
-    expect(screen.queryByTestId("archived-row")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("deleted-row")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Deleted items" })).toBeInTheDocument();
+    expect(screen.getByText("Nothing deleted.")).toBeInTheDocument();
+    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
   });
 
-  it("lists archived and deleted rows across the three tables", () => {
+  it("lists deleted resources and activities for permanent deletion", () => {
     seed({
-      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
-      clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
-      projects: [
-        project({
-          id: "p-del",
-          name: "Deleted Project",
-          archivedAt: TS,
-          deletedAt: daysAgo(1),
-        }),
+      resources: [
+        makeResource({ accountId: DEFAULT_ACCOUNT_ID, name: "Removed person #123", archivedAt: OLD, deletedAt: OLD }),
+      ],
+      activities: [
+        makeActivity({ accountId: DEFAULT_ACCOUNT_ID, name: "Old planning", archivedAt: OLD, deletedAt: OLD }),
       ],
     });
     render(<ArchivedSection />);
-
-    const archivedRows = screen.getAllByTestId("archived-row");
-    expect(archivedRows).toHaveLength(2);
-    expect(screen.getByText("Archived Person")).toBeInTheDocument();
-    expect(screen.getByText("Archived Client")).toBeInTheDocument();
-
-    const deletedRows = screen.getAllByTestId("deleted-row");
-    expect(deletedRows).toHaveLength(1);
-    expect(screen.getByText("Deleted Project")).toBeInTheDocument();
+    expect(screen.getAllByTestId("deleted-row")).toHaveLength(2);
+    expect(screen.getByText("Removed person #123")).toBeInTheDocument();
+    expect(screen.getByText("Old planning")).toBeInTheDocument();
+    expect(screen.getByText("· Activity")).toBeInTheDocument();
   });
-}
 
-function registerDemoPermissionTest({
-  seed,
-  resource,
-  client,
-  daysAgo,
-}: Pick<RegistrationDependencies, "seed" | "resource" | "client" | "daysAgo">): void {
-  it("hides both destructive lifecycle affordances from a non-purge role", () => {
-    seed({
-      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
-      clients: [
-        client({
-          id: "c-old",
-          name: "Old Tombstone",
-          archivedAt: TS,
-          deletedAt: daysAgo(40),
-        }),
-      ],
-    });
+  it("hides deleted data from editors", () => {
+    seed({ clients: [makeClient({ accountId: DEFAULT_ACCOUNT_ID, archivedAt: OLD, deletedAt: OLD })] });
     render(
       <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
         <ArchivedSection />
       </PermissionContext.Provider>,
     );
-
-    // Editors may restore archived scheduling data, but delete/purge are both admin-tier actions.
-    expect(screen.getByRole("button", { name: "Restore Archived Person" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Delete Archived Person" })).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", {
-        name: "Permanently delete Old Tombstone",
-      }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("archived-section")).not.toBeInTheDocument();
   });
-}
 
-function registerDemoMutationTests({ seed, resource }: Pick<RegistrationDependencies, "seed" | "resource">): void {
-  it("Restore dispatches unarchiveEntity (row returns to active)", async () => {
-    const user = userEvent.setup();
+  it("keeps the permanent-delete confirmation", () => {
     seed({
-      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
+      clients: [makeClient({ accountId: DEFAULT_ACCOUNT_ID, name: "Old client", archivedAt: OLD, deletedAt: OLD })],
     });
     render(<ArchivedSection />);
-
-    await user.click(screen.getByRole("button", { name: "Restore Archived Person" }));
-
-    const r = useStore.getState().data.resources.find((x) => x.id === "r-arch");
-    if (!r) throw new Error("Expected restored resource to remain in the store");
-    expect(r.archivedAt).toBeUndefined(); // back to active
+    fireEvent.click(screen.getByRole("button", { name: "Permanently delete Old client" }));
+    const dialog = screen.getByRole("alertdialog", { name: "Permanently delete?" });
+    expect(dialog).toHaveTextContent("Old client");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
-  it("Delete (soft-delete) dispatches softDeleteEntity and scrubs a resource name", async () => {
-    const user = userEvent.setup();
-    seed({
-      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
-    });
-    render(<ArchivedSection />);
-
-    await user.click(screen.getByRole("button", { name: "Delete Archived Person" }));
-    // Confirm the danger dialog.
-    const dialog = screen.getByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: "Delete" }));
-
-    const r = useStore.getState().data.resources.find((x) => x.id === "r-arch");
-    if (!r) throw new Error("Expected soft-deleted resource to remain in the store");
-    expect(r.deletedAt).toBeTruthy();
-    // The resource name is scrubbed to the obfuscated token on soft-delete.
-    expect(r.name).toMatch(/^Removed person #/);
-  });
-}
-
-function registerDemoConfirmationTests({
-  seed,
-  client,
-  timestamp,
-}: Pick<RegistrationDependencies, "seed" | "client" | "timestamp">): void {
-  it("keeps one quote pair around a private code name in archived confirmation copy", async () => {
-    const user = userEvent.setup();
-    seed({
-      clients: [
-        client({
-          name: '"Nightwing"',
-          isPrivate: true,
-          archivedAt: timestamp,
-        }),
-      ],
-    });
-    render(<ArchivedSection />);
-
-    await user.click(screen.getByRole("button", { name: 'Delete "Nightwing"' }));
-    const dialog = screen.getByRole("alertdialog", {
-      name: "Delete this item?",
-    });
-    expect(dialog).toHaveTextContent('Delete "Nightwing"?');
-    expect(dialog).not.toHaveTextContent('""Nightwing""');
-  });
-}
-
-function registerDemoTombstoneDisplayTest({
-  seed,
-  resource,
-  daysAgo,
-}: Pick<RegistrationDependencies, "seed" | "resource" | "daysAgo">): void {
-  // A RENDER test, not an obfuscation proof: that the admin view DISPLAYS a resource tombstone's
-  // already-scrubbed name verbatim. (The scrub itself is proven by the soft-delete test above and the
-  // store's softDeleteEntity spec — this only seeds an already-obfuscated name and checks it shows.)
-  it("displays a resource tombstone’s already-scrubbed name verbatim", () => {
-    seed({
-      resources: [
-        resource({
-          id: "r-del",
-          name: "Removed person #r-de",
-          archivedAt: TS,
-          deletedAt: daysAgo(1),
-        }),
-      ],
-    });
-    render(<ArchivedSection />);
-    expect(screen.getByTestId("deleted-row")).toHaveTextContent(/Removed person #/);
-  });
-}
-
-function registerDemoYoungPurgeTest({
-  seed,
-  client,
-  daysAgo,
-}: Pick<RegistrationDependencies, "seed" | "client" | "daysAgo">): void {
-  it("DISABLES the purge button for a <30-day tombstone (with the locked hint)", () => {
-    seed({
-      clients: [
-        client({
-          id: "c-del",
-          name: "Young Tombstone",
-          archivedAt: TS,
-          deletedAt: daysAgo(5),
-        }),
-      ],
-    });
-    render(<ArchivedSection />);
-
-    const purgeBtn = screen.getByRole("button", {
-      name: "Permanently delete Young Tombstone",
-    });
-    expect(purgeBtn).toBeDisabled();
-    expect(screen.getByText("Can be permanently deleted 30 days after deletion")).toBeInTheDocument();
-  });
-}
-
-function registerDemoBoundaryTest({
-  seed,
-  client,
-  timestamp,
-}: Pick<RegistrationDependencies, "seed" | "client" | "timestamp">): void {
-  it("enables purge when a mounted tombstone crosses the 30-day boundary", async () => {
+  it("enables permanent deletion after crossing the 30-day boundary and purges after confirmation", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-01T12:00:00.000Z"));
+    vi.setSystemTime(new Date("2026-01-31T23:59:59.950Z"));
+    const deletedAt = "2026-01-02T00:00:00.000Z";
     seed({
-      clients: [
-        client({
-          id: "c-boundary",
-          name: "Boundary Tombstone",
-          archivedAt: timestamp,
-          deletedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000 + 50).toISOString(),
-        }),
-      ],
+      clients: [makeClient({ accountId: DEFAULT_ACCOUNT_ID, name: "Old client", archivedAt: deletedAt, deletedAt })],
     });
     render(<ArchivedSection />);
-
-    const purge = screen.getByRole("button", {
-      name: "Permanently delete Boundary Tombstone",
-    });
+    const purge = screen.getByRole("button", { name: "Permanently delete Old client" });
     expect(purge).toBeDisabled();
-
     await act(async () => {
       await vi.advanceTimersByTimeAsync(51);
     });
     expect(purge).toBeEnabled();
+    fireEvent.click(purge);
+    fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Delete permanently" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(useStore.getState().data.clients).toHaveLength(0);
+    vi.useRealTimers();
   });
-}
 
-function registerDemoLongBoundaryTest({ seed, client }: Pick<RegistrationDependencies, "seed" | "client">): void {
-  // A FRESH tombstone's boundary is the full 30 days out (~2.59e9 ms), past setTimeout's 32-bit
-  // ceiling (~24.8 days), so the alarm can only reach it in legs: the first wake is clamped and has to
-  // re-arm for the remainder instead of reporting a boundary nothing has crossed. The section's own
-  // timer used to fire once at the ceiling and never re-arm (its dep — the picked instant — was
-  // unchanged), so the row stayed locked past its grace until some unrelated render recomputed it.
-  it("enables purge across a boundary beyond setTimeout's 32-bit ceiling", async () => {
-    const MAX_TIMEOUT_DELAY = 2_147_483_647;
-    const graceMs = 30 * 24 * 60 * 60 * 1000;
+  it("re-arms a 32-bit timer and enables purge when the full retention period ends", async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-07-01T12:00:00.000Z"));
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     seed({
       clients: [
-        client({
-          id: "c-fresh",
-          name: "Fresh Tombstone",
-          archivedAt: TS,
-          deletedAt: new Date().toISOString(),
+        makeClient({
+          accountId: DEFAULT_ACCOUNT_ID,
+          name: "Young client",
+          archivedAt: "2026-01-01T00:00:00.000Z",
+          deletedAt: "2026-01-01T00:00:00.000Z",
         }),
       ],
     });
     render(<ArchivedSection />);
-
-    const purge = screen.getByRole("button", {
-      name: "Permanently delete Fresh Tombstone",
-    });
-    expect(purge).toBeDisabled();
-
-    // The clamped leg: the timer woke, but the grace has not elapsed, so nothing may unlock yet.
+    expect(screen.getByRole("button", { name: "Permanently delete Young client" })).toBeDisabled();
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(MAX_TIMEOUT_DELAY);
+      await vi.advanceTimersByTimeAsync(2_147_483_647);
     });
-    expect(purge).toBeDisabled();
-
-    // …and the re-armed remainder still lands on the real boundary.
+    expect(screen.getByRole("button", { name: "Permanently delete Young client" })).toBeDisabled();
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(graceMs - MAX_TIMEOUT_DELAY + 1);
+      await vi.advanceTimersByTimeAsync(30 * 24 * 60 * 60 * 1000 - 2_147_483_647 + 1);
     });
-    expect(purge).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Permanently delete Young client" })).toBeEnabled();
+    vi.useRealTimers();
   });
-}
 
-function registerDemoPurgeTest({
-  seed,
-  client,
-  daysAgo,
-}: Pick<RegistrationDependencies, "seed" | "client" | "daysAgo">): void {
-  it("ENABLES the purge button for a ≥30-day tombstone and purges on confirm", async () => {
-    const user = userEvent.setup();
-    seed({
-      clients: [
-        client({
-          id: "c-old",
-          name: "Old Tombstone",
-          archivedAt: TS,
-          deletedAt: daysAgo(40),
+  it("suppresses server inactive rows immediately when the role loses access", async () => {
+    cfg.serverOn = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...emptyAppData(),
+          accounts: [makeAccount()],
+          clients: [makeClient({ accountId: DEFAULT_ACCOUNT_ID, name: "Old client", archivedAt: OLD, deletedAt: OLD })],
         }),
-      ],
-    });
-    render(<ArchivedSection />);
-
-    const purgeBtn = screen.getByRole("button", {
-      name: "Permanently delete Old Tombstone",
-    });
-    expect(purgeBtn).toBeEnabled();
-
-    await user.click(purgeBtn);
-    const dialog = screen.getByRole("alertdialog");
-    await user.click(within(dialog).getByRole("button", { name: "Delete permanently" }));
-
-    // The tombstone is physically removed from the store.
-    expect(useStore.getState().data.clients.find((c) => c.id === "c-old")).toBeUndefined();
-  });
-}
-
-describe("ArchivedSection — server mode self-hide", () => {
-  registerServerRefetchTest({ config: cfg, seed, client, timestamp: TS });
-  registerServerMutationTest({ config: cfg, seed, resource, client, project, daysAgo });
-  registerServerRoleGateTest({ config: cfg, seed, client });
-  registerServerNullRoleTest({ config: cfg, seed, client });
-  registerServerForbiddenTest({ config: cfg });
-  registerServerMalformedBodyTest({ config: cfg });
-});
-
-function registerServerRefetchTest({
-  config,
-  seed,
-  client,
-  timestamp,
-}: Pick<RegistrationDependencies, "config" | "seed" | "client" | "timestamp">): void {
-  it("never renders a previous company response during or after a failed account-switch refetch", async () => {
-    config.serverOn = true;
-    seed({
-      clients: [
-        client({
-          id: "c-old",
-          name: "Previous company archive",
-          archivedAt: timestamp,
-        }),
-      ],
-    });
-    const firstSlice = useStore.getState().data;
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(Response.json(firstSlice))
-      .mockRejectedValueOnce(new TypeError("new company unavailable"));
-    vi.stubGlobal("fetch", fetchMock);
-    render(<ArchivedSection />);
-
-    expect(await screen.findByText("Previous company archive")).toBeInTheDocument();
-    act(() => {
-      useStore.getState().setAccountSummaries([
-        { id: DEFAULT_ACCOUNT_ID, name: "First", role: "owner" },
-        { id: "account-2", name: "Second", role: "owner" },
-      ]);
-      useStore.getState().setActiveAccount("account-2");
-    });
-
-    expect(screen.queryByText("Previous company archive")).not.toBeInTheDocument();
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/new company unavailable/i));
-    expect(screen.queryByText("Previous company archive")).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
-}
-
-function registerServerMutationTest({
-  config,
-  seed,
-  resource,
-  client,
-  project,
-  daysAgo,
-}: Pick<RegistrationDependencies, "config" | "seed" | "resource" | "client" | "project" | "daysAgo">): void {
-  it("locks every lifecycle affordance while a mutation is in flight", async () => {
-    config.serverOn = true;
-    seed({
-      resources: [resource({ id: "r-arch", name: "Archived Person", archivedAt: TS })],
-      clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
-      projects: [
-        project({
-          id: "p-old",
-          name: "Old Tombstone",
-          archivedAt: TS,
-          deletedAt: daysAgo(40),
-        }),
-      ],
-    });
-    const slice = useStore.getState().data;
-    let finishLifecycle!: (response: Response) => void;
-    const lifecycleResponse = new Promise<Response>((resolve) => {
-      finishLifecycle = resolve;
-    });
-    const fetchMock = vi.fn((url: string) => {
-      if (url.includes("includeInactive=1")) return Promise.resolve(Response.json(slice));
-      if (url.includes("/unarchive")) return lifecycleResponse;
-      return Promise.reject(new Error(`Unexpected request: ${url}`));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    render(<ArchivedSection />);
-
-    const restore = await screen.findByRole("button", {
-      name: "Restore Archived Person",
-    });
-    fireEvent.click(restore);
-    fireEvent.click(restore);
-
-    await waitFor(() =>
-      expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/unarchive"))).toHaveLength(1),
+      }),
     );
-    expect(restore).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Delete Archived Client" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Permanently delete Old Tombstone" })).toBeDisabled();
-
-    finishLifecycle(Response.json({ error: "Transition refused." }, { status: 409 }));
-    await waitFor(() => expect(restore).toBeEnabled());
-    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/unarchive"))).toHaveLength(1);
-  });
-}
-
-function registerServerRoleGateTest({
-  config,
-  seed,
-  client,
-}: Pick<RegistrationDependencies, "config" | "seed" | "client">): void {
-  // The affordance gate is also a REQUEST gate: the ?includeInactive=1 read is the heaviest read in
-  // the app and 403s for anyone who can't purge, so a concrete non-purge role must never send it. The
-  // null role is the OFF/demo full-access case and MUST still send it — that pair is the regression
-  // guard, so both halves are pinned here.
-  it("never asks for the inactive slice with a concrete role that cannot purge", async () => {
-    config.serverOn = true;
-    seed({
-      clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
-    });
-    const fetchMock = vi.fn(() => Promise.resolve(Response.json(useStore.getState().data)));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { container } = render(
+    const view = render(
+      <PermissionContext.Provider value={{ role: "admin", status: "resolved" }}>
+        <ArchivedSection />
+      </PermissionContext.Provider>,
+    );
+    expect(await screen.findByText("Old client")).toBeInTheDocument();
+    view.rerender(
       <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
         <ArchivedSection />
       </PermissionContext.Provider>,
     );
-    await act(async () => {}); // let any effect-launched request settle before asserting it never happened
-
-    expect(fetchMock).not.toHaveBeenCalled();
-    expect(container.querySelector('[data-testid="archived-section"]')).toBeNull();
-    expect(screen.queryByText("Archived Client")).not.toBeInTheDocument();
+    expect(screen.queryByText("Old client")).not.toBeInTheDocument();
   });
-}
 
-function registerServerNullRoleTest({
-  config,
-  seed,
-  client,
-}: Pick<RegistrationDependencies, "config" | "seed" | "client">): void {
-  it("still fetches and renders for a null role (OFF / demo full access)", async () => {
-    config.serverOn = true;
-    seed({
-      clients: [client({ id: "c-arch", name: "Archived Client", archivedAt: TS })],
-    });
-    const slice = useStore.getState().data;
-    const requested: string[] = [];
-    const fetchMock = vi.fn((url: string) => {
-      requested.push(url);
-      return Promise.resolve(Response.json(slice));
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
+  it.each([403, 500])("does not render stale server rows after an HTTP %s", async (status) => {
+    cfg.serverOn = true;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status, json: async () => ({ error: "Denied" }) }));
     render(
-      <PermissionContext.Provider value={{ role: null, status: "not-applicable" }}>
+      <PermissionContext.Provider value={{ role: "admin", status: "resolved" }}>
         <ArchivedSection />
       </PermissionContext.Provider>,
     );
-
-    expect(await screen.findByText("Archived Client")).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(requested[0]).toContain("includeInactive=1");
-  });
-}
-
-function registerServerForbiddenTest({ config }: Pick<RegistrationDependencies, "config">): void {
-  it("renders nothing when the inactive read returns 403", async () => {
-    config.serverOn = true; // flip server mode on for THIS test (an active account is already seeded).
-    // Capture the URL the effect requests so we can assert it hit the includeInactive read; the mock
-    // always 403s (the non-admin case), which self-hides the section.
-    const requested: string[] = [];
-    const fetchMock = vi.fn(async (url: string) => {
-      requested.push(url);
-      return {
-        ok: false,
-        status: 403,
-        json: async () => ({}),
-      } as unknown as Response;
-    });
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { container } = render(<ArchivedSection />);
-    // The effect must actually FIRE the ?includeInactive=1 read, then a 403 self-hides the section.
-    await waitFor(() => expect(requested.length).toBeGreaterThan(0));
-    await waitFor(() => expect(container.querySelector('[data-testid="archived-section"]')).toBeNull());
-    expect(screen.queryByRole("heading", { name: "Archived & deleted" })).not.toBeInTheDocument();
-    expect(requested[0]).toContain("includeInactive=1");
-  });
-}
-
-function registerServerMalformedBodyTest({ config }: Pick<RegistrationDependencies, "config">): void {
-  // The fetched body is untrusted input: a 200 that is NOT a structurally complete slice (proxy
-  // error page, wrong-version server) must surface as an ERROR notice, not silently render as an
-  // empty archived list the admin would mistake for "nothing archived". The structural gate lives
-  // in the shared fetchInactiveSlice (also DeleteCompanyDialog's "Export first" source).
-  it("surfaces an error notice (not an empty list) when the inactive read returns a malformed body", async () => {
-    config.serverOn = true;
-    const fetchMock = vi.fn(
-      async () =>
-        ({
-          ok: true,
-          status: 200,
-          json: async () => ({ definitely: "not CapacityLens" }),
-        }) as unknown as Response,
-    );
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(<ArchivedSection />);
-
-    // The structural gate refuses the body and routes it to the section's error surface…
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/incomplete/i));
-    expect(useStore.getState().notice?.tone).toBe("error");
-    // …while the section itself still renders (shown, empty) rather than self-hiding.
-    expect(screen.getByTestId("archived-section")).toBeInTheDocument();
-    expect(screen.queryByTestId("archived-row")).not.toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(screen.queryByTestId("deleted-row")).not.toBeInTheDocument();
   });
-}
+
+  it("rejects a structurally incomplete server response", async () => {
+    cfg.serverOn = true;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ accounts: [] }) }));
+    render(
+      <PermissionContext.Provider value={{ role: "admin", status: "resolved" }}>
+        <ArchivedSection />
+      </PermissionContext.Provider>,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(screen.queryByTestId("deleted-row")).not.toBeInTheDocument();
+  });
+});

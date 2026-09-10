@@ -1129,7 +1129,7 @@ function registerCompensatingKeepaliveTests(): void {
 
 function registerScopedDeleteSaveTests(): void {
   it("carries the owning account on a scoped (non-lifecycle) DELETE op; accounts (top-level) carry none", async () => {
-    // Uses a scoped NON-lifecycle row (timeOff): lifecycle-entity deletes (clients/projects/resources)
+    // Uses a scoped NON-lifecycle row (timeOff): lifecycle-entity deletes (clients/projects/resources/activities)
     // are routed OUT of the batch to the dedicated archive/delete endpoints (see the lifecycle-delete
     // suite below), so the "scoped DELETE carries accountId on the wire" contract is asserted here on a
     // table that still rides the batch.
@@ -1772,7 +1772,7 @@ describe("ServerSyncAdapter — durable acknowledged-revision translation (phant
   });
 });
 
-// The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources), steering
+// The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources/activities), steering
 // writers at the dedicated lifecycle routes. The old client emitted those deletes IN the batch, so a
 // single undo of a synced create (add client → sync → Cmd-Z) poisoned every later batch until a
 // reload discarded the edits. The adapter now splits lifecycle deletes out and converges each by

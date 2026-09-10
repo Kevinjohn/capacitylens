@@ -52,7 +52,7 @@ interface ResolvedRepair {
   email: string;
 }
 
-const REPAIR_COMPATIBLE_MIGRATIONS = new Set([25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]);
+const REPAIR_COMPATIBLE_MIGRATIONS = new Set([25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36]);
 
 function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
   const plan = planDatabaseMigrations(db);
@@ -66,7 +66,8 @@ function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
   // timeOff.resourceId to nullable; and v34 restores the personal time-off resource requirement,
   // deliberately dropping pre-existing company-wide rows without converting them because there
   // are no users requiring a data-compatibility window, while adding first-class closures; and
-  // v35 adds only the optional project attribution on allocations.
+  // v35 adds only the optional project attribution on allocations; and v36 adds only optional
+  // lifecycle timestamps to activities.
   // These are safe to remain pending before this stopped-server repair. Keep this allowlist explicit
   // so a future migration requires review.
   if (plan.migrations.some(({ version }) => !REPAIR_COMPATIBLE_MIGRATIONS.has(version))) {

@@ -128,6 +128,10 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   .replace(
     "  activityId TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  startDate TEXT NOT NULL",
     "  activityId TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,\n  startDate TEXT NOT NULL",
+  )
+  .replace(
+    "  phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS allocations",
+    "  phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS allocations",
   )}\nCREATE TABLE IF NOT EXISTS closures (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

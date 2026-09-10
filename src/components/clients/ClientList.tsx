@@ -13,6 +13,7 @@ import { Briefcase, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { buildClientArchiveImpactCopy } from "../../lib/archiveImpactCopy";
 import { byName } from "../../lib/displayOrder";
+import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
  *  ("this also hides N projects and M allocations") when the client has active work beneath it — so
@@ -69,7 +70,7 @@ export function ClientList() {
     () => scoped.clients.filter((client) => !isBuiltinClient(client)).sort(byName),
     [scoped.clients],
   );
-  // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
+  // The per-row action ARCHIVES (soft-delete is reached from the inline archive section);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Client>();
@@ -92,6 +93,8 @@ export function ClientList() {
       ) : (
         <ClientItems clients={clients} onEdit={setEditing} onArchive={setConfirming} />
       )}
+
+      <ArchivedEntitySection entity="clients" />
 
       {creating && <ClientForm onClose={() => setCreating(false)} />}
       {editing && <ClientForm client={editing} onClose={() => setEditing(null)} />}

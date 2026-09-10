@@ -13,6 +13,7 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import {
   emptyAppData,
   type AppData,
+  type Activity,
   type Client,
   type Project,
   type Resource,
@@ -150,13 +151,13 @@ it("rolls a lifecycle transition back when response redaction fails", async () =
     readSlice: () => data as ProjectedAccountSlice,
     readFullSlice: () => data as CompleteAccountSlice,
     readLifecycleRow: (accountId, entity, id) =>
-      (data[entity] as Array<Resource | Client | Project>).find(
+      (data[entity] as Array<Resource | Client | Project | Activity>).find(
         (row) => row.id === id && row.accountId === accountId,
       ) ?? null,
     writeLifecycleRow: (accountId, entity, row) => {
       data = {
         ...data,
-        [entity]: (data[entity] as Array<Resource | Client | Project>).map((current) =>
+        [entity]: (data[entity] as Array<Resource | Client | Project | Activity>).map((current) =>
           current.id === row.id && current.accountId === accountId ? row : current,
         ),
       };
@@ -987,6 +988,68 @@ describe("P2.5a lifecycle — interlock 409s (illegal transitions / precondition
       (await lifecycleAction({ app, entity: "clients", id: "nope", action: "archive", accountId: "a1", cookie }))
         .statusCode,
     ).toBe(404);
+  });
+});
+
+describe("P2.5a lifecycle — activities are first-class tombstone roots", () => {
+  it("archives and soft-deletes an activity while projecting its allocation out of normal reads", async () => {
+    const { app, db } = await appWithAuth();
+    const d = emptyAppData() as unknown as Record<string, unknown[]>;
+    d.accounts = [account("a1")];
+    d.clients = [client("c1", "a1")];
+    d.projects = [project({ id: "p1", accountId: "a1", clientId: "c1" })];
+    d.phases = [phase("ph1", "a1", "p1")];
+    d.activities = [activity({ id: "act1", accountId: "a1", projectId: "p1", phaseId: "ph1" })];
+    d.resources = [person("r1", "a1")];
+    d.allocations = [allocation({ id: "al1", accountId: "a1", resourceId: "r1", activityId: "act1" })];
+    insertAll(db, d as unknown as AppData);
+
+    const { cookie, userId } = await signUp(app, "activity-lifecycle@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "admin", status: "active", createdAt: TS });
+
+    expect(
+      (await lifecycleAction({ app, entity: "activities", id: "act1", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    expect(readLifecycleStateIds(await readInactive(app, "a1", cookie)).activities).toContain("act1");
+    expect(readLifecycleStateIds(await readInactive(app, "a1", cookie)).allocations).toContain("al1");
+    expect(
+      readLifecycleStateIds(await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie } })),
+    ).toEqual(expect.objectContaining({ activities: [], allocations: [] }));
+
+    expect(
+      (await lifecycleAction({ app, entity: "activities", id: "act1", action: "unarchive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      readLifecycleStateIds(await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie } }))
+        .activities,
+    ).toContain("act1");
+
+    expect(
+      (await lifecycleAction({ app, entity: "activities", id: "act1", action: "archive", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    expect(
+      (await lifecycleAction({ app, entity: "activities", id: "act1", action: "delete", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(200);
+    const deleted = readResponseBodyRecord(await readInactive(app, "a1", cookie));
+    const deletedActivity = readEntityRecord(deleted, "activities", "act1");
+    expect(readRequiredString(deletedActivity, "deletedAt")).toBeTruthy();
+    const persistedActivity = db.prepare("SELECT archivedAt, deletedAt FROM activities WHERE id = ?").get("act1");
+    if (!isUnknownRecord(persistedActivity)) throw new Error("Expected persisted Activity lifecycle fields.");
+    expect(readRequiredString(persistedActivity, "archivedAt")).toBeTruthy();
+    expect(readRequiredString(persistedActivity, "deletedAt")).toBeTruthy();
+    db.prepare("UPDATE activities SET deletedAt = ? WHERE id = ?").run(THIRTY_ONE_DAYS_AGO, "act1");
+    expect(
+      (await lifecycleAction({ app, entity: "activities", id: "act1", action: "purge", accountId: "a1", cookie }))
+        .statusCode,
+    ).toBe(204);
+    expect(readLifecycleStateIds(await readInactive(app, "a1", cookie)).activities).not.toContain("act1");
+    expect(readLifecycleStateIds(await readInactive(app, "a1", cookie)).allocations).not.toContain("al1");
+    await app.close();
+    db.close();
   });
 });
 

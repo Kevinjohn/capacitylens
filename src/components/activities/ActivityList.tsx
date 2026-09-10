@@ -1,4 +1,3 @@
-import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useEntityListState } from "../../hooks/useEntityListState";
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
@@ -9,7 +8,8 @@ import { Fragment, useEffect, useMemo, useRef } from "react";
 import { ClipboardCheck, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { buildActivityListModel } from "./activityListModel";
-import { useConfirmDelete } from "../../hooks/useConfirmDelete";
+import { useLifecycleActions } from "../../hooks/useLifecycleActions";
+import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
 
 interface BoxInput {
   rows: Activity[];
@@ -23,10 +23,10 @@ interface ActivityRowProps {
   selectedActivityId?: string;
   selectedRowRef: React.RefObject<HTMLDivElement | null>;
   onEdit: (activity: Activity) => void;
-  onDelete: (activity: Activity) => void;
+  onArchive: (activity: Activity) => void;
 }
 
-function ActivityRow({ activity, selectedActivityId, selectedRowRef, onEdit, onDelete }: ActivityRowProps) {
+function ActivityRow({ activity, selectedActivityId, selectedRowRef, onEdit, onArchive }: ActivityRowProps) {
   const selected = activity.id === selectedActivityId;
   return (
     <Item
@@ -44,8 +44,8 @@ function ActivityRow({ activity, selectedActivityId, selectedRowRef, onEdit, onD
       <ItemActions>
         <EditButton label={m.list_edit_aria({ name: activity.name })} onClick={() => onEdit(activity)} />
         <DeleteButton
-          label={m.list_activities_delete_aria({ name: activity.name })}
-          onClick={() => onDelete(activity)}
+          label={m.list_activities_archive_aria({ name: activity.name })}
+          onClick={() => onArchive(activity)}
         />
       </ItemActions>
     </Item>
@@ -178,9 +178,8 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
   const activities = data.activities;
   const projects = data.projects;
   const clients = data.clients;
-  const deleteEntity = useStore((state) => state.deleteActivity);
+  const { archive } = useLifecycleActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Activity>();
-  const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
   const selectedRowRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -205,7 +204,7 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
       {...(selectedActivityId === undefined ? {} : { selectedActivityId })}
       selectedRowRef={selectedRowRef}
       onEdit={setEditing}
-      onDelete={setConfirming}
+      onArchive={setConfirming}
     />
   );
 
@@ -218,13 +217,19 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
         renderRow={renderRow}
       />
 
+      <ArchivedEntitySection entity="activities" />
+
       {creating && <ActivityForm onClose={() => setCreating(false)} />}
       {editing && <ActivityForm activity={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title={m.list_activities_delete_title()}
-          message={m.list_activities_delete_message({ name: confirming.name })}
-          onConfirm={() => confirmDelete(confirming.id)}
+          title={m.list_activities_archive_title()}
+          message={m.list_activities_archive_message({ name: confirming.name })}
+          confirmLabel={m.list_archive()}
+          onConfirm={() => {
+            void archive("activities", confirming.id);
+            setConfirming(null);
+          }}
           onCancel={() => setConfirming(null)}
         />
       )}
