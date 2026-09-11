@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Reduced memory pressure during direct deployment builds by keeping test and build-tool type-checking
+  in validation while checking only browser-shipped sources in `pnpm run build`.
+
 - Keep schedule group headers above company closure shading (#766).
 
 ### Changed
