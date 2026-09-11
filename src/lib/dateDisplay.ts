@@ -22,10 +22,12 @@ import { readActiveDateStyle, type DateStyle } from "./dateStyle";
 // `DateHeader.tsx`'s day number ("d") and weekday abbreviation ("EEE").
 //
 // COLLAPSE RULE for ranges: a same-day range renders as one full single date. A same-month range
-// shows the month once, at the position the style would normally put it (trailing for a
-// day-first style, leading for a month-first style). A same-year range shows the year once, at
-// the very end. A cross-year range renders a full date — day, month, year — at both endpoints. The
-// range separator is always ` – ` (U+2013 EN DASH), never a hyphen.
+// shows the month once, at the position the style would normally put it (trailing for a day-first
+// style, leading for a month-first style). A same-year range shows the year once, at the very end.
+// A range crossing a year boundary collapses nothing: every endpoint carries day, month and year —
+// in `formatShortDateRange` and `formatDayMonthRange` too, the two that otherwise never print a
+// year, because without it a range from one September to the next reads as a single day. The range
+// separator is always ` – ` (U+2013 EN DASH), never a hyphen.
 //
 // COLLAPSE IN ACCESSIBLE NAMES: a name that labels a control sitting beside a visible date range
 // uses the same collapsed string that range shows, so a voice-control user can speak what is on
@@ -96,7 +98,14 @@ export function formatShortDateRange(startDate: ISODate, endDate: ISODate): stri
   const locale = readActiveDateLocale();
   const start = parseDate(startDate);
   const end = parseDate(endDate);
-  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+
+  // A range across a year boundary spends the width on both years rather than reading as two days
+  // in the same one; inside a year the year is what gets dropped, not the month.
+  if (start.getFullYear() !== end.getFullYear()) {
+    const pattern = descriptor.monthFirst ? "EEE MMM do, yyyy" : "EEE do MMM yyyy";
+    return `${format(start, pattern, { locale })} – ${format(end, pattern, { locale })}`;
+  }
+  const sameMonth = start.getMonth() === end.getMonth();
 
   const monthLeading = "EEE MMM do";
   const monthTrailing = "EEE do MMM";
@@ -141,7 +150,14 @@ export function formatDayMonthRange(startDate: ISODate, endDate: ISODate): strin
   const start = parseDate(startDate);
   const end = parseDate(endDate);
   const day = dayToken(descriptor.ordinal);
-  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+
+  // Same reason as formatShortDateRange: without this a 2026-09-09 → 2027-09-09 range renders
+  // "9 Sep – 9 Sep" and claims a year-long allocation starts and ends on one day.
+  if (start.getFullYear() !== end.getFullYear()) {
+    const pattern = singlePattern(descriptor, true);
+    return `${format(start, pattern, { locale })} – ${format(end, pattern, { locale })}`;
+  }
+  const sameMonth = start.getMonth() === end.getMonth();
   const startDay = format(start, day, { locale });
   const endDay = format(end, day, { locale });
 
