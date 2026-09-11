@@ -399,6 +399,7 @@ interface TimeOffSnapshot {
 }
 
 interface AccountSnapshot {
+  capacityOverviewAccess?: string;
   color: string;
   createdAt: string;
   disciplinesEnabled?: boolean;
@@ -827,10 +828,12 @@ function addAccountDisplayOptions(snapshot: AccountSnapshot, row: Record<string,
 }
 
 function addAccountWorkflowOptions(snapshot: AccountSnapshot, row: Record<string, unknown>): void {
+  const capacityOverviewAccess = readOptionalString(row, "capacityOverviewAccess", "account row");
   const inlineActivityCreateEnabled = readOptionalBoolean(row, "inlineActivityCreateEnabled", "account row");
   const showInternalActivities = readOptionalBoolean(row, "showInternalActivities", "account row");
   const showInternalProjects = readOptionalBoolean(row, "showInternalProjects", "account row");
   const showTaskFieldInSchedule = readOptionalBoolean(row, "showTaskFieldInSchedule", "account row");
+  if (capacityOverviewAccess !== undefined) snapshot.capacityOverviewAccess = capacityOverviewAccess;
   if (inlineActivityCreateEnabled !== undefined) snapshot.inlineActivityCreateEnabled = inlineActivityCreateEnabled;
   if (showInternalActivities !== undefined) snapshot.showInternalActivities = showInternalActivities;
   if (showInternalProjects !== undefined) snapshot.showInternalProjects = showInternalProjects;
@@ -842,6 +845,7 @@ function readAccountSnapshot(row: Record<string, unknown>): AccountSnapshot {
     row,
     [
       "color",
+      "capacityOverviewAccess",
       "createdAt",
       "disciplinesEnabled",
       "externalEnabled",
@@ -1396,6 +1400,17 @@ function createCrudMutationTests(): void {
 }
 
 function createCrudResourceMutationTests(): void {
+  it("batch persists a person whose optional role is blank", async () => {
+    const { app } = freshApp();
+    await post(app, "accounts", account("a1"));
+    const resource = { ...person("r1", "a1"), role: "" };
+    const response = await batch(app, [{ method: "PUT", table: "resources", id: resource.id, row: resource }]);
+
+    expect(response.statusCode, response.body).toBe(200);
+    const state = await readValidatedState(app);
+    expect(readFirstResource(state.resources)).toMatchObject({ id: "r1", role: "" });
+  });
+
   it("PATCH is a partial merge: omitted fields keep their stored value", async () => {
     const { app } = freshApp();
     await scaffold(app);

@@ -11,6 +11,8 @@ coarse "has signed in" confirmation for each membership. An Admin manages member
 owner-only operations. Ownership transfer is owner-only and, since #175, has no per-row control: it
 is an API operation awaiting its own owner-only section.
 
+**Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md)
+
 ## Why
 
 On an auth-enabled, server-backed deploy, access to a company is a real membership (a role per login),
@@ -41,6 +43,12 @@ intro.
    (`data-testid="capabilities-toggle"`), so the page opens on the member table rather than on
    reference material. Below it sits the **Members** section (`data-testid="members-section"`,
    heading **Members**).
+
+   Loading the directory is a read-only operation: an Owner or Admin can review members, sign-in
+   confirmations and outstanding invites from an older session without a confirmation prompt. A
+   fresh identity confirmation appears only after starting a sensitive change, and its heading names
+   that exact action. Cancelling the confirmation leaves this page and its loaded directory available.
+
 2. The **member list** is a table (`data-testid="members-table"`) with the columns **Name**,
    **Email**, **Edit member** and **Member settings**, one row per member
    (`data-testid="member-row"`); the role sits beneath the name and B's own row is marked **(you)**.
@@ -142,6 +150,15 @@ intro.
     absent everywhere); `POST …/transfer-ownership` stays owner-only, atomically promoting the target
     to Owner and demoting the caller to Admin, and both membership projections are re-read afterwards
     so the caller's role badge and affordances reflect the demotion.
+- Invitation creation explains that CapacityLens sends no email: the administrator must copy and
+  send the link. Email guidance is available to screen readers before validation and alongside
+  any error. Success and recovery instructions remain inline with the one-time link.
+- Recipients can choose **Sign in** or **Create account** with equally prominent controls. Only the
+  selected journey's fields appear. Existing users review and explicitly accept as the signed-in
+  identity; changing identity preserves the invitation. New users create their sign-in and accept
+  atomically. The company, role consequences and expiry remain fully readable throughout. Addressed
+  invitations show a recipient hint containing only the part before `@` followed by `@…`; recipients
+  enter the full email address themselves, and the domain stays hidden in the preview.
 - The invite token is shown **once** at creation (`/invite/<token>`), is stored only as a one-way
   hash, and the invites list carries no token. Accepted (used) invites remain listed (marked _used_)
   for admin visibility; an expired, unaccepted link is pruned.

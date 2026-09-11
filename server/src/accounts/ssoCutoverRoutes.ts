@@ -1,4 +1,4 @@
-import type { AuthorizeBasicInput } from "../routes/routeShared";
+import type { AuthorizeRouteInput } from "../routes/routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
@@ -8,7 +8,7 @@ import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort } from "./sqliteAccountAdminPort";
 import { ssoCutoverReadiness } from "./ssoCutover";
 
-type AuthorizeMemberManagementInput = Omit<AuthorizeBasicInput, "action"> & { action: "manageMembers" };
+type AuthorizeMemberManagementInput = Omit<AuthorizeRouteInput, "action"> & { action: "manageMembers" };
 
 function createAuthenticationRequiredError(): AccountContractError {
   return new AccountContractError({
@@ -131,7 +131,16 @@ function sendProviderLinkFailure(req: RouteRequest, reply: FastifyReply, error: 
 function registerReadinessRoute(app: FastifyInstance, dependencies: SsoCutoverRouteDependencies): void {
   app.get("/api/accounts/:accountId/sso-readiness", async (req, reply) => {
     const { accountId } = req.params as { accountId: string };
-    if (!dependencies.authorize({ req, reply, accountId, action: "manageMembers" })) return;
+    if (
+      !dependencies.authorize({
+        req,
+        reply,
+        accountId,
+        action: "manageMembers",
+        options: { requireFreshSession: false },
+      })
+    )
+      return;
     const provider = dependencies.auth.strictProvider;
     if (!provider) return reply.code(400).send({ error: "No strict OIDC provider is configured." });
     try {

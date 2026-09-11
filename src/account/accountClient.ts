@@ -4,6 +4,7 @@ import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
 import { buildPayloadOperationKey } from "./commandOutcome";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
+import type { ReauthAction } from "../auth/reauthCoordinator";
 
 interface ChangeMemberRoleInput {
   workspaceId: string;
@@ -54,16 +55,20 @@ export const accountClient = {
   },
 
   linkIdentityProvider(callbackURL: string): Promise<Response> {
-    return apiFetchReauth(`${API_BASE}/api/identity/link-provider`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callbackURL, errorCallbackURL: callbackURL }),
-    });
+    return apiFetchReauth(
+      `${API_BASE}/api/identity/link-provider`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callbackURL, errorCallbackURL: callbackURL }),
+      },
+      { action: "connect-provider" satisfies ReauthAction },
+    );
   },
 
   getSsoReadiness(workspaceId: string): Promise<Response> {
-    return apiFetchReauth(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/sso-readiness`, {
+    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/sso-readiness`, {
       credentials: "include",
     });
   },
@@ -77,6 +82,7 @@ export const accountClient = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       },
+      { action: "correct-member-email" satisfies ReauthAction },
     );
   },
 
@@ -93,6 +99,7 @@ export const accountClient = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(coordinate),
       },
+      { action: "remove-federated-link" satisfies ReauthAction },
     );
   },
 
@@ -124,29 +131,33 @@ export const accountClient = {
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}`,
           buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-          API_BULK_TIMEOUT_MS,
+          { timeoutMs: API_BULK_TIMEOUT_MS, action: "delete-company" satisfies ReauthAction },
         ),
       ambiguousStatus: 403,
     });
   },
 
   listMembers(workspaceId: string): Promise<Response> {
-    return apiFetchReauth(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members`, {
+    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members`, {
       credentials: "include",
     });
   },
 
   setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<Response> {
-    return apiFetchReauth(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/member-sign-in-tracking`, {
-      method: "PUT",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ enabled }),
-    });
+    return apiFetchReauth(
+      `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/member-sign-in-tracking`,
+      {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      },
+      { action: "change-sign-in-tracking" satisfies ReauthAction },
+    );
   },
 
   listInvitations(workspaceId: string): Promise<Response> {
-    return apiFetchReauth(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites`, {
+    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites`, {
       credentials: "include",
     });
   },
@@ -181,6 +192,7 @@ export const accountClient = {
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
           buildJsonCommandRequestInit("PATCH", { role }, resolved),
+          { action: "change-member-role" satisfies ReauthAction },
         ),
     });
   },
@@ -193,6 +205,7 @@ export const accountClient = {
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/status`,
           buildJsonCommandRequestInit("PATCH", { status }, resolved),
+          { action: "change-member-status" satisfies ReauthAction },
         ),
     });
   },
@@ -205,6 +218,7 @@ export const accountClient = {
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}`,
           buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
+          { action: "remove-member" satisfies ReauthAction },
         ),
     });
   },
@@ -221,6 +235,7 @@ export const accountClient = {
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/transfer-ownership`,
           buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId }, resolved),
+          { action: "transfer-ownership" satisfies ReauthAction },
         ),
     });
   },
@@ -233,6 +248,7 @@ export const accountClient = {
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/reset-password`,
           buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
+          { action: "issue-password-reset" satisfies ReauthAction },
         ),
     });
   },
@@ -245,6 +261,7 @@ export const accountClient = {
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/revoke-sessions`,
           buildCommandRequestInit({ method: "POST", credentials: "include" }, resolved),
+          { action: "revoke-member-sessions" satisfies ReauthAction },
         ),
     });
   },
@@ -256,7 +273,9 @@ export const accountClient = {
       operationKey: await buildPayloadOperationKey(`invitation-create:${accountId}`, body),
       explicit: command,
       request: (resolved) =>
-        apiFetchReauth(`${API_BASE}/api/invites`, buildJsonCommandRequestInit("POST", body, resolved)),
+        apiFetchReauth(`${API_BASE}/api/invites`, buildJsonCommandRequestInit("POST", body, resolved), {
+          action: "create-invitation" satisfies ReauthAction,
+        }),
     });
   },
 
@@ -268,6 +287,7 @@ export const accountClient = {
         apiFetchReauth(
           `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/invites/${encodeURIComponent(invitationId)}`,
           buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
+          { action: "revoke-invitation" satisfies ReauthAction },
         ),
     });
   },

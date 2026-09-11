@@ -84,10 +84,10 @@ function registerSuiteScenario2() {
     // auth — they all converge on a chosen account); dismiss it to reach the app.
     await expect(page.getByRole("heading", { name: "Welcome to CapacityLens" })).toBeVisible();
     await page.getByTestId("intro-continue").click();
-    await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
 
     // Settings gains the Account section only on an auth-enabled deploy.
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
     await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
     // Scoped to the page body: the sidebar footer carries its own avatar'd Sign out (#169), so an
@@ -102,19 +102,28 @@ function registerSuiteScenario2() {
 }
 
 function registerSuiteScenario3() {
-  test("the --create-owner-admin-admin bootstrap credential signs in through the real form", async ({ page }) => {
-    // The auth-e2e server boots with CAPACITYLENS_CREATE_ADMIN_ADMIN=1 and a pinned
-    // The e2e server pins a policy-compliant bootstrap password on a wiped DB.
-    // as its first user (production instead mints a generated password). This proves the escape hatch
-    // end-to-end — including that the 5-char password (below the sign-UP minimum) signs IN fine
-    // after boot, the assumption the whole bootstrap design rests on. A fresh bootstrap admin has
-    // no memberships, so landing on the (empty) company picker past the wall is the success state.
+  test("the --create-owner-admin-admin bootstrap credential signs in through the real form", async ({
+    page,
+    request,
+  }, testInfo) => {
+    // The auth-e2e server boots with CAPACITYLENS_CREATE_ADMIN_ADMIN=1 and pins a
+    // policy-compliant bootstrap password on a wiped DB. Production instead mints a generated
+    // password. This proves the escape hatch end-to-end. Give a separate user a company first so
+    // the bootstrap admin exercises the existing-company, no-membership invitation journey.
+    const suffix = `${Date.now()}-${testInfo.workerIndex}`;
+    const controlOrgName = `Wayne Enterprises ${suffix}`;
+    const controlOwner = await signUpUser(`bootstrap-control-${suffix}@capacitylens.dev`);
+    await bootstrapOrg(request, controlOwner.cookie, controlOrgName);
+
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
     await page.getByLabel("Email").fill(BOOTSTRAP_ADMIN.email);
     await page.getByLabel("Password").fill(BOOTSTRAP_ADMIN.password);
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
+    await expect(page.getByText("Ask an admin for an invite to join a company.")).toBeVisible();
+    await expect(page.getByRole("button", { name: controlOrgName, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "New company" })).toHaveCount(0);
   });
 }
 

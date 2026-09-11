@@ -104,6 +104,7 @@ export function migrateSchema(db: Db): void {
       "allocations.task",
       "resources.firstAvailableDate",
       "resources.lastAvailableDate",
+      "accounts.capacityOverviewAccess",
     ]),
   );
 }

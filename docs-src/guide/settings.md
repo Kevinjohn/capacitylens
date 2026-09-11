@@ -12,7 +12,7 @@ Each section has a question-mark button labelled **About &lt;section&gt;**: hove
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
-![The top of Settings with Scheduling, the compact two-row Global working days table, Disciplines and Engagement grouping, each with an About button](../screenshots/flows/settings_overview.jpg)
+![The top of Settings with Scheduling, the compact two-row Company-wide working days table, Disciplines and Engagement grouping, each with an About button](../screenshots/flows/settings_overview.jpg)
 
 ## Diagnostics
 
@@ -23,15 +23,15 @@ schema, persistence and backup health are listed separately; demo builds and una
 values show **Unknown** or **Unavailable**. It contains no company or member data, identifiers,
 paths, hostnames, secrets, invite or session values, raw errors or other server response fields.
 
-## Global working days
+## Company-wide working days
 
-**Global working days** is the company's shared working week. Seven abbreviated
+**Company-wide working days** is the company's shared working week. Seven abbreviated
 weekday headings sit in one row with their checkboxes directly underneath, beginning with the first
 day of the company's configured week. New companies select the first five days. You can select any
 combination, but at least one day must stay checked: when only one remains, its checkbox is
 disabled with an explanation until another day is selected.
 
-![Global working days in Settings with Monday as the only selected day and an explanation that at least one working day must remain](../screenshots/flows/settings_working_days_guard.jpg)
+![Company-wide working days in Settings with Monday as the only selected day and an explanation that at least one working day must remain](../screenshots/flows/settings_working_days_guard.jpg)
 
 Each person works the days that are ticked here **and** in their own working pattern. Days outside
 that combination hold no capacity: allocations skip them, they count for nothing in utilisation,
@@ -41,7 +41,7 @@ draw that begins on an allowed date may still cross blocked dates. The per-alloc
 **Ignore working days** checkbox makes that allocation use every calendar day in its span and lets
 an existing allocation be dragged or extended onto closed days — it never changes where a new
 allocation may start — and time off stays a separate, visible conflict. A person's optional
-**First available date** and **Last available date** add an inclusive
+**Start date** and **End date** add an inclusive
 date boundary: capacity is zero outside the range, existing load remains visible, and Ignore
 working days does not bypass it. New or placement-changing work outside the range is rejected, while
 metadata edits and existing conflicting allocations remain allowed.
@@ -67,6 +67,15 @@ travel with an export:
   no allocations or capacity.
 
 ![The Schedule section in Settings with Minimise weekends and Snap to week start on, Compact view off, and the surrounding company settings](../screenshots/flows/settings_schedule_device.jpg)
+
+## Additional resourcing options
+
+**Additional resourcing options** are company settings with two independent switches. A
+**Placeholder** is an unfilled role or tentative person you can use to plan future capacity
+before someone is assigned. An **External resource** is a third party — such as a partner agency,
+freelancer, supplier or subcontractor — that represents work leaving your team and carries no
+capacity. Each option is off by default, and turning one off hides its existing data without
+deleting it.
 
 ## Internal work visibility
 
@@ -111,20 +120,27 @@ Both choices are frozen after the company is created. Settings shows them in the
 read-only **Account Options Selected at Creation** summary so everyone can check the
 company-wide values, but nobody can change them there.
 
+## Capacity Overview access
+
+Capacity Overview is limited to Owners and Admins by default. An Owner or Admin can choose
+**Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Capacity Overview
+access**. The setting controls both the sidebar link and direct access to the page. See
+[Find capacity for the next four weeks](/guide/capacity-overview).
+
 ## Everything else on the page
 
 The rest of Settings, roughly top to bottom:
 
 | Section                       | What it controls                                                                                                                                                                                                                                                                                                                       |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Scheduling                    | Whether allocations are entered as Hours, Days or Blocks — see [Projects and allocations](/guide/projects-and-allocations).                                                                                                                                                                                                            |
-| Global working days           | The company's shared working week. A person's capacity covers the days ticked here and in their own pattern; new work must start on such a day, and at least one day must stay selected.                                                                                                                                                |
-| Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. On by default. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |
+| Scheduling                    | Whether allocations are entered as Hours, Days or Blocks. New companies start with Days; existing choices are preserved — see [Projects and allocations](/guide/projects-and-allocations).                                                                                                                                                                                                            |
+| Capacity Overview access      | Who can open the four-week Capacity Overview. Owners and Admins manage this setting; Owner and Admin is the default. See [Find capacity for the next four weeks](/guide/capacity-overview).                                                                                                                                              |
+| Company-wide working days    | The company's shared working week. A person's capacity covers the days ticked here and in their own pattern; new work must start on such a day, and at least one day must stay selected.                                                                                                                                                |
+| Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. Off for a newly created company. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |
 | Engagement grouping           | Whether Resources separates Studio and Supplementary people. On the schedule, those bands hold people outside a discipline and become the main groups when disciplines are off. On by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).                                                                                         |
 | Schedule (this device)        | Three browser-only display preferences described in [Schedule on this device](#schedule-on-this-device).                                                                                                                                                                                                                               |
 | Internal work colours         | Whether internal work uses grey bars (default) or the same colour palette as everything else.                                                                                                                                                                                                                                          |
-| Placeholders                  | Whether unfilled [placeholder](/reference/glossary) slots are available. Off by default. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                                                                                |
-| External                      | Whether [external parties](/reference/glossary) — outside companies you hand work to but don't manage, like print shops — are available. Off by default. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                |
+| Additional resourcing options | Whether unfilled [placeholder](/reference/glossary) roles and [external parties](/reference/glossary) — partner agencies, freelancers, suppliers or subcontractors — are available. Each switch is independent and off by default. See [People and placeholders](/guide/people-and-placeholders). |
 | Allocation bars (this device) | Whether bars show the client name and project name ahead of the activity name.                                                                                                                                                                                                                                                         |
 | Utilisation                   | Which utilisation figures appear on the schedule: total, per-discipline and personal.                                                                                                                                                                                                                                                  |
 | Appearance (this device)      | Light, dark, or match your system theme.                                                                                                                                                                                                                                                                                               |

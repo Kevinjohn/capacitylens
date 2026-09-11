@@ -1,6 +1,6 @@
-# US-SET-15 — Global working days
+# US-SET-15 — Company-wide working days
 
-**Area:** Settings and Schedule · **Persona:** Studio manager · **Linked E2E:** `e2e/global-working-days.spec.ts` → "sets global working days and gates schedule creation starts"
+**Area:** Settings and Schedule · **Persona:** Studio manager · **Linked E2E:** `e2e/global-working-days.spec.ts` → "sets company-wide working days and gates schedule creation starts"
 
 ## Goal
 
@@ -15,7 +15,7 @@ than displaying a misleading add hint and opening a form that cannot represent a
 
 ## How (end-to-end)
 
-1. Open **Settings** and find **Global working days**.
+1. Open **Settings** and find **Company-wide working days**.
 2. Confirm one row of seven abbreviated weekday headings appears above one row of seven checkboxes,
    following the company's configured week start, with the first five selected for a new company.
 3. Clear **Friday**, then return to **Schedule**.

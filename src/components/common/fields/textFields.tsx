@@ -15,6 +15,8 @@ type TextFieldProps = {
   autoFocus?: boolean;
   invalid?: boolean;
   required?: boolean;
+  /** Optional description ID that remains referenced while the field is valid or invalid. */
+  externalDescriptionId?: string;
   describedById?: string;
   disabled?: boolean;
   maxLength?: number;
@@ -43,6 +45,7 @@ function TextFieldControl({
   autoFocus,
   invalid,
   required,
+  externalDescriptionId,
   describedById,
   disabled,
   maxLength = MAX_NAME_INPUT_CODE_UNITS,
@@ -55,7 +58,9 @@ function TextFieldControl({
   descriptionId,
 }: TextFieldProps & { id: string; descriptionId: string }) {
   const ariaDescribedBy = resolveNonEmptyAttribute(
-    [description ? descriptionId : undefined, invalid ? describedById : undefined].filter(Boolean).join(" "),
+    [externalDescriptionId, description ? descriptionId : undefined, invalid ? describedById : undefined]
+      .filter(Boolean)
+      .join(" "),
   );
 
   return (

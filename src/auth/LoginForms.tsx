@@ -6,7 +6,14 @@ import { Button } from "../components/ui/button";
 import { FieldError, FieldGroup } from "../components/ui/field";
 import { LoginField } from "./LoginField";
 
-type LoginIds = { name: string; email: string; password: string; setupToken: string; error: string };
+type LoginIds = {
+  name: string;
+  email: string;
+  password: string;
+  setupToken: string;
+  setupTokenHelp: string;
+  error: string;
+};
 
 type LoginFormProps = {
   authMode: "password" | "sso";
@@ -181,8 +188,11 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
         value={ownerSetup.setupToken}
         onChange={(event) => ownerSetup.setSetupToken(event.target.value)}
         placeholder={m.login_setup_token_placeholder()}
-        aria-describedby={describedBy}
+        aria-describedby={[ids.setupTokenHelp, describedBy].filter(Boolean).join(" ")}
       />
+      <p id={ids.setupTokenHelp} className="text-xs text-muted-foreground">
+        {m.login_setup_token_help()}
+      </p>
     </>
   );
 }

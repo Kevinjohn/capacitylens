@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { StrictMode } from "react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ResourceForm } from "./ResourceForm";
 import { useStore } from "../../store/useStore";
 import { requireValue, resetStoreWithAccount } from "../../test/fixtures";
+import * as persistence from "../../data/persist";
 
 beforeEach(() => resetStoreWithAccount());
 
@@ -30,22 +32,23 @@ describe("ResourceForm layout", () => {
     );
   });
 
-  it("shows optional inclusive availability dates for people only", () => {
+  it("shows simple availability dates with separators for people only", () => {
     const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
-    expect(screen.getByLabelText("First available date")).toHaveAttribute("type", "date");
-    expect(screen.getByLabelText("Last available date")).toHaveAttribute("type", "date");
-    expect(screen.getByText(/leave blank for no boundary/i)).toBeVisible();
+    expect(screen.getByLabelText("Start date")).toHaveAttribute("type", "date");
+    expect(screen.getByLabelText("End date")).toHaveAttribute("type", "date");
+    expect(screen.queryByText(/leave blank for no boundary/i)).not.toBeInTheDocument();
+    expect(document.body.querySelectorAll('[data-slot="separator"]')).toHaveLength(2);
 
     person.unmount();
     const placeholder = render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
-    expect(screen.queryByLabelText("First available date")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Last available date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Start date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("End date")).not.toBeInTheDocument();
 
     placeholder.unmount();
     render(<ResourceForm kind="external" onClose={vi.fn()} />);
-    expect(screen.queryByLabelText("First available date")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Last available date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Start date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("End date")).not.toBeInTheDocument();
   });
 });
 
@@ -56,8 +59,8 @@ describe("ResourceForm availability dates", () => {
     render(<ResourceForm kind="person" onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
-    fireEvent.change(screen.getByLabelText("First available date"), { target: { value: "2026-09-10" } });
-    fireEvent.change(screen.getByLabelText("Last available date"), { target: { value: "2026-09-10" } });
+    fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-09-10" } });
+    fireEvent.change(screen.getByLabelText("End date"), { target: { value: "2026-09-10" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
@@ -85,7 +88,7 @@ describe("ResourceForm availability dates", () => {
     });
     render(<ResourceForm resource={resource} onClose={onClose} />);
 
-    await user.clear(screen.getByLabelText("First available date"));
+    await user.clear(screen.getByLabelText("Start date"));
     await user.clear(screen.getByLabelText("Role"));
     await user.type(screen.getByLabelText("Role"), "Design lead");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -102,12 +105,12 @@ describe("ResourceForm availability dates", () => {
     render(<ResourceForm kind="person" onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
-    fireEvent.change(screen.getByLabelText("First available date"), { target: { value: "2026-09-11" } });
-    fireEvent.change(screen.getByLabelText("Last available date"), { target: { value: "2026-09-10" } });
+    fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-09-11" } });
+    fireEvent.change(screen.getByLabelText("End date"), { target: { value: "2026-09-10" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/first available date.*last available date/i);
-    expect(screen.getByLabelText("Last available date")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent(/end date.*start date/i);
+    expect(screen.getByLabelText("End date")).toHaveAttribute("aria-invalid", "true");
     expect(onClose).not.toHaveBeenCalled();
     expect(useStore.getState().data.resources).toHaveLength(0);
   });
@@ -190,6 +193,179 @@ it("rejects a stale person edit instead of overwriting a concurrent change", asy
   expect(screen.getByRole("alert")).toHaveTextContent(/resource changed while you were editing/i);
   expect(onClose).not.toHaveBeenCalled();
   expect(useStore.getState().data.resources[0]).toMatchObject({ name: "Alice", role: "Design lead" });
+});
+
+it("keeps the dialog open and shows the persistence error when the server rejects a new person", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  vi.spyOn(persistence, "flushPendingWrites").mockResolvedValue({
+    kind: "failed",
+    error: new Error("Resource could not be saved by the server."),
+  });
+  try {
+    render(<ResourceForm kind="person" onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Resource could not be saved by the server.");
+    expect(onClose).not.toHaveBeenCalled();
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
+it("retries a transient rejected save without adding a duplicate person", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  vi.spyOn(persistence, "flushPendingWrites")
+    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure.") })
+    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure again.") })
+    .mockResolvedValueOnce({ kind: "clean" });
+  try {
+    render(<ResourceForm kind="person" onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure.");
+    expect(useStore.getState().data.resources).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure again.");
+    expect(useStore.getState().data.resources).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(useStore.getState().data.resources).toHaveLength(1);
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
+it("retries an existing edit from its latest optimistic snapshot", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  const resource = useStore.getState().addResource({
+    kind: "person",
+    name: "Bruce Wayne",
+    role: "Designer",
+    employmentType: "permanent",
+    engagement: "studio",
+    workingHoursPerDay: 8,
+    workingDays: [1, 2, 3, 4, 5],
+    halfDays: [],
+    color: "#737373",
+  });
+  vi.spyOn(persistence, "flushPendingWrites")
+    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure.") })
+    .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure again.") })
+    .mockResolvedValueOnce({ kind: "clean" });
+  try {
+    render(<ResourceForm resource={resource} onClose={onClose} />);
+    await user.clear(screen.getByLabelText("Role"));
+    await user.type(screen.getByLabelText("Role"), "Lead designer");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure.");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("Temporary server failure again.");
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+    expect(useStore.getState().data.resources[0]).toMatchObject({ name: "Bruce Wayne", role: "Lead designer" });
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
+it("closes after a successful save under StrictMode", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  render(
+    <StrictMode>
+      <ResourceForm kind="person" onClose={onClose} />
+    </StrictMode>,
+  );
+  await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
+  await user.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+});
+
+it("ignores a second submit while the first persistence round-trip is pending", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  let resolveFlush!: (result: persistence.FlushPendingWritesResult) => void;
+  vi.spyOn(persistence, "flushPendingWrites").mockReturnValue(
+    new Promise((resolve) => {
+      resolveFlush = resolve;
+    }),
+  );
+  try {
+    render(<ResourceForm kind="person" onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
+    const save = screen.getByRole("button", { name: "Save" });
+    await user.click(save);
+    expect(screen.getByLabelText("Name")).toBeDisabled();
+    expect(screen.getByLabelText("Role")).toBeDisabled();
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
+    await user.click(save);
+    expect(useStore.getState().data.resources).toHaveLength(1);
+    expect(onClose).not.toHaveBeenCalled();
+
+    resolveFlush({ kind: "clean" });
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
+it("does not let a late save response close a form after its company changed", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  let resolveFlush!: (result: persistence.FlushPendingWritesResult) => void;
+  vi.spyOn(persistence, "flushPendingWrites").mockReturnValue(
+    new Promise((resolve) => {
+      resolveFlush = resolve;
+    }),
+  );
+  try {
+    render(<ResourceForm kind="person" onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    const other = useStore.getState().addAccount({ name: "Stark Industries", color: "#111111" });
+    if (!other) throw new Error("Expected second account");
+    useStore.getState().setActiveAccount(other.id);
+
+    resolveFlush({ kind: "clean" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onClose).not.toHaveBeenCalled();
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
+it("does not surface a late save rejection after its company changed", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  let rejectFlush!: (error: Error) => void;
+  vi.spyOn(persistence, "flushPendingWrites").mockReturnValue(
+    new Promise((_resolve, reject) => {
+      rejectFlush = reject;
+    }),
+  );
+  try {
+    render(<ResourceForm kind="person" onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    const other = useStore.getState().addAccount({ name: "Stark Industries", color: "#111111" });
+    if (!other) throw new Error("Expected second account");
+    useStore.getState().setActiveAccount(other.id);
+
+    rejectFlush(new Error("stale save failure"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  } finally {
+    vi.restoreAllMocks();
+  }
 });
 
 it("requires a placeholder to be bound to a project", async () => {
@@ -279,12 +455,13 @@ describe("ResourceForm engagement", () => {
     render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
     expect(screen.queryByLabelText("Employment")).not.toBeInTheDocument();
-    const engagement = screen.getByLabelText("Engagement");
+    const engagement = screen.getByRole("radiogroup", { name: "Engagement" });
     expect(engagement).toHaveTextContent("Studio");
+    expect(screen.queryByRole("combobox", { name: "Engagement" })).not.toBeInTheDocument();
+    expect(within(engagement).getByRole("radio", { name: "Supplementary" })).toBeVisible();
 
     await user.type(screen.getByLabelText("Name"), "Selina Kyle");
-    fireEvent.keyDown(engagement, { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Supplementary" }));
+    await user.click(within(engagement).getByRole("radio", { name: "Supplementary" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
@@ -308,9 +485,8 @@ describe("ResourceForm engagement", () => {
     });
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
 
-    const engagement = screen.getByLabelText("Engagement");
-    fireEvent.keyDown(engagement, { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Supplementary" }));
+    const engagement = screen.getByRole("radiogroup", { name: "Engagement" });
+    await user.click(within(engagement).getByRole("radio", { name: "Supplementary" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({

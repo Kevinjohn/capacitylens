@@ -765,6 +765,7 @@ describe("compact product fields", () => {
         label="Kind"
         value="project"
         onChange={vi.fn()}
+        disabled
         options={[
           { value: "project", label: "Project" },
           { value: "internal", label: "Internal" },
@@ -774,6 +775,7 @@ describe("compact product fields", () => {
     );
     const group = screen.getByRole("radiogroup", { name: "Kind" });
     expect(group.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
   });
 });
 
@@ -807,6 +809,36 @@ describe("TextField", () => {
       "data-product-layout",
       "label-control",
     );
+  });
+
+  it("keeps describedById conditional on invalid state by default", () => {
+    render(
+      <>
+        <TextField label="Name" value="Barbara Gordon" onChange={vi.fn()} describedById="name-error" />
+        <p id="name-error">Name has an issue.</p>
+      </>,
+    );
+
+    expect(screen.getByLabelText("Name")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("supports a persistent external description alongside a conditional error description", () => {
+    render(
+      <>
+        <TextField
+          label="Name"
+          value="Barbara Gordon"
+          onChange={vi.fn()}
+          externalDescriptionId="name-help"
+          describedById="name-error"
+          invalid
+        />
+        <p id="name-help">Use your full name.</p>
+        <p id="name-error">Name has an issue.</p>
+      </>,
+    );
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("aria-describedby", "name-help name-error");
   });
 });
 

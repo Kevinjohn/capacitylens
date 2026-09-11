@@ -53,6 +53,7 @@ interface AssertAdministrativeAssuranceInput {
   requireMfa: boolean;
   trustedLocal: boolean;
   commandId?: string | undefined;
+  requireFresh?: boolean;
 }
 
 export function assertAdministrativeAssurance({
@@ -60,9 +61,10 @@ export function assertAdministrativeAssurance({
   requireMfa,
   trustedLocal,
   commandId,
+  requireFresh = true,
 }: AssertAdministrativeAssuranceInput): void {
   if (trustedLocal) return;
-  if (!actor.fresh) {
+  if (requireFresh && !actor.fresh) {
     throw createAccountFailure(
       "SESSION_NOT_FRESH",
       "A fresh sign-in is required for this account operation.",

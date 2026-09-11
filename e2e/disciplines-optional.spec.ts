@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./fixtures";
-import { openApp, selectShadOption, showScheduleFilters } from "./helpers";
+import { openApp, showScheduleFilters } from "./helpers";
 
 async function moveDianaToSupplementary(page: Page) {
   await page
@@ -7,13 +7,13 @@ async function moveDianaToSupplementary(page: Page) {
     .filter({ hasText: "Diana Prince" })
     .getByRole("button", { name: "Edit Diana Prince" })
     .click();
-  await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+  await page.getByRole("radio", { name: "Supplementary" }).click();
   await page.getByRole("button", { name: "Save" }).click();
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
 }
 
 async function restoreDisciplines(page: Page) {
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("switch", { name: "Use disciplines" }).click();
   await expect(page.getByRole("link", { name: "Disciplines" })).toBeVisible();
   await page.getByRole("link", { name: "Schedule" }).click();
@@ -46,11 +46,11 @@ test("turning disciplines off hides every surface; turning it back on restores t
   // Sidebar nav link is gone.
   await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
 
-  // …and the collapsed icon mode drops it too: 8 destinations, no Disciplines.
+  // …and the collapsed icon mode drops it too: 9 destinations, no Disciplines.
   // (External is no longer a standalone nav link — it lives inside Resources.)
   await page.getByRole("button", { name: "Collapse menu" }).click();
   await expect(page.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
-  await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(8);
+  await expect(page.getByRole("navigation").getByRole("link")).toHaveCount(9);
   await expect(page.getByRole("link", { name: "Disciplines" })).toHaveCount(0);
   await page.getByTestId("app-sidebar").getByRole("button", { name: "Expand menu" }).click();
 
