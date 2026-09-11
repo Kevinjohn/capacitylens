@@ -11,7 +11,11 @@ export interface FilterOption {
   primaryLabel?: string;
 }
 
-export function buildFilterOptions(data: AppData, selectedClientId: string | null = null) {
+export function buildFilterOptions(
+  data: AppData,
+  selectedClientId: string | null = null,
+  selectedProjectId: string | null = null,
+) {
   const clients = [...data.clients].sort(
     (a, b) => Number(b.builtin === true) - Number(a.builtin === true) || byName(a, b),
   );
@@ -22,7 +26,13 @@ export function buildFilterOptions(data: AppData, selectedClientId: string | nul
       .map((discipline) => ({ id: discipline.id, label: discipline.name })),
     clientOptions: clients.map((client) => ({ id: client.id, label: client.name })),
     projectOptions: [...data.projects]
-      .filter((project) => selectedClientId === null || project.clientId === selectedClientId)
+      // A selected project stays listed even when it no longer belongs to the selected client
+      // (its client was edited after the filter was set), so the stale choice remains visible and
+      // correctable instead of rendering an empty select over an empty grid.
+      .filter(
+        (project) =>
+          selectedClientId === null || project.clientId === selectedClientId || project.id === selectedProjectId,
+      )
       .sort(createClientProjectDisplayNameComparator(data.clients))
       .map((project) => {
         const clientName = clientNames.get(project.clientId);

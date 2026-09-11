@@ -323,6 +323,24 @@ describe("SchedulerToolbar project client filtering", () => {
   });
 });
 
+describe("SchedulerToolbar stale project selection", () => {
+  it("keeps a selected project visible after it moves to another client", () => {
+    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
+    const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
+    const project = useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    useStore.getState().setFilters({ clientId: queen.id, projectId: project.id });
+    useStore.getState().updateProject(project.id, { clientId: lex.id });
+
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    expect(screen.getByRole("combobox", { name: "Filter by project" })).toHaveTextContent(
+      "LexCorp / Project Watchtower",
+    );
+    expect(optionNames("Filter by project")).toEqual(["All projects", "LexCorp / Project Watchtower"]);
+  });
+});
+
 describe("SchedulerToolbar project option presentation", () => {
   it("mutes client context while preserving the complete accessible label and keyboard selection", async () => {
     const user = userEvent.setup();
