@@ -134,10 +134,10 @@ status and active sessions. Company single sign-on shows its connection and sess
 without a local password form. Demo mode identifies the fictional persona; installations with
 sign-in off have no credential controls. **Sign out** remains in the sidebar.
 
-## Capacity Overview access
+## Overview access
 
-Capacity Overview is limited to Owners and Admins by default. An Owner or Admin can choose
-**Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Capacity Overview
+Overview is limited to Owners and Admins by default. An Owner or Admin can choose
+**Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Overview
 access**. The setting controls both the sidebar link and direct access to the page. See
 [Find capacity for the next four weeks](/guide/capacity-overview).
 
@@ -148,7 +148,7 @@ The rest of Settings, roughly top to bottom:
 | Section                       | What it controls                                                                                                                                                                                                                                                                                                                       |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Scheduling                    | Whether allocations are entered as Hours, Days or Blocks. New companies start with Days; existing choices are preserved — see [Projects and allocations](/guide/projects-and-allocations).                                                                                                                                                                                                            |
-| Capacity Overview access      | Who can open the four-week Capacity Overview. Owners and Admins manage this setting; Owner and Admin is the default. See [Find capacity for the next four weeks](/guide/capacity-overview).                                                                                                                                              |
+| Overview access               | Who can open the four-week Overview. Owners and Admins manage this setting; Owner and Admin is the default. See [Find capacity for the next four weeks](/guide/capacity-overview).                                                                                                                                              |
 | Company-wide working days    | The company's shared working week. A person's capacity covers the days ticked here and in their own pattern; new work must start on such a day, and at least one day must stay selected.                                                                                                                                                |
 | Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. Off for a newly created company. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |
 | Engagement grouping           | Whether Resources separates Studio and Supplementary people. On the schedule, those bands hold people outside a discipline and become the main groups when disciplines are off. On by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).                                                                                         |

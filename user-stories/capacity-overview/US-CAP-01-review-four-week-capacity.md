@@ -1,6 +1,6 @@
 # US-CAP-01 — Review four-week capacity
 
-**Area:** Capacity overview · **Persona:** Studio manager · **Linked E2E:** `e2e/capacity-overview.spec.ts` and `e2e/capacity-overview.auth.spec.ts`
+**Area:** Overview · **Persona:** Studio manager · **Linked E2E:** `e2e/capacity-overview.spec.ts` and `e2e/capacity-overview.auth.spec.ts`
 
 ## Goal
 
@@ -14,9 +14,9 @@ the schedule.
 
 ## How (end-to-end)
 
-**Precondition:** A company using Hours or Days mode is open and your role can view Capacity Overview.
+**Precondition:** A company using Hours or Days mode is open and your role can view Overview.
 
-1. Open **Capacity Overview** from immediately above **Schedule** in the sidebar.
+1. Open **Overview** from immediately above **Schedule** in the sidebar.
 2. Read the four fixed week columns and each group's summary.
 3. Choose **Hide tentative** to recalculate capacity and unassigned demand from confirmed work only.
 4. Choose **Has availability** to keep people with at least 0.25 days capacity in any shown week and placeholders with demand.
