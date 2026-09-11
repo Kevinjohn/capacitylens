@@ -431,7 +431,9 @@ current company week remain grouped into one compact bordered list per resource,
 resource name shown once as the section heading. Resource sections sort alphabetically, their rows
 sort by start date, end date and id, and placeholder entries follow **Show placeholders**. An
 unexpected dangling resource stays visible in a final **(unknown)** section rather than crashing.
-The company section has its own **Add closure** button and empty state. It uses
+The company section has one **Add closure** button beside its heading and an explanatory empty state.
+Personal time off likewise keeps **Add time off** beside its heading, without a second empty-card action.
+The company section uses
 `data-testid="company-closures-section"`; each dated row uses
 `data-testid="company-closure-row"` and shows the required closure name plus its inclusive date
 span. Closure rows have the same edit, confirm-delete and undo/redo behaviour and permissions as
@@ -1253,6 +1255,7 @@ multiple).
   belongs to a project and may carry a phase), `internal` (project-less internal work), or `repeatable`
   (a project-less All-projects activity). Internal/All-projects activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `cross-project-activities`, `project-specific-activities` (testids).
+  Each empty activity category explains its scope; **Add activity** appears once beside the page title.
   Internal and All-projects rows are alphabetical. Project-specific rows are grouped and sorted by
   **client → project → activity**, with each client and project name shown once. Scoped rows whose
   parent metadata is unavailable remain visible in a clearly labelled fallback group.
