@@ -9,7 +9,6 @@ import { MemoryRouter } from "react-router-dom";
 
 beforeEach(() => resetStoreWithAccount());
 
-// eslint-disable-next-line max-lines-per-function -- integration scenarios intentionally share one fixture lifecycle
 describe("ActivityList", () => {
   it("uses omission for an absent activity selection", () => {
     expectTypeOf<ComponentProps<typeof ActivityList>>().toEqualTypeOf<{ selectedActivityId?: string }>();

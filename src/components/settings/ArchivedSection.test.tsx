@@ -27,7 +27,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// eslint-disable-next-line max-lines-per-function -- deleted-item security and retention scenarios share one fixture lifecycle
 describe("Settings deleted items", () => {
   it("does not list archived rows and shows the deleted empty state", () => {
     seed({ clients: [makeClient({ accountId: DEFAULT_ACCOUNT_ID, archivedAt: TS })] });
