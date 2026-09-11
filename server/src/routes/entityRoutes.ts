@@ -62,19 +62,11 @@ function allowReplacement(
     reply.code(builtinCheck.status).send({ error: builtinCheck.error });
     return false;
   }
-  if (
-    entity === "clients" &&
-    body.builtin === true &&
-    existing?.builtin !== true &&
-    !dependencies.authorize({
-      req,
-      reply,
-      accountId: body.accountId as string,
-      action: "manageInternalClient",
-      options: NO_REPROMPT,
-    })
-  )
-    return false;
+  if (entity === "clients" && body.builtin === true && existing?.builtin !== true) {
+    const accountId = body.accountId as string;
+    if (!dependencies.authorize({ req, reply, accountId, action: "manageInternalClient", options: NO_REPROMPT }))
+      return false;
+  }
   if (!ownsRow(existing, body.accountId)) {
     reply.code(404).send({ error: "Not found" });
     return false;
