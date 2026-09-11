@@ -228,7 +228,7 @@ test("groups Studio before Supplementary and restores one People order when disa
     })
     .toEqual([1, 2]);
 
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("switch", { name: "Group resources by engagement" }).click();
   await page.getByRole("link", { name: "Resources" }).click();
   await expect(page.getByRole("heading", { name: "Studio" })).toHaveCount(0);
