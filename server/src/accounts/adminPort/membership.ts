@@ -74,8 +74,8 @@ function createMembershipReads({
       );
       return row ? readMembership(db, row) : null;
     },
-    async listMemberships({ actor, workspaceId, includeInactive = false }) {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+    async listMemberships({ actor, workspaceId, includeInactive = false, requireFresh = true }) {
+      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, requireFresh });
       assertAccountAuthority({ db, actor, workspaceId, action: "list-members", trustedLocal });
       // `includeInactive` widens the administrative listing, never authorization: the read is
       // already gated above and every returned row retains its real status.

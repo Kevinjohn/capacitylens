@@ -420,9 +420,9 @@ const registerStartupControlTests = () => {
 
     expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(
       expect.objectContaining({
-        version: 37,
-        name: "add-allocation-task-field",
-        checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
+        version: 39,
+        name: "add-capacity-overview-access",
+        checksum: "098f2980febe986613c549b5f1a48c003d17528c34ea3c7deec706d6afdbae45",
       }),
     );
     initializeOpenDb(db, ":memory:");
@@ -592,6 +592,12 @@ const registerStartupDiscoveryFailureTest = () => {
   });
 };
 
+const CAPACITY_OVERVIEW_MIGRATION = {
+  version: 39,
+  name: "add-capacity-overview-access",
+  checksum: "098f2980febe986613c549b5f1a48c003d17528c34ea3c7deec706d6afdbae45",
+};
+
 const registerStartupMigrationPlanningTest = () => {
   it("plans both the app-owned control migration and Better Auth DDL before executing either", async () => {
     const db = openDb(":memory:");
@@ -634,6 +640,12 @@ const registerStartupMigrationPlanningTest = () => {
         name: "add-allocation-task-field",
         checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
       }),
+      expect.objectContaining({
+        version: 38,
+        name: "add-resource-availability-dates",
+        checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
+      }),
+      expect.objectContaining(CAPACITY_OVERVIEW_MIGRATION),
     ]);
     const before = await planAuthSchemaMigrations(auth);
     expect(before.pending).toBe(true);

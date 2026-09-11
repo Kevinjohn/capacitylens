@@ -90,3 +90,80 @@ describe("feedbackMailto", () => {
     },
   );
 });
+
+describe("diagnostics projection", () => {
+  it("records when the client observed the point-in-time snapshot", async () => {
+    const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
+    const observedAt = "2026-09-11T10:11:12.123Z";
+    const report = readDiagnostics(null, observedAt);
+
+    expect(report.observedAt).toBe(observedAt);
+    expect(formatDiagnostics(report)).toContain(`Snapshot observed: ${observedAt}`);
+  });
+
+  it("leaves the observation time empty until a snapshot or failure is classified", async () => {
+    const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
+    expect(readDiagnostics().observedAt).toBeNull();
+    expect(readDiagnostics(null, "not-a-timestamp").observedAt).toBeNull();
+    expect(formatDiagnostics(readDiagnostics())).toContain("Snapshot observed: Unknown");
+  });
+});
+
+describe("diagnostics projection privacy", () => {
+  it("keeps only the fixed allowlist and validates server values", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "A1B2C3D4");
+    const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
+    const report = readDiagnostics({
+      server: {
+        connectivity: "ok",
+        database: { status: "ok", schemaVersion: 37, secret: "password" },
+        persistence: "degraded",
+        backup: { status: "ok", lastSuccessAt: "2026-09-10T12:00:00.000Z", sessionId: "secret" },
+        password: "should never be copied",
+      },
+      inviteToken: "never copy",
+    });
+    expect(report.buildRevision).toBe("A1B2C3D4");
+    expect(report.server).toEqual({
+      connectivity: "ok",
+      database: { status: "ok", schemaVersion: 37 },
+      persistence: "degraded",
+      backup: { status: "ok", lastSuccessAt: "2026-09-10T12:00:00.000Z" },
+    });
+    expect(formatDiagnostics(report)).not.toMatch(/password|sessionId|inviteToken|secret/i);
+  });
+
+  it("rejects non-hex revisions, invalid schema values, statuses and timestamps", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "revision-with-private-path");
+    const { readDiagnostics } = await freshBuildInfo();
+    const report = readDiagnostics({
+      server: {
+        connectivity: true,
+        database: { status: "ok", schemaVersion: 37.5 },
+        persistence: "raw error",
+        backup: { status: "ok", lastSuccessAt: "database password" },
+      },
+    });
+    expect(report.buildRevision).toBeNull();
+    expect(report.server).toEqual({
+      connectivity: "unavailable",
+      database: { status: "unavailable", schemaVersion: null },
+      persistence: "unknown",
+      backup: { status: "ok", lastSuccessAt: null },
+    });
+  });
+
+  it("clears schema and rejects non-canonical timestamps from unavailable projections", async () => {
+    const { readDiagnostics } = await freshBuildInfo();
+    const report = readDiagnostics({
+      server: {
+        connectivity: "ok",
+        database: { status: "unavailable", schemaVersion: 38 },
+        persistence: "unknown",
+        backup: { status: "ok", lastSuccessAt: "2026-02-31T12:00:00.000Z" },
+      },
+    });
+    expect(report.server.database).toEqual({ status: "unavailable", schemaVersion: null });
+    expect(report.server.backup).toEqual({ status: "ok", lastSuccessAt: null });
+  });
+});

@@ -23,7 +23,7 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 2. Click **Add resource**.
 3. Fill in the fields below and save.
 
-![The Add resource form with compact label-and-control rows, Studio engagement and a right-aligned seven-day radio grid for Full day, Half day and Not working](../screenshots/flows/resource-form.jpg)
+![The Add resource form with optional Start date and End date fields separated from a seven-day working-pattern grid](../screenshots/flows/resource_form.jpg)
 
 At normal dialog widths, the resource details use compact label-and-control rows. They stack
 vertically on a narrow screen, while the **Working days** grid remains full width.
@@ -35,9 +35,9 @@ vertically on a narrow screen, while the **Working days** grid remains full widt
   [disciplines](/reference/glossary), which is the default. Disciplines themselves are
   created and coloured on the standalone **Disciplines** page in the main navigation,
   not here — see [Settings](/guide/settings) for the on/off switch.
-- **Engagement** — choose **Studio** for someone regarded as part of the core studio or
-  **Supplementary** for additional capacity. This is separate from both their contract status and
-  their discipline, and it doesn't change how utilisation is worked out.
+- **Engagement** — choose the always-visible **Studio** or **Supplementary** choice for someone
+  regarded as part of the core studio or additional capacity. This is separate from both their
+  contract status and their discipline, and it doesn't change how utilisation is worked out.
 - **Working days** — use the compact radio grid to choose **Full day**, **Half day** or
   **Not working** for every day from Monday to Sunday. A full day is eight hours, a half
   day is four hours and a non-working day is zero hours.
@@ -45,15 +45,17 @@ vertically on a narrow screen, while the **Working days** grid remains full widt
 Working days drive the utilisation figures directly: CapacityLens compares that fixed
 8/4/0-hour pattern with the person's bookings to decide whether they're over capacity.
 The days that count are those in both this pattern and the company's
-[global working days](/guide/settings#global-working-days) — a day outside either holds no
+[company-wide working days](/guide/settings#company-wide-working-days) — a day outside either holds no
 capacity for this person. Set the pattern correctly, or the overwork indicators on
 [the schedule](/guide/the-schedule#reading-overwork) will be wrong for that person.
 
-Open **Engagement** to choose between the two company-facing groups. The current choice
-has a tick. Saving **Supplementary** moves the person into that section immediately; it
-does not change their discipline, role or working days.
+In a self-hosted company, Save waits for the server to accept the person. If the server rejects
+the change, the dialog stays open and shows the returned error so you can correct it and try again.
 
-![The Edit resource form with the Engagement menu open and Supplementary selected below Studio](../screenshots/flows/resource_engagement_choice.jpg)
+The current **Engagement** choice has a selected state. Saving **Supplementary** moves the person
+into that section immediately; it does not change their discipline, role or working days.
+
+![The Add resource form with the always-visible Engagement choices and Supplementary selected](../screenshots/flows/resource_engagement_choice.jpg)
 
 The new row appears on the schedule immediately, ready for allocations and time off.
 There's no account to create and nothing for the person to sign in to.
@@ -72,6 +74,27 @@ utilisation figure you see after saving reflects their new working pattern.
 
 Existing working patterns are preserved after upgrading: a day that was selected remains
 a full day, and a day that was unselected remains not working.
+
+## Set availability dates
+
+Studio and Supplementary people can have optional date boundaries in the resource form. Use
+**Start date** for the first day they can contribute and **End date** for the last day.
+Both dates are inclusive. Leave either field blank when that side has no boundary. A person who is
+available for one day can use the same date in both fields; a first date after a last date is rejected
+and the form stays open so you can correct it.
+
+Availability dates change capacity, not history. Capacity is zero before **Start date** and after
+**End date**, while existing allocation bars and their allocated load remain visible. This
+means narrowing a range does not delete or move bookings that now conflict with it. You can still
+edit metadata such as a person's name, role, discipline, engagement or working pattern. Creating
+work, moving or resizing a booking, reassigning it to the person, or placing a repeat occurrence is
+blocked when the placement would land on a scheduled working day outside the range.
+
+The **Ignore working days** option can include recurring non-working days in an allocation's span,
+but it does not bypass availability dates. To plan work beyond the boundary, extend the person's
+availability first. Placeholders and External / 3rd party resources do not have these fields: a
+placeholder follows the company's working days, while an external party keeps its literal calendar
+span.
 
 ## Find people quickly
 
@@ -96,7 +119,7 @@ be favourited.
 A [placeholder](/reference/glossary) is a slot on the schedule for a role you know is
 coming but haven't hired or assigned yet — "a Design Lead" instead of a named person.
 Placeholders are off by default; an Owner or Admin turns them on for the company in
-[Settings](/guide/settings).
+[Settings → Additional resourcing options](/guide/settings#additional-resourcing-options).
 
 Once turned on, the Resources page shows a separate **Placeholders** section with its
 own **Add placeholder** button. A placeholder's name is optional — you can leave it
@@ -125,7 +148,7 @@ someone on your own team's capacity, even if you haven't hired or named them yet
 An external party's bookings use their literal start and end dates.
 
 External parties are off by default; an Owner or Admin turns them on for the company in
-[Settings](/guide/settings).
+[Settings → Additional resourcing options](/guide/settings#additional-resourcing-options).
 
 1. Open **Resources**.
 2. Under **External**, click **Add external party**.

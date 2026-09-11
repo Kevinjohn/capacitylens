@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createApp } from "./app";
-import { openDb } from "./db";
+import { DB_SCHEMA_VERSION, openDb } from "./db";
 import type { AuditSink } from "./audit";
 import { AUDIT_DRAIN_PAGE_SIZE, enqueueAudit } from "./auditOutbox";
 
@@ -163,6 +163,57 @@ describe("CAPACITYLENS_HEALTH_DEEP on", () => {
   createBackupTest();
   createInternalTlsTest();
   createDbFailureTest();
+
+  it("returns a narrow authenticated diagnostics projection with actual database schema", async () => {
+    const app = createApp(openDb(":memory:"), {
+      healthDeep: true,
+      backupHealth: () => ({ degraded: false, lastSuccessAt: "2026-09-10T12:00:00.000Z" }),
+    });
+    const res = await app.inject({ method: "GET", url: "/api/diagnostics" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      server: {
+        connectivity: "ok",
+        database: { status: "ok", schemaVersion: DB_SCHEMA_VERSION },
+        persistence: "unknown",
+        backup: { status: "ok", lastSuccessAt: "2026-09-10T12:00:00.000Z" },
+      },
+    });
+  });
+
+  it("reports unavailable database and omits raw errors when the database is closed", async () => {
+    const db = openDb(":memory:");
+    const app = createApp(db);
+    db.close();
+    const res = await app.inject({ method: "GET", url: "/api/diagnostics" });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({
+      server: {
+        connectivity: "ok",
+        database: { status: "unavailable", schemaVersion: null },
+        persistence: "unknown",
+        backup: { status: "unavailable", lastSuccessAt: null },
+      },
+    });
+  });
+
+  it("reports an unavailable backup when the backup health provider fails", async () => {
+    const app = createApp(openDb(":memory:"), {
+      backupHealth: () => {
+        throw new Error("private backup path");
+      },
+    });
+    const res = await app.inject({ method: "GET", url: "/api/diagnostics" });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      server: {
+        connectivity: "ok",
+        database: { status: "ok", schemaVersion: DB_SCHEMA_VERSION },
+        persistence: "unknown",
+        backup: { status: "unavailable", lastSuccessAt: null },
+      },
+    });
+  });
 });
 
 describe("CAPACITYLENS_HEALTH_DEEP off (default)", () => {

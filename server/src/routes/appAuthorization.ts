@@ -124,11 +124,15 @@ function denyInsufficientRole(
   return { kind: "denied" };
 }
 
+function optsOutOfFreshnessForRead(req: FastifyRequest, options: AuthorizeRouteInput["options"]): boolean {
+  return options?.requireFreshSession === false && (req.method === "GET" || req.method === "HEAD");
+}
+
 function requireFreshSession(
-  { req, reply, accountId, action }: AuthorizeRouteInput,
+  { req, reply, accountId, action, options = {} }: AuthorizeRouteInput,
   securityEvent: RootHelpers["securityEvent"],
 ): boolean {
-  if (action === "read" || action === "write") return true;
+  if (action === "read" || action === "write" || optsOutOfFreshnessForRead(req, options)) return true;
   // Privileged actions fail closed when their session timestamp is absent or malformed. A fresh
   // sign-in always restores access by minting a dated session, so this cannot permanently lock out
   // an administrator. Date.parse of the empty fallback is NaN, which fails the finite check.
@@ -181,10 +185,13 @@ function createFieldVisibility(
   resolveRole: ResolveEffectiveRole,
 ) {
   return function readFieldVisibility(req: FastifyRequest, table: string, accountId: unknown): SanitizeWriteOptions {
-    if (!hasGatedFields(table) || authMode === "off") return ALL_FIELDS_VISIBLE;
+    if (authMode === "off") return ALL_FIELDS_VISIBLE;
+    if (table !== "accounts" && !hasGatedFields(table)) return ALL_FIELDS_VISIBLE;
     const resolved = typeof accountId === "string" ? resolveRole(req, accountId) : null;
     const role = resolved?.kind === "resolved" ? resolved.role : null;
-    return resolveVisibilityForRole(role);
+    const visibility = resolveVisibilityForRole(role);
+    visibility.canChangeCapacityOverviewAccess = role !== null && (role === "owner" || role === "admin");
+    return visibility;
   };
 }
 

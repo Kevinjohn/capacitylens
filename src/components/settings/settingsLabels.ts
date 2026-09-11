@@ -1,5 +1,5 @@
 import { m } from "@/i18n";
-import type { InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
+import type { CapacityOverviewAccess, InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
 import type { BarLabelPreferences, UtilizationPreferences } from "../../lib/displayPrefs";
 import { type LabelMessages } from "../../lib/metadata";
 import type { ThemePreference } from "../../lib/theme";
@@ -20,6 +20,12 @@ export const SCHEDULING_MESSAGES: LabelMessages<SchedulingMode> = {
   hourly: m.settings_scheduling_option_hours,
   days: m.settings_scheduling_option_days,
   blocks: m.settings_scheduling_option_blocks,
+};
+
+export const CAPACITY_OVERVIEW_ACCESS_MESSAGES: LabelMessages<CapacityOverviewAccess> = {
+  owner_admin: m.settings_capacity_overview_access_owner_admin,
+  owner_admin_editor: m.settings_capacity_overview_access_owner_admin_editor,
+  everyone: m.settings_capacity_overview_access_everyone,
 };
 
 export const INTERNAL_COLOUR_MESSAGES: LabelMessages<InternalColourMode> = {

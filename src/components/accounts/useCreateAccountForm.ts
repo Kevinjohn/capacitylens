@@ -53,6 +53,8 @@ async function createServerAccount({
       weekStartsOn,
       timezone,
       language: DEFAULT_LANGUAGE,
+      schedulingMode: "days",
+      inlineActivityCreateEnabled: false,
       internalColourMode: "grey",
     });
     if (!response.ok) {
@@ -116,6 +118,8 @@ function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
         weekStartsOn: input.weekStartsOn,
         timezone: input.timezone,
         language: DEFAULT_LANGUAGE,
+        schedulingMode: "days",
+        inlineActivityCreateEnabled: false,
         internalColourMode: "grey",
       });
       if (account === null) return;

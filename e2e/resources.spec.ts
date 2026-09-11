@@ -3,7 +3,7 @@ import { dismissLandscapeHint, goToSeedWeek, openApp, selectShadOption, setZoom,
 
 async function expectWorkingDaysGeometry(dialog: Locator) {
   const compactFields = dialog.locator('[data-product-layout="label-control"]');
-  await expect(compactFields).toHaveCount(4);
+  await expect(compactFields).toHaveCount(6);
   const fieldGroupBox = await dialog.locator('[data-slot="field-group"]').boundingBox();
   const workingDays = dialog.getByRole("group", { name: "Working days" });
   await expect(workingDays.getByRole("radio")).toHaveCount(21);
@@ -210,7 +210,7 @@ test("groups Studio before Supplementary and restores one People order when disa
 
   const barry = page.getByTestId("resource-row").filter({ hasText: "Barry Allen" });
   await barry.getByRole("button", { name: "Edit Barry Allen" }).click();
-  await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+  await page.getByRole("radio", { name: "Supplementary" }).click();
   await page.getByRole("button", { name: "Save" }).click();
   await barry.getByRole("button", { name: "Add Barry Allen to favourites" }).click();
 
@@ -228,7 +228,7 @@ test("groups Studio before Supplementary and restores one People order when disa
     })
     .toEqual([1, 2]);
 
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("switch", { name: "Group resources by engagement" }).click();
   await page.getByRole("link", { name: "Resources" }).click();
   await expect(page.getByRole("heading", { name: "Studio" })).toHaveCount(0);
@@ -292,11 +292,11 @@ test("edits Engagement while Employment stays hidden and unbadged", async ({ pag
   await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
 
   await expect(page.getByLabel("Employment")).toHaveCount(0);
-  await expect(page.getByLabel("Engagement")).toContainText("Studio");
-  await selectShadOption(page.getByLabel("Engagement"), { label: "Supplementary" });
+  await expect(page.getByRole("radio", { name: "Studio" })).toBeChecked();
+  await page.getByRole("radio", { name: "Supplementary" }).click();
   await page.getByRole("button", { name: "Save" }).click();
 
   await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
-  await expect(page.getByLabel("Engagement")).toContainText("Supplementary");
+  await expect(page.getByRole("radio", { name: "Supplementary" })).toBeChecked();
   await expect(page.getByText("Temp", { exact: true })).toHaveCount(0);
 });

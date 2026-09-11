@@ -64,7 +64,8 @@ describe("PersonScheduleEntry", () => {
     expect(within(item).getByText("10 Sep")).toBeVisible();
     expect(within(item).queryByText(/2026/)).not.toBeInTheDocument();
     expect(within(item).getByText("Family day")).toHaveClass("whitespace-pre-wrap");
-    expect(within(item).getByTestId("person-schedule-timeoff-accent")).toHaveAttribute("aria-hidden", "true");
+    expect(within(item).queryByTestId("person-schedule-timeoff-accent")).not.toBeInTheDocument();
+    expect(item).not.toHaveClass("pl-6", "overflow-hidden");
     expect(within(item).queryByRole("button")).not.toBeInTheDocument();
   });
 });

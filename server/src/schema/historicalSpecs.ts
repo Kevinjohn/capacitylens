@@ -66,13 +66,17 @@ const V29_ACCOUNTS: TableSpec = {
     (column) =>
       column.name !== "groupResourcesByEngagement" &&
       column.name !== "workingDays" &&
-      column.name !== "showTaskFieldInSchedule",
+      column.name !== "showTaskFieldInSchedule" &&
+      column.name !== "capacityOverviewAccess",
   ),
 };
 const V30_ACCOUNTS: TableSpec = {
   ...liveTableSpec("accounts"),
   columns: liveTableSpec("accounts").columns.filter(
-    (column) => column.name !== "workingDays" && column.name !== "showTaskFieldInSchedule",
+    (column) =>
+      column.name !== "workingDays" &&
+      column.name !== "showTaskFieldInSchedule" &&
+      column.name !== "capacityOverviewAccess",
   ),
 };
 const PRE_V35_ALLOCATIONS: TableSpec = {
@@ -101,11 +105,43 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: {
     ...liveTableSpec("accounts"),
-    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "showTaskFieldInSchedule"),
+    columns: liveTableSpec("accounts").columns.filter(
+      (column) => column.name !== "showTaskFieldInSchedule" && column.name !== "capacityOverviewAccess",
+    ),
   },
   allocations: {
     ...liveTableSpec("allocations"),
     columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "task"),
+  },
+  resources: {
+    ...liveTableSpec("resources"),
+    columns: liveTableSpec("resources").columns.filter(
+      (column) => column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+    ),
+  },
+};
+// v37 includes the account/task fields added by #720. It is only the v38 resource boundaries
+// that are absent from this historical contract; keep the v37 fields present so the v38
+// precondition proves the exact released shape before adding its two columns.
+export const V37_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: {
+    ...liveTableSpec("accounts"),
+    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "capacityOverviewAccess"),
+  },
+  resources: {
+    ...liveTableSpec("resources"),
+    columns: liveTableSpec("resources").columns.filter(
+      (column) => column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+    ),
+  },
+};
+/** Released v38 shape before the Capacity Overview access preference is added. */
+export const V38_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: {
+    ...liveTableSpec("accounts"),
+    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "capacityOverviewAccess"),
   },
 };
 const PRE_V34_TABLES = Object.fromEntries(
@@ -121,7 +157,11 @@ export const V27_TABLES: Record<string, TableSpec> = {
   resources: {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
-      (column) => column.name !== "halfDays" && column.name !== "engagement",
+      (column) =>
+        column.name !== "halfDays" &&
+        column.name !== "engagement" &&
+        column.name !== "firstAvailableDate" &&
+        column.name !== "lastAvailableDate",
     ),
   },
 };
@@ -132,7 +172,10 @@ export const V28_TABLES: Record<string, TableSpec> = {
   timeOff: V32_TIME_OFF,
   resources: {
     ...liveTableSpec("resources"),
-    columns: liveTableSpec("resources").columns.filter((column) => column.name !== "engagement"),
+    columns: liveTableSpec("resources").columns.filter(
+      (column) =>
+        column.name !== "engagement" && column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+    ),
   },
 };
 export const V29_TABLES: Record<string, TableSpec> = {

@@ -9,7 +9,7 @@ import { buildTimeOffGroups, readCurrentTimeOffWeekStart, type TimeOffGroup } fr
 import type { TimeOff } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { Fragment, useMemo } from "react";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 import { CompanyClosureSection } from "./CompanyClosureSection";
@@ -31,11 +31,7 @@ function PersonalTimeOffSection({ groups, onAdd, onEdit, onDelete }: PersonalTim
         <AddButton label={m.list_timeoff_add()} onClick={onAdd} />
       </div>
       {groups.length === 0 ? (
-        <EmptyState
-          icon={Calendar}
-          description={m.list_timeoff_empty_desc()}
-          action={{ label: m.list_timeoff_empty_action(), onClick: onAdd, icon: Plus, requiresEdit: true }}
-        >
+        <EmptyState icon={Calendar} description={m.list_timeoff_empty_desc()}>
           {m.list_timeoff_empty()}
         </EmptyState>
       ) : (

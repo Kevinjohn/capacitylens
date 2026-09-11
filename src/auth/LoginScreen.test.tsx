@@ -305,7 +305,14 @@ function registerOwnerSetupDisplayTests() {
     expect(screen.getByLabelText("Name")).toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    expect(screen.getByLabelText("Setup token")).toBeInTheDocument();
+    expect(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN")).toHaveAttribute(
+      "placeholder",
+      "Paste SMALLSASS_ACCOUNT_SETUP_TOKEN",
+    );
+    expect(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN")).toHaveAccessibleDescription(
+      "Use the value from the server .env file or installer.",
+    );
+    expect(screen.queryByText(/server has no users/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create owner account" })).toBeInTheDocument();
     // The ordinary sign-in affordances are replaced, not stacked.
     expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
@@ -340,7 +347,9 @@ function registerOwnerSetupSubmissionTests() {
     fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
-    fireEvent.change(screen.getByLabelText("Setup token"), { target: { value: "operator-secret" } });
+    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), {
+      target: { value: "operator-secret" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
     await waitFor(() => expect(onSignedIn).toHaveBeenCalled());
     expect(signUpEmail).toHaveBeenCalledWith({
@@ -377,7 +386,9 @@ function registerOwnerSetupTokenTests() {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
-    fireEvent.change(screen.getByLabelText("Setup token"), { target: { value: "  operator-secret  " } });
+    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), {
+      target: { value: "  operator-secret  " },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
 
@@ -397,14 +408,14 @@ function registerOwnerSetupTokenTests() {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
     fillOwnerSetup();
     const token = `operator-secret${suffix}`;
-    fireEvent.change(screen.getByLabelText("Setup token"), { target: { value: token } });
+    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), { target: { value: token } });
 
     fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_setup_token_invalid());
     expect(signUpEmail).not.toHaveBeenCalled();
     expect(onSignedIn).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Setup token")).toHaveValue(token);
+    expect(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN")).toHaveValue(token);
     expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
   });
 
@@ -412,7 +423,9 @@ function registerOwnerSetupTokenTests() {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
-    fireEvent.change(screen.getByLabelText("Setup token"), { target: { value: "\uFEFF operator-secret\u00A0" } });
+    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), {
+      target: { value: "\uFEFF operator-secret\u00A0" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
 
@@ -432,20 +445,20 @@ function registerOwnerSetupTokenTests() {
 
 function registerOwnerSetupErrorTests() {
   it("surfaces a network error and clears busy when owner signup throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const token = "operator-secret-that-must-not-be-logged";
     signUpEmail.mockRejectedValue(new TypeError(`offline while sending ${token}`));
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
-    fireEvent.change(screen.getByLabelText("Setup token"), { target: { value: token } });
+    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), { target: { value: token } });
 
     fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
     expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
-    expect(console.error).toHaveBeenCalledWith("LoginScreen: owner-setup sign-up request failed");
+    expect(logError).toHaveBeenCalledWith("LoginScreen: owner-setup sign-up request failed");
     const loggedValues = vi
-      .mocked(console.error)
+      .mocked(logError)
       .mock.calls.flat()
       .map((value) => String(value))
       .join("\n");
@@ -497,7 +510,9 @@ function registerOwnerSetupValidationTests() {
       expect(screen.getByLabelText("Name")).toHaveAttribute("aria-describedby", errorId);
       expect(screen.getByLabelText("Email")).toHaveAttribute("aria-describedby", errorId);
       expect(screen.getByLabelText("Password")).toHaveAttribute("aria-describedby", errorId);
-      expect(screen.getByLabelText("Setup token")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN").getAttribute("aria-describedby")).toContain(
+        errorId,
+      );
     });
     // The button recovers (busy reset) so the user can retry after fixing the input.
     expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();

@@ -67,6 +67,7 @@ const accountsColumns = [
   { name: "showInternalActivities", json: true, optional: true },
   { name: "inlineActivityCreateEnabled", json: true, optional: true },
   { name: "showTaskFieldInSchedule", json: true, optional: true },
+  { name: "capacityOverviewAccess", json: true, optional: true },
   ...META,
 ] as const satisfies ColumnSpec[];
 
@@ -135,6 +136,8 @@ const resourcesColumns = [
   { name: "projectId", optional: true },
   { name: "color" },
   { name: "isFavourite", json: true, optional: true },
+  { name: "firstAvailableDate", optional: true },
+  { name: "lastAvailableDate", optional: true },
   // Lifecycle timestamps (P2.1) — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
   { name: "archivedAt", optional: true },
   { name: "deletedAt", optional: true },

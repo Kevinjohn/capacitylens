@@ -71,7 +71,7 @@ test("completes bootstrap, invitation, callback, membership, and local sign-out 
     user: { email: "oidc-owner@example.com", emailVerified: true },
     providers: [{ id: "sso", kind: "oidc", experimental: false }],
   });
-  await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Set up your company" })).toBeVisible();
   await expect(page.getByTestId("new-company-button")).toBeVisible();
 
   const { workspace, invite } = await createOidcWorkspace(page);

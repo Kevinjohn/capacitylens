@@ -125,8 +125,8 @@ export function useOwnerSetup({
       onSignedIn();
     } catch {
       // Same contract as the sign-in path: a THROW is a pre-response network/transport error —
-      // surface a generic message + reset busy so the button never sticks disabled. Keep the raw
-      // error out of logs because request construction and transport errors may contain the token.
+      // surface a generic message + reset busy so the button never sticks disabled. Record the
+      // operation without the caught value because transport metadata may retain the secret header.
       console.error("LoginScreen: owner-setup sign-up request failed");
       setError(m.login_network_error());
       setBusy(false);

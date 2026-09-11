@@ -98,6 +98,7 @@ const weekFor = (resource: Resource, accountWorkingDays = DEFAULT_ACCOUNT_WORKIN
   effectiveWorkingWeek(resource, accountWorkingDays);
 const scheduledHoursOnDay = (resource: Resource, date: ISODate, accountWorkingDays?: Weekday[]) =>
   scheduledHoursOnDayWithWeek(resource, date, weekFor(resource, accountWorkingDays));
+
 const availableHoursOnDay = ({ resource, date, timeOff, accountWorkingDays }: AvailableHoursOnDayTestInput) =>
   availableHoursOnDayWithWeek({
     resource: resource,
@@ -227,6 +228,32 @@ const makeClosure = (over: Partial<Closure> = {}): Closure => ({
   startDate: "2026-06-03",
   endDate: "2026-06-03",
   ...over,
+});
+
+describe("resource availability boundaries", () => {
+  const boundedResource = makeResource({
+    firstAvailableDate: "2026-09-08",
+    lastAvailableDate: "2026-09-10",
+  });
+
+  it.each([
+    ["2026-09-07", 0],
+    ["2026-09-08", 8],
+    ["2026-09-10", 8],
+    ["2026-09-11", 0],
+  ] as const)("returns boundary-aware capacity on %s", (date, expected) => {
+    expect(availableHoursOnDay({ resource: boundedResource, date, timeOff: [] })).toBe(expected);
+  });
+
+  it("does not apply person-only boundaries to a non-person row", () => {
+    const placeholder = makeResource({
+      kind: "placeholder",
+      firstAvailableDate: "2026-09-08",
+      lastAvailableDate: "2026-09-10",
+    });
+
+    expect(availableHoursOnDay({ resource: placeholder, date: "2026-09-07", timeOff: [] })).toBe(8);
+  });
 });
 
 function registerSemanticsTableTests(
@@ -786,6 +813,27 @@ function registerAvailabilityAdvisoryTests() {
     expect(timeOffDays).toBe(0);
   });
 
+  it("reports retained load outside the person's availability as over capacity", () => {
+    const bounded = makeResource({ firstAvailableDate: "2026-06-03" });
+    const { overDays } = capacityAdvisory({
+      resource: bounded,
+      proposal: makeProposal(bounded)({
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        ignoreWeekends: false,
+      }),
+      otherAllocations: [],
+      timeOff: [],
+    });
+
+    expect(overDays).toBe(2);
+  });
+}
+
+function registerAvailabilityAbsenceAdvisoryTests() {
+  const r = makeResource();
+  const proposal = makeProposal(r);
   it("counts time-off days and excludes them from over (availability is 0 there)", () => {
     const others = [makeAlloc({ hoursPerDay: 4 })];
     const timeOff = [makeTimeOff({ startDate: "2026-06-03", endDate: "2026-06-03" })];
@@ -1318,6 +1366,7 @@ describe("over-allocated inside a window", () => {
 
 describe("capacityAdvisory", () => {
   registerAvailabilityAdvisoryTests();
+  registerAvailabilityAbsenceAdvisoryTests();
 
   registerProposalBoundaryTests();
 

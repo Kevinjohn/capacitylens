@@ -127,13 +127,13 @@ describe("SSO provider-link failures", () => {
 describe("SSO cutover readiness authorization", () => {
   it("enforces readiness authorization and provider configuration before inventory reads", async () => {
     const authorize = vi.fn((input: Parameters<Parameters<typeof registerSsoCutoverRoutes>[1]["authorize"]>[0]) => {
-      void input;
+      input.reply.code(403).send({ error: "Forbidden." });
       return false;
     });
     const identity = { readSsoCutoverSnapshot: vi.fn() } as unknown as SsoCutoverIdentityPort;
     const refused = authenticatedApp({ authorize, identity });
     expect((await refused.inject({ method: "GET", url: "/api/accounts/workspace-1/sso-readiness" })).statusCode).toBe(
-      200,
+      403,
     );
     const authorization = authorize.mock.calls[0]?.[0];
     if (!authorization) throw new Error("Expected readiness authorization");
@@ -142,6 +142,7 @@ describe("SSO cutover readiness authorization", () => {
       reply: authorization.reply,
       accountId: "workspace-1",
       action: "manageMembers",
+      options: { requireFreshSession: false },
     });
     expect(identity.readSsoCutoverSnapshot).not.toHaveBeenCalled();
     await refused.close();
