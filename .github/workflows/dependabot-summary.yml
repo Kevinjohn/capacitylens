@@ -156,7 +156,11 @@ jobs:
           body="$(printf '%s\n%s %s\n\n%s\n' "$marker" "$what" "$why" "$scope")"
 
           existing="$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-            --jq "[.[] | select(.body | startswith(\"$marker\"))] | first | .id // empty" | head -1)"
+            --jq "[.[] | select(.body | startswith(\"$marker\"))] | first | .id // empty")"
+          # --paginate applies --jq per page, so a pre-existing duplicate on a later
+          # page would add a second id. Trim in the shell: piping to head would close
+          # the pipe early and pipefail would report the SIGPIPE as a failed step.
+          existing="${existing%%$'\n'*}"
           if [ -n "$existing" ]; then
             gh api --method PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" --silent
           else
