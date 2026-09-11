@@ -143,13 +143,13 @@ The sidebar links, in order, route to:
 | Settings      | `/settings`    | Settings (scheduling, global working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
 | Account       | `/account`     | Signed-in identity and personal security controls                                                                                                            |
 
-The last two — **Team & access** and **Settings** — form a separate **administration group** pinned
+**Team & access** and **Settings** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
 above. Both remain ordinary first-class routes (same markup, same icons, same command-palette
 entries); only their placement differs, so administration stays out of the way of the app's
 day-to-day purpose and role-gated controls don't sit among everyone's destinations.
 
-That's **ten** sections by default — **nine** when the company turns disciplines off (the
+That's **ten** sections with disciplines enabled — **nine** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see _Disciplines optional_ under Domain rules). External / 3rd
 parties no longer have their own nav link — they moved INTO the **Resources** tab behind a setting
 (see _External / 3rd parties_ under Domain rules); the old `/external` URL still resolves but
