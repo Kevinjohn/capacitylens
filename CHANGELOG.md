@@ -45,6 +45,7 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Document deploying on a managed VPS platform such as Forge, Ploi or RunCloud (#734).
 - Add a personal Account page for identity, password, MFA status and active sessions, linked beside
   the current-user control on every main page (#744).
 - Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
