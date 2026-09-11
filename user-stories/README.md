@@ -212,6 +212,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours                                 | `e2e/internal-colours.spec.ts`                          |
 | [US-SET-15](settings/US-SET-15-global-working-days.md)   | Company-wide working days                             | `e2e/global-working-days.spec.ts`                       |
 | [US-SET-16](settings/US-SET-16-diagnostics.md)           | Copy privacy-safe diagnostics                         | `src/data/buildInfo.test.ts` + `SettingsView.test.tsx`  |
+| [US-SET-17](settings/US-SET-17-date-style.md)            | Date format preference on the schedule                | `e2e/settings-date-style.spec.ts`                       |
 
 ## Keyboard & accessibility — `accessibility/`
 
