@@ -16,6 +16,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Default the sidebar to collapsed below 1024px viewport width so it no longer crowds the
+  schedule on tablet-sized screens; a saved open/closed choice still wins (#792).
 - Make company creation actions responsive and spaced, use equal-width week-start choices, and
   replace the overwhelming timezone select with a searchable browser-aware IANA combobox that
   presents local/common zones first and reflects daylight-saving abbreviations (#740).
