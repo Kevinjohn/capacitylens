@@ -9,6 +9,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { setOfflineReadState } from "../data/offlineCache";
 import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
 import { m } from "@/i18n";
+import * as accountTransition from "../auth/accountTransition";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock("@/i18n", async (importOriginal) => ({
@@ -269,7 +270,7 @@ it("keeps the picker when one valid company came from an incomplete directory", 
   renderAppShell();
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: /Start planning|Choose a company/ })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
 });
 
 it("keeps the picker when the browser cannot classify the navigation", async () => {
@@ -315,7 +316,7 @@ it("does not mistake an unavailable sole membership for a valid reload destinati
   renderAppShell();
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: /Start planning|Choose a company/ })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
 });
 
 it("lets an invite handoff keep ownership of a reload instead of auto-opening another sole company", async () => {
@@ -341,7 +342,9 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
   });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+  expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
+  expect(screen.queryByText(/Ask an admin for an invite/)).not.toBeInTheDocument();
   expect(useStore.getState().notice?.message).toBe("That company no longer exists.");
 });
 
@@ -378,6 +381,12 @@ function registerTrailingSlashTitleTest(): void {
     renderAppShell(["/resources/"]);
 
     await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
+  });
+
+  it("keeps Account active on its accepted trailing-slash route", () => {
+    renderAppShell(["/account/"]);
+
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
   });
 }
 
@@ -450,6 +459,99 @@ function registerExpectedNavigationLinksTest(): void {
     expect(screen.getByRole("link", { name: "Activities" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Time off" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
+  });
+}
+
+function registerAccountNavigationStateTest(): void {
+  it("marks the personal Account destination active and gives it a descriptive page title", async () => {
+    renderAppShell(["/account"]);
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
+    await waitFor(() => expect(document.title).toBe("Account · CapacityLens"));
+  });
+
+  it("keeps the personal Account route available before a company is selected", () => {
+    useStore.setState({ activeAccountId: null, accountSummaries: [] });
+    renderAppShell(["/account"]);
+
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
+    expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+  });
+
+  it("returns to the company picker from Account only after a successful switch", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/");
+    expect(transition).toHaveBeenCalledWith(null);
+  });
+
+  it("keeps Account in place when a company switch is cancelled or fails", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockResolvedValue(false);
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+    await waitFor(() => expect(transition).toHaveBeenCalledWith(null));
+
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/account");
+    expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+  });
+}
+
+function registerAccountSwitchRouteTest(): void {
+  it("keeps the current non-Account route after a successful switch", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
+    render(
+      <MemoryRouter initialEntries={["/clients"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients");
+    expect(transition).toHaveBeenCalledWith(null);
+  });
+
+  it("returns to the company picker from an Account route with a trailing slash", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
+    render(
+      <MemoryRouter initialEntries={["/account/"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/");
+    expect(transition).toHaveBeenCalledWith(null);
   });
 }
 
@@ -474,6 +576,8 @@ function registerSidebarSignOutTest(): void {
   it("offers an avatar'd sign-out below Switch company", () => {
     renderAppShell();
 
+    expect(screen.getByText("Test Co")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch company" })).toBeInTheDocument();
     const signOut = screen.getByTestId("nav-sign-out");
     expect(signOut).toHaveTextContent("Sign out");
     expect(signOut).toHaveAttribute("title", "Signed in as Bruce Wayne");
@@ -494,6 +598,7 @@ function registerPinnedNavigationOrderTest(): void {
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
     expect(order).toEqual([
+      "/capacity-overview",
       "/",
       "/resources",
       "/disciplines",
@@ -511,6 +616,7 @@ function registerNavigationRoutesTest(): void {
   it("nav links point to correct routes", () => {
     renderAppShell();
 
+    expect(screen.getByRole("link", { name: "Capacity Overview" })).toHaveAttribute("href", "/capacity-overview");
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Resources" })).toHaveAttribute("href", "/resources");
     expect(screen.getByRole("link", { name: "Team & access" })).toHaveAttribute("href", "/team");
@@ -574,6 +680,7 @@ function registerPersistedSidebarCollapseTest(): void {
 
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
     expect(within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Expand menu" })).toHaveAttribute(
       "aria-expanded",
@@ -1001,6 +1108,8 @@ describe("AppShell navigation links", () => {
   registerLoadingAccountLocaleTest();
   registerOfflineSnapshotLabelTest();
   registerExpectedNavigationLinksTest();
+  registerAccountNavigationStateTest();
+  registerAccountSwitchRouteTest();
   registerNavigationBrandNameTest();
   registerImportExportAbsenceTest();
   registerSidebarSignOutTest();

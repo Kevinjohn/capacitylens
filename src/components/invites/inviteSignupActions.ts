@@ -23,6 +23,7 @@ interface Dependencies {
   email: string;
   password: string;
   signupCommand: RefObject<BrowserAccountCommand | null>;
+  signupInFlight: RefObject<boolean>;
   enterJoinedCompany: (accountId?: string) => Promise<void>;
   setState: Dispatch<SetStateAction<InviteAcceptState>>;
   setBusy: Dispatch<SetStateAction<boolean>>;
@@ -132,17 +133,22 @@ export function createInviteSignupActions({
   email,
   password,
   signupCommand,
+  signupInFlight,
   enterJoinedCompany,
   setState,
   setBusy,
 }: Dependencies) {
   const createAccount = async () => {
-    if (!token || previewed.current !== token) return;
+    if (!token || previewed.current !== token || signupInFlight.current) return;
+    signupInFlight.current = true;
     const report = (errorField: string | null, message: string) => {
       setState({ kind: "auth", message, errorField });
     };
     const credentials = validateSignupCredentials({ name, email, password }, report);
-    if (credentials === null) return;
+    if (credentials === null) {
+      signupInFlight.current = false;
+      return;
+    }
     setBusy(true);
     setState({ kind: "auth" });
     const attempt: SignupAttempt = { commandOutcomeUnknown: false };
@@ -164,6 +170,7 @@ export function createInviteSignupActions({
         message: resolveSignupFailureMessage(error, unknownFailure),
       });
       setBusy(false);
+      signupInFlight.current = false;
     }
   };
 

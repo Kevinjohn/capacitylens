@@ -60,7 +60,7 @@ function registerSuiteScenario1() {
     await openDialog(page, "Clients", "Add client", "Add client", 3);
     await openDialog(page, "Projects", "Add project", "Add project", 4);
     await openDialog(page, "Activities", "Add activity", "Add activity", 3);
-    await openDialog(page, "Time off", "Add time off", "Add time off", 3);
+    await openDialog(page, "Time off", "Add time off", "Add time off", 4);
   });
 }
 
@@ -75,7 +75,7 @@ function registerSuiteScenario2() {
     await openStackedDialog(page, "Clients", "Add client", "Add client", 3);
     await openStackedDialog(page, "Projects", "Add project", "Add project", 4);
     await openStackedDialog(page, "Activities", "Add activity", "Add activity", 3);
-    await openStackedDialog(page, "Time off", "Add time off", "Add time off", 3);
+    await openStackedDialog(page, "Time off", "Add time off", "Add time off", 4);
   });
 }
 

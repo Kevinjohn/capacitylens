@@ -105,6 +105,147 @@ pnpm exec playwright test --project=auth-backed \
 
 Read `AGENTS.md`, `DECISIONS.md` and `DEFENSIVE-CODING.md` before broad changes.
 
+### Task navigation {#task-navigation}
+
+Use these entries to find the first owner for a familiar kind of change, then follow only the
+boundaries that the task reaches. They supplement the repository map; they are neither an
+exhaustive dependency list nor a substitute for the required validation policy.
+
+#### Allocation forms and recurrence {#task-allocation}
+
+**Start:** `src/components/scheduler/AllocationModal.tsx` composes the allocation form and delegates
+its state, fields and commands.
+
+**Follow through:** Read `src/components/scheduler/useAllocationModalState.ts`,
+`src/components/scheduler/AllocationTargetFields.tsx` and
+`src/components/scheduler/AllocationScheduleFields.tsx` for field ownership,
+`src/components/scheduler/AllocationModalFieldLayout.tsx` for layout, and
+`src/components/scheduler/allocationSubmit.ts` plus `src/lib/repeatingAllocations.ts` when save or
+recurrence behaviour changes.
+
+**Tests:** Start with the `src/components/scheduler/AllocationModal.*.test.tsx` suites
+(`AllocationModal.create.test.tsx`, `AllocationModal.edit.test.tsx` and
+`AllocationModal.repeat.test.tsx` for save and recurrence) and
+`src/components/common/compactFormLayouts.test.tsx`; include `e2e/modal-layout.spec.ts`,
+`e2e/allocation-modal-layout.spec.ts` and `e2e/allocation.spec.ts` when their layout or complete
+browser flow is affected.
+
+#### Time off and recurrence {#task-time-off}
+
+**Start:** `src/components/timeoff/TimeOffForm.tsx` owns the personal time-off form and connects its
+draft, permission and repeat state to saving.
+
+**Follow through:** Read `src/components/timeoff/useTimeOffRepeat.ts`,
+`src/components/timeoff/timeOffFormSubmission.ts` and `src/lib/repeatingTimeOff.ts` for repeat
+projection and persistence; shared date-series rules live in `shared/src/lib/repeatingDates.ts`.
+
+**Tests:** Start with `src/components/timeoff/TimeOffForm.repeat.test.tsx`,
+`src/lib/repeatingTimeOff.test.ts` and `src/store/useStore.timeOff.test.ts`; use
+`e2e/timeoff.spec.ts` for the complete browser flow.
+
+#### Capacity and visible Utilisation {#task-capacity}
+
+**Start:** `src/components/scheduler/visibleSpan.ts` resolves the actual visible date window and its
+labels from the viewport.
+
+**Follow through:** `src/components/scheduler/schedulerRowCapacity.ts` builds row capacity sources
+for both `visibleWindow` and the fixed `overSoonWindow`; `src/lib/capacity.ts` owns the
+straight-line availability, allocation and Utilisation calculations. Preserve those two windows as
+separate signals.
+
+**Tests:** Start with `src/components/scheduler/visibleSpan.test.ts`, `src/lib/capacity.test.ts` and
+`src/components/scheduler/schedulerModel.test.ts`; check `e2e/holiday-overallocation.spec.ts` when
+visible capacity or over-capacity presentation changes.
+
+#### Four-week Capacity Overview {#task-capacity-overview}
+
+**Start:** `src/components/capacity-overview/CapacityOverviewView.tsx` connects active scoped data,
+calendar settings and the two page controls to the table.
+
+**Follow through:** `capacityOverviewDates.ts` owns the fixed partial-plus-three-full-week window;
+`capacityOverviewModel.ts` owns eligibility, precise aggregation, display rounding, grouping and
+filtering. Access policy is shared in `shared/src/domain/access.ts`, while `src/auth/capacityOverviewAccess.ts`
+gates the sidebar and direct route.
+
+**Tests:** Start with `src/components/capacity-overview/capacityOverview.test.ts`,
+`CapacityOverviewTable.test.tsx` and `src/auth/capacityOverviewAccess.test.ts`; use
+`e2e/capacity-overview.spec.ts` and `e2e/capacity-overview.auth.spec.ts` for browser coverage.
+
+#### Scheduler gestures and viewport {#task-scheduler-interactions}
+
+**Start:** `src/components/scheduler/SchedulerGrid.tsx` composes the timeline viewport, row model,
+virtual window and interaction surfaces.
+
+**Follow through:** Read `src/components/scheduler/useAllocationGesture.ts` for allocation movement
+and resizing, `src/components/scheduler/useSchedulerViewport.ts` for scrolling and column geometry,
+and `src/components/scheduler/useSchedulerGridVirtualization.ts` with
+`src/components/scheduler/virtualWindow.ts` for rendered rows.
+
+**Tests:** Start with `src/components/scheduler/AllocationBar.interaction.test.tsx`,
+`src/components/scheduler/useSchedulerViewport.test.tsx` and
+`src/components/scheduler/virtualWindow.test.ts`; use `e2e/scheduler.spec.ts` and
+`e2e/snap-week.spec.ts` for browser-level gesture and viewport behaviour.
+
+#### Client account projection and scoped reads {#task-client-account-projection}
+
+**Start:** `src/store/useScopedData.ts` is the client read seam that projects the active account and
+its active-only view.
+
+**Follow through:** `src/auth/PermissionProvider.tsx` projects the active membership into UI and
+store capabilities, using the account summaries owned by `src/auth/useAccountSummaries.ts`. These
+client projections control visibility and affordances; they never authorize a server operation.
+
+**Tests:** Start with `src/store/useScopedData.test.tsx`, `src/auth/PermissionProvider.test.tsx` and
+`src/store/multitenancy.test.ts`; use `e2e/private-name-permissions.auth.spec.ts` when role-based
+projection reaches the signed-in browser flow.
+
+#### Server tenant authorization {#task-server-tenant-authorization}
+
+**Start:** `server/src/routes/appAuthorization.ts` resolves membership, capability and fresh-session
+requirements for account-scoped requests.
+
+**Follow through:** Inspect the route that consumes the authorization seam, such as
+`server/src/routes/entityRoutes.ts`, then `server/src/tenantStore.ts` when the operation crosses the
+scoped storage boundary. Client visibility or permission projection is never server authority.
+
+**Tests:** Start with `server/src/app.authz.test.ts`; include `server/src/db.tenantStore.test.ts` and
+`e2e/viewer.auth.spec.ts` when storage isolation or end-to-end role enforcement is affected.
+
+#### Online persistence and refresh {#task-online-persistence}
+
+**Start:** `src/data/persistence/attachPersistence.ts` composes the store subscription, write queue,
+account switching, refresh and browser lifecycle hooks.
+
+**Follow through:** Read `src/data/persistence/refreshController.ts`,
+`src/data/persistence/accountSwitch.ts` and `src/data/persistence/writeQueue.ts` for the relevant
+coordination path. `src/data/ServerSyncAdapter.ts` owns whole-slice loading and ordered,
+transactional batch diffs against the server.
+
+**Tests:** Start with the `src/data/persist.*.test.ts` suites (`persist.attach.test.ts` for writes,
+retries and page lifecycle; `persist.reconciliation.test.ts` for batch conflicts),
+`src/data/persist.overlap.test.ts` and `src/data/ServerSyncAdapter.test.ts`; use
+`e2e/persistence.db.spec.ts` and `e2e/resilience.db.spec.ts` for database-backed browser boundaries.
+
+#### Offline snapshots {#task-offline-snapshots}
+
+**Start:** `src/data/offlineCache.ts` is the public facade for opt-in cached identity, account lists
+and read-only account slices.
+
+**Follow through:** `src/data/offline/records.ts` owns validated encrypted record reads and writes,
+`src/data/offline/state.ts` owns the offline episode and preference state, and
+`src/data/offline/crypto.ts` plus `src/data/offline/shell.ts` own the device boundary and cached app
+shell. The service worker lives at `public/offline-worker.js`.
+
+**Tests:** Start with `src/data/offlineCache.test.ts` and `src/data/offlineWorker.test.ts`; include
+the offline transport cases in `src/data/ServerSyncAdapter.test.ts` and
+`e2e/clear-local-storage.spec.ts` when cleanup or browser storage boundaries change.
+
+Maintain an entry when its starting point or ownership changes. A task brief should link to the
+relevant entry and name the exact implementation and test paths it needs, rather than copy this
+whole section. For work not mapped here, use targeted source, caller and import searches. Import and
+schema changes continue to follow [Database migrations](#database-migrations), while standing
+invariants remain in their existing authoritative documents.
+
 A few rules the codebase enforces structurally, worth knowing before you touch the
 relevant area:
 
@@ -259,6 +400,11 @@ pnpm run coverage
 pnpm run mutation
 ```
 
+Installing dependencies configures lightweight Git hooks. Each commit lints only staged authored
+JavaScript and TypeScript files, so small commits stay fast. Each push runs the complete repository
+lint to catch configuration and cross-file effects. Set `SKIP_SIMPLE_GIT_HOOKS=1` for a single Git
+operation only when diagnosing a hook problem; pull-request checks remain authoritative.
+
 ### What `gate` checks
 
 `gate` compiles translations, type-checks, lints with zero warnings, runs Vitest with
@@ -299,14 +445,14 @@ exempt the source from linting. Real temporary production and test files prove t
 and misused promises fail in all three typed packages; handled promises pass. Category-specific
 regressions also check browser/worker isolation, shared purity and documentation source coverage.
 
-The enforced browser/shared coverage floors:
+The enforced coverage floors:
 
-| Metric     | Floor |
-| ---------- | ----- |
-| Statements | 84%   |
-| Branches   | 78%   |
-| Functions  | 85%   |
-| Lines      | 86%   |
+| Metric     | Browser/shared floor | Server floor |
+| ---------- | -------------------: | -----------: |
+| Statements |                  92% |          87% |
+| Branches   |                  87% |          80% |
+| Functions  |                  92% |          90% |
+| Lines      |                  94% |          89% |
 
 The build also enforces a raw and gzip byte budget on the main JavaScript entry chunk;
 route-level lazy chunks stay separate so authentication and settings code don't inflate
@@ -544,9 +690,10 @@ thread-pool reuse or a larger outer timeout.
 
 ### When CI runs
 
-CodeQL analyzes every pull request targeting `main`. The other workflows run when the merge
-reaches `main`, plus their own weekly or monthly schedules. To see those gates green before
-merging, dispatch them against the branch:
+Static analysis and CodeQL analyze every pull request targeting `main`. The focused static-analysis
+workflow compiles translations, type-checks the shared and application projects, and lints all
+authored sources. The heavier workflows run when the merge reaches `main`, plus their own weekly or
+monthly schedules. To see those gates green before merging, dispatch them against the branch:
 
 ```bash
 gh workflow run gate.yml --ref <branch>
@@ -554,10 +701,10 @@ gh workflow run e2e.yml --ref <branch>
 ```
 
 Opening a pull request and pushing to its branch previously fired `gate`, `e2e`, `docker` and
-`security` on every event — several full passes per change. CodeQL remains the deliberately
-smaller exception so static analysis covers every proposed commit. The local
-`pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` are the fast feedback loop; CI
-is the record.
+`security` on every event — several full passes per change. Focused lint/type-check and CodeQL jobs
+now cover every proposed commit without repeating the full suites. Staged-file lint on commit and
+whole-repository lint on push provide the earliest feedback; `pnpm run gate`,
+`pnpm run gate:server` and `pnpm run e2e` remain the complete local checks, and CI is the record.
 
 Two jobs used to depend on pull-request context and now read the pushed commit range
 (`github.event.before`..`github.sha`) instead: DCO sign-off and dependency review. Both
@@ -598,12 +745,9 @@ working as intended. See `docs-src/security/security-review-2026-07-14.md` for a
 scope and residual controls.
 
 `main` is protected against deletion and force pushes, and changes must arrive through a pull
-request. The rule deliberately requires neither an approval nor a status check while the project
-has one active maintainer and workflows report after merge rather than on pull requests. A red
-`main` is found by looking at the run the merge produced, or at the badges in the README. If status
-checks are added later, remember that they are matched by display name and no workflow currently
-reports on a pull request — a required check that never runs leaves every pull request permanently
-unmergeable.
+request. The `Lint and type-check` status is required before merge; no approving review is required
+while the project has one active maintainer. The heavier post-merge workflows still report complete
+suite results on `main`.
 
 The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`;
 uploads are deliberately skipped until that secret exists. Uploads are best-effort because

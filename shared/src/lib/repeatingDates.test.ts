@@ -2,11 +2,44 @@ import { describe, expect, it } from "vitest";
 import { weekdayOf } from "./dateMath";
 import {
   GENERATED_ALLOCATION_LIMIT,
+  TIME_OFF_REPEAT_POLICY,
   defaultRepeatUntilDate,
+  defaultTimeOffRepeatUntilDate,
   generateRepeatingStartDates,
   maximumRepeatUntilDate,
+  maximumTimeOffRepeatUntilDate,
   RepeatingDateError,
 } from "./repeatingDates";
+
+const LAST_FRIDAY_DATES = [
+  "2026-01-30",
+  "2026-02-27",
+  "2026-03-27",
+  "2026-04-24",
+  "2026-05-29",
+  "2026-06-26",
+  "2026-07-31",
+  "2026-08-28",
+  "2026-09-25",
+  "2026-10-30",
+  "2026-11-27",
+  "2026-12-25",
+] as const;
+
+const EXTENDED_MONTHLY_DATE_DATES = [
+  "2026-01-31",
+  "2026-02-28",
+  "2026-03-31",
+  "2026-04-30",
+  "2026-05-31",
+  "2026-06-30",
+  "2026-07-31",
+  "2026-08-31",
+  "2026-09-30",
+  "2026-10-31",
+  "2026-11-30",
+  "2026-12-31",
+] as const;
 
 describe("defaultRepeatUntilDate", () => {
   it.each([
@@ -147,6 +180,127 @@ describe("generateRepeatingStartDates monthly", () => {
     const result = generateRepeatingStartDates(start, expectedLast, { kind: "monthly-date" });
 
     expect(result.startDates.at(-1)).toBe(expectedLast);
+  });
+});
+
+describe("generateRepeatingStartDates monthly last weekday", () => {
+  it("generates each last Friday from January through December without spilling into January", () => {
+    const result = generateRepeatingStartDates(
+      "2026-01-30",
+      "2026-12-31",
+      { kind: "monthly-last-weekday" },
+      TIME_OFF_REPEAT_POLICY,
+    );
+
+    expect(result.startDates).toEqual(LAST_FRIDAY_DATES);
+    expect(result.startDates).toHaveLength(12);
+    expect(result.startDates).not.toContain("2027-01-29");
+  });
+
+  it("rejects a start that is not the month's last matching weekday with a stable diagnostic", () => {
+    expect(() =>
+      generateRepeatingStartDates("2026-01-23", "2026-12-31", { kind: "monthly-last-weekday" }, TIME_OFF_REPEAT_POLICY),
+    ).toThrowError(
+      expect.objectContaining({
+        name: "RepeatingDateError",
+        code: "invalid-last-weekday-start",
+        message: "Monthly last-weekday repeats must start on the last matching weekday of the month.",
+      }),
+    );
+  });
+
+  it("crosses the leap-year and supported-year boundaries with calendar dates", () => {
+    const leap = generateRepeatingStartDates(
+      "2028-02-25",
+      "2028-12-31",
+      { kind: "monthly-last-weekday" },
+      TIME_OFF_REPEAT_POLICY,
+    );
+    expect(leap.startDates.slice(0, 3)).toEqual(["2028-02-25", "2028-03-31", "2028-04-28"]);
+
+    const finalYear = generateRepeatingStartDates(
+      "9999-01-29",
+      "9999-12-31",
+      { kind: "monthly-last-weekday" },
+      TIME_OFF_REPEAT_POLICY,
+    );
+    expect(finalYear.startDates.at(-1)).toBe("9999-12-31");
+    expect(finalYear.startDates.every((date) => date.startsWith("9999-"))).toBe(true);
+  });
+
+  it("surfaces no repeat when the valid final-domain anchor has no later month", () => {
+    expect(() =>
+      generateRepeatingStartDates("9999-12-31", "9999-12-31", { kind: "monthly-last-weekday" }, TIME_OFF_REPEAT_POLICY),
+    ).toThrowError(
+      expect.objectContaining({
+        name: "RepeatingDateError",
+        code: "no-repeat",
+        message: "Repeat until must include at least one repeated occurrence.",
+      }),
+    );
+  });
+});
+
+describe("time-off repeating date policy", () => {
+  it.each([
+    ["2026-01-01", "2026-12-31"],
+    ["2026-01-30", "2026-12-31"],
+    ["9999-01-30", "9999-12-31"],
+    ["9999-12-31", "9999-12-31"],
+  ] as const)("sets both the maximum and suggested cutoff for %s", (startDate, expected) => {
+    expect(maximumTimeOffRepeatUntilDate(startDate)).toBe(expected);
+    expect(defaultTimeOffRepeatUntilDate(startDate)).toBe(expected);
+  });
+
+  it("allows a full time-off year while retaining the allocation six-month default", () => {
+    const result = generateRepeatingStartDates(
+      "2026-01-01",
+      "2026-12-31",
+      { kind: "weeks", interval: 1 },
+      TIME_OFF_REPEAT_POLICY,
+    );
+    expect(result.startDates).toHaveLength(53);
+    expect(maximumRepeatUntilDate("2026-01-01")).toBe("2026-07-01");
+    expect(defaultRepeatUntilDate("2026-01-01")).toBe("2026-03-31");
+  });
+
+  it("retains the original monthly numeric day across the extended horizon", () => {
+    expect(
+      generateRepeatingStartDates("2026-01-31", "2026-12-31", { kind: "monthly-date" }, TIME_OFF_REPEAT_POLICY)
+        .startDates,
+    ).toEqual(EXTENDED_MONTHLY_DATE_DATES);
+  });
+
+  it("applies the caller occurrence ceiling independently of the allocation ceiling", () => {
+    expect(TIME_OFF_REPEAT_POLICY.maxOccurrences).toBe(54);
+    expect(() =>
+      generateRepeatingStartDates(
+        "2026-01-01",
+        "2026-01-22",
+        { kind: "weeks", interval: 1 },
+        {
+          ...TIME_OFF_REPEAT_POLICY,
+          maxOccurrences: 2,
+        },
+      ),
+    ).toThrowError(
+      expect.objectContaining({
+        name: "RepeatingDateError",
+        code: "occurrence-limit",
+      }),
+    );
+  });
+
+  it("rejects a cutoff after the caller policy horizon", () => {
+    expect(() =>
+      generateRepeatingStartDates("2026-01-01", "2027-01-01", { kind: "weeks", interval: 1 }, TIME_OFF_REPEAT_POLICY),
+    ).toThrowError(
+      expect.objectContaining({
+        name: "RepeatingDateError",
+        code: "cutoff-after-limit",
+        message: "Repeat until cannot be more than 11 calendar months after the allocation start.",
+      }),
+    );
   });
 });
 

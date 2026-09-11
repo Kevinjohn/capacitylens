@@ -14,7 +14,8 @@ import { Fragment, useMemo } from "react";
 import { Folder, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { buildProjectArchiveImpactCopy } from "../../lib/archiveImpactCopy";
-import { byName } from "../../lib/displayOrder";
+import { createClientProjectDisplayNameComparator } from "../../lib/displayOrder";
+import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
  *  when the project has active allocations that archiving would pull out of the schedule. */
@@ -65,11 +66,14 @@ function ProjectItems({ projects, clientsById, internalColourMode, onEdit, onArc
 
 export function ProjectList() {
   const data = useActiveScopedData();
-  const projects = useMemo(() => [...data.projects].sort(byName), [data.projects]);
   const clients = data.clients;
+  const projects = useMemo(
+    () => [...data.projects].sort(createClientProjectDisplayNameComparator(clients)),
+    [clients, data.projects],
+  );
   const clientsById = useMemo(() => new Map(clients.map((client) => [client.id, client])), [clients]);
   const internalColourMode = useStore((state) => resolveInternalColourMode(state.data, state.activeAccountId));
-  // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
+  // The per-row action ARCHIVES (soft-delete is reached from the inline archive section);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions();
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Project>();
@@ -98,6 +102,8 @@ export function ProjectList() {
           onArchive={setConfirming}
         />
       )}
+
+      <ArchivedEntitySection entity="projects" />
 
       {creating && <ProjectForm onClose={() => setCreating(false)} />}
       {editing && <ProjectForm project={editing} onClose={() => setEditing(null)} />}

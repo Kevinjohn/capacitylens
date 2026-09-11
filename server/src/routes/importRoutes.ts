@@ -9,6 +9,7 @@ import { parseData, MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfe
 import { APP_DATA_KEYS, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../audit";
 import type { AccountMode } from "../auth";
+import type { KeyedOperationLock } from "../accounts/KeyedOperationLock";
 import { buildCompleteAccountSlice, insertAll, replaceAccountSlice, wipe } from "../db";
 import type { Db } from "../db";
 import { readCurrentRequestAbortSignal } from "../requestAbort";
@@ -59,6 +60,7 @@ export interface ImportRouteDependencies {
   authMode: AccountMode;
   allowReset: boolean;
   accountAdminPort: ImportAccountAdministration;
+  accountLock: KeyedOperationLock;
   authorize: (input: AuthorizeImportInput) => boolean;
   executeImportWorker: typeof runImportWorker;
   commitProductAudit: (reply: FastifyReply, record: AuditRecord, mutation: () => void) => boolean;
@@ -120,6 +122,24 @@ function sendImportFailure(reply: FastifyReply, error: unknown, dependencies: Im
   return dependencies.fail(reply, error);
 }
 
+function hasCurrentImportAuthority(userId: string, accountId: string, dependencies: ImportRouteDependencies): boolean {
+  if (dependencies.authMode === "off") return true;
+  const role = dependencies.accountAdminPort.roleForPrincipalInWorkspace(userId, accountId);
+  return role !== null && canSeePrivateNames(role);
+}
+
+function buildImportAuditRecord(userId: string, accountId: string): AuditRecord {
+  return {
+    ts: new Date().toISOString(),
+    userId,
+    accountId,
+    action: "import",
+    entity: "account",
+    id: accountId,
+    changedFields: [],
+  };
+}
+
 async function handleImport(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -142,6 +162,9 @@ async function handleImport(
       { current: currentSlice, accountId: body.accountId, incoming, now: new Date().toISOString() },
       readCurrentRequestAbortSignal(),
     );
+    if (!hasCurrentImportAuthority(user.id, body.accountId, dependencies)) {
+      return reply.code(403).send({ error: "Only the account owner can import data." });
+    }
     if (result.imported === 0) {
       return reply.code(400).send({
         error: "The import contained no usable records, so the company data was left unchanged.",
@@ -150,21 +173,21 @@ async function handleImport(
         maxRecords: MAX_IMPORT_RECORDS,
       });
     }
-    const auditRecord: AuditRecord = {
-      ts: new Date().toISOString(),
-      userId: user.id,
-      accountId: body.accountId,
-      action: "import",
-      entity: "account",
-      id: body.accountId,
-      changedFields: [],
-    };
-    const auditOk = dependencies.commitProductAudit(reply, auditRecord, () => {
-      if (buildImportSnapshotFingerprint(dependencies.store.readFullSlice(body.accountId)) !== expectedSnapshot) {
-        throw new ImportSnapshotConflictError();
+    const auditRecord = buildImportAuditRecord(user.id, body.accountId);
+    const auditOk = await dependencies.accountLock.withKeys([user.id, `workspace:${body.accountId}`], () => {
+      if (!hasCurrentImportAuthority(user.id, body.accountId, dependencies)) {
+        return undefined;
       }
-      replaceAccountSlice(dependencies.db, body.accountId, buildCompleteAccountSlice(result.data));
+      return dependencies.commitProductAudit(reply, auditRecord, () => {
+        if (buildImportSnapshotFingerprint(dependencies.store.readFullSlice(body.accountId)) !== expectedSnapshot) {
+          throw new ImportSnapshotConflictError();
+        }
+        replaceAccountSlice(dependencies.db, body.accountId, buildCompleteAccountSlice(result.data));
+      });
     });
+    if (auditOk === undefined) {
+      return reply.code(403).send({ error: "Only the account owner can import data." });
+    }
     return {
       imported: result.imported,
       skipped: result.skipped,

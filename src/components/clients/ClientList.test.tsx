@@ -6,6 +6,7 @@ import { useStore } from "../../store/useStore";
 import { resetStoreWithAccount, requireValue } from "../../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
+import { PermissionContext } from "../../auth/permissionContext";
 
 beforeEach(() => resetStoreWithAccount());
 
@@ -51,7 +52,7 @@ it("gives repeated client edit controls distinct contextual names", () => {
 });
 
 // P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
-// Settings → Archived & deleted). DEMO mode here → the store's archiveEntity: the client gets
+// the inline archive section). DEMO mode here → the store's archiveEntity: the client gets
 // `archivedAt` set (its projects/activities are RETAINED — archiving is reversible, unlike the old
 // cascade-delete) and vanishes from this active-only list. Server is the app default now, so we opt
 // into demo (VITE_CAPACITYLENS_DEMO=1) for the local-mutation path; the env is read per dispatch.
@@ -94,8 +95,8 @@ describe("ClientList archive flow", () => {
     expect(useStore.getState().data.projects).toHaveLength(1);
     expect(useStore.getState().data.phases).toHaveLength(1);
     expect(useStore.getState().data.activities).toHaveLength(1);
-    // Gone from the active-only management list.
-    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("client-row")).not.toBeInTheDocument();
+    expect(within(screen.getByTestId("archived-clients-section")).getByText("Acme")).toBeInTheDocument();
   });
 
   it("omits the cascade warning for a client without projects or allocations", async () => {
@@ -109,6 +110,22 @@ describe("ClientList archive flow", () => {
     expect(dialog).not.toHaveTextContent("This also hides");
   });
 
+  it("tells editors that an owner or admin manages the archived client", async () => {
+    const user = userEvent.setup();
+    useStore.getState().addClient({ name: "Acme", color: "#111" });
+    render(
+      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+        <ClientList />
+      </PermissionContext.Provider>,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Archive Acme" }));
+
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      "An owner or admin can restore or delete it from Archived clients.",
+    );
+  });
+
   it("keeps exactly one quote pair around a redacted private code name in confirmation copy", async () => {
     const user = userEvent.setup();
     const created = useStore.getState().addClient({ name: "Real client", color: "#111111" });
@@ -120,6 +137,47 @@ describe("ClientList archive flow", () => {
     const dialog = screen.getByRole("alertdialog", { name: "Archive client?" });
     expect(dialog).toHaveTextContent('Archive "Nightwing"?');
     expect(dialog).not.toHaveTextContent('""Nightwing""');
+  });
+
+  it.each(["editor", "viewer"] as const)("hides archived clients from a %s", (role) => {
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    useStore.getState().archiveEntity("clients", client.id);
+
+    render(
+      <PermissionContext.Provider value={{ role, status: "resolved" }}>
+        <ClientList />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.queryByText("Acme")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("archived-clients-section")).not.toBeInTheDocument();
+  });
+
+  it("restores an archived client from the expanded section", async () => {
+    const user = userEvent.setup();
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    useStore.getState().archiveEntity("clients", client.id);
+    render(<ClientList />);
+
+    await user.click(screen.getByRole("button", { name: "Restore Acme" }));
+
+    expect(useStore.getState().data.clients[0]).not.toHaveProperty("archivedAt");
+    expect(screen.getByTestId("client-row")).toHaveTextContent("Acme");
+    expect(screen.queryByTestId("archived-clients-section")).not.toBeInTheDocument();
+  });
+
+  it("uses one quote pair around a private display name in delete confirmation", async () => {
+    const user = userEvent.setup();
+    const client = useStore
+      .getState()
+      .addClient({ name: '"Nightwing"', color: "#111", isPrivate: true, codeName: "Nightwing" });
+    useStore.getState().archiveEntity("clients", client.id);
+    render(<ClientList />);
+
+    await user.click(screen.getByRole("button", { name: 'Delete "Nightwing"' }));
+
+    expect(screen.getByRole("alertdialog")).toHaveTextContent('Delete "Nightwing"?');
+    expect(screen.getByRole("alertdialog")).not.toHaveTextContent('""Nightwing""');
   });
 });
 

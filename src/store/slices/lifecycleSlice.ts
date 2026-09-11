@@ -19,8 +19,8 @@ export function createLifecycleSlice(internals: StoreInternals): StateCreator<St
     const { createGuardedAction, resolveOwnedRow, assertNotBuiltinClient, mutate, mutateIrreversible } = internals;
     return {
       // --- Data-lifecycle actions (P2.5b DEMO-build path). See the StoreState block above for the
-      // shared contract. Active → Archived → Soft-deleted → Purged is the ONLY removal path for the three
-      // tombstone-carrying tables (resources / clients / projects); there is no immediate hard-delete
+      // shared contract. Active → Archived → Soft-deleted → Purged is the ONLY removal path for the
+      // tombstone-carrying tables (resources / clients / projects / activities); there is no immediate hard-delete
       // action for them — a physical row removal happens only at the END of the lifecycle, in purgeEntity,
       // which composes the shared delete*Cascade so the tombstone AND its children go together (a
       // resource's allocations/time-off; a client's projects/activities/allocations; a project's

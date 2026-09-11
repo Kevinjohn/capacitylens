@@ -13,7 +13,8 @@ account, creating your company and getting oriented on the schedule.
 
 Open CapacityLens through the public URL you configured during installation. With an
 empty database, the sign-in page asks for your name, email, password and the setup token
-from your `.env` file.
+from your `.env` file. If you paste it with ordinary spaces around the value, CapacityLens
+removes those spaces before sending it; paste the token again if it contains invisible characters.
 
 After you submit the form, self-registration closes. Nobody else can join the instance
 without an [invite](/reference/glossary), and every later visit shows the ordinary
@@ -50,9 +51,20 @@ not paperwork, and it won't show again on that device.
 ## Finding your way around the schedule
 
 After the welcome message, you land on [the schedule](/guide/the-schedule) — the one
-screen the whole product is built around. On a fresh install it's empty, with a Getting
-Started panel prompting you to add clients, projects and people before you drag out any
-allocations.
+screen the whole product is built around. On a fresh install it's empty, with a **Getting
+started** panel. Choose **Import existing data** if you already have a CapacityLens export;
+otherwise choose **Start from scratch**. Imported clients, projects, activities, people and
+allocations count as real progress, so you do not need to create temporary records.
+
+Starting from scratch, follow the links to add your first client, project, activity and person.
+Then return to Schedule and click or drag across the person's row to assign them. The last required
+step links to the relevant Settings area so you can review the company's scheduling mode, normal
+availability and focused optional features. The defaults are deliberately small; you can leave
+them alone unless your team works differently.
+
+The complete checklist stays on Schedule. While setup is incomplete, other pages show a compact
+progress link back to it. **Invite your team** is optional, and **Show me around** still gives a
+short tour of the main navigation without changing pages.
 
 ![The Schedule view with people grouped by discipline, allocation bars, utilisation and a holiday block](../screenshots/flows/schedule.jpg)
 

@@ -107,11 +107,11 @@ CREATE TABLE IF NOT EXISTS timeOff (
 export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   "placeholdersEnabled TEXT, externalEnabled TEXT,",
   "placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT, groupResourcesByEngagement TEXT, workingDays TEXT, " +
-    "showInternalProjects TEXT, showInternalActivities TEXT, inlineActivityCreateEnabled TEXT,",
+    "showInternalProjects TEXT, showInternalActivities TEXT, inlineActivityCreateEnabled TEXT, showTaskFieldInSchedule TEXT, capacityOverviewAccess TEXT,",
 )
   .replace(
     "  color TEXT NOT NULL,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
-    "  color TEXT NOT NULL, isFavourite TEXT,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
+    "  color TEXT NOT NULL, isFavourite TEXT, firstAvailableDate TEXT, lastAvailableDate TEXT,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS activities",
   )
   .replace(
     "  workingDays TEXT NOT NULL,\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,",
@@ -123,11 +123,15 @@ export const SCHEMA_SQL = `${SCHEMA_V8_SQL.replace(
   )
   .replace(
     "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT,",
-    "  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT, seriesId TEXT,",
+    "  status TEXT NOT NULL, note TEXT, task TEXT, ignoreWeekends TEXT, seriesId TEXT,",
   )
   .replace(
     "  activityId TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  startDate TEXT NOT NULL",
     "  activityId TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,\n  projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,\n  startDate TEXT NOT NULL",
+  )
+  .replace(
+    "  phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS allocations",
+    "  phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,\n  archivedAt TEXT, deletedAt TEXT,\n  createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL\n);\nCREATE TABLE IF NOT EXISTS allocations",
   )}\nCREATE TABLE IF NOT EXISTS closures (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,

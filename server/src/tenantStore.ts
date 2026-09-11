@@ -2,6 +2,7 @@ import {
   SCOPED_KEYS,
   type Allocation,
   type AppDataKey,
+  type Activity,
   type Client,
   type Project,
   type Resource,
@@ -22,8 +23,9 @@ import {
 import { createServerRevision } from "./revision";
 import { fromRow, type Row } from "./rowCodec";
 import { resolveTable } from "./db/introspection";
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 
-export type LifecycleRow = Resource | Client | Project;
+export type LifecycleRow = Resource | Client | Project | Activity;
 
 export interface ResourceNoteScrubResult {
   allocationNotes: boolean;
@@ -245,6 +247,10 @@ export function createSqliteTenantStore(db: Db): TenantStore {
     resourceHasTimeOff: (accountId, resourceId) =>
       db.prepare(`SELECT 1 FROM timeOff WHERE accountId = ? AND resourceId = ? LIMIT 1`).get(accountId, resourceId) !==
       undefined,
+    accountWorkingDays: (accountId) => {
+      const account = getRow(db, "accounts", accountId);
+      return normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn === 0 ? 0 : 1);
+    },
   };
   return {
     readSlice: (accountId, options) => readSlice(db, accountId, options),

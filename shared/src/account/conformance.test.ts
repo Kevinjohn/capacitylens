@@ -5,6 +5,7 @@ import {
   ACCOUNT_DEPLOYMENT_PROFILES,
   ACCOUNT_PROFILE_CAPABILITIES,
   ACCOUNT_SECURITY_BASELINE_ID,
+  isAccountDeploymentProfile,
   MINIMUM_ACCOUNT_SECURITY_VERSION,
 } from "./conformance";
 
@@ -38,6 +39,32 @@ describe("account conformance metadata", () => {
     expect(Object.isFrozen(ACCOUNT_DEPLOYMENT_PROFILES)).toBe(true);
     for (const profile of ACCOUNT_DEPLOYMENT_PROFILES) {
       expect(Object.isFrozen(ACCOUNT_PROFILE_CAPABILITIES[profile])).toBe(true);
+    }
+  });
+});
+
+describe("account deployment-profile runtime guard", () => {
+  it("accepts every published deployment profile", () => {
+    for (const profile of ACCOUNT_DEPLOYMENT_PROFILES) {
+      expect(isAccountDeploymentProfile(profile), profile).toBe(true);
+    }
+  });
+
+  it("rejects invalid runtime values", () => {
+    const invalidProfiles: readonly unknown[] = [
+      null,
+      undefined,
+      false,
+      0,
+      {},
+      "self-hosted-password ",
+      "Self-hosted-password",
+      "HOSTED-OIDC-ONLY",
+      "unknown-profile",
+    ];
+
+    for (const profile of invalidProfiles) {
+      expect(isAccountDeploymentProfile(profile), String(profile)).toBe(false);
     }
   });
 });

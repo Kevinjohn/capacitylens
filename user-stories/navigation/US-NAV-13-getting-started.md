@@ -2,11 +2,14 @@
 
 **Area:** Navigation & shell · **Persona:** New owner setting up their first company · **Linked coverage:** `e2e/getting-started.spec.ts` (core checklist/tour), `e2e/members.auth.spec.ts` (Admin invite path), `e2e/viewer.auth.spec.ts` (Editor/Viewer gates), and `src/components/GettingStarted.test.tsx` (all four roles)
 
+**Documentation:** [First steps after installing](../../docs-src/getting-started/first-steps.md)
+
 ## Goal
 
 On a fresh, still-empty company, the schedule shows a small **Getting started** card that walks the
-owner through the four steps that make the app useful — add a client, a project, a person, then
-assign them — plus a **Show me around** button that runs a short spotlight tour of where things
+owner through the minimum setup that makes the app useful — choose whether to import or start from
+scratch, add a client, project, activity and person, assign them, then review the company defaults —
+plus a **Show me around** button that runs a short spotlight tour of where things
 live (schedule, toolbar, People, Clients & projects, Settings). In an authenticated company, Owner
 and Admin also get an optional **Invite your team** path to **Team & access**; it is not a completion
 step and never blocks a solo setup.
@@ -25,8 +28,8 @@ five look-around stops, no navigation, no forced actions — the where, not the 
 1. Open the app, click through the demo sign-in (US-NAV-11), and create a **New company** (any
    name). Continue through the intro page (US-NAV-12).
 2. The schedule shows the floating **Getting started** card over the schedule without shifting the
-   toolbar or grid: four steps, all pending. The
-   first three are links; the fourth (**Assign them to the project**) carries a hint about
+   toolbar or grid: setup steps are pending. The linked steps reach their exact pages or Settings
+   section; **Assign them to the project** carries a hint about
    clicking/dragging on a person's row.
 3. Click **Add your first client** → you land on the Clients page. Add a client, then return to
    **Schedule** → that step is now ticked (struck through, no longer a link); the others remain.
@@ -47,10 +50,12 @@ five look-around stops, no navigation, no forced actions — the where, not the 
   set-up (seeded) company never shows it.
 - The card is an overlay in the schedule chrome: showing or hiding it does not change the toolbar or
   grid's top position, and it stays within the schedule viewport at desktop and narrow widths.
-- Steps derive from real data: the built-in **Internal** client does **not** tick the client step;
-  any allocation ticks the assign step. Completed steps render struck-through with a check and a
-  screen-reader "Done:" prefix; pending steps 1–3 are links to `/clients`, `/projects`,
-  `/resources`.
+- Entity steps derive from real data: the built-in **Internal** client does **not** tick the client
+  step; meaningful imported records satisfy their matching steps, and any allocation ticks the
+  assign step. Starting from scratch and reviewing Settings are remembered per company on this
+  device. Completed steps render struck-through with a check and a screen-reader "Done:" prefix.
+- The complete card appears on Schedule. Other app pages show a compact progress link back to it,
+  so setup remains discoverable without covering page content.
 - **Show me around** (`data-testid="getting-started-tour"`) opens the driver.js tour: five stops,
   translatable Next/Back/Done labels, progress counter, Escape bails, spotlighted elements are
   inert (a stray click can't navigate), and the popover follows the app theme in light AND dark.

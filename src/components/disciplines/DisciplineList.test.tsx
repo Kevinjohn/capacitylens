@@ -10,7 +10,6 @@ beforeEach(() => {
   useStore.getState().clearFilters();
 });
 
-// eslint-disable-next-line max-lines-per-function -- integration scenarios intentionally share one fixture lifecycle
 describe("DisciplineList", () => {
   it("sorts the management view alphabetically without changing stored sort order", () => {
     useStore.getState().addDiscipline({ name: "Zulu", color: "#111111", sortOrder: 0 });

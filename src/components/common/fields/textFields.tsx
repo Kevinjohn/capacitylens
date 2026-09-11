@@ -15,10 +15,12 @@ type TextFieldProps = {
   autoFocus?: boolean;
   invalid?: boolean;
   required?: boolean;
+  /** Optional description ID that remains referenced while the field is valid or invalid. */
+  externalDescriptionId?: string;
   describedById?: string;
   disabled?: boolean;
   maxLength?: number;
-  type?: "text" | "email" | "password";
+  type?: "text" | "email" | "password" | "date";
   autoComplete?: string;
   minLength?: number;
   ariaLabel?: string;
@@ -43,6 +45,7 @@ function TextFieldControl({
   autoFocus,
   invalid,
   required,
+  externalDescriptionId,
   describedById,
   disabled,
   maxLength = MAX_NAME_INPUT_CODE_UNITS,
@@ -55,7 +58,9 @@ function TextFieldControl({
   descriptionId,
 }: TextFieldProps & { id: string; descriptionId: string }) {
   const ariaDescribedBy = resolveNonEmptyAttribute(
-    [description ? descriptionId : undefined, invalid ? describedById : undefined].filter(Boolean).join(" "),
+    [externalDescriptionId, description ? descriptionId : undefined, invalid ? describedById : undefined]
+      .filter(Boolean)
+      .join(" "),
   );
 
   return (
@@ -184,6 +189,7 @@ export function DateField({
   describedById,
   min,
   max,
+  testId,
   layout = "stacked",
 }: {
   label: string;
@@ -194,6 +200,7 @@ export function DateField({
   describedById?: string;
   min?: string;
   max?: string;
+  testId?: string;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
 }) {
@@ -210,6 +217,7 @@ export function DateField({
         aria-describedby={invalid ? describedById : undefined}
         min={min}
         max={max}
+        data-testid={testId}
         onChange={(e) => onChange(e.target.value)}
       />
     </Field>

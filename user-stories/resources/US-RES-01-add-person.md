@@ -1,6 +1,8 @@
 # US-RES-01 — Add a person resource
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule"
+**Area:** Resources · **Persona:** Studio manager · **Coverage:** component (`src/components/resources/ResourceForm.test.tsx`) + unit/store availability coverage · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule" (base flow; no availability-date assertions)
+
+**Documentation:** [People and placeholders — set availability dates](../../docs-src/guide/people-and-placeholders.md#set-availability-dates)
 
 ## Goal
 
@@ -21,7 +23,8 @@ off that resource record.
 3. Choose **Discipline** = _Design_.
 4. Leave **Engagement** = _Studio_.
 5. In **Working days**, ensure Mon–Fri are **Full day** and Sat/Sun are **Not working**.
-6. Click **Save**. The dialog closes.
+6. Leave **Start date** and **End date** blank so Dana's capacity is unbounded by date.
+7. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
 
@@ -31,6 +34,12 @@ off that resource record.
 - ✅ Saving with an empty **Name** keeps the dialog open and shows an inline error
   ("Name is required for a person.") associated with the Name field (`aria-invalid`).
 - ✅ The saved resource uses the fixed **8-hour** full-day capacity.
+- ✅ **Start date** and **End date** are optional inclusive date boundaries for Studio and
+  Supplementary people; leaving them blank leaves that side unbounded. The same date is valid, and
+  a first date after a last date is rejected.
+- ✅ Role is optional; leaving it blank still saves the person.
+- ✅ If a self-hosted server rejects the save, the dialog stays open and shows the server error
+  instead of implying that the person was saved.
 - ✅ At normal dialog widths, Name, Role, Discipline and Engagement use compact rows with roughly
   one quarter for the label and three quarters for the control; on a narrow screen they stack
   vertically, while Working days remains full width.

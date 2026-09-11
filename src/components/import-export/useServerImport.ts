@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { API_BASE } from "../../data/apiConfig";
 import {
@@ -97,7 +97,7 @@ const handleSuccessfulResponse = async (response: Response, context: ImportConte
 
 const runServerImport = async (incoming: AppData, context: ImportContext): Promise<void> => {
   const { accountId, transaction, setNotice } = context;
-  if ((await flushPendingWrites()).kind === "blocked") {
+  if ((await flushPendingWrites()).kind !== "clean") {
     setNotice(m.data_import_blocked_unsynced(), "error");
     return;
   }
@@ -130,6 +130,7 @@ export function useServerImport() {
   const [dirtySource] = useState(() => Symbol("import-busy"));
   const [busy, setBusy] = useState(false);
   const [requiresReload, setRequiresReload] = useState(false);
+  const importInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!busy) return;
@@ -138,17 +139,24 @@ export function useServerImport() {
   }, [busy, dirtySource, setDirtyFormSource]);
 
   const confirm = async (incoming: AppData): Promise<void> => {
+    if (importInFlightRef.current) return;
+    importInFlightRef.current = true;
     const accountId = useStore.getState().activeAccountId;
-    if (accountId === null) throw new Error("Import requires an active company.");
+    if (accountId === null) {
+      importInFlightRef.current = false;
+      throw new Error("Import requires an active company.");
+    }
     setBusy(true);
     setRequiresReload(false);
+    const transaction: ImportTransaction = { committed: false, requiresReload: false };
     try {
-      const transaction: ImportTransaction = { committed: false, requiresReload: false };
       await runServerImport(incoming, { accountId, transaction, setRequiresReload, setNotice });
       if (!transaction.requiresReload) setBusy(false);
     } catch (error) {
       setNotice(resolveErrorMessage(error) || m.data_import_failed({ status: 0 }), "error");
       setBusy(false);
+    } finally {
+      if (!transaction.requiresReload) importInFlightRef.current = false;
     }
   };
 

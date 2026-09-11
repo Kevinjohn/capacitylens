@@ -12,6 +12,27 @@ import { ACCOUNT_CREATE_CLOSED_MESSAGE, isAccountCreateCapped, buildCanonicalAcc
 
 type AccountActor = NonNullable<FastifyRequest["accountActor"]>;
 
+type AccountWriteDependencies = Pick<
+  AccountEntityRouteDependencies,
+  | "db"
+  | "store"
+  | "authMode"
+  | "multiAccount"
+  | "optimisticConcurrency"
+  | "flows"
+  | "authorize"
+  | "command"
+  | "fieldVisibility"
+  | "redact"
+  | "commitProductAudit"
+  | "drainProductAudit"
+  | "ownsRow"
+  | "isStaleWrite"
+  | "enqueueAudit"
+  | "fail"
+  | "accountFail"
+>;
+
 function isUnknownRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -44,7 +65,7 @@ function readCreatedAt(row: Record<string, unknown>): string {
 }
 
 interface AccountWriteInput {
-  dependencies: AccountEntityRouteDependencies;
+  dependencies: AccountWriteDependencies;
   req: FastifyRequest;
   reply: FastifyReply;
   id: string;
@@ -72,7 +93,7 @@ function createPutAuditRecord(input: {
 }
 
 async function persistPut(input: {
-  dependencies: AccountEntityRouteDependencies;
+  dependencies: AccountWriteDependencies;
   req: FastifyRequest;
   reply: FastifyReply;
   id: string;
@@ -80,7 +101,7 @@ async function persistPut(input: {
   row: Record<string, unknown>;
   scopedState: PreparedWrite["scopedState"];
   auditRecord: AuditRecord;
-  workspaceCommand: ReturnType<AccountEntityRouteDependencies["command"]>;
+  workspaceCommand: ReturnType<AccountWriteDependencies["command"]>;
 }): Promise<Record<string, unknown>> {
   const { dependencies, req, reply, id, existing, row, scopedState, auditRecord, workspaceCommand } = input;
   const { db, flows, multiAccount, enqueueAudit, commitProductAudit, drainProductAudit } = dependencies;
@@ -123,11 +144,25 @@ function allowPut(input: AccountWriteInput, existing: Record<string, unknown> | 
   return !existing || dependencies.authorize({ req, reply, accountId: id, action: "write" });
 }
 
+function enforcePutPreflight(input: AccountWriteInput, existing: Record<string, unknown> | undefined): boolean {
+  const { dependencies, reply, body } = input;
+  if (!allowPut(input, existing)) return true;
+  return enforceAccountWriteGuards({
+    reply,
+    existing,
+    ownsRow: dependencies.ownsRow,
+    isStaleWrite: dependencies.isStaleWrite,
+    redact: dependencies.redact,
+    checkOwnsRow: { accountId: body.accountId },
+    checkFrozen: { candidate: sanitizeWrite({ table: "accounts", row: body, existing }) },
+  });
+}
+
 async function replayPut(
   input: AccountWriteInput & {
     existing: Record<string, unknown> | undefined;
-    workspaceCommand: ReturnType<AccountEntityRouteDependencies["command"]>;
-    visibility: Parameters<AccountEntityRouteDependencies["redact"]>[2];
+    workspaceCommand: ReturnType<AccountWriteDependencies["command"]>;
+    visibility: Parameters<AccountWriteDependencies["redact"]>[2];
   },
 ): Promise<boolean> {
   const { dependencies, req, reply, id, body, existing, workspaceCommand, visibility } = input;
@@ -153,22 +188,12 @@ async function applyPut(input: AccountWriteInput): Promise<FastifyReply | undefi
   // Parse the command before reading state, and attempt trusted-local replay before the stale-write
   // guard so a completed command is returned rather than rejected by a newer stored revision.
   const workspaceCommand = command(req);
-  const existing = getRow(db, "accounts", id) ?? undefined;
-  if (!allowPut(input, existing)) return;
-  if (
-    enforceAccountWriteGuards({
-      reply,
-      existing,
-      ownsRow: dependencies.ownsRow,
-      isStaleWrite: dependencies.isStaleWrite,
-      redact,
-      checkOwnsRow: { accountId: body.accountId },
-      checkFrozen: { candidate: sanitizeWrite({ table: "accounts", row: body, existing }) },
-    })
-  )
-    return;
-  const visibility = fieldVisibility(req, "accounts", body.accountId);
+  let existing = getRow(db, "accounts", id) ?? undefined;
+  if (enforcePutPreflight(input, existing)) return;
+  const visibility = fieldVisibility(req, "accounts", id);
   if (await replayPut({ ...input, existing, workspaceCommand, visibility })) return;
+  existing = getRow(db, "accounts", id) ?? undefined;
+  if (enforcePutPreflight(input, existing)) return;
   if (
     enforceAccountWriteGuards({
       reply,
@@ -203,7 +228,7 @@ async function applyPut(input: AccountWriteInput): Promise<FastifyReply | undefi
   return reply.code(200).send(redact("accounts", responseRow, visibility));
 }
 
-async function put(dependencies: AccountEntityRouteDependencies, req: FastifyRequest, reply: FastifyReply) {
+async function put(dependencies: AccountWriteDependencies, req: FastifyRequest, reply: FastifyReply) {
   const id = readRouteId(req);
   const bodyCheck = checkEntityWriteBody({
     verb: "replace",
@@ -226,7 +251,7 @@ function applyPatch(input: AccountWriteInput): FastifyReply | undefined {
   const existing = getRow(db, "accounts", id);
   if (!existing) return reply.code(404).send({ error: "Not found" });
   if (!authorize({ req, reply, accountId: id, action: "write" })) return;
-  const visibility = fieldVisibility(req, "accounts", body.accountId ?? existing.accountId);
+  const visibility = fieldVisibility(req, "accounts", id);
   const merged = sanitizeWrite({ table: "accounts", row: { ...existing, ...body, id }, existing, options: visibility });
   // Accounts sanitization drops accountId, but ownsRow must see the caller's raw assertion so a
   // foreign ownership claim is concealed as 404 instead of being silently ignored.
@@ -263,7 +288,7 @@ function applyPatch(input: AccountWriteInput): FastifyReply | undefined {
   return reply.code(200).send(redact("accounts", stamped, visibility));
 }
 
-function patch(dependencies: AccountEntityRouteDependencies, req: FastifyRequest, reply: FastifyReply) {
+function patch(dependencies: AccountWriteDependencies, req: FastifyRequest, reply: FastifyReply) {
   const id = readRouteId(req);
   const bodyCheck = checkEntityWriteBody({
     verb: "patch",
@@ -280,7 +305,7 @@ function patch(dependencies: AccountEntityRouteDependencies, req: FastifyRequest
   }
 }
 
-export function createAccountWriteHandlers(dependencies: AccountEntityRouteDependencies) {
+export function createAccountWriteHandlers(dependencies: AccountWriteDependencies) {
   return {
     put: (req: FastifyRequest, reply: FastifyReply) => put(dependencies, req, reply),
     patch: (req: FastifyRequest, reply: FastifyReply) => patch(dependencies, req, reply),

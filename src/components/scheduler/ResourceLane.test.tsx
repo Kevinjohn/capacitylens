@@ -65,27 +65,26 @@ const makeBar = (): BarLayout => ({
 function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {}) {
   const onEdit = vi.fn<NonNullable<Parameters<typeof ResourceLane>[0]["onEdit"]>>();
   const onDraw = vi.fn<NonNullable<Parameters<typeof ResourceLane>[0]["onDraw"]>>();
-
-  render(
-    <ResourceLane
-      resourceId="r1"
-      ariaLabel="Resource one timeline"
-      days={DAYS}
-      dayStates={DAY_STATES}
-      timeOff={TIME_OFF_BLOCKS}
-      todayX={48}
-      geom={GEOM}
-      rowHeight={52}
-      barTop={10}
-      bars={[makeBar()]}
-      weekStartsOn={1}
-      onEdit={onEdit}
-      onDraw={onDraw}
-      {...overrides}
-    />,
-  );
-
-  return { onEdit, onDraw };
+  const baseProps: Parameters<typeof ResourceLane>[0] = {
+    resourceId: "r1",
+    ariaLabel: "Resource one timeline",
+    days: DAYS,
+    dayStates: DAY_STATES,
+    timeOff: TIME_OFF_BLOCKS,
+    todayX: 48,
+    geom: GEOM,
+    rowHeight: 52,
+    barTop: 10,
+    bars: [makeBar()],
+    weekStartsOn: 1,
+    onEdit,
+    onDraw,
+    ...overrides,
+  };
+  const view = render(<ResourceLane {...baseProps} />);
+  const rerenderLane = (next: Partial<Parameters<typeof ResourceLane>[0]>) =>
+    view.rerender(<ResourceLane {...baseProps} {...next} />);
+  return { onEdit, onDraw, rerenderLane };
 }
 
 describe("ResourceLane day rendering", () => {
@@ -282,6 +281,69 @@ describe("ResourceLane draw spans", () => {
     fireEvent.pointerDown(lane, { clientX: 20, button: 0 });
     act(() => {
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: 120, bubbles: true }));
+    });
+
+    expect(onDraw).toHaveBeenCalledWith("r1", "2026-06-01", "2026-06-03");
+  });
+});
+
+describe("ResourceLane draw reconciliation", () => {
+  const setLaneRect = () => {
+    screen.getByTestId("resource-lane").getBoundingClientRect = () =>
+      ({ left: 0, right: 144, top: 0, bottom: 64, width: 144, height: 64, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+  };
+
+  it("cancels when the lane resource changes during the gesture", () => {
+    const { onDraw, rerenderLane } = renderLane({ bars: [], timeOff: [] });
+    setLaneRect();
+    fireEvent.pointerDown(screen.getByTestId("resource-lane"), { clientX: 20, pointerId: 3, button: 0 });
+
+    rerenderLane({ resourceId: "r2" });
+    act(() => {
+      document.dispatchEvent(new PointerEvent("pointerup", { clientX: 80, pointerId: 3, bubbles: true }));
+    });
+
+    expect(onDraw).not.toHaveBeenCalled();
+  });
+
+  it("cancels when the visible calendar window changes during the gesture", () => {
+    const { onDraw, rerenderLane } = renderLane({ bars: [], timeOff: [] });
+    setLaneRect();
+    fireEvent.pointerDown(screen.getByTestId("resource-lane"), { clientX: 20, pointerId: 4, button: 0 });
+
+    const nextDays = ["2026-07-01", "2026-07-02", "2026-07-03"] as const;
+    rerenderLane({
+      days: [...nextDays],
+      geom: buildColumnGeometry([...nextDays], DAY_WIDTH, { minimiseWeekends: false, weekendWidth: 22 }),
+    });
+    act(() => {
+      document.dispatchEvent(new PointerEvent("pointerup", { clientX: 80, pointerId: 4, bubbles: true }));
+    });
+
+    expect(onDraw).not.toHaveBeenCalled();
+  });
+
+  it("cancels when the current start day becomes blocked", () => {
+    const { onDraw, rerenderLane } = renderLane({ bars: [], timeOff: [], dayStates: DAYS.map(() => dayState()) });
+    setLaneRect();
+    fireEvent.pointerDown(screen.getByTestId("resource-lane"), { clientX: 20, pointerId: 5, button: 0 });
+
+    rerenderLane({ dayStates: [dayState({ creationBlocked: true }), dayState(), dayState()] });
+    act(() => {
+      document.dispatchEvent(new PointerEvent("pointerup", { clientX: 80, pointerId: 5, bubbles: true }));
+    });
+
+    expect(onDraw).not.toHaveBeenCalled();
+  });
+
+  it("preserves reverse spans across an ordinary rerender", () => {
+    const { onDraw, rerenderLane } = renderLane({ bars: [], timeOff: [], dayStates: DAYS.map(() => dayState()) });
+    setLaneRect();
+    fireEvent.pointerDown(screen.getByTestId("resource-lane"), { clientX: 120, pointerId: 6, button: 0 });
+
+    rerenderLane({ ariaLabel: "Resource one updated timeline" });
+    act(() => {
+      document.dispatchEvent(new PointerEvent("pointerup", { clientX: 20, pointerId: 6, bubbles: true }));
     });
 
     expect(onDraw).toHaveBeenCalledWith("r1", "2026-06-01", "2026-06-03");

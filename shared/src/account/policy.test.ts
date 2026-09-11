@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Role } from "./types";
+import type { IdentityAdminAction, Role } from "./types";
 import {
   canAdministerAccount,
   canAdministerIdentityAcrossWorkspaces,
@@ -11,6 +11,22 @@ import {
 } from "./policy";
 
 const roles = (entries: Array<[string, Role]>): ReadonlyMap<string, Role> => new Map(entries);
+
+const IDENTITY_ADMIN_ACTIONS: readonly IdentityAdminAction[] = [
+  "issue-password-reset",
+  "revoke-sessions",
+  "correct-email",
+  "remove-federated-link",
+];
+
+const ACTOR_STANDING_IN_EVERY_TARGET_WORKSPACE = roles([
+  ["workspace-a", "owner"],
+  ["workspace-b", "admin"],
+]);
+const TARGET_MEMBERSHIPS = roles([
+  ["workspace-a", "owner"],
+  ["workspace-b", "editor"],
+]);
 
 it("preserves the public identity-admin action arity", () => {
   expect(canPerformIdentityAdminAction.length).toBe(4);
@@ -93,6 +109,69 @@ describe("cross-workspace account administration policy", () => {
     expect(canManageMemberRole("admin", "superuser" as Role, "editor")).toBe(false);
     expect(canManageMemberRole("admin", "editor", "superuser" as Role)).toBe(false);
     expect(canRemoveMember("admin", "superuser" as Role)).toBe(false);
+  });
+});
+
+describe("identity administration action dispatcher", () => {
+  it("allows every supported action with sufficient standing in every target workspace", () => {
+    for (const action of IDENTITY_ADMIN_ACTIONS) {
+      expect(
+        canPerformIdentityAdminAction(action, ACTOR_STANDING_IN_EVERY_TARGET_WORKSPACE, TARGET_MEMBERSHIPS, false),
+        action,
+      ).toBe(true);
+    }
+  });
+
+  it("denies every action when a target workspace lacks actor standing or has insufficient standing", () => {
+    const missingWorkspaceStanding = roles([["workspace-a", "owner"]]);
+    const insufficientWorkspaceStanding = roles([
+      ["workspace-a", "owner"],
+      ["workspace-b", "editor"],
+    ]);
+
+    for (const action of IDENTITY_ADMIN_ACTIONS) {
+      expect(canPerformIdentityAdminAction(action, missingWorkspaceStanding, TARGET_MEMBERSHIPS, false), action).toBe(
+        false,
+      );
+      expect(
+        canPerformIdentityAdminAction(action, insufficientWorkspaceStanding, TARGET_MEMBERSHIPS, false),
+        action,
+      ).toBe(false);
+    }
+  });
+
+  it("denies an admin acting on an owner in another workspace, while an owner may do so", () => {
+    const targetOwner = roles([["workspace-a", "owner"]]);
+    const admin = roles([["workspace-a", "admin"]]);
+    const owner = roles([["workspace-a", "owner"]]);
+
+    for (const action of IDENTITY_ADMIN_ACTIONS) {
+      expect(canPerformIdentityAdminAction(action, admin, targetOwner, false), action).toBe(false);
+      expect(canPerformIdentityAdminAction(action, owner, targetOwner, false), action).toBe(true);
+    }
+  });
+
+  it("requires a target membership even for self-operation", () => {
+    for (const action of IDENTITY_ADMIN_ACTIONS) {
+      expect(canPerformIdentityAdminAction(action, roles([]), roles([]), true), action).toBe(false);
+      expect(canPerformIdentityAdminAction(action, roles([]), roles([["workspace-a", "viewer"]]), true), action).toBe(
+        true,
+      );
+    }
+  });
+
+  it("denies an unknown runtime action even with self-operation or sufficient authority", () => {
+    const unknownAction: unknown = "rotate-identity-keys";
+    const invoke = (actorRolesByWorkspace: ReadonlyMap<string, Role>, isSelf: boolean): unknown =>
+      Reflect.apply(canPerformIdentityAdminAction, undefined, [
+        unknownAction,
+        actorRolesByWorkspace,
+        TARGET_MEMBERSHIPS,
+        isSelf,
+      ]);
+
+    expect(invoke(roles([]), true)).toBe(false);
+    expect(invoke(ACTOR_STANDING_IN_EVERY_TARGET_WORKSPACE, false)).toBe(false);
   });
 });
 

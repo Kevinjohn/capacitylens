@@ -7,6 +7,123 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Reduced memory pressure during direct deployment builds by keeping test and build-tool type-checking
+  in validation while checking only browser-shipped sources in `pnpm run build`.
+
+- Keep schedule group headers above company closure shading (#766).
+
+### Changed
+
+- Make company creation actions responsive and spaced, use equal-width week-start choices, and
+  replace the overwhelming timezone select with a searchable browser-aware IANA combobox that
+  presents local/common zones first and reflects daylight-saving abbreviations (#740).
+- Clarify manual invitation delivery, keep the one-time link confirmation inline, and separate
+  sign-in and account-creation journeys with fully readable permissions, local expiry and recipient
+  email hints that hide the domain (#746).
+- Clarify first-owner setup with the exact setup-token setting and secure handoff guidance, then
+  continue directly to first-company creation without invitation guidance (#739).
+- Keep Team & access member and invitation directories available as read-only information without a
+  fresh-session prompt; require fresh confirmation only for initiated sensitive actions and name the
+  action in that confirmation (#737).
+- Rename Global working days to Company-wide working days, clarify company, personal and device
+  preference scope, and group independent Placeholder and External visibility switches under
+  Additional resourcing options. New companies now default to Days input with inline activity
+  creation off (#743).
+- Narrow the Schedule project filter choices to the selected client while retaining **All projects**
+  and resetting incompatible project selections (#716).
+- Explain every empty activity category and keep creation actions beside the Activities and Time off headings (#742).
+- Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
+  and simplify drawer entries to a compact activity-first agenda (#753, #754).
+- Make first-run setup-token pastes resilient to edge whitespace and reject invisible characters
+  before request construction, without exposing token values in client logs (#738).
+- Keep the Add person dialog open when a self-hosted save is rejected, and allow people whose
+  optional Role is blank to persist (#736).
+- Simplify resource add/edit forms with always-visible Studio/Supplementary choices, compact Start date and End date labels,
+  and separators around the date group (#765).
+
+### Added
+
+- Document deploying on a managed VPS platform such as Forge, Ploi or RunCloud (#734).
+- Add a personal Account page for identity, password, MFA status and active sessions, linked beside
+  the current-user control on every main page (#744).
+- Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
+  server health metadata that can be copied for support reports (#745).
+- Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,
+  activity creation, company-settings review and direct links to each action (#741).
+- Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
+  manually triggered workflow (#752).
+- Review free capacity, overload and unassigned demand across a fixed four-week Capacity Overview,
+  with tentative and availability filters plus company-controlled role access (#722).
+- Add an optional account-wide allocation **Task** field, with preserved text when the field is
+  hidden and task details above Notes in schedule popovers and person drawers (#720).
+- Add optional inclusive **Start date** and **End date** fields for Studio and
+  Supplementary people. Capacity is zero outside a person's range while existing allocated work
+  remains visible; new or placement-changing work cannot be placed outside the range (#723).
+
+## [0.63.0-alpha.1] - 2026-09-10
+
+This minor release adds a focused way to understand one person's near-term commitments without
+losing the wider planning context.
+
+### Added
+
+- Open a read-only four-week schedule from the eye action beside any visible person's name.
+- Review confirmed and tentative allocations, repeated work, hours, attribution, notes and eligible
+  personal time off together, independently of the current grid dates and filters.
+- Keep the underlying schedule exactly where it was while the drawer is open, including its dates,
+  filters and scroll position, then return keyboard focus to the same person when it closes.
+- Respect private client and project code names for non-owners, and limit personal time-off notes to
+  owners and administrators in authenticated companies (#709).
+
+## [0.62.1-alpha.1] - 2026-09-10
+
+### Changed
+
+- Made inline activity creation opt-in, aligned the Schedule filter controls, and sorted project
+  choices and the Projects page consistently by client then project, including code names
+  (#724, #712, #713, #718).
+
+## [0.62.0-alpha.5] - 2026-09-10
+
+CapacityLens Alpha 5 makes archived work easier to find and recover. This public milestone also
+includes repeated personal time off, project attribution for shared activities and a read-only
+member access preview introduced since Alpha 4.
+
+### Added
+
+- Find archived resources, clients, projects and activities directly below their usual lists.
+  Owners and administrators can restore an accidentally archived item without searching Settings.
+- Browse archived resources in familiar groups: **Archived Studio**, **Archived Supplementary** and
+  **Archived External**, with archived placeholders kept separately when present. Empty groups stay hidden.
+- Archive activities reversibly, just like the other planning data. Archived items offer **Restore**
+  and **Delete**; deleted items remain in Settings during the 30-day retention period before permanent deletion.
+
+## [0.61.0-alpha.1] - 2026-09-10
+
+This minor release adds repeated personal time off as a complete planning flow, from preview to
+independent saved entries on one schedule. It also hardens overlapping actions and updates
+security-sensitive dependencies.
+
+### Added
+
+- Plan repeated personal time off with weekly, monthly-date or last-weekday patterns and preview
+  every generated range before saving. One save creates a finite, all-or-nothing batch with one-step
+  undo. The entries remain separately editable and deletable while appearing together on the
+  person's single schedule row (#705).
+
+### Changed
+
+- Expanded the Time off guide with genuine screenshots that follow one repeat from its generated
+  date preview to the individual saved entries and the person's combined schedule.
+
+### Fixed
+
+- Hardened imports, account updates, invitation signup, masquerade transitions, scheduler
+  interactions and development launchers against overlapping actions and stale asynchronous
+  completions.
+
 ### Security
 
 - Updated transitive `browserslist` and `qs` dependencies to patched releases, resolving four
@@ -4154,7 +4271,11 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.2-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...HEAD
+[0.63.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.1-alpha.1...v0.63.0-alpha.1
+[0.62.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...v0.62.1-alpha.1
+[0.62.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.62.0-alpha.5
+[0.61.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.2-alpha.1...v0.61.0-alpha.1
 [0.60.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.1-alpha.1...v0.60.2-alpha.1
 [0.60.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.0-alpha.1...v0.60.1-alpha.1
 [0.60.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.59.1-alpha.1...v0.60.0-alpha.1

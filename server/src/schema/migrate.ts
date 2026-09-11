@@ -51,12 +51,18 @@ export function renameLegacyActivityTables(db: Db): void {
  * activities rebuild below). Runs with foreign keys OFF (openDb enables them afterwards) so the
  * activities rebuild's drop/rename is safe.
  */
-function migrateSchemaVersion(db: Db, tableSpecs: Record<string, TableSpec>): void {
+function migrateSchemaVersion(
+  db: Db,
+  tableSpecs: Record<string, TableSpec>,
+  skippedOptionalColumns: ReadonlySet<string> = new Set(),
+): void {
   // Every additive optional column the selected version's spec has that an older table lacks.
   const additions: Array<[string, string]> = [];
   for (const [table, spec] of Object.entries(tableSpecs)) {
     for (const col of spec.columns) {
-      if (col.optional && !hasColumn(db, table, col.name)) additions.push([table, col.name]);
+      if (col.optional && !skippedOptionalColumns.has(`${table}.${col.name}`) && !hasColumn(db, table, col.name)) {
+        additions.push([table, col.name]);
+      }
     }
   }
   // activities needs a rebuild when an OLD-shape constraint is still present: projectId was once
@@ -85,14 +91,30 @@ export function migrateSchemaV8(db: Db): void {
 /** Bring a database to the current shape. Explicit versioned migrations normally make this a no-op;
  * it remains the introspection-gated repair path for pre-ledger legacy columns. */
 export function migrateSchema(db: Db): void {
-  migrateSchemaVersion(db, TABLES);
+  // Activity lifecycle tombstones are owned by the explicit v36 migration. Keep the generic
+  // pre-ledger repair from silently adding them before historical migration assertions run.
+  migrateSchemaVersion(
+    db,
+    TABLES,
+    new Set([
+      "activities.archivedAt",
+      "activities.deletedAt",
+      // Account task visibility and allocation task text are owned by the v37 ledger step.
+      "accounts.showTaskFieldInSchedule",
+      "allocations.task",
+      "resources.firstAvailableDate",
+      "resources.lastAvailableDate",
+      "accounts.capacityOverviewAccess",
+    ]),
+  );
 }
 
 /** Rebuild the `activities` table (the SQLite-docs 'create new + copy + drop + rename' approach,
  *  simplified — there are no indexes/triggers/views to carry over, see the ASSUMPTION below) to bring
- *  it to the current shape —
+ *  it to the pre-v36 shape —
  *  nullable projectId AND a required `kind` column — while preserving rows + the foreign keys
- *  other tables hold against activities(id). The target DDL mirrors the `activities` block in SCHEMA_SQL.
+ *  other tables hold against activities(id). The target DDL mirrors the pre-v36 `activities` block
+ *  in SCHEMA_V8_SQL; v36 adds the lifecycle columns explicitly afterward.
  *  `kind` is preserved when the source schema already has it. Only genuinely pre-kind schemas
  *  derive it from projectId presence ('project' versus 'repeatable').
  *

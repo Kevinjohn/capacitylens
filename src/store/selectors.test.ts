@@ -14,9 +14,10 @@ import {
   resolveTimeZone,
   buildVisibleRange,
   resolveWeekStart,
+  hasVisibleTaskFieldInSchedule,
 } from "./selectors";
 import { buildEmptyFilters } from "./useStore";
-import { DEFAULT_ACCOUNT_ID, makeResource } from "../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, makeAccount, makeResource } from "../test/fixtures";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, AppData, ID } from "@capacitylens/shared/types/entities";
 
@@ -159,7 +160,7 @@ const accountFeatureCases: Array<{
   {
     name: "inline activity creation",
     selector: canCreateInlineActivity,
-    fallback: true,
+    fallback: false,
     explicit: [true, false],
     values: (inlineActivityCreateEnabled) => ({
       inlineActivityCreateEnabled: inlineActivityCreateEnabled as boolean,
@@ -240,6 +241,21 @@ describe("internalColourModeFor", () => {
 
   it("returns an explicit palette choice", () => {
     expect(resolveInternalColourMode(accounts("palette"), "a1")).toBe("palette");
+  });
+});
+
+describe("hasVisibleTaskFieldInSchedule", () => {
+  it("defaults off and remains account-scoped", () => {
+    const data = {
+      ...emptyAppData(),
+      accounts: [
+        { ...makeAccount({ id: "a1" }), showTaskFieldInSchedule: true },
+        { ...makeAccount({ id: "a2" }), showTaskFieldInSchedule: false },
+      ],
+    };
+    expect(hasVisibleTaskFieldInSchedule(data, "a1")).toBe(true);
+    expect(hasVisibleTaskFieldInSchedule(data, "a2")).toBe(false);
+    expect(hasVisibleTaskFieldInSchedule({ ...data, accounts: [] }, "a1")).toBe(false);
   });
 });
 

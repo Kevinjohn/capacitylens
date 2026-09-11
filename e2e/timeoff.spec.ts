@@ -154,10 +154,53 @@ function registerSuiteScenario5() {
   });
 }
 
+function registerSuiteScenario6() {
+  test("creates repeated time off as independent entries with one undo", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/timeoff");
+    await page.getByRole("button", { name: "Add time off" }).click();
+    const dialog = page.getByRole("dialog", { name: "Add time off" });
+    await selectShadOption(dialog.getByLabel("Resource"), { label: "Bruce Wayne" });
+    await dialog.getByLabel("Start").fill("2026-06-26");
+    await dialog.getByLabel("End").fill("2026-06-27");
+    await selectShadOption(dialog.getByTestId("timeoff-repeat"), {
+      label: "Monthly on the last Friday",
+    });
+    await dialog.getByTestId("timeoff-repeat-until").fill("2027-05-31");
+
+    const preview = dialog.getByTestId("timeoff-repeat-preview");
+    await expect(preview).toContainText("Creates 12 entries");
+    await expect(preview).toContainText("Final entry: 28 May 2027 – 29 May 2027");
+    await dialog.getByText("Show all dates").click();
+    await expect(dialog.getByTestId("timeoff-repeat-ranges").getByRole("listitem")).toHaveCount(12);
+    await dialog.getByRole("button", { name: "Save" }).click();
+
+    const bruceRows = page
+      .getByTestId("timeoff-group")
+      .filter({ has: page.getByRole("heading", { name: "Bruce Wayne", exact: true }) })
+      .getByTestId("timeoff-row");
+    await expect(bruceRows).toHaveCount(13); // twelve generated entries plus the seed entry
+
+    await bruceRows
+      .nth(1)
+      .getByRole("button", { name: /^Edit / })
+      .click();
+    const editor = page.getByRole("dialog", { name: "Edit time off" });
+    await expect(editor.getByLabel("Repeat")).toHaveCount(0);
+    await editor.getByRole("button", { name: "Cancel" }).click();
+
+    await page.getByRole("link", { name: "Schedule" }).click();
+    const bruceLane = page.locator('[data-resource-id="r-tyler"]');
+    await expect.poll(() => bruceLane.getByTestId("timeoff-block").count()).toBeGreaterThan(1);
+    await page.getByRole("button", { name: "Undo" }).click();
+    await expect(bruceLane.getByTestId("timeoff-block")).toHaveCount(1);
+  });
+}
+
 test.describe("Time off", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
   registerSuiteScenario3();
   registerSuiteScenario4();
   registerSuiteScenario5();
+  registerSuiteScenario6();
 });

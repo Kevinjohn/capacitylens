@@ -71,10 +71,13 @@ function executeImportWorker(
     });
     worker.once("error", (error) => resolveWorkerOutcome({ kind: "failed", reason: error }));
     worker.once("exit", (code) => {
-      if (code !== 0)
-        resolveWorkerOutcome({ kind: "failed", reason: new Error(`Import worker exited with status ${code}.`) });
+      resolveWorkerOutcome({ kind: "failed", reason: new Error(`Import worker exited with status ${code}.`) });
     });
-    worker.postMessage(request);
+    try {
+      worker.postMessage(request);
+    } catch (error) {
+      resolveWorkerOutcome({ kind: "failed", reason: error });
+    }
   });
 }
 

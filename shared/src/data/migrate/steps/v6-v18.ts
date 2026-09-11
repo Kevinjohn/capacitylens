@@ -15,9 +15,9 @@ export function migrateV7toV8(data: Record<string, unknown>): Record<string, unk
 }
 
 // v8 → v9 added the optional per-account schedule view prefs showInternalProjects /
-// showInternalActivities / inlineActivityCreateEnabled. No transform is needed: absence deliberately
-// reads as true (shown/enabled) at the `?? true` read sites, and sanitizeAccount drops malformed
-// present values at the server boundary — exactly the v7→v8 precedent.
+// showInternalActivities / inlineActivityCreateEnabled. No transform is needed: read sites define
+// each optional preference's current fallback, while sanitizeAccount drops malformed present values
+// at the server boundary — exactly the v7→v8 precedent.
 export function migrateV8toV9(data: Record<string, unknown>): Record<string, unknown> {
   return data;
 }

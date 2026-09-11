@@ -19,15 +19,14 @@ One screen. People down the side, days across the top, the work in between. Red 
 over capacity that day. The percentage next to each name is how full they are across the window
 you're looking at.
 
-## Alpha 4
+## Alpha 5
 
-Alpha 4 is the most complete CapacityLens prerelease yet. Company working days now govern capacity
-everywhere, bank holidays and shutdowns are recorded as first-class company closures, allocation
-hours are four clear day fractions, and the schedule's filters and controls are quicker to drive.
-It follows a codebase-wide simplification pass.
+Find archived people and work beneath their usual lists, and restore an accidental archive where
+you expect to find it. Plan repeated personal time off with a preview before saving, book shared
+activities against real projects, and check what a team member can see through a read-only access preview.
 
-[Read the Alpha 4 release notes](https://github.com/Kevinjohn/capacitylens/releases/tag/v0.55.0-alpha.4)
-for the user-facing highlights and upgrade notes.
+[Read the Alpha 5 release notes](https://github.com/Kevinjohn/capacitylens/releases/tag/v0.62.0-alpha.5)
+for the highlights and upgrade notes.
 
 ## Try it in two minutes
 
@@ -51,6 +50,8 @@ Then open <http://127.0.0.1:5173>, pick a demo account, and you're in.
   just off the edge of the screen.
 - **Plan work you haven't won yet** — placeholder people for roles you'd need to hire or borrow, and
   external partners who don't count against your capacity.
+- **Plan around people's dates** — give Studio and Supplementary people optional inclusive start and
+  end availability dates while keeping existing bookings visible for history.
 - **Keep holidays in the picture** — time off sits in the same view as the work, so it stops being a
   surprise.
 - **Know how full you really are** — utilisation per person and across the whole visible window.
@@ -83,8 +84,9 @@ pnpm run dev
 That starts the web app on `:5173` and the SQLite API on `:8787`, with sample data loaded.
 A fresh production instance starts empty.
 
-For a real deployment with Docker Compose or plain Node 24 — including TLS, backups and
-upgrades — follow the [self-hosting guide](docs-src/self-hosting/index.md).
+For a real deployment with Docker Compose, plain Node 24 or a managed VPS platform —
+including TLS, backups and upgrades — follow the
+[self-hosting guide](docs-src/self-hosting/index.md).
 
 ## Sign-in, in short
 
@@ -99,8 +101,9 @@ Details: [how sign-in works](docs-src/company-login/index.md) ·
 
 ## Documentation
 
-The docs ship with the repository. Open [`docs/index.html`](docs/) straight from a checkout — no
-server, no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
+Read the [CapacityLens documentation](https://kevinjohn.github.io/capacitylens/) online. The same
+docs ship with the repository: open [`docs/index.html`](docs/) straight from a checkout — no server,
+no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
 
 - [Getting started](docs-src/getting-started/what-is-capacitylens.md) — the two-minute demo, the
   Docker and direct Node installation routes, invites and roles.
@@ -108,8 +111,9 @@ server, no build — or read the Markdown sources under [`docs-src/`](docs-src/)
   projects and allocations, time off and settings.
 - [Company login (SSO)](docs-src/company-login/index.md) — connecting your provider and the guided
   password-to-SSO cutover.
-- [Self-hosting](docs-src/self-hosting/index.md) — configuration, TLS, backups, monitoring and
-  incident response.
+- [Self-hosting](docs-src/self-hosting/index.md) — Docker, direct Node and
+  [managed VPS](docs-src/self-hosting/managed-vps/index.md) deployment, plus configuration,
+  TLS, backups, monitoring and incident response.
 - [Security and privacy](docs-src/security/index.md) — posture, stored data and operator
   responsibilities.
 - [Glossary](docs-src/reference/glossary.md) — the terms the docs rely on, in plain language.
@@ -119,7 +123,7 @@ server, no build — or read the Markdown sources under [`docs-src/`](docs-src/)
 React, TypeScript, Vite and Tailwind in the browser; Zustand for UI state and undo/redo; a shared
 TypeScript domain in `shared/` for validation, migrations and the scheduling rules; Fastify and
 Better Auth over Node's built-in SQLite driver on the server. Vitest, Testing Library, Playwright
-and axe keep it honest. Deploy with Docker Compose or plain Node 24.
+and axe keep it honest. Deploy with Docker Compose, plain Node 24 or a managed VPS platform.
 
 The browser always talks to the API; only `VITE_CAPACITYLENS_DEMO=1` swaps in the throwaway
 in-memory demo adapter.

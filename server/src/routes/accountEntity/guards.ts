@@ -5,12 +5,14 @@ import type { SanitizeWriteOptions } from "../../fieldPolicy";
 import type { AccountEntityRouteDependencies } from "./dependencies";
 import { ACCOUNT_FROZEN_FIELDS_MESSAGE, hasFrozenAccountFieldChanges } from "./policy";
 
+type AccountRouteFailureDependencies = Pick<AccountEntityRouteDependencies, "accountFail" | "fail">;
+
 /** Both account write paths turn an AccountContractError into the account failure shape and
  *  anything else into the generic redacted failure — one funnel, as the generic routes had. */
 export function sendAccountRouteFailure(
   reply: FastifyReply,
   error: unknown,
-  dependencies: AccountEntityRouteDependencies,
+  dependencies: AccountRouteFailureDependencies,
 ): FastifyReply {
   return error instanceof AccountContractError
     ? dependencies.accountFail(reply, error)

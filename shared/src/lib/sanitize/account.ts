@@ -1,5 +1,5 @@
 import { normalizeAccountWorkingDays } from "../accountWorkingDays";
-import { INTERNAL_COLOUR_MODES, type Account } from "../../types/entities";
+import { CAPACITY_OVERVIEW_ACCESS_VALUES, INTERNAL_COLOUR_MODES, type Account } from "../../types/entities";
 
 /**
  * Every optional BOOLEAN preference on an account. Each is dropped rather than persisted when a
@@ -11,7 +11,8 @@ import { INTERNAL_COLOUR_MODES, type Account } from "../../types/entities";
  *   externalEnabled               absent = false (external resources hidden out of the box)
  *   showInternalProjects          absent = true  (Internal-client bars shown)
  *   showInternalActivities        absent = true  (internal-kind bars shown)
- *   inlineActivityCreateEnabled   absent = true  (inline "Add activity" offered)
+ *   inlineActivityCreateEnabled   absent = false (inline "Add activity" hidden)
+ *   showTaskFieldInSchedule       absent = false (allocation task hidden)
  * Dropping junk — rather than coercing it — is what keeps a `false`-defaulting flag from turning on
  * because someone typed "no" into the file.
  */
@@ -23,6 +24,7 @@ const ACCOUNT_BOOLEAN_FIELDS = [
   "showInternalProjects",
   "showInternalActivities",
   "inlineActivityCreateEnabled",
+  "showTaskFieldInSchedule",
 ] as const satisfies readonly AccountBooleanField[];
 
 /** Every boolean-valued optional preference declared on `Account`. */
@@ -42,9 +44,12 @@ void accountBooleanFieldsAreComplete;
  *                       persist — its absence reads back as 'en'.
  *   internalColourMode  an unknown mode's absence deliberately reads as the safe/default grey.
  */
-const ACCOUNT_ENUM_FIELDS: { readonly [K in "language" | "internalColourMode"]: readonly unknown[] } = {
+const ACCOUNT_ENUM_FIELDS: {
+  readonly [K in "language" | "internalColourMode" | "capacityOverviewAccess"]: readonly unknown[];
+} = {
   language: ["en"],
   internalColourMode: INTERNAL_COLOUR_MODES,
+  capacityOverviewAccess: CAPACITY_OVERVIEW_ACCESS_VALUES,
 };
 
 /** Sanitize the optional calendar fields of an account record in place.

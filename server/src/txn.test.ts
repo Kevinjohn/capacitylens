@@ -229,3 +229,113 @@ describe("rollback-failure quarantine", () => {
     expect(tx(db, () => "ok")).toBe("ok"); // still usable
   });
 });
+
+function nestedRollbackFailureDb({ failOuterRollback = false } = {}): Db {
+  const handle = { isTransaction: false };
+  return {
+    get isTransaction() {
+      return handle.isTransaction;
+    },
+    exec: vi.fn((sql: string) => {
+      if (sql === "BEGIN") handle.isTransaction = true;
+      else if (sql === "COMMIT") handle.isTransaction = false;
+      else if (sql.startsWith("ROLLBACK TO SAVEPOINT")) throw new Error("savepoint rollback failed");
+      else if (sql === "ROLLBACK") {
+        if (failOuterRollback) throw new Error("outer rollback failed");
+        handle.isTransaction = false;
+      }
+    }),
+  } as unknown as Db;
+}
+
+describe("nested rollback-failure taint", () => {
+  it("prevents an outer commit after its caller catches a nested rollback failure", () => {
+    const db = nestedRollbackFailureDb();
+    const original = new Error("nested operation failed");
+
+    expect(() =>
+      tx(db, () => {
+        expect(() =>
+          tx(db, () => {
+            throw original;
+          }),
+        ).toThrow(original);
+      }),
+    ).toThrow(original);
+
+    expect(db.exec).not.toHaveBeenCalledWith("COMMIT");
+    expect(db.exec).toHaveBeenCalledWith("ROLLBACK");
+  });
+});
+
+describe("nested rollback-failure error precedence", () => {
+  it("keeps deeper nested rollback failure from releasing or committing enclosing work", () => {
+    const db = nestedRollbackFailureDb();
+    const original = new Error("deep operation failed");
+
+    expect(() =>
+      tx(db, () => {
+        expect(() =>
+          tx(db, () => {
+            expect(() =>
+              tx(db, () => {
+                throw original;
+              }),
+            ).toThrow(original);
+          }),
+        ).toThrow(original);
+      }),
+    ).toThrow(original);
+
+    expect(db.exec).not.toHaveBeenCalledWith("COMMIT");
+    expect(db.exec).toHaveBeenCalledWith("ROLLBACK");
+  });
+});
+
+describe("nested rollback-failure diagnostics", () => {
+  it("preserves the nested callback error when the enclosing rollback also fails", () => {
+    const db = nestedRollbackFailureDb({ failOuterRollback: true });
+    const original = new Error("nested operation failed");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    expect(() =>
+      tx(db, () => {
+        try {
+          tx(db, () => {
+            throw original;
+          });
+        } catch {
+          // The outer callback cannot make a failed savepoint rollback safe to commit.
+        }
+      }),
+    ).toThrow(original);
+
+    expect(db.exec).not.toHaveBeenCalledWith("COMMIT");
+  });
+
+  it("preserves the nested callback error when the rollback reporter throws", () => {
+    const db = nestedRollbackFailureDb();
+    const original = new Error("nested operation failed");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    expect(() =>
+      tx(db, () => {
+        try {
+          tx(
+            db,
+            () => {
+              throw original;
+            },
+            {
+              reportRollbackFailure: () => {
+                throw new Error("reporter failed");
+              },
+            },
+          );
+        } catch {
+          // The original error must remain the enclosing transaction's failure.
+        }
+      }),
+    ).toThrow(original);
+  });
+});

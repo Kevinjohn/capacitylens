@@ -113,7 +113,7 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
     expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("deletedAt");
   });
 
-  it.each(["resources", "clients", "projects"] as const)(
+  it.each(["resources", "clients", "projects", "activities"] as const)(
     "clears undo and redo history when soft-deleting %s",
     (entity) => {
       let id: string;
@@ -121,9 +121,11 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
         id = s().addResource(personDraft).id;
       } else if (entity === "clients") {
         id = s().addClient({ name: "Removed client", color: "#123456" }).id;
-      } else {
+      } else if (entity === "projects") {
         const client = s().addClient({ name: "Project client", color: "#123456" });
         id = s().addProject({ name: "Removed project", clientId: client.id, color: "#654321" }).id;
+      } else {
+        id = s().addActivity({ name: "Removed activity", kind: "repeatable" }).id;
       }
       s().archiveEntity(entity, id);
 

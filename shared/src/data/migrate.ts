@@ -66,6 +66,8 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 16, apply: migrateV15toV16 }, // no-op: TimeOff.resourceId is widened to nullable
   { version: 17, apply: (data) => data }, // structural split: import repair drops invalid legacy rows
   { version: 18, apply: (data) => data }, // optional allocation attribution; import repair owns semantics
+  { version: 19, apply: (data) => data }, // optional Activity lifecycle tombstones; import repair owns semantics
+  { version: 20, apply: (data) => data }, // optional allocation task text and account visibility preference
 ];
 
 export interface MigrationWithRepairBase {

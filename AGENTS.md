@@ -1,55 +1,60 @@
 # CapacityLens repository guidance
 
+## GitHub and execution access
+
+GitHub access is available on the user's machine. A failure in one sandbox or tool does not
+establish that GitHub, CI, credentials, Git writes or a supported runtime are unavailable.
+
+- Use `gh` first for repository, push, pull-request and workflow operations. Attempt the actual
+  needed operation; do not make a separate authentication ritual a prerequisite.
+- If that route fails because of DNS, sandboxing, credentials or permissions, discover the
+  authorised execution surfaces exposed by the current harness. Retry through available host
+  execution, or use connected GitHub tools when they provide the operation. Do this before
+  telling the user that access is blocked.
+- Do not assume a particular terminal, browser or harness. Discover capabilities using the
+  current tool inventory, including deferred tools when available. One missing terminal,
+  connector or browser is not evidence that all alternatives are missing.
+- Use browser/computer control only when CLI and connected tools cannot perform the operation.
+  When operating a terminal UI, use an actual shell pane, never an agent/chat input.
+- Do not ask the user to log in, run commands or repair the environment based only on a sandbox
+  failure. Only report a blocker after checking the relevant available authorised alternatives.
+  State the exact operation and concrete failures, not a blanket claim of no GitHub access.
+- Do not repeat an unchanged failed route or bypass an explicit permission restriction.
+  Distinguish an unavailable route, an authentication failure and a rejected action.
+- Apply the same checks to CI: inability to dispatch or inspect a run through one route does
+  not mean CI is unavailable. Verify the run and commit actually being inspected. A missing PR
+  workflow, pending run, intentional skip and failed check are different states.
+
 ## Working workflow
 
-- Follow KISS (Keep It Simple, Stupid): use the fewest workflow steps and roles that safely deliver
-  the requested result. Do not invent approval gates, reviewer roles or process stages unless the
-  user asks for them or a required external policy imposes them.
-- Any task that changes files gets a unique `feature/<short-description>` branch and linked worktree,
-  unless the user explicitly says otherwise. Run `git fetch origin main --prune`, then branch the
-  worktree from `origin/main`. If the branch or path exists, choose another; never reuse or clean it.
-  Never implement in the primary checkout or another task's worktree. Report the branch, worktree
-  and base revision before editing.
-- Create the worktree as a sibling directory named for the task, before any edit. A session whose
-  working directory is the primary checkout cannot relocate itself part-way through a task, so
-  either enter the new worktree using the mechanism your harness provides for that, or start a
-  fresh session whose working directory is the worktree. Concurrent tasks each get their own
-  worktree and their own session, so they never contend for the same files.
-- Default to one issue per branch and one pull request per issue. Group issues only when they are
-  inseparable or a combined change is materially clearer, and explain the reason in the pull request.
-- Make the smallest, simplest maintainable change that completely solves the request. Keep unrelated
-  cleanup, formatting, refactors, dependencies and abstractions out of the diff.
-- Before creating a pull request, run the applicable checks and review the complete branch diff
-  against its base. Fix all actionable findings and repeat the checks and review until green.
-- A user request to complete a task or programme of work authorises its normal branch, commit, push,
-  pull request and merge flow. Continue through those steps without inserting additional approval
-  pauses. Stop only when a consequential choice is genuinely unresolved, an action would exceed the
-  requested scope, or validation exposes a blocker that cannot be resolved safely.
-- Keep the user informed with concise progress updates and report each pull request's scope, review
-  result and validation evidence.
-
-### Working a batch of small issues
-
-Process overhead, not implementation, dominates a batch of small changes. Scale the ceremony to the
-change:
-
-- Triage first. An issue that needs no plan beyond a paragraph describing a visible change goes
-  straight to implementation. Any written plan gets an independent adversarial review before
-  implementation starts: the reviewer verifies every claim against the tree and trusts nothing
-  the author wrote. Aim for consensus in one substantive round plus one round for blockers; only
-  a genuine tiebreaker goes to the owner. Reserve design discussion and pre-merge quality passes
-  for changes that introduce a model or contract or span more than a couple of files.
-- Compare footprints before serialising. Pull requests touching disjoint files may be validated and
-  landed in parallel; serialise only where they genuinely share a file.
-- Disjoint pull requests in one batch may be validated once, on their integrated tree, before any
-  of them is submitted; main CI validates each merge. A branch that changes after that run is
-  re-integrated and validated again.
-- Take one release for the batch, not one per issue. See "Version and CI policy".
-- Sequence work that captures screenshots or other generated assets last, after every code change
-  in the batch has landed. See "Documentation".
-- Run quality and simplification passes after a change lands, as their own pull request, so a
-  cosmetic finding can never block a feature. A pass may propose reuse and clarity changes but must
-  never widen or narrow a shared type, entity or public contract.
+- Complete the requested outcome with the simplest maintainable change and proportionate
+  verification. Keep optional improvements separate from required work; do not add speculative
+  enforcement, abstractions or process stages.
+- For a new repository change, fetch `origin/main` with `git fetch origin main --prune`, then create
+  a unique `feature/<short-description>` branch and sibling worktree from it. Never reuse or clean
+  another task's branch/path. Report branch, path and base revision before editing.
+- Resume an existing task in its assigned worktree. Keep every edit and command scoped to that
+  worktree using the harness's supported working-directory mechanism. Start another session only
+  if the current harness cannot safely target it. Do not implement in the primary checkout.
+  These rules concern repository changes, not personal files outside the repository.
+- Keep one cohesive task per branch/PR. Link an existing issue when applicable; a new issue is
+  not a prerequisite unless requested. Group inseparable issues and explain the relationship.
+- A request to complete implementation authorises the normal signed commit, push, PR and merge
+  flow. Reviews and questions remain read-only unless implementation is requested. Do not ask
+  again for already-authorised steps; ask only for unresolved consequential choices or scope changes.
+- Review the complete branch diff before submission. Fix correctness, security, regression and
+  required-standard findings within scope. Report every finding, including optional improvements;
+  cosmetic suggestions do not block delivery or automatically authorise another PR.
+- Use a short approach for simple work. Require independent design review for consequential
+  architecture or contract decisions, not merely because a checklist was written.
+- When parallel work is authorised, use cohesive packets with explicit ownership and acceptance
+  criteria. Check dependencies as well as file overlap: disjoint files alone do not prove independence.
+  Keep every intermediate merge valid. Independent changes may share validation on a recorded
+  integrated tree when that evidence covers their guarantees; changed guarantees need fresh checks.
+- Repeat review/checks when changes or new evidence invalidate prior results. For long work,
+  identify useful delivery milestones and report implemented, verified and shipped work separately.
+- Keep unrelated cleanup out of the diff. Later simplification requires its own scope and must
+  preserve shared types, entities and public contracts unless their change is explicitly authorised.
 
 ## Product boundary
 
@@ -65,6 +70,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   demo; it must never persist scheduling data.
 - Scoped reads go through `useScopedData` / `scopedTables()`. The server independently authorizes
   every tenant operation from session membership.
+- When locating unfamiliar behaviour, consult the relevant “Task navigation” entry in
+  `docs-src/reference/development.md`; task briefs should name that entry and the exact paths needed.
 
 ## Naming and module contracts
 
@@ -112,7 +119,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 ## Authentication
 
 - Password auth and strict OIDC are supported; named social providers remain experimental.
-- Production password mode supports optional required TOTP MFA and defaults to breached-password
+- Production password mode lets operators require TOTP MFA and defaults to breached-password
   screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory.
 - New external principals require verified email plus an unused pre-authorised invitation. The
   first SSO identity requires `CAPACITYLENS_SSO_BOOTSTRAP_EMAILS`. An already-authenticated local
@@ -131,7 +138,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   `field-sizing` and `text-wrap: balance` are already in use and considered safe. CSS anchor
   positioning (`anchor-name`/`position-anchor`) is not yet Baseline across that matrix; use Radix
   positioning instead.
-- Icon-only buttons and simple hover hints use the native `title=` attribute by default. Reserve the
+- Give every icon-only button an accessible name, such as `aria-label`, independently of its hint.
+  Simple hover hints use the native `title=` attribute by default. Reserve the
   Radix-based `Tooltip` in `ui/tooltip.tsx` for cases needing styled, delayed, or keyboard-accessible
   rich content (e.g. the collapsed sidebar rail in `AppSidebar`). This split is deliberate.
 - The checked-in `src/components/ui/*` primitives are source-owned and may deliberately differ from
@@ -151,30 +159,67 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - User-facing docs are Markdown sources under `docs-src/`, built with VitePress plus
   `scripts/docs-standalone.mjs` into standalone static HTML committed at `docs/`
   (`pnpm run docs:dev` / `docs:build`), validated in CI by `.github/workflows/docs.yml`.
-  After any docs change, run `pnpm run docs:build` and commit the regenerated `docs/`.
-  Follow `docs-src/STYLE.md` for any docs change.
+  After changes to documentation sources, embedded assets or build inputs, run `pnpm run docs:build`
+  and commit regenerated `docs/`. Follow `docs-src/STYLE.md` for user-facing documentation.
+  Other prose, such as this file or task notes, needs formatting and content/link review; rebuild
+  the documentation only if it consumes those files.
 - The operator set lives in `docs-src/self-hosting/` (install, configuration, TLS, backups,
   upgrades, monitoring, incidents) and `docs-src/company-login/` (sign-in modes, SSO cutover).
 - Update `user-stories/REFERENCE.md` first for user-visible route, label, test-id or seed changes.
 - Add user-visible changes under `CHANGELOG.md` → `Unreleased`.
+- Authorised issue, pull-request and documentation work includes permission to publish reviewed
+  project screenshots to GitHub, both as attachments and as committed documentation assets.
+  Do not request separate upload approval for those screenshots. Use fictional/demo data or
+  appropriately redacted examples, and exclude live credentials and private customer information.
+  This permission does not authorise unrelated uploads or change an explicit instruction to leave
+  pull requests unmerged.
 - Documentation screenshots have no capture harness. Capture manually against the demo
   (`VITE_CAPACITYLENS_DEMO=1 pnpm exec vite --port 5199 --strictPort`) — never port 5173, which
   `playwright.config.ts` hardcodes, so a capture run there collides with any concurrent E2E run.
   Keep throwaway capture scripts in a scratch directory and out of the commit.
 - Capture screenshots only after every UI change in the batch has landed, and open every changed
   image before merging: a stale capture is a valid image of UI that no longer exists, and no test
-  can detect it. To find stale assets mechanically rather than by spot check, compare each image's
+  can detect it. To identify potentially stale assets, compare each image's
   last-modifying commit against the merge commit of each UI change with
-  `git merge-base --is-ancestor`. Shared chrome and layout changes invalidate every capture that
+  `git merge-base --is-ancestor`, then inspect the affected captures; ancestry alone cannot prove
+  visual correctness. Shared chrome and layout changes invalidate every capture that
   contains them, so the stale set is usually far larger than it looks.
+
+### Stories and documentation checkpoint
+
+Use this lightweight workflow for user-facing changes:
+
+- When understanding an issue, identify the existing story in `user-stories/` that covers
+  the user's problem. Update it when expected behaviour changes; add a story for a new
+  capability. Stories describe lasting user needs, not individual issues or implementation steps.
+- Keep stories focused on the user need and observable outcomes, including relevant defaults
+  and access restrictions. Use those outcomes to guide tests, with technical edge cases covered
+  separately. Follow existing story conventions rather than introducing another template.
+- Give each affected story a link to the documentation page or section that explains how to
+  accomplish it. Several stories can share a page; prefer updating an existing guide when it fits.
+- Before finishing, compare the story and documentation with the implemented behaviour,
+  including affected screenshots. Update them together and mention deliberate omissions briefly
+  in the delivery summary.
+- Apply judgment: purely visual fixes and internal changes may need no story update, although
+  affected documentation or screenshots may still need refreshing. No new story per issue,
+  separate tracking document, or repository-wide backfill is required.
+
+## Docker
+
+- Do not build or run Docker images, test in Docker, or change or maintain Dockerfiles, Compose
+  configurations, Docker tests or Docker workflows unless the user explicitly requests that
+  Docker work. This applies during releases too: a release request alone is not Docker
+  authorisation. Use native local development and validation by default; existing Docker support
+  does not make Docker work part of routine changes.
 
 ## Validation environment
 
-- Run focused tests for affected files during implementation. Run the repository's complete
-  validation commands before submission using Node >= 24.
-- CapacityLens requires Node >= 24. Under Node 22, server tests fail with
-  `db.setAuthorizer is not a function`. Restricted environments may also produce EPERM errors;
-  only Node >= 24 runs are valid gate evidence.
+- Run focused tests during implementation. Select submission checks using “Green gate” below.
+- Before running Node or pnpm commands, activate the version selected by `.nvmrc` in that
+  worktree and verify `node --version`; do not use the machine default. Include this requirement
+  in delegated briefs and reapply it when switching shells or execution tools.
+- Under Node 22, server tests fail with `db.setAuthorizer is not a function`. Restricted
+  environments may also produce EPERM errors; use the `.nvmrc` version for valid gate evidence.
 - Treat failures seen only in unsupported runtimes or restricted filesystems as
   environment-specific until they are reproduced in the supported validation environment.
 
@@ -183,11 +228,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 Check these constraints before making related changes; violating them commonly causes avoidable
 validation failures.
 
-- Released SQLite migrations are checksum-pinned: the database ledger validates each migration's
-  name and SHA-256. Never edit a shipped migration file — schema changes always mean a new
-  migration.
 - Bumping `DB_SCHEMA_VERSION` (or adding a migration/fixture) requires extending the released
-  version pins in `server/src/backup.test.ts` and re-pinning any changed migration checksums in
+  version pins in `server/src/backup.test.ts` and adding new migration checksum pins in
   `server/src/db.migrate.test.ts` (checksums of released migrations must never change).
 - Within a migration, create SQLite triggers only after every table and column they reference
   exists; trigger creation order relative to DDL matters.
@@ -207,23 +249,24 @@ validation failures.
 - A version bump must update both the new `[x.y.z]:` comparison link and the `[Unreleased]:` link.
   Only `pnpm run gate:server` asserts this; the app-side suite passes with a stale link.
 - The full validation suites compete for the same machine. Run them concurrently only in
-  combinations that do not starve each other, and treat failures appearing in files the branch
-  never touched as suspected contention rather than real regressions. The E2E suite binds a fixed
-  port, so E2E runs across two worktrees collide and one silently never starts.
+  combinations that do not starve each other. Failures in untouched files can still be regressions
+  through changed dependencies. Treat contention as a hypothesis; obtain evidence or rerun in
+  isolation before discounting a failure. Run only one E2E suite at a time across worktrees because
+  it binds fixed ports.
 
 ## Green gate
 
-Programme-specific exception (agreed 7 September 2026): conventions work governed by
-`tasks/plan.md` uses its risk-based validation policy, including for submission. Owners run focused
-tests and applicable type, touched-directory lint, formatting and size/baseline checks. Add server
-or browser checks for affected guarantees. The coordinator runs the three full suites at a recorded
-integrated milestone before its release, not every small batch or PR. This supersedes the blanket
-pre-submission requirement above for this programme. Prose-only changes require formatting and
-the documentation build, not application suites. Stryker/mutation suites and Docker checks are
-excluded. Other work retains the default below.
-
-Run `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e`. Cross-browser and mutation suites
-are documented in `docs-src/reference/development.md`. Keep E2E specs browser-agnostic.
+- Prose-only changes require formatting and content/link review. Run the documentation build when
+  its inputs change (see “Documentation”). Application suites are not required for prose alone.
+- Other changes default to `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` before
+  submission on Node >= 24. Cross-browser and mutation checks are documented in
+  `docs-src/reference/development.md`; keep E2E specs browser-agnostic.
+- Programme exception, agreed 7 September 2026: only work explicitly governed by `tasks/plan.md`
+  follows its risk-based validation and programme-specific CI/release policy instead of the
+  defaults here. Owners run focused tests, applicable type/lint/format and size/baseline checks;
+  the coordinator owns the three full suites at a recorded integrated milestone before release.
+  Docker and mutation suites are excluded for that programme. Do not carry its skip-CI policy
+  into unrelated work. Current explicit user instructions supersede historical plan decisions.
 
 ## Git and GitHub flow
 
@@ -238,12 +281,21 @@ are documented in `docs-src/reference/development.md`. Keep E2E specs browser-ag
 - Never squash, rebase or rewrite branch history unless the user explicitly requests it for that
   operation.
 - After each merge, verify the pull request, merge commit, linked issue and remote branch deletion,
-  update local `main`, then remove the isolated worktree and local feature branch.
+  fast-forward local `main` when safe, then remove the task's isolated worktree and local branch.
+  First inspect both worktrees for uncommitted/unrelated work; preserve it and never force cleanup.
+  If local changes prevent updating main, report the exact overlap without stashing or discarding them.
 
 ## Version and CI policy
 
-- No workflow runs on a pull request. CI runs when a merge reaches `main`, or on demand with
-  `gh workflow run gate.yml --ref <branch>`. Dispatch before merging when the change warrants it.
+- Read the checked-in workflow triggers when selecting CI. CodeQL runs on pull requests; the
+  main gate and E2E workflows run on main pushes or manual dispatch (and their configured schedules
+  or tags). Do not infer missing access from the absence of automatic PR checks.
+- Dispatch relevant workflows before merge when required by the task or risk.
+  `gh workflow run gate.yml --ref <branch>` runs only the gate workflow;
+  E2E, security and other workflows are separate.
+  For a request for full GitHub CI, inventory and dispatch the applicable workflows, honour explicit
+  exclusions, and verify their results against the intended commit. Never describe one green
+  workflow or an intentional skip as full CI success.
 - Treat a requested version bump as a release task, not merely as a description of the change.
 - One release covers a batch. When several small changes are being landed together, land every
   functional pull request first and take a single version bump at the end. A release per change
@@ -255,5 +307,5 @@ are documented in `docs-src/reference/development.md`. Keep E2E specs browser-ag
 - A patch-version-only pull request skips CI by default: do not dispatch a workflow, and put
   `[skip ci]` in the release PR title so it is included in the normal merge commit message. Do not
   use `[skip ci]` on the preceding functional change.
-- For a minor-version release, ask the user whether GitHub CI should be run before proceeding.
-- For a major-version release, GitHub CI must be run and pass; do not skip it.
+- For a minor-version release, ask whether GitHub CI should run only if the user has not already
+  specified. For a major-version release, run the applicable full GitHub CI and wait for success.

@@ -2019,4 +2019,34 @@ describe("remapAndValidateImport", () => {
   registerRemapAndValidateImportPart19();
   registerRemapAndValidateImportPart20();
   registerRemapAndValidateImportPart21();
+
+  it("retains an allocation outside a person's availability boundaries", () => {
+    const incomingData: AppData = {
+      ...emptyAppData(),
+      resources: [
+        {
+          ...person("src-r", "src-acct"),
+          firstAvailableDate: "2026-02-01",
+          lastAvailableDate: "2026-02-28",
+        },
+      ],
+      clients: [client("src-c", "src-acct")],
+      projects: [project("src-p", "src-acct", "src-c")],
+      activities: [activity({ id: "src-t", accountId: "src-acct", projectId: "src-p" })],
+      allocations: [
+        allocation({
+          id: "src-al",
+          accountId: "src-acct",
+          resourceId: "src-r",
+          activityId: "src-t",
+          overrides: { startDate: "2026-01-26", endDate: "2026-02-06" },
+        }),
+      ],
+    };
+
+    const { data } = remapAndValidateImport(base(), A1, incomingData, TS);
+    expect(data.resources).toHaveLength(1);
+    expect(data.allocations).toHaveLength(1);
+    expect(data.resources[0]).toMatchObject({ firstAvailableDate: "2026-02-01", lastAvailableDate: "2026-02-28" });
+  });
 });

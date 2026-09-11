@@ -294,6 +294,21 @@ function registerKeyboardMovementTests() {
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-02", "2026-06-05"]); // end extended, start fixed
   });
 
+  it("rejects and announces a keyboard move beyond the person's availability", () => {
+    const allocation = seedAllocation();
+    useStore.getState().updateResource(allocation.resourceId, { lastAvailableDate: "2026-06-03" });
+    render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+
+    expect(getStoredAllocation(allocation.id)).toMatchObject({
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+    });
+    expect(useStore.getState().notice).toMatchObject({ tone: "error" });
+    expect(useStore.getState().notice?.message).toMatch(/after this person is available/i);
+  });
+
   it("refuses a keyboard nudge that would unmount the bar beyond the visible timeline", () => {
     useStore.getState().setOriginDate("2026-06-01");
     useStore.getState().setZoom(1);
@@ -339,7 +354,74 @@ function registerKeyboardFocusTests() {
       raf.mockRestore();
     }
   });
+}
 
+function registerKeyboardFocusRaceTests() {
+  it("cancels replaced focus work and runs only the latest keyboard operation", () => {
+    const callbacks: FrameRequestCallback[] = [];
+    const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    });
+    const cancelFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+    const allocation = seedAllocation();
+    const { unmount } = render(
+      <AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
+    );
+
+    try {
+      const bar = screen.getByTestId("allocation-bar");
+      fireEvent.keyDown(bar, { key: "ArrowRight" });
+      fireEvent.keyDown(bar, { key: "ArrowRight" });
+
+      expect(cancelFrame).toHaveBeenCalledWith(1);
+      expect(requestFrame).toHaveBeenCalledTimes(2);
+      callbacks[1]?.(0);
+      expect(bar).toHaveFocus();
+    } finally {
+      unmount();
+      requestFrame.mockRestore();
+      cancelFrame.mockRestore();
+    }
+  });
+
+  it("cancels pending keyboard focus when the allocation bar unmounts", () => {
+    const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation(() => 41);
+    const cancelFrame = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+    const allocation = seedAllocation();
+    const { unmount } = render(
+      <AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,
+    );
+
+    fireEvent.keyDown(screen.getByTestId("allocation-bar"), { key: "ArrowRight" });
+    unmount();
+
+    expect(cancelFrame).toHaveBeenCalledWith(41);
+    requestFrame.mockRestore();
+    cancelFrame.mockRestore();
+  });
+
+  it("does not focus a matching allocation id after the active account changes", () => {
+    let callback: FrameRequestCallback | undefined;
+    const requestFrame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((next) => {
+      callback = next;
+      return 51;
+    });
+    const allocation = seedAllocation();
+    render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    const bar = screen.getByTestId("allocation-bar");
+    const focus = vi.spyOn(bar, "focus");
+
+    fireEvent.keyDown(bar, { key: "ArrowRight" });
+    useStore.setState({ activeAccountId: "other-account" });
+    callback?.(0);
+
+    expect(focus).not.toHaveBeenCalled();
+    requestFrame.mockRestore();
+  });
+}
+
+function registerKeyboardPinnedTest() {
   it("does not write, add undo history or announce when a keyboard resize is pinned", () => {
     const allocation = seedAllocation({ startDate: "2026-06-06", endDate: "2026-06-07" });
     render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
@@ -1357,6 +1439,8 @@ function registerAllocationBarInteractionTests() {
   registerPopoverAndEditorTests();
   registerKeyboardMovementTests();
   registerKeyboardFocusTests();
+  registerKeyboardFocusRaceTests();
+  registerKeyboardPinnedTest();
   registerBasicPointerTests();
   registerRejectedReassignmentTest();
   registerValidReassignmentTest();

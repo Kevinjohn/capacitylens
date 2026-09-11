@@ -53,6 +53,7 @@ function registerImportRouteGroup(input: RegisterRouteGroupInput): void {
     authMode: config.authMode,
     allowReset: options.allowReset === true,
     accountAdminPort: runtime.accountAdminPort,
+    accountLock: runtime.accountLock,
     authorize: authorization.authorizeAllowed,
     executeImportWorker: config.executeImportWorker,
     commitProductAudit: runtime.commitProductAudit,
@@ -173,6 +174,7 @@ function buildPlatformRouteDependencies(input: RegisterApiRoutesInput) {
     system: {
       securityEvent,
       healthStatement: healthStmt,
+      diagnosticsSchemaStatement: runtime.diagnosticsSchemaStatement,
       auditDrainer,
       auditSink,
       ...(options.backupHealth === undefined ? {} : { backupHealth: options.backupHealth }),

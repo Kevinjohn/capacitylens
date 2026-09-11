@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
-import { openDb, type Db } from "./db";
+import { DB_SCHEMA_VERSION, openDb, type Db } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { signUp } from "./testHelpers";
 
@@ -63,6 +63,7 @@ const BLOCKED_ROUTES: ReadonlyArray<{ name: string; opts: InjectOptions }> = [
   { name: "GET /api/state?accountId=", opts: { method: "GET", url: "/api/state?accountId=a1" } },
   { name: "GET /api/state (no-arg)", opts: { method: "GET", url: "/api/state" } },
   { name: "GET /api/meta", opts: { method: "GET", url: "/api/meta" } },
+  { name: "GET /api/diagnostics", opts: { method: "GET", url: "/api/diagnostics" } },
   { name: "POST /api/:entity", opts: { method: "POST", url: "/api/clients", payload: client } },
   { name: "PUT /api/:entity/:id", opts: { method: "PUT", url: "/api/clients/c1", payload: client } },
   { name: "PATCH /api/:entity/:id", opts: { method: "PATCH", url: "/api/clients/c1", payload: { name: "X" } } },
@@ -107,6 +108,25 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
     // never served. (requireUser's 401 is exactly `{ error: 'Sign in to continue.' }` — note it has
     // NO `authMode` key, which distinguishes it from the /api/auth/me 401 handled by the auth layer.)
     expect(res.json()).toEqual({ error: "Sign in to continue." });
+  });
+
+  it("serves the fixed diagnostics projection to an authenticated principal", async () => {
+    const { app } = await createAuthenticatedApp();
+    const principal = await signUp(app, "diagnostics@capacitylens.dev");
+    const res = await readResponse(app, {
+      method: "GET",
+      url: "/api/diagnostics",
+      headers: { cookie: principal.cookie },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      server: {
+        connectivity: "ok",
+        database: { status: "ok", schemaVersion: DB_SCHEMA_VERSION },
+        persistence: "unknown",
+        backup: { status: "unavailable", lastSuccessAt: null },
+      },
+    });
   });
 
   it("refuses installation-wide reset to a signed-in non-member and preserves tenant data", async () => {

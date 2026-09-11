@@ -9,7 +9,7 @@ import { FAKE_USER } from "../lib/fakeAuth";
 import demoAvatarUrl from "../assets/avatar-demo.svg";
 import { DEFAULT_COLORS } from "../lib/palette";
 import { Avatar } from "./common/ui";
-import type { NavigationLinkDefinition } from "../lib/navLinks";
+import { ACCOUNT_LINK, type NavigationLinkDefinition } from "../lib/navLinks";
 import { Badge } from "./ui/badge";
 import {
   Sidebar,
@@ -93,6 +93,8 @@ export function AppSidebar({
         demoAuthActive={demoAuthActive}
         onSignOut={onSignOut}
         onSwitchAccount={onSwitchAccount}
+        onNavigate={closeOnMobile}
+        pathname={pathname}
       />
 
       <SidebarRail aria-hidden="true" />
@@ -161,30 +163,43 @@ function SidebarAccountFooter({
   demoAuthActive,
   onSignOut,
   onSwitchAccount,
+  onNavigate,
+  pathname,
 }: {
   activeAccount: AppSidebarProps["activeAccount"];
   demoAuthActive: boolean;
   onSignOut: () => void;
   onSwitchAccount: () => void;
+  onNavigate: () => void;
+  pathname: string;
 }) {
-  if (!activeAccount) return null;
-
   return (
-    <SidebarFooter className="group-data-[collapsible=icon]:hidden">
-      <SidebarSeparator className="mx-0" />
-      <div className="min-w-0 px-2">
-        <div className="truncate text-sm font-semibold" title={activeAccount.name}>
-          {activeAccount.name}
+    <SidebarFooter>
+      {activeAccount && (
+        <div className="group-data-[collapsible=icon]:hidden">
+          <SidebarSeparator className="mx-0" />
+          <div className="min-w-0 px-2">
+            <div className="truncate text-sm font-semibold" title={activeAccount.name}>
+              {activeAccount.name}
+            </div>
+            <ActiveRoleBadge />
+          </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
+                {m.nav_switch_company()}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </div>
-        <ActiveRoleBadge />
-      </div>
+      )}
       <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
-            {m.nav_switch_company()}
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SessionMenuItem demoAuthActive={demoAuthActive} onSignOutDemo={onSignOut} />
+        <SessionMenuItem
+          demoAuthActive={demoAuthActive}
+          onNavigate={onNavigate}
+          onSignOutDemo={onSignOut}
+          pathname={pathname}
+        />
       </SidebarMenu>
     </SidebarFooter>
   );
@@ -223,18 +238,30 @@ function NavMenu({
 }
 
 /**
- * The signed-in identity + sign-out control at the very bottom of the nav (issue #169).
+ * The personal Account destination plus signed-in identity/sign-out controls at the very bottom
+ * of the nav (issue #169).
  *
  * Two identities can be signed in here and they never overlap: the COSMETIC demo persona
  * (`demoAuthActive` — real auth is off, see fakeAuth.ts) and a REAL Better Auth session
- * (`authMode !== "off"`). An auth-off server with no demo build has neither, and renders nothing —
- * exactly as before. The control always reads "Sign out" rather than toggling to "Sign in": the
- * entry gate (AppEntryGate / LoginScreen) means the shell — and therefore this footer — only ever
- * renders for someone already signed in, so offering "Sign in" here would be a dead affordance.
+ * (`authMode !== "off"`). The Account destination remains available for an auth-off local identity;
+ * the sign-out control appears only for the demo persona or a real session. It always reads
+ * "Sign out" rather than toggling to "Sign in": the entry gate (AppEntryGate / LoginScreen) means
+ * the shell only renders after demo sign-in or a real session has passed its outer gate.
  */
-function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: boolean; onSignOutDemo: () => void }) {
+function SessionMenuItem({
+  demoAuthActive,
+  onNavigate,
+  onSignOutDemo,
+  pathname,
+}: {
+  demoAuthActive: boolean;
+  onNavigate: () => void;
+  onSignOutDemo: () => void;
+  pathname: string;
+}) {
   const { authMode, signOut, user } = useAuth();
-  if (!demoAuthActive && authMode === "off") return null;
+  const AccountIcon = ACCOUNT_LINK.icon;
+  const showSignOut = demoAuthActive || authMode !== "off";
 
   let name: string = FAKE_USER.name;
   let imageUrl: string | undefined = demoAvatarUrl;
@@ -246,17 +273,34 @@ function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: bo
   }
 
   return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        size="sm"
-        data-testid="nav-sign-out"
-        title={m.nav_signed_in_as({ who: name })}
-        onClick={onSignOut}
-      >
-        <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
-        <span className="truncate">{m.nav_sign_out()}</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
+    <>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          asChild
+          size="sm"
+          isActive={matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null}
+          tooltip={ACCOUNT_LINK.label()}
+        >
+          <NavLink to={ACCOUNT_LINK.to} onClick={onNavigate}>
+            <AccountIcon aria-hidden="true" focusable="false" />
+            <span>{ACCOUNT_LINK.label()}</span>
+          </NavLink>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+      {showSignOut && (
+        <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
+          <SidebarMenuButton
+            size="sm"
+            data-testid="nav-sign-out"
+            title={m.nav_signed_in_as({ who: name })}
+            onClick={onSignOut}
+          >
+            <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
+            <span className="truncate">{m.nav_sign_out()}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      )}
+    </>
   );
 }
 

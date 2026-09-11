@@ -17,6 +17,14 @@ export type SchedulingMode = "hourly" | "days" | "blocks";
 /** Runtime list of the valid scheduling modes — the single source the server's
  *  sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ["hourly", "days", "blocks"];
+/** Who may open the Capacity Overview for an account. Absent means owner/admin only. */
+export type CapacityOverviewAccess = "owner_admin" | "owner_admin_editor" | "everyone";
+/** Runtime list used by import and server sanitisation to reject unknown access policies. */
+export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
+  "owner_admin",
+  "owner_admin_editor",
+  "everyone",
+];
 /** How work filed under the built-in Internal client is coloured. */
 export type InternalColourMode = "grey" | "palette";
 /** Runtime list used by the server/import sanitiser to reject an unknown Internal colour mode. */
@@ -97,9 +105,13 @@ export interface Account extends Entity {
    *  removes only the bars, never the underlying load from capacity/utilisation. */
   showInternalActivities?: boolean;
   /** Whether the scheduler's Allocation modal offers the inline "Add activity" input + button.
-   *  Absent = true (shown). When false the inline creator is not rendered; the Activity picker
+   *  Absent = false (hidden). When false the inline creator is not rendered; the Activity picker
    *  itself still works normally. */
   inlineActivityCreateEnabled?: boolean;
+  /** Whether populated allocation task text is shown in schedule details. Absent = false. */
+  showTaskFieldInSchedule?: boolean;
+  /** Who may open Capacity Overview. Absent = owner/admin only. */
+  capacityOverviewAccess?: CapacityOverviewAccess;
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */
@@ -136,6 +148,10 @@ export interface Resource extends ScopedEntity {
   color: string;
   /** Account-wide display preference for people and external resources. Absent = not favourite. */
   isFavourite?: boolean;
+  /** Inclusive first date on which this person may be scheduled. Absent = unbounded. */
+  firstAvailableDate?: ISODate | undefined;
+  /** Inclusive last date on which this person may be scheduled. Absent = unbounded. */
+  lastAvailableDate?: ISODate | undefined;
   /** ISO 8601 timestamp of when this resource was archived (soft, reversible): hidden from
    *  scheduling but fully retained. Absent = active (not archived). Part of the
    *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
@@ -212,6 +228,11 @@ export interface Activity extends ScopedEntity {
    *  allocations may carry their own project attribution. */
   projectId?: ID;
   phaseId?: ID;
+  /** ISO 8601 timestamp of when this activity was archived (soft, reversible): hidden from
+   *  scheduling but fully retained. Absent = active (not archived). */
+  archivedAt?: ISOTimestamp;
+  /** ISO 8601 timestamp of the soft-delete tombstone. Absent = not deleted. */
+  deletedAt?: ISOTimestamp;
 }
 
 export interface Allocation extends ScopedEntity {
@@ -227,6 +248,8 @@ export interface Allocation extends ScopedEntity {
   hoursPerDay: number;
   status: AllocationStatus;
   note?: string;
+  /** Optional short, single-line work description shown in schedule details when enabled. */
+  task?: string | undefined;
   /** When true, this allocation treats weekends / non-working days as normal
    *  working days (drag/move does not auto-extend across them). Absent =
    *  weekend-aware (the default). */
@@ -291,8 +314,10 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
  *  adds optional Allocation.seriesId without inferring links for legacy repeat batches; v16 widens
  *  TimeOff.resourceId to nullable, where null represents company-wide time off for Everyone; v17
  *  separates company closures into their own table and restores required TimeOff.resourceId; v18
- *  adds optional per-allocation project attribution for repeatable activities.) */
-export const EXPORT_SCHEMA_VERSION = 18;
+ *  adds optional per-allocation project attribution for repeatable activities; v19 adds optional
+ *  Activity lifecycle tombstones archivedAt/deletedAt; v20 adds optional allocation task text and
+ *  account-wide schedule visibility for it; v21 adds optional person availability boundaries.) */
+export const EXPORT_SCHEMA_VERSION = 21;
 
 export interface PersistedState {
   schemaVersion: number;

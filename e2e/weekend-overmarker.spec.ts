@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "./fixtures";
-import { openApp, selectShadOption, setZoom } from "./helpers";
+import { enableInlineActivityCreation, openApp, selectShadOption, setZoom } from "./helpers";
 
 // Covers US-SCH-09 (weekend criteria): the per-day over-marker is weekend-aware. A bar that merely
 // SPANS a weekend adds no over-marker; ignoring its working pattern turns those days red; and
@@ -16,10 +16,17 @@ const clarkOverMarkers = (page: Page) => clarkLane(page).getByTestId("over-marke
 const leftsOf = (loc: ReturnType<Page["locator"]>) =>
   loc.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.left));
 
+async function openScheduleWithInlineActivityCreation(page: Page) {
+  await openApp(page);
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await enableInlineActivityCreation(page);
+  await page.getByRole("link", { name: "Schedule" }).click();
+  await setZoom(page, 2);
+}
+
 function registerSuiteScenario1() {
   test("a spanned weekend is not over; ignored working days and time off are", async ({ page }) => {
-    await openApp(page);
-    await setZoom(page, 2);
+    await openScheduleWithInlineActivityCreation(page);
 
     await expect(clarkOverMarkers(page)).toHaveCount(0); // Clark has no seed over-days
     const baseline = 0;

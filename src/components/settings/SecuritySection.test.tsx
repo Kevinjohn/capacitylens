@@ -82,6 +82,49 @@ function renderWithSso() {
   );
 }
 
+function renderSsoOnly() {
+  const value: AuthContextValue = {
+    authMode: "sso",
+    user: { id: "member-1", email: "member@example.com" },
+    providers: [{ id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false }],
+    canCreateAccount: false,
+    multiAccount: false,
+    refreshAuth: async () => {},
+    signOut: async () => {},
+  };
+  return render(
+    <AuthContext.Provider value={value}>
+      <SecuritySection />
+    </AuthContext.Provider>,
+  );
+}
+
+it("shows sessions but no password form for SSO-only identities", async () => {
+  getIdentityProvider.mockResolvedValue(jsonResponse({ connected: true, verified: true }));
+  renderSsoOnly();
+  expect(await screen.findByText(m.settings_security_signed_in_session())).toBeInTheDocument();
+  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
+  expect(screen.getByText(m.settings_sso_connected({ provider: "Workforce SSO" }))).toBeInTheDocument();
+});
+
+it("shows the MFA status already reported for a password identity", () => {
+  const value: AuthContextValue = {
+    authMode: "password",
+    user: { id: "member-1", twoFactorEnabled: true },
+    providers: [],
+    canCreateAccount: false,
+    multiAccount: false,
+    refreshAuth: async () => {},
+    signOut: async () => {},
+  };
+  render(
+    <AuthContext.Provider value={value}>
+      <SecuritySection />
+    </AuthContext.Provider>,
+  );
+  expect(screen.getByText(m.account_mfa_enabled())).toBeInTheDocument();
+});
+
 it("shows verified provider-link status and starts the wrapped self-service ceremony", async () => {
   getIdentityProvider.mockResolvedValue(jsonResponse({ connected: false, verified: false }));
   linkIdentityProvider.mockResolvedValue(jsonResponse({ url: "https://idp.example/authorize" }));

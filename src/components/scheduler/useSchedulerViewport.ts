@@ -222,13 +222,27 @@ interface ViewportScrollingInput {
 }
 
 function useSettledScrollState(input: ViewportScrollingInput) {
-  const { scrollRef, scrollRafRef, snapTimerRef, geometry, setScrollTop, setLeftEdgeIndex } = input;
+  const {
+    scrollRef,
+    scrollRafRef,
+    snapTimerRef,
+    geometry,
+    days,
+    snapToWeekStart,
+    calendarWeekStartsOn,
+    setScrollTop,
+    setLeftEdgeIndex,
+  } = input;
   useEffect(
     () => () => {
-      if (scrollRafRef.current) cancelAnimationFrame(scrollRafRef.current);
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = 0;
+      }
       clearTimeout(snapTimerRef.current);
+      snapTimerRef.current = 0;
     },
-    [scrollRafRef, snapTimerRef],
+    [calendarWeekStartsOn, days, geometry, scrollRafRef, snapTimerRef, snapToWeekStart],
   );
   const dragging = useStore((state) => state.draggingAllocationId !== null);
   useEffect(() => {

@@ -39,6 +39,7 @@ describe("lifecycle vocabulary", () => {
   it("is immutable and keeps the narrowing guard closed", () => {
     expect(Object.isFrozen(LIFECYCLE_ENTITY_KEYS)).toBe(true);
     expect(() => (LIFECYCLE_ENTITY_KEYS as unknown as string[]).push("allocations")).toThrow();
+    expect(isLifecycleEntityKey("activities")).toBe(true);
     expect(isLifecycleEntityKey("allocations")).toBe(false);
   });
 });
@@ -291,14 +292,14 @@ describe("constants", () => {
 });
 
 describe("isLifecycleEntityKey — narrowing guard for the tombstone-carrying tables", () => {
-  it("is TRUE for exactly resources/clients/projects", () => {
+  it("is TRUE for exactly resources/clients/projects/activities", () => {
     expect(isLifecycleEntityKey("resources")).toBe(true);
     expect(isLifecycleEntityKey("clients")).toBe(true);
     expect(isLifecycleEntityKey("projects")).toBe(true);
+    expect(isLifecycleEntityKey("activities")).toBe(true);
   });
   it("is FALSE for every non-lifecycle table (they carry no archivedAt/deletedAt)", () => {
     expect(isLifecycleEntityKey("phases")).toBe(false);
-    expect(isLifecycleEntityKey("activities")).toBe(false);
     expect(isLifecycleEntityKey("allocations")).toBe(false);
     expect(isLifecycleEntityKey("timeOff")).toBe(false);
     expect(isLifecycleEntityKey("disciplines")).toBe(false);
@@ -629,6 +630,7 @@ const registerActiveOnlyTest2 = (): void => {
     expect(out.timeOff.map((row) => row.id)).toEqual(["to1"]);
     expect(out.disciplines).toBe(input.disciplines);
     expect(out.accounts).toBe(input.accounts);
+    expect(lifecycleStatus(input.activities.find((row) => row.id === "act-hidden") ?? {})).toBe("active");
   });
 };
 
@@ -945,6 +947,19 @@ const ARCHIVE_IMPACT_DATA: AppData = {
   ],
 };
 const makeArchiveImpactData = (): AppData => structuredClone(ARCHIVE_IMPACT_DATA);
+
+describe("archiveImpact — Activity root", () => {
+  it("counts allocations hidden by archiving an activity while leaving the activity count at zero", () => {
+    const input = makeArchiveImpactData();
+    expect(archiveImpact(input, "activities", "a1")).toEqual({
+      projects: 0,
+      phases: 0,
+      activities: 0,
+      allocations: 1,
+      timeOff: 0,
+    });
+  });
+});
 
 describe("archiveImpact", () => {
   it("counts a client’s active descendants: its projects + their project-activities + allocations", () => {

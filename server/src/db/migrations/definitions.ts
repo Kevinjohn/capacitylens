@@ -92,6 +92,35 @@ export const V22_DEFINITION = [
   "mutation:clear archivedAt/deletedAt and advance updatedAt past both its previous value and the migration clock",
 ].join("\n");
 
+/** v36 adds Activity lifecycle tombstones. Kept as a standalone manifest so the migration ledger
+ * checksum covers both optional columns and the idempotent repair guard. */
+export const ACTIVITY_LIFECYCLE_V36_DEFINITION = [
+  "guard:PRAGMA table_info(activities):archivedAt/deletedAt-missing",
+  "ALTER TABLE activities ADD COLUMN archivedAt TEXT;",
+  "ALTER TABLE activities ADD COLUMN deletedAt TEXT;",
+].join("\n");
+
+/** v37 adds optional allocation task text and account-wide schedule visibility. */
+export const ALLOCATION_TASK_V37_DEFINITION = [
+  "guard:PRAGMA table_info(accounts):showTaskFieldInSchedule-missing",
+  "ALTER TABLE accounts ADD COLUMN showTaskFieldInSchedule TEXT;",
+  "guard:PRAGMA table_info(allocations):task-missing",
+  "ALTER TABLE allocations ADD COLUMN task TEXT;",
+].join("\n");
+
+/** v38 adds optional inclusive availability boundaries for person resources. */
+export const RESOURCE_AVAILABILITY_V38_DEFINITION = [
+  "guard:PRAGMA table_info(resources):firstAvailableDate/lastAvailableDate-missing",
+  "ALTER TABLE resources ADD COLUMN firstAvailableDate TEXT;",
+  "ALTER TABLE resources ADD COLUMN lastAvailableDate TEXT;",
+].join("\n");
+
+/** v39 adds the account-wide role threshold for Capacity Overview access. */
+export const CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION = [
+  "guard:PRAGMA table_info(accounts):capacityOverviewAccess-missing",
+  "ALTER TABLE accounts ADD COLUMN capacityOverviewAccess TEXT;",
+].join("\n");
+
 // The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
 // checksum, so the definition can never drift from what actually runs.
 const TIME_OFF_REBUILD_V33_SQL = `

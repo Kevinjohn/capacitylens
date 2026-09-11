@@ -19,6 +19,8 @@ export const DOMAIN_ERROR_CODES = [
   "resource_external_dependents",
   "placeholder_project_dependents",
   "activity_project_dependents",
+  "allocation_before_resource_availability",
+  "allocation_after_resource_availability",
   "date_required",
   "date_invalid",
   "date_reversed",

@@ -9,12 +9,20 @@ import { NotFound } from "./components/common/NotFound";
 import { useStore } from "./store/useStore";
 import { hasDisciplinesEnabled } from "./store/selectors";
 import { m } from "@/i18n";
+import { usePermissionStatus, useRole } from "./auth/permissionContext";
+import { resolveCapacityOverviewAccessDecision } from "./auth/capacityOverviewAccess";
+import { resolveCapacityOverviewAccess } from "./store/selectors";
 
 // The scheduler is the index route (first paint) so it stays eager. The CRUD list
 // pages are split out — not needed until navigated to, which trims the initial
 // bundle. AppShell wraps <Outlet> in a Suspense boundary for these lazy chunks.
 const ResourceList = lazy(() =>
   import("./components/resources/ResourceList").then((resource) => ({ default: resource.ResourceList })),
+);
+const CapacityOverviewView = lazy(() =>
+  import("./components/capacity-overview/CapacityOverviewView").then((module) => ({
+    default: module.CapacityOverviewView,
+  })),
 );
 const DisciplineList = lazy(() =>
   import("./components/disciplines/DisciplineList").then((discipline) => ({ default: discipline.DisciplineList })),
@@ -36,6 +44,9 @@ const TeamAccessView = lazy(() =>
 );
 const SettingsView = lazy(() =>
   import("./components/settings/SettingsView").then((module) => ({ default: module.SettingsView })),
+);
+const AccountView = lazy(() =>
+  import("./components/account/AccountView").then((module) => ({ default: module.AccountView })),
 );
 // Invite accept: its own top-level route, OUTSIDE AppShell's tenant/account gate so the safe
 // preview and invite-specific onboarding render before a company is selected. AuthProvider carves
@@ -68,6 +79,20 @@ function DisciplineRoute() {
   return enabled ? <DisciplineList /> : <Navigate to="/" replace />;
 }
 
+export function CapacityOverviewRoute() {
+  const role = useRole();
+  const status = usePermissionStatus();
+  const access = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
+  const decision = resolveCapacityOverviewAccessDecision({ role, status, access });
+  if (decision === "pending")
+    return (
+      <p role="status" className="p-6 text-sm text-muted-foreground">
+        {m.app_loading()}
+      </p>
+    );
+  return decision === "allowed" ? <CapacityOverviewView /> : <Navigate to="/" replace />;
+}
+
 function ActivityRoute() {
   const { hash } = useLocation();
   const encodedId = hash.startsWith("#activity=") ? hash.slice("#activity=".length) : "";
@@ -89,6 +114,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: <SchedulerView /> },
+      { path: "capacity-overview", element: <CapacityOverviewRoute /> },
       { path: "resources", element: <ResourceList /> },
       // External / 3rd parties moved into the Resources tab (behind the per-account
       // `externalEnabled` setting). Keep the old path so saved bookmarks don't 404 — redirect
@@ -101,6 +127,7 @@ export const router = createBrowserRouter([
       { path: "timeoff", element: <TimeOffList /> },
       { path: "team", element: <TeamAccessView /> },
       { path: "settings", element: <SettingsView /> },
+      { path: "account", element: <AccountView /> },
     ],
   },
   {

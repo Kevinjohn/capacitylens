@@ -4,7 +4,17 @@ import { DB_SCHEMA_VERSION } from "../constants";
 import { SCHEMA_V8_SQL, INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from "../../tables";
 import { renameLegacyActivityTables, migrateSchemaV8, assertSchemaV8, assertSchemaV9 } from "../../schema";
 import { assertSchemaV16, assertSchemaV27, assertSchemaV28, assertSchemaV29, assertSchemaV30 } from "../../schema";
-import { assertSchemaV31, assertSchemaV32, assertSchemaV33, assertSchemaV34, assertSchemaCurrent } from "../../schema";
+import {
+  assertSchemaV31,
+  assertSchemaV32,
+  assertSchemaV33,
+  assertSchemaV34,
+  assertSchemaV35,
+  assertSchemaCurrent,
+  assertSchemaV36,
+  assertSchemaV37,
+  assertSchemaV38,
+} from "../../schema";
 import { ensureControlTables, assertControlTablesCurrent, SINGLE_OWNER_INDEX } from "../../controlTables";
 import { migrateSingleOwnerControlPlaneV10, assertSingleOwnerControlPlaneV10 } from "../../controlTables";
 import { migrateOwnerlessControlPlaneV11, assertSingleOwnerControlPlaneCurrent } from "../../controlTables";
@@ -16,7 +26,15 @@ import { isEmpty } from "@capacitylens/shared/types/entities";
 import { readState } from "../slices";
 import { ensureInternalClients, snapLegacyAccountColors, reactivateBuiltinInternalClientsV22 } from "../repairs";
 import { assertBuiltinInternalClientsActiveV22 } from "../repairs";
-import { V13_DEFINITION, V22_DEFINITION, TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION } from "./definitions";
+import {
+  V13_DEFINITION,
+  V22_DEFINITION,
+  TIME_OFF_RESOURCE_NULLABLE_V33_DEFINITION,
+  ACTIVITY_LIFECYCLE_V36_DEFINITION,
+  ALLOCATION_TASK_V37_DEFINITION,
+  RESOURCE_AVAILABILITY_V38_DEFINITION,
+  CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION,
+} from "./definitions";
 import { migrateTimeOffResourceNullableV33, COMPANY_CLOSURES_V34_DEFINITION } from "./definitions";
 import { migrateCompanyClosuresV34 } from "./definitions";
 import { ACCOUNT_BOUNDARY_STATE_V15_SQL, assertAccountBoundaryStateCurrent } from "../../accounts/state";
@@ -321,11 +339,48 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       }
       db.exec(ALLOCATION_PROJECT_TENANT_INTEGRITY_V35_SQL);
       db.exec(ALLOCATION_PROJECT_INDEX_V35_SQL);
-      assertSchemaCurrent(db);
+      assertSchemaV35(db);
       assertTenantRelationshipIntegrityCurrent(db);
       assertTenantEntityIndexesCurrent(db);
     },
   ),
+  defineMigration(36, "add-activity-lifecycle", ACTIVITY_LIFECYCLE_V36_DEFINITION, (db) => {
+    for (const column of ["archivedAt", "deletedAt"]) {
+      if (!tableHasColumns(db, "activities", [column])) db.exec(`ALTER TABLE activities ADD COLUMN ${column} TEXT;`);
+    }
+    assertSchemaV36(db);
+    assertTenantRelationshipIntegrityCurrent(db);
+    assertTenantEntityIndexesCurrent(db);
+  }),
+  defineMigration(37, "add-allocation-task-field", ALLOCATION_TASK_V37_DEFINITION, (db) => {
+    if (!tableHasColumns(db, "accounts", ["showTaskFieldInSchedule"])) {
+      db.exec("ALTER TABLE accounts ADD COLUMN showTaskFieldInSchedule TEXT;");
+    }
+    if (!tableHasColumns(db, "allocations", ["task"])) {
+      db.exec("ALTER TABLE allocations ADD COLUMN task TEXT;");
+    }
+    assertSchemaV37(db);
+    assertTenantRelationshipIntegrityCurrent(db);
+    assertTenantEntityIndexesCurrent(db);
+  }),
+  defineMigration(38, "add-resource-availability-dates", RESOURCE_AVAILABILITY_V38_DEFINITION, (db) => {
+    assertSchemaV37(db);
+    for (const column of ["firstAvailableDate", "lastAvailableDate"]) {
+      if (!tableHasColumns(db, "resources", [column])) db.exec(`ALTER TABLE resources ADD COLUMN ${column} TEXT;`);
+    }
+    assertSchemaV38(db);
+    assertTenantRelationshipIntegrityCurrent(db);
+    assertTenantEntityIndexesCurrent(db);
+  }),
+  defineMigration(39, "add-capacity-overview-access", CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION, (db) => {
+    assertSchemaV38(db);
+    if (!tableHasColumns(db, "accounts", ["capacityOverviewAccess"])) {
+      db.exec("ALTER TABLE accounts ADD COLUMN capacityOverviewAccess TEXT;");
+    }
+    assertSchemaCurrent(db);
+    assertTenantRelationshipIntegrityCurrent(db);
+    assertTenantEntityIndexesCurrent(db);
+  }),
 ];
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {

@@ -14,6 +14,7 @@ import {
 import type { AuditRecord } from "../audit";
 import type { LifecycleRow, TenantStore } from "../tenantStore";
 import { createServerRevision } from "../revision";
+import type { Resource } from "@capacitylens/shared/types/entities";
 
 export interface LifecycleRedactionInput {
   req: FastifyRequest;
@@ -122,8 +123,8 @@ function isBuiltinLifecycleRow(row: LifecycleRow): boolean {
   return "builtin" in row && row.builtin;
 }
 
-function isResourceRow(row: LifecycleRow): row is Extract<LifecycleRow, { kind: unknown }> {
-  return "kind" in row;
+function isResourceRow(row: LifecycleRow): row is Resource {
+  return "employmentType" in row;
 }
 
 function applyDeletedRowObfuscation(entity: LifecycleEntityKey, row: LifecycleRow): LifecycleRow {

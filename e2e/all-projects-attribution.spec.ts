@@ -1,6 +1,7 @@
 import { test, expect, type Locator, type Page } from "./fixtures";
 import {
   boundingBoxOrThrow,
+  enableInlineActivityCreation,
   openApp,
   resetSchedulerScroll,
   selectShadOption,
@@ -176,6 +177,12 @@ test("keeps a legacy unattributed edit unchanged and places inline activities in
   await expect(editor.getByLabel("Project", { exact: true })).toHaveText("No specific project");
   await editor.getByRole("button", { name: "Cancel" }).click();
 
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await enableInlineActivityCreation(page);
+  await page.getByRole("link", { name: "Schedule" }).click();
+  await setZoom(page, 4);
+  await resetSchedulerScroll(page);
+
   await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
   const create = page.getByRole("dialog", { name: "New allocation" });
   await selectShadOption(create.getByLabel("Project", { exact: true }), "p-acme");
@@ -188,7 +195,7 @@ test("keeps a legacy unattributed edit unchanged and places inline activities in
 });
 
 test("locks and stamps a placeholder booking and copies attribution across a repeat series", async ({ page }) => {
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await showPlaceholders(page);
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 4);
@@ -236,9 +243,8 @@ test("restores an archived attributed project and preserves it through a drag", 
     .getByRole("alertdialog", { name: "Archive project?" })
     .getByRole("button", { name: "Archive", exact: true })
     .click();
-  await page.getByRole("link", { name: "Settings" }).click();
-  await page.getByRole("button", { name: "Archived & deleted", exact: true }).click();
   await page
+    .getByTestId("archived-projects-section")
     .getByTestId("archived-row")
     .filter({ hasText: "Project Watchtower" })
     .getByRole("button", { name: "Restore Project Watchtower" })
@@ -268,8 +274,8 @@ test("project purge clears attribution without deleting the shared booking", asy
   await openImportedData(page, PURGE_IMPORT);
   await page.getByRole("link", { name: "Schedule" }).click();
   await expect(page.getByTestId("allocation-bar").filter({ hasText: "Shared Planning" })).toHaveCount(0);
-  await page.getByRole("link", { name: "Settings" }).click();
-  await page.getByRole("button", { name: "Archived & deleted", exact: true }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Deleted items", exact: true }).click();
   const projectRow = page.getByTestId("deleted-row").filter({ hasText: "Old Project" });
   await projectRow.getByTestId("archived-purge").click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Delete permanently", exact: true }).click();

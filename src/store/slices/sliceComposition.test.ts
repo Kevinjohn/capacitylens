@@ -50,6 +50,6 @@ describe("store slice composition", () => {
   it("keeps every StoreState action in the composed store", () => {
     const functionKeys = Object.values(useStore.getState()).filter((value) => typeof value === "function");
 
-    expect(functionKeys).toHaveLength(76);
+    expect(functionKeys).toHaveLength(77);
   });
 });

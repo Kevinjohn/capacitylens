@@ -50,6 +50,7 @@ function useInviteRefs(user: ReturnType<typeof useAuth>["user"], state: InviteAc
     currentUser,
     routeActive,
     accepting: useRef(false),
+    signupInFlight: useRef(false),
     acceptCommand: useRef<BrowserAccountCommand | null>(null),
     ...focusRefs,
   };
@@ -145,6 +146,7 @@ interface InviteActionOptions {
   acceptCommand: RefObject<BrowserAccountCommand | null>;
   routeActive: ReturnType<typeof useRouteActiveRef>;
   signupCommand: RefObject<BrowserAccountCommand | null>;
+  signupInFlight: RefObject<boolean>;
   name: string;
   email: string;
   password: string;
@@ -200,6 +202,7 @@ function useInviteFlow(
     acceptCommand: refs.acceptCommand,
     routeActive: refs.routeActive,
     signupCommand,
+    signupInFlight: refs.signupInFlight,
     name: inviteState.name,
     email: inviteState.email,
     password: inviteState.password,
@@ -257,6 +260,7 @@ export function useInviteAcceptController(token: string | undefined) {
     onSignIn: (event: FormEvent) => void flow.signIn(event),
     onProviderSignIn: (provider: AuthProviderInfo) => void flow.signInWithProvider(provider),
     onCreateAccount: () => void flow.createAccount(),
+    onClearAuthError: () => flow.setState({ kind: "auth" }),
     onRetryPreview: () => {
       flow.setState({ kind: "previewing" });
       flow.setPreviewAttempt((attempt) => attempt + 1);

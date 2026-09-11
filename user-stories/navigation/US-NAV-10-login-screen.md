@@ -12,7 +12,7 @@
 ## Goal
 
 Be the only kind of visitor who can read or change data on an auth-enabled deploy: one
-who has signed in — and be able to sign out again from Settings.
+who has signed in — and be able to sign out again from the sidebar.
 
 ## Why
 
@@ -26,15 +26,17 @@ session must restore exactly the normal flow.
 **Precondition:** a deploy with `CAPACITYLENS_AUTH=password`, and a user account created.
 On a **fresh instance with zero users** the login wall instead shows the one sign-up form
 that exists — the first-run **Create the owner account** screen (see REFERENCE.md
-“First-run owner setup”); once any user exists, self-registration closes automatically and
-only the Sign in form below is reachable.
+“First-run owner setup”). The owner enters `SMALLSASS_ACCOUNT_SETUP_TOKEN` from the server
+`.env` file or installer; success continues to **Set up your company**. Once any user exists,
+self-registration closes automatically and only the Sign in form below is reachable. See
+[Configuration](/self-hosting/configuration#sign-in-mode) for the secure token handoff and removal.
 
 1. Open the app URL. Instead of the company picker, a **Sign in** screen appears.
 2. Enter a wrong password → an inline error appears; you stay on the screen.
 3. Enter the correct **Email** and **Password**, press **Sign in** (or Enter).
 4. The app loads as normal: company picker → pick a company → scheduler.
-5. Go to **Settings**. An **Account** section shows the signed-in email with **Sign out**.
-6. Click **Sign out** → you are back on the Sign in screen; reloading stays signed out.
+5. Go to **Account**. It shows the signed-in email and the available personal security controls.
+6. Click the sidebar's **Sign out** → you are back on the Sign in screen; reloading stays signed out.
 
 ## Acceptance criteria
 
@@ -42,7 +44,9 @@ only the Sign in form below is reachable.
   no data; direct API reads (e.g. `GET /api/state`) return 401.
 - The form submits with Enter; a failed sign-in shows an inline alert and no navigation.
 - A successful sign-in lands in the normal app flow (company picker with seeded companies).
-- Settings shows the Account section **only** while signed in on an auth-enabled deploy;
-  it never appears with auth off or in local mode.
+- Account shows the signed-in identity and personal security controls only while signed in on an
+  auth-enabled deploy; it never exposes credential controls with auth off or in local mode.
+- First-owner signup keeps the **Create the owner account** heading, names the exact setup-token
+  variable, and continues to first-company creation without suggesting that the owner request an invitation.
 - Sign out invalidates the session (subsequent loads show Sign in again).
 - The Sign in screen passes an axe accessibility audit (no serious/critical violations).

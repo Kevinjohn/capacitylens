@@ -15,6 +15,7 @@ import { readCapacityAnnouncement, readCapacityGestureAdvisory } from "./gesture
 import { buildGesturePreviewDates } from "./gestureGeometry";
 import { readLaneSnapshots, resolveLaneAt, type LaneSnapshot } from "./gestureLanes";
 import type { BarLayout } from "./schedulerModel";
+import { useAllocationFocus, type ScheduleAllocationFocus } from "./useAllocationFocus";
 
 interface GesturePreview {
   mode: DragMode;
@@ -298,23 +299,14 @@ function isKeyboardGestureBlocked({ options, mode, current, next }: KeyboardGate
   return leavesTimeline;
 }
 
-function focusAllocation(allocationId: ID) {
-  requestAnimationFrame(() => {
-    const element = Array.from(document.querySelectorAll<HTMLElement>("[data-alloc-id]")).find(
-      (candidate) => candidate.dataset.allocId === allocationId,
-    );
-    element?.scrollIntoView({ block: "nearest", inline: "nearest" });
-    element?.focus({ preventScroll: true });
-  });
-}
-
 function saveKeyboardGesture(
   options: ControllerOptions,
-  next: DateRange,
-  rescale: ReturnType<typeof resolveVolumePreservingHours> | null,
+  scheduleFocus: ScheduleAllocationFocus,
+  input: { next: DateRange; rescale: ReturnType<typeof resolveVolumePreservingHours> | null },
 ) {
   const { bar } = options;
-  const { setNotice, updateAllocation, announceCapacity } = useStore.getState();
+  const { next, rescale } = input;
+  const { activeAccountId, setNotice, updateAllocation, announceCapacity } = useStore.getState();
   try {
     const updated = updateAllocation(bar.allocation.id, {
       ...next,
@@ -325,14 +317,19 @@ function saveKeyboardGesture(
       setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY, shortcut: buildUndoShortcut() }), "warning");
     }
     announceCapacity(readCapacityAnnouncement(bar.allocation.resourceId));
-    focusAllocation(bar.allocation.id);
+    scheduleFocus(bar.allocation.id, activeAccountId);
   } catch (error) {
     setNotice(error instanceof Error ? resolveErrorMessage(error) : m.scheduler_toast_move_disallowed(), "error");
   }
 }
 
-function nudgeAllocation(options: ControllerOptions, mode: DragMode, deltaDays: number) {
+function nudgeAllocation(
+  options: ControllerOptions,
+  scheduleFocus: ScheduleAllocationFocus,
+  input: { mode: DragMode; deltaDays: number },
+) {
   const { bar } = options;
+  const { mode, deltaDays } = input;
   if (refuseIneffectiveResize(bar, mode, bar.allocation.resourceId)) return;
   const { current, next, gestureOptions } = resolveKeyboardGesture(options, mode, deltaDays);
   if (isKeyboardGestureBlocked({ options, mode, current, next })) return;
@@ -350,7 +347,7 @@ function nudgeAllocation(options: ControllerOptions, mode: DragMode, deltaDays: 
     next.endDate === current.endDate &&
     (rescale === null || rescale.hours === bar.allocation.hoursPerDay);
   if (unchanged) return;
-  saveKeyboardGesture(options, next, rescale);
+  saveKeyboardGesture(options, scheduleFocus, { next, rescale });
 }
 
 function startPointerGesture(runtime: GestureRuntime) {
@@ -361,6 +358,7 @@ function startPointerGesture(runtime: GestureRuntime) {
 export function useAllocationGestureController(options: ControllerOptions, runtime: GestureRuntime) {
   const { bar, indexAtClientX, onEdit } = options;
   const [preview, setPreview] = useState<GesturePreview | null>(null);
+  const scheduleFocus = useAllocationFocus();
   // Read store actions at call time because handlers commit against live state.
   const setDragging = (id: ID | null) => useStore.getState().setDraggingAllocation(id);
   const { onPointerDown: armPointerGesture } = useDragResize({
@@ -395,6 +393,6 @@ export function useAllocationGestureController(options: ControllerOptions, runti
   return {
     preview,
     onPointerDown: beginPointerGesture,
-    nudge: (mode: DragMode, delta: number) => nudgeAllocation(options, mode, delta),
+    nudge: (mode: DragMode, delta: number) => nudgeAllocation(options, scheduleFocus, { mode, deltaDays: delta }),
   };
 }

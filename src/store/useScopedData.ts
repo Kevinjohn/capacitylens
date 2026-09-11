@@ -53,7 +53,7 @@ export function useScopedData(): AppData {
 
 /**
  * The active-only view projection: the same scoped AppData as {@link useScopedData}, but with
- * every NON-active (archived OR soft-deleted) resource/client/project removed via the SHARED
+ * every NON-active (archived OR soft-deleted) resource/client/project/activity removed via the SHARED
  * `activeOnly` helper — so the rule is single-sourced with the server's per-account read.
  *
  * Use this in the NORMAL app VIEWS (scheduler, lists, forms' option-pickers, command palette, toolbar

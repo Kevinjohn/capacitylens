@@ -258,6 +258,13 @@ function registerSuiteScenario9() {
 
 function registerSuiteScenario10() {
   test("adds a new activity inline and uses it for the allocation", async ({ page }) => {
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    const inlineActivityCreation = page.getByRole("switch", { name: "Inline activity creation" });
+    await expect(inlineActivityCreation).toHaveAttribute("aria-checked", "false");
+    await inlineActivityCreation.click();
+    await expect(inlineActivityCreation).toHaveAttribute("aria-checked", "true");
+    await page.getByRole("link", { name: "Schedule" }).click();
+
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const dialog = page.getByRole("dialog", { name: "New allocation" });
     await selectShadOption(dialog.getByLabel("Project", { exact: true }), "p-acme");
@@ -284,7 +291,7 @@ function registerSuiteScenario12() {
   test("snaps the project to a placeholder bound project when chosen", async ({ page }) => {
     // Placeholders are hidden by default (per-account pref) — turn them on in Settings first so
     // the seeded placeholder's lane (and its "+" button) appears in the schedule.
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await showPlaceholders(page);
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);

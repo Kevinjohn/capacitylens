@@ -4,11 +4,16 @@ import { FALLBACK_PRESET_COLOR, snapToPresetColor } from "./color";
 import { SCOPED_KEYS } from "../types/entities";
 import { softDelete } from "../domain/lifecycle";
 
-type LifecycleKey = "resources" | "clients" | "projects";
+type LifecycleKey = "resources" | "clients" | "projects" | "activities";
 
 describe("sanitizeImportedRecord", () => {
+  it("sanitizes an optional allocation task as single-line text", () => {
+    expect(sanitizeImportedRecord("allocations", { task: "  Fix   launch\ncheck  " }).task).toBe("Fix launch check");
+  });
+
   registerImportedRecordBasics();
   registerImportedResourceTests();
+  registerImportedAvailabilityTests();
   registerImportedFieldTests();
   registerImportedColorTests();
   registerImportedDateTests();
@@ -144,6 +149,21 @@ function registerImportedResourceTests(): void {
     expect(sanitizeImportedRecord("resources", { kind: "person" }).name).toBe("Unnamed person");
     expect(sanitizeImportedRecord("resources", { kind: "external", name: "  " }).name).toBe("Unnamed company");
     expect(sanitizeImportedRecord("resources", { kind: "placeholder" }).name).toBeUndefined();
+  });
+}
+
+function registerImportedAvailabilityTests(): void {
+  it("strips availability boundaries from non-person imports", () => {
+    const placeholder = sanitizeImportedRecord("resources", {
+      kind: "placeholder",
+      firstAvailableDate: "2026-01-01",
+      lastAvailableDate: "2026-12-31",
+    });
+    expect(placeholder).not.toHaveProperty("firstAvailableDate");
+    expect(placeholder).not.toHaveProperty("lastAvailableDate");
+    expect(
+      sanitizeImportedRecord("resources", { kind: "external", firstAvailableDate: "2026-01-01" }),
+    ).not.toHaveProperty("firstAvailableDate");
   });
 }
 
@@ -375,10 +395,10 @@ function registerImportedLifecycleTests(): void {
 }
 
 // Lifecycle timestamps (archivedAt / deletedAt — P2.1) are optional ISO strings on
-// resources / clients / projects; a valid string is kept, anything non-string is dropped
-// (its absence reads back as active / not-deleted). Inert plumbing today.
+// resources / clients / projects / activities; a valid string is kept, anything non-string is
+// dropped (its absence reads back as active / not-deleted).
 function registerImportedLifecycleSuites(): void {
-  describe.each(["resources", "clients", "projects"] as const)("%s lifecycle timestamps (P2.1)", (key) => {
+  describe.each(["resources", "clients", "projects", "activities"] as const)("%s lifecycle timestamps", (key) => {
     registerLifecycleTimestampBasics(key);
     registerLifecycleTimestampOrdering(key);
   });
@@ -604,6 +624,16 @@ function registerAccountVisibilityTests(): void {
   it("keeps a boolean inlineActivityCreateEnabled (both true and false survive import)", () => {
     expect(sanitizeAccount({ inlineActivityCreateEnabled: false }).inlineActivityCreateEnabled).toBe(false);
     expect(sanitizeAccount({ inlineActivityCreateEnabled: true }).inlineActivityCreateEnabled).toBe(true);
+  });
+
+  it("keeps valid Capacity Overview access and drops malformed values", () => {
+    expect(sanitizeAccount({ capacityOverviewAccess: "owner_admin" }).capacityOverviewAccess).toBe("owner_admin");
+    expect(sanitizeAccount({ capacityOverviewAccess: "owner_admin_editor" }).capacityOverviewAccess).toBe(
+      "owner_admin_editor",
+    );
+    expect(sanitizeAccount({ capacityOverviewAccess: "everyone" }).capacityOverviewAccess).toBe("everyone");
+    expect(sanitizeAccount({ capacityOverviewAccess: "viewer" }).capacityOverviewAccess).toBeUndefined();
+    expect(sanitizeAccount({ capacityOverviewAccess: 1 }).capacityOverviewAccess).toBeUndefined();
   });
 }
 

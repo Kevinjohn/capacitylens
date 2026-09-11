@@ -127,8 +127,10 @@ function SessionList({ controller }: { controller: Controller }) {
 }
 
 export function SecuritySection() {
-  const strictProvider = resolveStrictOidcProvider(useAuth().providers);
+  const auth = useAuth();
+  const strictProvider = resolveStrictOidcProvider(auth.providers);
   const controller = useSecurityController(strictProvider);
+  const showPassword = auth.authMode !== "sso";
   return (
     <SettingsSection
       title={m.settings_security_title()}
@@ -137,8 +139,16 @@ export function SecuritySection() {
       contentClassName="gap-5"
     >
       {strictProvider && <ProviderConnection provider={strictProvider} controller={controller} />}
-      <PasswordForm controller={controller} />
-      <Separator />
+      {showPassword && <PasswordForm controller={controller} />}
+      {auth.authMode === "password" && typeof auth.user?.twoFactorEnabled === "boolean" && (
+        <div>
+          <h3 className="text-sm font-medium text-ink">{m.account_mfa_title()}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {auth.user.twoFactorEnabled ? m.account_mfa_enabled() : m.account_mfa_not_enabled()}
+          </p>
+        </div>
+      )}
+      {showPassword && <Separator />}
       <SessionList controller={controller} />
       <FieldError id={controller.fieldError.errorId}>{controller.fieldError.error}</FieldError>
       {controller.message && (

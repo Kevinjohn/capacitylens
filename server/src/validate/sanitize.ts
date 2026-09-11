@@ -4,7 +4,11 @@ import { snapToPresetColor } from "@capacitylens/shared/lib/color";
 import { sanitizeAccount, sanitizeImportedRecord } from "@capacitylens/shared/lib/sanitizeImport";
 import { cleanText } from "@capacitylens/shared/lib/strings";
 import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
-import { isScopedEntityKey, SCHEDULING_MODES } from "@capacitylens/shared/types/entities";
+import {
+  CAPACITY_OVERVIEW_ACCESS_VALUES,
+  isScopedEntityKey,
+  SCHEDULING_MODES,
+} from "@capacitylens/shared/types/entities";
 import { pinGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
 import { TABLES } from "../tables";
 import { assertIdPresent, ValidationError } from "./errors";
@@ -40,9 +44,21 @@ function resolveStoredWeekStart(existing: Record<string, unknown> | undefined): 
   return undefined;
 }
 
+function preserveCapacityOverviewAccess(
+  copy: Record<string, unknown>,
+  existing: Record<string, unknown> | undefined,
+  canChange: boolean | undefined,
+): void {
+  if (canChange === true) return;
+  const storedAccess = existing?.capacityOverviewAccess;
+  if (CAPACITY_OVERVIEW_ACCESS_VALUES.includes(storedAccess as never)) copy.capacityOverviewAccess = storedAccess;
+  else delete copy.capacityOverviewAccess;
+}
+
 function sanitizeAccountWrite(
   copy: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
+  options: SanitizeWriteOptions,
 ): Record<string, unknown> {
   const workingDaysRequested = Object.hasOwn(copy, "workingDays");
   // POLICY: a non-preset colour snaps to its NEAREST palette preset (shared/lib/color's
@@ -63,6 +79,7 @@ function sanitizeAccountWrite(
   // restored onto the copy AFTER sanitisation (see the loop below), so without this a payload
   // omitting it would repair a Sunday-start account's week to the Monday-start default.
   sanitizeAccount(copy, resolveStoredWeekStart(existing));
+  preserveCapacityOverviewAccess(copy, existing, options.canChangeCapacityOverviewAccess);
   // A full PUT from a pre-v31 client cannot express this field. Preserve the stored selection
   // when it was omitted, while still repairing an explicitly malformed direct write above.
   if (!workingDaysRequested && existing?.workingDays !== undefined) {
@@ -125,6 +142,17 @@ function assertScopedWriteFields(
 }
 
 function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedWriteInput): Record<string, unknown> {
+  // Availability boundaries use an explicit-null clear in full-row PUTs. Capture presence before
+  // the import sanitiser drops null/malformed values, otherwise the preservation pass below would
+  // mistake a deliberate clear (or a person→non-person kind change) for an omitted legacy field
+  // and restore the old person's dates.
+  const availabilityRequested =
+    table === "resources"
+      ? {
+          firstAvailableDate: Object.hasOwn(copy, "firstAvailableDate"),
+          lastAvailableDate: Object.hasOwn(copy, "lastAvailableDate"),
+        }
+      : undefined;
   assertScopedWriteFields(table, copy, options);
   const cleaned = sanitizeImportedRecord(table, copy);
   // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated
@@ -143,6 +171,11 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
   if (table === "allocations" && existing) {
     if (typeof existing.seriesId === "string") cleaned.seriesId = existing.seriesId;
     else delete cleaned.seriesId;
+  }
+  if (table === "resources" && existing && cleaned.kind === "person") {
+    for (const field of ["firstAvailableDate", "lastAvailableDate"] as const) {
+      if (!availabilityRequested?.[field] && typeof existing[field] === "string") cleaned[field] = existing[field];
+    }
   }
   // Field-confidentiality PINS (note-erasure guard + private-name guard): the fields are
   // single-sourced in GATED_FIELD_POLICIES. A writer who cannot see a gated field has it pinned to
@@ -183,7 +216,7 @@ export function sanitizeWrite({ table, row, existing, options = {} }: SanitizeWr
     );
   }
   if (table === "accounts") {
-    return sanitizeAccountWrite(copy, existing);
+    return sanitizeAccountWrite(copy, existing, options);
   }
   if (isScopedEntityKey(table)) {
     return sanitizeScopedWrite({ table, copy, existing, options });
