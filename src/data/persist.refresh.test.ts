@@ -25,8 +25,10 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
   // Coming back to the tab/window re-hydrates the active account's slice by REUSING refreshActive
   // (the switch orchestrator's body) — so the adapter's private lastSynced snapshot is re-seeded
   // atomically with `data`. Proven here against a recording adapter + window 'focus' events (the
-  // same shape as the pagehide tests above). Uses the module-scope recordingAdapter / a2Slice /
-  // attachActiveA2 helpers (shared with the refreshActiveAccountSlice + batch-conflict suites).
+  // same shape as the pagehide tests in persist.attach.test.ts). Uses the recordingAdapter /
+  // a2Slice / attachActiveA2 helpers from __tests__/persistTestKit.ts (shared with the
+  // refreshActiveAccountSlice suite below and the batch-reconciliation suite in
+  // persist.reconciliation.test.ts).
 
   it("re-hydrates the active slice on focus + re-seeds the snapshot (a later save diffs to ZERO ops)", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
@@ -402,7 +404,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
   // The out-of-band server writers (archive/delete/purge routes) reload the active slice THROUGH the
   // orchestrator via this export — a bare loadAll+replaceAll would clobber a still-debounced edit and
   // re-seed the snapshot under it (the same permanent-loss mechanism the focus-refresh abort guards).
-  // Uses the module-scope recordingAdapter / a2Slice / attachActiveA2 helpers.
+  // Uses the recordingAdapter / a2Slice / attachActiveA2 helpers from __tests__/persistTestKit.ts.
 
   it("returns 'unattached' when no orchestrator is attached (the caller falls back to a bare reload)", async () => {
     expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "unattached" });
