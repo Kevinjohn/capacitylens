@@ -738,8 +738,8 @@ saved palette colour is retained rather than cleared. Switching to **Use colour 
 those saved project colours and reveals the picker. Unattributed All-projects allocations retain
 their resource-derived colours in both modes; attributed ones use their effective project's colour.
 
-**Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**
-(on by default). Turning it off hides disciplines across the whole app — the **Disciplines** nav
+**Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**.
+It is off for a newly created company. Turning it off hides disciplines across the whole app — the **Disciplines** nav
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
