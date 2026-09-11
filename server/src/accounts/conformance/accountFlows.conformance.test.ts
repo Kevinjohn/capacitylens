@@ -184,7 +184,39 @@ type MembershipAdministrationMethods = Pick<
   | "changeMemberStatus"
   | "removeMember"
   | "transferOwnership"
+  | "readOwnershipTransfer"
+  | "initiateOwnershipTransfer"
+  | "acceptOwnershipTransfer"
+  | "withdrawOwnershipTransfer"
+  | "declineOwnershipTransfer"
+  | "cancelOwnershipTransfer"
+  | "completeOwnershipTransfer"
 >;
+
+/** The seven ceremony stubs. Every command answers with the same committed-terminal outcome: these
+ *  are conformance placeholders, and a single shape keeps the stub set from implying behaviour the
+ *  flows under test do not exercise. */
+function ownershipTransferMethods(): Pick<
+  MembershipAdministrationMethods,
+  | "readOwnershipTransfer"
+  | "initiateOwnershipTransfer"
+  | "acceptOwnershipTransfer"
+  | "withdrawOwnershipTransfer"
+  | "declineOwnershipTransfer"
+  | "cancelOwnershipTransfer"
+  | "completeOwnershipTransfer"
+> {
+  const terminal = { kind: "terminal" as const, state: "expired" as const, reason: "deadline_passed" as const };
+  return {
+    readOwnershipTransfer: vi.fn(async () => ({ live: null, latestOutcome: null })),
+    initiateOwnershipTransfer: vi.fn(async () => terminal),
+    acceptOwnershipTransfer: vi.fn(async () => terminal),
+    withdrawOwnershipTransfer: vi.fn(async () => terminal),
+    declineOwnershipTransfer: vi.fn(async () => terminal),
+    cancelOwnershipTransfer: vi.fn(async () => terminal),
+    completeOwnershipTransfer: vi.fn(async () => terminal),
+  };
+}
 
 function membershipAdministrationMethods(): MembershipAdministrationMethods {
   return {
@@ -228,6 +260,7 @@ function membershipAdministrationMethods(): MembershipAdministrationMethods {
       commandId: value.commandId,
       completedAt: "2026-01-01T00:00:00.000Z",
     })),
+    ...ownershipTransferMethods(),
     transferOwnership: vi.fn(async () => ({
       previousOwner: member,
       nextOwner: member,

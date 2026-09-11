@@ -1,6 +1,8 @@
 import type { Role } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
-import { revokeResetTokensForUser } from "../auth";
+import type { SynchronousCallback } from "../txn";
+import { terminaliseLiveRequestsForAccount, terminaliseLiveRequestsForMember } from "./ownershipTransfers";
+import { createTableExistenceProbe, revokeResetTokensForUser } from "../auth";
 import { bumpSecurityRevision } from "../accounts/state";
 import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTracking";
 import {
@@ -10,6 +12,49 @@ import {
   type AccountMemberRow,
   type MembershipStatus,
 } from "./members.model";
+
+let ownershipTransferExempt = false;
+
+/** Only the ownership exchange kernel may use this exemption. The callback must be synchronous:
+ * this module-private flag is not async-safe and must never be held across an await. Security
+ * revision bumps and reset-link revocation remain enabled for both participants. */
+export function withOwnershipTransferExemption<Run extends () => unknown>(
+  run: SynchronousCallback<Run>,
+): ReturnType<Run> {
+  const previous = ownershipTransferExempt;
+  ownershipTransferExempt = true;
+  try {
+    return run() as ReturnType<Run>;
+  } finally {
+    ownershipTransferExempt = previous;
+  }
+}
+
+/**
+ * Migration-era databases reach this choke point BEFORE the v40 table exists: `ensureControlTables`
+ * installs the membership tables at v10, and migrations v12 and v14 write memberships through
+ * {@link upsertMember} on a handle where `account_ownership_transfers` has not been created yet.
+ * A live request cannot exist there, so an absent table means "nothing to terminalise" — but the
+ * query would still throw. Absence is re-probed every call, never cached: the same handle gains the
+ * table when v40 runs on it (see {@link createTableExistenceProbe}).
+ */
+const ownershipTransfersTableExists = createTableExistenceProbe("account_ownership_transfers");
+
+function transfersAreTerminable(db: Db): boolean {
+  return !ownershipTransferExempt && ownershipTransfersTableExists(db);
+}
+
+function terminaliseMemberTransfers(db: Db, accountId: string, userId: string): string[] {
+  return !transfersAreTerminable(db)
+    ? []
+    : terminaliseLiveRequestsForMember({
+        db,
+        accountId,
+        userId,
+        reason: "participant_membership_changed",
+        now: new Date().toISOString(),
+      });
+}
 
 /**
  * Insert a membership, or update the role/status of an existing `(accountId, userId)`. `createdAt`
@@ -26,7 +71,7 @@ import {
  *   integrity throws) rather than silently coercing it to a default, which would hand someone the
  *   wrong access level.
  */
-export function upsertMember(db: Db, member: AccountMember): void {
+export function upsertMember(db: Db, member: AccountMember): string[] {
   if (!isKnownRole(member.role)) {
     throw new Error(
       `upsertMember: unknown role ${JSON.stringify(member.role)} — expected owner, admin, editor, or viewer.`,
@@ -51,6 +96,7 @@ export function upsertMember(db: Db, member: AccountMember): void {
   // (no Better Auth tables). The reset-token implementation remains identity-owned in auth.ts.
   revokeResetTokensForUser(db, member.userId);
   bumpSecurityRevision(db, member.userId);
+  return terminaliseMemberTransfers(db, member.accountId, member.userId);
 }
 
 interface SetMemberStatusInput {
@@ -82,12 +128,10 @@ interface SetMemberStatusInput {
  *   are distinguished rather than collapsed to a boolean precisely because "no row" and "no change"
  *   demand opposite responses, and because a re-applied status must not pay the security cost below.
  */
-export function setMemberStatus({
-  db,
-  accountId,
-  userId,
-  status,
-}: SetMemberStatusInput): "changed" | "unchanged" | "missing" {
+export function setMemberStatus({ db, accountId, userId, status }: SetMemberStatusInput): {
+  outcome: "changed" | "unchanged" | "missing";
+  invalidatedTransferIds: string[];
+} {
   // `AND status <> ?` makes a same-value write matchless, which is what keeps the security protocol
   // below off the no-op path: SQLite counts a row it MATCHED as changed even when the value written
   // is identical, so an unguarded UPDATE would burn an unrelated admin's freshly-minted reset link
@@ -104,11 +148,14 @@ export function setMemberStatus({
   if (!changed) {
     // Matchless: either the membership is absent, or it already holds this status. Only the second
     // is success, so distinguish them with a read rather than guessing.
-    return getMembershipRow(db, accountId, userId) === null ? "missing" : "unchanged";
+    return {
+      outcome: getMembershipRow(db, accountId, userId) === null ? "missing" : "unchanged",
+      invalidatedTransferIds: [],
+    };
   }
   revokeResetTokensForUser(db, userId);
   bumpSecurityRevision(db, userId);
-  return "changed";
+  return { outcome: "changed", invalidatedTransferIds: terminaliseMemberTransfers(db, accountId, userId) };
 }
 
 /**
@@ -253,12 +300,14 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
  * @param accountId  The account the membership belongs to.
  * @param userId     The login whose membership to remove.
  */
-export function removeMember(db: Db, accountId: string, userId: string): void {
+export function removeMember(db: Db, accountId: string, userId: string): string[] {
   const result = db.prepare(`DELETE FROM account_members WHERE accountId = ? AND userId = ?`).run(accountId, userId);
   if (result.changes > 0) {
     revokeResetTokensForUser(db, userId);
     bumpSecurityRevision(db, userId);
+    return terminaliseMemberTransfers(db, accountId, userId);
   }
+  return [];
 }
 
 /**
@@ -274,7 +323,7 @@ export function removeMember(db: Db, accountId: string, userId: string): void {
  * @param db         The open SQLite handle.
  * @param accountId  The account whose memberships to remove entirely.
  */
-export function removeAllMembersForAccount(db: Db, accountId: string): void {
+export function removeAllMembersForAccount(db: Db, accountId: string): string[] {
   const affected = db
     .prepare(`SELECT DISTINCT userId FROM account_members WHERE accountId = ?`)
     .all(accountId) as Array<{ userId: string }>;
@@ -284,4 +333,12 @@ export function removeAllMembersForAccount(db: Db, accountId: string): void {
     revokeResetTokensForUser(db, userId);
     bumpSecurityRevision(db, userId);
   }
+  return !transfersAreTerminable(db)
+    ? []
+    : terminaliseLiveRequestsForAccount({
+        db,
+        accountId,
+        reason: "participant_membership_changed",
+        now: new Date().toISOString(),
+      });
 }

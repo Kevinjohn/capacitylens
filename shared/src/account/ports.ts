@@ -1,5 +1,6 @@
 import type { AccountFailure } from "./errors";
 import type { AccountAuditEvent } from "./audit";
+import type { OwnershipTransferOutcome, OwnershipTransferProjection } from "./ownershipTransfer";
 import type {
   ActorContext,
   ApplicationSession,
@@ -92,6 +93,14 @@ export interface IdentityPort {
     targetPrincipalId: PrincipalId;
     command: CommandIdentity;
   }): Promise<OperationReceipt>;
+}
+
+export interface OwnershipTransferCommandInput {
+  actor: ActorContext;
+  workspaceId: WorkspaceId;
+  requestId: string;
+  expectedRevision: string;
+  command: CommandIdentity;
 }
 
 export interface AccountAdminPort {
@@ -192,6 +201,20 @@ export interface AccountAdminPort {
     targetPrincipalId: PrincipalId;
     command: CommandIdentity;
   }): Promise<OwnershipTransfer>;
+  readOwnershipTransfer(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<OwnershipTransferProjection>;
+  initiateOwnershipTransfer(input: {
+    actor: ActorContext;
+    workspaceId: WorkspaceId;
+    targetPrincipalId: PrincipalId;
+    expectedRequestId: string | null;
+    expectedRevision: string | null;
+    command: CommandIdentity;
+  }): Promise<OwnershipTransferOutcome>;
+  acceptOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
+  withdrawOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
+  declineOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
+  cancelOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
+  completeOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
   evaluateIdentityAdminAuthority(input: {
     actor: ActorContext;
     targetPrincipalId: PrincipalId;

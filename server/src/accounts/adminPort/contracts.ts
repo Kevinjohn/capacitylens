@@ -10,6 +10,7 @@ import type {
   Role,
 } from "@capacitylens/shared/account/types";
 import type { Db } from "../../db";
+import type { AccountAuditInput } from "../accountFlowRuntime";
 import type { SynchronousCallback } from "../../txn";
 import type { WriteOnceSecretReplay } from "../WriteOnceSecretReplay";
 
@@ -73,6 +74,7 @@ export const ACCOUNT_POLICY_VERSION = "account-policy-v1";
 export const MAX_INVITATION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 export interface AdminPortContext {
   applicationId: string;
+  audit: (event: AccountAuditInput) => void;
   db: Db;
   trustedLocal: boolean;
   requireMfa: boolean;
@@ -96,6 +98,12 @@ export interface AdminPortContext {
     audit?: {
       action: StandardAccountAuditAction;
       changedFields: readonly string[];
+      /** Derive the event for a committed result. Failure and denial keep the static action. */
+      successAction?: (result: ReturnType<Execute>) => {
+        action: StandardAccountAuditAction;
+        changedFields: readonly string[];
+        eventKey?: string;
+      };
     };
   }) => Promise<ReturnType<Execute>>;
 }
