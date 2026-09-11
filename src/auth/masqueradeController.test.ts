@@ -121,6 +121,10 @@ describe("MasqueradeController transitions", () => {
     await expect(first).resolves.toBe(true);
     expect(dependencies.flush).toHaveBeenCalledOnce();
     expect(dependencies.api.start).toHaveBeenCalledOnce();
+    expect(useStore.getState().notice).toMatchObject({
+      message: "A member view is already starting.",
+      tone: "error",
+    });
   });
 
   it("does not let a stale start rejection overwrite server-end restoration", async () => {

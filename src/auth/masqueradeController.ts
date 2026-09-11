@@ -117,7 +117,7 @@ export class MasqueradeController {
   }
 
   async start(accountId: string, targetUserId: string): Promise<boolean> {
-    if (this.startPendingGeneration !== null) return false;
+    if (this.startPendingGeneration !== null) return this.fail("A member view is already starting.");
     if (useStore.getState().masquerade.kind !== "inactive") {
       return this.fail("End the current masquerade before starting another.");
     }

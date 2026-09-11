@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { flushPendingWrites } from "../../data/persist";
+import { BatchReconciliationError } from "../../data/sync/batchErrors";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { DEFAULT_COLORS } from "../../lib/palette";
@@ -187,7 +188,12 @@ function handleResourceFlushResult(input: SubmitInput, result: FlushResult, subm
     input.onClose();
     return;
   }
-  input.fail(null, result.kind === "failed" ? resolveErrorMessage(result.error) : m.app_persist_error());
+  input.fail(
+    null,
+    result.kind === "failed" && !(result.error instanceof BatchReconciliationError)
+      ? resolveErrorMessage(result.error)
+      : m.app_persist_error(),
+  );
 }
 
 function handleResourceFlushError(input: SubmitInput, error: unknown, submittedAccountId: string | null) {

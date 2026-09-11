@@ -6,6 +6,7 @@ import { ResourceForm } from "./ResourceForm";
 import { useStore } from "../../store/useStore";
 import { requireValue, resetStoreWithAccount } from "../../test/fixtures";
 import * as persistence from "../../data/persist";
+import { BatchConflictError, BatchTooLargeError } from "../../data/sync/batchErrors";
 
 beforeEach(() => resetStoreWithAccount());
 
@@ -208,6 +209,44 @@ it("keeps the dialog open and shows the persistence error when the server reject
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(screen.getByRole("alert")).toHaveTextContent("Resource could not be saved by the server.");
+    expect(onClose).not.toHaveBeenCalled();
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
+it("shows the generic persistence message for a batch reconciliation conflict", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  vi.spyOn(persistence, "flushPendingWrites").mockResolvedValue({
+    kind: "failed",
+    error: new BatchConflictError("Row is stale."),
+  });
+  try {
+    render(<ResourceForm kind="person" onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Changes aren’t being saved right now — we’ll keep retrying.");
+    expect(onClose).not.toHaveBeenCalled();
+  } finally {
+    vi.restoreAllMocks();
+  }
+});
+
+it("still shows its own message when a save fails because the batch is too large", async () => {
+  const user = userEvent.setup();
+  const onClose = vi.fn();
+  vi.spyOn(persistence, "flushPendingWrites").mockResolvedValue({
+    kind: "failed",
+    error: new BatchTooLargeError("Too many pending changes to save at once."),
+  });
+  try {
+    render(<ResourceForm kind="person" onClose={onClose} />);
+    await user.type(screen.getByLabelText("Name"), "Bruce Wayne");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Too many pending changes to save at once.");
     expect(onClose).not.toHaveBeenCalled();
   } finally {
     vi.restoreAllMocks();

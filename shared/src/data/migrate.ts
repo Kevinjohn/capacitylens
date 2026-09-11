@@ -68,7 +68,17 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 18, apply: (data) => data }, // optional allocation attribution; import repair owns semantics
   { version: 19, apply: (data) => data }, // optional Activity lifecycle tombstones; import repair owns semantics
   { version: 20, apply: (data) => data }, // optional allocation task text and account visibility preference
+  { version: 21, apply: (data) => data }, // optional resource availability dates and account capacityOverviewAccess
 ];
+
+// Guards against a migration step being added without bumping EXPORT_SCHEMA_VERSION to match (or
+// vice versa): the last POST_REPAIR_BASE_STEPS version is the ceiling migrate() can bring data up to.
+const lastPostRepairBaseVersion = POST_REPAIR_BASE_STEPS[POST_REPAIR_BASE_STEPS.length - 1]?.version;
+if (lastPostRepairBaseVersion !== EXPORT_SCHEMA_VERSION) {
+  throw new Error(
+    `migrate.ts: last POST_REPAIR_BASE_STEPS version (${String(lastPostRepairBaseVersion)}) must equal EXPORT_SCHEMA_VERSION (${EXPORT_SCHEMA_VERSION}).`,
+  );
+}
 
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
