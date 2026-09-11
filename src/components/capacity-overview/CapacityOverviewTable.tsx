@@ -10,7 +10,7 @@ import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { useSchedulerDensity } from "../scheduler/layout";
 import { capacityBarFillStyle, computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
-import type { CapacityBarFill, CapacityDisplayMode } from "./capacityOverviewBar";
+import type { CapacityBarFill, CapacityBarFillContext, CapacityDisplayMode } from "./capacityOverviewBar";
 import type {
   CapacityOverviewGroup,
   CapacityOverviewModel,
@@ -58,6 +58,11 @@ function WeekValues({
   if (!showNumber) {
     return <span className="sr-only">{formatWeekValueText(result, formatDays, "—")}</span>;
   }
+  // "bar-number" paints this text on the `--color-danger-soft` fill (see capacityOverviewBar.ts):
+  // the overbooked label switches to `text-danger-soft-ink`, the ink that fill is paired with, so
+  // it clears AA there. Plain "number" mode has no coloured fill, so `text-destructive` still reads
+  // correctly against the ordinary cell background.
+  const overLabelInkClass = capacityDisplayMode === "bar-number" ? "text-danger-soft-ink" : "text-destructive";
   return (
     <div className="flex flex-col gap-0.5">
       {result.state === "available" ? (
@@ -66,7 +71,7 @@ function WeekValues({
         <EmptyCapacity />
       )}
       {result.overDays > 0 && (
-        <span className="text-xs text-destructive">{formatDays(result.overDays, "overbooked")}</span>
+        <span className={`text-xs ${overLabelInkClass}`}>{formatDays(result.overDays, "overbooked")}</span>
       )}
     </div>
   );
@@ -209,7 +214,7 @@ function PersonIdentity({ group, row }: { group: CapacityOverviewGroup; row: Cap
 // z-10` wrapper) rather than as a single `background` on the <td>, so the overbooked hatch can be
 // confined to exactly the filled sub-region (its own div, sized to `fraction * 100%`) without
 // distorting the pattern or bleeding into the grey portion above it.
-function CapacityBarFillLayer({ fill, hatch }: { fill: CapacityBarFill; hatch: boolean }) {
+function CapacityBarFillLayer({ fill, context }: { fill: CapacityBarFill; context: CapacityBarFillContext }) {
   return (
     <>
       <div
@@ -223,7 +228,7 @@ function CapacityBarFillLayer({ fill, hatch }: { fill: CapacityBarFill; hatch: b
           data-testid="capacity-bar-fill"
           data-bar-kind={fill.kind}
           className="pointer-events-none absolute inset-x-0 bottom-0"
-          style={{ height: `${fill.fraction * 100}%`, ...capacityBarFillStyle(fill, hatch) }}
+          style={{ height: `${fill.fraction * 100}%`, ...capacityBarFillStyle(fill, context) }}
         />
       )}
     </>
@@ -247,10 +252,8 @@ function WeekValuesCell({
             freeHours: result.freeHours,
             overHours: result.overHours,
           })}
-          // The hatch is a non-colour cue for pure Bar mode, where the number is `sr-only`. In
-          // "bar-number" mode the printed "Nd overbooked" text already satisfies SC 1.4.1, and the
-          // hatch's stronger stripes would sit under that same-hue text and re-fail SC 1.4.3.
-          hatch={capacityDisplayMode === "bar"}
+          // capacityDisplayMode is "bar" or "bar-number" here (showBar excludes "number").
+          context={capacityDisplayMode}
         />
       )}
       <div className="relative z-10">

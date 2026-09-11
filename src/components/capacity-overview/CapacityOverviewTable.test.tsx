@@ -281,6 +281,9 @@ describe("CapacityOverviewTable interactions", () => {
     // hatch — the non-colour cue for WCAG 1.4.1 since the number above is not visually rendered.
     expect(fill).toHaveAttribute("data-bar-kind", "over");
     expect(fill.style.background).toContain("repeating-linear-gradient");
+    // Bar mode uses the saturated, no-text "-cell" pair (not the AA-softened "-soft" pair used by
+    // Bar & number) — the number here is `sr-only`, so nothing needs to clear AA on this fill.
+    expect(fill.style.background).toContain("var(--color-danger-cell)");
 
     // A free (available) fill never carries the hatch — it needs no non-colour cue, since it
     // reads the same regardless of colour vision.
@@ -288,6 +291,7 @@ describe("CapacityOverviewTable interactions", () => {
     const fourthWeekFill = within(rowCells[3] as HTMLElement).getByTestId("capacity-bar-fill");
     expect(fourthWeekFill).toHaveAttribute("data-bar-kind", "free");
     expect(fourthWeekFill.style.background).not.toContain("repeating-linear-gradient");
+    expect(fourthWeekFill.style.background).toBe("var(--color-ok-cell)");
   });
 
   it("renders Bar & number mode with both the fill and the visible number", () => {
@@ -311,10 +315,15 @@ describe("CapacityOverviewTable interactions", () => {
     // The overbooked label is also visible here (unlike pure Bar mode) — SC 1.4.1 is already
     // satisfied by that printed text, so the hatch (which would sit under the same-hue label and
     // re-fail SC 1.4.3) is intentionally NOT applied in this mode.
-    expect(within(person).getByText("0.25d overbooked")).toBeInTheDocument();
+    const overLabel = within(person).getByText("0.25d overbooked");
+    // The label sits on the danger-soft fill here, so it must use the ink that fill is paired
+    // with — NOT text-destructive, which shares the fill's hue and fails WCAG 1.4.3 on it.
+    expect(overLabel).toHaveClass("text-danger-soft-ink");
+    expect(overLabel).not.toHaveClass("text-destructive");
     const firstWeekCell = value.closest("td") as HTMLElement;
     const fill = within(firstWeekCell).getByTestId("capacity-bar-fill");
     expect(fill).toHaveAttribute("data-bar-kind", "over");
+    expect(fill.style.background).toBe("var(--color-danger-soft)");
     expect(fill.style.background).not.toContain("repeating-linear-gradient");
   });
 
