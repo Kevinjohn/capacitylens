@@ -90,7 +90,7 @@ export interface ReceiptOp {
   row?: object;
 }
 
-export const isRecord = (value: unknown): value is Record<string, unknown> =>
+const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const requiredRecord = (value: unknown, message: string): Record<string, unknown> => {
@@ -125,7 +125,7 @@ export const parseReceiptOps = (body: unknown): ReceiptOp[] => {
 
 export const opsFromInit = (init?: RequestInit): ReceiptOp[] => parseReceiptOps(init?.body);
 
-export const receiptOpsFromInit = (init?: RequestInit): ReceiptOp[] => {
+const receiptOpsFromInit = (init?: RequestInit): ReceiptOp[] => {
   if (init?.body === undefined) return [];
   if (typeof init.body !== "string") throw new Error("expected a string request body");
   const payload = requiredRecord(JSON.parse(init.body), "expected a request payload object");
