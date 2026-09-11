@@ -170,7 +170,10 @@ function GroupHeader({
       className="bg-scheduler-group hover:bg-scheduler-group"
       style={{ height }}
     >
-      <TableHead className="h-auto p-0">
+      {/* `scope="row"`: with totals hidden the week cells in this row are empty, and a scope-less
+          `th` beside empty cells is treated as a column header by the accessibility tree, so the
+          group name would be announced as a column heading. It is a row header either way. */}
+      <TableHead scope="row" className="h-auto p-0">
         <Button
           variant="ghost"
           onClick={onToggle}
