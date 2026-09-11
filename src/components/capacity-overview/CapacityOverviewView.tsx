@@ -70,6 +70,7 @@ export function CapacityOverviewView() {
       onHasAvailabilityChange={setHasAvailability}
       onShowTotalsChange={setShowTotals}
       onCapacityDisplayModeChange={setCapacityDisplayMode}
+      data={scopedData}
     />
   );
 }

@@ -1,14 +1,19 @@
-import { isPlaceholderResource } from "@capacitylens/shared/types/entities";
+import { emptyAppData, isPlaceholderResource } from "@capacitylens/shared/types/entities";
+import type { AppData, ID } from "@capacitylens/shared/types/entities";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { m } from "@/i18n";
 import { formatDayMonth } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
-import { Avatar, SegmentedControl } from "../common/ui";
+import { SegmentedControl } from "../common/ui";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { useSchedulerDensity } from "../scheduler/layout";
+import { PersonScheduleSheet } from "../person-schedule/PersonScheduleSheet";
+import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
+import { usePersonScheduleDrawer } from "../person-schedule/usePersonScheduleDrawer";
 import { capacityBarBackground, computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import type {
@@ -28,6 +33,13 @@ interface CapacityOverviewTableProps {
   onHasAvailabilityChange: (checked: boolean) => void;
   onShowTotalsChange: (checked: boolean) => void;
   onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void;
+}
+
+const EMPTY_APP_DATA: AppData = emptyAppData();
+
+interface PersonScheduleTriggerHandlers {
+  personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
+  onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 }
 
 function formatDays(days: number, kind: "capacity" | "overbooked" | "unassigned") {
@@ -189,17 +201,30 @@ function GroupHeader({
   );
 }
 
-function PersonIdentity({ group, row }: { group: CapacityOverviewGroup; row: CapacityOverviewGroup["rows"][number] }) {
+function PersonIdentity({
+  group,
+  row,
+  personScheduleTitlesByResourceId,
+  onViewSchedule,
+}: {
+  group: CapacityOverviewGroup;
+  row: CapacityOverviewGroup["rows"][number];
+} & PersonScheduleTriggerHandlers) {
+  const { resource } = row;
+  const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <Avatar
-        name={row.resource.name ?? row.resource.role}
-        color={group.color ?? row.resource.color}
-        placeholder={isPlaceholderResource(row.resource)}
+      <PersonScheduleTrigger
+        resourceId={resource.id}
+        scheduleTitle={scheduleTitle}
+        avatarName={resource.name ?? resource.role}
+        color={group.color ?? resource.color}
+        placeholder={isPlaceholderResource(resource)}
+        onViewSchedule={onViewSchedule}
       />
       <div className="ms-1.5 min-w-0">
-        <span className="block truncate text-sm font-medium">{resolveResourceDisplayName(row.resource)}</span>
-        <span className="block truncate text-xs text-muted-foreground">{row.resource.role}</span>
+        <span className="block truncate text-sm font-medium">{resolveResourceDisplayName(resource)}</span>
+        <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
       </div>
     </div>
   );
@@ -237,6 +262,8 @@ function CapacityTableBody({
   groupHeight,
   showTotals,
   capacityDisplayMode,
+  personScheduleTitlesByResourceId,
+  onViewSchedule,
 }: {
   model: CapacityOverviewModel;
   collapsedGroups: Set<string>;
@@ -245,7 +272,7 @@ function CapacityTableBody({
   groupHeight: number;
   showTotals: boolean;
   capacityDisplayMode: CapacityDisplayMode;
-}) {
+} & PersonScheduleTriggerHandlers) {
   const hasRows = model.groups.some((group) => group.rows.length > 0);
   return (
     <TableBody>
@@ -264,7 +291,12 @@ function CapacityTableBody({
               group.rows.map((row) => (
                 <TableRow key={row.resource.id} className="bg-scheduler-canvas" style={{ height: rowHeight }}>
                   <TableHead scope="row" className="h-auto min-w-0 whitespace-normal px-4 font-normal">
-                    <PersonIdentity group={group} row={row} />
+                    <PersonIdentity
+                      group={group}
+                      row={row}
+                      personScheduleTitlesByResourceId={personScheduleTitlesByResourceId}
+                      onViewSchedule={onViewSchedule}
+                    />
                   </TableHead>
                   {row.weeks.map((result) => (
                     <WeekValuesCell key={result.week.key} result={result} capacityDisplayMode={capacityDisplayMode} />
@@ -289,11 +321,13 @@ function CapacityTable({
   model,
   showTotals,
   capacityDisplayMode,
+  personScheduleTitlesByResourceId,
+  onViewSchedule,
 }: {
   model: CapacityOverviewModel;
   showTotals: boolean;
   capacityDisplayMode: CapacityDisplayMode;
-}) {
+} & PersonScheduleTriggerHandlers) {
   const density = useSchedulerDensity();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const toggleGroup = (key: string) =>
@@ -330,14 +364,28 @@ function CapacityTable({
         groupHeight={density.groupHeaderHeight}
         showTotals={showTotals}
         capacityDisplayMode={capacityDisplayMode}
+        personScheduleTitlesByResourceId={personScheduleTitlesByResourceId}
+        onViewSchedule={onViewSchedule}
       />
     </Table>
   );
 }
 
-export function CapacityOverviewTable(props: CapacityOverviewTableProps) {
+interface CapacityOverviewTableWithScheduleProps extends CapacityOverviewTableProps {
+  /** Scoped account data used to resolve person schedule titles. Defaults to empty data (tests
+   *  that don't exercise the drawer need not pass it). */
+  data?: AppData;
+  /** Restores focus to a stable element when the drawer's opener has been removed from the DOM.
+   *  Defaults to an internal ref on this component's own root when not supplied. */
+  fallbackRef?: RefObject<HTMLDivElement | null>;
+}
+
+export function CapacityOverviewTable(props: CapacityOverviewTableWithScheduleProps) {
+  const internalFallbackRef = useRef<HTMLDivElement>(null);
+  const fallbackRef = props.fallbackRef ?? internalFallbackRef;
+  const personScheduleDrawer = usePersonScheduleDrawer({ data: props.data ?? EMPTY_APP_DATA, fallbackRef });
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div ref={fallbackRef} className="flex h-full min-h-0 flex-col">
       <OverviewToolbar {...props} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!props.model.measured ? (
@@ -354,9 +402,17 @@ export function CapacityOverviewTable(props: CapacityOverviewTableProps) {
             model={props.model}
             showTotals={props.showTotals}
             capacityDisplayMode={props.capacityDisplayMode}
+            personScheduleTitlesByResourceId={personScheduleDrawer.titlesByResourceId}
+            onViewSchedule={personScheduleDrawer.viewSchedule}
           />
         )}
       </div>
+      <PersonScheduleSheet
+        open={personScheduleDrawer.open}
+        schedule={personScheduleDrawer.schedule}
+        onOpenChange={personScheduleDrawer.setOpen}
+        onRestoreFocus={personScheduleDrawer.restoreFocus}
+      />
     </div>
   );
 }

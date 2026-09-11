@@ -22,6 +22,8 @@ the schedule.
 4. Choose **Has availability** to keep people with at least 0.25 days capacity in any shown week and placeholders with demand.
 5. Choose **Show totals** to reveal each group header's free, overbooked and unassigned-demand figures; **Hide totals** is the default.
 6. Choose **Bar** or **Bar & number** to see free and overbooked capacity as a fill in each cell, proportioned against that week's own availability; **Number** is the default.
+7. Hover or focus a person's avatar to reveal an eye icon, then select it to open that person's
+   read-only schedule drawer without leaving Overview.
 
 ## Acceptance criteria
 
@@ -35,5 +37,7 @@ the schedule.
 - ✅ The bar never applies to group header totals or unassigned-demand rows, and every mode keeps the underlying value available to assistive technology.
 - ✅ Blocks mode explains that the overview needs Hours or Days without showing capacity figures.
 - ✅ Owners and Admins can choose Owner/Admin, Owner/Admin/Editor or Everyone access in Settings; the default is Owner/Admin.
+- ✅ Selecting a person's avatar opens their read-only schedule drawer over the fixed 28-day window
+  from its own start date, the same trigger and drawer used by the Schedule.
 
 See [Find capacity for the next four weeks](/guide/capacity-overview) for the user guide.

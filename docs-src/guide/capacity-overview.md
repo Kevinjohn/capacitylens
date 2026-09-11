@@ -22,6 +22,11 @@ calculates from exact values before rounding.
 If placeholders are enabled, their allocations appear separately as **Unassigned demand**. This
 demand is rounded up to the nearest quarter-day and is not counted as people capacity.
 
+Hover or focus a person's avatar to reveal an eye icon. Selecting it opens that person's
+read-only schedule drawer, covering its own four-week window from today rather than the
+Overview's own columns, without changing the table's filters or scroll position — the same
+drawer used from [the schedule](/guide/the-schedule).
+
 ## Filter the table
 
 **Show tentative** starts selected. Choose **Hide tentative** to recalculate both people's capacity

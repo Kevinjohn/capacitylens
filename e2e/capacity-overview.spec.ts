@@ -34,4 +34,8 @@ test("reviews the fixed four-week capacity window and filters available rows", a
   await expect(page.getByRole("radio", { name: "Number", exact: true })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("radio", { name: "Bar", exact: true }).click();
   await expect(page.getByRole("radio", { name: "Bar", exact: true })).toHaveAttribute("aria-checked", "true");
+
+  await table.getByRole("button", { name: "View Bruce Wayne's schedule" }).click();
+  await expect(page.getByRole("dialog", { name: "Bruce Wayne's schedule" })).toBeVisible();
+  await expect(page.getByTestId("person-schedule-sheet")).toHaveCount(1);
 });
