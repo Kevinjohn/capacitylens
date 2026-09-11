@@ -71,15 +71,14 @@ A CapacityLens session lasts at most twelve hours from the moment someone signs 
 doesn't renew itself just because they're active — after twelve hours, they sign in
 again regardless. Separately, thirty minutes with no activity also signs someone out.
 
-A handful of sensitive actions — changing your own password, resetting someone else's
-password, signing someone out of every session, transferring company ownership, exporting
-data, deleting a company — need a session that's "fresh": if it's been more than fifteen
-minutes since the person last proved who they are, CapacityLens asks them to confirm again
-(their password, or a two-factor code) before letting the action through. This doesn't sign
-them out or lose their place; it's a quick check in place. Other administrative actions —
-inviting or removing a member, changing a role or status, and similar day-to-day admin work —
-only need the right role and, where required, two-factor sign-in; they don't ask for this
-extra confirmation.
+A handful of sensitive actions — resetting someone else's password, signing someone out of
+every session, transferring company ownership, deleting a company, and importing or purging
+company data — need a session that's "fresh": if it's been more than fifteen minutes since
+the person last proved who they are, CapacityLens asks them to confirm again (their password,
+or a two-factor code) before letting the action through. This doesn't sign them out or lose
+their place; it's a quick check in place. Other administrative actions — inviting or removing
+a member, changing a role or status, and similar day-to-day admin work — only need the right
+role and, where required, two-factor sign-in; they don't ask for this extra confirmation.
 
 ## Extra security: two-factor sign-in
 

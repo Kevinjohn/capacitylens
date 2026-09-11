@@ -186,7 +186,8 @@ This is the short, present-tense record of decisions that constrain future work.
   capability or claims to become that person's login. The registry is session-keyed and in memory,
   rather than stored in a table or cookie: the supported topology is one process, and restart loss
   fails closed. A method-based root guard plus a Better Auth proxy guard enforce read-only access.
-  Starting requires a fresh Owner/Admin session, cannot replace an existing projection, and ends
+  Starting requires an Owner/Admin role (no fresh session, per the 2026-09-11 freshness decision
+  below), cannot replace an existing projection, and ends
   before an account switch. Start/end audits use explicit, account-switch, sign-out, expiry,
   revocation and caller/target invalidation reasons; the start event carries the session expiry so
   a restart-lost projection remains bounded in the ledger.
