@@ -28,5 +28,10 @@ describe("ClosureBand", () => {
     expect(band.style.width).toBe(`${GEOM.widthForDates("2026-06-05", "2026-06-08")}px`);
     expect(screen.getByTestId("scheduler-closure-label")).toHaveStyle({ marginTop: "30px" });
     expect(screen.getAllByTestId("scheduler-closure-band")).toHaveLength(1);
+    // Styling hook for the time-off draw-mode highlight (see src/index.css
+    // `[data-draw-mode="timeoff"] .scheduler-closure-band`, #787). The band itself is mode-agnostic;
+    // the ancestor grid publishes `data-draw-mode`, so this class is the only thing a later,
+    // closure-specific style needs to key off.
+    expect(band).toHaveClass("scheduler-closure-band");
   });
 });

@@ -13,6 +13,8 @@ new features and **patch** versions carry fixes.
   in validation while checking only browser-shipped sources in `pnpm run build`.
 
 - Keep schedule group headers above company closure shading (#766).
+- Highlight company closures the same way as personal time off when the schedule's draw mode is
+  switched to Time off, instead of leaving the closure band unchanged (#787).
 
 ### Changed
 

@@ -528,6 +528,23 @@ input[type="radio"] {
     box-shadow 0.15s ease;
 }
 
+[data-draw-mode="timeoff"] .scheduler-closure-band {
+  /* Company closures are time off for everyone, so time-off mode highlights the closure band
+     with the same tokens as a personal time-off block. A distinct closure style can come later —
+     this only reuses `timeoff-selected`. The band sets its hatch with an inline `background`
+     shorthand, same as `.scheduler-timeoff-block`; `!important` lets the vivid colour beat that
+     shorthand's transparent background-color without replacing its background-image, so the
+     existing hatch stays visible underneath the tint. */
+  color: var(--color-timeoff-selected-ink);
+  background-color: var(--color-timeoff-selected) !important;
+  box-shadow:
+    0 0 0 1px var(--color-timeoff-selected),
+    0 0 6px 1px color-mix(in oklab, var(--color-timeoff-selected) 45%, transparent);
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
 /* Defensive net for the hover popover in time-off mode. The bars-layer `inert` already BLOCKS the
    mouseenter/focus that opens a popover, so a new one can't appear; and any path to the Time-off
    toggle blurs/leaves the bar first (clearing a pre-existing one). But the popover is portaled to
