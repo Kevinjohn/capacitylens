@@ -254,13 +254,20 @@ describe("SchedulerGrid", () => {
     expect(secondRow).toBeDefined();
     if (!firstRow || !secondRow) return;
     expect(screen.getAllByTestId("scheduler-closure-band")).toHaveLength(1);
-    expect(band).toHaveTextContent("Long weekend");
+    const labelLayer = screen.getByTestId("scheduler-closure-label-layer");
+    expect(labelLayer).toHaveTextContent("Long weekend");
+    // Both halves of the closure's stacking, pinned together so neither can regress alone.
+    // #766: the band's SHADING stays under the group-header rows.
     expect(band).toHaveClass("z-0");
-    // #788: the name no longer clears the group header by a fixed offset — it is clamped to the
-    // part of the band on screen, so it survives scrolling down a list taller than the viewport.
+    expect(screen.getAllByTestId("discipline-group")[0]).toHaveClass("relative", "z-10");
+    // #788: the NAME is not inside that `z-0` stacking context, so the rows cannot bury it. It is
+    // a sibling in the same context as the rows, lifted above them by the scheduler-local token.
+    expect(band.contains(labelLayer)).toBe(false);
+    expect(labelLayer.parentElement).toBe(band.parentElement);
+    expect(labelLayer.getAttribute("style")).toContain("z-index: var(--z-index-scheduler-closure-label)");
+    // Its vertical placement is the viewport clamp, not the old fixed group-header offset.
     const labelBox = screen.getByTestId("scheduler-closure-label-box");
     expect(labelBox.style.top).toBe(buildVisibleSpanInsets("y", "0px", "var(--band-height)").leading);
-    expect(screen.getAllByTestId("discipline-group")[0]).toHaveClass("relative", "z-10");
     expect(within(firstRow).getByTestId("timeoff-block")).toBeInTheDocument();
     expect(within(secondRow).queryByTestId("timeoff-block")).not.toBeInTheDocument();
     expect(band.style.height).toBe(
