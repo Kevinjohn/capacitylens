@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatDayCount,
   formatDayMonth,
+  formatDayMonthEndpoint,
   formatDayMonthRange,
   formatInstant,
   formatInstantDate,
@@ -10,6 +11,7 @@ import {
   formatScheduleDate,
   formatScheduleDateRange,
   formatShortDate,
+  formatShortDateEndpoint,
   formatShortDateRange,
   formatWeekdayScheduleDate,
 } from "./dateDisplay";
@@ -123,6 +125,29 @@ describe("formatDayMonthRange", () => {
 
   it("shows both months for a cross-month range under day-month order", () => {
     expect(formatDayMonthRange("2026-09-09", "2026-10-14")).toBe("9 Sep – 14 Oct");
+  });
+});
+
+describe("range endpoints stated in full", () => {
+  it("matches the plain single-date form when both ends share a year", () => {
+    expect(formatDayMonthEndpoint("2026-09-09", "2026-09-14")).toBe(formatDayMonth("2026-09-09"));
+    expect(formatShortDateEndpoint("2026-09-09", "2026-10-14")).toBe(formatShortDate("2026-09-09"));
+  });
+
+  it("spells out the year at both ends across a year boundary, so neither reads backwards", () => {
+    expect(formatDayMonthEndpoint("2026-12-28", "2027-01-08")).toBe("28 Dec 2026");
+    expect(formatDayMonthEndpoint("2027-01-08", "2026-12-28")).toBe("8 Jan 2027");
+    expect(formatShortDateEndpoint("2026-12-28", "2027-01-08")).toBe("Mon 28th Dec 2026");
+  });
+
+  it("follows the active style like every other helper", () => {
+    writeStoredDateStyle("month-day-ordinal");
+    expect(formatDayMonthEndpoint("2026-12-28", "2027-01-08")).toBe("Dec 28th, 2026");
+  });
+
+  it("surfaces an invalid upstream date instead of hiding it", () => {
+    expect(() => formatDayMonthEndpoint(invalidDate, "2026-09-14")).toThrow(RangeError);
+    expect(() => formatDayMonthEndpoint("2026-09-14", invalidDate)).toThrow(RangeError);
   });
 });
 

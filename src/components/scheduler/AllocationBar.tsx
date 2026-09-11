@@ -3,7 +3,7 @@ import { ensureBarColors } from "@capacitylens/shared/lib/color";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useCanEdit } from "../../auth/permissionContext";
-import { formatDayMonth } from "../../lib/dateDisplay";
+import { formatDayMonthEndpoint } from "../../lib/dateDisplay";
 import type { BarLabelPreferences } from "../../lib/displayPrefs";
 import { resolveAllocationStatusLabel } from "../../lib/metadata";
 import { useStore } from "../../store/useStore";
@@ -50,9 +50,11 @@ function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedul
   const shared = {
     hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) }),
     status: resolveAllocationStatusLabel(bar.allocation.status),
-    start: formatDayMonth(bar.allocation.startDate),
-    end: formatDayMonth(bar.allocation.endDate),
-    series: bar.seriesEnd ? m.scheduler_bar_aria_series({ end: formatDayMonth(bar.seriesEnd) }) : "",
+    start: formatDayMonthEndpoint(bar.allocation.startDate, bar.allocation.endDate),
+    end: formatDayMonthEndpoint(bar.allocation.endDate, bar.allocation.startDate),
+    series: bar.seriesEnd
+      ? m.scheduler_bar_aria_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.endDate) })
+      : "",
   };
   const task =
     showTaskFieldInSchedule && bar.allocation.task ? m.scheduler_bar_aria_task({ task: bar.allocation.task }) : "";
