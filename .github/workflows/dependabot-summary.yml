@@ -1,0 +1,101 @@
+# Dependabot writes its pull-request bodies for machines. A base-image update reads
+# "Bumps node from 6f7b03f to ba849c6" and stops there, because a registry digest
+# carries no release notes for it to quote. `dependabot.yml` cannot help: it
+# configures commit prefixes, labels, reviewers and milestones, but has no
+# pull-request body template.
+#
+# This workflow comments a short plain-English summary instead, built from the
+# structured metadata Dependabot writes into its own commit. It is advisory only;
+# nothing gates on it.
+#
+# `pull_request_target` is required rather than `pull_request`: runs that Dependabot
+# triggers receive a read-only token and cannot comment. The elevated token is safe
+# here because the job never checks out or executes the pull request's code.
+
+name: Dependabot summary
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions: read-all
+
+jobs:
+  summary:
+    name: Explain the update
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Read Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+
+      - name: Comment the summary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          NAMES: ${{ steps.metadata.outputs.dependency-names }}
+          PREVIOUS: ${{ steps.metadata.outputs.previous-version }}
+          NEW: ${{ steps.metadata.outputs.new-version }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          ALERT_STATE: ${{ steps.metadata.outputs.alert-state }}
+          GHSA_ID: ${{ steps.metadata.outputs.ghsa-id }}
+        run: |
+          set -euo pipefail
+
+          # Dependabot lists grouped updates as a comma-separated string.
+          names="${NAMES//,/, }"
+          plural="dependency"
+          grouped=""
+          case "$names" in *", "*) plural="dependencies"; grouped="yes" ;; esac
+
+          # semver-patch, semver-minor, semver-major or empty for a digest re-pin.
+          severity="${UPDATE_TYPE##version-update:semver-}"
+
+          # The version outputs describe the first dependency only, so a grouped
+          # update states the update type without claiming one version pair.
+          if [ -n "$grouped" ]; then
+            movement="moved to their latest $severity releases"
+          else
+            movement="moved from \`$PREVIOUS\` to \`$NEW\` (a $severity change)"
+          fi
+
+          case "$ECOSYSTEM" in
+            docker)
+              if [ "$PREVIOUS" = "$NEW" ]; then
+                what="Base image \`$names\` re-pinned to a newer digest of the same tag."
+                why="The tag has not moved, so the runtime stays on \`$NEW\`. Upstream rebuilt the image, which normally means Debian security patches."
+              else
+                what="Base image \`$names\` $movement."
+                why="The runtime the container is built on changes. Check the image's support window before merging."
+              fi
+              scope="Build input only: no application dependency changes, and nothing here is user-visible."
+              ;;
+            npm)
+              what="Application $plural $names $movement."
+              why="This code ships inside the product."
+              scope="Read the linked release notes for behaviour changes; the full gate runs on merge to main."
+              ;;
+            github_actions|github-actions)
+              what="CI action $names $movement."
+              why="Only the workflows that run the build are affected."
+              scope="Nothing in the shipped application changes."
+              ;;
+            *)
+              what="The $ECOSYSTEM $plural $names $movement."
+              why="No ecosystem-specific summary is written for this update type yet."
+              scope="Read the pull-request body for the details Dependabot supplied."
+              ;;
+          esac
+
+          if [ "$ALERT_STATE" = "OPEN" ]; then
+            scope="$scope Closes a published advisory (${GHSA_ID:-unidentified}), so treat it as a security fix."
+          fi
+
+          printf '%s %s\n\n%s\n' "$what" "$why" "$scope" \
+            | gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file -
