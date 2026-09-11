@@ -397,6 +397,11 @@ pnpm run coverage
 pnpm run mutation
 ```
 
+Installing dependencies configures lightweight Git hooks. Each commit lints only staged authored
+JavaScript and TypeScript files, so small commits stay fast. Each push runs the complete repository
+lint to catch configuration and cross-file effects. Set `SKIP_SIMPLE_GIT_HOOKS=1` for a single Git
+operation only when diagnosing a hook problem; pull-request checks remain authoritative.
+
 ### What `gate` checks
 
 `gate` compiles translations, type-checks, lints with zero warnings, runs Vitest with
@@ -682,9 +687,10 @@ thread-pool reuse or a larger outer timeout.
 
 ### When CI runs
 
-CodeQL analyzes every pull request targeting `main`. The other workflows run when the merge
-reaches `main`, plus their own weekly or monthly schedules. To see those gates green before
-merging, dispatch them against the branch:
+Static analysis and CodeQL analyze every pull request targeting `main`. The focused static-analysis
+workflow compiles translations, type-checks the shared and application projects, and lints all
+authored sources. The heavier workflows run when the merge reaches `main`, plus their own weekly or
+monthly schedules. To see those gates green before merging, dispatch them against the branch:
 
 ```bash
 gh workflow run gate.yml --ref <branch>
@@ -692,10 +698,10 @@ gh workflow run e2e.yml --ref <branch>
 ```
 
 Opening a pull request and pushing to its branch previously fired `gate`, `e2e`, `docker` and
-`security` on every event — several full passes per change. CodeQL remains the deliberately
-smaller exception so static analysis covers every proposed commit. The local
-`pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` are the fast feedback loop; CI
-is the record.
+`security` on every event — several full passes per change. Focused lint/type-check and CodeQL jobs
+now cover every proposed commit without repeating the full suites. Staged-file lint on commit and
+whole-repository lint on push provide the earliest feedback; `pnpm run gate`,
+`pnpm run gate:server` and `pnpm run e2e` remain the complete local checks, and CI is the record.
 
 Two jobs used to depend on pull-request context and now read the pushed commit range
 (`github.event.before`..`github.sha`) instead: DCO sign-off and dependency review. Both
@@ -736,12 +742,9 @@ working as intended. See `docs-src/security/security-review-2026-07-14.md` for a
 scope and residual controls.
 
 `main` is protected against deletion and force pushes, and changes must arrive through a pull
-request. The rule deliberately requires neither an approval nor a status check while the project
-has one active maintainer and workflows report after merge rather than on pull requests. A red
-`main` is found by looking at the run the merge produced, or at the badges in the README. If status
-checks are added later, remember that they are matched by display name and no workflow currently
-reports on a pull request — a required check that never runs leaves every pull request permanently
-unmergeable.
+request. The `Lint and type-check` status is required before merge; no approving review is required
+while the project has one active maintainer. The heavier post-merge workflows still report complete
+suite results on `main`.
 
 The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`;
 uploads are deliberately skipped until that secret exists. Uploads are best-effort because

@@ -9,7 +9,6 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 
 beforeEach(() => resetStoreWithAccount());
 
-// eslint-disable-next-line max-lines-per-function -- integration scenarios intentionally share one fixture lifecycle
 describe("ProjectForm", () => {
   const installInternalClient = () => {
     const state = useStore.getState();
