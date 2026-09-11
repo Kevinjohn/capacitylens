@@ -191,6 +191,40 @@ type SchedulingFeatureSectionProps = Pick<
   | "updateSetting"
 >;
 
+function AdditionalResourcingSection({
+  canEdit,
+  placeholdersEnabled,
+  externalEnabled,
+  updateSetting,
+}: Pick<SettingsSchedulingSectionProps, "canEdit" | "placeholdersEnabled" | "externalEnabled" | "updateSetting">) {
+  const help = (
+    <>
+      <p>{m.settings_additional_resourcing_intro()}</p>
+      <p>{m.settings_placeholders_intro()}</p>
+      <p>{m.settings_external_intro()}</p>
+      <p>{externalExplainer()}</p>
+    </>
+  );
+  return (
+    <SettingsSection title={m.settings_additional_resourcing_heading()} help={help}>
+      <div className="flex flex-col gap-3">
+        <SwitchField
+          label={m.settings_placeholders_toggle()}
+          checked={placeholdersEnabled}
+          onChange={(next) => updateSetting({ placeholdersEnabled: next })}
+          disabled={!canEdit}
+        />
+        <SwitchField
+          label={m.settings_external_toggle()}
+          checked={externalEnabled}
+          onChange={(next) => updateSetting({ externalEnabled: next })}
+          disabled={!canEdit}
+        />
+      </div>
+    </SettingsSection>
+  );
+}
+
 function SchedulingFeatureSections({
   canEdit,
   placeholdersEnabled,
@@ -201,29 +235,13 @@ function SchedulingFeatureSections({
   showTaskFieldInSchedule,
   updateSetting,
 }: SchedulingFeatureSectionProps) {
-  const externalHelp = (
-    <>
-      <span className="block">{externalExplainer()}</span>
-      <span className="mt-2 block">{m.settings_external_intro()}</span>
-    </>
-  );
   return (
     <>
-      <AccountToggleSection
-        title={m.settings_placeholders_heading()}
-        help={m.settings_placeholders_intro()}
-        label={m.settings_placeholders_toggle()}
-        checked={placeholdersEnabled}
+      <AdditionalResourcingSection
         canEdit={canEdit}
-        onChange={(next) => updateSetting({ placeholdersEnabled: next })}
-      />
-      <AccountToggleSection
-        title={m.settings_external_heading()}
-        help={externalHelp}
-        label={m.settings_external_toggle()}
-        checked={externalEnabled}
-        canEdit={canEdit}
-        onChange={(next) => updateSetting({ externalEnabled: next })}
+        placeholdersEnabled={placeholdersEnabled}
+        externalEnabled={externalEnabled}
+        updateSetting={updateSetting}
       />
       <InternalVisibilitySection
         canEdit={canEdit}

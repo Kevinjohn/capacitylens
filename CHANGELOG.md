@@ -13,6 +13,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Rename Global working days to Company-wide working days, clarify company, personal and device
+  preference scope, and group independent Placeholder and External visibility switches under
+  Additional resourcing options. New companies now default to Days input with inline activity
+  creation off (#743).
 - Narrow the Schedule project filter choices to the selected client while retaining **All projects**
   and resetting incompatible project selections (#716).
 - Explain every empty activity category and keep creation actions beside the Activities and Time off headings (#742).

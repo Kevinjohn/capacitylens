@@ -22,7 +22,7 @@ when the switch goes back on, so it never breaks a dataset that already has plac
 
 1. On the Schedule, note there is **no placeholder row** — only the real people (Bruce, Diana, Clark, Barry). (The External band is also hidden by default — it has its own _Show external resources_ pref, see US-SET-07.) The placeholder's bar (Visual Design) is not drawn.
 2. Open **Resources** (sidebar). There is **no "Placeholders" section** and **no "Add placeholder" button** — only the people list.
-3. Open **Settings** (sidebar). In the **Placeholders** section, find the **Show placeholders** switch — it's **off**.
+3. Open **Settings** (sidebar). In the **Additional resourcing options** section, find the **Show placeholders** switch — it's **off**.
 4. Switch it **on**.
 5. Return to **Resources**: the **Placeholders** section and its **Add placeholder** button now appear, with the seeded placeholder shown as **"Placeholder"** (its role _Senior Designer_ in the secondary text).
 6. Return to **Schedule**: a row now appears in the Design band showing the name **"Placeholder"** with a **"?"** avatar and its Visual Design bar.
@@ -31,7 +31,7 @@ when the switch goes back on, so it never breaks a dataset that already has plac
 
 ## Acceptance criteria
 
-- The **Placeholders** section appears in Settings with a single **Show placeholders** switch (`role="switch"`, accessible name `Show placeholders`).
+- The **Additional resourcing options** section appears in Settings with a **Show placeholders** switch (`role="switch"`, accessible name `Show placeholders`).
 - The switch defaults to **off** (`aria-checked="false"`) — placeholders are hidden out of the box.
 - With it **off**: no placeholder row appears on the schedule (and a placeholder contributes nothing to per-discipline / overall utilisation), no placeholder option appears in the assignee picker or the ⌘K command palette, and the Resources page hides its **Placeholders** section and **Add placeholder** button. A dataset that already contains placeholders **hides** them — it never errors.
 - With it **on**: a placeholder shows the literal name **"Placeholder"** with a **"?"** avatar (its role/discipline as secondary text); the assignee picker labels it **"Placeholder (slot)"**.

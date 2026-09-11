@@ -131,7 +131,7 @@ stores a different number of hours, the closed select keeps showing that exact v
 is not rounded; choosing one of the four options is an explicit change.
 
 Leave **Ignore working days** unchecked to follow the person's effective working week — the days
-in both the company's [global working days](/guide/settings#global-working-days) and their own
+in both the company's [company-wide working days](/guide/settings#company-wide-working-days) and their own
 pattern. Check it when the allocation must use every calendar day in its date span, including
 company and personal non-working weekdays. Either way, a new allocation must start on an effective
 working day that isn't covered by the person's time off — the checkbox never changes where a new

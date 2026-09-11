@@ -124,7 +124,7 @@ Deleting or shortening the closure restores capacity; nothing about the allocati
 themselves has changed.
 
 A closure is dated, whole-day and not recurring. It is different from the company's
-[global working days](/guide/settings#global-working-days), which normal allocations
+[company-wide working days](/guide/settings#company-wide-working-days), which normal allocations
 simply skip. Days a closure covers still count as scheduled load, exactly like personal
 time off, and **Ignore working days** never bypasses either. New allocations cannot
 start on a closure date for a person or placeholder.

@@ -9,5 +9,5 @@
 // account's locale rather than freezing to the import-time locale.
 import { m } from "@/i18n";
 
-/** The shared External / 3rd-party help copy (Resources tab + Settings → External). */
+/** The shared External / 3rd-party help copy (Resources tab + Settings → Additional resourcing options). */
 export const externalExplainer = () => m.external_explainer();
