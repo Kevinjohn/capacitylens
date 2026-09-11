@@ -177,7 +177,7 @@ test("keeps a legacy unattributed edit unchanged and places inline activities in
   await expect(editor.getByLabel("Project", { exact: true })).toHaveText("No specific project");
   await editor.getByRole("button", { name: "Cancel" }).click();
 
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await enableInlineActivityCreation(page);
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 4);
@@ -195,7 +195,7 @@ test("keeps a legacy unattributed edit unchanged and places inline activities in
 });
 
 test("locks and stamps a placeholder booking and copies attribution across a repeat series", async ({ page }) => {
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await showPlaceholders(page);
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 4);
@@ -274,7 +274,7 @@ test("project purge clears attribution without deleting the shared booking", asy
   await openImportedData(page, PURGE_IMPORT);
   await page.getByRole("link", { name: "Schedule" }).click();
   await expect(page.getByTestId("allocation-bar").filter({ hasText: "Shared Planning" })).toHaveCount(0);
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("button", { name: "Deleted items", exact: true }).click();
   const projectRow = page.getByTestId("deleted-row").filter({ hasText: "Old Project" });
   await projectRow.getByTestId("archived-purge").click();

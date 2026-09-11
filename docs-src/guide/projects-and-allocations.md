@@ -12,6 +12,9 @@ as bars on [the schedule](/guide/the-schedule).
 
 ## Choose where an activity can be used
 
+On **Activities**, each empty category explains where its activities can be used. Select
+**Add activity** beside the page heading to create one.
+
 Before you create an allocation, decide whether its activity is for internal work,
 reusable across projects or unique to one project:
 

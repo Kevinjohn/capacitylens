@@ -113,6 +113,18 @@ describe("ActivityList", () => {
     expect(screen.queryByText(/Activities are the work you allocate/)).not.toBeInTheDocument();
   });
 
+  it("explains the purpose of every empty activity category", () => {
+    render(<ActivityList />);
+
+    expect(
+      screen.getByText("These activities cover internal work that is not assigned to a project."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("These activities can be used on any project.")).toBeInTheDocument();
+    expect(
+      screen.getByText("These activities can only be used on the project they are assigned to."),
+    ).toBeInTheDocument();
+  });
+
   it("gives repeated row action controls distinct contextual names", () => {
     useStore.getState().addActivity({ name: "Planning", kind: "internal" });
     useStore.getState().addActivity({ name: "Operations", kind: "internal" });

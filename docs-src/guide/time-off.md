@@ -76,7 +76,9 @@ The Time off page is a forward-looking planning list. It shows an entry when its
 is on or after the start of the current company week. Older entries stay stored but no
 longer clutter the page.
 
-The page separates **Company closures** from **Personal time off**. Closure rows show the
+The page separates **Company closures** from **Personal time off**. Use **Add closure**
+or **Add time off** beside the relevant heading. Empty sections explain their purpose
+without repeating those buttons. Closure rows show the
 closure name and complete date span. Personal entries are grouped under each resource's
 name; resource groups appear alphabetically, each person's entries are ordered by date,
 and an entry whose person no longer exists falls into a final "unknown" group.

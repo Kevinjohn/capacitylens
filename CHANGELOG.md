@@ -7,22 +7,35 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep schedule group headers above company closure shading (#766).
+
 ### Changed
 
 - Rename Global working days to Company-wide working days, clarify company, personal and device
   preference scope, and group independent Placeholder and External visibility switches under
   Additional resourcing options. New companies now default to Days input with inline activity
   creation off (#743).
+- Narrow the Schedule project filter choices to the selected client while retaining **All projects**
+  and resetting incompatible project selections (#716).
+- Explain every empty activity category and keep creation actions beside the Activities and Time off headings (#742).
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
   and simplify drawer entries to a compact activity-first agenda (#753, #754).
+- Keep the Add person dialog open when a self-hosted save is rejected, and allow people whose
+  optional Role is blank to persist (#736).
+- Simplify resource add/edit forms with always-visible Studio/Supplementary choices, compact Start date and End date labels,
+  and separators around the date group (#765).
 
 ### Added
 
+- Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,
+  activity creation, company-settings review and direct links to each action (#741).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
   manually triggered workflow (#752).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is
   hidden and task details above Notes in schedule popovers and person drawers (#720).
-- Add optional inclusive **First available date** and **Last available date** fields for Studio and
+- Add optional inclusive **Start date** and **End date** fields for Studio and
   Supplementary people. Capacity is zero outside a person's range while existing allocated work
   remains visible; new or placement-changing work cannot be placed outside the range (#723).
 

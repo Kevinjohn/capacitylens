@@ -641,3 +641,19 @@ describe("SettingsView — account options selected at creation", () => {
     expect(within(dialog).getByText(/set which day starts the week/i)).toBeInTheDocument();
   });
 });
+
+it("opens and focuses the Import section reached from onboarding", () => {
+  const previousUrl = window.location.href;
+  const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+  try {
+    window.history.replaceState(null, "", "/settings#getting-started-import");
+    render(<SettingsView />);
+    const section = document.getElementById("getting-started-import");
+    expect(section).toHaveFocus();
+    expect(section).toHaveTextContent("Import JSON");
+    expect(scroll).toHaveBeenCalledWith({ block: "start" });
+  } finally {
+    window.history.replaceState(null, "", previousUrl);
+    scroll.mockRestore();
+  }
+});

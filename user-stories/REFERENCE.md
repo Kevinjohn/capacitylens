@@ -103,9 +103,10 @@ If the app changes, update this file first, then the affected stories.
    by `src/lib/introCopy.ts`), pending a human edit.
 6. On an account that still has an onboarding step to do, the schedule shows a floating **Getting
    started** checklist card (`data-testid="getting-started"`) over the schedule without shifting
-   the toolbar or grid, with four
-   state-driven steps — **Add your first client / project / person** (links to those pages) and
-   **Assign them to the project** (done once any allocation exists). A step ticks itself off from
+   the toolbar or grid. It first asks the user to **Import existing data** or explicitly **Start
+   from scratch**, then tracks adding a client, project, activity and person, assigning that person
+   to the project, and reviewing the company's focused scheduling, availability and optional-feature
+   defaults in Settings. An entity step ticks itself off from
    the account's actual data (the built-in Internal client does NOT count as "your first
    client", and placeholder or external resources do NOT count as "your first person"); the card
    self-hides once ALL steps are done, so the seeded companies never show it.
@@ -119,7 +120,11 @@ If the app changes, update this file first, then the affected stories.
    (`capacitylens/gettingStartedDismissed`, default off, never in `AppData`/export). Hidden for a
    Viewer (every schedule-setup CTA is a write they can't do). In an authenticated company, Owner
    and Admin additionally see an optional **Invite your team** link to `/team`; it is deliberately
-   outside the four completion steps, so a solo owner can finish setup without inviting anyone.
+   outside the completion steps, so a solo owner can finish setup without inviting anyone. New
+   setup keeps the Settings review pending even when the user begins by adding records directly;
+   established companies do not reopen onboarding. Import and Settings links scroll to and focus
+   their destination section. Away
+   from Schedule, a compact progress link returns to the full card without covering page content.
 7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
 8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these
@@ -342,7 +347,7 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline` (when disciplines are
-enabled and at least one exists), `Engagement`, `First available date`, `Last available date` (for Studio and
+enabled and at least one exists), `Engagement`, `Start date`, `End date` (for Studio and
 Supplementary people only), `Bound project`, `Working days` (for people only: a
 full-width Monday–Sunday radio grid aligned with the field label whose `Full day`, `Half day` and
 `Not working` column headings appear once; every cell's native radio is labelled by both its weekday
@@ -431,7 +436,9 @@ current company week remain grouped into one compact bordered list per resource,
 resource name shown once as the section heading. Resource sections sort alphabetically, their rows
 sort by start date, end date and id, and placeholder entries follow **Show placeholders**. An
 unexpected dangling resource stays visible in a final **(unknown)** section rather than crashing.
-The company section has its own **Add closure** button and empty state. It uses
+The company section has one **Add closure** button beside its heading and an explanatory empty state.
+Personal time off likewise keeps **Add time off** beside its heading, without a second empty-card action.
+The company section uses
 `data-testid="company-closures-section"`; each dated row uses
 `data-testid="company-closure-row"` and shows the required closure name plus its inclusive date
 span. Closure rows have the same edit, confirm-delete and undo/redo behaviour and permissions as
@@ -573,7 +580,11 @@ using each item's trimmed non-empty code name when present, otherwise its ordina
 `Internal — All` + each internal activity, then an `All projects` optgroup with `All projects — All` +
 each group's activities alphabetically; shown only when the account has internal/All-projects activities. Project-specific activities
 are reached via `Filter by project`). The activity lens is a **standalone** view: selecting it
-clears the client/project filter and vice-versa. The `Tentative visibility` radiogroup offers
+clears the client/project filter and vice-versa. Selecting a client narrows `Filter by project` to
+that client's eligible projects while retaining `All projects`; clearing the client restores the
+full eligible project list and resets the project filter to `All projects`. If the selected project
+belongs to the newly selected client it remains selected; otherwise the project filter resets to
+`All projects`. The `Tentative visibility` radiogroup offers
 `Show tentative`/`Hide tentative` (radios using `aria-checked`), followed by the draw-mode radiogroup
 `Work`/`Time off` (note "Time off" here is the _toggle_, distinct from the "Time off" _nav link_), then `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
@@ -1216,7 +1227,7 @@ WCAG 4.1.3; announces the recomputed over-capacity outcome for a resource AFTER 
 on one of its bars, e.g. "Ty now over capacity on 1 day." or "Ty: no capacity conflicts." Pointer drags
 stay silent — they give sighted feedback),
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
-`scheduler-empty`, `scheduler-closure-band`, `timeoff-row`, `company-closures-section`,
+`scheduler-empty`, `scheduler-closure-band`, `scheduler-closure-label`, `timeoff-row`, `company-closures-section`,
 `company-closures-empty`, `company-closure-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `import-busy` (the server-mode "Importing data…" blocking dialog's status text —
 shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),
@@ -1258,6 +1269,7 @@ multiple).
   belongs to a project and may carry a phase), `internal` (project-less internal work), or `repeatable`
   (a project-less All-projects activity). Internal/All-projects activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `cross-project-activities`, `project-specific-activities` (testids).
+  Each empty activity category explains its scope; **Add activity** appears once beside the page title.
   Internal and All-projects rows are alphabetical. Project-specific rows are grouped and sorted by
   **client → project → activity**, with each client and project name shown once. Scoped rows whose
   parent metadata is unavailable remain visible in a clearly labelled fallback group.
@@ -1470,13 +1482,13 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   uses engagement fallback bands — see the _Disciplines (account-level)_ note above. The seed companies leave it
   **on**, so every story below runs with disciplines visible.
 - **Engagement is separate from employment and discipline.** A person is either **Studio** or
-  **Supplementary**, defaulting to Studio. The resource form shows Engagement instead of the
-  retained employment field; editing preserves the existing employment value. Placeholders are
+  **Supplementary**, defaulting to Studio. The resource form shows Engagement as an always-visible
+  two-choice group instead of a dropdown; editing preserves the existing employment value. Placeholders are
   always Studio and do not show the Engagement control.
 - **Optional availability dates apply to capacity-tracked people.** Studio and Supplementary
-  people may have an inclusive **First available date** and **Last available date**. Leaving either
-  field blank leaves that side unbounded; the same date in both fields is valid, while a first date
-  after the last date is rejected. Placeholders and External / 3rd party resources keep their
+  people may have an inclusive **Start date** and **End date**. Leaving either
+  field blank leaves that side unbounded; the same date in both fields is valid, while an End date
+  before the Start date is rejected. Placeholders and External / 3rd party resources keep their
   existing company-wide or literal behaviour and never show these controls. Outside a person's
   availability range, their capacity is zero but any already-stored allocation remains visible and
   its allocated load is retained. Existing allocations that conflict with a newly narrowed range

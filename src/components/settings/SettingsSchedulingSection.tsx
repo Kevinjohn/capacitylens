@@ -13,6 +13,7 @@ import { INTERNAL_COLOUR_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels"
 
 type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => void;
 type SettingsSchedulingSectionProps = {
+  id?: string;
   canEdit: boolean;
   schedulingMode: SchedulingMode;
   workingDayOrder: ReturnType<typeof orderedWeekdays>;
@@ -270,7 +271,7 @@ function SchedulingFeatureSections({
 
 export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps) {
   return (
-    <>
+    <div id={props.id} tabIndex={props.id ? -1 : undefined} className="flex scroll-mt-4 flex-col gap-6">
       <SchedulingModeSection
         canEdit={props.canEdit}
         schedulingMode={props.schedulingMode}
@@ -322,6 +323,6 @@ export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps)
         showTaskFieldInSchedule={props.showTaskFieldInSchedule}
         updateSetting={props.updateSetting}
       />
-    </>
+    </div>
   );
 }
