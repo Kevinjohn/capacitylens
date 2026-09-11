@@ -2,6 +2,7 @@ import { expect, test } from "./fixtures";
 import {
   boundingBoxOrThrow,
   dismissLandscapeHint,
+  focusByKeyboard,
   goToSeedWeek,
   nudgeScheduler,
   openApp,
@@ -52,7 +53,7 @@ async function assertGridPreserved(
 async function prepareFilteredGrid(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   const snap = page.getByRole("switch", { name: "Snap to week start" });
   await snap.click();
   await expect(snap).toHaveAttribute("aria-checked", "false");
@@ -116,7 +117,7 @@ function registerLayoutScenario() {
     await expect(dialog).toHaveCount(0);
     await expect(normalTrigger).toBeFocused();
 
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     const compact = page.getByRole("switch", { name: "Compact view" });
     await compact.click();
     await expect(compact).toHaveAttribute("aria-checked", "true");
@@ -182,13 +183,7 @@ test("uses the avatar as the sole trigger with resting, hover, and focus cues", 
   await expect(avatar).toHaveCSS("opacity", "0");
   await expect(eye).toHaveCSS("opacity", "1");
   await page.mouse.move(900, 700);
-  for (
-    let tabs = 0;
-    tabs < 20 && !(await trigger.evaluate((element) => element === document.activeElement));
-    tabs += 1
-  ) {
-    await page.keyboard.press("Tab");
-  }
+  await focusByKeyboard(page, trigger);
   await expect(trigger).toBeFocused();
   await expect(avatar).toHaveCSS("opacity", "0");
   await expect(eye).toHaveCSS("opacity", "1");

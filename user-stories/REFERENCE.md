@@ -35,10 +35,11 @@ If the app changes, update this file first, then the affected stories.
    _"Signed in as Bruce Wayne"_ with a **Sign out** link. **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
-   Monday/Sunday, default Monday), **Timezone** (select, default `GMT`, with its numeric UTC offset
-   shown in every option), and **Language** (read-only **English** — `data-testid="create-language"`;
-   English-only until Paraglide). Company colour uses the default preset automatically rather than asking for a
-   one-off choice during onboarding. These three are set ONCE here and are then **disabled** in
+   Monday/Sunday, default Monday), **Timezone** (a searchable combobox that detects and preselects
+   the browser's IANA zone, puts local/common choices first, and shows a friendly name, current
+   abbreviation and numeric UTC offset for every option), and **Language** (read-only **English** —
+   `data-testid="create-language"`; English-only until Paraglide). Company colour uses the default
+   preset automatically rather than asking for a one-off choice during onboarding. These three are set ONCE here and are then **disabled** in
    Settings; the server rejects a later change with **409**.
    When there are no companies and the caller may create one, the picker presents only two next
    steps: **New company** or **Ask an admin for an invite**. A caller without create permission sees
@@ -103,9 +104,10 @@ If the app changes, update this file first, then the affected stories.
    by `src/lib/introCopy.ts`), pending a human edit.
 6. On an account that still has an onboarding step to do, the schedule shows a floating **Getting
    started** checklist card (`data-testid="getting-started"`) over the schedule without shifting
-   the toolbar or grid, with four
-   state-driven steps — **Add your first client / project / person** (links to those pages) and
-   **Assign them to the project** (done once any allocation exists). A step ticks itself off from
+   the toolbar or grid. It first asks the user to **Import existing data** or explicitly **Start
+   from scratch**, then tracks adding a client, project, activity and person, assigning that person
+   to the project, and reviewing the company's focused scheduling, availability and optional-feature
+   defaults in Settings. An entity step ticks itself off from
    the account's actual data (the built-in Internal client does NOT count as "your first
    client", and placeholder or external resources do NOT count as "your first person"); the card
    self-hides once ALL steps are done, so the seeded companies never show it.
@@ -119,7 +121,11 @@ If the app changes, update this file first, then the affected stories.
    (`capacitylens/gettingStartedDismissed`, default off, never in `AppData`/export). Hidden for a
    Viewer (every schedule-setup CTA is a write they can't do). In an authenticated company, Owner
    and Admin additionally see an optional **Invite your team** link to `/team`; it is deliberately
-   outside the four completion steps, so a solo owner can finish setup without inviting anyone.
+   outside the completion steps, so a solo owner can finish setup without inviting anyone. New
+   setup keeps the Settings review pending even when the user begins by adding records directly;
+   established companies do not reopen onboarding. Import and Settings links scroll to and focus
+   their destination section. Away
+   from Schedule, a compact progress link returns to the full card without covering page content.
 7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
 8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these
@@ -130,30 +136,36 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label    | Route          | Screen                                                                                                                                                       |
-| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Schedule      | `/`            | Timeline scheduler                                                                                                                                           |
-| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                  |
-| Disciplines   | `/disciplines` | Discipline list                                                                                                                                              |
-| Clients       | `/clients`     | Client list                                                                                                                                                  |
-| Projects      | `/projects`    | Project list                                                                                                                                                 |
-| Activities    | `/activities`  | Activity list                                                                                                                                                |
-| Time off      | `/timeoff`     | Time-off list                                                                                                                                                |
-| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                            |
-| Settings      | `/settings`    | Settings (scheduling, global working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
+| Link label        | Route                | Screen                                                                                                                                                             |
+| ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Capacity Overview | `/capacity-overview` | Four-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting                                                |
+| Schedule          | `/`                  | Timeline scheduler                                                                                                                                                 |
+| Resources         | `/resources`         | Resource list (incl. the **External** section when enabled)                                                                                                        |
+| Disciplines       | `/disciplines`       | Discipline list                                                                                                                                                    |
+| Clients           | `/clients`           | Client list                                                                                                                                                        |
+| Projects          | `/projects`          | Project list                                                                                                                                                       |
+| Activities        | `/activities`        | Activity list                                                                                                                                                      |
+| Time off          | `/timeoff`           | Time-off list                                                                                                                                                      |
+| Team & access     | `/team`              | Current role, capability summary and app-member access management                                                                                                  |
+| Settings          | `/settings`          | Settings (scheduling, company-wide working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
+| Account           | `/account`           | Signed-in identity and personal security controls                                                                                                                  |
 
-The last two — **Team & access** and **Settings** — form a separate **administration group** pinned
+**Team & access** and **Settings** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
 above. Both remain ordinary first-class routes (same markup, same icons, same command-palette
 entries); only their placement differs, so administration stays out of the way of the app's
 day-to-day purpose and role-gated controls don't sit among everyone's destinations.
 
-That's **nine** sections by default — **eight** when the company turns disciplines off (the
+Owners and Admins see **eleven** sections by default — **ten** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see _Disciplines optional_ under Domain rules). External / 3rd
 parties no longer have their own nav link — they moved INTO the **Resources** tab behind a setting
 (see _External / 3rd parties_ under Domain rules); the old `/external` URL still resolves but
 **redirects to `/resources`** so saved bookmarks don't 404. Each link
 carries a small decorative icon (`aria-hidden`; the accessible name stays the label text).
+
+**Capacity Overview** is immediately above **Schedule**, while Schedule remains the landing page.
+It defaults to Owner and Admin access. Those roles can extend access in Settings to Editors or
+Everyone; members outside the chosen level do not see the link and a direct URL redirects to Schedule.
 
 An otherwise unmatched or stale URL renders the branded **Page not found** screen with a
 **Go to schedule** link instead of the generic reload-only 404 recovery. Public reset/invitation
@@ -196,11 +208,15 @@ replacement. File reads and confirmations remain bound to the company that was a
 was selected, and export/import actions suppress duplicate in-flight requests.
 The account block —
 the active company name and role badge, a **Switch company** control (which returns to the company
-picker), and a **Sign out** row carrying the signed-in person's avatar — is pinned to the very
+picker), an **Account** destination, and a **Sign out** row carrying the signed-in person's avatar — is pinned to the very
 **bottom** of the sidebar, below a divider beneath the administration group. (The company name used
 to sit at the top; pinning it to the bottom keeps the logo + collapse toggle as the first item in
 both the open menu and the collapsed rail, so the nav icons don't shift when the sidebar collapses.)
-The avatar is the signed-in user's own picture when the identity provider supplied one, initials
+**Account** opens the signed-in person's identity and security page from every main app page. In
+password mode it shows password change, MFA status and active-session revocation; in SSO mode it
+shows the provider identity and active sessions without password controls. Demo and auth-off modes
+describe their actual local access and never invent credential controls. Company Settings contains
+company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
 otherwise, and the demo persona's face in the demo build. The row always reads **Sign out**, never
 "Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
 It appears on any auth-enabled deploy and in the demo build; an auth-off server shows no such row.
@@ -286,11 +302,11 @@ success for the rebase never hides the independent loss.
   - _Barry Allen_ — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
   - _Senior Designer_ — a **placeholder** (no name), Design, **bound to Project Watchtower**. Shown
     as the literal name **"Placeholder"** with a **"?"** avatar. **Hidden by default** — placeholders
-    are behind the per-account **Show placeholders** pref (Settings → Placeholders, default **off**);
+    are behind the per-account **Show placeholders** pref (Settings → Additional resourcing options, default **off**);
     enable it to see this row in the schedule, the Resources list, and the assignee picker.
   - _Kord Industries_ — an **external / 3rd party** (`r-ext-northstar`): a company, no discipline/
     capacity, booked on Visual Design (Project Watchtower) as a span only. **Hidden by default** —
-    externals are behind the per-account **Show external resources** pref (Settings → External,
+    externals are behind the per-account **Show external resources** pref (Settings → Additional resourcing options,
     default **off**); enable it to see this row in the schedule's bottom band, the **External** section
     of the Resources tab, and the assignee picker.
 - **Clients:** Queen Consolidated, LexCorp. (**Internal** is the built-in, one per account — it is **HIDDEN
@@ -342,7 +358,7 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline` (when disciplines are
-enabled and at least one exists), `Engagement`, `First available date`, `Last available date` (for Studio and
+enabled and at least one exists), `Engagement`, `Start date`, `End date` (for Studio and
 Supplementary people only), `Bound project`, `Working days` (for people only: a
 full-width Monday–Sunday radio grid aligned with the field label whose `Full day`, `Half day` and
 `Not working` column headings appear once; every cell's native radio is labelled by both its weekday
@@ -384,7 +400,7 @@ Allocation `Status` is a three-option `Confirmed` / `Tentative` / `Completed` ra
 is a single-line text field. A historical multiline note remains byte-for-byte intact when another
 field is edited and saved; editing the note itself adopts the single-line value shown by the field.
 The allocation checkbox is labelled exactly `Ignore working days`. Unchecked, the allocation follows
-the assignee's effective working week (the company's global working days intersected with their
+the assignee's effective working week (company-wide working days intersected with their
 personal pattern); checked, it uses every calendar day in the date span. The
 control is hidden for external allocations, whose start/end span is already literal.
 Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
@@ -431,7 +447,9 @@ current company week remain grouped into one compact bordered list per resource,
 resource name shown once as the section heading. Resource sections sort alphabetically, their rows
 sort by start date, end date and id, and placeholder entries follow **Show placeholders**. An
 unexpected dangling resource stays visible in a final **(unknown)** section rather than crashing.
-The company section has its own **Add closure** button and empty state. It uses
+The company section has one **Add closure** button beside its heading and an explanatory empty state.
+Personal time off likewise keeps **Add time off** beside its heading, without a second empty-card action.
+The company section uses
 `data-testid="company-closures-section"`; each dated row uses
 `data-testid="company-closure-row"` and shows the required closure name plus its inclusive date
 span. Closure rows have the same edit, confirm-delete and undo/redo behaviour and permissions as
@@ -573,7 +591,11 @@ using each item's trimmed non-empty code name when present, otherwise its ordina
 `Internal — All` + each internal activity, then an `All projects` optgroup with `All projects — All` +
 each group's activities alphabetically; shown only when the account has internal/All-projects activities. Project-specific activities
 are reached via `Filter by project`). The activity lens is a **standalone** view: selecting it
-clears the client/project filter and vice-versa. The `Tentative visibility` radiogroup offers
+clears the client/project filter and vice-versa. Selecting a client narrows `Filter by project` to
+that client's eligible projects while retaining `All projects`; clearing the client restores the
+full eligible project list and resets the project filter to `All projects`. If the selected project
+belongs to the newly selected client it remains selected; otherwise the project filter resets to
+`All projects`. The `Tentative visibility` radiogroup offers
 `Show tentative`/`Hide tentative` (radios using `aria-checked`), followed by the draw-mode radiogroup
 `Work`/`Time off` (note "Time off" here is the _toggle_, distinct from the "Time off" _nav link_), then `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
@@ -590,7 +612,7 @@ account and NOT in export) — like the theme and bar-label toggles. On → narr
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See _Weekend
 columns_ above.
 
-**Global working days (account-level).** Settings → **Global working days** exposes a two-row table:
+**Company-wide working days (account-level).** Settings → **Company-wide working days** exposes a two-row table:
 seven abbreviated weekday headings and seven checkboxes directly beneath them, in the account's
 configured week order. A new company selects the first five days of that week by default
 (Monday–Friday for a Monday start; Sunday–Thursday for a Sunday start).
@@ -603,7 +625,7 @@ company week outright, and every repair boundary (import, server write, startup)
 malformed stored selection to the week-start-aware default.
 
 The account selection governs **capacity**, not just interaction. Each person's **effective working
-week** is the intersection of the company's global working days and their personal working pattern;
+week** is the intersection of company-wide working days and their personal working pattern;
 placeholders and External parties use the company set verbatim. A normal allocation
 schedules and loads hours only on effective days — a day it merely spans that is company- or
 personally-non-working stays grey and unavailable, contributes zero scheduled and zero available
@@ -643,8 +665,9 @@ via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the
 governs **free scroll only** — the always-on **navigation** snap (Weeks visible / Prev-Next / Today,
 see _Scheduler toolbar_ above) re-anchors to the week start regardless of this switch.
 
-**Account options selected at creation (per-account, FROZEN after creation — P1.14).** The final
-Settings card is a compact, read-only four-row table: **Company name**, **Week starts on**,
+**Account options selected at creation (per-account, FROZEN after creation — P1.14).** Near the
+bottom of Settings, this compact, read-only four-row table appears before the Diagnostics card:
+**Company name**, **Week starts on**,
 **Time zone** (including its numeric UTC offset) and **Language** (`data-testid="settings-language"`,
 **English**). It replaces the editable Company card and the disabled Calendar controls. These values
 are captured ONCE in the company-create form (see _Launching the app_ above), and the help modal
@@ -669,9 +692,14 @@ dialogs rather than depending on hidden help copy.
 > server-vs-local clear-storage / "Signed in as …" / status-suffixed error toasts) is deferred to the
 > later toasts/errors i18n area; its visible text is likewise unchanged.
 
-**Placeholders (per-account, default OFF).** Settings → **Placeholders** has a single switch
-**Show placeholders** (`role="switch"`, accessible name `Show placeholders`), **off** by default.
-It's a **per-account** setting (`placeholdersEnabled` on the Account, absent = off, toggled via
+**Additional resourcing options (per-account, default OFF).** Settings → **Additional resourcing options**
+contains two independently configurable switches: **Show placeholders** and **Show external resources**.
+A placeholder is an unfilled role or tentative person used to plan future capacity before someone
+is assigned. An External resource is a third party such as a partner agency, freelancer, supplier or
+subcontractor; it represents work leaving the team and carries no capacity. Both switches are off
+by default.
+These are **per-account** settings (`placeholdersEnabled` and `externalEnabled` on the Account,
+both absent = off, toggled via
 `updateAccount` — mirroring `disciplinesEnabled`; synced but omitted from the scoped planning-data
 export). **Off** (the out-of-the-box state) → every placeholder is hidden:
 no row in the schedule (and no contribution to utilisation), no entry in the assignee picker or
@@ -733,8 +761,8 @@ saved palette colour is retained rather than cleared. Switching to **Use colour 
 those saved project colours and reveals the picker. Unattributed All-projects allocations retain
 their resource-derived colours in both modes; attributed ones use their effective project's colour.
 
-**Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**
-(on by default). Turning it off hides disciplines across the whole app — the **Disciplines** nav
+**Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**.
+It is off for a newly created company. Turning it off hides disciplines across the whole app — the **Disciplines** nav
 link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
 resource form, the **Filter by discipline** control, the discipline part of each Resources-list
 row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle. The
@@ -773,7 +801,7 @@ message because their on-demand module graph cannot provide a complete, immutabl
 offline promotion.
 
 **Build stamp + feedback link (Settings, flag-gated).** When the build sets
-`VITE_CAPACITYLENS_BUILD_SHA`, the Settings page ends with a muted one-line footer containing the
+`VITE_CAPACITYLENS_BUILD_SHA`, the Settings page includes a muted one-line footer near the bottom containing the
 stamp (`data-testid="build-stamp"`) reading `build <sha> · server` (a server backend is
 configured, i.e. `VITE_CAPACITYLENS_API` was baked in) or `build <sha> · demo` (in-memory
 mode). When the build also sets `VITE_CAPACITYLENS_FEEDBACK_MAILTO`, a **Send feedback** link
@@ -788,6 +816,20 @@ disclosure (`data-testid="persistence-diagnostics"`) reports process-local, priv
 failed saves, armed retries, completed reconciliations, superseded reloads, rebased edits and
 discarded edits, plus whether writes are currently suspended. It contains counts and state only—no
 company, person, project or note values—and resets when a fresh persistence lifecycle attaches.
+
+**Diagnostics (Settings).** At the bottom of Settings, a **Diagnostics** card offers
+**Copy diagnostics** (`data-testid="copy-diagnostics"`). The card shows a **Snapshot observed** ISO
+timestamp captured by the client when the response arrives or its failure is observed. This is a
+point-in-time snapshot, not a live monitor. The copied text contains a fixed allowlist: the snapshot
+timestamp, app version, a validated build revision when one is present, deployment mode and export
+schema, followed by separately labelled server connectivity, database schema, persistence and
+backup status. The card is present in demo mode too, with server values unavailable. A missing or
+unavailable value is shown as **Unknown** or **Unavailable**; `null` schema/version fields mean that
+value was unavailable or invalid, not zero or a browser fallback, while a `null` backup timestamp
+means no valid backup timestamp was observed and does not assert that no backup exists. Browser
+constants are never presented as the server's database schema. The projection contains no names, emails,
+identifiers, paths, hostnames, secrets, invite or session values, raw errors or arbitrary response
+fields. The button reports a generic success or clipboard failure message.
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
 server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `CAPACITYLENS_AUTH=password` or
@@ -805,9 +847,9 @@ returns to the foreground. A sign-out or revocation completed in another tab the
 stale authenticated shell with the sign-in wall before the user resumes work.
 The sign-in, mandatory MFA and session-verification failure walls set page-specific document titles;
 the failure detail is announced as an alert when it replaces the checking state.
-While signed in, Settings gains an **Account** section
-showing who is signed in plus a `Sign out` button. With auth off (the default everywhere) or in
-local mode, no login screen exists, Settings has no Account section, and local mode makes **no**
+While signed in, the sidebar's **Account** destination shows who is signed in and the available
+personal security controls. The sidebar carries the single `Sign out` action. With auth off (the default everywhere) or in
+local mode, no login screen exists, Account explains that sign-in is off, and local mode makes **no**
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
@@ -828,13 +870,13 @@ challenge for sensitive actions offers the same **Use a recovery code** alternat
 one-time code can restore freshness without signing out or losing the current form. The enrollment
 wall deliberately outranks public-entry links for a signed-in identity: an invitation explains that
 MFA must be finished before it can be accepted, while a password-reset link explains that the user
-may finish enrollment or choose **Sign out** to redeem the link without the current session. Settings gains a **Security** section
+may finish enrollment or choose **Sign out** to redeem the link without the current session. Account gains a **Security** section
 (`data-testid="security-section"`) where password users can change their password only by supplying
 the current password and can view/revoke active sessions. Recovery codes and session tokens are
 never displayed after their one-time setup/use. Disabling MFA is deliberately not offered when the
 deployment requires it.
 
-On a `self-hosted-mixed` deployment with strict OIDC configured, the Security section also shows
+On a `self-hosted-mixed` deployment with strict OIDC configured, the Account Security section also shows
 **Connect your SSO account** (`data-testid="sso-connection"`). **Connect with _provider_** starts a
 fresh-session-gated, self-service provider ceremony; the member authenticates at the IdP and returns
 to the same page. The provider must assert `email_verified: true`, its email must match the local
@@ -847,9 +889,15 @@ on the 401 (password mode with an **empty** user table — sign-up is open for e
 bootstrap account and closes the moment it exists), the login wall shows a **Create the owner
 account** screen instead of sign-in: heading `Create the owner account`, fields `Name`
 (`data-testid="owner-setup-name"`), `Email` (`data-testid="owner-setup-email"`), `Password`
-(`data-testid="owner-setup-password"`), and a `Create owner account` button
+(`data-testid="owner-setup-password"`), and `SMALLSASS_ACCOUNT_SETUP_TOKEN`
+(`data-testid="owner-setup-token"`) with guidance to use the value from the server `.env` file or
+installer, plus a `Create owner account` button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
-owner in and reloads into the normal boot flow (company picker → app). On a populated server the
+owner in and reloads into **Set up your company**, where the owner creates the first company before
+entering the app. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
+characters that cannot be represented in an HTTP header stays in the form and shows an actionable
+inline error without sending a request. The setup-token value remains secret and is never displayed
+by the app. On a populated server the
 flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
 zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential `admin@admin.admin`
 / `auth-e2e-password-2026` — PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since
@@ -865,10 +913,17 @@ carries a pre-set Admin, Editor or Viewer role for one company; Owner is never i
 Opening `/invite/<token>` shows the **Accept invite** screen (heading `Accept invite`) and safely
 previews the company name, proposed role, role summary and expiry before acceptance using public
 `GET /api/invites/:token/preview`. Possession of the bearer link is required to read that limited
-metadata; the preview returns no company data, membership list or unrelated identity facts. Merely
+metadata, including whether it is email-bound and a hint showing only the part before `@`,
+followed by `@…`. The domain, full address, company data, membership list and unrelated identity
+facts are never revealed. A bound invite explains that only the intended email address can accept it,
+while a generic link explains that it is transferable and single-use.
+An older preview without binding metadata makes neither claim. Merely
 opening or previewing the URL never changes membership. In a server deploy with auth on, an
-unauthenticated invitee gets the page's OWN inline onboarding form (NOT the app login wall): an
-existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, reviews the invitation
+unauthenticated invitee gets the page's own onboarding form with equally prominent **Sign in** and
+**Create account** tabs. Only the selected journey's fields appear; **Name** and a new-password field
+belong to account creation, while sign-in uses Email and the current password. Permission and
+existing-role consequences wrap in full. Expiry uses the viewer's local date and time without seconds;
+the year appears when it differs from the current year. An existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, reviews the invitation
 under that identity, sees the signed-in email/name, then chooses **Accept invite**. **Use a different
 account** signs out without discarding the bearer URL. If a pre-authorised invite rejects the current
 identity, the page explains the mismatch and retains that same recovery action instead of suggesting
@@ -924,6 +979,11 @@ edit its companies. In an authenticated server deploy, Owner/Admin additionally 
 management section
 (heading `Members`, `data-testid="members-section"`). Editor/Viewer see their own access explanation
 but no company directory, invitations or management controls; the server's 403 remains the backstop.
+Owner/Admin can read the member directory, outstanding invites and SSO readiness without a fresh
+authentication prompt. Sensitive mutations still require fresh authentication; their **Confirm it's
+you** dialog names the requested action. Cancelling leaves the directory visible and does not apply
+the requested change.
+
 The management section has four parts:
 
 - **SSO cutover readiness** (`data-testid="sso-readiness"`, mixed mode with strict OIDC only) shows
@@ -1014,7 +1074,11 @@ The management section has four parts:
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
-  shown again. If any membership, invite or reset-token mutation loses its response after dispatch,
+  shown again. The panel explicitly says CapacityLens does not send invitation emails: the creator
+  copies and sends the link. Email guidance is associated with the field before validation and
+  remains available alongside any validation error. Creation confirmation stays beside the link, with instructions to
+  revoke and recreate it if lost, rather than overlaying the panel in a toast.
+  If any membership, invite or reset-token mutation loses its response after dispatch,
   the section reloads memberships, invites and authentication before enabling a retry. A lost invite
   or reset-token response is reported as an unknown one-time token; the operator must deliberately
   revoke or replace it rather than accidentally minting duplicates. Reconciliation never declares
@@ -1211,7 +1275,7 @@ WCAG 4.1.3; announces the recomputed over-capacity outcome for a resource AFTER 
 on one of its bars, e.g. "Ty now over capacity on 1 day." or "Ty: no capacity conflicts." Pointer drags
 stay silent — they give sighted feedback),
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
-`scheduler-empty`, `scheduler-closure-band`, `timeoff-row`, `company-closures-section`,
+`scheduler-empty`, `scheduler-closure-band`, `scheduler-closure-label`, `timeoff-row`, `company-closures-section`,
 `company-closures-empty`, `company-closure-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `import-busy` (the server-mode "Importing data…" blocking dialog's status text —
 shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),
@@ -1237,7 +1301,7 @@ carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Se
 30-day grace elapses, purge-tier/admin-only),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy; absent in the default OFF/local deploy and for any non-viewer role),
-`persistence-diagnostics` (Settings diagnostics disclosure; server mode), `build-stamp` (Settings footer; only rendered when the build sets
+`persistence-diagnostics` (Settings diagnostics disclosure; server mode), `copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `build-stamp` (Settings footer; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
@@ -1253,6 +1317,7 @@ multiple).
   belongs to a project and may carry a phase), `internal` (project-less internal work), or `repeatable`
   (a project-less All-projects activity). Internal/All-projects activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `cross-project-activities`, `project-specific-activities` (testids).
+  Each empty activity category explains its scope; **Add activity** appears once beside the page title.
   Internal and All-projects rows are alphabetical. Project-specific rows are grouped and sorted by
   **client → project → activity**, with each client and project name shown once. Scoped rows whose
   parent metadata is unavailable remain visible in a clearly labelled fallback group.
@@ -1328,7 +1393,7 @@ multiple).
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus
   All-projects activities attributed to that project**. Legacy unattributed All-projects bookings
   reopen unchanged until explicitly attributed. They are **hidden by default** behind the
-  per-account **Show placeholders** pref (Settings → Placeholders, `placeholdersEnabled` on the
+  per-account **Show placeholders** pref (Settings → Additional resourcing options, `placeholdersEnabled` on the
   Account, default off); when shown they display as the literal name **"Placeholder"** with a **"?"** avatar.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
   descriptor), assignable to **any** activity with **no hours**, shown in a **neutral band at the bottom
@@ -1337,7 +1402,7 @@ multiple).
   is hidden and every date counts as a plain calendar day); they're excluded from the Time-off picker, and the
   write boundary rejects time off OR a non-zero load for an external on _any_ path (a direct/crafted
   write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
-  **hidden by default** behind the per-account **Show external resources** pref (Settings → External,
+  **hidden by default** behind the per-account **Show external resources** pref (Settings → Additional resourcing options,
   `externalEnabled` on the Account, default off); when on, an **External** section appears under the **Resources**
   tab (with a labelled question-mark explainer modal + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
@@ -1465,13 +1530,13 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   uses engagement fallback bands — see the _Disciplines (account-level)_ note above. The seed companies leave it
   **on**, so every story below runs with disciplines visible.
 - **Engagement is separate from employment and discipline.** A person is either **Studio** or
-  **Supplementary**, defaulting to Studio. The resource form shows Engagement instead of the
-  retained employment field; editing preserves the existing employment value. Placeholders are
+  **Supplementary**, defaulting to Studio. The resource form shows Engagement as an always-visible
+  two-choice group instead of a dropdown; editing preserves the existing employment value. Placeholders are
   always Studio and do not show the Engagement control.
 - **Optional availability dates apply to capacity-tracked people.** Studio and Supplementary
-  people may have an inclusive **First available date** and **Last available date**. Leaving either
-  field blank leaves that side unbounded; the same date in both fields is valid, while a first date
-  after the last date is rejected. Placeholders and External / 3rd party resources keep their
+  people may have an inclusive **Start date** and **End date**. Leaving either
+  field blank leaves that side unbounded; the same date in both fields is valid, while an End date
+  before the Start date is rejected. Placeholders and External / 3rd party resources keep their
   existing company-wide or literal behaviour and never show these controls. Outside a person's
   availability range, their capacity is zero but any already-stored allocation remains visible and
   its allocated load is retained. Existing allocations that conflict with a newly narrowed range

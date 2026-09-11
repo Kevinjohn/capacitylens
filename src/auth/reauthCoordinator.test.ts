@@ -4,6 +4,7 @@ import {
   REAUTH_REQUEST_TIMEOUT_MS,
   requestReauth,
   completeReauth,
+  readReauthAction,
   readReauthResolution,
   subscribeReauth,
 } from "./reauthCoordinator";
@@ -63,6 +64,15 @@ describe("reauthCoordinator", () => {
 
     await expect(pending).resolves.toEqual({ kind: "cancelled" });
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("keeps the initiating action available to the confirmation surface", () => {
+    const pending = requestReauth("remove-member");
+
+    expect(readReauthAction()).toBe("remove-member");
+    completeReauth(false);
+
+    return expect(pending).resolves.toEqual({ kind: "cancelled" });
   });
 
   it("eventually cancels a request even when no React host can resolve it", async () => {

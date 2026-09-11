@@ -21,6 +21,7 @@ const STATIC_SPA_ROUTES = [
   "timeoff",
   "team",
   "settings",
+  "account",
 ] as const;
 
 function offlineShellManifest(): Plugin {

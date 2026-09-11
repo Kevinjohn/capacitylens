@@ -393,9 +393,20 @@ function registerSchedulerUiPart6(): void {
     expect(s().ui.filters.activityId).toBeNull();
   });
   it("clears a stale project when the client filter changes", () => {
-    s().setFilters({ clientId: "client-1", projectId: "project-1" });
-    s().setFilters({ clientId: "client-2" });
-    expect(s().ui.filters).toMatchObject({ clientId: "client-2", projectId: null });
+    const queen = s().addClient({ name: "Queen Consolidated", color: "#111" });
+    const lex = s().addClient({ name: "LexCorp", color: "#222" });
+    const project = s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    s().setFilters({ clientId: queen.id, projectId: project.id });
+    s().setFilters({ clientId: lex.id });
+    expect(s().ui.filters).toMatchObject({ clientId: lex.id, projectId: null });
+  });
+
+  it("keeps a project when the client filter changes to its client", () => {
+    const queen = s().addClient({ name: "Queen Consolidated", color: "#111" });
+    const project = s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    s().setFilters({ projectId: project.id });
+    s().setFilters({ clientId: queen.id });
+    expect(s().ui.filters).toMatchObject({ clientId: queen.id, projectId: project.id });
   });
 
   it("clears a stale project when the client filter is cleared", () => {

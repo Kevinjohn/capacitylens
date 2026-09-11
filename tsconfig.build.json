@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.build.tsbuildinfo"
+  },
+  // Deployment builds only need to type-check code shipped in the browser bundle. The full
+  // tsconfig.app.json and tsconfig.node.json projects continue to cover tests and build tooling
+  // in the application gate and pull-request static analysis.
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "shared/src/**/*.test.ts"]
+}

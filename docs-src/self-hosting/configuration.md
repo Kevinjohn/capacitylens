@@ -41,6 +41,17 @@ The server binds to localhost by default. Set the host explicitly to expose it o
 | `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP`   | Re-opens self-service sign-up. Closed by default — CapacityLens is invite-only unless you set this. Leave it unset in production.                                                               |
 | `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` | Deliberately allows the auth-off (`off`) posture under production. Off by default; without it, a production instance with no sign-in refuses to start.                                          |
 
+Treat `SMALLSASS_ACCOUNT_SETUP_TOKEN` as a short-lived bootstrap secret. Give the first owner the
+value through a secure channel; never paste it into chat, tickets, screenshots, command output or
+logs. The owner copies the value from the server `.env` file or installer into the matching field.
+Do not add surrounding quote characters or whitespace in the browser: the submitted value must
+match the configured secret exactly.
+
+After the first owner account and company have been created, remove
+`SMALLSASS_ACCOUNT_SETUP_TOKEN` from the server environment and restart the server. First-owner
+signup already closes as soon as the first identity exists, but removing the secret invalidates the
+handoff material instead of leaving it available to operators or future processes.
+
 ## Passwords and multi-factor sign-in
 
 | Variable                                  | What it does                                                                                                                                    |

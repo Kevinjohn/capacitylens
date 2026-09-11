@@ -55,10 +55,10 @@ type InvitationInput<Name extends keyof SsoCutoverAccountAdminPort> = Parameters
 
 async function listInvitations(
   context: InvitationsContext,
-  { actor, workspaceId }: InvitationInput<"listInvitations">,
+  { actor, workspaceId, requireFresh = true }: InvitationInput<"listInvitations">,
 ) {
   const { db, requireMfa, trustedLocal } = context;
-  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, requireFresh });
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
   return listInvitesForAccount(db, workspaceId).flatMap((invite) => {
     // Reads remain pure. Hide an expired unused bearer from the live management view without
@@ -89,7 +89,16 @@ async function previewInvitation(context: InvitationsContext, { token }: Invitat
   if (inviteIsExpired(invite.expiresAt)) throw createAccountFailure("INVITATION_EXPIRED", "This invite has expired.");
   assertRedeemableInvitationRole(invite.role);
   const workspace = assertWorkspaceExists(context.db, invite.accountId);
-  return { workspaceName: workspace.name, role: invite.role, expiresAt: invite.expiresAt };
+  return {
+    workspaceName: workspace.name,
+    role: invite.role,
+    expiresAt: invite.expiresAt,
+    // Disclose only the local part as a hint. The full addressed email remains account
+    // administration data; the hint omits its domain and cannot authenticate anyone.
+    emailBound: invite.preauthEmail !== null,
+    emailHint:
+      invite.preauthEmail === null ? null : `${invite.preauthEmail.slice(0, invite.preauthEmail.lastIndexOf("@"))}@…`,
+  };
 }
 
 async function preparePasswordInvitationClaim(

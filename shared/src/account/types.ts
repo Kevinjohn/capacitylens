@@ -161,11 +161,14 @@ export interface InvitationSummary {
   createdAt: IsoInstant;
 }
 
-/** Public bearer preview. Intentionally excludes email, inviter, identity existence, and token. */
+/** Public bearer preview. Intentionally excludes the full address, domain, inviter, identity
+ * existence, and token. `emailHint` contains only a bound address's local part plus `@…`. */
 export interface InvitationPreview {
   workspaceName: string;
   role: InvitationRole;
   expiresAt: IsoInstant;
+  emailBound: boolean;
+  emailHint: string | null;
 }
 
 /** The raw token is returned once on creation and must never appear on a later read path. */

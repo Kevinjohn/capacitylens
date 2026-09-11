@@ -648,7 +648,7 @@ function registerAdminInviteTests(members: RawMember[]): void {
 
     const error = await screen.findByRole("alert");
     expect(email).toHaveAttribute("aria-invalid", "true");
-    expect(email).toHaveAttribute("aria-describedby", error.id);
+    expect(email.getAttribute("aria-describedby")?.split(" ")).toContain(error.id);
     expect(error).toHaveTextContent(m.identity_err_email());
   });
 
@@ -1874,6 +1874,7 @@ function registerInviteMintTests(): void {
     await user.click(screen.getByTestId("invite-submit"));
     const link = await screen.findByTestId("invite-link");
     expect(link).toHaveTextContent("/invite/TOK123");
+    expect(useStore.getState().notice).toBeNull();
 
     // The post-create reload confirms the invite is still pending, so the write-once link must
     // survive it — this is the reconciliation path the test's name actually promises.
@@ -2182,7 +2183,7 @@ function registerInviteValidationTests(): void {
     const field = screen.getByTestId("invite-preauth");
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(m.settings_sso_invite_email_required());
-    expect(field).toHaveAttribute("aria-describedby", alert.id);
+    expect(field.getAttribute("aria-describedby")?.split(" ")).toContain(alert.id);
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(false);
   });
 }
@@ -2210,7 +2211,7 @@ function registerInviteCreationFailureTests(): void {
       expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
       if (fieldError) {
         if (alert === null) throw new Error("Expected the invitation field error");
-        expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", alert.id);
+        expect(screen.getByTestId("invite-preauth").getAttribute("aria-describedby")?.split(" ")).toContain(alert.id);
       }
     },
   );

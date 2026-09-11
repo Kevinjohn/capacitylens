@@ -11,6 +11,7 @@ const routes = [
   "timeoff",
   "team",
   "settings",
+  "account",
 ];
 const shell = await readFile(resolve("dist/index.html"));
 

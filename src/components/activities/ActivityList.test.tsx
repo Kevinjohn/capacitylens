@@ -9,7 +9,6 @@ import { MemoryRouter } from "react-router-dom";
 
 beforeEach(() => resetStoreWithAccount());
 
-// eslint-disable-next-line max-lines-per-function -- integration scenarios intentionally share one fixture lifecycle
 describe("ActivityList", () => {
   it("uses omission for an absent activity selection", () => {
     expectTypeOf<ComponentProps<typeof ActivityList>>().toEqualTypeOf<{ selectedActivityId?: string }>();
@@ -111,6 +110,18 @@ describe("ActivityList", () => {
     expect(screen.getByText("No internal activities yet.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add your first activity" })).not.toBeInTheDocument();
     expect(screen.queryByText(/Activities are the work you allocate/)).not.toBeInTheDocument();
+  });
+
+  it("explains the purpose of every empty activity category", () => {
+    render(<ActivityList />);
+
+    expect(
+      screen.getByText("These activities cover internal work that is not assigned to a project."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("These activities can be used on any project.")).toBeInTheDocument();
+    expect(
+      screen.getByText("These activities can only be used on the project they are assigned to."),
+    ).toBeInTheDocument();
   });
 
   it("gives repeated row action controls distinct contextual names", () => {

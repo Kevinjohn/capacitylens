@@ -174,6 +174,7 @@ function buildPlatformRouteDependencies(input: RegisterApiRoutesInput) {
     system: {
       securityEvent,
       healthStatement: healthStmt,
+      diagnosticsSchemaStatement: runtime.diagnosticsSchemaStatement,
       auditDrainer,
       auditSink,
       ...(options.backupHealth === undefined ? {} : { backupHealth: options.backupHealth }),

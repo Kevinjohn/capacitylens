@@ -10,6 +10,7 @@ const baseProps = {
   demoAuthActive: false,
   fakeSignedIn: true,
   hasActiveAccount: true,
+  allowWithoutActiveAccount: false,
   introSeen: true,
   onFakeSignIn: () => undefined,
   onIntroContinue: () => undefined,
@@ -71,5 +72,12 @@ describe("AppEntryGate connection failures", () => {
       request.mockRestore();
       cancel.mockRestore();
     }
+  });
+
+  it("allows the personal Account route without an active company", () => {
+    render(<AppEntryGate {...baseProps} hasActiveAccount={false} allowWithoutActiveAccount />);
+
+    expect(screen.getByText("application shell")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
   });
 });

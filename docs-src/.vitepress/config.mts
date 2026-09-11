@@ -90,6 +90,7 @@ export default defineConfig({
         text: "Using CapacityLens",
         items: [
           { text: "The schedule", link: "/guide/the-schedule" },
+          { text: "Capacity overview", link: "/guide/capacity-overview" },
           { text: "People and placeholders", link: "/guide/people-and-placeholders" },
           { text: "Projects and allocations", link: "/guide/projects-and-allocations" },
           { text: "Time off", link: "/guide/time-off" },

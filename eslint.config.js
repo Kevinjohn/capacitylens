@@ -23,6 +23,7 @@ const sharedTestFiles = [
   "shared/src/**/*.{test,spec}.{ts,tsx,mts,cts}",
   "shared/src/**/__tests__/**/*.{ts,tsx,mts,cts}",
 ];
+const appTestFiles = ["src/**/*.{test,spec}.{ts,tsx}", "src/**/__tests__/**/*.{ts,tsx}"];
 
 const gitIgnoredPaths = readFileSync(new URL(".gitignore", import.meta.url), "utf8")
   .split(/\r?\n/)
@@ -129,6 +130,21 @@ export default defineConfig([
       "max-depth": ["error", 3],
       "max-lines-per-function": ["error", { max: 60, skipBlankLines: true, skipComments: true, IIFEs: true }],
     },
+  },
+
+  // JSX formatting expands otherwise cohesive components, while test suite callbacks group
+  // independent cases and are not meaningful function-size signals. Complexity and depth remain
+  // enforced by the typed app rules above.
+  {
+    files: ["src/**/*.tsx"],
+    ignores: appTestFiles,
+    rules: {
+      "max-lines-per-function": ["error", { max: 90, skipBlankLines: true, skipComments: true, IIFEs: true }],
+    },
+  },
+  {
+    files: appTestFiles,
+    rules: { "max-lines-per-function": "off" },
   },
 
   // These paths belong to their package's TypeScript project, including operational server scripts.

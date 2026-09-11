@@ -22,8 +22,9 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 1. Start from a clean device state and complete the demo sign-in if it appears.
 2. With no companies, confirm the heading is **Start planning** and the screen offers only two
    next steps: **New company** and **Ask an admin for an invite**.
-3. Click **New company**. Confirm the form asks for **Company name**, week start, timezone and the
-   read-only English language value; it does **not** ask the user to choose a company colour.
+3. Click **New company**. Confirm the form asks for **Company name**, week start, a searchable
+   timezone combobox preselected to the browser's IANA zone, and the read-only English language
+   value; it does **not** ask the user to choose a company colour.
 4. Create the company and confirm it becomes active and opens the schedule.
 
 **Empty picker, caller cannot create:**
@@ -58,6 +59,8 @@ colour is automatic, so onboarding does not create an unnecessary design task.
   access** on an auth-off persisted server.
 - ✅ The create form captures Company name, Week starts on, Timezone and read-only Language
   (English), then activates the created company and lands on Schedule.
+- ✅ The timezone combobox is keyboard accessible, searchable by IANA identifier or friendly name,
+  keeps the detected local and common zones first, and returns focus to its trigger after selection.
 - ✅ The create form has no company-colour control; the account receives the default preset
   automatically.
 - ✅ A server-side permission/cap refusal remains enforced even if the UI affordance is bypassed.
