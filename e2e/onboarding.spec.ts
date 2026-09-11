@@ -18,7 +18,8 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     // The three frozen-after-creation fields are present with concrete defaults.
     await expect(page.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = page.getByLabel("Timezone");
-    await expect(tz).toContainText(/London.*Europe\/London.*BST/);
+    // The abbreviation follows the current date: BST in summer, GMT in winter.
+    await expect(tz).toContainText(/London.*Europe\/London.*(?:BST|GMT)/);
     await tz.click();
     await expect(page.getByRole("option", { name: "GMT (UTC+00:00)", exact: true })).toBeVisible();
     await expect(page.getByRole("option", { name: /London.*Europe\/London/ })).toBeVisible();
@@ -51,7 +52,9 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
       .locator('xpath=ancestor::*[@data-slot="card"]');
     await expect(accountOptions.getByRole("row", { name: "Company name Queen Industries" })).toBeVisible();
     await expect(accountOptions.getByRole("row", { name: "Week starts on Sunday" })).toBeVisible();
-    await expect(accountOptions.getByRole("row", { name: /Time zone London.*Europe\/London.*BST/ })).toBeVisible();
+    await expect(
+      accountOptions.getByRole("row", { name: /Time zone London.*Europe\/London.*(?:BST|GMT)/ }),
+    ).toBeVisible();
     await expect(page.getByTestId("settings-language")).toHaveText("English");
   });
 });
