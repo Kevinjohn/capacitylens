@@ -420,9 +420,9 @@ const registerStartupControlTests = () => {
 
     expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(
       expect.objectContaining({
-        version: 39,
-        name: "add-capacity-overview-access",
-        checksum: "098f2980febe986613c549b5f1a48c003d17528c34ea3c7deec706d6afdbae45",
+        version: 40,
+        name: "add-ownership-transfer-requests",
+        checksum: "4d52360dc6ba7ddfd0ac0e5de00b0746051e64603a5de88fb9a579a57f45ba55",
       }),
     );
     initializeOpenDb(db, ":memory:");
@@ -598,6 +598,39 @@ const CAPACITY_OVERVIEW_MIGRATION = {
   checksum: "098f2980febe986613c549b5f1a48c003d17528c34ea3c7deec706d6afdbae45",
 };
 
+const OWNERSHIP_TRANSFER_MIGRATION = {
+  version: 40,
+  name: "add-ownership-transfer-requests",
+  checksum: "4d52360dc6ba7ddfd0ac0e5de00b0746051e64603a5de88fb9a579a57f45ba55",
+};
+
+/** The tail of the pending list whose checksums are pinned, newest last. Held as one list rather
+ *  than inline literals so appending a migration is one entry, not another repeated block. */
+const CHECKSUM_PINNED_MIGRATIONS = [
+  {
+    version: 35,
+    name: "add-allocation-project-id",
+    checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
+  },
+  {
+    version: 36,
+    name: "add-activity-lifecycle",
+    checksum: "84f944631288597d07740bd183ae549486c68dd642c001bced8108bc1c11b1f2",
+  },
+  {
+    version: 37,
+    name: "add-allocation-task-field",
+    checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
+  },
+  {
+    version: 38,
+    name: "add-resource-availability-dates",
+    checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
+  },
+  CAPACITY_OVERVIEW_MIGRATION,
+  OWNERSHIP_TRANSFER_MIGRATION,
+];
+
 const registerStartupMigrationPlanningTest = () => {
   it("plans both the app-owned control migration and Better Auth DDL before executing either", async () => {
     const db = openDb(":memory:");
@@ -625,27 +658,7 @@ const registerStartupMigrationPlanningTest = () => {
       expect.objectContaining({ version: 32, name: "add-allocation-series-id" }),
       expect.objectContaining({ version: 33, name: "allow-company-wide-time-off" }),
       expect.objectContaining({ version: 34, name: "separate-company-closures" }),
-      expect.objectContaining({
-        version: 35,
-        name: "add-allocation-project-id",
-        checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
-      }),
-      expect.objectContaining({
-        version: 36,
-        name: "add-activity-lifecycle",
-        checksum: "84f944631288597d07740bd183ae549486c68dd642c001bced8108bc1c11b1f2",
-      }),
-      expect.objectContaining({
-        version: 37,
-        name: "add-allocation-task-field",
-        checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
-      }),
-      expect.objectContaining({
-        version: 38,
-        name: "add-resource-availability-dates",
-        checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
-      }),
-      expect.objectContaining(CAPACITY_OVERVIEW_MIGRATION),
+      ...CHECKSUM_PINNED_MIGRATIONS.map((migration): unknown => expect.objectContaining(migration)),
     ]);
     const before = await planAuthSchemaMigrations(auth);
     expect(before.pending).toBe(true);

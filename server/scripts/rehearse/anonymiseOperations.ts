@@ -138,6 +138,7 @@ function remapAccountCoordinates(db: DatabaseSync): void {
       { table: "closures", column: "accountId" },
       { table: "account_members", column: "accountId" },
       { table: "account_member_sign_in_tracking", column: "accountId" },
+      { table: "account_ownership_transfers", column: "accountId" },
       { table: "invites", column: "accountId" },
       { table: "account_commands", column: "workspaceId" },
       { table: "capacitylens_sync_row_provenance", column: "accountId" },
@@ -209,6 +210,8 @@ function remapPrincipalCoordinates(db: DatabaseSync): void {
       { table: "session", column: "userId" },
       { table: "twoFactor", column: "userId" },
       { table: "account_members", column: "userId" },
+      { table: "account_ownership_transfers", column: "initiatorUserId" },
+      { table: "account_ownership_transfers", column: "targetUserId" },
       { table: "account_security_revisions", column: "principalId" },
       { table: "account_commands", column: "actorPrincipalId" },
       { table: "account_commands", column: "targetPrincipalId" },
@@ -240,6 +243,7 @@ function remapPrincipalCoordinates(db: DatabaseSync): void {
   remapIds({ db: db, table: "twoFactor", idColumn: "id", references: [] });
   remapIds({ db: db, table: "verification", idColumn: "id", references: [] });
   remapIds({ db: db, table: "invites", idColumn: "id", references: [] });
+  remapIds({ db: db, table: "account_ownership_transfers", idColumn: "id", references: [] });
   remapIds({ db: db, table: "account_commands", idColumn: "commandId", references: [] });
   remapIds({ db: db, table: "account_session_assurance", idColumn: "sessionId", references: [] });
   remapIds({
@@ -263,6 +267,7 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
     references: [
       { table: "account_members", column: "accountId" },
       { table: "account_member_sign_in_tracking", column: "accountId" },
+      { table: "account_ownership_transfers", column: "accountId" },
       { table: "invites", column: "accountId" },
       { table: "account_commands", column: "workspaceId" },
     ],
@@ -286,6 +291,23 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
       { table: "verification", column: "value" },
     ],
     label: "principal",
+  });
+  // Deliberately two calls with DISTINCT labels rather than two entries in the group above: the
+  // dangling replacement is `<label>-<rowid>`, so one label would give both participants of the
+  // same row the identical id and violate the table's "initiator is not the target" CHECK.
+  scrubDanglingReferences({
+    db: db,
+    parentTable: "user",
+    parentColumn: "id",
+    references: [{ table: "account_ownership_transfers", column: "initiatorUserId" }],
+    label: "transfer-initiator",
+  });
+  scrubDanglingReferences({
+    db: db,
+    parentTable: "user",
+    parentColumn: "id",
+    references: [{ table: "account_ownership_transfers", column: "targetUserId" }],
+    label: "transfer-target",
   });
   // Credential rows and stale/legacy federated rows do not necessarily have a corresponding
   // application binding. Their providerId still identifies the source installation, so scrub

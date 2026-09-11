@@ -50,6 +50,9 @@ export function wipe(db: Db): void {
     db.exec(`DELETE FROM account_member_sign_in_tracking`);
     db.exec(`DELETE FROM account_members`);
     db.exec(`DELETE FROM invites`);
+    // Ownership-transfer rows name two principals of a company whose data has just been wiped;
+    // leaving them behind would keep a live nomination pointing at memberships that no longer exist.
+    db.exec(`DELETE FROM account_ownership_transfers`);
     db.exec(`DELETE FROM _meta`);
   });
 }

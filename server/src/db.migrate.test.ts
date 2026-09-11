@@ -126,6 +126,11 @@ const V39_MIGRATION = {
   name: "add-capacity-overview-access",
   checksum: "098f2980febe986613c549b5f1a48c003d17528c34ea3c7deec706d6afdbae45",
 } as const;
+const V40_MIGRATION = {
+  version: 40,
+  name: "add-ownership-transfer-requests",
+  checksum: "4d52360dc6ba7ddfd0ac0e5de00b0746051e64603a5de88fb9a579a57f45ba55",
+} as const;
 const RELEASED_MIGRATION_HISTORY = [
   {
     version: 8,
@@ -231,6 +236,7 @@ const RELEASED_MIGRATION_HISTORY = [
   V37_MIGRATION,
   V38_MIGRATION,
   V39_MIGRATION,
+  V40_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -252,7 +258,10 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V37_MIGRATION,
   V38_MIGRATION,
   V39_MIGRATION,
+  V40_MIGRATION,
 ] as const;
+/** The same list without its v25 head — what a database rolled back to v25 still has pending. */
+const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
 const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
@@ -1740,7 +1749,7 @@ describe("schema migration of an existing on-disk DB", () => {
       }) as Db;
 
       expect(plannedBeforeWinner).toEqual([
-        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
       ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
@@ -1772,7 +1781,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
-      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -1932,25 +1941,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "bound-used-invitation-history",
         checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
       },
-      {
-        version: 25,
-        name: "secure-federated-identity-linking",
-        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
-      },
-      V26_MIGRATION,
-      V27_MIGRATION,
-      V28_MIGRATION,
-      V29_MIGRATION,
-      V30_MIGRATION,
-      V31_MIGRATION,
-      V32_MIGRATION,
-      V33_MIGRATION,
-      V34_MIGRATION,
-      V35_MIGRATION,
-      V36_MIGRATION,
-      V37_MIGRATION,
-      V38_MIGRATION,
-      V39_MIGRATION,
+      ...V25_TO_CURRENT_MIGRATIONS,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2038,7 +2029,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2101,6 +2092,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V37_MIGRATION,
       V38_MIGRATION,
       V39_MIGRATION,
+      V40_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2155,6 +2147,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V37_MIGRATION,
       V38_MIGRATION,
       V39_MIGRATION,
+      V40_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2216,6 +2209,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V37_MIGRATION,
       V38_MIGRATION,
       V39_MIGRATION,
+      V40_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2260,6 +2254,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V37_MIGRATION,
       V38_MIGRATION,
       V39_MIGRATION,
+      V40_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2473,22 +2468,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const db = openDb(":memory:");
     rollBackCurrentDatabaseToV25(db);
 
-    expect(planDatabaseMigrations(db).migrations).toEqual([
-      V26_MIGRATION,
-      V27_MIGRATION,
-      V28_MIGRATION,
-      V29_MIGRATION,
-      V30_MIGRATION,
-      V31_MIGRATION,
-      V32_MIGRATION,
-      V33_MIGRATION,
-      V34_MIGRATION,
-      V35_MIGRATION,
-      V36_MIGRATION,
-      V37_MIGRATION,
-      V38_MIGRATION,
-      V39_MIGRATION,
-    ]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([...V26_TO_CURRENT_MIGRATIONS]);
     initializeOpenDb(db, ":memory:");
     expect(
       (db.prepare("PRAGMA table_info(account_members)").all() as Array<{ name: string }>).some(
@@ -2572,6 +2552,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V37_MIGRATION,
       V38_MIGRATION,
       V39_MIGRATION,
+      V40_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2722,7 +2703,13 @@ function registerActivityLifecycleMigrationTest(): void {
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 36;
       PRAGMA user_version = 35;
     `);
-    expect(planDatabaseMigrations(db).migrations).toEqual([V36_MIGRATION, V37_MIGRATION, V38_MIGRATION, V39_MIGRATION]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([
+      V36_MIGRATION,
+      V37_MIGRATION,
+      V38_MIGRATION,
+      V39_MIGRATION,
+      V40_MIGRATION,
+    ]);
     initializeOpenDb(db, ":memory:");
     expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
       expect.arrayContaining([
@@ -2753,11 +2740,12 @@ describe("schema migration of an existing on-disk DB", () => {
     const before = readState(db).accounts;
     db.exec(`
       ALTER TABLE accounts DROP COLUMN capacityOverviewAccess;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 39;
+      DROP TABLE account_ownership_transfers;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 39;
       PRAGMA user_version = 38;
     `);
 
-    expect(planDatabaseMigrations(db).migrations).toEqual([V39_MIGRATION]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([V39_MIGRATION, V40_MIGRATION]);
     initializeOpenDb(db, ":memory:");
 
     expect(db.prepare("PRAGMA table_info(accounts)").all()).toEqual(
@@ -2779,6 +2767,7 @@ describe("schema migration of an existing on-disk DB", () => {
         V37_MIGRATION,
         V38_MIGRATION,
         V39_MIGRATION,
+        V40_MIGRATION,
       ]);
       initializeOpenDb(db, copied.path);
 

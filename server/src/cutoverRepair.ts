@@ -52,7 +52,7 @@ interface ResolvedRepair {
   email: string;
 }
 
-const REPAIR_COMPATIBLE_MIGRATIONS = new Set([25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]);
+const REPAIR_COMPATIBLE_MIGRATIONS = new Set([25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40]);
 
 function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
   const plan = planDatabaseMigrations(db);
@@ -69,7 +69,9 @@ function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
   // v35 adds only the optional project attribution on allocations; and v36 adds only optional
   // lifecycle timestamps to activities; and v37 adds only optional allocation task text plus its
   // default-off account visibility preference; v38 adds optional person availability boundaries;
-  // and v39 adds only the optional Capacity Overview role threshold on accounts.
+  // and v39 adds only the optional Capacity Overview role threshold on accounts; and v40 adds only
+  // the empty ownership-transfer workflow table, which no repair reads and which can hold no rows
+  // before it exists.
   // These are safe to remain pending before this stopped-server repair. Keep this allowlist explicit
   // so a future migration requires review.
   if (plan.migrations.some(({ version }) => !REPAIR_COMPATIBLE_MIGRATIONS.has(version))) {
