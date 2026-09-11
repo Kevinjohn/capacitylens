@@ -78,7 +78,13 @@ function StepRow({
   );
 }
 
-/** The first-run checklist card (see the file header for the visibility rules).
+/**
+ * Render the first-run checklist card.
+ *
+ * Established companies whose domain setup is already complete finish immediately; a user who
+ * starts a new setup keeps the card until the Settings review step is completed. Setup-path
+ * markers are best-effort device preferences, while the visible domain steps always come from the
+ * active company's scoped data.
  *
  *  Split into a cheap gate + an inner component that owns the scoped-data subscription: the
  *  common case (a dismissed card, or a viewer) should read two plain booleans off the store and
@@ -304,6 +310,11 @@ function SetupChoiceRow({
   );
 }
 
+/**
+ * Show the compact setup progress link on pages outside Schedule while onboarding is incomplete.
+ * The link returns to the full checklist, whose completion rules distinguish established companies
+ * from a setup that the user has actively started.
+ */
 export function GettingStartedShortcut() {
   const { pathname } = useLocation();
   const dismissed = useStore((state) => state.gettingStartedDismissed);

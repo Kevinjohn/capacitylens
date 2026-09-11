@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { buildGettingStartedSteps, hasCompletedAllSteps, isGettingStartedComplete } from "./gettingStarted";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import {
+  buildGettingStartedSteps,
+  hasCompletedAllSteps,
+  isGettingStartedComplete,
+  readGettingStartedProgress,
+  writeGettingStartedProgress,
+} from "./gettingStarted";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import {
@@ -11,6 +17,14 @@ import {
   FIXTURE_RESOURCE_EXTERNAL,
 } from "@capacitylens/shared/data/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
+
+beforeEach(() => {
+  localStorage.clear();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // Pure derivation tests only — the card's render/visibility rules (dismissed flag, all-done,
 // viewer role) ride on the store and are exercised end-to-end in e2e/getting-started.spec.ts.
@@ -128,5 +142,60 @@ describe("onboarding completion", () => {
         settingsReviewed: false,
       }),
     ).toBe(true);
+  });
+});
+
+describe("onboarding progress persistence", () => {
+  it("uses empty progress and a safe warning when saved JSON is malformed", () => {
+    const accountId = "private-account-id";
+    const storedJson = '{"started":true,"accountEmail":"private@example.com"';
+    localStorage.setItem(`capacitylens/gettingStartedProgress/${accountId}`, storedJson);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(readGettingStartedProgress(accountId)).toEqual({
+      started: false,
+      importChosen: false,
+      scratchChosen: false,
+      settingsReviewed: false,
+    });
+    expect(warnSpy).toHaveBeenCalledWith("gettingStarted: saved progress could not be parsed; using empty progress");
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(accountId);
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(storedJson);
+  });
+
+  it("keeps progress in memory and warns safely when device storage rejects a write", () => {
+    const accountId = "private-account-id";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new SyntaxError(`private stored payload for ${accountId}`);
+    });
+
+    expect(() =>
+      writeGettingStartedProgress(accountId, {
+        started: true,
+        importChosen: false,
+        scratchChosen: true,
+        settingsReviewed: false,
+      }),
+    ).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith("gettingStarted: progress could not be saved; continuing in memory");
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(accountId);
+  });
+
+  it("uses empty progress and a safe warning when device storage rejects a read", () => {
+    const accountId = "private-account-id";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error(`private storage failure for ${accountId}`);
+    });
+
+    expect(readGettingStartedProgress(accountId)).toEqual({
+      started: false,
+      importChosen: false,
+      scratchChosen: false,
+      settingsReviewed: false,
+    });
+    expect(warnSpy).toHaveBeenCalledWith("gettingStarted: progress could not be read; using empty progress");
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(accountId);
   });
 });
