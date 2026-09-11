@@ -22,8 +22,8 @@ REFERENCE.md).
    **Date format** control. The checked option is **9 Sep**, and every option is labelled with a
    sample of the format it produces.
 2. Pick **Sep 9**.
-3. Open **Time off** from the sidebar. Bruce Wayne's first row now reads `Mon Jun 8th` where it read
-   `Mon 8th Jun` before.
+3. Open **Time off** from the sidebar. Bruce Wayne's first row now reads `Wed Jun 10th` where it
+   read `Wed 10th Jun` before.
 4. Return to **Schedule**. A range inside one month reads `Sep 9 – 14`; one that crosses a month
    reads `Sep 9 – Oct 14`.
 5. Reload the page: **Sep 9** is still the checked option and the dates still read month-first.
