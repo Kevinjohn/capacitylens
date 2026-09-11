@@ -163,7 +163,7 @@ describe("onboarding progress persistence", () => {
     expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(storedJson);
   });
 
-  it("keeps progress in memory and warns safely when device storage rejects a write", () => {
+  it("does not throw and warns safely when device storage rejects a write", () => {
     const accountId = "private-account-id";
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {

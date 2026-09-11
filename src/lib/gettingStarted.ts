@@ -108,8 +108,8 @@ export function writeGettingStartedProgress(accountId: string, progress: Getting
  *
  * An established company whose domain steps are already complete has no recorded setup path and
  * completes immediately. A new setup, identified by started/import/scratch progress, keeps the
- * checklist until the user reviews Settings. Progress persistence is best effort, so this decision
- * always uses the current in-memory markers when storage is unavailable.
+ * checklist until the user reviews Settings. Progress persistence is best effort; callers pass the
+ * current in-memory markers explicitly when storage is unavailable.
  */
 export function isGettingStartedComplete(steps: GettingStartedSteps, progress: GettingStartedProgress): boolean {
   if (!hasCompletedAllSteps(steps)) return false;
