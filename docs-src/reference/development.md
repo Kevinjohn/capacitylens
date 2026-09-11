@@ -123,7 +123,9 @@ its state, fields and commands.
 `src/components/scheduler/allocationSubmit.ts` plus `src/lib/repeatingAllocations.ts` when save or
 recurrence behaviour changes.
 
-**Tests:** Start with `src/components/scheduler/AllocationModal.test.tsx` and
+**Tests:** Start with the `src/components/scheduler/AllocationModal.*.test.tsx` suites
+(`AllocationModal.create.test.tsx`, `AllocationModal.edit.test.tsx` and
+`AllocationModal.repeat.test.tsx` for save and recurrence) and
 `src/components/common/compactFormLayouts.test.tsx`; include `e2e/modal-layout.spec.ts`,
 `e2e/allocation-modal-layout.spec.ts` and `e2e/allocation.spec.ts` when their layout or complete
 browser flow is affected.
@@ -219,9 +221,10 @@ account switching, refresh and browser lifecycle hooks.
 coordination path. `src/data/ServerSyncAdapter.ts` owns whole-slice loading and ordered,
 transactional batch diffs against the server.
 
-**Tests:** Start with `src/data/persist.test.ts`, `src/data/persist.overlap.test.ts` and
-`src/data/ServerSyncAdapter.test.ts`; use `e2e/persistence.db.spec.ts` and
-`e2e/resilience.db.spec.ts` for database-backed browser boundaries.
+**Tests:** Start with the `src/data/persist.*.test.ts` suites (`persist.attach.test.ts` for writes,
+retries and page lifecycle; `persist.reconciliation.test.ts` for batch conflicts),
+`src/data/persist.overlap.test.ts` and `src/data/ServerSyncAdapter.test.ts`; use
+`e2e/persistence.db.spec.ts` and `e2e/resilience.db.spec.ts` for database-backed browser boundaries.
 
 #### Offline snapshots {#task-offline-snapshots}
 

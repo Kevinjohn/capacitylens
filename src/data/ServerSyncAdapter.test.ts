@@ -238,7 +238,7 @@ describe("auth-awareness (P3.4)", () => {
 // ── Shared offline-cache scenario harness ─────────────────────────────────────────────────────────
 // Every offline test needs the same world: a fresh IndexedDB, the offline-read preference switched
 // on, and a verified cached identity — plus a finally block that unwinds all three. Hoisted so the
-// scenarios below carry only what actually differs (persist.test.ts's shared-helper idiom).
+// scenarios below carry only what actually differs (persistTestKit.ts's shared-helper idiom).
 
 /** The verified `/me` snapshot every offline scenario is cached against. */
 const OFFLINE_IDENTITY: OfflineAuthSnapshot = {
