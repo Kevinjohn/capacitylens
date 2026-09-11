@@ -13,7 +13,8 @@ account, creating your company and getting oriented on the schedule.
 
 Open CapacityLens through the public URL you configured during installation. With an
 empty database, the sign-in page asks for your name, email, password and the setup token
-from your `.env` file.
+from your `.env` file. If you paste it with ordinary spaces around the value, CapacityLens
+removes those spaces before sending it; paste the token again if it contains invisible characters.
 
 After you submit the form, self-registration closes. Nobody else can join the instance
 without an [invite](/reference/glossary), and every later visit shows the ordinary

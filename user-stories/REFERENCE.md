@@ -888,7 +888,10 @@ account** screen instead of sign-in: heading `Create the owner account`, fields 
 installer, plus a `Create owner account` button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
 owner in and reloads into **Set up your company**, where the owner creates the first company before
-entering the app. The setup-token value remains secret and is never displayed by the app. On a populated server the
+entering the app. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
+characters that cannot be represented in an HTTP header stays in the form and shows an actionable
+inline error without sending a request. The setup-token value remains secret and is never displayed
+by the app. On a populated server the
 flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
 zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential `admin@admin.admin`
 / `auth-e2e-password-2026` — PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since
