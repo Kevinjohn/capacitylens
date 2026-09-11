@@ -765,6 +765,7 @@ describe("compact product fields", () => {
         label="Kind"
         value="project"
         onChange={vi.fn()}
+        disabled
         options={[
           { value: "project", label: "Project" },
           { value: "internal", label: "Internal" },
@@ -774,6 +775,7 @@ describe("compact product fields", () => {
     );
     const group = screen.getByRole("radiogroup", { name: "Kind" });
     expect(group.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
   });
 });
 

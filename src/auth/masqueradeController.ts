@@ -86,7 +86,7 @@ export class MasqueradeController {
     this.startPendingGeneration = null;
     if (this.generation !== generation) return false;
     if (useStore.getState().masquerade.kind !== "inactive") return false;
-    if (flush.kind === "blocked") return this.fail("Save pending changes before starting a masquerade.");
+    if (flush.kind !== "clean") return this.fail("Save pending changes before starting a masquerade.");
     this.acquireSuspension();
     useStore.getState().setMasquerade({ kind: "starting", pending: { accountId, targetUserId }, generation });
     return true;

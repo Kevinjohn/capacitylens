@@ -266,6 +266,81 @@ describe("SchedulerToolbar project and activity ordering", () => {
   });
 });
 
+describe("SchedulerToolbar project client filtering", () => {
+  it("narrows projects to the selected client while keeping All projects available", async () => {
+    const user = userEvent.setup();
+    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
+    const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
+    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#333" });
+    useStore.getState().addProject({ name: "Gotham Initiative", clientId: queen.id, color: "#444" });
+    useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#444" });
+    useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: lex.id, color: "#555" });
+    const archived = useStore.getState().addProject({ name: "Archived work", clientId: lex.id, color: "#666" });
+    useStore.getState().archiveEntity("projects", archived.id);
+
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    await chooseOption(user, "Filter by client", "Queen Consolidated");
+    expect(optionNames("Filter by project")).toEqual([
+      "All projects",
+      "Queen Consolidated / Gotham Initiative",
+      "Queen Consolidated / Project Watchtower",
+    ]);
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
+
+    await chooseOption(user, "Filter by client", "Wayne Enterprises");
+    expect(optionNames("Filter by project")).toEqual(["All projects"]);
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Escape" });
+
+    await chooseOption(user, "Filter by client", "All clients");
+    expect(optionNames("Filter by project")).toEqual([
+      "All projects",
+      "LexCorp / Metropolis Rebrand",
+      "Queen Consolidated / Gotham Initiative",
+      "Queen Consolidated / Project Watchtower",
+    ]);
+  });
+
+  it("resets an incompatible project when switching clients and preserves a compatible one", async () => {
+    const user = userEvent.setup();
+    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
+    const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
+    const queenProject = useStore
+      .getState()
+      .addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: lex.id, color: "#444" });
+    useStore.getState().setFilters({ projectId: queenProject.id });
+
+    render(<SchedulerToolbar />);
+    showFilters();
+    await chooseOption(user, "Filter by client", "Queen Consolidated");
+    expect(useStore.getState().ui.filters.projectId).toBe(queenProject.id);
+
+    await chooseOption(user, "Filter by client", "LexCorp");
+    expect(useStore.getState().ui.filters.projectId).toBeNull();
+    expect(screen.getByRole("combobox", { name: "Filter by project" })).toHaveTextContent("All projects");
+  });
+});
+
+describe("SchedulerToolbar stale project selection", () => {
+  it("keeps a selected project visible after it moves to another client", () => {
+    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
+    const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
+    const project = useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    useStore.getState().setFilters({ clientId: queen.id, projectId: project.id });
+    useStore.getState().updateProject(project.id, { clientId: lex.id });
+
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    expect(screen.getByRole("combobox", { name: "Filter by project" })).toHaveTextContent(
+      "LexCorp / Project Watchtower",
+    );
+    expect(optionNames("Filter by project")).toEqual(["All projects", "LexCorp / Project Watchtower"]);
+  });
+});
+
 describe("SchedulerToolbar project option presentation", () => {
   it("mutes client context while preserving the complete accessible label and keyboard selection", async () => {
     const user = userEvent.setup();

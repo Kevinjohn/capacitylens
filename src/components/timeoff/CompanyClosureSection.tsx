@@ -1,5 +1,5 @@
 import { Fragment, useMemo } from "react";
-import { CalendarOff, Plus } from "lucide-react";
+import { CalendarOff } from "lucide-react";
 import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useEntityListState } from "../../hooks/useEntityListState";
@@ -69,16 +69,7 @@ export function CompanyClosureSection() {
 
       {closures.length === 0 ? (
         <div data-testid="company-closures-empty">
-          <EmptyState
-            icon={CalendarOff}
-            description={m.list_closures_empty_desc()}
-            action={{
-              label: m.list_closures_empty_action(),
-              onClick: () => setCreating(true),
-              icon: Plus,
-              requiresEdit: true,
-            }}
-          >
+          <EmptyState icon={CalendarOff} description={m.list_closures_empty_desc()}>
             {m.list_closures_empty()}
           </EmptyState>
         </div>

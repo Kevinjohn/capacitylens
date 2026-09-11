@@ -4,7 +4,11 @@ import { snapToPresetColor } from "@capacitylens/shared/lib/color";
 import { sanitizeAccount, sanitizeImportedRecord } from "@capacitylens/shared/lib/sanitizeImport";
 import { cleanText } from "@capacitylens/shared/lib/strings";
 import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
-import { isScopedEntityKey, SCHEDULING_MODES } from "@capacitylens/shared/types/entities";
+import {
+  CAPACITY_OVERVIEW_ACCESS_VALUES,
+  isScopedEntityKey,
+  SCHEDULING_MODES,
+} from "@capacitylens/shared/types/entities";
 import { pinGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
 import { TABLES } from "../tables";
 import { assertIdPresent, ValidationError } from "./errors";
@@ -40,9 +44,21 @@ function resolveStoredWeekStart(existing: Record<string, unknown> | undefined): 
   return undefined;
 }
 
+function preserveCapacityOverviewAccess(
+  copy: Record<string, unknown>,
+  existing: Record<string, unknown> | undefined,
+  canChange: boolean | undefined,
+): void {
+  if (canChange === true) return;
+  const storedAccess = existing?.capacityOverviewAccess;
+  if (CAPACITY_OVERVIEW_ACCESS_VALUES.includes(storedAccess as never)) copy.capacityOverviewAccess = storedAccess;
+  else delete copy.capacityOverviewAccess;
+}
+
 function sanitizeAccountWrite(
   copy: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
+  options: SanitizeWriteOptions,
 ): Record<string, unknown> {
   const workingDaysRequested = Object.hasOwn(copy, "workingDays");
   // POLICY: a non-preset colour snaps to its NEAREST palette preset (shared/lib/color's
@@ -63,6 +79,7 @@ function sanitizeAccountWrite(
   // restored onto the copy AFTER sanitisation (see the loop below), so without this a payload
   // omitting it would repair a Sunday-start account's week to the Monday-start default.
   sanitizeAccount(copy, resolveStoredWeekStart(existing));
+  preserveCapacityOverviewAccess(copy, existing, options.canChangeCapacityOverviewAccess);
   // A full PUT from a pre-v31 client cannot express this field. Preserve the stored selection
   // when it was omitted, while still repairing an explicitly malformed direct write above.
   if (!workingDaysRequested && existing?.workingDays !== undefined) {
@@ -199,7 +216,7 @@ export function sanitizeWrite({ table, row, existing, options = {} }: SanitizeWr
     );
   }
   if (table === "accounts") {
-    return sanitizeAccountWrite(copy, existing);
+    return sanitizeAccountWrite(copy, existing, options);
   }
   if (isScopedEntityKey(table)) {
     return sanitizeScopedWrite({ table, copy, existing, options });

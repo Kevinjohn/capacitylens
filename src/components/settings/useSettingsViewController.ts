@@ -1,7 +1,7 @@
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { useId } from "react";
 import { useAuth } from "@/auth/authContext";
-import { useCanEdit } from "@/auth/permissionContext";
+import { useCanEdit, useRole } from "@/auth/permissionContext";
 import { isServerConfigured } from "@/data/apiConfig";
 import { readBuildStamp, readFeedbackMailto } from "@/data/buildInfo";
 import { useOfflineReadEnabled, useOfflineState, usePersistenceDiagnostics } from "@/data/useOfflineState";
@@ -17,6 +17,7 @@ import {
   hasVisibleInternalProjects,
   listAccountWorkingDays,
   resolveInternalColourMode,
+  resolveCapacityOverviewAccess,
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
@@ -58,12 +59,14 @@ function readSchedulingSettings(data: ReturnType<(typeof useStore)["getState"]>[
     showInternalActivities: hasVisibleInternalActivities(data, accountId),
     inlineActivityCreateEnabled: canCreateInlineActivity(data, accountId),
     showTaskFieldInSchedule: hasVisibleTaskFieldInSchedule(data, accountId),
+    capacityOverviewAccess: resolveCapacityOverviewAccess(data, accountId),
   };
 }
 
 export function useSettingsViewController() {
   const workingDaysMinimumId = useId();
   const canEdit = useCanEdit();
+  const role = useRole();
   const data = useStore((state) => state.data);
   const accountSummaries = useStore((state) => state.accountSummaries);
   const activeAccountId = useStore((state) => state.activeAccountId);
@@ -103,6 +106,7 @@ export function useSettingsViewController() {
     scheduling,
     workingDaysMinimumId,
     canEdit,
+    canManageCapacityOverviewAccess: role === null || role === "owner" || role === "admin",
     updateSetting,
     serverMode: isServerConfigured(),
     offlineEnabled,

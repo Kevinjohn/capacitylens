@@ -24,6 +24,7 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "showInternalActivities",
       "inlineActivityCreateEnabled",
       "showTaskFieldInSchedule",
+      "capacityOverviewAccess",
     ],
     clients: [
       "id",

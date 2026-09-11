@@ -64,6 +64,10 @@ function registerSuiteScenario3() {
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
     const sections: [string, () => Promise<void>][] = [
+      [
+        "Capacity Overview",
+        async () => void (await expect(page.getByRole("table", { name: "Capacity Overview" })).toBeVisible()),
+      ],
       ["Resources", async () => void (await expect(page.getByRole("button", { name: "Add resource" })).toBeVisible())],
       [
         "Team & access",
@@ -102,6 +106,7 @@ function registerSuiteScenario4() {
 
     const hrefs = await page.locator("nav a").evaluateAll((links) => links.map((l) => l.getAttribute("href")));
     expect(hrefs).toEqual([
+      "/capacity-overview",
       "/",
       "/resources",
       "/disciplines",

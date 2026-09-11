@@ -18,7 +18,7 @@ const leftsOf = (loc: ReturnType<Page["locator"]>) =>
 
 async function openScheduleWithInlineActivityCreation(page: Page) {
   await openApp(page);
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await enableInlineActivityCreation(page);
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 2);

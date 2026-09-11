@@ -108,14 +108,24 @@ export interface AccountAdminPort {
   }): Promise<Membership | null>;
   /** Active memberships by default. `includeInactive` additionally returns disabled and archived
    *  rows and exists for ONE caller — the administrative member directory, which must show an
-   *  administrator the state they applied so they can reverse it. Never widen an authorization read
-   *  with it: a non-active membership confers nothing. */
+   *  administrator the state they applied so they can reverse it. `requireFresh` defaults to true
+   *  for administrative callers; the member-directory projection may set it false after the HTTP
+   *  authorization seam has established the caller's current role. Never widen an authorization
+   *  read with it: a non-active membership confers nothing. */
   listMemberships(input: {
     actor: ActorContext;
     workspaceId: WorkspaceId;
     includeInactive?: boolean;
+    requireFresh?: boolean;
   }): Promise<readonly Membership[]>;
-  listInvitations(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<readonly InvitationSummary[]>;
+  /** Outstanding invite metadata is readable after role authorization without fresh assurance; the
+   *  default remains fresh for direct administrative callers. Invite bearer secrets are never
+   *  returned by this method. */
+  listInvitations(input: {
+    actor: ActorContext;
+    workspaceId: WorkspaceId;
+    requireFresh?: boolean;
+  }): Promise<readonly InvitationSummary[]>;
   previewInvitation(input: { token: string }): Promise<InvitationPreview>;
   preparePasswordInvitationClaim(input: {
     token: string;

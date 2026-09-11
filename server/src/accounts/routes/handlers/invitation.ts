@@ -308,12 +308,13 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
   const { authMode, administration: accountAdminPort, authorize, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
-  if (!authorize({ req, reply, accountId, action: "manageInvites" })) return;
+  if (!authorize({ req, reply, accountId, action: "manageInvites", options: { requireFreshSession: false } })) return;
   if (authMode === "off") return { invites: [] };
   try {
     const invites = await accountAdminPort.listInvitations({
       actor: requireAccountActor(req),
       workspaceId: accountId,
+      requireFresh: false,
     });
     return {
       invites: invites.map((invite) => ({

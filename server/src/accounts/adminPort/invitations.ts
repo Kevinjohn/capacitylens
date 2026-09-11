@@ -55,10 +55,10 @@ type InvitationInput<Name extends keyof SsoCutoverAccountAdminPort> = Parameters
 
 async function listInvitations(
   context: InvitationsContext,
-  { actor, workspaceId }: InvitationInput<"listInvitations">,
+  { actor, workspaceId, requireFresh = true }: InvitationInput<"listInvitations">,
 ) {
   const { db, requireMfa, trustedLocal } = context;
-  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, requireFresh });
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
   return listInvitesForAccount(db, workspaceId).flatMap((invite) => {
     // Reads remain pure. Hide an expired unused bearer from the live management view without

@@ -1,15 +1,30 @@
-import { describe, it, expect } from "vitest";
-import { buildGettingStartedSteps, hasCompletedAllSteps } from "./gettingStarted";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import {
+  buildGettingStartedSteps,
+  hasCompletedAllSteps,
+  isGettingStartedComplete,
+  readGettingStartedProgress,
+  writeGettingStartedProgress,
+} from "./gettingStarted";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import {
   FIXTURE_ALLOCATION,
+  FIXTURE_ACTIVITY,
   FIXTURE_CLIENT,
   FIXTURE_PROJECT,
   FIXTURE_RESOURCE as FIXTURE_PLACEHOLDER,
   FIXTURE_RESOURCE_EXTERNAL,
 } from "@capacitylens/shared/data/fixtures";
 import type { AppData } from "@capacitylens/shared/types/entities";
+
+beforeEach(() => {
+  localStorage.clear();
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 // Pure derivation tests only — the card's render/visibility rules (dismissed flag, all-done,
 // viewer role) ride on the store and are exercised end-to-end in e2e/getting-started.spec.ts.
@@ -27,6 +42,7 @@ describe("deriveGettingStartedSteps", () => {
     expect(buildGettingStartedSteps(emptyAppData())).toEqual({
       client: false,
       project: false,
+      activity: false,
       person: false,
       assign: false,
     });
@@ -45,6 +61,10 @@ describe("deriveGettingStartedSteps", () => {
       clients: [buildInternalClient("a1", NOW), activeClient],
     });
     expect(buildGettingStartedSteps(data).client).toBe(true);
+  });
+
+  it("counts an imported activity without requiring a disposable replacement", () => {
+    expect(buildGettingStartedSteps(dataWith({ activities: [FIXTURE_ACTIVITY] })).activity).toBe(true);
   });
 
   it("relies on the caller to remove deleted clients from its active projection", () => {
@@ -69,12 +89,14 @@ describe("deriveGettingStartedSteps", () => {
     delete person.projectId;
     const data = dataWith({
       projects: [FIXTURE_PROJECT],
+      activities: [FIXTURE_ACTIVITY],
       resources: [person],
       allocations: [FIXTURE_ALLOCATION],
     });
     expect(buildGettingStartedSteps(data)).toEqual({
       client: false,
       project: true,
+      activity: true,
       person: true,
       assign: true,
     });
@@ -83,15 +105,97 @@ describe("deriveGettingStartedSteps", () => {
 
 describe("allStepsDone", () => {
   it("is true only when every step is complete", () => {
-    expect(hasCompletedAllSteps({ client: true, project: true, person: true, assign: true })).toBe(true);
+    expect(hasCompletedAllSteps({ client: true, project: true, activity: true, person: true, assign: true })).toBe(
+      true,
+    );
   });
 
   it.each([
-    ["client", { client: false, project: true, person: true, assign: true }],
-    ["project", { client: true, project: false, person: true, assign: true }],
-    ["person", { client: true, project: true, person: false, assign: true }],
-    ["assign", { client: true, project: true, person: true, assign: false }],
+    ["client", { client: false, project: true, activity: true, person: true, assign: true }],
+    ["project", { client: true, project: false, activity: true, person: true, assign: true }],
+    ["activity", { client: true, project: true, activity: false, person: true, assign: true }],
+    ["person", { client: true, project: true, activity: true, person: false, assign: true }],
+    ["assign", { client: true, project: true, activity: true, person: true, assign: false }],
   ] as const)("is false when %s is incomplete", (_label, steps) => {
     expect(hasCompletedAllSteps(steps)).toBe(false);
+  });
+});
+
+describe("onboarding completion", () => {
+  const steps = { client: true, project: true, activity: true, person: true, assign: true };
+  it("keeps Settings review pending for someone who started setup without choosing a path", () => {
+    expect(
+      isGettingStartedComplete(steps, {
+        started: true,
+        importChosen: false,
+        scratchChosen: false,
+        settingsReviewed: false,
+      }),
+    ).toBe(false);
+  });
+  it("does not reopen onboarding for an established company", () => {
+    expect(
+      isGettingStartedComplete(steps, {
+        started: false,
+        importChosen: false,
+        scratchChosen: false,
+        settingsReviewed: false,
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("onboarding progress persistence", () => {
+  it("uses empty progress and a safe warning when saved JSON is malformed", () => {
+    const accountId = "private-account-id";
+    const storedJson = '{"started":true,"accountEmail":"private@example.com"';
+    localStorage.setItem(`capacitylens/gettingStartedProgress/${accountId}`, storedJson);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(readGettingStartedProgress(accountId)).toEqual({
+      started: false,
+      importChosen: false,
+      scratchChosen: false,
+      settingsReviewed: false,
+    });
+    expect(warnSpy).toHaveBeenCalledWith("gettingStarted: saved progress could not be parsed; using empty progress");
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(accountId);
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(storedJson);
+  });
+
+  it("does not throw and warns safely when device storage rejects a write", () => {
+    const accountId = "private-account-id";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new SyntaxError(`private stored payload for ${accountId}`);
+    });
+
+    expect(() =>
+      writeGettingStartedProgress(accountId, {
+        started: true,
+        importChosen: false,
+        scratchChosen: true,
+        settingsReviewed: false,
+      }),
+    ).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledWith("gettingStarted: progress could not be saved; continuing in memory");
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(accountId);
+  });
+
+  it("uses empty progress and a safe warning when device storage rejects a read", () => {
+    const accountId = "private-account-id";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error(`private storage failure for ${accountId}`);
+    });
+
+    expect(readGettingStartedProgress(accountId)).toEqual({
+      started: false,
+      importChosen: false,
+      scratchChosen: false,
+      settingsReviewed: false,
+    });
+    expect(warnSpy).toHaveBeenCalledWith("gettingStarted: progress could not be read; using empty progress");
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(accountId);
   });
 });
