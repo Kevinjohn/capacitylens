@@ -4,10 +4,10 @@ import { openApp } from "./helpers";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // Covers US-SET-17. The date-style preference (device-global, default "day-month") governs how
-// dates and ranges are displayed across the app; only the T1 resolver/formatters exist on this
-// branch, so this spec exercises the Settings control and its storage round-trip only — the
-// Time off list already reads dates through the shared display helper (T1), so its row text
-// changes with the preference even before the remaining call sites (T2) pick up the style.
+// dates and ranges read across the app. This spec asserts the Settings control, its storage
+// round-trip and one representative surface — the Time off list, whose weekday form reorders
+// without losing its ordinal. Range collapsing itself is covered exhaustively in
+// src/lib/dateDisplay.test.ts, so it is not re-asserted here through the browser.
 test.describe("Settings — date style", () => {
   test("defaults to '9 Sep', switching updates the control and the stored preference", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
