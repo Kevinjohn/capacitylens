@@ -8,10 +8,17 @@
 // insertion point is marked below.
 import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 
-export type DateStyle = "day-month" | "day-ordinal-month" | "month-day" | "month-day-ordinal";
+/**
+ * Every supported style, in the order they appear in the Settings control. This list is the source
+ * the {@link DateStyle} union is derived from, so a style cannot exist in the type while being
+ * missing here — which would have left it out of the control and rejected by the read validation
+ * below, with nothing failing to say so. The two `Record<DateStyle, …>` tables that turn a style
+ * into a pattern (dateDisplay.ts) and a label (settingsLabels.ts) then fail to compile until they
+ * cover the new entry.
+ */
+export const DATE_STYLES = ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"] as const;
 
-/** Every supported style, in the order they appear in the Settings control and the plan's table. */
-export const DATE_STYLES: readonly DateStyle[] = ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"];
+export type DateStyle = (typeof DATE_STYLES)[number];
 
 export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
 
