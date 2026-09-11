@@ -123,7 +123,9 @@ its state, fields and commands.
 `src/components/scheduler/allocationSubmit.ts` plus `src/lib/repeatingAllocations.ts` when save or
 recurrence behaviour changes.
 
-**Tests:** Start with `src/components/scheduler/AllocationModal.test.tsx` and
+**Tests:** Start with the `src/components/scheduler/AllocationModal.*.test.tsx` suites
+(`AllocationModal.create.test.tsx`, `AllocationModal.edit.test.tsx` and
+`AllocationModal.repeat.test.tsx` for save and recurrence) and
 `src/components/common/compactFormLayouts.test.tsx`; include `e2e/modal-layout.spec.ts`,
 `e2e/allocation-modal-layout.spec.ts` and `e2e/allocation.spec.ts` when their layout or complete
 browser flow is affected.
