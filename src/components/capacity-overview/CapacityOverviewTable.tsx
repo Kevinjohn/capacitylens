@@ -14,8 +14,8 @@ import { useSchedulerDensity } from "../scheduler/layout";
 import { PersonScheduleSheet } from "../person-schedule/PersonScheduleSheet";
 import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
 import { usePersonScheduleDrawer } from "../person-schedule/usePersonScheduleDrawer";
-import { capacityBarBackground, computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
-import type { CapacityDisplayMode } from "./capacityOverviewBar";
+import { capacityBarFillStyle, computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
+import type { CapacityBarFill, CapacityBarFillContext, CapacityDisplayMode } from "./capacityOverviewBar";
 import type {
   CapacityOverviewGroup,
   CapacityOverviewModel,
@@ -68,6 +68,11 @@ function WeekValues({
   if (!showNumber) {
     return <span className="sr-only">{formatWeekValueText(result, formatDays, "—")}</span>;
   }
+  // "bar-number" paints this text on the `--color-danger-soft` fill (see capacityOverviewBar.ts):
+  // the overbooked label switches to `text-danger-soft-ink`, the ink that fill is paired with, so
+  // it clears AA there. Plain "number" mode has no coloured fill, so `text-destructive` still reads
+  // correctly against the ordinary cell background.
+  const overLabelInkClass = capacityDisplayMode === "bar-number" ? "text-danger-soft-ink" : "text-destructive";
   return (
     <div className="flex flex-col gap-0.5">
       {result.state === "available" ? (
@@ -76,7 +81,7 @@ function WeekValues({
         <EmptyCapacity />
       )}
       {result.overDays > 0 && (
-        <span className="text-xs text-destructive">{formatDays(result.overDays, "overbooked")}</span>
+        <span className={`text-xs ${overLabelInkClass}`}>{formatDays(result.overDays, "overbooked")}</span>
       )}
     </div>
   );
@@ -228,6 +233,31 @@ function PersonIdentity({
   );
 }
 
+// The fill paints as absolutely-positioned layers behind the cell's own text (kept in a `relative
+// z-10` wrapper) rather than as a single `background` on the <td>, so the overbooked hatch can be
+// confined to exactly the filled sub-region (its own div, sized to `fraction * 100%`) without
+// distorting the pattern or bleeding into the grey portion above it.
+function CapacityBarFillLayer({ fill, context }: { fill: CapacityBarFill; context: CapacityBarFillContext }) {
+  return (
+    <>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "var(--color-faint)" }}
+      />
+      {fill.kind !== "none" && (
+        <div
+          aria-hidden="true"
+          data-testid="capacity-bar-fill"
+          data-bar-kind={fill.kind}
+          className="pointer-events-none absolute inset-x-0 bottom-0"
+          style={{ height: `${fill.fraction * 100}%`, ...capacityBarFillStyle(fill, context) }}
+        />
+      )}
+    </>
+  );
+}
+
 function WeekValuesCell({
   result,
   capacityDisplayMode,
@@ -236,18 +266,22 @@ function WeekValuesCell({
   capacityDisplayMode: CapacityDisplayMode;
 }) {
   const showBar = capacityDisplayMode !== "number" && result.state !== "unassigned";
-  const style = showBar
-    ? capacityBarBackground(
-        computeCapacityBarFill({
-          availableHours: result.availableHours,
-          freeHours: result.freeHours,
-          overHours: result.overHours,
-        }),
-      )
-    : undefined;
   return (
-    <TableCell key={result.week.key} className="whitespace-normal px-2 text-center" style={style}>
-      <WeekValues result={result} capacityDisplayMode={capacityDisplayMode} />
+    <TableCell key={result.week.key} className="relative whitespace-normal px-2 text-center">
+      {showBar && (
+        <CapacityBarFillLayer
+          fill={computeCapacityBarFill({
+            availableHours: result.availableHours,
+            freeHours: result.freeHours,
+            overHours: result.overHours,
+          })}
+          // capacityDisplayMode is "bar" or "bar-number" here (showBar excludes "number").
+          context={capacityDisplayMode}
+        />
+      )}
+      <div className="relative z-10">
+        <WeekValues result={result} capacityDisplayMode={capacityDisplayMode} />
+      </div>
     </TableCell>
   );
 }

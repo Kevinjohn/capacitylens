@@ -66,8 +66,10 @@ const model: CapacityOverviewModel = {
         {
           resource: clarkKent,
           weeks: [
-            week(0, { freeDays: 1.5, overDays: 0.25 }),
-            week(1, { state: "fully-booked", freeDays: 0 }),
+            // Hours are set (not just the rounded display days) so the bar-fill kind computed from
+            // them matches what "over" days imply: overHours > 0 always wins the fill kind.
+            week(0, { freeHours: 12, freeDays: 1.5, overHours: 2, overDays: 0.25 }),
+            week(1, { state: "fully-booked", freeHours: 0, freeDays: 0 }),
             week(2, { state: "unavailable", availableHours: 0, freeHours: 0, freeDays: 0 }),
             week(3, {}),
           ],
@@ -288,7 +290,7 @@ describe("CapacityOverviewTable interactions", () => {
     const person = screen.getByRole("row", { name: /Clark Kent/ });
     expect(within(person).getByText("1.5d")).toBeInTheDocument();
     const firstWeekCell = within(person).getByText("1.5d").closest("td");
-    expect(firstWeekCell?.style.background ?? "").not.toContain("linear-gradient");
+    expect(within(firstWeekCell as HTMLElement).queryByTestId("capacity-bar-fill")).not.toBeInTheDocument();
   });
 
   it("renders Bar mode with a fill background and no visible number, keeping the value accessible", () => {
@@ -311,8 +313,23 @@ describe("CapacityOverviewTable interactions", () => {
     expect(within(person).queryByText("1.5d")).not.toBeInTheDocument();
     const accessibleValue = within(person).getByText("1.5d, 0.25d overbooked");
     expect(accessibleValue).toHaveClass("sr-only");
-    const firstWeekCell = accessibleValue.closest("td");
-    expect(firstWeekCell?.style.background ?? "").toContain("linear-gradient");
+    const firstWeekCell = accessibleValue.closest("td") as HTMLElement;
+    const fill = within(firstWeekCell).getByTestId("capacity-bar-fill");
+    // Overbooked (overHours > 0 wins the fill kind) and, in pure Bar mode, carries the diagonal
+    // hatch — the non-colour cue for WCAG 1.4.1 since the number above is not visually rendered.
+    expect(fill).toHaveAttribute("data-bar-kind", "over");
+    expect(fill.style.background).toContain("repeating-linear-gradient");
+    // Bar mode uses the saturated, no-text "-cell" pair (not the AA-softened "-soft" pair used by
+    // Bar & number) — the number here is `sr-only`, so nothing needs to clear AA on this fill.
+    expect(fill.style.background).toContain("var(--color-danger-cell)");
+
+    // A free (available) fill never carries the hatch — it needs no non-colour cue, since it
+    // reads the same regardless of colour vision.
+    const rowCells = within(person).getAllByRole("cell");
+    const fourthWeekFill = within(rowCells[3] as HTMLElement).getByTestId("capacity-bar-fill");
+    expect(fourthWeekFill).toHaveAttribute("data-bar-kind", "free");
+    expect(fourthWeekFill.style.background).not.toContain("repeating-linear-gradient");
+    expect(fourthWeekFill.style.background).toBe("var(--color-ok-cell)");
   });
 
   it("renders Bar & number mode with both the fill and the visible number", () => {
@@ -334,8 +351,19 @@ describe("CapacityOverviewTable interactions", () => {
     const person = screen.getByRole("row", { name: /Clark Kent/ });
     const value = within(person).getByText("1.5d");
     expect(value).toBeInTheDocument();
-    const firstWeekCell = value.closest("td");
-    expect(firstWeekCell?.style.background ?? "").toContain("linear-gradient");
+    // The overbooked label is also visible here (unlike pure Bar mode) — SC 1.4.1 is already
+    // satisfied by that printed text, so the hatch (which would sit under the same-hue label and
+    // re-fail SC 1.4.3) is intentionally NOT applied in this mode.
+    const overLabel = within(person).getByText("0.25d overbooked");
+    // The label sits on the danger-soft fill here, so it must use the ink that fill is paired
+    // with — NOT text-destructive, which shares the fill's hue and fails WCAG 1.4.3 on it.
+    expect(overLabel).toHaveClass("text-danger-soft-ink");
+    expect(overLabel).not.toHaveClass("text-destructive");
+    const firstWeekCell = value.closest("td") as HTMLElement;
+    const fill = within(firstWeekCell).getByTestId("capacity-bar-fill");
+    expect(fill).toHaveAttribute("data-bar-kind", "over");
+    expect(fill.style.background).toBe("var(--color-danger-soft)");
+    expect(fill.style.background).not.toContain("repeating-linear-gradient");
   });
 
   it("never renders a bar for unassigned-demand rows", () => {
@@ -356,7 +384,8 @@ describe("CapacityOverviewTable interactions", () => {
 
     const placeholder = screen.getByRole("row", { name: /Placeholder.*Designer/ });
     const value = within(placeholder).getByText("2d unassigned");
-    expect(value.closest("td")?.style.background ?? "").not.toContain("linear-gradient");
+    const cell = value.closest("td") as HTMLElement;
+    expect(within(cell).queryByTestId("capacity-bar-fill")).not.toBeInTheDocument();
   });
 
   it("collapses and expands discipline rows", async () => {
