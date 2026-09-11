@@ -1,24 +1,27 @@
-# Dependabot writes its pull-request bodies for machines. A base-image update reads
-# "Bumps node from 6f7b03f to ba849c6" and stops there, because a registry digest
-# carries no release notes for it to quote. `dependabot.yml` cannot help: it
-# configures commit prefixes, labels, reviewers and milestones, but has no
-# pull-request body template.
+# Dependabot writes its pull-request bodies from registry metadata, and a base-image
+# digest supplies none: "Bumps node from `6f7b03f` to `ba849c6`" is the whole
+# description. Nothing there says whether the application moved, what the tag is, or
+# what merging it implies. `dependabot.yml` has no body template to fix that with, so
+# this workflow adds a summary comment instead.
 #
-# This workflow comments a short plain-English summary instead, built from the
-# structured metadata Dependabot writes into its own commit. It is advisory only;
-# nothing gates on it.
+# The metadata is parsed from Dependabot's own commit rather than read through
+# `dependabot/fetch-metadata`. That action derives the previous version from the
+# "Bumps X from A to B." line with a numeric pattern, which a backtick-wrapped digest
+# does not match, so the digest update — the case this exists for — reaches it with an
+# empty previous version. Parsing the commit directly keeps the digests and removes a
+# third-party dependency from a workflow that holds a write token.
 #
-# `pull_request_target` is required rather than `pull_request`: runs that Dependabot
-# triggers receive a read-only token and cannot comment. The elevated token is safe
-# here because the job never checks out or executes the pull request's code.
+# `pull_request` with an explicit `permissions` block is the documented way to give a
+# Dependabot-triggered run write access; `pull_request_target` is not needed and would
+# widen the trust boundary for nothing.
 
 name: Dependabot summary
 
 on:
-  pull_request_target:
-    types: [opened, reopened]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
-permissions: read-all
+permissions: {}
 
 jobs:
   summary:
@@ -30,72 +33,107 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - name: Read Dependabot metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
-
       - name: Comment the summary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
-          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
-          NAMES: ${{ steps.metadata.outputs.dependency-names }}
-          PREVIOUS: ${{ steps.metadata.outputs.previous-version }}
-          NEW: ${{ steps.metadata.outputs.new-version }}
-          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
-          ALERT_STATE: ${{ steps.metadata.outputs.alert-state }}
-          GHSA_ID: ${{ steps.metadata.outputs.ghsa-id }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
 
-          # Dependabot lists grouped updates as a comma-separated string.
-          names="${NAMES//,/, }"
-          plural="dependency"
-          grouped=""
-          case "$names" in *", "*) plural="dependencies"; grouped="yes" ;; esac
+          # Dependabot names its branches dependabot/<ecosystem>/<detail>; the
+          # ecosystem strings are npm_and_yarn, github_actions and docker.
+          ecosystem="$(printf '%s' "$HEAD_REF" | cut -d/ -f2)"
 
-          # semver-patch, semver-minor, semver-major or empty for a digest re-pin.
-          severity="${UPDATE_TYPE##version-update:semver-}"
-
-          # The version outputs describe the first dependency only, so a grouped
-          # update states the update type without claiming one version pair.
-          if [ -n "$grouped" ]; then
-            movement="moved to their latest $severity releases"
-          else
-            movement="moved from \`$PREVIOUS\` to \`$NEW\` (a $severity change)"
+          # The update metadata lives in Dependabot's own commit. A branch brought up
+          # to date with main carries later merge commits, so select by author.
+          message="$(gh api "repos/$REPO/pulls/$PR/commits" --paginate \
+            --jq '[.[] | select((.author.login // "") == "dependabot[bot]")] | last | .commit.message')"
+          if [ -z "$message" ]; then
+            echo "No Dependabot commit found on this pull request; nothing to summarise." >&2
+            exit 0
           fi
 
-          case "$ECOSYSTEM" in
+          names="$(printf '%s\n' "$message" | sed -n 's/^- dependency-name: //p' | paste -sd ', ' -)"
+          version="$(printf '%s\n' "$message" | sed -n 's/^  dependency-version: //p' | head -1)"
+          update_type="$(printf '%s\n' "$message" | sed -n 's/^  update-type: version-update:semver-//p' | head -1)"
+
+          # "Bumps X from A to B." carries the only record of the previous value, and
+          # for a digest re-pin the only record of either digest.
+          bumps="$(printf '%s\n' "$message" | sed -n 's/^Bumps .* from \(.*\) to \(.*\)\.$/\1 \2/p' | head -1)"
+          previous="$(printf '%s' "${bumps% *}" | tr -d '`')"
+          latest="$(printf '%s' "${bumps#* }" | tr -d '`')"
+
+          # A grouped update lists every member; naming sixteen packages in one
+          # sentence helps nobody, so past a handful they are counted instead.
+          count="$(printf '%s\n' "$message" | grep -c '^- dependency-name: ' || true)"
+          plural="dependency"
+          grouped=""
+          subject="\`$names\`"
+          if [ "$count" -gt 1 ]; then
+            plural="dependencies"
+            grouped="yes"
+            group="$(printf '%s\n' "$message" | sed -n 's/^Bumps the \(.*\) group with .*/\1/p' | head -1)"
+            subject="$count packages"
+            [ -n "$group" ] && subject="$count packages in the \`$group\` group"
+          fi
+
+          # Absent for an update whose versions are not semver, such as an image tag.
+          severity=""
+          [ -n "$update_type" ] && severity=" (a $update_type change)"
+
+          # A digest re-pin leaves the tag alone and moves only the content hash, so
+          # both sides of the "Bumps" line are abbreviated hashes rather than versions.
+          digest=""
+          if [ "$ecosystem" = "docker" ] &&
+            [[ "$previous" =~ ^[0-9a-f]{7,}$ ]] && [[ "$latest" =~ ^[0-9a-f]{7,}$ ]]; then
+            digest="yes"
+          fi
+
+          if [ -n "$grouped" ] || [ -z "$previous" ]; then
+            movement="moved to their latest releases$severity"
+          else
+            movement="moved from \`$previous\` to \`$latest\`$severity"
+          fi
+
+          case "$ecosystem" in
             docker)
-              if [ "$PREVIOUS" = "$NEW" ]; then
-                what="Base image \`$names\` re-pinned to a newer digest of the same tag."
-                why="The tag has not moved, so the runtime stays on \`$NEW\`. Upstream rebuilt the image, which normally means Debian security patches."
+              if [ -n "$digest" ]; then
+                what="**Base image digest re-pinned.** \`$names\` stays on tag \`$version\`; only the digest moves, \`$previous\` → \`$latest\`."
+                why="The tag is unchanged, so the image's base distribution and major version stay where they were. The contents do change: upstream rebuilt the image, which normally means updated OS packages."
               else
-                what="Base image \`$names\` $movement."
-                why="The runtime the container is built on changes. Check the image's support window before merging."
+                what="**Base image tag moved.** $subject $movement."
+                why="The runtime the container is built on changes. Check the new tag's support window before merging."
               fi
-              scope="Build input only: no application dependency changes, and nothing here is user-visible."
+              scope="No application dependency changes. The effect is on the container image only."
               ;;
-            npm)
-              what="Application $plural $names $movement."
+            npm_and_yarn)
+              what="**Application $plural.** $subject $movement."
               why="This code ships inside the product."
-              scope="Read the linked release notes for behaviour changes; the full gate runs on merge to main."
+              scope="Read the release notes in the pull-request body for behaviour changes. The full gate runs on merge to main."
               ;;
-            github_actions|github-actions)
-              what="CI action $names $movement."
-              why="Only the workflows that run the build are affected."
+            github_actions)
+              what="**CI action.** $subject $movement."
+              why="Affects the workflows that build, test, release and scan this repository."
               scope="Nothing in the shipped application changes."
               ;;
             *)
-              what="The $ECOSYSTEM $plural $names $movement."
-              why="No ecosystem-specific summary is written for this update type yet."
+              what="**$ecosystem update.** $subject $movement."
+              why="No tailored summary is written for this ecosystem yet."
               scope="Read the pull-request body for the details Dependabot supplied."
               ;;
           esac
 
-          if [ "$ALERT_STATE" = "OPEN" ]; then
-            scope="$scope Closes a published advisory (${GHSA_ID:-unidentified}), so treat it as a security fix."
-          fi
+          # A marker makes the comment idempotent: Dependabot rebases its branch onto
+          # main repeatedly, and each push must refresh this summary, not stack another.
+          marker="<!-- dependabot-summary -->"
+          body="$(printf '%s\n%s %s\n\n%s\n' "$marker" "$what" "$why" "$scope")"
 
-          printf '%s %s\n\n%s\n' "$what" "$why" "$scope" \
-            | gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file -
+          existing="$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq "[.[] | select(.body | startswith(\"$marker\"))] | first | .id // empty")"
+          if [ -n "$existing" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" --silent
+          else
+            printf '%s' "$body" | gh pr comment "$PR" --repo "$REPO" --body-file -
+          fi
