@@ -19,8 +19,8 @@ import { SchedulerGridRows } from "./SchedulerGridRows";
 import type { ModalState } from "./schedulerGridModal";
 import { useSchedulerGridPreferences, useSchedulerGridModel } from "./useSchedulerGridModel";
 import { useSchedulerGridVirtualization } from "./useSchedulerGridVirtualization";
-import { PersonScheduleSheet } from "./PersonScheduleSheet";
-import { usePersonScheduleDrawer } from "./usePersonScheduleDrawer";
+import { PersonScheduleSheet } from "../person-schedule/PersonScheduleSheet";
+import { usePersonScheduleDrawer } from "../person-schedule/usePersonScheduleDrawer";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
