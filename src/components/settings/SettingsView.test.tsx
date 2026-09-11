@@ -84,19 +84,53 @@ describe("SettingsView — scheduling mode", () => {
   });
 });
 
+describe("SettingsView — Capacity Overview access", () => {
+  it("defaults to Owner and Admin and lets an administrator widen access", async () => {
+    const user = userEvent.setup();
+    render(
+      <PermissionContext.Provider value={{ role: "admin", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    const restricted = screen.getByRole("radio", { name: "Owner and Admin only" });
+    const everyone = screen.getByRole("radio", { name: "Everyone" });
+    expect(restricted).toHaveAttribute("aria-checked", "true");
+
+    await user.click(everyone);
+
+    expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)).toHaveProperty(
+      "capacityOverviewAccess",
+      "everyone",
+    );
+  });
+
+  it("shows the policy read-only to editors", () => {
+    render(
+      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.getByRole("radio", { name: "Owner and Admin only" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Owner, Admin, and Editors" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Everyone" })).toBeDisabled();
+  });
+});
+
 describe("SettingsView — section help", () => {
   it("gives every default settings section its labelled question-mark action", () => {
     render(<SettingsView />);
 
     for (const section of [
       "Scheduling",
-      "Global working days",
+      "Capacity Overview access",
+      "Company-wide working days",
       "Disciplines",
       "Engagement grouping",
       "Schedule",
       "Internal work colours",
-      "Placeholders",
-      "External",
+      "Additional resourcing options",
       "Internal work",
       "Activity creation",
       "Allocation bars",
@@ -163,7 +197,7 @@ it("warns that calendar changes reinterpret existing allocations without moving 
   const user = userEvent.setup();
   render(<SettingsView />);
 
-  await user.click(screen.getByRole("button", { name: "About Global working days" }));
+  await user.click(screen.getByRole("button", { name: "About Company-wide working days" }));
 
   expect(
     screen.getByText(
@@ -173,7 +207,7 @@ it("warns that calendar changes reinterpret existing allocations without moving 
   ).toBeInTheDocument();
   expect(
     screen.getByText(
-      "Changing global working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
+      "Changing company-wide working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
     ),
   ).toBeInTheDocument();
 });
@@ -431,6 +465,35 @@ describe("SettingsView — account toggle wiring", () => {
     const after = useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
     expect(after).toBe(!(before ?? whenAbsent));
   });
+
+  it("keeps placeholder and external visibility independently configurable in one section", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const section = screen
+      .getByRole("heading", { name: "Additional resourcing options" })
+      .closest('[data-slot="card"]');
+    expect(section).not.toBeNull();
+    expect(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(within(section as HTMLElement).getByRole("switch", { name: "Show external resources" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+
+    await user.click(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" }));
+    expect(useStore.getState().data.accounts[0]?.placeholdersEnabled).toBe(true);
+    expect(useStore.getState().data.accounts[0]?.externalEnabled).toBeUndefined();
+
+    await user.click(screen.getByRole("button", { name: "About Additional resourcing options" }));
+    const dialog = screen.getByRole("dialog", { name: "Additional resourcing options" });
+    expect(within(dialog).getAllByText(/unfilled roles or tentative people/i)).not.toHaveLength(0);
+    expect(within(dialog).getAllByText(/partner agencies, freelancers, suppliers or subcontractors/i)).not.toHaveLength(
+      0,
+    );
+  });
 });
 
 describe("SettingsView — device preference toggle wiring", () => {
@@ -610,6 +673,22 @@ describe("SettingsView — account options selected at creation", () => {
     await user.click(screen.getByRole("button", { name: "About Account Options Selected at Creation" }));
     const dialog = screen.getByRole("dialog", { name: "Account Options Selected at Creation" });
     expect(within(dialog).getByText(/cannot be changed here/i)).toBeInTheDocument();
-    expect(within(dialog).getByText(/sets which day starts the week/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/set which day starts the week/i)).toBeInTheDocument();
   });
+});
+
+it("opens and focuses the Import section reached from onboarding", () => {
+  const previousUrl = window.location.href;
+  const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+  try {
+    window.history.replaceState(null, "", "/settings#getting-started-import");
+    render(<SettingsView />);
+    const section = document.getElementById("getting-started-import");
+    expect(section).toHaveFocus();
+    expect(section).toHaveTextContent("Import JSON");
+    expect(scroll).toHaveBeenCalledWith({ block: "start" });
+  } finally {
+    window.history.replaceState(null, "", previousUrl);
+    scroll.mockRestore();
+  }
 });

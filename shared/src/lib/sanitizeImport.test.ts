@@ -625,6 +625,16 @@ function registerAccountVisibilityTests(): void {
     expect(sanitizeAccount({ inlineActivityCreateEnabled: false }).inlineActivityCreateEnabled).toBe(false);
     expect(sanitizeAccount({ inlineActivityCreateEnabled: true }).inlineActivityCreateEnabled).toBe(true);
   });
+
+  it("keeps valid Capacity Overview access and drops malformed values", () => {
+    expect(sanitizeAccount({ capacityOverviewAccess: "owner_admin" }).capacityOverviewAccess).toBe("owner_admin");
+    expect(sanitizeAccount({ capacityOverviewAccess: "owner_admin_editor" }).capacityOverviewAccess).toBe(
+      "owner_admin_editor",
+    );
+    expect(sanitizeAccount({ capacityOverviewAccess: "everyone" }).capacityOverviewAccess).toBe("everyone");
+    expect(sanitizeAccount({ capacityOverviewAccess: "viewer" }).capacityOverviewAccess).toBeUndefined();
+    expect(sanitizeAccount({ capacityOverviewAccess: 1 }).capacityOverviewAccess).toBeUndefined();
+  });
 }
 
 function registerAccountLanguageTests(): void {

@@ -160,14 +160,14 @@ function registerMutationRouteTests(): void {
     expect(new Headers(createInit.headers).get("content-type")).toBe("application/json");
     expect(createInit.body).toBe(JSON.stringify({ name: "Studio" }));
 
-    const [eraseUrl, eraseInit, eraseTimeout] = mocks.apiFetchReauth.mock.calls[0] as unknown as [
+    const [eraseUrl, eraseInit, eraseOptions] = mocks.apiFetchReauth.mock.calls[0] as unknown as [
       string,
       RequestInit,
-      number,
+      { timeoutMs?: number; action?: string },
     ];
     expect(eraseUrl).toBe("https://app.example/api/accounts/workspace%20%2F%20one");
     expectCommand(eraseInit, "DELETE");
-    expect(eraseTimeout).toBe(120_000);
+    expect(eraseOptions).toEqual({ timeoutMs: 120_000, action: "delete-company" });
 
     const urls = mocks.apiFetchReauth.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual(
@@ -186,6 +186,7 @@ function registerMembershipRouteTests(): void {
   it("owns member, invitation preview, acceptance, and signup routes", async () => {
     await accountClient.listMembers("workspace / one");
     await accountClient.listInvitations("workspace / one");
+    await accountClient.getSsoReadiness("workspace / one");
     await accountClient.startMasquerade("workspace / one", { targetUserId: "person / one" });
     await accountClient.masqueradeStatus();
     await accountClient.endMasquerade({ token: "token-1", reason: "explicit" });
@@ -193,13 +194,21 @@ function registerMembershipRouteTests(): void {
     await accountClient.acceptInvitation("token / one", command);
     await accountClient.signupWithInvitation("token / one", { name: "New user" }, command);
 
-    const privilegedUrls = mocks.apiFetchReauth.mock.calls.map((call) => String(call[0]));
-    expect(privilegedUrls).toEqual([
+    const directoryUrls = mocks.apiFetch.mock.calls
+      .map((call) => String(call[0]))
+      .filter((url) => url.endsWith("/members") || url.endsWith("/invites"));
+    expect(directoryUrls).toEqual([
       "https://app.example/api/accounts/workspace%20%2F%20one/members",
       "https://app.example/api/accounts/workspace%20%2F%20one/invites",
     ]);
+    expect(mocks.apiFetch.mock.calls.map((call) => String(call[0]))).toContain(
+      "https://app.example/api/accounts/workspace%20%2F%20one/sso-readiness",
+    );
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
+      "https://app.example/api/accounts/workspace%20%2F%20one/members",
+      "https://app.example/api/accounts/workspace%20%2F%20one/invites",
+      "https://app.example/api/accounts/workspace%20%2F%20one/sso-readiness",
       "https://app.example/api/accounts/workspace%20%2F%20one/masquerade",
       "https://app.example/api/masquerade",
       "https://app.example/api/masquerade",
@@ -207,19 +216,19 @@ function registerMembershipRouteTests(): void {
       "https://app.example/api/invites/token%20%2F%20one/accept",
       "https://app.example/api/invites/token%20%2F%20one/signup",
     ]);
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 0)).toMatchObject({
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 3)).toMatchObject({
       method: "POST",
       credentials: "include",
       body: JSON.stringify({ targetUserId: "person / one" }),
     });
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 1)).toEqual({ credentials: "include" });
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 2)).toMatchObject({
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 4)).toEqual({ credentials: "include" });
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 5)).toMatchObject({
       method: "DELETE",
       credentials: "include",
       body: JSON.stringify({ token: "token-1", reason: "explicit" }),
     });
-    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 4), "POST");
-    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 5), "POST");
+    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 7), "POST");
+    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 8), "POST");
   });
 }
 

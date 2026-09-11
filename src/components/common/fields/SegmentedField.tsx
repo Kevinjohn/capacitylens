@@ -22,6 +22,7 @@ export function SegmentedField<T extends string | number>({
   fullWidth = false,
   size = "md",
   density = "default",
+  disabled = false,
   layout = "stacked",
 }: {
   label: string;
@@ -40,6 +41,8 @@ export function SegmentedField<T extends string | number>({
   size?: SegmentedSize;
   /** Named label spacing treatment. */
   density?: SegmentedDensity;
+  /** Disable every segment while preserving the selected value. */
+  disabled?: boolean;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
 }) {
@@ -57,6 +60,7 @@ export function SegmentedField<T extends string | number>({
         fullWidth={fullWidth}
         size={size}
         density={density}
+        disabled={disabled}
       />
     </Field>
   );

@@ -47,6 +47,7 @@ function createAddAccountAction({ internals, set }: AccountActionContext): Store
       disciplinesEnabled: false,
       placeholdersEnabled: false,
       externalEnabled: false,
+      inlineActivityCreateEnabled: false,
       internalColourMode: "grey",
       ...input,
       workingDays: normalizeAccountWorkingDays(input.workingDays, weekStartsOn),

@@ -151,6 +151,35 @@ function registerMemberGateAccessTest(): void {
   });
 }
 
+function registerStaleMemberDirectoryReadTest(): void {
+  it("allows an admin directory read from a stale session while keeping member mutations fresh-gated", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const owner = await signUp(app, "owner-stale-directory@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(
+      new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+      owner.userId,
+    );
+
+    const members = await membersReq(app, "a1", { cookie: owner.cookie });
+    expect(members.statusCode).toBe(200);
+    expect((members.json() as { members: unknown[] }).members).toHaveLength(1);
+
+    const invites = await invitesReq(app, "a1", { cookie: owner.cookie });
+    expect(invites.statusCode).toBe(200);
+
+    const mutation = await memberSignInTrackingReq({
+      app,
+      accountId: "a1",
+      enabled: true,
+      headers: { cookie: owner.cookie },
+    });
+    expect(mutation.statusCode).toBe(403);
+    expect(parseErrorCode(mutation.json())).toBe("SESSION_NOT_FRESH");
+  });
+}
+
 function registerMemberGateStrangerTest(): void {
   it("a non-member (cross-tenant stranger) is 403", async () => {
     const { app, db } = await appWithAuth();
@@ -279,6 +308,7 @@ function registerMemberGateResetCapabilityTest(): void {
 
 describe("GET /api/accounts/:id/members — gate", () => {
   registerMemberGateAccessTest();
+  registerStaleMemberDirectoryReadTest();
   registerMemberGateStrangerTest();
   registerMemberGateAnonymousTest();
   registerMemberGateCrossTenantTest();

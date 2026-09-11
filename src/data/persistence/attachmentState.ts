@@ -25,6 +25,7 @@ interface AttachmentValues {
   retryTimer: ReturnType<typeof setTimeout> | null;
   retryAttempts: number;
   failedSinceSuccess: boolean;
+  lastError: unknown | null;
   terminalBatchSnapshot: AppData | null;
   resolvingAuthoritativeReload: boolean;
   authoritativeReloadRequiredFor: string | null;
@@ -51,6 +52,7 @@ function createAttachmentValues(store: StoreApi<StoreState>): AttachmentValues {
     retryTimer: null,
     retryAttempts: 0,
     failedSinceSuccess: false,
+    lastError: null,
     terminalBatchSnapshot: null,
     resolvingAuthoritativeReload: false,
     authoritativeReloadRequiredFor: null,
@@ -132,7 +134,7 @@ class AttachmentOwner {
     if (this.values.unacknowledged === data) this.values.unacknowledged = null;
     if (this.values.pending === data) this.values.pending = null;
     if (!acknowledgesLatest) return;
-    this.update({ retryAttempts: 0, failedSinceSuccess: false, terminalBatchSnapshot: null });
+    this.update({ retryAttempts: 0, failedSinceSuccess: false, terminalBatchSnapshot: null, lastError: null });
     this.cancelRetry();
     this.onSuccess?.();
   }
