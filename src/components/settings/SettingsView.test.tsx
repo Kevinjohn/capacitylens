@@ -485,14 +485,13 @@ describe("SettingsView — Import & export card (issue #169)", () => {
   });
 });
 
-it("renders no Account section by default (auth off / demo build — today's Settings)", () => {
+it("keeps personal Account and sign-out controls out of company Settings", () => {
   render(<SettingsView />);
   expect(screen.queryByRole("heading", { name: "Account" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
 });
 
-it("shows who is signed in plus Sign out when the server reports an auth mode", async () => {
-  const user = userEvent.setup();
+it("does not duplicate personal identity or Sign out when the server reports an auth mode", () => {
   const signOut = vi.fn().mockResolvedValue(undefined);
   render(
     <AuthContext.Provider
@@ -508,12 +507,11 @@ it("shows who is signed in plus Sign out when the server reports an auth mode", 
       <SettingsView />
     </AuthContext.Provider>,
   );
-  expect(screen.getByRole("heading", { name: "Account" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "About Account" })).toHaveAttribute("title", "About Account");
+  expect(screen.queryByRole("heading", { name: "Account" })).not.toBeInTheDocument();
   expect(screen.getByRole("button", { name: "About Offline access" })).toHaveAttribute("title", "About Offline access");
-  expect(screen.getByText(/Signed in as tester@capacitylens\.dev/)).toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: "Sign out" }));
-  expect(signOut).toHaveBeenCalled();
+  expect(screen.queryByText(/Signed in as tester@capacitylens\.dev/)).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+  expect(signOut).not.toHaveBeenCalled();
 });
 
 it("runs only one offline activation when the switch is triggered twice", async () => {

@@ -45,6 +45,9 @@ const TeamAccessView = lazy(() =>
 const SettingsView = lazy(() =>
   import("./components/settings/SettingsView").then((module) => ({ default: module.SettingsView })),
 );
+const AccountView = lazy(() =>
+  import("./components/account/AccountView").then((module) => ({ default: module.AccountView })),
+);
 // Invite accept: its own top-level route, OUTSIDE AppShell's tenant/account gate so the safe
 // preview and invite-specific onboarding render before a company is selected. AuthProvider carves
 // this route out of the password login wall: an unauthenticated visitor signs in on the invite page,
@@ -124,6 +127,7 @@ export const router = createBrowserRouter([
       { path: "timeoff", element: <TimeOffList /> },
       { path: "team", element: <TeamAccessView /> },
       { path: "settings", element: <SettingsView /> },
+      { path: "account", element: <AccountView /> },
     ],
   },
   {

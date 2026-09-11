@@ -42,6 +42,8 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Add a personal Account page for identity, password, MFA status and active sessions, linked beside
+  the current-user control on every main page (#744).
 - Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
   server health metadata that can be copied for support reports (#745).
 - Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,

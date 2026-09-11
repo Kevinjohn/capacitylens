@@ -12,7 +12,7 @@
 ## Goal
 
 Be the only kind of visitor who can read or change data on an auth-enabled deploy: one
-who has signed in — and be able to sign out again from Settings.
+who has signed in — and be able to sign out again from the sidebar.
 
 ## Why
 
@@ -35,8 +35,8 @@ self-registration closes automatically and only the Sign in form below is reacha
 2. Enter a wrong password → an inline error appears; you stay on the screen.
 3. Enter the correct **Email** and **Password**, press **Sign in** (or Enter).
 4. The app loads as normal: company picker → pick a company → scheduler.
-5. Go to **Settings**. An **Account** section shows the signed-in email with **Sign out**.
-6. Click **Sign out** → you are back on the Sign in screen; reloading stays signed out.
+5. Go to **Account**. It shows the signed-in email and the available personal security controls.
+6. Click the sidebar's **Sign out** → you are back on the Sign in screen; reloading stays signed out.
 
 ## Acceptance criteria
 
@@ -44,9 +44,9 @@ self-registration closes automatically and only the Sign in form below is reacha
   no data; direct API reads (e.g. `GET /api/state`) return 401.
 - The form submits with Enter; a failed sign-in shows an inline alert and no navigation.
 - A successful sign-in lands in the normal app flow (company picker with seeded companies).
+- Account shows the signed-in identity and personal security controls only while signed in on an
+  auth-enabled deploy; it never exposes credential controls with auth off or in local mode.
 - First-owner signup keeps the **Create the owner account** heading, names the exact setup-token
   variable, and continues to first-company creation without suggesting that the owner request an invitation.
-- Settings shows the Account section **only** while signed in on an auth-enabled deploy;
-  it never appears with auth off or in local mode.
 - Sign out invalidates the session (subsequent loads show Sign in again).
 - The Sign in screen passes an axe accessibility audit (no serious/critical violations).

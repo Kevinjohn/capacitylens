@@ -179,10 +179,10 @@ updates as people connect.
 _2 minutes each · Every member_
 
 This is the part your people do, and it's the part you can't do for them — that's the
-security property. Send them this: _"Go to Settings, open Security, find Company
+security property. Send them this: _"Go to Account, open Security, find Company
 sign-in, and click Connect."_
 
-Settings → Security → Company sign-in. One button.
+Account → Security → Company sign-in. One button.
 
 They get sent to your company login page, sign in there the way they always do, and
 come straight back.

@@ -20,7 +20,7 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 1. Confirm the sidebar shows, in order: **Capacity Overview**, **Schedule**, **Resources**, **Disciplines**, **Clients**,
    **Projects**, **Activities**, **Time off**, then — below a divider, pinned to the bottom of the
    list as the administration group — **Team & access** and **Settings**. Below those sits the
-   account block (company name, **Switch company**, and the avatar'd **Sign out** row).
+   account block (company name, **Switch company**, **Account**, and the avatar'd **Sign out** row).
 2. Click **Capacity Overview**. The URL is `/capacity-overview` and its four-week table renders.
 3. Click **Schedule**. The URL is `/` and the timeline grid (`scheduler-grid`) renders.
 4. Click **Resources**. The URL is `/resources` and the Resource list shows
@@ -36,15 +36,17 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 10. Click **Team & access**. The URL is `/team` and the current access summary shows.
 11. Click **Settings**. The URL is `/settings` and the Settings screen shows the **Account Options
     Selected at Creation** summary and the **Diagnostics** card.
+12. Click **Account**. The URL is `/account` and the personal identity and available security
+    controls show independently of the active company.
 
 ## Acceptance criteria
 
 - ✅ Each available link routes to its mapped path, in nav order: `/capacity-overview`, `/`, `/resources`,
-  `/disciplines`, `/clients`, `/projects`, `/activities`, `/timeoff`, `/team`, `/settings`.
+  `/disciplines`, `/clients`, `/projects`, `/activities`, `/timeoff`, `/team`, `/settings`, `/account`.
 - ✅ **Team & access** and **Settings** are the last two links, in that order, below the divider —
   they never appear among the working destinations above it.
 - ✅ **Schedule** renders the scheduler grid (`data-testid="scheduler-grid"`).
-- ✅ Each of the other nine links renders its screen with at least the seeded rows /
+- ✅ Each available destination renders its screen with at least the seeded rows /
   fields visible (e.g. _Bruce Wayne_ on Resources, _Queen Consolidated_ on Clients, the
   **Account Options Selected at Creation** heading on Settings).
 - ✅ Navigating away and back (e.g. Resources → Schedule) re-renders each screen

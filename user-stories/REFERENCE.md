@@ -148,14 +148,15 @@ The sidebar links, in order, route to:
 | Time off          | `/timeoff`           | Time-off list                                                                                                                                                      |
 | Team & access     | `/team`              | Current role, capability summary and app-member access management                                                                                                  |
 | Settings          | `/settings`          | Settings (scheduling, company-wide working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
+| Account           | `/account`           | Signed-in identity and personal security controls                                                                                                                  |
 
-The last two — **Team & access** and **Settings** — form a separate **administration group** pinned
+**Team & access** and **Settings** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
 above. Both remain ordinary first-class routes (same markup, same icons, same command-palette
 entries); only their placement differs, so administration stays out of the way of the app's
 day-to-day purpose and role-gated controls don't sit among everyone's destinations.
 
-Owners and Admins see **ten** sections by default — **nine** when the company turns disciplines off (the
+Owners and Admins see **eleven** sections by default — **ten** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see _Disciplines optional_ under Domain rules). External / 3rd
 parties no longer have their own nav link — they moved INTO the **Resources** tab behind a setting
 (see _External / 3rd parties_ under Domain rules); the old `/external` URL still resolves but
@@ -207,11 +208,15 @@ replacement. File reads and confirmations remain bound to the company that was a
 was selected, and export/import actions suppress duplicate in-flight requests.
 The account block —
 the active company name and role badge, a **Switch company** control (which returns to the company
-picker), and a **Sign out** row carrying the signed-in person's avatar — is pinned to the very
+picker), an **Account** destination, and a **Sign out** row carrying the signed-in person's avatar — is pinned to the very
 **bottom** of the sidebar, below a divider beneath the administration group. (The company name used
 to sit at the top; pinning it to the bottom keeps the logo + collapse toggle as the first item in
 both the open menu and the collapsed rail, so the nav icons don't shift when the sidebar collapses.)
-The avatar is the signed-in user's own picture when the identity provider supplied one, initials
+**Account** opens the signed-in person's identity and security page from every main app page. In
+password mode it shows password change, MFA status and active-session revocation; in SSO mode it
+shows the provider identity and active sessions without password controls. Demo and auth-off modes
+describe their actual local access and never invent credential controls. Company Settings contains
+company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
 otherwise, and the demo persona's face in the demo build. The row always reads **Sign out**, never
 "Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
 It appears on any auth-enabled deploy and in the demo build; an auth-off server shows no such row.
@@ -842,9 +847,9 @@ returns to the foreground. A sign-out or revocation completed in another tab the
 stale authenticated shell with the sign-in wall before the user resumes work.
 The sign-in, mandatory MFA and session-verification failure walls set page-specific document titles;
 the failure detail is announced as an alert when it replaces the checking state.
-While signed in, Settings gains an **Account** section
-showing who is signed in plus a `Sign out` button. With auth off (the default everywhere) or in
-local mode, no login screen exists, Settings has no Account section, and local mode makes **no**
+While signed in, the sidebar's **Account** destination shows who is signed in and the available
+personal security controls. The sidebar carries the single `Sign out` action. With auth off (the default everywhere) or in
+local mode, no login screen exists, Account explains that sign-in is off, and local mode makes **no**
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
@@ -865,13 +870,13 @@ challenge for sensitive actions offers the same **Use a recovery code** alternat
 one-time code can restore freshness without signing out or losing the current form. The enrollment
 wall deliberately outranks public-entry links for a signed-in identity: an invitation explains that
 MFA must be finished before it can be accepted, while a password-reset link explains that the user
-may finish enrollment or choose **Sign out** to redeem the link without the current session. Settings gains a **Security** section
+may finish enrollment or choose **Sign out** to redeem the link without the current session. Account gains a **Security** section
 (`data-testid="security-section"`) where password users can change their password only by supplying
 the current password and can view/revoke active sessions. Recovery codes and session tokens are
 never displayed after their one-time setup/use. Disabling MFA is deliberately not offered when the
 deployment requires it.
 
-On a `self-hosted-mixed` deployment with strict OIDC configured, the Security section also shows
+On a `self-hosted-mixed` deployment with strict OIDC configured, the Account Security section also shows
 **Connect your SSO account** (`data-testid="sso-connection"`). **Connect with _provider_** starts a
 fresh-session-gated, self-service provider ceremony; the member authenticates at the IdP and returns
 to the same page. The provider must assert `email_verified: true`, its email must match the local

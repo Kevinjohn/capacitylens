@@ -40,6 +40,7 @@ interface AppEntryGateProps {
   demoAuthActive: boolean;
   fakeSignedIn: boolean;
   hasActiveAccount: boolean;
+  allowWithoutActiveAccount: boolean;
   introSeen: boolean;
   onFakeSignIn: () => void;
   onIntroContinue: () => void;
@@ -54,6 +55,7 @@ export function AppEntryGate({
   demoAuthActive,
   fakeSignedIn,
   hasActiveAccount,
+  allowWithoutActiveAccount,
   introSeen,
   onFakeSignIn,
   onIntroContinue,
@@ -84,7 +86,7 @@ export function AppEntryGate({
     );
   }
 
-  if (!hasActiveAccount) {
+  if (!hasActiveAccount && !allowWithoutActiveAccount) {
     return (
       <FocusableStage>
         <AccountPicker />

@@ -12,6 +12,7 @@ const deepDestinations = [
   ["/timeoff", "Time off"],
   ["/team", "Team & access"],
   ["/settings", "Settings"],
+  ["/account", "Account"],
 ] as const;
 
 // #216: exercise real document navigations, not React Router transitions. The Vite history
@@ -26,11 +27,22 @@ function registerSuiteScenario1() {
 
       const signIn = page.getByTestId("fake-sign-in");
       const company = page.getByRole("button", { name: "Wayne Enterprises", exact: true });
+      const destinationHeading = page.getByRole("heading", { name: heading, exact: true });
+      if (path === "/account") {
+        await signIn.waitFor();
+        await signIn.click();
+        await dismissIntroIfPresent(page, destinationHeading);
+        await expect(destinationHeading).toBeVisible();
+        const reloadResponse = await page.reload();
+        expect([200, 304]).toContain(reloadResponse?.status());
+        await expect(page).toHaveURL(/\/account$/);
+        await expect(destinationHeading).toBeVisible();
+        return;
+      }
       await signIn.or(company).first().waitFor();
       if (await signIn.isVisible()) await signIn.click();
       await company.click();
 
-      const destinationHeading = page.getByRole("heading", { name: heading, exact: true });
       await dismissIntroIfPresent(page, destinationHeading);
       await expect(destinationHeading).toBeVisible();
 
@@ -88,6 +100,7 @@ function registerSuiteScenario3() {
             page.getByRole("heading", { name: "Account Options Selected at Creation" }),
           ).toBeVisible()),
       ],
+      ["Account", async () => void (await expect(page.getByRole("heading", { name: "Your identity" })).toBeVisible())],
     ];
     for (const [link, assert] of sections) {
       await page.getByRole("link", { name: link, exact: true }).click();
@@ -120,6 +133,7 @@ function registerSuiteScenario4() {
 
     // Switch company then the avatar'd sign-out, both below the nav landmark.
     await expect(page.getByRole("button", { name: "Switch company" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Account", exact: true })).toBeVisible();
     await expect(page.getByTestId("nav-sign-out")).toBeVisible();
 
     // Import/export is gone from the sidebar and lives on Settings instead (#169).

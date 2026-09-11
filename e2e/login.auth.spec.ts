@@ -86,13 +86,11 @@ function registerSuiteScenario2() {
     await page.getByTestId("intro-continue").click();
     await expect(page.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
 
-    // Settings gains the Account section only on an auth-enabled deploy.
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    // Personal identity lives on Account; the sidebar carries the one sign-out action.
+    await page.getByRole("link", { name: "Account", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
-    await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
-    // Scoped to the page body: the sidebar footer carries its own avatar'd Sign out (#169), so an
-    // unscoped lookup now matches two buttons.
-    await page.locator("#main").getByRole("button", { name: "Sign out" }).click();
+    await expect(page.getByText(email, { exact: true })).toBeVisible();
+    await page.getByTestId("nav-sign-out").click();
 
     // Session gone: back behind the wall, and a reload stays there.
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();

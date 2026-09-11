@@ -1,5 +1,5 @@
 import { Suspense, type CSSProperties } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { GettingStartedShortcut } from "./GettingStarted";
 import { Toaster } from "sonner";
 import { useStore } from "../store/useStore";
@@ -13,7 +13,7 @@ import { RotateHint } from "./RotateHint";
 import { Spinner } from "./ui/spinner";
 import { Alert, AlertDescription } from "./ui/alert";
 import { m } from "@/i18n";
-import { ADMIN_LINKS, LINKS } from "../lib/navLinks";
+import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "../lib/navLinks";
 import { useOfflineState } from "../data/useOfflineState";
 import { AppEntryGate } from "./AppEntryGate";
 import { useAppShellController } from "./useAppShellController";
@@ -95,6 +95,7 @@ type GatedAppProps = {
   demoAuthActive: boolean;
   fakeSignedIn: boolean;
   hasActiveAccount: boolean;
+  allowWithoutActiveAccount: boolean;
   introSeen: boolean;
   onFakeSignIn: () => void;
   onIntroContinue: () => void;
@@ -122,6 +123,7 @@ function GatedApp({
   demoAuthActive,
   fakeSignedIn,
   hasActiveAccount,
+  allowWithoutActiveAccount,
   introSeen,
   onFakeSignIn,
   onIntroContinue,
@@ -146,6 +148,7 @@ function GatedApp({
       demoAuthActive={demoAuthActive}
       fakeSignedIn={fakeSignedIn}
       hasActiveAccount={hasActiveAccount}
+      allowWithoutActiveAccount={allowWithoutActiveAccount}
       introSeen={introSeen}
       onFakeSignIn={onFakeSignIn}
       onIntroContinue={onIntroContinue}
@@ -164,7 +167,6 @@ function GatedApp({
             signOutDemo={signOutDemo}
             sidebarOpen={sidebarOpen}
           />
-          {/* Keep the main surface isolated so this shell remains an orchestration boundary. */}
           {/* prettier-ignore */}
           <GatedMain hydrated={hydrated} offline={offline} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} />
           {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
@@ -182,6 +184,17 @@ function GatedSidebar({
   signOutDemo,
   sidebarOpen,
 }: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "signOutDemo" | "sidebarOpen">) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
+  const switchAccount = async () => {
+    try {
+      const switched = await transitionAccount(null);
+      if (switched && accountRoute) void navigate("/");
+    } catch (error: unknown) {
+      console.error("Company switch failed", error);
+    }
+  };
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
@@ -203,13 +216,14 @@ function GatedSidebar({
         demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}
         onSignOut={signOutDemo}
-        onSwitchAccount={() => void transitionAccount(null)}
+        onSwitchAccount={() => void switchAccount()}
         open={sidebarOpen}
       />
     </>
   );
 }
 
+// Keep the main surface isolated so this shell remains an orchestration boundary.
 function GatedMain({
   hydrated,
   offline,
@@ -332,6 +346,7 @@ export function AppShell() {
   // disciplines (the route itself is also guarded — see router.tsx).
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== "/disciplines");
+  const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
 
   const dirtyForm = useStore((state) => state.dirtyForm);
   const sidebarOpen = useStore((state) => state.sidebarOpen);
@@ -347,6 +362,7 @@ export function AppShell() {
         demoAuthActive={demoAuthActive}
         fakeSignedIn={fakeSignedIn}
         hasActiveAccount={activeAccount !== undefined}
+        allowWithoutActiveAccount={accountRoute}
         introSeen={introSeen}
         onFakeSignIn={() => setFakeSignedIn(true)}
         onIntroContinue={() => setIntroSeen(true)}
