@@ -1,0 +1,49 @@
+import { test, expect } from "./fixtures";
+import { openApp } from "./helpers";
+
+test.use({ contextOptions: { reducedMotion: "reduce" } });
+
+// Covers US-SET-17. The date-style preference (device-global, default "day-month") governs how
+// dates and ranges are displayed across the app; only the T1 resolver/formatters exist on this
+// branch, so this spec exercises the Settings control and its storage round-trip only — the
+// Time off list already reads dates through the shared display helper (T1), so its row text
+// changes with the preference even before the remaining call sites (T2) pick up the style.
+test.describe("Settings — date style", () => {
+  test("defaults to '9 Sep', switching updates the control and the stored preference", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/settings");
+    const dayMonth = page.getByRole("radio", { name: "9 Sep", exact: true });
+    const monthDay = page.getByRole("radio", { name: "Sep 9", exact: true });
+    await expect(dayMonth).toHaveAttribute("aria-checked", "true");
+    await expect(monthDay).toHaveAttribute("aria-checked", "false");
+
+    await monthDay.click();
+    await expect(monthDay).toHaveAttribute("aria-checked", "true");
+    await expect(dayMonth).toHaveAttribute("aria-checked", "false");
+  });
+
+  test("switching to 'Sep 9' updates the Time off list's date reading", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/settings");
+    await page.getByRole("radio", { name: "Sep 9", exact: true }).click();
+
+    await page.getByRole("link", { name: "Time off" }).click();
+    const row = page
+      .getByTestId("timeoff-group")
+      .filter({ has: page.getByRole("heading", { name: "Bruce Wayne", exact: true }) })
+      .getByTestId("timeoff-row")
+      .first();
+    // Weekday form always carries the ordinal; the style only reorders day/month — Bruce's first
+    // seeded row reads "Wed Jun 10th" under 'month-day' and "Wed 10th Jun" under the default.
+    await expect(row).toContainText("Wed Jun 10th");
+  });
+
+  test("the choice survives a reload (device-global pref)", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/settings");
+    await page.getByRole("radio", { name: "Sep 9", exact: true }).click();
+
+    await page.reload();
+    // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
+    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
+    await expect(page.getByRole("radio", { name: "Sep 9", exact: true })).toHaveAttribute("aria-checked", "true");
+  });
+});
