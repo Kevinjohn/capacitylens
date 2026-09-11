@@ -188,7 +188,7 @@ describe("CapacityOverviewTable interactions", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Capacity Overview needs measured capacity" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Overview needs measured capacity" })).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 });

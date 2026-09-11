@@ -20,7 +20,7 @@ describe("CapacityOverviewView", () => {
 
     render(<CapacityOverviewView />);
 
-    expect(screen.getByRole("heading", { name: "Capacity Overview" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("row", { name: /Clark Kent/ })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "10 Sep – 13 Sep" })).toBeInTheDocument();
   });
@@ -33,6 +33,6 @@ describe("CapacityOverviewView", () => {
 
     render(<CapacityOverviewView />);
 
-    expect(screen.getByRole("heading", { name: "Capacity Overview needs measured capacity" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Overview needs measured capacity" })).toBeInTheDocument();
   });
 });

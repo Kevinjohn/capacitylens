@@ -72,7 +72,7 @@ export const canCreateInlineActivity = createAccountFieldSelector("inlineActivit
 /** Whether populated allocation task text is shown in schedule details. Absent reads as false. */
 export const hasVisibleTaskFieldInSchedule = createAccountFieldSelector("showTaskFieldInSchedule", false);
 
-/** Who may open Capacity Overview. Absent reads as the restricted owner/admin default. */
+/** Who may open Overview. Absent reads as the restricted owner/admin default. */
 export const resolveCapacityOverviewAccess = createAccountFieldSelector("capacityOverviewAccess", "owner_admin");
 
 /** Primitive calendar selectors avoid fresh-object Zustand snapshots while keeping defaults single-sourced. */
