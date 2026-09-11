@@ -1,5 +1,6 @@
 import { m } from "@/i18n";
 import { TextField, WorkingDayPicker } from "../common/ui";
+import { Separator } from "../ui/separator";
 import type { ResourceFormState } from "./useResourceFormState";
 
 type ResourceAvailabilityFieldsState = Pick<
@@ -24,12 +25,12 @@ type ResourceAvailabilityFieldsProps = {
 export function ResourceAvailabilityFields({ form, errorField, errorId }: ResourceAvailabilityFieldsProps) {
   return (
     <>
+      <Separator />
       <TextField
         label={m.form_resource_first_available_date_label()}
         value={form.firstAvailableDate}
         onChange={form.setFirstAvailableDate}
         type="date"
-        description={m.form_resource_availability_dates_description()}
         invalid={errorField === "firstAvailableDate"}
         describedById={errorId}
         layout="label-control"
@@ -43,6 +44,7 @@ export function ResourceAvailabilityFields({ form, errorField, errorId }: Resour
         describedById={errorId}
         layout="label-control"
       />
+      <Separator />
       <WorkingDayPicker
         label={m.form_resource_working_days_label()}
         workingDays={form.workingDays}
