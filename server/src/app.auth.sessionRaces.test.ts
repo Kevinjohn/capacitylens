@@ -18,9 +18,11 @@ function headerValues(value: string | string[] | undefined): string[] {
   return [value];
 }
 
-// Deliberately NOT testHelpers' readCookies: that one drops expired cookies and de-duplicates by
-// name, which would silently weaken the negative assertions below (a cleared session cookie would
-// no longer be seen). This keeps the original semantics — every Set-Cookie the server sent.
+// This suite keeps its own cookie reader rather than testHelpers' readCookies. readCookies models
+// a browser cookie jar: it de-duplicates by name and drops expired cookies. This one reports every
+// Set-Cookie the server actually sent. The difference is load-bearing in app.auth.bootstrap.test.ts,
+// whose assertions require that a rejected sign-up set no session cookie at all — a cleared cookie
+// must still be visible to fail them. Kept in every file of the suite so the reader is consistent.
 function cookiesOf(res: LightMyRequestResponse): string {
   const raw = res.headers["set-cookie"];
   return headerValues(raw)
