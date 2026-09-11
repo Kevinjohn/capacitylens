@@ -44,6 +44,7 @@ new features and **patch** versions carry fixes.
   optional Role is blank to persist (#736).
 - Simplify resource add/edit forms with always-visible Studio/Supplementary choices, compact Start date and End date labels,
   and separators around the date group (#765).
+- Collapse the repeated month in date ranges on the schedule: "9 – 14 Sep" rather than "9 Sep – 14 Sep" (#793).
 
 ### Added
 
@@ -52,6 +53,8 @@ new features and **patch** versions carry fixes.
   the current-user control on every main page (#744).
 - Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
   server health metadata that can be copied for support reports (#745).
+- Add a Date format device preference to Settings → Appearance, choosing between 9 Sep, 9th Sep, Sep 9 and
+  Sep 9th (#793).
 - Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,
   activity creation, company-settings review and direct links to each action (#741).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,

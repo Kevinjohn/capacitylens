@@ -2,7 +2,7 @@ import { isPlaceholderResource } from "@capacitylens/shared/types/entities";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
 import { m } from "@/i18n";
-import { formatDayMonth } from "@/lib/dateDisplay";
+import { formatDayMonthRange } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
 import { Avatar, SegmentedControl } from "../common/ui";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
@@ -351,7 +351,7 @@ function CapacityTable({
           <TableHead className="px-4">{m.capacity_overview_person()}</TableHead>
           {model.weeks.map((week) => (
             <TableHead key={week.key} className="whitespace-normal px-2 text-center">
-              {formatDayMonth(week.start)} – {formatDayMonth(week.end)}
+              {formatDayMonthRange(week.start, week.end)}
             </TableHead>
           ))}
         </TableRow>
