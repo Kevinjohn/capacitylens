@@ -30,4 +30,8 @@ test("reviews the fixed four-week capacity window and filters available rows", a
 
   await page.getByRole("radio", { name: "Show totals" }).click();
   await expect(page.getByRole("radio", { name: "Show totals" })).toHaveAttribute("aria-checked", "true");
+
+  await expect(page.getByRole("radio", { name: "Number", exact: true })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "Bar", exact: true }).click();
+  await expect(page.getByRole("radio", { name: "Bar", exact: true })).toHaveAttribute("aria-checked", "true");
 });

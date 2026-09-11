@@ -21,6 +21,7 @@ the schedule.
 3. Choose **Hide tentative** to recalculate capacity and unassigned demand from confirmed work only.
 4. Choose **Has availability** to keep people with at least 0.25 days capacity in any shown week and placeholders with demand.
 5. Choose **Show totals** to reveal each group header's free, overbooked and unassigned-demand figures; **Hide totals** is the default.
+6. Choose **Bar** or **Bar & number** to see free and overbooked capacity as a fill in each cell, proportioned against that week's own availability; **Number** is the default.
 
 ## Acceptance criteria
 
@@ -30,6 +31,8 @@ the schedule.
 - ✅ Placeholder allocations appear as separate unassigned demand when placeholders are enabled.
 - ✅ Group summaries continue to cover all eligible people in that group when the row filter is on.
 - ✅ Group header totals are hidden by default; **Show totals** reveals them without changing the group name or collapse control.
+- ✅ Number is the default capacity display; Bar and Bar & number fill a person's cell from the bottom, green for free and red for overbooked, capped at a full cell, and grey when there is nothing to show.
+- ✅ The bar never applies to group header totals or unassigned-demand rows, and every mode keeps the underlying value available to assistive technology.
 - ✅ Blocks mode explains that the overview needs Hours or Days without showing capacity figures.
 - ✅ Owners and Admins can choose Owner/Admin, Owner/Admin/Editor or Everyone access in Settings; the default is Owner/Admin.
 

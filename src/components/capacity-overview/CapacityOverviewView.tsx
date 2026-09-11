@@ -11,6 +11,7 @@ import {
 } from "@/store/selectors";
 import { useStore } from "@/store/useStore";
 import { useCalendarToday } from "../scheduler/useCalendarToday";
+import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 import { buildCapacityOverviewModel } from "./capacityOverviewModel";
 
@@ -18,6 +19,7 @@ export function CapacityOverviewView() {
   const [includeTentative, setIncludeTentative] = useState(true);
   const [hasAvailability, setHasAvailability] = useState(false);
   const [showTotals, setShowTotals] = useState(false);
+  const [capacityDisplayMode, setCapacityDisplayMode] = useState<CapacityDisplayMode>("number");
   const data = useStore((state) => state.data);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const scopedData = useActiveScopedData();
@@ -63,9 +65,11 @@ export function CapacityOverviewView() {
       includeTentative={includeTentative}
       hasAvailability={hasAvailability}
       showTotals={showTotals}
+      capacityDisplayMode={capacityDisplayMode}
       onIncludeTentativeChange={setIncludeTentative}
       onHasAvailabilityChange={setHasAvailability}
       onShowTotalsChange={setShowTotals}
+      onCapacityDisplayModeChange={setCapacityDisplayMode}
     />
   );
 }

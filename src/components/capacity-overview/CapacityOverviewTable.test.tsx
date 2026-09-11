@@ -114,9 +114,11 @@ describe("CapacityOverviewTable content", () => {
         includeTentative
         hasAvailability={false}
         showTotals
+        capacityDisplayMode="number"
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
         onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 
@@ -148,9 +150,11 @@ describe("CapacityOverviewTable interactions", () => {
         includeTentative
         hasAvailability={false}
         showTotals={false}
+        capacityDisplayMode="number"
         onIncludeTentativeChange={onIncludeTentativeChange}
         onHasAvailabilityChange={onHasAvailabilityChange}
         onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 
@@ -158,6 +162,29 @@ describe("CapacityOverviewTable interactions", () => {
     await user.click(screen.getByRole("radio", { name: "Has availability" }));
     expect(onIncludeTentativeChange).toHaveBeenCalledWith(false);
     expect(onHasAvailabilityChange).toHaveBeenCalledWith(true);
+  });
+
+  it("switches the capacity display mode", async () => {
+    const user = userEvent.setup();
+    const onCapacityDisplayModeChange = vi.fn();
+    render(
+      <CapacityOverviewTable
+        model={model}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={onCapacityDisplayModeChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("radio", { name: /^Bar$/ }));
+    expect(onCapacityDisplayModeChange).toHaveBeenCalledWith("bar");
+    await user.click(screen.getByRole("radio", { name: "Bar & number" }));
+    expect(onCapacityDisplayModeChange).toHaveBeenCalledWith("bar-number");
   });
 
   it("hides group totals by default and shows them when toggled on", async () => {
@@ -169,9 +196,11 @@ describe("CapacityOverviewTable interactions", () => {
         includeTentative
         hasAvailability={false}
         showTotals={false}
+        capacityDisplayMode="number"
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
         onShowTotalsChange={onShowTotalsChange}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 
@@ -190,9 +219,11 @@ describe("CapacityOverviewTable interactions", () => {
         includeTentative
         hasAvailability={false}
         showTotals
+        capacityDisplayMode="number"
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
         onShowTotalsChange={onShowTotalsChange}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 
@@ -200,6 +231,92 @@ describe("CapacityOverviewTable interactions", () => {
     expect(within(groupRowWithTotals).getByText("1.5d")).toBeInTheDocument();
     expect(within(groupRowWithTotals).getByText("0.25d overbooked")).toBeInTheDocument();
     expect(within(groupRowWithTotals).getByText("2d unassigned")).toBeInTheDocument();
+  });
+
+  it("renders Number mode with visible figures and no bar background", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const person = screen.getByRole("row", { name: /Clark Kent/ });
+    expect(within(person).getByText("1.5d")).toBeInTheDocument();
+    const firstWeekCell = within(person).getByText("1.5d").closest("td");
+    expect(firstWeekCell?.style.background ?? "").not.toContain("linear-gradient");
+  });
+
+  it("renders Bar mode with a fill background and no visible number, keeping the value accessible", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="bar"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const person = screen.getByRole("row", { name: /Clark Kent/ });
+    expect(within(person).queryByText("1.5d")).not.toBeInTheDocument();
+    const accessibleValue = within(person).getByText("1.5d, 0.25d overbooked");
+    expect(accessibleValue).toHaveClass("sr-only");
+    const firstWeekCell = accessibleValue.closest("td");
+    expect(firstWeekCell?.style.background ?? "").toContain("linear-gradient");
+  });
+
+  it("renders Bar & number mode with both the fill and the visible number", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="bar-number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const person = screen.getByRole("row", { name: /Clark Kent/ });
+    const value = within(person).getByText("1.5d");
+    expect(value).toBeInTheDocument();
+    const firstWeekCell = value.closest("td");
+    expect(firstWeekCell?.style.background ?? "").toContain("linear-gradient");
+  });
+
+  it("never renders a bar for unassigned-demand rows", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="bar"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const placeholder = screen.getByRole("row", { name: /Placeholder.*Designer/ });
+    const value = within(placeholder).getByText("2d unassigned");
+    expect(value.closest("td")?.style.background ?? "").not.toContain("linear-gradient");
   });
 
   it("collapses and expands discipline rows", async () => {
@@ -210,9 +327,11 @@ describe("CapacityOverviewTable interactions", () => {
         includeTentative
         hasAvailability={false}
         showTotals={false}
+        capacityDisplayMode="number"
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
         onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 
@@ -232,9 +351,11 @@ describe("CapacityOverviewTable interactions", () => {
         includeTentative
         hasAvailability={false}
         showTotals={false}
+        capacityDisplayMode="number"
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
         onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 

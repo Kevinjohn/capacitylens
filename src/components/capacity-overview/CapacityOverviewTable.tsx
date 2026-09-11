@@ -9,6 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { useSchedulerDensity } from "../scheduler/layout";
+import { capacityBarBackground, computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
+import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import type {
   CapacityOverviewGroup,
   CapacityOverviewModel,
@@ -21,9 +23,11 @@ interface CapacityOverviewTableProps {
   includeTentative: boolean;
   hasAvailability: boolean;
   showTotals: boolean;
+  capacityDisplayMode: CapacityDisplayMode;
   onIncludeTentativeChange: (checked: boolean) => void;
   onHasAvailabilityChange: (checked: boolean) => void;
   onShowTotalsChange: (checked: boolean) => void;
+  onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void;
 }
 
 function formatDays(days: number, kind: "capacity" | "overbooked" | "unassigned") {
@@ -36,13 +40,23 @@ function EmptyCapacity() {
   return <span className="text-muted-foreground">—</span>;
 }
 
-function WeekValues({ result }: { result: CapacityOverviewWeekResult }) {
+function WeekValues({
+  result,
+  capacityDisplayMode,
+}: {
+  result: CapacityOverviewWeekResult;
+  capacityDisplayMode: CapacityDisplayMode;
+}) {
   if (result.state === "unassigned") {
     return result.unassignedDemandDays > 0 ? (
       <span>{formatDays(result.unassignedDemandDays, "unassigned")}</span>
     ) : (
       <span className="text-muted-foreground">—</span>
     );
+  }
+  const showNumber = capacityDisplayMode !== "bar";
+  if (!showNumber) {
+    return <span className="sr-only">{formatWeekValueText(result, formatDays, "—")}</span>;
   }
   return (
     <div className="flex flex-col gap-0.5">
@@ -116,6 +130,18 @@ function OverviewToolbar(props: CapacityOverviewTableProps) {
         geometry="connected"
         size="md"
       />
+      <SegmentedControl
+        ariaLabel={m.capacity_overview_display_mode_filter()}
+        value={props.capacityDisplayMode}
+        onChange={props.onCapacityDisplayModeChange}
+        options={[
+          { value: "bar", label: m.capacity_overview_display_mode_bar() },
+          { value: "bar-number", label: m.capacity_overview_display_mode_bar_number() },
+          { value: "number", label: m.capacity_overview_display_mode_number() },
+        ]}
+        geometry="connected"
+        size="md"
+      />
     </div>
   );
 }
@@ -179,6 +205,30 @@ function PersonIdentity({ group, row }: { group: CapacityOverviewGroup; row: Cap
   );
 }
 
+function WeekValuesCell({
+  result,
+  capacityDisplayMode,
+}: {
+  result: CapacityOverviewWeekResult;
+  capacityDisplayMode: CapacityDisplayMode;
+}) {
+  const showBar = capacityDisplayMode !== "number" && result.state !== "unassigned";
+  const style = showBar
+    ? capacityBarBackground(
+        computeCapacityBarFill({
+          availableHours: result.availableHours,
+          freeHours: result.freeHours,
+          overHours: result.overHours,
+        }),
+      )
+    : undefined;
+  return (
+    <TableCell key={result.week.key} className="whitespace-normal px-2 text-center" style={style}>
+      <WeekValues result={result} capacityDisplayMode={capacityDisplayMode} />
+    </TableCell>
+  );
+}
+
 function CapacityTableBody({
   model,
   collapsedGroups,
@@ -186,6 +236,7 @@ function CapacityTableBody({
   rowHeight,
   groupHeight,
   showTotals,
+  capacityDisplayMode,
 }: {
   model: CapacityOverviewModel;
   collapsedGroups: Set<string>;
@@ -193,6 +244,7 @@ function CapacityTableBody({
   rowHeight: number;
   groupHeight: number;
   showTotals: boolean;
+  capacityDisplayMode: CapacityDisplayMode;
 }) {
   const hasRows = model.groups.some((group) => group.rows.length > 0);
   return (
@@ -215,9 +267,7 @@ function CapacityTableBody({
                     <PersonIdentity group={group} row={row} />
                   </TableHead>
                   {row.weeks.map((result) => (
-                    <TableCell key={result.week.key} className="whitespace-normal px-2 text-center">
-                      <WeekValues result={result} />
-                    </TableCell>
+                    <WeekValuesCell key={result.week.key} result={result} capacityDisplayMode={capacityDisplayMode} />
                   ))}
                 </TableRow>
               ))}
@@ -235,7 +285,15 @@ function CapacityTableBody({
   );
 }
 
-function CapacityTable({ model, showTotals }: { model: CapacityOverviewModel; showTotals: boolean }) {
+function CapacityTable({
+  model,
+  showTotals,
+  capacityDisplayMode,
+}: {
+  model: CapacityOverviewModel;
+  showTotals: boolean;
+  capacityDisplayMode: CapacityDisplayMode;
+}) {
   const density = useSchedulerDensity();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const toggleGroup = (key: string) =>
@@ -271,6 +329,7 @@ function CapacityTable({ model, showTotals }: { model: CapacityOverviewModel; sh
         rowHeight={density.identityBandHeight}
         groupHeight={density.groupHeaderHeight}
         showTotals={showTotals}
+        capacityDisplayMode={capacityDisplayMode}
       />
     </Table>
   );
@@ -291,7 +350,11 @@ export function CapacityOverviewTable(props: CapacityOverviewTableProps) {
             </Alert>
           </div>
         ) : (
-          <CapacityTable model={props.model} showTotals={props.showTotals} />
+          <CapacityTable
+            model={props.model}
+            showTotals={props.showTotals}
+            capacityDisplayMode={props.capacityDisplayMode}
+          />
         )}
       </div>
     </div>
