@@ -1,5 +1,6 @@
 import { Suspense, type CSSProperties } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
+import { GettingStartedShortcut } from "./GettingStarted";
 import { Toaster } from "sonner";
 import { useStore } from "../store/useStore";
 import { hasDisciplinesEnabled } from "../store/selectors";
@@ -229,6 +230,7 @@ function GatedMain({
           <AlertDescription>{m.app_persist_error()}</AlertDescription>
         </Alert>
       )}
+      <GettingStartedShortcut />
       {hydrated ? (
         <Suspense fallback={loader}>
           <Outlet />

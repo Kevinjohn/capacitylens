@@ -112,7 +112,7 @@ test("editing a zero-load block onto time off shows the visible and non-colour c
   await page.getByRole("link", { name: "Time off" }).click();
   await addTimeOff(page, "Diana Prince", "2026-06-17");
 
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   const blocks = page.getByRole("radio", { name: "Blocks", exact: true });
   await blocks.click();
   await expect(blocks).toHaveAttribute("aria-checked", "true");

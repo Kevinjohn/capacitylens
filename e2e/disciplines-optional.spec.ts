@@ -9,11 +9,11 @@ async function moveDianaToSupplementary(page: Page) {
     .click();
   await page.getByRole("radio", { name: "Supplementary" }).click();
   await page.getByRole("button", { name: "Save" }).click();
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
 }
 
 async function restoreDisciplines(page: Page) {
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("switch", { name: "Use disciplines" }).click();
   await expect(page.getByRole("link", { name: "Disciplines" })).toBeVisible();
   await page.getByRole("link", { name: "Schedule" }).click();

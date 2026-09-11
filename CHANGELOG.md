@@ -23,6 +23,8 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,
+  activity creation, company-settings review and direct links to each action (#741).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
   manually triggered workflow (#752).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is
