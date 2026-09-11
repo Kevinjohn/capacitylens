@@ -21,6 +21,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Dependabot pushes to its branch while an earlier run is still listing comments.
+# Without this, two runs can both miss the marker and both create a comment.
+concurrency:
+  group: dependabot-summary-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
@@ -50,7 +56,7 @@ jobs:
           # to date with main carries later merge commits, so select by author.
           message="$(gh api "repos/$REPO/pulls/$PR/commits" --paginate \
             --jq '[.[] | select((.author.login // "") == "dependabot[bot]")] | last | .commit.message')"
-          if [ -z "$message" ]; then
+          if [ -z "$message" ] || [ "$message" = "null" ]; then
             echo "No Dependabot commit found on this pull request; nothing to summarise." >&2
             exit 0
           fi
@@ -91,8 +97,13 @@ jobs:
             digest="yes"
           fi
 
+          production="$(printf '%s\n' "$message" | grep -c '^  dependency-type: direct:production' || true)"
+
           if [ -n "$grouped" ] || [ -z "$previous" ]; then
-            movement="moved to their latest releases$severity"
+            # dependabot.yml takes patch updates only, so "latest" would overstate it.
+            release="newer releases"
+            [ -n "$update_type" ] && release="new $update_type releases"
+            movement="moved to $release"
           else
             movement="moved from \`$previous\` to \`$latest\`$severity"
           fi
@@ -109,8 +120,18 @@ jobs:
               scope="No application dependency changes. The effect is on the container image only."
               ;;
             npm_and_yarn)
-              what="**Application $plural.** $subject $movement."
-              why="This code ships inside the product."
+              # Most grouped updates here are mixed: calling development tooling
+              # "application dependencies that ship in the product" is simply untrue.
+              if [ "$production" -eq 0 ]; then
+                what="**Development $plural.** $subject $movement."
+                why="Build and test tooling. Nothing here is shipped to users."
+              elif [ "$production" -eq "$count" ]; then
+                what="**Application $plural.** $subject $movement."
+                why="This code ships inside the product."
+              else
+                what="**npm $plural.** $subject $movement."
+                why="$production of them ship inside the product; the rest are build and test tooling."
+              fi
               scope="Read the release notes in the pull-request body for behaviour changes. The full gate runs on merge to main."
               ;;
             github_actions)
@@ -131,7 +152,7 @@ jobs:
           body="$(printf '%s\n%s %s\n\n%s\n' "$marker" "$what" "$why" "$scope")"
 
           existing="$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-            --jq "[.[] | select(.body | startswith(\"$marker\"))] | first | .id // empty")"
+            --jq "[.[] | select(.body | startswith(\"$marker\"))] | first | .id // empty" | head -1)"
           if [ -n "$existing" ]; then
             gh api --method PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" --silent
           else
