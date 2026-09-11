@@ -97,7 +97,7 @@ const handleSuccessfulResponse = async (response: Response, context: ImportConte
 
 const runServerImport = async (incoming: AppData, context: ImportContext): Promise<void> => {
   const { accountId, transaction, setNotice } = context;
-  if ((await flushPendingWrites()).kind === "blocked") {
+  if ((await flushPendingWrites()).kind !== "clean") {
     setNotice(m.data_import_blocked_unsynced(), "error");
     return;
   }

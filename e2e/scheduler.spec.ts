@@ -338,7 +338,7 @@ function registerSuiteScenario8() {
     await expect(page.getByText("Jun 2026")).toBeVisible();
     await expect(page.getByText("Jul 2026")).toBeVisible();
 
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     const compactView = page.getByRole("switch", { name: "Compact view" });
     await compactView.click();
     await expect(compactView).toHaveAttribute("aria-checked", "true");

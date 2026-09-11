@@ -1535,7 +1535,7 @@ describe("flushPendingWrites (the import seam)", () => {
     // A failing write makes the seam report dirty — the import path must refuse to proceed.
     saveAll.mockRejectedValueOnce(new Error("server down"));
     useStore.getState().addClient({ name: "Doomed", color: "#333333" });
-    expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
+    await expect(flushPendingWrites()).resolves.toMatchObject({ kind: "failed", error: new Error("server down") });
     detach();
   });
 

@@ -32,7 +32,7 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
 
     // Navigate to Settings via the in-app nav (a full reload would drop the never-persisted
     // active account and bounce back to the picker). Settings shows the captured values read-only.
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     const accountOptions = page
       .getByRole("heading", { name: "Account Options Selected at Creation" })
       .locator('xpath=ancestor::*[@data-slot="card"]');

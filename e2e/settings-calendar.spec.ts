@@ -49,7 +49,7 @@ test.describe("Account options selected at creation", () => {
     await page.getByRole("button", { name: "About Account Options Selected at Creation" }).click();
     const dialog = page.getByRole("dialog", { name: "Account Options Selected at Creation" });
     await expect(dialog).toContainText(/cannot be changed here/i);
-    await expect(dialog).toContainText(/sets which day starts the week/i);
+    await expect(dialog).toContainText(/set which day starts the week/i);
   });
 
   test("Settings page passes axe accessibility check", async ({ page }) => {

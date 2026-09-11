@@ -46,7 +46,7 @@ export const LINKS: NavigationLinkDefinition[] = [
   { to: ROUTE_SCHEDULE, label: () => m.nav_schedule(), icon: CalendarIcon },
   { to: ROUTE_RESOURCES, label: () => m.nav_resources(), icon: UsersIcon },
   // External / 3rd parties moved INTO the Resources tab behind a per-account setting
-  // (`externalEnabled` on the Account, default off — Settings → External). They no longer have their
+  // (`externalEnabled` on the Account, default off — Settings → Additional resourcing options). They no longer have their
   // own nav link; the old /external route redirects to /resources for saved bookmarks.
   { to: ROUTE_DISCIPLINES, label: () => m.nav_disciplines(), icon: TagIcon },
   { to: ROUTE_CLIENTS, label: () => m.nav_clients(), icon: BriefcaseIcon },
