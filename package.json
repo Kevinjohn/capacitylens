@@ -84,7 +84,7 @@
     "policy:lint-coverage:test": "node --test scripts/check-lint-coverage.test.mjs"
   },
   "lint-staged": {
-    "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}": "eslint --max-warnings 0"
+    "*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}": "eslint --max-warnings 0 --no-warn-ignored"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm run lint:staged",
