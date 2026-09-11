@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import { format } from "date-fns";
 import { m } from "@/i18n";
+import { formatDayMonth, formatMonthYear } from "@/lib/dateDisplay";
 import { parseDate, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { type WeeksZoom } from "../../lib/schedulerConfig";
 import { LAYOUT } from "./layout";
@@ -26,7 +27,7 @@ function buildMonthSpans(days: string[]): Span[] {
     const key = day.slice(0, 7); // YYYY-MM
     const last = spans[spans.length - 1];
     if (last && last.key === key) last.days += 1;
-    else spans.push({ key, label: format(parseDate(day), "MMM yyyy"), days: 1, start: i });
+    else spans.push({ key, label: formatMonthYear(day), days: 1, start: i });
   });
   return spans;
 }
@@ -36,7 +37,7 @@ function buildWeekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
   const blocks: Span[] = [];
   days.forEach((day, i) => {
     if (i === 0 || weekdayOf(day) === weekStartsOn)
-      blocks.push({ key: day, label: format(parseDate(day), "d MMM"), days: 1, start: i });
+      blocks.push({ key: day, label: formatDayMonth(day), days: 1, start: i });
     else {
       const currentBlock = blocks[blocks.length - 1];
       if (currentBlock) currentBlock.days += 1;

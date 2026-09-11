@@ -318,6 +318,29 @@ function registerSchedulerUiPart3(): void {
     s().setSnapToWeekStart(true);
   });
 
+  it("setDateStyle persists to its own key, is OFF the undo stack, and is NOT in export", () => {
+    // Device-global pref (default 'day-month'). Picking another style writes the id string and
+    // updates the reactive store value.
+    s().setDateStyle("month-day");
+    expect(localStorage.getItem("capacitylens/dateStyle")).toBe("month-day");
+    expect(s().dateStyle).toBe("month-day");
+
+    // It is a device pref, NOT a data mutation, so undo must not revert it (mirrors theme /
+    // snapToWeekStart — those never touch the undo/redo stack either).
+    s().addClient({ name: "Acme", color: "#1" }); // a real mutation to give undo something to pop
+    s().undo();
+    expect(s().dateStyle).toBe("month-day"); // still month-day — the pref rode through the undo untouched
+
+    // And it never leaks into exported AppData (it lives on the store, not in `data`).
+    const json = serializeData(s().data);
+    expect(json).not.toContain("dateStyle");
+    expect(s().data).not.toHaveProperty("dateStyle");
+
+    // Restore the default — the store is a singleton, so leaving it changed would bleed into
+    // later specs that read the pref.
+    s().setDateStyle("day-month");
+  });
+
   it("setDrawMode toggles between work and time off", () => {
     s().setDrawMode("timeoff");
     expect(s().ui.drawMode).toBe("timeoff");

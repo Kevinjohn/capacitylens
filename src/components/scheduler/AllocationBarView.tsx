@@ -7,7 +7,7 @@ import type {
 } from "react";
 import { Repeat2 } from "lucide-react";
 import { m } from "@/i18n";
-import { formatDayMonth } from "../../lib/dateDisplay";
+import { formatDayMonth, formatDayMonthRange } from "../../lib/dateDisplay";
 import { resolveAllocationStatusLabel } from "../../lib/metadata";
 import { TooltipContent, TooltipRoot, TooltipTrigger } from "../ui/tooltip";
 import { LAYOUT } from "./layout";
@@ -179,7 +179,7 @@ function BarPopover({
         </div>
       )}
       <div className="text-muted-foreground">
-        {formatDayMonth(bar.allocation.startDate)} – {formatDayMonth(bar.allocation.endDate)}
+        {formatDayMonthRange(bar.allocation.startDate, bar.allocation.endDate)}
         {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) })} ·{" "}
         {resolveAllocationStatusLabel(bar.allocation.status)}
       </div>

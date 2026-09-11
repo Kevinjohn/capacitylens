@@ -4,7 +4,7 @@ import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useEntityListState } from "../../hooks/useEntityListState";
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
-import { formatShortDate } from "../../lib/dateDisplay";
+import { formatShortDate, formatShortDateRange } from "../../lib/dateDisplay";
 import { resolveTimeZone, resolveWeekStart } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useStore } from "../../store/useStore";
@@ -32,9 +32,7 @@ function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
             <Item size="sm" role="listitem" data-testid="company-closure-row" className="rounded-none">
               <ItemContent>
                 <ItemTitle>{closure.name}</ItemTitle>
-                <ItemDescription>
-                  {start} – {end}
-                </ItemDescription>
+                <ItemDescription>{formatShortDateRange(closure.startDate, closure.endDate)}</ItemDescription>
               </ItemContent>
               <ItemActions>
                 <EditButton label={m.list_closures_edit_aria(labelContext)} onClick={() => onEdit(closure)} />
