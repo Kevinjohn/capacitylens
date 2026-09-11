@@ -8,6 +8,7 @@ import { authClient } from "./authClient";
 import { m } from "@/i18n";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { completeReauth } from "./reauthCoordinator";
+import type { ReauthAction } from "./reauthCoordinator";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 
 interface ReauthDialogProps {
@@ -16,6 +17,7 @@ interface ReauthDialogProps {
   providers: AuthProviderInfo[];
   reauthMethod?: "password" | "provider";
   reauthProviderId?: string | null;
+  action?: ReauthAction | null;
 }
 
 interface ReauthState {
@@ -134,16 +136,22 @@ export function ReauthDialog({
   providers,
   reauthMethod = authMode === "sso" ? "provider" : "password",
   reauthProviderId = null,
+  action = null,
 }: ReauthDialogProps) {
   const state = useReauthState();
   const cancel = () => completeReauth(false);
   if (reauthMethod === "provider") {
     const selected = reauthProviderId ? providers.filter((provider) => provider.id === reauthProviderId) : providers;
-    return <ProviderDialog providers={selected} state={state} cancel={cancel} />;
+    return <ProviderDialog providers={selected} state={state} cancel={cancel} action={action} />;
   }
-  if (state.twoFactorPending) return <SecondFactorDialog state={state} cancel={cancel} />;
+  if (state.twoFactorPending) return <SecondFactorDialog state={state} cancel={cancel} action={action} />;
   return (
-    <PasswordDialog state={state} cancel={cancel} confirm={() => void confirmPassword(user?.email ?? "", state)} />
+    <PasswordDialog
+      state={state}
+      cancel={cancel}
+      confirm={() => void confirmPassword(user?.email ?? "", state)}
+      action={action}
+    />
   );
 }
 
@@ -151,14 +159,16 @@ function ProviderDialog({
   providers,
   state,
   cancel,
+  action,
 }: {
   providers: AuthProviderInfo[];
   state: ReauthState;
   cancel: () => void;
+  action: ReauthAction | null | undefined;
 }) {
   return (
     <Modal
-      title={m.reauth_title()}
+      title={action ? `${m.reauth_title()} — ${reauthActionLabel(action)}` : m.reauth_title()}
       onClose={() => {
         if (!state.busy) cancel();
       }}
@@ -186,10 +196,18 @@ function ProviderDialog({
   );
 }
 
-function SecondFactorDialog({ state, cancel }: { state: ReauthState; cancel: () => void }) {
+function SecondFactorDialog({
+  state,
+  cancel,
+  action,
+}: {
+  state: ReauthState;
+  cancel: () => void;
+  action: ReauthAction | null | undefined;
+}) {
   return (
     <Modal
-      title={m.reauth_title()}
+      title={action ? `${m.reauth_title()} — ${reauthActionLabel(action)}` : m.reauth_title()}
       onClose={() => {
         if (!state.busy) cancel();
       }}
@@ -245,10 +263,20 @@ function SecondFactorFields({ state }: { state: ReauthState }) {
   );
 }
 
-function PasswordDialog({ state, cancel, confirm }: { state: ReauthState; cancel: () => void; confirm: () => void }) {
+function PasswordDialog({
+  state,
+  cancel,
+  confirm,
+  action,
+}: {
+  state: ReauthState;
+  cancel: () => void;
+  confirm: () => void;
+  action: ReauthAction | null | undefined;
+}) {
   return (
     <Modal
-      title={m.reauth_title()}
+      title={action ? `${m.reauth_title()} — ${reauthActionLabel(action)}` : m.reauth_title()}
       onClose={() => {
         if (!state.busy) cancel();
       }}
@@ -289,4 +317,28 @@ function CancelButton({ busy, cancel }: { busy: boolean; cancel: () => void }) {
       {m.form_cancel()}
     </Button>
   );
+}
+
+const reauthActionLabels: Record<ReauthAction, () => string> = {
+  "connect-provider": () => m.reauth_action_connect_provider(),
+  "correct-member-email": () => m.reauth_action_correct_member_email(),
+  "remove-federated-link": () => m.reauth_action_remove_federated_link(),
+  "delete-company": () => m.reauth_action_delete_company(),
+  "change-sign-in-tracking": () => m.reauth_action_change_sign_in_tracking(),
+  "change-member-role": () => m.reauth_action_change_member_role(),
+  "change-member-status": () => m.reauth_action_change_member_status(),
+  "remove-member": () => m.reauth_action_remove_member(),
+  "transfer-ownership": () => m.reauth_action_transfer_ownership(),
+  "issue-password-reset": () => m.reauth_action_issue_password_reset(),
+  "revoke-member-sessions": () => m.reauth_action_revoke_member_sessions(),
+  "create-invitation": () => m.reauth_action_create_invitation(),
+  "revoke-invitation": () => m.reauth_action_revoke_invitation(),
+  "lifecycle-archive": () => m.reauth_action_lifecycle_archive(),
+  "lifecycle-restore": () => m.reauth_action_lifecycle_restore(),
+  "lifecycle-delete": () => m.reauth_action_lifecycle_delete(),
+  "lifecycle-purge": () => m.reauth_action_lifecycle_purge(),
+};
+
+function reauthActionLabel(action: ReauthAction): string {
+  return reauthActionLabels[action]();
 }

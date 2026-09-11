@@ -72,7 +72,7 @@ test.describe("Inline archives and deleted items (demo mode)", () => {
 
     // It leaves the list, then appears as a tombstone under Settings → Deleted items.
     await expect(section2).toHaveCount(0);
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("button", { name: "Deleted items", exact: true }).click();
     const deletedSection = page.getByTestId("archived-section");
     const deletedRow = deletedSection.getByTestId("deleted-row");

@@ -115,6 +115,12 @@ export const RESOURCE_AVAILABILITY_V38_DEFINITION = [
   "ALTER TABLE resources ADD COLUMN lastAvailableDate TEXT;",
 ].join("\n");
 
+/** v39 adds the account-wide role threshold for Capacity Overview access. */
+export const CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION = [
+  "guard:PRAGMA table_info(accounts):capacityOverviewAccess-missing",
+  "ALTER TABLE accounts ADD COLUMN capacityOverviewAccess TEXT;",
+].join("\n");
+
 // The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
 // checksum, so the definition can never drift from what actually runs.
 const TIME_OFF_REBUILD_V33_SQL = `

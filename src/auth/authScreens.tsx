@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
-import { isReauthPending, completeReauth, subscribeReauth } from "./reauthCoordinator";
+import { isReauthPending, completeReauth, readReauthAction, subscribeReauth } from "./reauthCoordinator";
 import {
   clearExternalSignInError,
   readExternalSignInErrorCode,
@@ -36,6 +36,7 @@ export function ReauthMount({
   reauthProviderId: string | null;
 }) {
   const pending = useSyncExternalStore(subscribeReauth, isReauthPending);
+  const action = readReauthAction();
   // This host exists only while the authenticated subtree is rendered. A concurrent 401 or
   // mandatory-MFA transition removes it; settle every outside-React waiter before disappearing.
   useEffect(() => () => completeReauth(false), []);
@@ -48,6 +49,7 @@ export function ReauthMount({
         providers={providers}
         reauthMethod={reauthMethod}
         reauthProviderId={reauthProviderId}
+        action={action}
       />
     </Suspense>
   );

@@ -19,12 +19,12 @@ data that may be useful later.
 
 1. On the **Bruce Wayne** row, click the **Edit** (pencil) icon.
 2. Confirm **Engagement** defaults to _Studio_ and no **Employment** control is shown.
-3. Change Engagement to _Supplementary_ and Save.
+3. Change the always-visible Engagement choice to _Supplementary_ and Save.
 4. Edit **Bruce Wayne** again and confirm _Supplementary_ persisted.
 
 ## Acceptance criteria
 
-- ✅ The person form shows **Engagement** with **Studio** and **Supplementary** choices, defaulting
+- ✅ The person form shows **Engagement** with always-visible **Studio** and **Supplementary** choices, defaulting
   new and migrated resources to Studio.
 - ✅ The hidden employment value is preserved when an existing person is edited; new people retain
   the permanent default.

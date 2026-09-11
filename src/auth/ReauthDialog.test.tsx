@@ -3,7 +3,7 @@ import { useSyncExternalStore } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { ReauthDialog } from "./ReauthDialog";
 import { isReauthPending, requestReauth, completeReauth, subscribeReauth } from "./reauthCoordinator";
-import type { ReauthResult } from "./reauthCoordinator";
+import type { ReauthAction, ReauthResult } from "./reauthCoordinator";
 import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { m } from "@/i18n";
 
@@ -39,12 +39,14 @@ function Harness({
   authMode = "password",
   reauthMethod,
   reauthProviderId,
+  action,
 }: {
   user: AuthUser | null;
   providers?: AuthProviderInfo[];
   authMode?: "password" | "sso";
   reauthMethod?: "password" | "provider";
   reauthProviderId?: string | null;
+  action?: ReauthAction | null;
 }) {
   const pending = useSyncExternalStore(subscribeReauth, isReauthPending);
   if (!pending) return <div>no-dialog</div>;
@@ -55,6 +57,7 @@ function Harness({
       providers={providers}
       {...(reauthMethod ? { reauthMethod } : {})}
       {...(reauthProviderId !== undefined ? { reauthProviderId } : {})}
+      {...(action !== undefined ? { action } : {})}
     />
   );
 }
@@ -89,6 +92,13 @@ describe("ReauthDialog password step-up", () => {
     resolveReauthLater();
     expect(await screen.findByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
     expect(screen.getByTestId("reauth-password")).toBeInTheDocument();
+  });
+
+  it("names the action that initiated the confirmation", async () => {
+    render(<Harness user={user} action="remove-member" />);
+    void requestReauth("remove-member");
+
+    expect(await screen.findByRole("heading", { name: "Confirm it's you — Remove member" })).toBeInTheDocument();
   });
 
   it("a successful re-auth closes the dialog and resolves the pending request as reauthenticated", async () => {

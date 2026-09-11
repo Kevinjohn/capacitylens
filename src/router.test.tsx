@@ -1,12 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
-import { Outlet, RouterProvider } from "react-router-dom";
+import { MemoryRouter, Outlet, Route, RouterProvider, Routes } from "react-router-dom";
 import { ActivityList } from "./components/activities/ActivityList";
-import { RouteLoading, router } from "./router";
+import { CapacityOverviewRoute, RouteLoading, router } from "./router";
+import { PermissionContext } from "./auth/permissionContext";
+import { resetStoreWithAccount } from "./test/fixtures";
+import { useStore } from "./store/useStore";
 
 vi.mock("./components/AppShell", () => ({ AppShell: Outlet }));
 vi.mock("./components/activities/ActivityList", () => ({
   ActivityList: vi.fn(() => <div data-testid="activity-list-route" />),
+}));
+vi.mock("./components/capacity-overview/CapacityOverviewView", () => ({
+  CapacityOverviewView: () => <div>Capacity overview content</div>,
 }));
 
 describe("router loading boundary", () => {
@@ -41,6 +47,45 @@ describe("activity route selection", () => {
     await screen.findByTestId("activity-list-route");
 
     expect(vi.mocked(ActivityList).mock.lastCall?.[0]).toEqual({ selectedActivityId: "planning/review" });
+  });
+});
+
+describe("Capacity Overview route access", () => {
+  function renderRoute(role: "owner" | "admin" | "editor" | "viewer", status: "pending" | "resolved" | "unavailable") {
+    return render(
+      <PermissionContext.Provider value={{ role, status }}>
+        <MemoryRouter initialEntries={["/capacity-overview"]}>
+          <Routes>
+            <Route path="/" element={<div>Schedule content</div>} />
+            <Route path="/capacity-overview" element={<CapacityOverviewRoute />} />
+          </Routes>
+        </MemoryRouter>
+      </PermissionContext.Provider>,
+    );
+  }
+
+  it("allows a viewer when the company setting allows everyone", async () => {
+    resetStoreWithAccount();
+    const accountId = useStore.getState().activeAccountId;
+    if (!accountId) throw new Error("Expected an active account");
+    useStore.getState().updateAccount(accountId, { capacityOverviewAccess: "everyone" });
+    renderRoute("viewer", "resolved");
+
+    expect(await screen.findByText("Capacity overview content")).toBeInTheDocument();
+  });
+
+  it("redirects a viewer under the default policy", () => {
+    resetStoreWithAccount();
+    renderRoute("viewer", "resolved");
+
+    expect(screen.getByText("Schedule content")).toBeInTheDocument();
+  });
+
+  it("waits for role resolution before deciding", () => {
+    resetStoreWithAccount();
+    renderRoute("viewer", "pending");
+
+    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
   });
 });
 

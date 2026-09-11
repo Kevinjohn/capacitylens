@@ -26,8 +26,10 @@ session must restore exactly the normal flow.
 **Precondition:** a deploy with `CAPACITYLENS_AUTH=password`, and a user account created.
 On a **fresh instance with zero users** the login wall instead shows the one sign-up form
 that exists — the first-run **Create the owner account** screen (see REFERENCE.md
-“First-run owner setup”); once any user exists, self-registration closes automatically and
-only the Sign in form below is reachable.
+“First-run owner setup”). The owner enters `SMALLSASS_ACCOUNT_SETUP_TOKEN` from the server
+`.env` file or installer; success continues to **Set up your company**. Once any user exists,
+self-registration closes automatically and only the Sign in form below is reachable. See
+[Configuration](/self-hosting/configuration#sign-in-mode) for the secure token handoff and removal.
 
 1. Open the app URL. Instead of the company picker, a **Sign in** screen appears.
 2. Enter a wrong password → an inline error appears; you stay on the screen.
@@ -42,6 +44,8 @@ only the Sign in form below is reachable.
   no data; direct API reads (e.g. `GET /api/state`) return 401.
 - The form submits with Enter; a failed sign-in shows an inline alert and no navigation.
 - A successful sign-in lands in the normal app flow (company picker with seeded companies).
+- First-owner signup keeps the **Create the owner account** heading, names the exact setup-token
+  variable, and continues to first-company creation without suggesting that the owner request an invitation.
 - Settings shows the Account section **only** while signed in on an auth-enabled deploy;
   it never appears with auth off or in local mode.
 - Sign out invalidates the session (subsequent loads show Sign in again).

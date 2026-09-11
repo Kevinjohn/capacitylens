@@ -70,6 +70,8 @@ function assertUsableOrg(db: Db, accountId: string, userId: string): void {
   const state = readState(db);
   const acc = state.accounts.find((a) => a.id === accountId);
   expect(acc, "account row exists").toBeDefined();
+  expect(acc?.schedulingMode, "new companies use Days scheduling").toBe("days");
+  expect(acc?.inlineActivityCreateEnabled, "new companies disable inline activity creation").toBe(false);
   const internal = state.clients.filter((c) => c.accountId === accountId && c.builtin === true);
   expect(internal, "exactly one built-in Internal client").toHaveLength(1);
   expect(getMemberRole(db, accountId, userId)).toBe("owner");
@@ -124,6 +126,40 @@ function registerAuthOnDurabilityTests(): void {
     expect(replay.json()).toEqual(first.json());
     expect(readState(db).accounts).toHaveLength(1);
     assertUsableOrg(db, readStringField(first, "id"), userId);
+  });
+}
+
+function registerFreshCompanyResourceTest(): void {
+  it("fresh password-auth company accepts a person with no role through browser sync", async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true });
+    const { cookie } = await signUp(app, "blank-role@capacitylens.dev");
+    const created = await createOrg(app, { name: "Wayne Enterprises" }, { cookie });
+    expect(created.statusCode, created.body).toBe(201);
+    const accountId = readStringField(created, "id");
+    const resource = {
+      id: "resource-without-role",
+      accountId,
+      createdAt: TS,
+      updatedAt: TS,
+      kind: "person",
+      role: "",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#5c34d4",
+    };
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/batch",
+      headers: { cookie },
+      payload: { ops: [{ method: "PUT", table: "resources", id: resource.id, row: resource }] },
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(readState(db).resources).toEqual([expect.objectContaining({ id: resource.id, accountId, role: "" })]);
   });
 }
 
@@ -289,6 +325,7 @@ function registerAuthOnRestrictionTests(): void {
 describe("POST /api/orgs (P1.8) — auth-on", () => {
   registerAuthOnDurabilityTests();
   registerAuthOnBootstrapTests();
+  registerFreshCompanyResourceTest();
   registerAuthOnMembershipTests();
   registerAuthOnRestrictionTests();
 });

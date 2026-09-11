@@ -2,6 +2,7 @@
 // provider-neutral account contract; this module adds product-data actions and field visibility.
 // Both the browser and server import these pure rules so affordances and enforcement cannot drift.
 import type { Role } from "../account/types";
+import type { CapacityOverviewAccess } from "../types/entities";
 import {
   canAdministerAccount,
   canAdministerIdentityAcrossWorkspaces,
@@ -286,4 +287,16 @@ export function canSeeTimeOffNote(role: Role): boolean {
  */
 export function canSeePrivateNames(role: Role): boolean {
   return role === "owner";
+}
+
+/**
+ * Decide whether a member may open Capacity Overview under an account's access setting.
+ *
+ * PURE: no I/O or session state. An absent or malformed setting fails closed to the documented
+ * owner/admin default so direct-route callers cannot accidentally expose the page.
+ */
+export function canViewCapacityOverview(role: Role, access: CapacityOverviewAccess | undefined): boolean {
+  if (access === "everyone") return true;
+  if (access === "owner_admin_editor") return role === "owner" || role === "admin" || role === "editor";
+  return role === "owner" || role === "admin";
 }

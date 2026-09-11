@@ -193,6 +193,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
   // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
   // a server whose DB is broken is a lie).
   const healthStmt = options.healthDeep === true ? db.prepare("SELECT 1") : null;
+  const diagnosticsSchemaStatement = db.prepare("PRAGMA user_version");
 
   // The tenant-scoping storage seam: account-keyed reads, validation projections and lifecycle
   // operations enforce the no-cross-tenant contract in one shared-SQLite implementation. Built once
@@ -217,6 +218,7 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
     accountAdminPort,
     accountFlows,
     healthStmt,
+    diagnosticsSchemaStatement,
     audit,
     drainProductAudit,
     commitProductAudit,

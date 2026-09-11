@@ -76,7 +76,9 @@ The Time off page is a forward-looking planning list. It shows an entry when its
 is on or after the start of the current company week. Older entries stay stored but no
 longer clutter the page.
 
-The page separates **Company closures** from **Personal time off**. Closure rows show the
+The page separates **Company closures** from **Personal time off**. Use **Add closure**
+or **Add time off** beside the relevant heading. Empty sections explain their purpose
+without repeating those buttons. Closure rows show the
 closure name and complete date span. Personal entries are grouped under each resource's
 name; resource groups appear alphabetically, each person's entries are ordered by date,
 and an entry whose person no longer exists falls into a final "unknown" group.
@@ -122,7 +124,7 @@ Deleting or shortening the closure restores capacity; nothing about the allocati
 themselves has changed.
 
 A closure is dated, whole-day and not recurring. It is different from the company's
-[global working days](/guide/settings#global-working-days), which normal allocations
+[company-wide working days](/guide/settings#company-wide-working-days), which normal allocations
 simply skip. Days a closure covers still count as scheduled load, exactly like personal
 time off, and **Ignore working days** never bypasses either. New allocations cannot
 start on a closure date for a person or placeholder.

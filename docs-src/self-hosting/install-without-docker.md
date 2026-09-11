@@ -168,7 +168,11 @@ installed.
    ```
 
    Expected output starts `{"ok":true,...}`. Once TLS is in front of it, open the app
-   through your domain and enter `SMALLSASS_ACCOUNT_SETUP_TOKEN` as the first owner.
+   through your domain and enter the exact `SMALLSASS_ACCOUNT_SETUP_TOKEN` value from the server
+   `.env` file as the first owner. Transfer it through a secure channel and never include it in logs,
+   tickets or screenshots. Do not paste surrounding quotes or whitespace. After the owner account
+   and first company exist, remove the variable from `.env` and restart the server to invalidate the
+   handoff secret. See [Configuration](/self-hosting/configuration#sign-in-mode).
 
 ## What's next
 
