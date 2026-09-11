@@ -9,8 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { useSchedulerDensity } from "../scheduler/layout";
-import { capacityBarBackground, computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
-import type { CapacityDisplayMode } from "./capacityOverviewBar";
+import { capacityBarFillStyle, computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
+import type { CapacityBarFill, CapacityDisplayMode } from "./capacityOverviewBar";
 import type {
   CapacityOverviewGroup,
   CapacityOverviewModel,
@@ -205,6 +205,31 @@ function PersonIdentity({ group, row }: { group: CapacityOverviewGroup; row: Cap
   );
 }
 
+// The fill paints as absolutely-positioned layers behind the cell's own text (kept in a `relative
+// z-10` wrapper) rather than as a single `background` on the <td>, so the overbooked hatch can be
+// confined to exactly the filled sub-region (its own div, sized to `fraction * 100%`) without
+// distorting the pattern or bleeding into the grey portion above it.
+function CapacityBarFillLayer({ fill, hatch }: { fill: CapacityBarFill; hatch: boolean }) {
+  return (
+    <>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "var(--color-faint)" }}
+      />
+      {fill.kind !== "none" && (
+        <div
+          aria-hidden="true"
+          data-testid="capacity-bar-fill"
+          data-bar-kind={fill.kind}
+          className="pointer-events-none absolute inset-x-0 bottom-0"
+          style={{ height: `${fill.fraction * 100}%`, ...capacityBarFillStyle(fill, hatch) }}
+        />
+      )}
+    </>
+  );
+}
+
 function WeekValuesCell({
   result,
   capacityDisplayMode,
@@ -213,18 +238,24 @@ function WeekValuesCell({
   capacityDisplayMode: CapacityDisplayMode;
 }) {
   const showBar = capacityDisplayMode !== "number" && result.state !== "unassigned";
-  const style = showBar
-    ? capacityBarBackground(
-        computeCapacityBarFill({
-          availableHours: result.availableHours,
-          freeHours: result.freeHours,
-          overHours: result.overHours,
-        }),
-      )
-    : undefined;
   return (
-    <TableCell key={result.week.key} className="whitespace-normal px-2 text-center" style={style}>
-      <WeekValues result={result} capacityDisplayMode={capacityDisplayMode} />
+    <TableCell key={result.week.key} className="relative whitespace-normal px-2 text-center">
+      {showBar && (
+        <CapacityBarFillLayer
+          fill={computeCapacityBarFill({
+            availableHours: result.availableHours,
+            freeHours: result.freeHours,
+            overHours: result.overHours,
+          })}
+          // The hatch is a non-colour cue for pure Bar mode, where the number is `sr-only`. In
+          // "bar-number" mode the printed "Nd overbooked" text already satisfies SC 1.4.1, and the
+          // hatch's stronger stripes would sit under that same-hue text and re-fail SC 1.4.3.
+          hatch={capacityDisplayMode === "bar"}
+        />
+      )}
+      <div className="relative z-10">
+        <WeekValues result={result} capacityDisplayMode={capacityDisplayMode} />
+      </div>
     </TableCell>
   );
 }
