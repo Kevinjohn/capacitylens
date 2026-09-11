@@ -18,6 +18,8 @@ new features and **patch** versions carry fixes.
 - Show a notice instead of failing silently when a member view is started while another start is
   already in flight, and show the generic persistence message instead of a raw internal error when a
   resource save fails through batch reconciliation (#806).
+- Keep the archive confirmation on screen when the row stops being active while the dialog is open,
+  instead of losing the page to an error (#817).
 
 ### Changed
 
