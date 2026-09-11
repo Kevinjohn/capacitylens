@@ -1,14 +1,19 @@
 import { enGB, fr } from "date-fns/locale";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   formatDayCount,
   formatDayMonth,
+  formatDayMonthRange,
   formatInstant,
   formatInstantDate,
+  formatMonthYear,
   formatScheduleDate,
   formatScheduleDateRange,
   formatShortDate,
+  formatShortDateRange,
+  formatWeekdayScheduleDate,
 } from "./dateDisplay";
+import { writeStoredDateStyle, type DateStyle } from "./dateStyle";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
 const dateLocaleMocks = vi.hoisted(() => ({ readActiveDateLocale: vi.fn() }));
@@ -19,6 +24,10 @@ vi.mock("@/i18n", async (importOriginal) => ({
 
 beforeEach(() => {
   dateLocaleMocks.readActiveDateLocale.mockReturnValue(enGB);
+  localStorage.clear();
+});
+afterEach(() => {
+  localStorage.clear();
 });
 
 const invalidDate = "not-a-date" as ISODate;
@@ -42,8 +51,38 @@ describe("formatShortDate", () => {
     expect(formatShortDate("2026-06-10")).toBe("Wed 10th Jun");
   });
 
+  it("always carries the ordinal, even under a non-ordinal style", () => {
+    writeStoredDateStyle("month-day");
+    expect(formatShortDate("2026-06-10")).toBe("Wed Jun 10th");
+  });
+
   it("surfaces an invalid upstream date instead of hiding it", () => {
     expect(() => formatShortDate(invalidDate)).toThrow(RangeError);
+  });
+});
+
+describe("formatShortDateRange", () => {
+  it("degrades a same-day range to formatShortDate", () => {
+    expect(formatShortDateRange("2026-06-10", "2026-06-10")).toBe(formatShortDate("2026-06-10"));
+  });
+
+  it("collapses a same-month range under day-month order", () => {
+    // 2026-06-05 is a Friday; 2026-06-08 a Monday.
+    expect(formatShortDateRange("2026-06-05", "2026-06-08")).toBe("Fri 5th – Mon 8th Jun");
+  });
+
+  it("shows the month at both ends for a cross-month range under day-month order", () => {
+    expect(formatShortDateRange("2026-06-05", "2026-07-08")).toBe("Fri 5th Jun – Wed 8th Jul");
+  });
+
+  it("collapses a same-month range under month-day order", () => {
+    writeStoredDateStyle("month-day");
+    expect(formatShortDateRange("2026-06-05", "2026-06-08")).toBe("Fri Jun 5th – Mon 8th");
+  });
+
+  it("shows the month at both ends for a cross-month range under month-day order", () => {
+    writeStoredDateStyle("month-day");
+    expect(formatShortDateRange("2026-06-05", "2026-07-08")).toBe("Fri Jun 5th – Wed Jul 8th");
   });
 });
 
@@ -59,6 +98,43 @@ describe("formatDayMonth", () => {
 
   it("surfaces an invalid upstream date instead of hiding it", () => {
     expect(() => formatDayMonth(invalidDate)).toThrow(RangeError);
+  });
+});
+
+describe("formatDayMonthRange", () => {
+  it("degrades a same-day range to formatDayMonth", () => {
+    expect(formatDayMonthRange("2026-09-09", "2026-09-09")).toBe(formatDayMonth("2026-09-09"));
+  });
+
+  it("collapses a same-month range under day-month order", () => {
+    expect(formatDayMonthRange("2026-09-09", "2026-09-14")).toBe("9 – 14 Sep");
+  });
+
+  it("shows both months for a cross-month range under day-month order", () => {
+    expect(formatDayMonthRange("2026-09-09", "2026-10-14")).toBe("9 Sep – 14 Oct");
+  });
+});
+
+describe("formatMonthYear", () => {
+  it("renders month + year, unaffected by the active style", () => {
+    writeStoredDateStyle("month-day-ordinal");
+    expect(formatMonthYear("2026-09-09")).toBe("Sep 2026");
+  });
+});
+
+describe("formatWeekdayScheduleDate", () => {
+  it("renders weekday + full date, with no ordinal, under day-month order", () => {
+    expect(formatWeekdayScheduleDate("2026-09-09")).toBe("Wed 9 Sep 2026");
+  });
+
+  it("renders weekday + full date, with no ordinal, under month-day order", () => {
+    writeStoredDateStyle("month-day");
+    expect(formatWeekdayScheduleDate("2026-09-09")).toBe("Wed Sep 9, 2026");
+  });
+
+  it("does not gain an ordinal under an ordinal style", () => {
+    writeStoredDateStyle("day-ordinal-month");
+    expect(formatWeekdayScheduleDate("2026-09-09")).toBe("Wed 9 Sep 2026");
   });
 });
 
@@ -111,6 +187,91 @@ describe("schedule dates", () => {
   it("surfaces invalid upstream schedule dates", () => {
     expect(() => formatScheduleDate(invalidDate)).toThrow(RangeError);
     expect(() => formatScheduleDateRange(invalidDate, "2026-09-10")).toThrow(RangeError);
+  });
+});
+
+// Every cell of the plan's style table (issue #793), exercised through the range and single-date
+// helpers it governs. `writeStoredDateStyle` sets the style for each style-table describe block;
+// `localStorage.clear()` in `afterEach` above resets it back to the default between blocks.
+const STYLE_TABLE: Record<
+  DateStyle,
+  {
+    single: string;
+    sameMonth: string;
+    crossMonth: string;
+    singleWithYear: string;
+    sameMonthWithYear: string;
+    crossMonthSameYearWithYear: string;
+    crossYear: string;
+  }
+> = {
+  "day-month": {
+    single: "9 Sep",
+    sameMonth: "9 – 14 Sep",
+    crossMonth: "9 Sep – 14 Oct",
+    singleWithYear: "9 Sep 2026",
+    sameMonthWithYear: "9 – 14 Sep 2026",
+    crossMonthSameYearWithYear: "9 Sep – 14 Oct 2026",
+    crossYear: "28 Dec 2026 – 8 Jan 2027",
+  },
+  "day-ordinal-month": {
+    single: "9th Sep",
+    sameMonth: "9th – 14th Sep",
+    crossMonth: "9th Sep – 14th Oct",
+    singleWithYear: "9th Sep 2026",
+    sameMonthWithYear: "9th – 14th Sep 2026",
+    crossMonthSameYearWithYear: "9th Sep – 14th Oct 2026",
+    crossYear: "28th Dec 2026 – 8th Jan 2027",
+  },
+  "month-day": {
+    single: "Sep 9",
+    sameMonth: "Sep 9 – 14",
+    crossMonth: "Sep 9 – Oct 14",
+    singleWithYear: "Sep 9, 2026",
+    sameMonthWithYear: "Sep 9 – 14, 2026",
+    crossMonthSameYearWithYear: "Sep 9 – Oct 14, 2026",
+    crossYear: "Dec 28, 2026 – Jan 8, 2027",
+  },
+  "month-day-ordinal": {
+    single: "Sep 9th",
+    sameMonth: "Sep 9th – 14th",
+    crossMonth: "Sep 9th – Oct 14th",
+    singleWithYear: "Sep 9th, 2026",
+    sameMonthWithYear: "Sep 9th – 14th, 2026",
+    crossMonthSameYearWithYear: "Sep 9th – Oct 14th, 2026",
+    crossYear: "Dec 28th, 2026 – Jan 8th, 2027",
+  },
+};
+
+describe.each(Object.entries(STYLE_TABLE))("date style %s", (style, cells) => {
+  beforeEach(() => writeStoredDateStyle(style as DateStyle));
+
+  it("formats a single date with no year (formatDayMonth)", () => {
+    expect(formatDayMonth("2026-09-09")).toBe(cells.single);
+  });
+
+  it("formats a same-month range with no year (formatDayMonthRange)", () => {
+    expect(formatDayMonthRange("2026-09-09", "2026-09-14")).toBe(cells.sameMonth);
+  });
+
+  it("formats a cross-month range with no year (formatDayMonthRange)", () => {
+    expect(formatDayMonthRange("2026-09-09", "2026-10-14")).toBe(cells.crossMonth);
+  });
+
+  it("formats a single date with year (formatScheduleDate)", () => {
+    expect(formatScheduleDate("2026-09-09")).toBe(cells.singleWithYear);
+  });
+
+  it("formats a same-month range with year (formatScheduleDateRange)", () => {
+    expect(formatScheduleDateRange("2026-09-09", "2026-09-14")).toBe(cells.sameMonthWithYear);
+  });
+
+  it("formats a same-year cross-month range with year (formatScheduleDateRange)", () => {
+    expect(formatScheduleDateRange("2026-09-09", "2026-10-14")).toBe(cells.crossMonthSameYearWithYear);
+  });
+
+  it("formats a cross-year range (formatScheduleDateRange)", () => {
+    expect(formatScheduleDateRange("2026-12-28", "2027-01-08")).toBe(cells.crossYear);
   });
 });
 

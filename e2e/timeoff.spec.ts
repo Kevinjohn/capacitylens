@@ -169,7 +169,7 @@ function registerSuiteScenario6() {
 
     const preview = dialog.getByTestId("timeoff-repeat-preview");
     await expect(preview).toContainText("Creates 12 entries");
-    await expect(preview).toContainText("Final entry: 28 May 2027 – 29 May 2027");
+    await expect(preview).toContainText("Final entry: 28 – 29 May 2027");
     await dialog.getByText("Show all dates").click();
     await expect(dialog.getByTestId("timeoff-repeat-ranges").getByRole("listitem")).toHaveCount(12);
     await dialog.getByRole("button", { name: "Save" }).click();

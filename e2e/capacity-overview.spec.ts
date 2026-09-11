@@ -12,10 +12,10 @@ test("reviews the fixed four-week capacity window and filters available rows", a
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
   const table = page.getByRole("table", { name: "Overview" });
   await expect(table.getByRole("columnheader")).toHaveCount(5);
-  await expect(table.getByRole("columnheader", { name: "3 Jun – 7 Jun" })).toBeVisible();
-  await expect(table.getByRole("columnheader", { name: "8 Jun – 14 Jun" })).toBeVisible();
-  await expect(table.getByRole("columnheader", { name: "15 Jun – 21 Jun" })).toBeVisible();
-  await expect(table.getByRole("columnheader", { name: "22 Jun – 28 Jun" })).toBeVisible();
+  await expect(table.getByRole("columnheader", { name: "3 – 7 Jun" })).toBeVisible();
+  await expect(table.getByRole("columnheader", { name: "8 – 14 Jun" })).toBeVisible();
+  await expect(table.getByRole("columnheader", { name: "15 – 21 Jun" })).toBeVisible();
+  await expect(table.getByRole("columnheader", { name: "22 – 28 Jun" })).toBeVisible();
 
   await expect(table.getByRole("row", { name: /All eligible people/ })).toHaveCount(0);
   await expect(table.getByText("Fully booked")).toHaveCount(0);

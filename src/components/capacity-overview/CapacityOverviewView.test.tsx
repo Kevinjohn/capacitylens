@@ -23,7 +23,7 @@ describe("CapacityOverviewView", () => {
 
     expect(screen.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
     expect(screen.getByRole("row", { name: /Clark Kent/ })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "10 Sep – 13 Sep" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "10 – 13 Sep" })).toBeInTheDocument();
   });
 
   it("opens the person schedule drawer from an Overview row", async () => {

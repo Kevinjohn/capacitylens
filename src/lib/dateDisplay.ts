@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { daysInclusive, parseDate } from "@capacitylens/shared/lib/dateMath";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 import { readActiveDateLocale, m } from "@/i18n";
+import { readActiveDateStyle, type DateStyle } from "./dateStyle";
 
 // Human-readable date presentation for at-a-glance lists (e.g. the Time-off list), where a
 // reader wants "which days, how long" — not a machine date. Pure display formatting only; the
@@ -9,49 +10,200 @@ import { readActiveDateLocale, m } from "@/i18n";
 // strings. `date` arguments are validated `ISODate`s by the time they reach a render — an invalid
 // one makes date-fns `format` throw a RangeError, which we deliberately let surface as the
 // upstream-validation bug it is (see dateMath's module precondition) rather than wrap-and-swallow.
+//
+// DATE STYLE: this module is the only place that builds a month- or year-bearing (style-sensitive)
+// date-fns pattern; call sites never see a pattern, only these helpers. The active style — read
+// fresh on every call via `readActiveDateStyle()` (src/lib/dateStyle.ts), never cached — resolves
+// to a `DateStyleDescriptor` below: `monthFirst` sets day/month order, `ordinal` sets whether the
+// day number carries a date-fns `do` suffix. The weekday form (`formatShortDate`/
+// `formatShortDateRange`) is the one exception: it always carries the ordinal regardless of style,
+// because a terse list row without it reads ambiguously ("Fri 5 Jun" vs "Fri 5th Jun"); the style
+// only reorders it. Two more calls stay off the descriptor entirely because they carry no month:
+// `DateHeader.tsx:75` ("d") and `:78` ("EEE").
+//
+// COLLAPSE RULE for ranges: a same-day range renders as one full single date. A same-month range
+// shows the month once, at the position the style would normally put it (trailing for a
+// day-first style, leading for a month-first style). A same-year range shows the year once, at
+// the very end. A cross-year range renders a full date — day, month, year — at both endpoints. The
+// range separator is always ` – ` (U+2013 EN DASH), never a hyphen.
+//
+// LOCALE: all of the above take the date-fns locale from `readActiveDateLocale()`
+// (`src/i18n/index.ts:34`, `en → enGB`). Style is independent of locale today (no `en`/`enGB`
+// literal lives outside `src/i18n`); a locale-driven style default is future work, with its
+// insertion point marked in `dateStyle.ts`.
+
+interface DateStyleDescriptor {
+  /** Day-then-month ("9 Sep") when false, month-then-day ("Sep 9") when true. */
+  monthFirst: boolean;
+  /** Whether the day number carries a `do`-token ordinal suffix ("9th" vs "9"). */
+  ordinal: boolean;
+}
+
+const DATE_STYLE_DESCRIPTORS: Record<DateStyle, DateStyleDescriptor> = {
+  "day-month": { monthFirst: false, ordinal: false },
+  "day-ordinal-month": { monthFirst: false, ordinal: true },
+  "month-day": { monthFirst: true, ordinal: false },
+  "month-day-ordinal": { monthFirst: true, ordinal: true },
+};
+
+function resolveDescriptor(): DateStyleDescriptor {
+  return DATE_STYLE_DESCRIPTORS[readActiveDateStyle()];
+}
+
+/** The date-fns day token: `do` (ordinal, "9th") or `d` (plain, "9"). */
+function dayToken(ordinal: boolean): string {
+  return ordinal ? "do" : "d";
+}
+
+/** A single-date pattern for the active descriptor, with or without a trailing year. */
+function singlePattern(descriptor: DateStyleDescriptor, withYear: boolean): string {
+  const day = dayToken(descriptor.ordinal);
+  if (descriptor.monthFirst) return withYear ? `MMM ${day}, yyyy` : `MMM ${day}`;
+  return withYear ? `${day} MMM yyyy` : `${day} MMM`;
+}
 
 /**
- * A terse, scannable date: "Wed 10th Jun".
+ * A terse, scannable date: "Wed 10th Jun" (or "Wed Jun 10th" under a month-first style).
  *
  * Abbreviated weekday + ordinal day + abbreviated month, deliberately **no year** — these read
  * inside a list where the year is unambiguous from context. Short enough that a row reads at a
  * glance ("who · when · how long") instead of as a sentence; the full span isn't shown here (the
- * day count carries "how long"), so this formats a single anchor date — typically the start.
+ * day count carries "how long"), so this formats a single anchor date — typically the start. The
+ * ordinal always shows here regardless of style; only day/month order follows the style.
  */
 export function formatShortDate(date: ISODate): string {
-  return format(parseDate(date), "EEE do MMM", { locale: readActiveDateLocale() });
+  const descriptor = resolveDescriptor();
+  const pattern = descriptor.monthFirst ? "EEE MMM do" : "EEE do MMM";
+  return format(parseDate(date), pattern, { locale: readActiveDateLocale() });
 }
 
 /**
- * The tersest readable date: "10 Jun".
+ * A short weekday-anchored range: "Fri 5th – Mon 8th Jun", collapsing a repeated month per the
+ * module's collapse rule. Crossing months shows the month at both endpoints: "Fri 5th Jun – Mon
+ * 8th Jul". A same-day range degrades to {@link formatShortDate}. Always ordinal, like
+ * {@link formatShortDate}; no year, like the range this replaces by hand at call sites.
+ */
+export function formatShortDateRange(startDate: ISODate, endDate: ISODate): string {
+  if (startDate === endDate) return formatShortDate(startDate);
+  const descriptor = resolveDescriptor();
+  const locale = readActiveDateLocale();
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+
+  const monthLeading = "EEE MMM do";
+  const monthTrailing = "EEE do MMM";
+  const noMonth = "EEE do";
+
+  let startPattern: string;
+  let endPattern: string;
+  if (sameMonth) {
+    startPattern = descriptor.monthFirst ? monthLeading : noMonth;
+    endPattern = descriptor.monthFirst ? noMonth : monthTrailing;
+  } else {
+    startPattern = descriptor.monthFirst ? monthLeading : monthTrailing;
+    endPattern = startPattern;
+  }
+
+  return `${format(start, startPattern, { locale })} – ${format(end, endPattern, { locale })}`;
+}
+
+/**
+ * The tersest readable date: "10 Jun" (or "Jun 10" / "10th Jun" / "Jun 10th" under other styles).
  *
  * Day + abbreviated month, no weekday and no year — for surfaces where the date is a SECONDARY
  * detail squeezed beside other content (an allocation bar's accessible name and its hover card,
  * which both also carry the label, hours and status). {@link formatShortDate} is the scannable
- * list form; this is the one that has to stay short, so it deliberately drops the weekday and the
- * ordinal suffix rather than reusing that longer shape.
+ * list form; this is the one that has to stay short, so it deliberately drops the weekday rather
+ * than reusing that longer shape. Day/month order and ordinal both follow the active style.
  */
 export function formatDayMonth(date: ISODate): string {
-  return format(parseDate(date), "d MMM", { locale: readActiveDateLocale() });
-}
-
-/** A standalone calendar date with an explicit year for schedule details. */
-export function formatScheduleDate(date: ISODate): string {
-  return format(parseDate(date), "d MMM yyyy", { locale: readActiveDateLocale() });
+  const descriptor = resolveDescriptor();
+  return format(parseDate(date), singlePattern(descriptor, false), { locale: readActiveDateLocale() });
 }
 
 /**
- * An unambiguous schedule range. A same-year range carries the year once, while a range crossing a
- * year boundary carries it at both endpoints. A one-day range is rendered as one full date.
+ * The day+month range counterpart to {@link formatDayMonth}: "9 – 14 Sep" for a same-month range,
+ * "9 Sep – 14 Oct" crossing months, collapsing the repeated month per the module's collapse rule.
+ * No year, like {@link formatDayMonth}. A same-day range degrades to {@link formatDayMonth}.
  */
-export function formatScheduleDateRange(startDate: ISODate, endDate: ISODate): string {
-  if (startDate === endDate) return formatScheduleDate(startDate);
+export function formatDayMonthRange(startDate: ISODate, endDate: ISODate): string {
+  if (startDate === endDate) return formatDayMonth(startDate);
+  const descriptor = resolveDescriptor();
   const locale = readActiveDateLocale();
   const start = parseDate(startDate);
   const end = parseDate(endDate);
+  const day = dayToken(descriptor.ordinal);
+  const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  const startDay = format(start, day, { locale });
+  const endDay = format(end, day, { locale });
+
+  if (sameMonth) {
+    return descriptor.monthFirst
+      ? `${format(end, "MMM", { locale })} ${startDay} – ${endDay}`
+      : `${startDay} – ${endDay} ${format(end, "MMM", { locale })}`;
+  }
+
+  return descriptor.monthFirst
+    ? `${format(start, "MMM", { locale })} ${startDay} – ${format(end, "MMM", { locale })} ${endDay}`
+    : `${startDay} ${format(start, "MMM", { locale })} – ${endDay} ${format(end, "MMM", { locale })}`;
+}
+
+/** A standalone calendar date with an explicit year for schedule details: "9 Sep 2026". */
+export function formatScheduleDate(date: ISODate): string {
+  const descriptor = resolveDescriptor();
+  return format(parseDate(date), singlePattern(descriptor, true), { locale: readActiveDateLocale() });
+}
+
+/**
+ * An unambiguous schedule range. A same-month range collapses the month to a single mention; a
+ * same-year range carries the year once, while a range crossing a year boundary carries a full
+ * date at both endpoints. A one-day range is rendered as one full date.
+ */
+export function formatScheduleDateRange(startDate: ISODate, endDate: ISODate): string {
+  if (startDate === endDate) return formatScheduleDate(startDate);
+  const descriptor = resolveDescriptor();
+  const locale = readActiveDateLocale();
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  const day = dayToken(descriptor.ordinal);
   const sameYear = start.getFullYear() === end.getFullYear();
-  const formattedStart = format(start, sameYear ? "d MMM" : "d MMM yyyy", { locale });
-  return `${formattedStart} – ${format(end, "d MMM yyyy", { locale })}`;
+
+  if (!sameYear) {
+    const pattern = singlePattern(descriptor, true);
+    return `${format(start, pattern, { locale })} – ${format(end, pattern, { locale })}`;
+  }
+
+  const sameMonth = start.getMonth() === end.getMonth();
+  const startDay = format(start, day, { locale });
+  const endDay = format(end, day, { locale });
+
+  if (sameMonth) {
+    return descriptor.monthFirst
+      ? `${format(end, "MMM", { locale })} ${startDay} – ${endDay}, ${format(end, "yyyy", { locale })}`
+      : `${startDay} – ${endDay} ${format(end, "MMM yyyy", { locale })}`;
+  }
+
+  return descriptor.monthFirst
+    ? `${format(start, "MMM", { locale })} ${startDay} – ${format(end, "MMM", { locale })} ${endDay}, ${format(end, "yyyy", { locale })}`
+    : `${startDay} ${format(start, "MMM", { locale })} – ${endDay} ${format(end, "MMM yyyy", { locale })}`;
+}
+
+/** A month and year with no day, no style: "Sep 2026". Used for calendar-header-style context. */
+export function formatMonthYear(date: ISODate): string {
+  return format(parseDate(date), "MMM yyyy", { locale: readActiveDateLocale() });
+}
+
+/**
+ * A full weekday-anchored schedule date: "Wed 9 Sep 2026" (or "Wed Sep 9, 2026" under a
+ * month-first style). Day/month order follows the active style; unlike {@link formatShortDate}
+ * this never carries an ordinal — it already spells out weekday, month and year, so the ordinal
+ * suffix is redundant precision rather than the disambiguation it provides in the terser form.
+ */
+export function formatWeekdayScheduleDate(date: ISODate): string {
+  const descriptor = resolveDescriptor();
+  const pattern = descriptor.monthFirst ? "EEE MMM d, yyyy" : "EEE d MMM yyyy";
+  return format(parseDate(date), pattern, { locale: readActiveDateLocale() });
 }
 
 /**
@@ -82,7 +234,8 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
 // ship (en-GB day/month vs. an en-US reader's month/day). Behaviour preservation wins this round:
 // the locale argument is deliberately omitted, so output is byte-identical to the call sites being
 // replaced. When a real second locale lands, both of these gain the tag together with the call
-// sites' visual regression check — not before.
+// sites' visual regression check — not before. The date-style preference doesn't apply here either:
+// these are machine timestamps rendered via `Intl`, not the day/month-yyyy calendar dates above.
 //
 // An unparseable timestamp yields the platform's "Invalid Date" string rather than throwing, again
 // matching the replaced call sites exactly; these render server-supplied values, so a bad one must
