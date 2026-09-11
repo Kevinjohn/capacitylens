@@ -2,7 +2,8 @@ import { useActiveScopedData } from "../../store/useScopedData";
 import { useEntityListState } from "../../hooks/useEntityListState";
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { ActivityForm } from "./ActivityForm";
-import type { Activity } from "@capacitylens/shared/types/entities";
+import type { Activity, AppData } from "@capacitylens/shared/types/entities";
+import { archiveImpact } from "@capacitylens/shared/domain/lifecycle";
 import { m } from "@/i18n";
 import { Fragment, useEffect, useMemo, useRef } from "react";
 import { ClipboardCheck } from "lucide-react";
@@ -10,6 +11,15 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/
 import { buildActivityListModel } from "./activityListModel";
 import { useLifecycleActions } from "../../hooks/useLifecycleActions";
 import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
+import { buildActivityArchiveImpactCopy } from "../../lib/archiveImpactCopy";
+
+/** Build the archive-confirm message for an activity, appending the allocation-count cascade
+ *  warning when the activity has active allocations that archiving would pull out of the schedule. */
+function buildActivityArchiveMessage(data: AppData, activity: Activity): string {
+  const base = m.list_activities_archive_message({ name: activity.name });
+  const impact = archiveImpact(data, "activities", activity.id);
+  return impact.allocations > 0 ? `${base} ${buildActivityArchiveImpactCopy(impact)}` : base;
+}
 
 interface BoxInput {
   rows: Activity[];
@@ -214,7 +224,7 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
       {confirming && (
         <ConfirmDialog
           title={m.list_activities_archive_title()}
-          message={m.list_activities_archive_message({ name: confirming.name })}
+          message={buildActivityArchiveMessage(data, confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
             void archive("activities", confirming.id);
