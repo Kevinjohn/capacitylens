@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 - Keep schedule group headers above company closure shading (#766).
 - Highlight company closures the same way as personal time off when the schedule's draw mode is
   switched to Time off, instead of leaving the closure band unchanged (#787).
+- Keep an allocation bar's label inside the part of the bar on screen, so a booking that started
+  before the visible window is no longer unlabelled (#786).
 
 ### Changed
 

@@ -577,6 +577,50 @@ function registerSuiteScenario16() {
   });
 }
 
+// #786. A bar that started before the visible window used to carry its label off-screen with it,
+// leaving long-running work unlabelled in any given view. The label now sits over the intersection
+// of the bar and the scroll container's viewport. The device-global "Snap to week start" pref is
+// turned OFF first: its idle snap animates the scroll position shortly AFTER the scroll is written,
+// and measuring through that animation has produced CI-only flakes before.
+function registerSuiteScenario17() {
+  test("keeps a bar's label on screen after scrolling past the bar's start (#786)", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/settings");
+    const snap = page.getByRole("switch", { name: "Snap to week start" });
+    await snap.click();
+    await expect(snap).toHaveAttribute("aria-checked", "false");
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await setZoom(page, 2);
+    await goToSeedWeek(page);
+
+    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Metropolis Rebrand" }).first();
+    const label = bar.getByTestId("allocation-bar-label");
+    await expect(bar).toBeVisible();
+    const resourceHeader = await box(page.getByTestId("scheduler-resource-header"));
+    const timelineLeft = resourceHeader.x + resourceHeader.width;
+
+    // Park the bar's own left edge behind the frozen resource column while roughly half of it is
+    // still on screen — exactly the case a start-anchored label cannot survive.
+    const before = await box(bar);
+    await page.getByTestId("scheduler-grid").evaluate(
+      (element, delta) => {
+        element.scrollLeft += delta;
+      },
+      Math.round(before.x - timelineLeft + before.width / 2),
+    );
+    await expect.poll(async () => (await box(bar)).x < timelineLeft).toBe(true);
+
+    const after = await box(bar);
+    expect(after.x + after.width).toBeGreaterThan(timelineLeft); // still partly visible
+    const labelBox = await box(label);
+    expect(labelBox.width).toBeGreaterThan(0);
+    expect(labelBox.x).toBeGreaterThanOrEqual(timelineLeft - 1);
+    expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(after.x + after.width + 1);
+    // ...and centred within that visible portion rather than pinned to either end of it.
+    const visibleCentre = (timelineLeft + after.x + after.width) / 2;
+    expect(Math.abs(labelBox.x + labelBox.width / 2 - visibleCentre)).toBeLessThanOrEqual(1);
+  });
+}
+
 test.describe("Scheduler", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
@@ -594,4 +638,5 @@ test.describe("Scheduler", () => {
   registerSuiteScenario14();
   registerSuiteScenario15();
   registerSuiteScenario16();
+  registerSuiteScenario17();
 });
