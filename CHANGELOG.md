@@ -42,7 +42,8 @@ new features and **patch** versions carry fixes.
   optional Role is blank to persist (#736).
 - Simplify resource add/edit forms with always-visible Studio/Supplementary choices, compact Start date and End date labels,
   and separators around the date group (#765).
-- Collapse the repeated month in date ranges on the schedule: "9 – 14 Sep" rather than "9 Sep – 14 Sep" (#793).
+- Collapse the repeated month in date ranges across the schedule, Capacity Overview, Time off and company
+  closures: "9 – 14 Sep" rather than "9 Sep – 14 Sep" (#793).
 
 ### Added
 

@@ -162,6 +162,9 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       applyThemeToDom(preference);
       set({ theme: preference });
     },
+    // Unlike `theme`, this field is not what gets rendered: formatters resolve the style through
+    // `readActiveDateStyle()`. When storage refuses the write, `dateStyle.ts` holds the choice for
+    // the session so the two cannot disagree — change one of these and read the other.
     setDateStyle: (style) => {
       writeStoredDateStyle(style);
       set({ dateStyle: style });

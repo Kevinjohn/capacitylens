@@ -19,13 +19,20 @@ import { readActiveDateStyle, type DateStyle } from "./dateStyle";
 // `formatShortDateRange`) is the one exception: it always carries the ordinal regardless of style,
 // because a terse list row without it reads ambiguously ("Fri 5 Jun" vs "Fri 5th Jun"); the style
 // only reorders it. Two more calls stay off the descriptor entirely because they carry no month:
-// `DateHeader.tsx:75` ("d") and `:78` ("EEE").
+// `DateHeader.tsx`'s day number ("d") and weekday abbreviation ("EEE").
 //
 // COLLAPSE RULE for ranges: a same-day range renders as one full single date. A same-month range
 // shows the month once, at the position the style would normally put it (trailing for a
 // day-first style, leading for a month-first style). A same-year range shows the year once, at
 // the very end. A cross-year range renders a full date — day, month, year — at both endpoints. The
 // range separator is always ` – ` (U+2013 EN DASH), never a hyphen.
+//
+// COLLAPSE IN ACCESSIBLE NAMES: a name that labels a control sitting beside a visible date range
+// uses the same collapsed string that range shows, so a voice-control user can speak what is on
+// screen (see `CompanyClosureSection.tsx`). A name that is the only place a date appears states
+// both endpoints in full instead, because there is no visible text for it to agree with and the
+// two dates are separately meaningful — `AllocationBar.tsx`'s bar names, read while the bar is
+// being dragged or resized, are the case this rule exists for.
 //
 // LOCALE: all of the above take the date-fns locale from `readActiveDateLocale()`
 // (`src/i18n/index.ts:34`, `en → enGB`). Style is independent of locale today (no `en`/`enGB`
