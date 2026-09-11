@@ -13,6 +13,8 @@ new features and **patch** versions carry fixes.
   single day (#819).
 - Name the company-closure Edit and Delete buttons with the date range shown on the row they act
   on, so a voice-control user can speak what is on screen (#793).
+- Type-check the browser sources against `DOM.Iterable`, so iterating a live DOM collection
+  compiles. The app project had been failing a clean type-check, masked by stale incremental state.
 - Reduced memory pressure during direct deployment builds by keeping test and build-tool type-checking
   in validation while checking only browser-shipped sources in `pnpm run build`.
 
