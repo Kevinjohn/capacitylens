@@ -59,8 +59,8 @@ export function resetAllocationModalStore(): void {
   useStore.getState().setActiveAccount(ACC);
   // Placeholders default OFF (per-account pref). Several tests reassign to / from a placeholder
   // via the Assignee picker, which only offers placeholders when the pref is on — enable it for
-  // the suite. The risk-A case (editing an allocation already ON a placeholder while the pref is
-  // OFF still shows that placeholder) has its own dedicated test below.
+  // every suite. The risk-A case (editing an allocation already ON a placeholder while the pref is
+  // OFF still shows that placeholder) has its own dedicated test in AllocationModal.edit.test.tsx.
   setPlaceholdersEnabled(true);
 }
 
