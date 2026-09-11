@@ -38,7 +38,7 @@ function attachStoreSubscription(
     owner.update({ lastData: state.data });
     // The orchestrator's slice load is not a user edit — track lastData (done) but DON'T save it.
     if (owner.current.loadingSlice) return;
-    owner.update({ unacknowledged: state.data, terminalBatchSnapshot: null });
+    owner.update({ unacknowledged: state.data, terminalBatchSnapshot: null, lastError: null });
     // Suspended (a slice replacement is in flight): PARK the edit — record it in `pending` with no
     // timer so nothing sends it. It is rebased by a successful reload, or re-scheduled on resume
     // when the suspending operation failed before any reload.
@@ -102,6 +102,7 @@ function createFlushPending(owner: AttachmentState, writes: WriteQueue): () => P
       if (pending) writes.save(pending); // consumes pending, sets inFlightSave synchronously
       const inFlightSave = owner.current.inFlightSave;
       if (inFlightSave) await inFlightSave;
+      if (owner.current.lastError !== null) return { kind: "failed", error: owner.current.lastError };
       if (owner.current.suspendDepth > 0) return { kind: "blocked" };
     }
     return isWriteStateClean(owner) ? { kind: "clean" } : { kind: "blocked" };

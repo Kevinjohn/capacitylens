@@ -124,7 +124,7 @@ function registerSuiteScenario6() {
     const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
     await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit resource" });
-    await selectShadOption(dialog.getByLabel("Engagement"), { label: "Supplementary" });
+    await dialog.getByRole("radio", { name: "Supplementary" }).click();
     await dialog.getByRole("radio", { name: "Tuesday Half day" }).click();
     await dialog.getByRole("button", { name: "Save" }).click();
 
@@ -147,7 +147,7 @@ function registerSuiteScenario6() {
       .filter({ hasText: "Bruce Wayne" })
       .getByRole("button", { name: "Edit Bruce Wayne" })
       .click();
-    await expect(page.getByLabel("Engagement")).toContainText("Supplementary");
+    await expect(page.getByRole("radio", { name: "Supplementary" })).toBeChecked();
     await expect(page.getByRole("radio", { name: "Tuesday Half day" })).toBeChecked();
   });
 }

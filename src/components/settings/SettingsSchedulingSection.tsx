@@ -1,7 +1,7 @@
 import { m } from "@/i18n";
 import type { ReactNode } from "react";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import type { InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
+import type { CapacityOverviewAccess, InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
 import { externalExplainer } from "../../lib/externalCopy";
 import { buildLabels, buildLabelOptions } from "../../lib/metadata";
 import { listAccountWorkingDays } from "../../store/selectors";
@@ -9,11 +9,14 @@ import type { StoreState } from "../../store/useStore";
 import { SegmentedControl, SwitchField } from "../common/ui";
 import { SettingsSection } from "./SettingsSection";
 import { SettingsWorkingDaysSection } from "./SettingsWorkingDaysSection";
-import { INTERNAL_COLOUR_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
+import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, INTERNAL_COLOUR_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
 
 type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => void;
 type SettingsSchedulingSectionProps = {
+  id?: string;
   canEdit: boolean;
+  canManageCapacityOverviewAccess: boolean;
+  capacityOverviewAccess: CapacityOverviewAccess;
   schedulingMode: SchedulingMode;
   workingDayOrder: ReturnType<typeof orderedWeekdays>;
   workingDays: ReturnType<typeof listAccountWorkingDays>;
@@ -35,6 +38,32 @@ type SettingsSchedulingSectionProps = {
   compactView: StoreState["compactView"];
   setCompactView: StoreState["setCompactView"];
 };
+
+function CapacityOverviewAccessSection({
+  canManageCapacityOverviewAccess,
+  capacityOverviewAccess,
+  updateSetting,
+}: Pick<
+  SettingsSchedulingSectionProps,
+  "canManageCapacityOverviewAccess" | "capacityOverviewAccess" | "updateSetting"
+>) {
+  return (
+    <SettingsSection
+      title={m.settings_capacity_overview_access_heading()}
+      help={m.settings_capacity_overview_access_intro()}
+    >
+      <SegmentedControl
+        ariaLabel={m.settings_capacity_overview_access_aria()}
+        value={capacityOverviewAccess}
+        onChange={(value) => updateSetting({ capacityOverviewAccess: value })}
+        options={buildLabelOptions(buildLabels(CAPACITY_OVERVIEW_ACCESS_MESSAGES))}
+        disabled={!canManageCapacityOverviewAccess}
+        fullWidth
+        density="compact"
+      />
+    </SettingsSection>
+  );
+}
 
 function SchedulingModeSection({
   canEdit,
@@ -190,6 +219,40 @@ type SchedulingFeatureSectionProps = Pick<
   | "updateSetting"
 >;
 
+function AdditionalResourcingSection({
+  canEdit,
+  placeholdersEnabled,
+  externalEnabled,
+  updateSetting,
+}: Pick<SettingsSchedulingSectionProps, "canEdit" | "placeholdersEnabled" | "externalEnabled" | "updateSetting">) {
+  const help = (
+    <>
+      <p>{m.settings_additional_resourcing_intro()}</p>
+      <p>{m.settings_placeholders_intro()}</p>
+      <p>{m.settings_external_intro()}</p>
+      <p>{externalExplainer()}</p>
+    </>
+  );
+  return (
+    <SettingsSection title={m.settings_additional_resourcing_heading()} help={help}>
+      <div className="flex flex-col gap-3">
+        <SwitchField
+          label={m.settings_placeholders_toggle()}
+          checked={placeholdersEnabled}
+          onChange={(next) => updateSetting({ placeholdersEnabled: next })}
+          disabled={!canEdit}
+        />
+        <SwitchField
+          label={m.settings_external_toggle()}
+          checked={externalEnabled}
+          onChange={(next) => updateSetting({ externalEnabled: next })}
+          disabled={!canEdit}
+        />
+      </div>
+    </SettingsSection>
+  );
+}
+
 function SchedulingFeatureSections({
   canEdit,
   placeholdersEnabled,
@@ -200,29 +263,13 @@ function SchedulingFeatureSections({
   showTaskFieldInSchedule,
   updateSetting,
 }: SchedulingFeatureSectionProps) {
-  const externalHelp = (
-    <>
-      <span className="block">{externalExplainer()}</span>
-      <span className="mt-2 block">{m.settings_external_intro()}</span>
-    </>
-  );
   return (
     <>
-      <AccountToggleSection
-        title={m.settings_placeholders_heading()}
-        help={m.settings_placeholders_intro()}
-        label={m.settings_placeholders_toggle()}
-        checked={placeholdersEnabled}
+      <AdditionalResourcingSection
         canEdit={canEdit}
-        onChange={(next) => updateSetting({ placeholdersEnabled: next })}
-      />
-      <AccountToggleSection
-        title={m.settings_external_heading()}
-        help={externalHelp}
-        label={m.settings_external_toggle()}
-        checked={externalEnabled}
-        canEdit={canEdit}
-        onChange={(next) => updateSetting({ externalEnabled: next })}
+        placeholdersEnabled={placeholdersEnabled}
+        externalEnabled={externalEnabled}
+        updateSetting={updateSetting}
       />
       <InternalVisibilitySection
         canEdit={canEdit}
@@ -250,12 +297,17 @@ function SchedulingFeatureSections({
   );
 }
 
-export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps) {
+function SchedulingFoundationSections(props: SettingsSchedulingSectionProps) {
   return (
     <>
       <SchedulingModeSection
         canEdit={props.canEdit}
         schedulingMode={props.schedulingMode}
+        updateSetting={props.updateSetting}
+      />
+      <CapacityOverviewAccessSection
+        canManageCapacityOverviewAccess={props.canManageCapacityOverviewAccess}
+        capacityOverviewAccess={props.capacityOverviewAccess}
         updateSetting={props.updateSetting}
       />
       <SettingsWorkingDaysSection
@@ -265,6 +317,14 @@ export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps)
         workingDaysMinimumId={props.workingDaysMinimumId}
         updateSetting={props.updateSetting}
       />
+    </>
+  );
+}
+
+export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps) {
+  return (
+    <div id={props.id} tabIndex={props.id ? -1 : undefined} className="flex scroll-mt-4 flex-col gap-6">
+      <SchedulingFoundationSections {...props} />
       <AccountToggleSection
         title={m.settings_disciplines_heading()}
         help={m.settings_disciplines_intro()}
@@ -304,6 +364,6 @@ export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps)
         showTaskFieldInSchedule={props.showTaskFieldInSchedule}
         updateSetting={props.updateSetting}
       />
-    </>
+    </div>
   );
 }

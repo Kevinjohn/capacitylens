@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
 import { AuthContext } from "../../auth/authContext";
@@ -9,6 +9,8 @@ import { PermissionContext } from "../../auth/permissionContext";
 
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
 vi.mock("../../lib/reloadPage", () => reloadMock);
+
+const fetchMock = vi.hoisted(() => ({ fetch: vi.fn() }));
 
 const offlineMocks = vi.hoisted(() => ({
   enabled: false,
@@ -49,6 +51,19 @@ beforeEach(() => {
   offlineMocks.clearAll.mockResolvedValue(undefined);
   resetStoreWithAccount();
   useStore.getState().setTheme("light");
+  vi.stubGlobal("fetch", fetchMock.fetch);
+  fetchMock.fetch.mockReset();
+  fetchMock.fetch.mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      server: {
+        connectivity: "ok",
+        database: { status: "ok", schemaVersion: 38 },
+        persistence: "unknown",
+        backup: { status: "unavailable", lastSuccessAt: null },
+      },
+    }),
+  });
 });
 
 describe("SettingsView — scheduling mode", () => {
@@ -84,19 +99,53 @@ describe("SettingsView — scheduling mode", () => {
   });
 });
 
+describe("SettingsView — Capacity Overview access", () => {
+  it("defaults to Owner and Admin and lets an administrator widen access", async () => {
+    const user = userEvent.setup();
+    render(
+      <PermissionContext.Provider value={{ role: "admin", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    const restricted = screen.getByRole("radio", { name: "Owner and Admin only" });
+    const everyone = screen.getByRole("radio", { name: "Everyone" });
+    expect(restricted).toHaveAttribute("aria-checked", "true");
+
+    await user.click(everyone);
+
+    expect(useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)).toHaveProperty(
+      "capacityOverviewAccess",
+      "everyone",
+    );
+  });
+
+  it("shows the policy read-only to editors", () => {
+    render(
+      <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+        <SettingsView />
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.getByRole("radio", { name: "Owner and Admin only" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Owner, Admin, and Editors" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Everyone" })).toBeDisabled();
+  });
+});
+
 describe("SettingsView — section help", () => {
   it("gives every default settings section its labelled question-mark action", () => {
     render(<SettingsView />);
 
     for (const section of [
       "Scheduling",
-      "Global working days",
+      "Capacity Overview access",
+      "Company-wide working days",
       "Disciplines",
       "Engagement grouping",
       "Schedule",
       "Internal work colours",
-      "Placeholders",
-      "External",
+      "Additional resourcing options",
       "Internal work",
       "Activity creation",
       "Allocation bars",
@@ -163,7 +212,7 @@ it("warns that calendar changes reinterpret existing allocations without moving 
   const user = userEvent.setup();
   render(<SettingsView />);
 
-  await user.click(screen.getByRole("button", { name: "About Global working days" }));
+  await user.click(screen.getByRole("button", { name: "About Company-wide working days" }));
 
   expect(
     screen.getByText(
@@ -173,7 +222,7 @@ it("warns that calendar changes reinterpret existing allocations without moving 
   ).toBeInTheDocument();
   expect(
     screen.getByText(
-      "Changing global working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
+      "Changing company-wide working days recalculates capacity, utilisation, and conflicts for existing allocations. Allocation dates will not move, but work on newly non-working days no longer counts unless Ignore working days is enabled.",
     ),
   ).toBeInTheDocument();
 });
@@ -302,8 +351,122 @@ describe("SettingsView — build stamp", () => {
   });
 });
 
+describe("SettingsView — diagnostics", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("shows client diagnostics in demo mode without requesting the server route", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
+    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
+    render(<SettingsView />);
+
+    expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Build revision");
+    expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("demo");
+    expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Databaseunavailable");
+    expect(fetchMock.fetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps a safe server projection from a non-OK response", async () => {
+    fetchMock.fetch.mockResolvedValue({
+      ok: false,
+      json: async () => ({
+        server: {
+          connectivity: "ok",
+          database: { status: "unavailable", schemaVersion: null },
+          persistence: "unknown",
+          backup: { status: "degraded", lastSuccessAt: "2026-09-10T12:00:00.000Z" },
+          secret: "must not render",
+        },
+      }),
+    });
+    render(<SettingsView />);
+
+    const card = screen.getByTestId("settings-diagnostics");
+    await waitFor(() => expect(card).toHaveTextContent("degraded"));
+    expect(card).toHaveTextContent("Databaseunavailable");
+    expect(card).toHaveTextContent("2026-09-10T12:00:00.000Z");
+    expect(card).not.toHaveTextContent("must not render");
+  });
+});
+
+describe("SettingsView — diagnostics observation", () => {
+  it("records the client time when a diagnostics snapshot fails", async () => {
+    const observedAt = "2026-09-11T10:11:12.123Z";
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(observedAt));
+    fetchMock.fetch.mockRejectedValueOnce(new TypeError("offline"));
+    try {
+      render(<SettingsView />);
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent(`Snapshot observed${observedAt}`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a pending server snapshot unobserved until its response arrives", async () => {
+    const observedAt = "2026-09-11T10:11:12.123Z";
+    let resolveResponse: ((response: unknown) => void) | undefined;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(observedAt));
+    fetchMock.fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    try {
+      render(<SettingsView />);
+      expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Snapshot observedUnknown");
+
+      await act(async () => {
+        resolveResponse?.({
+          ok: true,
+          json: async () => ({
+            server: {
+              connectivity: "ok",
+              database: { status: "ok", schemaVersion: 38 },
+              persistence: "unknown",
+              backup: { status: "unavailable", lastSuccessAt: null },
+            },
+          }),
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent(`Snapshot observed${observedAt}`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("SettingsView — diagnostics clipboard", () => {
+  it("reports both clipboard success and failure", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.spyOn(navigator, "clipboard", "get").mockReturnValue({ writeText } as unknown as Clipboard);
+    render(<SettingsView />);
+
+    await waitFor(() => expect(fetchMock.fetch.mock.calls.length).toBeGreaterThan(0));
+    const fetchCountBeforeCopy = fetchMock.fetch.mock.calls.length;
+
+    await user.click(screen.getByTestId("copy-diagnostics"));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("CapacityLens diagnostics"));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Snapshot observed:"));
+    expect(fetchMock.fetch).toHaveBeenCalledTimes(fetchCountBeforeCopy);
+    expect(screen.getByRole("status")).toHaveTextContent("Diagnostics copied.");
+
+    writeText.mockRejectedValueOnce(new Error("denied"));
+    await user.click(screen.getByTestId("copy-diagnostics"));
+    expect(screen.getByRole("status")).toHaveTextContent("Diagnostics could not be copied");
+  });
+});
+
 describe("SettingsView — Import & export card (issue #169)", () => {
-  it("keeps the import/export tools closed by default above the final account-options card", async () => {
+  it("keeps import/export closed by default and account options before final diagnostics", async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
 
@@ -318,7 +481,7 @@ describe("SettingsView — Import & export card (issue #169)", () => {
     expect(screen.getByTestId("import-input")).toHaveAttribute("type", "file");
 
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings.at(-1)).toBe("Account Options Selected at Creation");
+    expect(headings.slice(-2)).toEqual(["Account Options Selected at Creation", "Diagnostics"]);
   });
 });
 
@@ -428,6 +591,35 @@ describe("SettingsView — account toggle wiring", () => {
 
     const after = useStore.getState().data.accounts.find((account) => account.id === DEFAULT_ACCOUNT_ID)?.[key];
     expect(after).toBe(!(before ?? whenAbsent));
+  });
+
+  it("keeps placeholder and external visibility independently configurable in one section", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const section = screen
+      .getByRole("heading", { name: "Additional resourcing options" })
+      .closest('[data-slot="card"]');
+    expect(section).not.toBeNull();
+    expect(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(within(section as HTMLElement).getByRole("switch", { name: "Show external resources" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+
+    await user.click(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" }));
+    expect(useStore.getState().data.accounts[0]?.placeholdersEnabled).toBe(true);
+    expect(useStore.getState().data.accounts[0]?.externalEnabled).toBeUndefined();
+
+    await user.click(screen.getByRole("button", { name: "About Additional resourcing options" }));
+    const dialog = screen.getByRole("dialog", { name: "Additional resourcing options" });
+    expect(within(dialog).getAllByText(/unfilled roles or tentative people/i)).not.toHaveLength(0);
+    expect(within(dialog).getAllByText(/partner agencies, freelancers, suppliers or subcontractors/i)).not.toHaveLength(
+      0,
+    );
   });
 });
 
@@ -608,6 +800,22 @@ describe("SettingsView — account options selected at creation", () => {
     await user.click(screen.getByRole("button", { name: "About Account Options Selected at Creation" }));
     const dialog = screen.getByRole("dialog", { name: "Account Options Selected at Creation" });
     expect(within(dialog).getByText(/cannot be changed here/i)).toBeInTheDocument();
-    expect(within(dialog).getByText(/sets which day starts the week/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/set which day starts the week/i)).toBeInTheDocument();
   });
+});
+
+it("opens and focuses the Import section reached from onboarding", () => {
+  const previousUrl = window.location.href;
+  const scroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
+  try {
+    window.history.replaceState(null, "", "/settings#getting-started-import");
+    render(<SettingsView />);
+    const section = document.getElementById("getting-started-import");
+    expect(section).toHaveFocus();
+    expect(section).toHaveTextContent("Import JSON");
+    expect(scroll).toHaveBeenCalledWith({ block: "start" });
+  } finally {
+    window.history.replaceState(null, "", previousUrl);
+    scroll.mockRestore();
+  }
 });

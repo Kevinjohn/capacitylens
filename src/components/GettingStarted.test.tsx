@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { GettingStarted } from "./GettingStarted";
+import { GettingStarted, GettingStartedShortcut } from "./GettingStarted";
 import { resetStoreWithAccount } from "../test/fixtures";
 import { useStore } from "../store/useStore";
 import { PermissionContext } from "../auth/permissionContext";
@@ -15,6 +15,7 @@ vi.mock("../lib/tour", () => ({ startTour: tourMock.startTour }));
 
 beforeEach(() => {
   tourMock.startTour.mockReset().mockResolvedValue(undefined);
+  localStorage.clear();
   resetStoreWithAccount();
   useStore.getState().setGettingStartedDismissed(false);
 });
@@ -33,7 +34,7 @@ function renderChecklist(role: Role | null) {
   );
 }
 
-describe("GettingStarted access step", () => {
+describe("GettingStarted checklist", () => {
   it("renders incomplete and completed checklist rows from active company data", () => {
     const initial = renderChecklist("editor");
 
@@ -48,7 +49,58 @@ describe("GettingStarted access step", () => {
     expect(completed).toHaveClass("line-through");
     expect(completed).toHaveTextContent("Done: Add your first client");
   });
+});
 
+describe("GettingStarted entry and return paths", () => {
+  it("does not show company setup when no company is active", () => {
+    useStore.setState({ activeAccountId: null });
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <GettingStartedShortcut />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByTestId("getting-started-shortcut")).not.toBeInTheDocument();
+  });
+  it("starts with an import-or-scratch choice and links every setup action to its owner", async () => {
+    const user = userEvent.setup();
+    renderChecklist("owner");
+
+    expect(screen.getByRole("link", { name: "Import existing data" })).toHaveAttribute(
+      "href",
+      "/settings#getting-started-import",
+    );
+    expect(screen.getByRole("link", { name: "Add your first activity" })).toHaveAttribute("href", "/activities");
+    expect(screen.getByRole("link", { name: "Review company settings" })).toHaveAttribute(
+      "href",
+      "/settings#getting-started-settings",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start from scratch" }));
+    expect(screen.getByText("Choose how to begin")).toHaveTextContent("Done: Choose how to begin");
+  });
+
+  it("does not send an Editor to an unavailable whole-company import action", () => {
+    renderChecklist("editor");
+    expect(screen.queryByRole("link", { name: "Import existing data" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start from scratch" })).toBeInTheDocument();
+  });
+
+  it("shows compact progress away from Schedule and links back to the full card", () => {
+    render(
+      <MemoryRouter initialEntries={["/clients"]}>
+        <PermissionContext.Provider value={{ role: "editor", status: "resolved" }}>
+          <GettingStartedShortcut />
+        </PermissionContext.Provider>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("link", { name: "Getting started: 0 of 7 complete" })).toHaveAttribute("href", "/");
+    const accountId = useStore.getState().activeAccountId;
+    expect(localStorage.getItem(`capacitylens/gettingStartedProgress/${accountId}`)).toContain('"started":true');
+  });
+});
+
+describe("GettingStarted access step", () => {
   it("starts the orientation tour from the card action", async () => {
     const user = userEvent.setup();
     renderChecklist("editor");

@@ -17,6 +17,14 @@ export type SchedulingMode = "hourly" | "days" | "blocks";
 /** Runtime list of the valid scheduling modes — the single source the server's
  *  sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ["hourly", "days", "blocks"];
+/** Who may open the Capacity Overview for an account. Absent means owner/admin only. */
+export type CapacityOverviewAccess = "owner_admin" | "owner_admin_editor" | "everyone";
+/** Runtime list used by import and server sanitisation to reject unknown access policies. */
+export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
+  "owner_admin",
+  "owner_admin_editor",
+  "everyone",
+];
 /** How work filed under the built-in Internal client is coloured. */
 export type InternalColourMode = "grey" | "palette";
 /** Runtime list used by the server/import sanitiser to reject an unknown Internal colour mode. */
@@ -102,6 +110,8 @@ export interface Account extends Entity {
   inlineActivityCreateEnabled?: boolean;
   /** Whether populated allocation task text is shown in schedule details. Absent = false. */
   showTaskFieldInSchedule?: boolean;
+  /** Who may open Capacity Overview. Absent = owner/admin only. */
+  capacityOverviewAccess?: CapacityOverviewAccess;
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */

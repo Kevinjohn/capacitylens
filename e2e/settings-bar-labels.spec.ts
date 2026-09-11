@@ -28,7 +28,7 @@ test.describe("Allocation bar labels", () => {
     await expect(bar).not.toContainText("Queen Consolidated");
 
     // Project off too → just the activity name.
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("switch", { name: "Show project name" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
     await expect(bar).toBeVisible();

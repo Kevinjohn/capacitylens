@@ -36,12 +36,13 @@ export function suspendServerWrites(): (options?: { dropParkedEdits?: boolean })
  *                   bare loadAll+replaceAll, safe ONLY because there is no debounce state.
  */
 export type RefreshOutcome = { kind: "reloaded" } | { kind: "skipped" } | { kind: "failed" } | { kind: "unattached" };
-export type FlushPendingWritesResult = { kind: "clean" } | { kind: "blocked" };
+export type FlushPendingWritesResult = { kind: "clean" } | { kind: "blocked" } | { kind: "failed"; error: unknown };
 
 /**
  * Flush any pending debounced write through the orchestrator and await the round-trip.
  *
- * @returns a clean result when writes are acknowledged, or a blocked result otherwise. A caller
+ * @returns a clean result when writes are acknowledged, a failed result when the attempted write
+ *          was rejected, or a blocked result otherwise. A caller
  *          must not proceed with an operation (e.g. a server-side import) that assumes the local
  *          edits it just tried to land are either persisted or knowingly abandoned while blocked.
  *          Also returns clean when no orchestrator is attached (demo build / tests): there is no

@@ -1,6 +1,29 @@
 import { m } from "@/i18n";
 import { isAccountRole, isIsoInstant } from "@capacitylens/shared/account/types";
 import type { InvitePreview } from "./InviteAcceptView";
+import { hasDisallowedChars, MAX_EMAIL_LENGTH, utf8ByteLength } from "@capacitylens/shared/lib/strings";
+
+function isMaskedEmailHint(value: unknown): value is string {
+  if (typeof value !== "string" || !value.endsWith("@…")) return false;
+  const localPart = value.slice(0, -2);
+  return (
+    localPart.length > 0 &&
+    !localPart.includes("@") &&
+    !/\s/u.test(localPart) &&
+    !hasDisallowedChars(localPart) &&
+    // Replacing the shortest valid domain (one byte) with the three-byte ellipsis adds two bytes.
+    utf8ByteLength(value) <= MAX_EMAIL_LENGTH + 2
+  );
+}
+
+function parseEmailMetadata(row: Record<string, unknown>): Pick<InvitePreview, "emailBound" | "emailHint"> | null {
+  if (row.emailBound !== undefined && typeof row.emailBound !== "boolean") return null;
+  if (row.emailHint !== undefined && row.emailHint !== null && !isMaskedEmailHint(row.emailHint)) return null;
+  const emailBound = typeof row.emailBound === "boolean" ? row.emailBound : null;
+  const emailHint = typeof row.emailHint === "string" ? row.emailHint : null;
+  if (emailHint !== null && emailBound !== true) return null;
+  return { emailBound, emailHint };
+}
 
 // Map the accept endpoint's status codes to the surfaced message. 404/409/410 are the documented
 // invite outcomes (unknown / already-used / expired); the server's JSON `{ error }` body carries a
@@ -19,10 +42,13 @@ export function parsePreview(value: unknown): InvitePreview | null {
   if (typeof row.accountName !== "string" || row.accountName.trim().length === 0) return null;
   if (!isAccountRole(row.role) || row.role === "owner") return null;
   if (!isIsoInstant(row.expiresAt)) return null;
+  const emailMetadata = parseEmailMetadata(row);
+  if (!emailMetadata) return null;
   return {
     accountName: row.accountName,
     role: row.role,
     expiresAt: row.expiresAt,
+    ...emailMetadata,
   };
 }
 

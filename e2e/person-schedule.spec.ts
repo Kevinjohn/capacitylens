@@ -53,7 +53,7 @@ async function assertGridPreserved(
 async function prepareFilteredGrid(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   const snap = page.getByRole("switch", { name: "Snap to week start" });
   await snap.click();
   await expect(snap).toHaveAttribute("aria-checked", "false");
@@ -117,7 +117,7 @@ function registerLayoutScenario() {
     await expect(dialog).toHaveCount(0);
     await expect(normalTrigger).toBeFocused();
 
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     const compact = page.getByRole("switch", { name: "Compact view" });
     await compact.click();
     await expect(compact).toHaveAttribute("aria-checked", "true");

@@ -1,5 +1,6 @@
 import type { StateCreator } from "zustand";
 import { addDaysISO, startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
+import { lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
 import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS } from "../../lib/schedulerConfig";
 import type { AppData, ID, ISODate } from "@capacitylens/shared/types/entities";
@@ -71,7 +72,7 @@ function hasSuppliedValue(value: ID | Filters["activityKind"] | undefined): bool
   return value !== null && value !== undefined;
 }
 
-function applyFilterPatch(filters: Filters, patch: Partial<Filters>): Filters {
+function applyFilterPatch(filters: Filters, patch: Partial<Filters>, projects: AppData["projects"]): Filters {
   const normalizedPatch = { ...patch };
   // If an invalid patch supplies both lenses, the kind wins consistently with the toolbar.
   // Normalize before merging so the two branches cannot clear both requested values.
@@ -80,8 +81,23 @@ function applyFilterPatch(filters: Filters, patch: Partial<Filters>): Filters {
 
   const nextFilters: Filters = { ...filters, ...normalizedPatch };
   // A project is always subordinate to its selected client. Property presence matters here:
-  // explicitly clearing the client must clear its stale project even though null is falsy.
-  if (patch.clientId !== undefined && patch.projectId === undefined) nextFilters.projectId = null;
+  // explicitly clearing the client must clear its stale project even though null is falsy. When
+  // selecting a client, retain an existing project only when it belongs to that client.
+  if (patch.clientId !== undefined && patch.projectId === undefined) {
+    if (patch.clientId === null) {
+      nextFilters.projectId = null;
+    } else if (
+      nextFilters.projectId !== null &&
+      !projects.some(
+        (project) =>
+          project.id === nextFilters.projectId &&
+          project.clientId === patch.clientId &&
+          lifecycleStatus(project) === "active",
+      )
+    ) {
+      nextFilters.projectId = null;
+    }
+  }
 
   const patchesActivityLens = hasSuppliedValue(patch.activityId) || hasSuppliedValue(patch.activityKind);
   const patchesProjectLens = hasSuppliedValue(patch.clientId) || hasSuppliedValue(patch.projectId);
@@ -116,7 +132,7 @@ function createFilterActions(
   return {
     setFilters: (patch) =>
       set((state) => ({
-        ui: { ...state.ui, filters: applyFilterPatch(state.ui.filters, patch) },
+        ui: { ...state.ui, filters: applyFilterPatch(state.ui.filters, patch, state.data.projects) },
       })),
     clearFilters: () => set((state) => ({ ui: { ...state.ui, filters: emptyFilters() } })),
   };

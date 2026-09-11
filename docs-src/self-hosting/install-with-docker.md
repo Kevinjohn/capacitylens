@@ -97,8 +97,11 @@ installed, most of it waiting for the first build.
 
 7. Put a TLS-terminating reverse proxy in front of port 8080 and finish sign-in setup.
    See [TLS and networking](/self-hosting/tls-and-networking) for the proxy, then enter
-   `SMALLSASS_ACCOUNT_SETUP_TOKEN` as the first owner when you open the app through your
-   domain.
+   the exact `SMALLSASS_ACCOUNT_SETUP_TOKEN` value from the installer `.env` file as the first owner
+   when you open the app through your domain. Transfer it through a secure channel and never include
+   it in logs, tickets or screenshots. Do not paste surrounding quotes or whitespace. After the owner
+   account and first company exist, remove the variable from `.env` and restart the service to
+   invalidate the handoff secret. See [Configuration](/self-hosting/configuration#sign-in-mode).
 
 ::: tip
 Compose binds port 8080 to `127.0.0.1` by default — nothing outside the host can reach

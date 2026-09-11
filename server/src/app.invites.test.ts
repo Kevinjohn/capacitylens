@@ -489,30 +489,54 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
   registerInviteInputTests();
 });
 
-describe("GET /api/invites/:token/preview", () => {
-  it("returns only safe company, role, and expiry context without requiring a session", async () => {
-    const { app, db } = await appWithAuth();
-    seedOne(db);
-    createInvite(db, {
-      token: "preview-token",
-      id: "preview-id",
-      accountId: "a1",
-      role: "editor",
+function registerInvitePreviewProjectionTests(): void {
+  it.each([
+    {
+      kind: "email-bound",
       preauthEmail: "private-address@capacitylens.dev",
-      expiresAt: "2999-01-01T00:00:00.000Z",
-      usedAt: null,
-      createdAt: TS,
-    });
+      emailBound: true,
+      emailHint: "private-address@…",
+    },
+    {
+      kind: "maximum-length email-bound",
+      preauthEmail: `${"a".repeat(252)}@x`,
+      emailBound: true,
+      emailHint: `${"a".repeat(252)}@…`,
+    },
+    { kind: "generic", preauthEmail: null, emailBound: false, emailHint: null },
+  ])(
+    "returns safe $kind context without an address, token or session",
+    async ({ preauthEmail, emailBound, emailHint }) => {
+      const { app, db } = await appWithAuth();
+      seedOne(db);
+      createInvite(db, {
+        token: "preview-token",
+        id: "preview-id",
+        accountId: "a1",
+        role: "editor",
+        preauthEmail,
+        expiresAt: "2999-01-01T00:00:00.000Z",
+        usedAt: null,
+        createdAt: TS,
+      });
 
-    const res = await previewReq(app, "preview-token");
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({
-      accountName: "Studio a1",
-      role: "editor",
-      expiresAt: "2999-01-01T00:00:00.000Z",
-    });
-    expect(JSON.stringify(res.json())).not.toContain("private-address");
-  });
+      const res = await previewReq(app, "preview-token");
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        accountName: "Studio a1",
+        role: "editor",
+        expiresAt: "2999-01-01T00:00:00.000Z",
+        emailBound,
+        emailHint,
+      });
+      expect(JSON.stringify(res.json())).not.toContain("private-address@capacitylens.dev");
+      expect(JSON.stringify(res.json())).not.toContain("capacitylens.dev");
+    },
+  );
+}
+
+describe("GET /api/invites/:token/preview", () => {
+  registerInvitePreviewProjectionTests();
 
   it.each([
     ["unknown", "missing-preview", 404],

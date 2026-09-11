@@ -10,6 +10,7 @@ import { AuthProvider } from "../../auth/AuthProvider";
 import { useStore } from "../../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import { resolveBrowserTimeZone } from "../../lib/timezones";
 
 // The picker now branches server-vs-demo (create → POST /api/orgs; delete → DELETE /api/accounts/:id
 // in server mode), so apiConfig is mocked with a MUTABLE flag — the ArchivedSection.test idiom: most
@@ -63,6 +64,7 @@ function requireAccount(name: string) {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -163,7 +165,7 @@ function registerCreateAndActivateTests() {
     // The three frozen-after-creation fields render with concrete defaults.
     expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = screen.getByLabelText("Timezone");
-    expect(tz).toHaveTextContent("GMT");
+    expect(tz).toHaveTextContent(/(?:GMT|UTC|London)/);
     expect(screen.getByTestId("create-language")).toHaveTextContent("English");
 
     // Change the two editable-at-creation ones, then create.
@@ -181,6 +183,32 @@ function registerCreateAndActivateTests() {
     // listbox + 9 typed keystrokes, ~0.6s on dev hardware) and it deterministically exceeded 5s
     // on contended CI runners (gate run 29868452988, twice) while every other test passed.
   }, 15_000);
+
+  it("detects the browser zone, searches friendly names, and selects it with the keyboard", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      locale: "en-GB",
+      timeZone: "Europe/London",
+    } as Intl.ResolvedDateTimeFormatOptions);
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "New company" }));
+    const timezone = screen.getByRole("combobox", { name: "Timezone" });
+    expect(timezone).toHaveTextContent("London");
+    await user.click(timezone);
+    expect(document.getElementById(timezone.getAttribute("aria-controls") ?? "")).toHaveAttribute("role", "dialog");
+    const search = screen.getByRole("combobox", { name: "Search time zones" });
+    await user.type(search, "London");
+    await user.keyboard("{Enter}");
+
+    expect(timezone).toHaveTextContent("London");
+    expect(timezone).toHaveAttribute("aria-expanded", "false");
+    expect(document.activeElement).toBe(timezone);
+
+    await user.type(screen.getByLabelText("Company name"), "Queen Industries");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    await waitFor(() => expect(requireAccount("Queen Industries").timezone).toBe("Europe/London"));
+  });
 }
 
 function registerCreateFormValidationTests() {
@@ -346,16 +374,16 @@ function registerServerListEmptyStateTests() {
     expect(useStore.getState().activeAccountId).toBe("a2");
   });
 
-  it("keeps the empty picker focused on the two next steps", () => {
+  it("continues first-owner setup with company creation only", () => {
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setAccountSummaries([]);
     render(<AccountPicker />);
-    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
-    expect(screen.getByText("Create a company to start planning, or ask an admin for an invite.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+    expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
     expect(screen.getByTestId("company-empty-options")).toBeInTheDocument();
     expect(screen.getByText("Set up a new company and start planning right away.")).toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options").children).toHaveLength(2);
+    expect(screen.queryByText("Ask an admin for an invite to join an existing company.")).not.toBeInTheDocument();
+    expect(screen.getByTestId("company-empty-options").children).toHaveLength(1);
     expect(screen.queryByText(/No companies yet/)).not.toBeInTheDocument();
     // Zero accounts ⇒ the server reports canCreateAccount: true when re-asked (no provider here,
     // so the default context value applies — see authContext.ts's fail-open default; the live
@@ -369,10 +397,21 @@ function registerServerListEmptyStateTests() {
     withCanCreateAccount(false, <AccountPicker />);
 
     expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
+    expect(screen.getByText("Ask an admin for an invite to join a company.")).toBeInTheDocument();
     expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
     expect(screen.getByTestId("company-empty-options").children).toHaveLength(1);
     expect(screen.queryByText(/Create a company to start planning/)).not.toBeInTheDocument();
+  });
+
+  it("does not infer company-setup eligibility from an unavailable account directory", () => {
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setAccountSummaries([], useStore.getState().accountSummariesRequestId, false);
+    render(<AccountPicker />);
+
+    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Set up your company" })).not.toBeInTheDocument();
+    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
   });
 
   it("does not ask new-company onboarding users to choose a colour", async () => {
@@ -431,7 +470,9 @@ function registerServerCreateRequestTest() {
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body.name).toBe("Stark Industries");
     expect(body.weekStartsOn).toBe(1);
-    expect(body.timezone).toBe("Etc/GMT");
+    expect(body.timezone).toBe(resolveBrowserTimeZone());
+    expect(body.schedulingMode).toBe("days");
+    expect(body.inlineActivityCreateEnabled).toBe(false);
     expect(body.internalColourMode).toBe("grey");
     // Summary seeded (the picker lists it; setActiveAccount validated against it)…
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain("org-1");

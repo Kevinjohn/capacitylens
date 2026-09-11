@@ -270,7 +270,7 @@ it("keeps the picker when one valid company came from an incomplete directory", 
   renderAppShell();
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: /Start planning|Choose a company/ })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
 });
 
 it("keeps the picker when the browser cannot classify the navigation", async () => {
@@ -316,7 +316,7 @@ it("does not mistake an unavailable sole membership for a valid reload destinati
   renderAppShell();
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: /Start planning|Choose a company/ })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
 });
 
 it("lets an invite handoff keep ownership of a reload instead of auto-opening another sole company", async () => {
@@ -342,7 +342,9 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
   });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+  expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
+  expect(screen.queryByText(/Ask an admin for an invite/)).not.toBeInTheDocument();
   expect(useStore.getState().notice?.message).toBe("That company no longer exists.");
 });
 
@@ -596,6 +598,7 @@ function registerPinnedNavigationOrderTest(): void {
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
     expect(order).toEqual([
+      "/capacity-overview",
       "/",
       "/resources",
       "/disciplines",
@@ -613,6 +616,7 @@ function registerNavigationRoutesTest(): void {
   it("nav links point to correct routes", () => {
     renderAppShell();
 
+    expect(screen.getByRole("link", { name: "Capacity Overview" })).toHaveAttribute("href", "/capacity-overview");
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Resources" })).toHaveAttribute("href", "/resources");
     expect(screen.getByRole("link", { name: "Team & access" })).toHaveAttribute("href", "/team");
