@@ -13,6 +13,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Clarify first-owner setup with the exact setup-token setting and secure handoff guidance, then
+  continue directly to first-company creation without invitation guidance (#739).
 - Keep Team & access member and invitation directories available as read-only information without a
   fresh-session prompt; require fresh confirmation only for initiated sensitive actions and name the
   action in that confirmation (#737).
