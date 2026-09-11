@@ -7,6 +7,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { DEFAULT_ACCOUNT_ID, makeAllocation, makeClosure, makeResource, makeTimeOff } from "../../test/fixtures";
 import { schedulerDataset } from "./__tests__/schedulerTestKit";
 import { LAYOUT, buildSchedulerDensity } from "./layout";
+import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 
 const ACC = DEFAULT_ACCOUNT_ID;
 
@@ -255,9 +256,10 @@ describe("SchedulerGrid", () => {
     expect(screen.getAllByTestId("scheduler-closure-band")).toHaveLength(1);
     expect(band).toHaveTextContent("Long weekend");
     expect(band).toHaveClass("z-0");
-    expect(screen.getByTestId("scheduler-closure-label")).toHaveStyle({
-      marginTop: `${buildSchedulerDensity({ compact: false }).groupHeaderHeight}px`,
-    });
+    // #788: the name no longer clears the group header by a fixed offset — it is clamped to the
+    // part of the band on screen, so it survives scrolling down a list taller than the viewport.
+    const labelBox = screen.getByTestId("scheduler-closure-label-box");
+    expect(labelBox.style.top).toBe(buildVisibleSpanInsets("y", "0px", "var(--band-height)").leading);
     expect(screen.getAllByTestId("discipline-group")[0]).toHaveClass("relative", "z-10");
     expect(within(firstRow).getByTestId("timeoff-block")).toBeInTheDocument();
     expect(within(secondRow).queryByTestId("timeoff-block")).not.toBeInTheDocument();

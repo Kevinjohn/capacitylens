@@ -17,6 +17,8 @@ new features and **patch** versions carry fixes.
   switched to Time off, instead of leaving the closure band unchanged (#787).
 - Keep an allocation bar's label inside the part of the bar on screen, so a booking that started
   before the visible window is no longer unlabelled (#786).
+- Show a company closure's name in the standard text colour and keep it centred in the part of the
+  band on screen, so the closure stays named after scrolling a long list of people (#788).
 
 ### Changed
 
