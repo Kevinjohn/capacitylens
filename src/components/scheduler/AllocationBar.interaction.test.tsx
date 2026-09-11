@@ -8,6 +8,7 @@ import { useStore } from "../../store/useStore";
 import { type Allocation, type Weekday } from "@capacitylens/shared/types/entities";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, makeResourceDraft } from "../../test/fixtures";
 import { buildVisibleRange } from "../../store/selectors";
+import { LAYOUT } from "./layout";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
 
 // A fixed-width (500px) lane DOMRect stub for pointer-geometry math in drag/resize tests — only
@@ -1380,6 +1381,144 @@ function registerTargetCalendarTest() {
   });
 }
 
+function registerSourceCalendarTest() {
+  // Issue #338. June 2026: 06-04 is a Thursday, 06-05 a Friday, 06-08 a Monday, 06-09 a Tuesday.
+  const midWeek = [2, 3, 4] as const; // Tue/Wed/Thu — works neither Friday nor Monday
+  const monToFri = [1, 2, 3, 4, 5] as const;
+
+  /** The bar is drawn inset inside its column span, so its rendered width is not the raw geometry
+   *  width. Mirror `buildBarInset` rather than hard-coding the difference. */
+  const renderedWidth = (from: string, to: string) => {
+    const raw = GEOM.widthForDates(from, to);
+    return Math.max(1, raw - Math.min(LAYOUT.barInset, raw / 3) * 2);
+  };
+
+  function seedCrossWeekPair() {
+    const st = useStore.getState();
+    const c = st.addClient({ name: "Acme", color: "#1" });
+    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
+    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
+    const src = st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#3", workingDays: [...midWeek] }));
+    const dst = st.addResource(
+      makeResourceDraft({ name: "Full", role: "Dev", color: "#4", workingDays: [...monToFri] }),
+    );
+    // Two of Mid's working days (Thu 06-04 and Tue 06-09), drawn across the six calendar days
+    // between them because Mid works neither Friday nor Monday.
+    const a = st.addAllocation({
+      resourceId: src.id,
+      activityId: t.id,
+      startDate: "2026-06-04",
+      endDate: "2026-06-09",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    return { src, dst, a };
+  }
+
+  it("a cross-row reassign keeps the duration the SOURCE measured, so the bar shrinks", () => {
+    const { src, dst, a } = seedCrossWeekPair();
+    render(
+      <>
+        <div data-resource-id={src.id} data-testid="lane-src" />
+        <div data-resource-id={dst.id} data-testid="lane-dst" />
+        <AllocationBar
+          bar={{
+            allocation: a,
+            x: GEOM.xForDateInGeom("2026-06-04"),
+            width: GEOM.widthForDates("2026-06-04", "2026-06-09"),
+            top: 0,
+            color: "#3b82f6",
+            label: "Wires",
+            external: false,
+          }}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </>,
+    );
+    screen.getByTestId("lane-src").getBoundingClientRect = () => rect(0, 50);
+    screen.getByTestId("lane-dst").getBoundingClientRect = () => rect(100, 150);
+
+    const bar = screen.getByTestId("allocation-bar");
+    const startX = GEOM.xForDateInGeom("2026-06-04") + 10;
+    fireEvent.pointerDown(bar, { clientX: startX, clientY: 25, button: 0 });
+    // Straight down onto the other lane: no horizontal movement at all.
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointermove", { clientX: startX, clientY: 125, bubbles: true }));
+    });
+
+    // The preview already shows the shrunk two-day span, so the bar does not jump on release.
+    expect(parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(renderedWidth("2026-06-04", "2026-06-05"), 5);
+
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointerup", { clientX: startX, clientY: 125, bubbles: true }));
+    });
+
+    const moved = getStoredAllocation(a.id);
+    expect(moved.resourceId).toBe(dst.id);
+    // Two working days measured on Mid, re-placed on Full: Thursday and Friday.
+    expect([moved.startDate, moved.endDate]).toEqual(["2026-06-04", "2026-06-05"]);
+    // The duration is preserved in working days, so the load per day is untouched.
+    expect(moved.hoursPerDay).toBe(8);
+  });
+
+  it("a same-row vertical wiggle previews nothing, even for a range its own week would renormalise", () => {
+    const st = useStore.getState();
+    const c = st.addClient({ name: "Acme", color: "#1" });
+    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
+    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
+    const r = st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] }));
+    // Thu 06-04 - Sun 06-07: two working days drawn over four calendar days, so re-deriving the
+    // range here WOULD change it. A gesture that commits nothing must not preview that change.
+    const a = st.addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: "2026-06-04",
+      endDate: "2026-06-07",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    const barWidth = GEOM.widthForDates("2026-06-04", "2026-06-07");
+    render(
+      <>
+        <div data-resource-id={r.id} data-testid="lane-only" />
+        <AllocationBar
+          bar={{
+            allocation: a,
+            x: GEOM.xForDateInGeom("2026-06-04"),
+            width: barWidth,
+            top: 0,
+            color: "#3b82f6",
+            label: "Wires",
+            external: false,
+          }}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </>,
+    );
+    screen.getByTestId("lane-only").getBoundingClientRect = () => rect(0, 150);
+
+    const bar = screen.getByTestId("allocation-bar");
+    const startX = GEOM.xForDateInGeom("2026-06-04") + 10;
+    fireEvent.pointerDown(bar, { clientX: startX, clientY: 25, button: 0 });
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointermove", { clientX: startX, clientY: 120, bubbles: true }));
+    });
+
+    expect(parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(renderedWidth("2026-06-04", "2026-06-07"), 5);
+
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointerup", { clientX: startX, clientY: 120, bubbles: true }));
+    });
+
+    const after = getStoredAllocation(a.id);
+    expect([after.startDate, after.endDate]).toEqual(["2026-06-04", "2026-06-07"]);
+  });
+}
+
 function registerWeekendPreviewTests() {
   it("previews the SAME weekend-snapped geometry the commit applies (no jump on release)", () => {
     const st = useStore.getState();
@@ -1453,6 +1592,7 @@ function registerAllocationBarInteractionTests() {
   registerCapacityAnnouncementSuite();
   registerCapacityAdviceTests();
   registerTargetCalendarTest();
+  registerSourceCalendarTest();
   registerWeekendPreviewTests();
 }
 

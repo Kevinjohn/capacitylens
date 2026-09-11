@@ -10,9 +10,10 @@ import { buildUndoShortcut } from "../../lib/keyboardShortcuts";
 import { buildVisibleRange, listAccountWorkingDays } from "../../store/selectors";
 import { useStore } from "../../store/useStore";
 import { reconcileReassignedHours, resolveGesture, resolveVolumePreservingHours } from "./allocationDrag";
-import { isAllocationMoveStartBlocked, resolveEffectiveWorkingDays } from "./creationAvailability";
+import { isAllocationMoveStartBlocked } from "./creationAvailability";
 import { readCapacityAnnouncement, readCapacityGestureAdvisory } from "./gestureAnnouncements";
 import { buildGesturePreviewDates } from "./gestureGeometry";
+import { hasEffectiveDaysFor, readWorkingDays, resolveMemoisedWorkingDays } from "./gestureWorkingWeeks";
 import { readLaneSnapshots, resolveLaneAt, type LaneSnapshot } from "./gestureLanes";
 import type { BarLayout } from "./schedulerModel";
 import { useAllocationFocus, type ScheduleAllocationFocus } from "./useAllocationFocus";
@@ -43,39 +44,13 @@ interface GestureRuntime {
   stopGeometryWatch: () => void;
 }
 
-function readWorkingDays(resourceId: ID) {
-  const state = useStore.getState();
-  const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
-  return resource
-    ? resolveEffectiveWorkingDays(resource, listAccountWorkingDays(state.data, state.activeAccountId))
-    : undefined;
-}
-
-function hasEffectiveDaysFor(bar: BarLayout, resourceId: ID) {
-  if (bar.allocation.ignoreWeekends) return true;
-  const state = useStore.getState();
-  const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
-  if (!resource) return true;
-  return effectiveWorkingWeek(resource, listAccountWorkingDays(state.data, state.activeAccountId)).kind !== "none";
-}
-
 function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID) {
   // Move starts are covered by the non-working-day gate, including moves away from a none-week
   // resource. A pure end resize needs this explicit refusal: otherwise the collapsed empty week
   // falls back to calendar-day volume math and rewrites hours that the capacity model says load none.
-  if (mode === "move" || hasEffectiveDaysFor(bar, resourceId)) return false;
+  if (mode === "move" || hasEffectiveDaysFor(bar.allocation.ignoreWeekends, resourceId)) return false;
   useStore.getState().setNotice(m.scheduler_toast_no_effective_days_gesture(), "error");
   return true;
-}
-
-function resolvePreviewDays(runtime: GestureRuntime, resourceId: ID) {
-  // A working-week edit cannot land mid-gesture, so memoizing once per resource is exact. The
-  // runtime clears this at gesture start and teardown; commits and nudges always read live data.
-  const memo = runtime.previewDaysRef.current;
-  if (memo.has(resourceId)) return memo.get(resourceId);
-  const workingDays = readWorkingDays(resourceId);
-  memo.set(resourceId, workingDays);
-  return workingDays;
 }
 
 function isPreviewDestinationBlocked(
@@ -96,6 +71,26 @@ function isPreviewDestinationBlocked(
   });
 }
 
+interface ReadPreviewDatesInput {
+  bar: BarLayout;
+  runtime: GestureRuntime;
+  input: DragResizePreviewInput;
+  destination: LaneSnapshot | null;
+}
+
+/** The snapped range for this frame, judged in the lane the pointer is over. A reassignment also
+ *  carries the dragged bar's OWN week, which is what sizes the range. */
+function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDatesInput) {
+  const resourceId = bar.allocation.resourceId;
+  return buildGesturePreviewDates({
+    bar,
+    mode: input.mode,
+    deltaDays: input.deltaDays,
+    previewDays: resolveMemoisedWorkingDays(runtime.previewDaysRef.current, destination?.id ?? resourceId),
+    sourceDays: destination ? resolveMemoisedWorkingDays(runtime.previewDaysRef.current, resourceId) : undefined,
+  });
+}
+
 function previewGesture(options: ControllerOptions, runtime: GestureRuntime, input: DragResizePreviewInput) {
   const { bar } = options;
   const resourceId = bar.allocation.resourceId;
@@ -104,8 +99,7 @@ function previewGesture(options: ControllerOptions, runtime: GestureRuntime, inp
       ? resolveLaneAt(runtime.lanesRef.current, input.pointer.clientX, input.pointer.clientY)
       : null;
   const destination = target && target.id !== resourceId ? target : null;
-  const previewDays = resolvePreviewDays(runtime, destination?.id ?? resourceId);
-  const result = buildGesturePreviewDates({ bar, mode: input.mode, deltaDays: input.deltaDays, previewDays });
+  const result = readPreviewDates({ bar, runtime, input, destination });
   const dates = result.kind === "ready" ? result.dates : null;
   const preview: GesturePreview = {
     mode: input.mode,
@@ -128,13 +122,17 @@ interface ResolveCommitInput {
 
 function resolveCommitDates({ options, mode, deltaDays, resourceId }: ResolveCommitInput) {
   const { bar, isDays } = options;
+  const source = bar.allocation.resourceId;
   const workingDays = readWorkingDays(resourceId);
+  // A reassignment keeps the duration its ORIGIN measured; only the placement is the target's.
+  const sourceWorkingDays = resourceId === source ? workingDays : readWorkingDays(source);
   return resolveGesture({
     mode,
     current: { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
     deltaDays,
     options: {
       ...(workingDays !== undefined ? { workingDays } : {}),
+      ...(sourceWorkingDays !== undefined ? { sourceWorkingDays } : {}),
       ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
     },
     hoursPerDay: bar.allocation.hoursPerDay,

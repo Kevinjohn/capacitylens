@@ -9,6 +9,11 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep an allocation's length when it is dragged to someone with different working days: the
+  duration is now measured against the working week it came from and re-placed in the new one,
+  so a two-day booking stays two days instead of being re-read against the destination's calendar.
+  The drag preview shows the resulting length before release (#338).
+
 - Reduced memory pressure during direct deployment builds by keeping test and build-tool type-checking
   in validation while checking only browser-shipped sources in `pnpm run build`.
 
