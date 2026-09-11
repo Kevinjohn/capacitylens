@@ -37,6 +37,8 @@ export {
   OWNERSHIP_TRANSFER_LIVE_INDEX,
   OWNERSHIP_TRANSFER_TARGET_INDEX,
   assertOwnershipTransfersCurrent,
+} from "./controlTables/ownershipTransfersSchema";
+export {
   nextOwnershipTransferRevision,
   readLiveRequest,
   readRequestById,

@@ -11,8 +11,10 @@ import {
   OWNERSHIP_TRANSFER_LIVE_INDEX,
   OWNERSHIP_TRANSFER_REQUESTS_V40_SQL,
   OWNERSHIP_TRANSFER_TARGET_INDEX,
-  applyTransition,
   assertOwnershipTransfersCurrent,
+} from "./ownershipTransfersSchema";
+import {
+  applyTransition,
   deleteRequestsForAccount,
   insertRequest,
   nextOwnershipTransferRevision,
