@@ -7,6 +7,10 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep schedule group headers above company closure shading (#766).
+
 ### Changed
 
 - Narrow the Schedule project filter choices to the selected client while retaining **All projects**
