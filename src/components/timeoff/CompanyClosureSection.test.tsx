@@ -38,7 +38,7 @@ describe("CompanyClosureSection", () => {
 
     const row = screen.getByTestId("company-closure-row");
     expect(row).toHaveTextContent("Summer shutdown");
-    expect(row).toHaveTextContent("Sat 1st Aug – Wed 5th Aug");
+    expect(row).toHaveTextContent("Sat 1st – Wed 5th Aug");
   });
 
   it("confirms deletion and keeps the store mutation undoable", async () => {
