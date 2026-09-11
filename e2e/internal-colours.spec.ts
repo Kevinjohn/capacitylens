@@ -21,7 +21,7 @@ test("Internal work defaults grey and palette mode restores the project picker a
   const row = page.getByTestId("project-row").filter({ hasText: "Quarterly planning" });
   await expect(row.locator("span.inline-block.rounded-sm").first()).toHaveCSS("background-color", "rgb(156, 163, 175)");
 
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("radio", { name: "Use colour palette" }).click();
   await page.getByRole("link", { name: "Projects" }).click();
 

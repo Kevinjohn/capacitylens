@@ -92,7 +92,7 @@ function registerSuiteScenario4() {
     await page.reload();
     // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
     await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("switch", { name: "Minimise weekends" })).toHaveAttribute("aria-checked", "false");
   });
 }
@@ -191,7 +191,7 @@ function registerSuiteScenario9() {
     await openWithFreeScrollSnapOff(page);
 
     // Turn minimise weekends off (so this exercises the OTHER geometry), then return to the grid.
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("switch", { name: "Minimise weekends" }).click();
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 1);

@@ -24,7 +24,7 @@ there's no second place to keep in sync.
 2. Change **Role** = `Lead Developer`.
 3. Change **Discipline** = _Design_.
 4. Change Wednesday to **Half day**.
-5. Set **First available date** = `2026-06-08` and leave **Last available date** blank.
+5. Set **Start date** = `2026-06-08` and leave **End date** blank.
 6. Click **Save**. The dialog closes.
 
 ## Acceptance criteria

@@ -41,7 +41,10 @@ export function SchedulerToolbar() {
   const clearFilters = useStore((state) => state.clearFilters);
   const filtersActive = hasActiveFilters(filters);
   const data = useActiveScopedData();
-  const options = useMemo(() => buildFilterOptions(data), [data]);
+  const options = useMemo(
+    () => buildFilterOptions(data, filters.clientId, filters.projectId),
+    [data, filters.clientId, filters.projectId],
+  );
   const activeAccountId = useStore((state) => state.activeAccountId);
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const search = useToolbarSearch({ filters, activeAccountId, setFilters, clearFilters });

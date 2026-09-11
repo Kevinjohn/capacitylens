@@ -32,22 +32,23 @@ describe("ResourceForm layout", () => {
     );
   });
 
-  it("shows optional inclusive availability dates for people only", () => {
+  it("shows simple availability dates with separators for people only", () => {
     const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
-    expect(screen.getByLabelText("First available date")).toHaveAttribute("type", "date");
-    expect(screen.getByLabelText("Last available date")).toHaveAttribute("type", "date");
-    expect(screen.getByText(/leave blank for no boundary/i)).toBeVisible();
+    expect(screen.getByLabelText("Start date")).toHaveAttribute("type", "date");
+    expect(screen.getByLabelText("End date")).toHaveAttribute("type", "date");
+    expect(screen.queryByText(/leave blank for no boundary/i)).not.toBeInTheDocument();
+    expect(document.body.querySelectorAll('[data-slot="separator"]')).toHaveLength(2);
 
     person.unmount();
     const placeholder = render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
-    expect(screen.queryByLabelText("First available date")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Last available date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Start date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("End date")).not.toBeInTheDocument();
 
     placeholder.unmount();
     render(<ResourceForm kind="external" onClose={vi.fn()} />);
-    expect(screen.queryByLabelText("First available date")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Last available date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Start date")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("End date")).not.toBeInTheDocument();
   });
 });
 
@@ -58,8 +59,8 @@ describe("ResourceForm availability dates", () => {
     render(<ResourceForm kind="person" onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
-    fireEvent.change(screen.getByLabelText("First available date"), { target: { value: "2026-09-10" } });
-    fireEvent.change(screen.getByLabelText("Last available date"), { target: { value: "2026-09-10" } });
+    fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-09-10" } });
+    fireEvent.change(screen.getByLabelText("End date"), { target: { value: "2026-09-10" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
@@ -87,7 +88,7 @@ describe("ResourceForm availability dates", () => {
     });
     render(<ResourceForm resource={resource} onClose={onClose} />);
 
-    await user.clear(screen.getByLabelText("First available date"));
+    await user.clear(screen.getByLabelText("Start date"));
     await user.clear(screen.getByLabelText("Role"));
     await user.type(screen.getByLabelText("Role"), "Design lead");
     await user.click(screen.getByRole("button", { name: "Save" }));
@@ -104,12 +105,12 @@ describe("ResourceForm availability dates", () => {
     render(<ResourceForm kind="person" onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
-    fireEvent.change(screen.getByLabelText("First available date"), { target: { value: "2026-09-11" } });
-    fireEvent.change(screen.getByLabelText("Last available date"), { target: { value: "2026-09-10" } });
+    fireEvent.change(screen.getByLabelText("Start date"), { target: { value: "2026-09-11" } });
+    fireEvent.change(screen.getByLabelText("End date"), { target: { value: "2026-09-10" } });
     await user.click(screen.getByRole("button", { name: "Save" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/first available date.*last available date/i);
-    expect(screen.getByLabelText("Last available date")).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent(/end date.*start date/i);
+    expect(screen.getByLabelText("End date")).toHaveAttribute("aria-invalid", "true");
     expect(onClose).not.toHaveBeenCalled();
     expect(useStore.getState().data.resources).toHaveLength(0);
   });
@@ -304,8 +305,7 @@ it("ignores a second submit while the first persistence round-trip is pending", 
     await user.click(save);
     expect(screen.getByLabelText("Name")).toBeDisabled();
     expect(screen.getByLabelText("Role")).toBeDisabled();
-    expect(screen.getByLabelText("Engagement")).toBeDisabled();
-    expect(screen.getAllByRole("radio")[0]).toBeDisabled();
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
     await user.click(save);
     expect(useStore.getState().data.resources).toHaveLength(1);
     expect(onClose).not.toHaveBeenCalled();
@@ -455,12 +455,13 @@ describe("ResourceForm engagement", () => {
     render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
     expect(screen.queryByLabelText("Employment")).not.toBeInTheDocument();
-    const engagement = screen.getByLabelText("Engagement");
+    const engagement = screen.getByRole("radiogroup", { name: "Engagement" });
     expect(engagement).toHaveTextContent("Studio");
+    expect(screen.queryByRole("combobox", { name: "Engagement" })).not.toBeInTheDocument();
+    expect(within(engagement).getByRole("radio", { name: "Supplementary" })).toBeVisible();
 
     await user.type(screen.getByLabelText("Name"), "Selina Kyle");
-    fireEvent.keyDown(engagement, { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Supplementary" }));
+    await user.click(within(engagement).getByRole("radio", { name: "Supplementary" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({
@@ -484,9 +485,8 @@ describe("ResourceForm engagement", () => {
     });
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
 
-    const engagement = screen.getByLabelText("Engagement");
-    fireEvent.keyDown(engagement, { key: "ArrowDown" });
-    fireEvent.click(screen.getByRole("option", { name: "Supplementary" }));
+    const engagement = screen.getByRole("radiogroup", { name: "Engagement" });
+    await user.click(within(engagement).getByRole("radio", { name: "Supplementary" }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(useStore.getState().data.resources[0]).toMatchObject({

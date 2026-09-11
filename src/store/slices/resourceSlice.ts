@@ -66,7 +66,7 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
               domainError(
                 availability.code,
                 availability.code === "date_reversed"
-                  ? "First available date cannot be after last available date."
+                  ? "End date cannot be before the start date."
                   : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
               );
             }
@@ -131,7 +131,7 @@ function createResourceAddAction(internals: StoreInternals, get: StoreApi<StoreS
         domainError(
           availability.code,
           availability.code === "date_reversed"
-            ? "First available date cannot be after last available date."
+            ? "End date cannot be before the start date."
             : "Availability dates must be valid calendar dates (YYYY-MM-DD).",
         );
       }

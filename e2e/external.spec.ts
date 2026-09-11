@@ -10,7 +10,7 @@ import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleF
 // Turn the External feature on via Settings, then return to the Schedule. Used by the tests that
 // exercise the band / assignee behaviour, which all need externals visible first.
 async function enableExternal(page: import("@playwright/test").Page): Promise<void> {
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   const toggle = page.getByRole("switch", { name: "Show external resources" });
   await expect(toggle).toHaveAttribute("aria-checked", "false"); // default off
   await toggle.click();
@@ -95,7 +95,7 @@ function registerSuiteScenario4() {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show external resources" }).click(); // → on
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("switch", { name: "Show external resources" })).toHaveAttribute("aria-checked", "true");
   });
 }

@@ -4,7 +4,7 @@ import { hasDisciplinesEnabled } from "../../store/selectors";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { m } from "@/i18n";
-import { FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
+import { FormActions, Modal, RequiredLegend, SegmentedField, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError, FieldGroup } from "../ui/field";
 import { buildResourceEngagementOptions } from "../../lib/metadata";
 import { useResourceFormState, type ResourceFormState } from "./useResourceFormState";
@@ -15,7 +15,6 @@ import {
   type Discipline,
   type Project,
   type Resource,
-  type ResourceEngagement,
   type ResourceKind,
 } from "@capacitylens/shared/types/entities";
 
@@ -101,11 +100,12 @@ function ResourceFields(props: ResourceFieldsProps) {
           />
         )}
         {!isPlaceholder && (
-          <SelectField
+          <SegmentedField
             label={m.form_resource_engagement_label()}
             value={form.engagement}
-            onChange={(value) => form.setEngagement(value as ResourceEngagement)}
+            onChange={form.setEngagement}
             options={buildResourceEngagementOptions()}
+            disabled={disabled}
             layout="label-control"
           />
         )}

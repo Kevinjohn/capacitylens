@@ -18,13 +18,13 @@ afterEach(() => {
 });
 
 describe("CompanyClosureSection", () => {
-  it("has its own labelled empty state and create affordances", () => {
+  it("has a labelled empty state and one heading action", () => {
     render(<CompanyClosureSection />);
 
     expect(screen.getByTestId("company-closures-section")).toHaveAccessibleName("Company closures");
     expect(screen.getByTestId("company-closures-empty")).toHaveTextContent("No company closures planned.");
     expect(screen.getByRole("button", { name: "Add closure" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add a closure" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add a closure" })).not.toBeInTheDocument();
   });
 
   it("shows the required name and complete inclusive date span", () => {
