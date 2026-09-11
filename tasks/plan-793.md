@@ -45,15 +45,16 @@ Validation policy: AGENTS.md defaults (not the `tasks/plan.md` programme excepti
 
 - Style ids and output (day number never zero-padded):
 
-  | id | single | same month | cross month | with year (single / same month / cross year) |
-  |---|---|---|---|---|
-  | `day-month` (default) | `9 Sep` | `9 – 14 Sep` | `9 Sep – 14 Oct` | `9 Sep 2026` / `9 – 14 Sep 2026` / `28 Dec 2026 – 8 Jan 2027` |
-  | `day-ordinal-month` | `9th Sep` | `9th – 14th Sep` | `9th Sep – 14th Oct` | `9th Sep 2026` / `9th – 14th Sep 2026` / `28th Dec 2026 – 8th Jan 2027` |
-  | `month-day` | `Sep 9` | `Sep 9 – 14` | `Sep 9 – Oct 14` | `Sep 9, 2026` / `Sep 9 – 14, 2026` / `Dec 28, 2026 – Jan 8, 2027` |
-  | `month-day-ordinal` | `Sep 9th` | `Sep 9th – 14th` | `Sep 9th – Oct 14th` | `Sep 9th, 2026` / `Sep 9th – 14th, 2026` / `Dec 28th, 2026 – Jan 8th, 2027` |
+  | id                    | single    | same month       | cross month          | with year (single / same month / cross year)                                |
+  | --------------------- | --------- | ---------------- | -------------------- | --------------------------------------------------------------------------- |
+  | `day-month` (default) | `9 Sep`   | `9 – 14 Sep`     | `9 Sep – 14 Oct`     | `9 Sep 2026` / `9 – 14 Sep 2026` / `28 Dec 2026 – 8 Jan 2027`               |
+  | `day-ordinal-month`   | `9th Sep` | `9th – 14th Sep` | `9th Sep – 14th Oct` | `9th Sep 2026` / `9th – 14th Sep 2026` / `28th Dec 2026 – 8th Jan 2027`     |
+  | `month-day`           | `Sep 9`   | `Sep 9 – 14`     | `Sep 9 – Oct 14`     | `Sep 9, 2026` / `Sep 9 – 14, 2026` / `Dec 28, 2026 – Jan 8, 2027`           |
+  | `month-day-ordinal`   | `Sep 9th` | `Sep 9th – 14th` | `Sep 9th – Oct 14th` | `Sep 9th, 2026` / `Sep 9th – 14th, 2026` / `Dec 28th, 2026 – Jan 8th, 2027` |
 
   Same-year cross-month with year: `9 Sep – 14 Oct 2026` / `Sep 9 – Oct 14, 2026`. Same start and end: single form.
-  Range separator is ` – ` (U+2013) in every style.
+  Range separator is `–` (U+2013) in every style.
+
 - Weekday form (`formatShortDate`, `formatShortDateRange`) always carries the ordinal, in every style; the style only sets
   day/month order: `Wed 10th Jun` / `Wed Jun 10th`; ranges `Fri 5th – Mon 8th Jun` / `Fri Jun 5th – Mon 8th`,
   cross-month `Fri 5th Jun – Mon 8th Jul` / `Fri Jun 5th – Mon Jul 8th`. Today's default output is unchanged.
@@ -77,6 +78,7 @@ T1 first. T2 and T3 in parallel worktrees after T1 merges. T3 owns every shared 
 
 **Files:** new `src/lib/dateStyle.ts`, new `src/lib/dateStyle.test.ts`, `src/lib/dateDisplay.ts`, `src/lib/dateDisplay.test.ts`.
 **Fixed:**
+
 - `dateStyle.ts` exports: `type DateStyle`, `DATE_STYLES: readonly DateStyle[]` (order as table), `DEFAULT_DATE_STYLE`,
   `readActiveDateStyle(): DateStyle`, `writeStoredDateStyle(style): void`. Read/write mirror `theme.ts:18-38`
   including the swallow comments; key `${STORAGE_KEY_PREFIX}dateStyle`.
@@ -85,9 +87,9 @@ T1 first. T2 and T3 in parallel worktrees after T1 merges. T3 owns every shared 
   `formatWeekdayScheduleDate(date)` (`Wed 9 Sep 2026` / `Wed Sep 9, 2026`, no ordinal). Existing single-date helpers follow the style.
   Every helper resolves the style once per call via `readActiveDateStyle()`.
 - Module header of `dateDisplay.ts` updated: style descriptor, collapse rule and separator live here for locale work later.
-**Discretion:** descriptor field names, private helper split, pattern-building mechanics.
-**Focused tests:** `dateDisplay.test.ts` covers every cell of the style table for the range helpers plus the single helpers under each style (call `writeStoredDateStyle` in `beforeEach`, `localStorage.clear()` after); `dateStyle.test.ts` covers default, stored valid, stored invalid, storage throwing. Update the two existing pins at lines 87 and 91. `pnpm exec vitest run src/lib/dateDisplay.test.ts src/lib/dateStyle.test.ts`, `pnpm exec tsc --noEmit -p tsconfig.json`, `pnpm exec eslint src/lib`, `pnpm exec prettier --check src/lib`.
-**Done:** the exports above exist, tests green, no call site changed.
+  **Discretion:** descriptor field names, private helper split, pattern-building mechanics.
+  **Focused tests:** `dateDisplay.test.ts` covers every cell of the style table for the range helpers plus the single helpers under each style (call `writeStoredDateStyle` in `beforeEach`, `localStorage.clear()` after); `dateStyle.test.ts` covers default, stored valid, stored invalid, storage throwing. Update the two existing pins at lines 87 and 91. `pnpm exec vitest run src/lib/dateDisplay.test.ts src/lib/dateStyle.test.ts`, `pnpm exec tsc --noEmit -p tsconfig.json`, `pnpm exec eslint src/lib`, `pnpm exec prettier --check src/lib`.
+  **Done:** the exports above exist, tests green, no call site changed.
 
 ## T2: route every call site through dateDisplay
 
@@ -97,6 +99,7 @@ T1 first. T2 and T3 in parallel worktrees after T1 merges. T3 owns every shared 
 `TimeOffForm.repeat.test.tsx`, `CompanyClosureSection.test.tsx`, `DateHeader.test.tsx`;
 `e2e/person-schedule.auth.spec.ts`, `e2e/company-closures.auth.spec.ts`, `e2e/capacity-overview.spec.ts`.
 **Fixed:**
+
 - Replace the five hand-built ranges with `formatDayMonthRange` (`CompanyClosureSection`: `formatShortDateRange`). Delete `formatCompactDateRange` in `PersonScheduleEntry.tsx`.
 - `DateHeader.tsx:25` → `formatMonthYear`; `:35` → `formatDayMonth`. `useAllocationModalState.ts:143` → `formatWeekdayScheduleDate` keeping the NaN guard.
   `TimeOffRepeatFields.tsx`: delete `formatFullDate`, use `formatScheduleDate`.
@@ -105,10 +108,10 @@ T1 first. T2 and T3 in parallel worktrees after T1 merges. T3 owns every shared 
 - Expected new strings: `7 Sep – 4 Oct` (unchanged), `28 Dec – 8 Jan` (unchanged), `10 – 13 Sep`, `28 Sep – 4 Oct`,
   `26 – 28 Feb 2027`, `Sat 1st – Wed 5th Aug`, e2e `10 – 11 Jun`, `Fri 5th – Mon 8th Jun`, `3 – 7 Jun`, `8 – 14 Jun`,
   `15 – 21 Jun`, `22 – 28 Jun`. The ordinal pins listed in Shared facts must still pass unchanged.
-**Discretion:** import style (`@/lib` vs relative) matches each file's existing imports.
-**Focused tests:** the seven component test files plus `TimeOffList.test.tsx` and `AllocationModal.repeat.test.tsx` (regression, unchanged);
-`pnpm exec playwright test e2e/person-schedule.auth.spec.ts e2e/company-closures.auth.spec.ts e2e/capacity-overview.spec.ts e2e/timeoff.spec.ts e2e/allocation.spec.ts` (Chromium); tsc, eslint, prettier on changed files.
-**Done:** grep condition holds, listed tests green, no prose files touched.
+  **Discretion:** import style (`@/lib` vs relative) matches each file's existing imports.
+  **Focused tests:** the seven component test files plus `TimeOffList.test.tsx` and `AllocationModal.repeat.test.tsx` (regression, unchanged);
+  `pnpm exec playwright test e2e/person-schedule.auth.spec.ts e2e/company-closures.auth.spec.ts e2e/capacity-overview.spec.ts e2e/timeoff.spec.ts e2e/allocation.spec.ts` (Chromium); tsc, eslint, prettier on changed files.
+  **Done:** grep condition holds, listed tests green, no prose files touched.
 
 ## T3: date style preference in Settings
 
@@ -117,6 +120,7 @@ T1 first. T2 and T3 in parallel worktrees after T1 merges. T3 owns every shared 
 `SettingsView.test.tsx`, `messages/en.json`, new `e2e/settings-date-style.spec.ts`, new `user-stories/settings/US-SET-17-date-style.md`,
 `user-stories/README.md`, `user-stories/REFERENCE.md`, `docs-src/guide/settings.md`, regenerated `docs/`, `CHANGELOG.md`.
 **Fixed:**
+
 - Store: `dateStyle: DateStyle` initialised from `readActiveDateStyle()`; `setDateStyle(style)` calls `writeStoredDateStyle` then `set`. Add to the `RuntimeSlice` key union (`runtimeSlice.ts:59`).
   Controller: `useSettingsViewController.ts` selects `dateStyle` and `setDateStyle` next to `theme` (lines 32-33); `SettingsView.tsx` passes both to `SettingsAppearanceSection`.
 - UI: a `SegmentedControl` under the existing Appearance section, after the theme control, `ariaLabel` = "Date format", options
@@ -128,9 +132,9 @@ T1 first. T2 and T3 in parallel worktrees after T1 merges. T3 owns every shared 
 - CHANGELOG `Unreleased`: one `Changed` line for the month collapse, one `Added` line for the preference.
 - `user-stories/REFERENCE.md`: settings row (line 150) mentions date format; a device-pref paragraph near line 608 names key `capacitylens/dateStyle`.
 - `docs-src/guide/settings.md:160`: extend the Appearance row; run `pnpm run docs:build` and commit `docs/`.
-**Discretion:** exact intro wording, story step text, test-id if one is needed.
-**Focused tests:** `useStore.test.ts` (new case mirroring lines 298-315 for `dateStyle`), `SettingsView.test.tsx` (new describe mirroring 300-316), the new e2e spec, `pnpm run paraglide:compile`, tsc, eslint, prettier, `pnpm run docs:build`.
-**Done:** setting round-trips through storage and the schedule, story and docs describe it, CHANGELOG updated.
+  **Discretion:** exact intro wording, story step text, test-id if one is needed.
+  **Focused tests:** `useStore.test.ts` (new case mirroring lines 298-315 for `dateStyle`), `SettingsView.test.tsx` (new describe mirroring 300-316), the new e2e spec, `pnpm run paraglide:compile`, tsc, eslint, prettier, `pnpm run docs:build`.
+  **Done:** setting round-trips through storage and the schedule, story and docs describe it, CHANGELOG updated.
 
 ## Batch validation (orchestrator)
 
