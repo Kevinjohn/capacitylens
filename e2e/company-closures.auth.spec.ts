@@ -1,6 +1,14 @@
 import { test, expect, type APIRequestContext, type Page } from "./fixtures";
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { dismissIntroIfPresent, freezeBrowserDate, goToSeedWeek, setZoom } from "./helpers";
+import {
+  computedStyles,
+  disableCssMotion,
+  dismissIntroIfPresent,
+  freezeBrowserDate,
+  goToSeedWeek,
+  setZoom,
+  showScheduleFilters,
+} from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -134,6 +142,28 @@ async function assertClosureBand(page: Page) {
   expect(await band.evaluate((element) => Number.parseFloat((element as HTMLElement).style.width))).toBe(
     literalSpanWidth,
   );
+
+  // #787: closures are time off for everyone, so switching the schedule's draw mode from Work to
+  // Time off must highlight the closure band with the same timeoff-selected treatment as a
+  // personal time-off block (src/index.css `[data-draw-mode="timeoff"] .scheduler-closure-band`),
+  // and switching back to Work must restore the plain hatch. getComputedStyle-based, so it stays
+  // browser-agnostic.
+  await showScheduleFilters(page);
+  await disableCssMotion(page);
+  const workTreatment = await computedStyles(band, ["background-color", "box-shadow"]);
+  await page.getByRole("radio", { name: "Time off", exact: true }).click();
+  await expect(page.getByTestId("scheduler-grid")).toHaveAttribute("data-draw-mode", "timeoff");
+  const timeoffTreatment = await computedStyles(band, ["background-color", "background-image", "box-shadow", "color"]);
+  expect(timeoffTreatment["background-color"]).toBe("rgb(250, 204, 21)");
+  expect(timeoffTreatment["background-color"]).not.toBe(workTreatment["background-color"]);
+  expect(timeoffTreatment["background-image"]).toContain("repeating-linear-gradient");
+  expect(timeoffTreatment["box-shadow"]).toContain("6px 1px");
+
+  await page.getByRole("radio", { name: "Work", exact: true }).click();
+  await expect(page.getByTestId("scheduler-grid")).toHaveAttribute("data-draw-mode", "work");
+  const revertedTreatment = await computedStyles(band, ["background-color", "box-shadow"]);
+  expect(revertedTreatment).toEqual(workTreatment);
+
   const externalRow = page.getByTestId("scheduler-row").filter({ hasText: "Kord Industries" });
   await expect(externalRow).toBeVisible();
   const [bandBox, externalBox] = await Promise.all([band.boundingBox(), externalRow.boundingBox()]);
