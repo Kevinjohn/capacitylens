@@ -31,6 +31,8 @@ function useDisplayPreferences() {
   return {
     theme: useStore((state) => state.theme),
     setTheme: useStore((state) => state.setTheme),
+    dateStyle: useStore((state) => state.dateStyle),
+    setDateStyle: useStore((state) => state.setDateStyle),
     utilizationPrefs: useStore((state) => state.utilizationPrefs),
     setUtilizationPref: useStore((state) => state.setUtilizationPref),
     barLabelPrefs: useStore((state) => state.barLabelPrefs),
