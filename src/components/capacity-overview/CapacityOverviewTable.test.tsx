@@ -1,7 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { Resource } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData, Resource } from "@capacitylens/shared/types/entities";
 import type { CapacityOverviewModel, CapacityOverviewWeekResult } from "./capacityOverviewModel";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 
@@ -47,6 +48,13 @@ function week(index: number, values: Partial<CapacityOverviewWeekResult>): Capac
   };
 }
 
+const clarkKent = resource("Clark Kent");
+const placeholderSlot = resource("slot", "placeholder");
+
+// Real (if minimal) AppData, matched by id to the model's rows above, so the person schedule
+// trigger resolves the real per-resource title instead of the fallback an empty dataset produces.
+const data: AppData = { ...emptyAppData(), resources: [clarkKent, placeholderSlot] };
+
 const model: CapacityOverviewModel = {
   measured: true,
   weeks: [...weeks],
@@ -56,7 +64,7 @@ const model: CapacityOverviewModel = {
       title: "Design",
       rows: [
         {
-          resource: resource("Clark Kent"),
+          resource: clarkKent,
           weeks: [
             week(0, { freeDays: 1.5, overDays: 0.25 }),
             week(1, { state: "fully-booked", freeDays: 0 }),
@@ -65,7 +73,7 @@ const model: CapacityOverviewModel = {
           ],
         },
         {
-          resource: resource("slot", "placeholder"),
+          resource: placeholderSlot,
           weeks: [
             week(0, { state: "unassigned", freeDays: 0, unassignedDemandDays: 2 }),
             week(1, { state: "unassigned", freeDays: 0 }),
@@ -111,6 +119,7 @@ describe("CapacityOverviewTable content", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals
@@ -137,6 +146,29 @@ describe("CapacityOverviewTable content", () => {
     expect(within(placeholder).getByText("2d unassigned")).toBeInTheDocument();
     expect(screen.queryByRole("row", { name: /All eligible people/ })).not.toBeInTheDocument();
   });
+
+  it("names a placeholder's trigger from its role, not the generic placeholder fallback", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    // Without a real resource behind it, the trigger's title degrades to the generic
+    // "View Placeholder's schedule" instead of naming the role — the case a defaulted-to-empty
+    // `data` prop was silently masking.
+    const trigger = screen.getByRole("button", { name: "View Placeholder — Designer's schedule" });
+    expect(trigger).toHaveAttribute("data-testid", "person-schedule-trigger");
+  });
 });
 
 describe("CapacityOverviewTable interactions", () => {
@@ -147,6 +179,7 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals={false}
@@ -170,6 +203,7 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals={false}
@@ -193,6 +227,7 @@ describe("CapacityOverviewTable interactions", () => {
     const { rerender } = render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals={false}
@@ -216,6 +251,7 @@ describe("CapacityOverviewTable interactions", () => {
     rerender(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals
@@ -237,6 +273,7 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals={false}
@@ -258,6 +295,7 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals={false}
@@ -281,6 +319,7 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals={false}
@@ -303,6 +342,7 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals={false}
@@ -324,6 +364,7 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals={false}
@@ -348,6 +389,7 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={{ ...model, measured: false, reason: "blocks-mode", groups: [] }}
+        data={data}
         includeTentative
         hasAvailability={false}
         showTotals={false}

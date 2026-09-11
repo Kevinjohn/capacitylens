@@ -1,4 +1,4 @@
-import { emptyAppData, isPlaceholderResource } from "@capacitylens/shared/types/entities";
+import { isPlaceholderResource } from "@capacitylens/shared/types/entities";
 import type { AppData, ID } from "@capacitylens/shared/types/entities";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useRef, useState } from "react";
@@ -34,8 +34,6 @@ interface CapacityOverviewTableProps {
   onShowTotalsChange: (checked: boolean) => void;
   onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void;
 }
-
-const EMPTY_APP_DATA: AppData = emptyAppData();
 
 interface PersonScheduleTriggerHandlers {
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
@@ -372,9 +370,8 @@ function CapacityTable({
 }
 
 interface CapacityOverviewTableWithScheduleProps extends CapacityOverviewTableProps {
-  /** Scoped account data used to resolve person schedule titles. Defaults to empty data (tests
-   *  that don't exercise the drawer need not pass it). */
-  data?: AppData;
+  /** Scoped account data used to resolve person schedule titles. */
+  data: AppData;
   /** Restores focus to a stable element when the drawer's opener has been removed from the DOM.
    *  Defaults to an internal ref on this component's own root when not supplied. */
   fallbackRef?: RefObject<HTMLDivElement | null>;
@@ -383,7 +380,7 @@ interface CapacityOverviewTableWithScheduleProps extends CapacityOverviewTablePr
 export function CapacityOverviewTable(props: CapacityOverviewTableWithScheduleProps) {
   const internalFallbackRef = useRef<HTMLDivElement>(null);
   const fallbackRef = props.fallbackRef ?? internalFallbackRef;
-  const personScheduleDrawer = usePersonScheduleDrawer({ data: props.data ?? EMPTY_APP_DATA, fallbackRef });
+  const personScheduleDrawer = usePersonScheduleDrawer({ data: props.data, fallbackRef });
   return (
     // `tabIndex={-1}` makes this a valid focus target: when the drawer closes after its opening
     // trigger has left the DOM (a filter or collapsed group hid that row), the drawer restores
