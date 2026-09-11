@@ -1,4 +1,4 @@
-import type { AuthorizeRouteInput } from "./routeShared";
+import { NO_REPROMPT, type AuthorizeRouteInput } from "./routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord } from "../audit";
@@ -66,7 +66,13 @@ function allowReplacement(
     entity === "clients" &&
     body.builtin === true &&
     existing?.builtin !== true &&
-    !dependencies.authorize({ req, reply, accountId: body.accountId as string, action: "manageInternalClient" })
+    !dependencies.authorize({
+      req,
+      reply,
+      accountId: body.accountId as string,
+      action: "manageInternalClient",
+      options: NO_REPROMPT,
+    })
   )
     return false;
   if (!ownsRow(existing, body.accountId)) {
