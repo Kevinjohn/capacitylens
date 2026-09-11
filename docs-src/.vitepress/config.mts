@@ -111,6 +111,17 @@ export default defineConfig({
           { text: "Before you start", link: "/self-hosting/" },
           { text: "Install with Docker", link: "/self-hosting/install-with-docker" },
           { text: "Install without Docker", link: "/self-hosting/install-without-docker" },
+          {
+            text: "Deploy on a managed VPS platform",
+            link: "/self-hosting/managed-vps/",
+            items: [
+              { text: "Choose the release source", link: "/self-hosting/managed-vps/choose-the-release-source" },
+              { text: "Create and build the managed site", link: "/self-hosting/managed-vps/create-and-build-the-site" },
+              { text: "Configure the API and nginx", link: "/self-hosting/managed-vps/configure-the-api-and-nginx" },
+              { text: "Deploy and upgrade safely", link: "/self-hosting/managed-vps/deploy-and-upgrade-safely" },
+              { text: "Finish and operate the managed installation", link: "/self-hosting/managed-vps/finish-and-operate-the-installation" },
+            ],
+          },
           { text: "Configuration", link: "/self-hosting/configuration" },
           { text: "TLS and networking", link: "/self-hosting/tls-and-networking" },
           { text: "Backups and restore", link: "/self-hosting/backups-and-restore" },

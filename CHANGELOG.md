@@ -14,6 +14,7 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Document deploying on a managed VPS platform such as Forge, Ploi or RunCloud (#734).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
   manually triggered workflow (#752).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is

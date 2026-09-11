@@ -86,6 +86,8 @@ the version check.
 Add this build section to the deployment script:
 
 ```bash
+$CREATE_RELEASE()
+
 cd "$FORGE_RELEASE_DIRECTORY"
 
 mkdir -p "$FORGE_RELEASE_DIRECTORY/.corepack"

@@ -10,8 +10,8 @@ Docker Compose if you want CapacityLens to manage the packaged services, install
 directly if you manage Node and nginx yourself, or adapt the direct installation for a
 managed VPS platform.
 
-Both routes give you the same persistent CapacityLens app, SQLite database and sign-in
-options. Both also take you through creating the first [Owner](/reference/glossary)
+Every route gives you the same persistent CapacityLens app, SQLite database and sign-in
+options. Each also takes you through creating the first [Owner](/reference/glossary)
 account. The difference is how the app and API run on your host.
 
 ::: tip
