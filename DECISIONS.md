@@ -52,6 +52,10 @@ This is the short, present-tense record of decisions that constrain future work.
 - The schedule's jump-to-date picker is not shown. Planners rarely look far ahead, and when they do
   a month list is the likelier affordance; that design is deferred rather than decided. The control
   remains in the codebase and under test so restoring or reusing it is a one-line change.
+- Narrowing a resource's availability (working pattern, weekly capacity or employment type)
+  leaves existing allocations in place; capacity and utilisation are recalculated so they show
+  as over-capacity rather than being moved, split or deleted (2026-09-11). Follow-up:
+  https://github.com/Kevinjohn/capacitylens/issues/802.
 
 ## Data and tenancy
 
@@ -105,7 +109,8 @@ This is the short, present-tense record of decisions that constrain future work.
   Identity, membership, privacy, lifecycle, whole-slice import and company-erasure operations keep
   their existing stricter Admin/Owner gates; creation-time calendar and language fields stay frozen.
   The compatibility path that adopts a legacy id for the server-managed Internal client and
-  reparents its projects is likewise a fresh-session Admin/Owner operation, not an ordinary edit.
+  reparents its projects is an ordinary Admin/Owner operation; it does not require a fresh
+  session (2026-09-11).
 - Command-palette entity visibility follows the destination, not every similarly named preference:
   omit resources or Internal projects whose selection would jump to a hidden schedule row/bar, but
   retain Internal activities because their selection opens the complete Activities management list.
@@ -146,6 +151,11 @@ This is the short, present-tense record of decisions that constrain future work.
   only account owners receive them. Every other role receives the quoted code name, and non-owner
   writes preserve the protected stored fields. The built-in Internal client is always public and
   active; import/load repair clears any impossible lifecycle tombstones on the singleton.
+- Capacity Overview access is a page-visibility preference, not a confidentiality control
+  (2026-09-11): `GET /api/state` already serves every allocation and resource to any member, so a
+  server-side gate on the route could not withhold those figures. The setting only decides who can
+  open the page and see the aggregated view; it does not narrow the data every member already
+  receives via the scoped state.
 
 ## Offline
 
@@ -234,6 +244,13 @@ This is the short, present-tense record of decisions that constrain future work.
   fifteen minutes regardless of MFA policy. The client answers the freshness refusal with an
   in-place "confirm it's you" re-authentication dialog that mints a fresh session and retries,
   never a full sign-out that discards working state.
+- Administrative session freshness (the fifteen-minute step-up gate) applies only to ownership
+  transfer, resetting another member's password, revoking another member's sessions, deleting a
+  company, import/purge and SSO identity link/repair (2026-09-11). Every other administrative read
+  or action — invite create, invite revoke, role change, status change, member removal, the
+  sign-in-tracking toggle, masquerade start and internal-client adoption — needs only the actor's
+  role and MFA policy, not a fresh session. Ownership transfer's own confirmation ceremony is
+  tracked separately as issue #780 and is unchanged by this decision.
 - Cross-site writes are gated by Fetch Metadata and Origin, with two deliberate exemptions: an
   Origin on the credentialed CORS allow-list always passes (the allow-list is the operator's
   explicit cross-site contract), and an Origin whose host:port matches the request Host and
