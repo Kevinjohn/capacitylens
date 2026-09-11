@@ -181,10 +181,12 @@ function GatedSidebar({
   sidebarOpen,
 }: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "signOutDemo" | "sidebarOpen">) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
   const switchAccount = async () => {
     try {
       const switched = await transitionAccount(null);
-      if (switched) void navigate("/");
+      if (switched && accountRoute) void navigate("/");
     } catch (error: unknown) {
       console.error("Company switch failed", error);
     }
@@ -296,7 +298,6 @@ function MasqueradeBanner({
 
 export function AppShell() {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   const { paletteOpen, closePalette } = useAppShellController();
   const hydrated = useStore((state) => state.hydrated);
   const persistError = useStore((state) => state.persistError);
@@ -333,7 +334,7 @@ export function AppShell() {
   // disciplines (the route itself is also guarded — see router.tsx).
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== "/disciplines");
-  const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
+  const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
 
   const dirtyForm = useStore((state) => state.dirtyForm);
   const sidebarOpen = useStore((state) => state.sidebarOpen);

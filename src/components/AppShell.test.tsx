@@ -513,6 +513,46 @@ function registerAccountNavigationStateTest(): void {
   });
 }
 
+function registerAccountSwitchRouteTest(): void {
+  it("keeps the current non-Account route after a successful switch", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
+    render(
+      <MemoryRouter initialEntries={["/clients"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients");
+    expect(transition).toHaveBeenCalledWith(null);
+  });
+
+  it("returns to the company picker from an Account route with a trailing slash", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
+    render(
+      <MemoryRouter initialEntries={["/account/"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/");
+    expect(transition).toHaveBeenCalledWith(null);
+  });
+}
+
 function registerNavigationBrandNameTest(): void {
   it("renders the CapacityLens brand name in the nav", () => {
     renderAppShell();
@@ -1065,6 +1105,7 @@ describe("AppShell navigation links", () => {
   registerOfflineSnapshotLabelTest();
   registerExpectedNavigationLinksTest();
   registerAccountNavigationStateTest();
+  registerAccountSwitchRouteTest();
   registerNavigationBrandNameTest();
   registerImportExportAbsenceTest();
   registerSidebarSignOutTest();
