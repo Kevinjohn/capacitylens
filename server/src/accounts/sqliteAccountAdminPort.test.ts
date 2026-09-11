@@ -138,6 +138,7 @@ describe("sqliteAccountAdminPort listMemberships bulk revisions", () => {
   registerSqliteAccountAdminPortTest27();
   registerSqliteAccountAdminPortTest28();
   registerSqliteAccountAdminPortTest29();
+  registerSqliteAccountAdminPortTest31();
 });
 
 function registerSqliteAccountAdminPortTest1(): void {
@@ -1486,6 +1487,22 @@ function registerSqliteAccountAdminPortTest29(): void {
       const revisionQueries = prepare.mock.calls.filter(([sql]) => String(sql).includes("account_security_revisions"));
       expect(revisionQueries).toHaveLength(2);
       prepare.mockRestore();
+    } finally {
+      db.close();
+    }
+  });
+}
+
+function registerSqliteAccountAdminPortTest31(): void {
+  it("keeps MFA required when a member directory explicitly opts out of freshness", async () => {
+    const db = openDb(":memory:");
+    try {
+      const { port } = seedMfaAuditFixture(db);
+      const staleWithoutMfa = { ...actor, fresh: false, mfaSatisfied: false };
+
+      await expect(
+        port.listMemberships({ actor: staleWithoutMfa, workspaceId: "workspace-1", requireFresh: false }),
+      ).rejects.toMatchObject({ failure: { code: "MFA_REQUIRED" } });
     } finally {
       db.close();
     }

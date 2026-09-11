@@ -41,6 +41,12 @@ intro.
    (`data-testid="capabilities-toggle"`), so the page opens on the member table rather than on
    reference material. Below it sits the **Members** section (`data-testid="members-section"`,
    heading **Members**).
+
+   Loading the directory is a read-only operation: an Owner or Admin can review members, sign-in
+   confirmations and outstanding invites from an older session without a confirmation prompt. A
+   fresh identity confirmation appears only after starting a sensitive change, and its heading names
+   that exact action. Cancelling the confirmation leaves this page and its loaded directory available.
+
 2. The **member list** is a table (`data-testid="members-table"`) with the columns **Name**,
    **Email**, **Edit member** and **Member settings**, one row per member
    (`data-testid="member-row"`); the role sits beneath the name and B's own row is marked **(you)**.

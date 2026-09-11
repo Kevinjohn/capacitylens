@@ -13,6 +13,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Keep Team & access member and invitation directories available as read-only information without a
+  fresh-session prompt; require fresh confirmation only for initiated sensitive actions and name the
+  action in that confirmation (#737).
 - Rename Global working days to Company-wide working days, clarify company, personal and device
   preference scope, and group independent Placeholder and External visibility switches under
   Additional resourcing options. New companies now default to Days input with inline activity

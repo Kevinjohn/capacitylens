@@ -22,7 +22,9 @@ export interface AuthorizeRouteInput {
   reply: FastifyReply;
   accountId: string;
   action: Action;
-  options?: { concealNonMembership?: boolean } | undefined;
+  /** Read-only account-management projections may retain role gating without requiring a recent
+   * sign-in. The authorization seam applies this opt-out only to GET/HEAD requests. */
+  options?: { concealNonMembership?: boolean; requireFreshSession?: boolean } | undefined;
 }
 
 export const isKnownTable = (entity: string): entity is keyof typeof TABLES =>

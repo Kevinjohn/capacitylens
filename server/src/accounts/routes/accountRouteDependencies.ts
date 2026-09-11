@@ -1,4 +1,4 @@
-import type { AuthorizeBasicInput } from "../../routes/routeShared";
+import type { AuthorizeRouteInput } from "../../routes/routeShared";
 import type { AccountAdminPort, AccountFlows, IdentityPort } from "@capacitylens/shared/account/ports";
 import type {
   AccountMode,
@@ -37,7 +37,7 @@ export interface AccountRouteDependencies {
     snapshot(workspaceId: string): MemberSignInTrackingSnapshot;
     set(input: SetMemberSignInTrackingRequestInput): { enabled: boolean; changed: boolean };
   };
-  authorize(input: AuthorizeBasicInput): boolean;
+  authorize(input: AuthorizeRouteInput): boolean;
   command(request: FastifyRequest): CommandIdentity;
   audit(reply: FastifyReply, record: AuditRecord): void;
   fail(reply: FastifyReply, error: unknown): unknown;
