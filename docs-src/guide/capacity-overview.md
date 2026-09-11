@@ -23,9 +23,9 @@ If placeholders are enabled, their allocations appear separately as **Unassigned
 demand is rounded up to the nearest quarter-day and is not counted as people capacity.
 
 Hover or focus a person's avatar to reveal an eye icon. Selecting it opens that person's
-read-only schedule drawer, covering its own four-week window from today rather than the
-Overview's own columns, without changing the table's filters or scroll position — the same
-drawer used from [the schedule](/guide/the-schedule).
+read-only schedule drawer, covering the current company week and the following three weeks
+rather than the Overview's own columns, without changing the table's filters or scroll
+position — the same drawer as [the schedule](/guide/the-schedule).
 
 ## Filter the table
 

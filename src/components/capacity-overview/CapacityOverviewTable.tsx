@@ -385,7 +385,11 @@ export function CapacityOverviewTable(props: CapacityOverviewTableWithSchedulePr
   const fallbackRef = props.fallbackRef ?? internalFallbackRef;
   const personScheduleDrawer = usePersonScheduleDrawer({ data: props.data ?? EMPTY_APP_DATA, fallbackRef });
   return (
-    <div ref={fallbackRef} className="flex h-full min-h-0 flex-col">
+    // `tabIndex={-1}` makes this a valid focus target: when the drawer closes after its opening
+    // trigger has left the DOM (a filter or collapsed group hid that row), the drawer restores
+    // focus here, and `focus()` on a plain div without a tabindex is a no-op. Matches the
+    // scheduler's own fallback target.
+    <div ref={fallbackRef} tabIndex={-1} className="flex h-full min-h-0 flex-col">
       <OverviewToolbar {...props} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         {!props.model.measured ? (
