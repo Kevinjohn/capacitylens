@@ -221,9 +221,10 @@ account switching, refresh and browser lifecycle hooks.
 coordination path. `src/data/ServerSyncAdapter.ts` owns whole-slice loading and ordered,
 transactional batch diffs against the server.
 
-**Tests:** Start with `src/data/persist.test.ts`, `src/data/persist.overlap.test.ts` and
-`src/data/ServerSyncAdapter.test.ts`; use `e2e/persistence.db.spec.ts` and
-`e2e/resilience.db.spec.ts` for database-backed browser boundaries.
+**Tests:** Start with the `src/data/persist.*.test.ts` suites (`persist.attach.test.ts` for writes,
+retries and page lifecycle; `persist.reconciliation.test.ts` for batch conflicts),
+`src/data/persist.overlap.test.ts` and `src/data/ServerSyncAdapter.test.ts`; use
+`e2e/persistence.db.spec.ts` and `e2e/resilience.db.spec.ts` for database-backed browser boundaries.
 
 #### Offline snapshots {#task-offline-snapshots}
 
