@@ -18,13 +18,13 @@ new features and **patch** versions carry fixes.
 - Show a notice instead of failing silently when a member view is started while another start is
   already in flight, and show the generic persistence message instead of a raw internal error when a
   resource save fails through batch reconciliation (#806).
+
+### Changed
+
 - Ask for the password again only for high-impact administration — ownership transfer, resetting
   another member's password, revoking another member's sessions, company deletion, import/purge and
   SSO cutover/identity link and repair — and drop the re-prompt from invites, role and status changes,
   member removal, the sign-in-tracking toggle, masquerade start and internal-client adoption (#807).
-
-### Changed
-
 - Make company creation actions responsive and spaced, use equal-width week-start choices, and
   replace the overwhelming timezone select with a searchable browser-aware IANA combobox that
   presents local/common zones first and reflects daylight-saving abbreviations (#740).
