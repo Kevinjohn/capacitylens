@@ -404,7 +404,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
   // The out-of-band server writers (archive/delete/purge routes) reload the active slice THROUGH the
   // orchestrator via this export — a bare loadAll+replaceAll would clobber a still-debounced edit and
   // re-seed the snapshot under it (the same permanent-loss mechanism the focus-refresh abort guards).
-  // Uses the module-scope recordingAdapter / a2Slice / attachActiveA2 helpers.
+  // Uses the recordingAdapter / a2Slice / attachActiveA2 helpers from __tests__/persistTestKit.ts.
 
   it("returns 'unattached' when no orchestrator is attached (the caller falls back to a bare reload)", async () => {
     expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "unattached" });
