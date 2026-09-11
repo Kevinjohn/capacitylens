@@ -60,15 +60,66 @@ function resolveDescriptor(): DateStyleDescriptor {
 }
 
 /** The date-fns day token: `do` (ordinal, "9th") or `d` (plain, "9"). */
-function dayToken(ordinal: boolean): string {
-  return ordinal ? "do" : "d";
+/**
+ * What a rendered date spells out, before the active style decides the order. `ordinal` is separate
+ * from `weekday` because the two weekday forms disagree: the terse list form keeps its ordinal in
+ * every style, while the full one drops it (it already carries weekday, month and year).
+ */
+interface DateParts {
+  weekday: boolean;
+  ordinal: boolean;
+  year: boolean;
 }
 
-/** A single-date pattern for the active descriptor, with or without a trailing year. */
-function singlePattern(descriptor: DateStyleDescriptor, withYear: boolean): string {
-  const day = dayToken(descriptor.ordinal);
-  if (descriptor.monthFirst) return withYear ? `MMM ${day}, yyyy` : `MMM ${day}`;
-  return withYear ? `${day} MMM yyyy` : `${day} MMM`;
+/** The date-fns pattern for one endpoint. `month: false` drops the month a range shows elsewhere. */
+function buildPattern(descriptor: DateStyleDescriptor, parts: DateParts, month = true): string {
+  const weekday = parts.weekday ? "EEE " : "";
+  const day = parts.ordinal ? "do" : "d";
+  if (!month) return `${weekday}${day}`;
+  const core = descriptor.monthFirst ? `${weekday}MMM ${day}` : `${weekday}${day} MMM`;
+  if (!parts.year) return core;
+  // A month-first style needs the comma an English reader expects before a trailing year.
+  return descriptor.monthFirst ? `${core}, yyyy` : `${core} yyyy`;
+}
+
+function formatSingle(date: ISODate, parts: DateParts): string {
+  const descriptor = resolveDescriptor();
+  return format(parseDate(date), buildPattern(descriptor, parts), { locale: readActiveDateLocale() });
+}
+
+/**
+ * The module's collapse rule, once, for all three range helpers — they differ only in which parts
+ * an endpoint spells out. A same-day range degrades to the single-date form; a range crossing a
+ * year prints every part at both ends; inside a year the month appears once when both ends share
+ * it, and the year (when the helper carries one) always trails the range rather than each endpoint.
+ */
+function formatRange(startDate: ISODate, endDate: ISODate, parts: DateParts): string {
+  if (startDate === endDate) return formatSingle(startDate, parts);
+  const descriptor = resolveDescriptor();
+  const locale = readActiveDateLocale();
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  const render = (date: Date, pattern: string) => format(date, pattern, { locale });
+
+  if (start.getFullYear() !== end.getFullYear()) {
+    const full = buildPattern(descriptor, { ...parts, year: true });
+    return `${render(start, full)} – ${render(end, full)}`;
+  }
+
+  // Inside one year the year is stated once, after the whole range — so the leading endpoint never
+  // carries it. The month collapses the same way: it reads once, at the end the style would have
+  // put it (leading for a month-first style, trailing otherwise).
+  const sameMonth = start.getMonth() === end.getMonth();
+  const leading = { ...parts, year: false };
+  const startPattern = buildPattern(descriptor, leading, !(sameMonth && !descriptor.monthFirst));
+  const endCarriesMonth = !(sameMonth && descriptor.monthFirst);
+  const endPattern = buildPattern(descriptor, endCarriesMonth ? parts : leading, endCarriesMonth);
+  const rendered = `${render(start, startPattern)} – ${render(end, endPattern)}`;
+
+  // A collapsed month-first end ("Sep 9 – 14") has no month left to hang the year on, so the year
+  // joins the range itself rather than an endpoint.
+  if (parts.year && !endCarriesMonth) return `${rendered}, ${render(end, "yyyy")}`;
+  return rendered;
 }
 
 /**
@@ -76,52 +127,23 @@ function singlePattern(descriptor: DateStyleDescriptor, withYear: boolean): stri
  *
  * Abbreviated weekday + ordinal day + abbreviated month, deliberately **no year** — these read
  * inside a list where the year is unambiguous from context. Short enough that a row reads at a
- * glance ("who · when · how long") instead of as a sentence; the full span isn't shown here (the
- * day count carries "how long"), so this formats a single anchor date — typically the start. The
- * ordinal always shows here regardless of style; only day/month order follows the style.
+ * glance ("who · when · how long") instead of as a sentence. The ordinal always shows here
+ * regardless of style; only day/month order follows the style.
  */
+const SHORT_PARTS: DateParts = { weekday: true, ordinal: true, year: false };
+
 export function formatShortDate(date: ISODate): string {
-  const descriptor = resolveDescriptor();
-  const pattern = descriptor.monthFirst ? "EEE MMM do" : "EEE do MMM";
-  return format(parseDate(date), pattern, { locale: readActiveDateLocale() });
+  return formatSingle(date, SHORT_PARTS);
 }
 
 /**
  * A short weekday-anchored range: "Fri 5th – Mon 8th Jun", collapsing a repeated month per the
- * module's collapse rule. Crossing months shows the month at both endpoints: "Fri 5th Jun – Mon
- * 8th Jul". A same-day range degrades to {@link formatShortDate}. Always ordinal, like
- * {@link formatShortDate}; no year, like the range this replaces by hand at call sites.
+ * module's collapse rule. Crossing months shows the month at both endpoints ("Fri 5th Jun – Mon
+ * 8th Jul"); crossing a year shows the year too. A same-day range degrades to
+ * {@link formatShortDate}.
  */
 export function formatShortDateRange(startDate: ISODate, endDate: ISODate): string {
-  if (startDate === endDate) return formatShortDate(startDate);
-  const descriptor = resolveDescriptor();
-  const locale = readActiveDateLocale();
-  const start = parseDate(startDate);
-  const end = parseDate(endDate);
-
-  // A range across a year boundary spends the width on both years rather than reading as two days
-  // in the same one; inside a year the year is what gets dropped, not the month.
-  if (start.getFullYear() !== end.getFullYear()) {
-    const pattern = descriptor.monthFirst ? "EEE MMM do, yyyy" : "EEE do MMM yyyy";
-    return `${format(start, pattern, { locale })} – ${format(end, pattern, { locale })}`;
-  }
-  const sameMonth = start.getMonth() === end.getMonth();
-
-  const monthLeading = "EEE MMM do";
-  const monthTrailing = "EEE do MMM";
-  const noMonth = "EEE do";
-
-  let startPattern: string;
-  let endPattern: string;
-  if (sameMonth) {
-    startPattern = descriptor.monthFirst ? monthLeading : noMonth;
-    endPattern = descriptor.monthFirst ? noMonth : monthTrailing;
-  } else {
-    startPattern = descriptor.monthFirst ? monthLeading : monthTrailing;
-    endPattern = startPattern;
-  }
-
-  return `${format(start, startPattern, { locale })} – ${format(end, endPattern, { locale })}`;
+  return formatRange(startDate, endDate, SHORT_PARTS);
 }
 
 /**
@@ -133,49 +155,30 @@ export function formatShortDateRange(startDate: ISODate, endDate: ISODate): stri
  * list form; this is the one that has to stay short, so it deliberately drops the weekday rather
  * than reusing that longer shape. Day/month order and ordinal both follow the active style.
  */
+function dayMonthParts(): DateParts {
+  return { weekday: false, ordinal: resolveDescriptor().ordinal, year: false };
+}
+
 export function formatDayMonth(date: ISODate): string {
-  const descriptor = resolveDescriptor();
-  return format(parseDate(date), singlePattern(descriptor, false), { locale: readActiveDateLocale() });
+  return formatSingle(date, dayMonthParts());
 }
 
 /**
  * The day+month range counterpart to {@link formatDayMonth}: "9 – 14 Sep" for a same-month range,
- * "9 Sep – 14 Oct" crossing months, collapsing the repeated month per the module's collapse rule.
- * No year, like {@link formatDayMonth}. A same-day range degrades to {@link formatDayMonth}.
+ * "9 Sep – 14 Oct" crossing months, and both years spelled out when the range crosses one. A
+ * same-day range degrades to {@link formatDayMonth}.
  */
 export function formatDayMonthRange(startDate: ISODate, endDate: ISODate): string {
-  if (startDate === endDate) return formatDayMonth(startDate);
-  const descriptor = resolveDescriptor();
-  const locale = readActiveDateLocale();
-  const start = parseDate(startDate);
-  const end = parseDate(endDate);
-  const day = dayToken(descriptor.ordinal);
-
-  // Same reason as formatShortDateRange: without this a 2026-09-09 → 2027-09-09 range renders
-  // "9 Sep – 9 Sep" and claims a year-long allocation starts and ends on one day.
-  if (start.getFullYear() !== end.getFullYear()) {
-    const pattern = singlePattern(descriptor, true);
-    return `${format(start, pattern, { locale })} – ${format(end, pattern, { locale })}`;
-  }
-  const sameMonth = start.getMonth() === end.getMonth();
-  const startDay = format(start, day, { locale });
-  const endDay = format(end, day, { locale });
-
-  if (sameMonth) {
-    return descriptor.monthFirst
-      ? `${format(end, "MMM", { locale })} ${startDay} – ${endDay}`
-      : `${startDay} – ${endDay} ${format(end, "MMM", { locale })}`;
-  }
-
-  return descriptor.monthFirst
-    ? `${format(start, "MMM", { locale })} ${startDay} – ${format(end, "MMM", { locale })} ${endDay}`
-    : `${startDay} ${format(start, "MMM", { locale })} – ${endDay} ${format(end, "MMM", { locale })}`;
+  return formatRange(startDate, endDate, dayMonthParts());
 }
 
 /** A standalone calendar date with an explicit year for schedule details: "9 Sep 2026". */
+function scheduleParts(): DateParts {
+  return { weekday: false, ordinal: resolveDescriptor().ordinal, year: true };
+}
+
 export function formatScheduleDate(date: ISODate): string {
-  const descriptor = resolveDescriptor();
-  return format(parseDate(date), singlePattern(descriptor, true), { locale: readActiveDateLocale() });
+  return formatSingle(date, scheduleParts());
 }
 
 /**
@@ -184,32 +187,7 @@ export function formatScheduleDate(date: ISODate): string {
  * date at both endpoints. A one-day range is rendered as one full date.
  */
 export function formatScheduleDateRange(startDate: ISODate, endDate: ISODate): string {
-  if (startDate === endDate) return formatScheduleDate(startDate);
-  const descriptor = resolveDescriptor();
-  const locale = readActiveDateLocale();
-  const start = parseDate(startDate);
-  const end = parseDate(endDate);
-  const day = dayToken(descriptor.ordinal);
-  const sameYear = start.getFullYear() === end.getFullYear();
-
-  if (!sameYear) {
-    const pattern = singlePattern(descriptor, true);
-    return `${format(start, pattern, { locale })} – ${format(end, pattern, { locale })}`;
-  }
-
-  const sameMonth = start.getMonth() === end.getMonth();
-  const startDay = format(start, day, { locale });
-  const endDay = format(end, day, { locale });
-
-  if (sameMonth) {
-    return descriptor.monthFirst
-      ? `${format(end, "MMM", { locale })} ${startDay} – ${endDay}, ${format(end, "yyyy", { locale })}`
-      : `${startDay} – ${endDay} ${format(end, "MMM yyyy", { locale })}`;
-  }
-
-  return descriptor.monthFirst
-    ? `${format(start, "MMM", { locale })} ${startDay} – ${format(end, "MMM", { locale })} ${endDay}, ${format(end, "yyyy", { locale })}`
-    : `${startDay} ${format(start, "MMM", { locale })} – ${endDay} ${format(end, "MMM yyyy", { locale })}`;
+  return formatRange(startDate, endDate, scheduleParts());
 }
 
 /** A month and year with no day, no style: "Sep 2026". Used for calendar-header-style context. */
@@ -224,9 +202,7 @@ export function formatMonthYear(date: ISODate): string {
  * suffix is redundant precision rather than the disambiguation it provides in the terser form.
  */
 export function formatWeekdayScheduleDate(date: ISODate): string {
-  const descriptor = resolveDescriptor();
-  const pattern = descriptor.monthFirst ? "EEE MMM d, yyyy" : "EEE d MMM yyyy";
-  return format(parseDate(date), pattern, { locale: readActiveDateLocale() });
+  return formatSingle(date, { weekday: true, ordinal: false, year: true });
 }
 
 /**
