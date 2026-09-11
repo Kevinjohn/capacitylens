@@ -756,7 +756,10 @@ Codecov availability. Scorecard needs `publish_results: true` and its OIDC permi
 which are configured in `.github/workflows/scorecard.yml`.
 
 Dependabot's monthly npm, GitHub Actions and Docker updates stay enabled; pnpm is updated
-from `/` because the root workspace owns the shared lockfile.
+from `/` because the root workspace owns the shared lockfile. Because its pull-request bodies
+quote registry metadata and a base-image digest carries none, `.github/workflows/dependabot-summary.yml`
+comments a plain-English summary of each update on the pull request. The comment is advisory and
+gates nothing.
 
 ## Database migrations
 
