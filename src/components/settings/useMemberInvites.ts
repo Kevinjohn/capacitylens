@@ -56,7 +56,6 @@ function createSubmitInvite({
   isActiveAccount,
   withMemberAction,
   fail,
-  setNotice,
   reloadInvites,
   reconcileUnknownMutation,
   invitationPreauthorizedEmail,
@@ -101,7 +100,6 @@ function createSubmitInvite({
         });
         setInvitationPreauthorizedEmail("");
         clear();
-        setNotice(m.settings_members_invite_created());
         void reloadInvites();
       } catch (e) {
         await reconcileUnknownMutation(resolveInviteMutationError(m.settings_members_unknown_invite_creation(), e));

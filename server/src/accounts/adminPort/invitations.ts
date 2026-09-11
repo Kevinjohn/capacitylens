@@ -89,7 +89,16 @@ async function previewInvitation(context: InvitationsContext, { token }: Invitat
   if (inviteIsExpired(invite.expiresAt)) throw createAccountFailure("INVITATION_EXPIRED", "This invite has expired.");
   assertRedeemableInvitationRole(invite.role);
   const workspace = assertWorkspaceExists(context.db, invite.accountId);
-  return { workspaceName: workspace.name, role: invite.role, expiresAt: invite.expiresAt };
+  return {
+    workspaceName: workspace.name,
+    role: invite.role,
+    expiresAt: invite.expiresAt,
+    // Disclose only the local part as a hint. The full addressed email remains account
+    // administration data; the hint omits its domain and cannot authenticate anyone.
+    emailBound: invite.preauthEmail !== null,
+    emailHint:
+      invite.preauthEmail === null ? null : `${invite.preauthEmail.slice(0, invite.preauthEmail.lastIndexOf("@"))}@…`,
+  };
 }
 
 async function preparePasswordInvitationClaim(

@@ -889,10 +889,17 @@ carries a pre-set Admin, Editor or Viewer role for one company; Owner is never i
 Opening `/invite/<token>` shows the **Accept invite** screen (heading `Accept invite`) and safely
 previews the company name, proposed role, role summary and expiry before acceptance using public
 `GET /api/invites/:token/preview`. Possession of the bearer link is required to read that limited
-metadata; the preview returns no company data, membership list or unrelated identity facts. Merely
+metadata, including whether it is email-bound and a hint showing only the part before `@`,
+followed by `@…`. The domain, full address, company data, membership list and unrelated identity
+facts are never revealed. A bound invite explains that only the intended email address can accept it,
+while a generic link explains that it is transferable and single-use.
+An older preview without binding metadata makes neither claim. Merely
 opening or previewing the URL never changes membership. In a server deploy with auth on, an
-unauthenticated invitee gets the page's OWN inline onboarding form (NOT the app login wall): an
-existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, reviews the invitation
+unauthenticated invitee gets the page's own onboarding form with equally prominent **Sign in** and
+**Create account** tabs. Only the selected journey's fields appear; **Name** and a new-password field
+belong to account creation, while sign-in uses Email and the current password. Permission and
+existing-role consequences wrap in full. Expiry uses the viewer's local date and time without seconds;
+the year appears when it differs from the current year. An existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, reviews the invitation
 under that identity, sees the signed-in email/name, then chooses **Accept invite**. **Use a different
 account** signs out without discarding the bearer URL. If a pre-authorised invite rejects the current
 identity, the page explains the mismatch and retains that same recovery action instead of suggesting
@@ -1043,7 +1050,11 @@ The management section has four parts:
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
-  shown again. If any membership, invite or reset-token mutation loses its response after dispatch,
+  shown again. The panel explicitly says CapacityLens does not send invitation emails: the creator
+  copies and sends the link. Email guidance is associated with the field before validation and
+  remains available alongside any validation error. Creation confirmation stays beside the link, with instructions to
+  revoke and recreate it if lost, rather than overlaying the panel in a toast.
+  If any membership, invite or reset-token mutation loses its response after dispatch,
   the section reloads memberships, invites and authentication before enabling a retry. A lost invite
   or reset-token response is reported as an unknown one-time token; the operator must deliberately
   revoke or replace it rather than accidentally minting duplicates. Reconciliation never declares

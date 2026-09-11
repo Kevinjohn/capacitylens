@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { m } from "@/i18n";
+import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
@@ -99,7 +100,7 @@ function InviteHeader() {
       <CardTitle>
         <h2>{m.settings_invite_heading()}</h2>
       </CardTitle>
-      <CardDescription>{m.settings_invite_intro()}</CardDescription>
+      <CardDescription>{m.settings_invite_intro({ app: APP_NAME })}</CardDescription>
     </CardHeader>
   );
 }
@@ -168,6 +169,9 @@ function InviteForm(props: InviteFormProps) {
           {m.settings_invite_submit()}
         </Button>
       </div>
+      <p id={`${errorId}-email-help`} className="text-xs text-muted-foreground">
+        {authMode === "sso" ? m.settings_invite_preauth_description_sso() : m.settings_invite_preauth_description()}
+      </p>
       <p className="text-xs text-muted-foreground" data-testid="invite-role-summary" aria-live="polite">
         {resolveRoleSummary(inviteRole)}
       </p>
@@ -180,13 +184,22 @@ function InviteForm(props: InviteFormProps) {
 function MintedInviteLink({ mintedLink, copyLink }: Pick<InviteFormProps, "mintedLink" | "copyLink">) {
   if (!mintedLink) return null;
   return (
-    <CopyableLinkBlock
-      link={mintedLink.link}
-      testId="invite-link"
-      copiedNotice={m.settings_members_invite_copied()}
-      copyLabel={m.settings_invite_copy_aria()}
-      copyLink={copyLink}
-    />
+    <div
+      data-testid="invite-created-status"
+      role="status"
+      aria-live="polite"
+      className="flex flex-col gap-2 rounded border border-ok/40 bg-ok/5 p-3"
+    >
+      <p className="text-sm font-medium text-ok">{m.settings_members_invite_created()}</p>
+      <CopyableLinkBlock
+        link={mintedLink.link}
+        testId="invite-link"
+        copiedNotice={m.settings_members_invite_copied()}
+        copyLabel={m.settings_invite_copy_aria()}
+        copyLink={copyLink}
+      />
+      <p className="text-xs text-muted-foreground">{m.settings_members_invite_created_recovery()}</p>
+    </div>
   );
 }
 
@@ -218,6 +231,8 @@ function InviteEmailField(props: InviteEmailFieldProps) {
         }}
         disabled={busy}
         invalid={errorField === "invite"}
+        required={authMode === "sso"}
+        externalDescriptionId={`${errorId}-email-help`}
         describedById={errorId}
         placeholder={m.settings_invite_preauth_placeholder()}
         testId="invite-preauth"
