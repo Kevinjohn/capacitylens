@@ -131,6 +131,20 @@ describe("applyGesture: move across resources with different working weeks", () 
     ).toEqual({ startDate: "2026-08-14", endDate: "2026-08-16" });
   });
 
+  it("snaps the start onto the destination's week even when the origin carries no duration", () => {
+    // Fri 14 alone: zero working days for Mid, so nothing is carried. Dragging it one column right
+    // lands on Sat 15, which Mon-Fri does not work — the commit would refuse it. The destination's
+    // week decides the START whatever the origin measured, so this must reach Mon 17.
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-14", endDate: "2026-08-14" },
+        deltaDays: 1,
+        options: { workingDays: monToFri, sourceWorkingDays: mid },
+      }),
+    ).toEqual({ startDate: "2026-08-17", endDate: "2026-08-17" });
+  });
+
   it("preserves the calendar span when the origin's working week has collapsed to none", () => {
     // An empty week is not weekend-aware, so it cannot be told apart from a SEVEN-day week by
     // awareness alone. Reading "works no day" as "works every day" would measure six calendar days

@@ -1393,6 +1393,10 @@ function registerSourceCalendarTest() {
     return Math.max(1, raw - Math.min(LAYOUT.barInset, raw / 3) * 2);
   };
 
+  /** The bar's rendered left edge: its column position plus the same inset. */
+  const renderedLeft = (from: string, to: string) =>
+    GEOM.xForDateInGeom(from) + Math.min(LAYOUT.barInset, GEOM.widthForDates(from, to) / 3);
+
   function seedCrossWeekPair() {
     const st = useStore.getState();
     const c = st.addClient({ name: "Acme", color: "#1" });
@@ -1523,6 +1527,68 @@ function registerSourceCalendarTest() {
     const after = getStoredAllocation(a.id);
     expect(after.resourceId).toBe(src.id);
     expect([after.startDate, after.endDate]).toEqual(["2026-06-08", "2026-06-12"]);
+  });
+
+  it("keeps following the pointer sideways while the row under it refuses the drop", () => {
+    // Same refused drop as above, but dragged a week to the right as well as down. The bar must not
+    // take the destination's re-placement, and it must not freeze at its old column either: it
+    // previews the range this drag would give it on its OWN row, so it tracks the pointer.
+    const st = useStore.getState();
+    const c = st.addClient({ name: "Acme", color: "#1" });
+    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
+    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
+    const src = st.addResource(
+      makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] }),
+    );
+    const dst = st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#4", workingDays: [...midWeek] }));
+    const a = st.addAllocation({
+      resourceId: src.id,
+      activityId: t.id,
+      startDate: "2026-06-08",
+      endDate: "2026-06-12",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    render(
+      <>
+        <div data-resource-id={src.id} data-testid="lane-src" />
+        <div data-resource-id={dst.id} data-testid="lane-dst" />
+        <AllocationBar
+          bar={{
+            allocation: a,
+            x: GEOM.xForDateInGeom("2026-06-08"),
+            width: GEOM.widthForDates("2026-06-08", "2026-06-12"),
+            top: 0,
+            color: "#3b82f6",
+            label: "Wires",
+            external: false,
+          }}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </>,
+    );
+    screen.getByTestId("lane-src").getBoundingClientRect = () => rect(0, 50);
+    screen.getByTestId("lane-dst").getBoundingClientRect = () => rect(100, 150);
+
+    const bar = screen.getByTestId("allocation-bar");
+    const startX = GEOM.xForDateInGeom("2026-06-08") + 10;
+    // Mon 06-15 is not one of Tue/Wed/Thu, so the drop is still refused.
+    const movedX = GEOM.xForDateInGeom("2026-06-15") + 10;
+    fireEvent.pointerDown(bar, { clientX: startX, clientY: 25, button: 0 });
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointermove", { clientX: movedX, clientY: 125, bubbles: true }));
+    });
+
+    const style = (bar as HTMLElement).style;
+    expect(parseFloat(style.left)).toBeCloseTo(renderedLeft("2026-06-15", "2026-06-19"), 5);
+    expect(parseFloat(style.width)).toBeCloseTo(renderedWidth("2026-06-15", "2026-06-19"), 5);
+
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointerup", { clientX: movedX, clientY: 125, bubbles: true }));
+    });
+    expect(getStoredAllocation(a.id).resourceId).toBe(src.id);
   });
 
   it("a same-row vertical wiggle previews nothing, even for a range its own week would renormalise", () => {

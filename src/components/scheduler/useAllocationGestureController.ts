@@ -105,15 +105,18 @@ function previewGesture(options: ControllerOptions, runtime: GestureRuntime, inp
       : null;
   const destination = target && target.id !== resourceId ? target : null;
   const result = readPreviewDates({ bar, runtime, input, destination });
-  // A drop the commit will refuse must not be drawn: the preview would show a range the release is
-  // about to reject, then snap back. Only a settled range reaches the pixels.
+  // A drop the commit will refuse must not be drawn as a reassignment: the preview would show the
+  // destination's re-placement, then snap back on release. Fall back to the range this drag would
+  // produce on the bar's OWN row, so it keeps following the pointer sideways while the row under it
+  // refuses the drop — suppressing the range entirely froze the bar's horizontal tracking.
   const blocked = input.mode === "move" && isPreviewDestinationBlocked(bar, destination, result);
+  const settled = blocked ? readPreviewDates({ bar, runtime, input, destination: null }) : result;
   const preview: GesturePreview = {
     mode: input.mode,
     deltaDays: input.deltaDays,
     deltaY: input.deltaY,
     targetResourceId: target?.id ?? null,
-    dates: result.kind === "ready" && !blocked ? result.dates : null,
+    dates: settled.kind === "ready" ? settled.dates : null,
   };
   if (input.mode !== "move") return { preview, dropTarget: undefined };
   return { preview, dropTarget: destination && !blocked ? destination.el : null };

@@ -27,6 +27,9 @@ interface ApplyMoveInput {
   deltaDays: number;
   /** How long the range is in the ORIGIN's units; 0 when the origin has no duration to carry. */
   sourceSpan: number;
+  /** True when the two weeks differ, i.e. the move re-places the range in a calendar that did not
+   *  produce it. A same-resource move leaves this false and keeps its existing behaviour exactly. */
+  placesIntoAnotherWeek: boolean;
   targetDays: Weekday[] | null;
 }
 
@@ -121,12 +124,14 @@ function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: Resolv
 // on a Tue/Thu week read as four on a Mon-Fri one, and the bar refuses to shrink. When both weeks
 // count in the same units — two full weeks, or an allocation that ignores them — this reduces to
 // the plain calendar shift it has always been.
-function applyMove({ range, deltaDays, sourceSpan, targetDays }: ApplyMoveInput): DateRange {
+function applyMove({ range, deltaDays, sourceSpan, placesIntoAnotherWeek, targetDays }: ApplyMoveInput): DateRange {
   const shiftedStart = addDaysISO(range.startDate, deltaDays);
-  const newStart =
-    deltaDays !== 0 && sourceSpan > 0 && targetDays
-      ? snapToWorkingDay(shiftedStart, targetDays, deltaDays > 0 ? 1 : -1)
-      : shiftedStart;
+  // The DESTINATION's week decides where the range starts. An origin with nothing to carry must
+  // still snap when it is being placed in a DIFFERENT week: a start the destination does not work
+  // is refused at commit, so leaving it unsnapped turns the drop into a rejection toast. Within one
+  // week there is nothing to re-place, and a range already sitting on non-working days stays put.
+  const snaps = deltaDays !== 0 && targetDays && (sourceSpan > 0 || placesIntoAnotherWeek);
+  const newStart = snaps ? snapToWorkingDay(shiftedStart, targetDays, deltaDays > 0 ? 1 : -1) : shiftedStart;
   // An origin with no duration to carry — its range lands entirely on days it does not work, or
   // its working week has collapsed to none at all. Preserving the raw calendar span is the only
   // non-destructive answer; re-placing a zero span would silently delete the booking.
@@ -152,14 +157,22 @@ function applyResize({ mode, range, deltaDays, weekendAwareDays }: ApplyResizeIn
 /** The week a gesture must respect, or `null` when it may treat every calendar day alike: a full or
  *  empty working week, or an allocation that opted out. Returning the array rather than a boolean is
  *  what lets every branch below drop the `options!.workingDays!` assertions. */
-function weekendAwareWeek(days: Weekday[] | undefined, ignoreWeekends: boolean | undefined): Weekday[] | null {
+function resolveWeekendAwareWeek(days: Weekday[] | undefined, ignoreWeekends: boolean | undefined): Weekday[] | null {
   return isWeekendAware(days, ignoreWeekends) ? (days ?? null) : null;
 }
 
+/** Do two resolved weeks describe the same working days? A same-resource move reads its week twice
+ *  and gets two equal-but-distinct arrays, so identity alone cannot answer this. */
+function isSameWeek(a: Weekday[] | null, b: Weekday[] | null): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((day) => b.includes(day));
+}
+
 /** The duration a move carries away from its ORIGIN. A collapsed working week (no effective days at
- *  all) reports 0 rather than a calendar span: `weekendAwareWeek` cannot tell it apart from a full
+ *  all) reports 0 rather than a calendar span: `resolveWeekendAwareWeek` cannot tell it apart from a full
  *  seven-day week, and treating "works no day" as "works every day" would inflate the booking. */
-function moveSpan(range: DateRange, options: GestureOptions | undefined): number {
+function resolveMoveSpan(range: DateRange, options: GestureOptions | undefined): number {
   const workingDays = options?.sourceWorkingDays ?? options?.workingDays;
   if (workingDays?.length === 0 && !options?.ignoreWeekends) return 0;
   // `spanDays` owns the working-days-versus-calendar-days split for the whole product; measuring
@@ -174,13 +187,17 @@ export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureIn
   // Resolve weekend-awareness ONCE for the whole gesture. A resize only ever sees one week; a move
   // sees two, and absent a source week it stays on one resource, so both of its ends are the same
   // calendar and every existing caller keeps its behaviour untouched.
-  const weekendAwareDays = weekendAwareWeek(options?.workingDays, options?.ignoreWeekends);
+  const weekendAwareDays = resolveWeekendAwareWeek(options?.workingDays, options?.ignoreWeekends);
   switch (mode) {
     case "move":
       return applyMove({
         range,
         deltaDays,
-        sourceSpan: moveSpan(range, options),
+        sourceSpan: resolveMoveSpan(range, options),
+        placesIntoAnotherWeek: !isSameWeek(
+          resolveWeekendAwareWeek(options?.sourceWorkingDays ?? options?.workingDays, options?.ignoreWeekends),
+          weekendAwareDays,
+        ),
         targetDays: weekendAwareDays,
       });
     case "resize-start":
