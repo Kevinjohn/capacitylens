@@ -118,15 +118,31 @@ describe("applyGesture: move across resources with different working weeks", () 
   });
 
   it("preserves the calendar span when the origin sees no working days in the range", () => {
-    // Sat 15 - Sun 16: zero working days for Mid, so there is no duration to carry across.
+    // Fri 14 - Sun 16: zero working days for Mid, so there is no duration to carry across. The
+    // destination DOES work the Friday, so measuring under it instead would collapse this to a
+    // single day — the discriminating case for which week is consulted.
     expect(
       applyGesture({
         mode: "move",
-        range: { startDate: "2026-08-15", endDate: "2026-08-16" },
+        range: { startDate: "2026-08-14", endDate: "2026-08-16" },
         deltaDays: 0,
         options: { workingDays: monToFri, sourceWorkingDays: mid },
       }),
-    ).toEqual({ startDate: "2026-08-15", endDate: "2026-08-16" });
+    ).toEqual({ startDate: "2026-08-14", endDate: "2026-08-16" });
+  });
+
+  it("preserves the calendar span when the origin's working week has collapsed to none", () => {
+    // An empty week is not weekend-aware, so it cannot be told apart from a SEVEN-day week by
+    // awareness alone. Reading "works no day" as "works every day" would measure six calendar days
+    // and re-place them as six of the target's working days, inflating the booking to 2026-08-20.
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-13", endDate: "2026-08-18" },
+        deltaDays: 0,
+        options: { workingDays: monToFri, sourceWorkingDays: [] },
+      }),
+    ).toEqual({ startDate: "2026-08-13", endDate: "2026-08-18" });
   });
 
   it("ignores both weeks when the allocation opts out of weekend-awareness", () => {

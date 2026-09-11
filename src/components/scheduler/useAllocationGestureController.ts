@@ -10,10 +10,14 @@ import { buildUndoShortcut } from "../../lib/keyboardShortcuts";
 import { buildVisibleRange, listAccountWorkingDays } from "../../store/selectors";
 import { useStore } from "../../store/useStore";
 import { reconcileReassignedHours, resolveGesture, resolveVolumePreservingHours } from "./allocationDrag";
-import { isAllocationMoveStartBlocked } from "./creationAvailability";
 import { readCapacityAnnouncement, readCapacityGestureAdvisory } from "./gestureAnnouncements";
 import { buildGesturePreviewDates } from "./gestureGeometry";
-import { hasEffectiveDaysFor, readWorkingDays, resolveMemoisedWorkingDays } from "./gestureWorkingWeeks";
+import {
+  hasEffectiveDaysFor,
+  isDropStartBlocked,
+  readWorkingDays,
+  resolveMemoisedWorkingDays,
+} from "./gestureWorkingWeeks";
 import { readLaneSnapshots, resolveLaneAt, type LaneSnapshot } from "./gestureLanes";
 import type { BarLayout } from "./schedulerModel";
 import { useAllocationFocus, type ScheduleAllocationFocus } from "./useAllocationFocus";
@@ -48,7 +52,8 @@ function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID)
   // Move starts are covered by the non-working-day gate, including moves away from a none-week
   // resource. A pure end resize needs this explicit refusal: otherwise the collapsed empty week
   // falls back to calendar-day volume math and rewrites hours that the capacity model says load none.
-  if (mode === "move" || hasEffectiveDaysFor(bar.allocation.ignoreWeekends, resourceId)) return false;
+  if (mode === "move" || hasEffectiveDaysFor({ resourceId, ignoreWeekends: bar.allocation.ignoreWeekends }))
+    return false;
   useStore.getState().setNotice(m.scheduler_toast_no_effective_days_gesture(), "error");
   return true;
 }
@@ -59,15 +64,15 @@ function isPreviewDestinationBlocked(
   result: ReturnType<typeof buildGesturePreviewDates>,
 ) {
   if (!destination) return false;
-  const state = useStore.getState();
-  const resource = state.data.resources.find((candidate) => candidate.id === destination.id);
-  if (!resource || result.kind === "blocked") return !!resource;
+  // A lane whose resource vanished mid-drag is nothing to highlight, but nor is it "blocked" —
+  // there is no placement to refuse. `readWorkingDays` is undefined only when the resource is gone.
+  if (readWorkingDays(destination.id) === undefined) return false;
+  if (result.kind === "blocked") return true;
   if (result.kind !== "ready") return false;
-  return isAllocationMoveStartBlocked({
-    resource,
+  return isDropStartBlocked({
+    resourceId: destination.id,
     date: result.dates.startDate,
-    accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
-    ignoreWorkingDays: bar.allocation.ignoreWeekends,
+    ignoreWeekends: bar.allocation.ignoreWeekends,
   });
 }
 
@@ -100,16 +105,17 @@ function previewGesture(options: ControllerOptions, runtime: GestureRuntime, inp
       : null;
   const destination = target && target.id !== resourceId ? target : null;
   const result = readPreviewDates({ bar, runtime, input, destination });
-  const dates = result.kind === "ready" ? result.dates : null;
+  // A drop the commit will refuse must not be drawn: the preview would show a range the release is
+  // about to reject, then snap back. Only a settled range reaches the pixels.
+  const blocked = input.mode === "move" && isPreviewDestinationBlocked(bar, destination, result);
   const preview: GesturePreview = {
     mode: input.mode,
     deltaDays: input.deltaDays,
     deltaY: input.deltaY,
     targetResourceId: target?.id ?? null,
-    dates,
+    dates: result.kind === "ready" && !blocked ? result.dates : null,
   };
   if (input.mode !== "move") return { preview, dropTarget: undefined };
-  const blocked = isPreviewDestinationBlocked(bar, destination, result);
   return { preview, dropTarget: destination && !blocked ? destination.el : null };
 }
 
@@ -149,17 +155,14 @@ interface CommitGateInput {
 
 function isCommitBlocked({ options, mode, resourceId, dates }: CommitGateInput) {
   const { bar } = options;
-  const state = useStore.getState();
-  const resource = state.data.resources.find((candidate) => candidate.id === resourceId);
   const startChanged = dates.startDate !== bar.allocation.startDate;
-  if (!resource || (mode !== "move" && !startChanged)) return false;
-  const blocked = isAllocationMoveStartBlocked({
-    resource,
+  if (mode !== "move" && !startChanged) return false;
+  const blocked = isDropStartBlocked({
+    resourceId,
     date: dates.startDate,
-    accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
-    ignoreWorkingDays: bar.allocation.ignoreWeekends,
+    ignoreWeekends: bar.allocation.ignoreWeekends,
   });
-  if (blocked) state.setNotice(m.scheduler_toast_non_working_drop(), "error");
+  if (blocked) useStore.getState().setNotice(m.scheduler_toast_non_working_drop(), "error");
   return blocked;
 }
 
@@ -275,15 +278,12 @@ function isKeyboardGestureBlocked({ options, mode, current, next }: KeyboardGate
   const { bar } = options;
   if (next.endDate < next.startDate) return true;
   const state = useStore.getState();
-  const resource = state.data.resources.find((candidate) => candidate.id === bar.allocation.resourceId);
   const startBlocked =
     (mode === "move" || next.startDate !== current.startDate) &&
-    !!resource &&
-    isAllocationMoveStartBlocked({
-      resource,
+    isDropStartBlocked({
+      resourceId: bar.allocation.resourceId,
       date: next.startDate,
-      accountWorkingDays: listAccountWorkingDays(state.data, state.activeAccountId),
-      ignoreWorkingDays: bar.allocation.ignoreWeekends,
+      ignoreWeekends: bar.allocation.ignoreWeekends,
     });
   if (startBlocked) {
     state.setNotice(m.scheduler_toast_non_working_drop(), "error");
