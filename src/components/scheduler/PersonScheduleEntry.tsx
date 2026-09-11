@@ -1,7 +1,7 @@
 import { CalendarOff } from "lucide-react";
 
 import { m } from "@/i18n";
-import { formatDayMonth } from "@/lib/dateDisplay";
+import { formatDayMonthRange } from "@/lib/dateDisplay";
 import { resolveTimeOffTypeLabel } from "@/lib/metadata";
 
 import type {
@@ -15,11 +15,6 @@ interface PersonScheduleEntryProps {
 }
 
 const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
-
-const formatCompactDateRange = (
-  startDate: PersonScheduleAllocationEntry["startDate"],
-  endDate: PersonScheduleAllocationEntry["endDate"],
-) => (startDate === endDate ? formatDayMonth(startDate) : `${formatDayMonth(startDate)} – ${formatDayMonth(endDate)}`);
 
 function EntryNote({ note }: { note: string }) {
   return (
@@ -46,7 +41,7 @@ function AllocationEntry({ entry }: { entry: PersonScheduleAllocationEntry }) {
         </div>
       </div>
       <p className="mt-2 break-words text-sm text-muted-foreground">
-        {formatCompactDateRange(entry.startDate, entry.endDate)}
+        {formatDayMonthRange(entry.startDate, entry.endDate)}
         {entry.hoursPerDay === undefined
           ? ""
           : m.scheduler_bar_pop_hours({ hours: roundDisplayHours(entry.hoursPerDay) })}
@@ -65,7 +60,7 @@ function TimeOffEntry({ entry }: { entry: PersonScheduleTimeOffEntry }) {
         <h3 className="font-semibold text-foreground">{resolveTimeOffTypeLabel(entry.type)}</h3>
       </div>
       <p className="mt-2 break-words text-sm text-muted-foreground">
-        {formatCompactDateRange(entry.startDate, entry.endDate)}
+        {formatDayMonthRange(entry.startDate, entry.endDate)}
       </p>
       {entry.note && <EntryNote note={entry.note} />}
     </>

@@ -118,7 +118,7 @@ describe("CapacityOverviewTable content", () => {
       />,
     );
 
-    expect(screen.getByRole("columnheader", { name: "10 Sep – 13 Sep" })).not.toHaveTextContent("2026");
+    expect(screen.getByRole("columnheader", { name: "10 – 13 Sep" })).not.toHaveTextContent("2026");
     expect(screen.getByRole("columnheader", { name: "28 Sep – 4 Oct" })).toBeInTheDocument();
     expect(screen.queryByText(/This week|Next week|Week 3|Week 4/)).not.toBeInTheDocument();
     const person = screen.getByRole("row", { name: /Clark Kent/ });
