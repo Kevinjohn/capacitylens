@@ -34,8 +34,8 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 9. Click **Time off**. The URL is `/timeoff` and the Time-off list shows
    (_Bruce — 10–12 June (Holiday)_).
 10. Click **Team & access**. The URL is `/team` and the current access summary shows.
-11. Click **Settings**. The URL is `/settings` and the Settings screen shows (ending with the
-    **Account Options Selected at Creation** summary).
+11. Click **Settings**. The URL is `/settings` and the Settings screen shows the **Account Options
+    Selected at Creation** summary and the **Diagnostics** card.
 
 ## Acceptance criteria
 

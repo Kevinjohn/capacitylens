@@ -37,6 +37,8 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
+  server health metadata that can be copied for support reports (#745).
 - Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,
   activity creation, company-settings review and direct links to each action (#741).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,

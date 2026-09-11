@@ -4,12 +4,19 @@ import { ListPage } from "../common/ui";
 import { ImportExport } from "../ImportExport";
 import { ArchivedSection } from "./ArchivedSection";
 import { SecuritySection } from "./SecuritySection";
-import { SettingsAccountOptions, SettingsAccountSection, SettingsBuildDetails } from "./SettingsAccountSections";
+import {
+  SettingsAccountOptions,
+  SettingsAccountSection,
+  SettingsBuildDetails,
+  SettingsDiagnostics,
+} from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import { SettingsDataSection } from "./SettingsDataSection";
 import { SettingsSchedulingSection } from "./SettingsSchedulingSection";
 import { SettingsSection } from "./SettingsSection";
 import { useSettingsViewController } from "./useSettingsViewController";
+
+type Controller = ReturnType<typeof useSettingsViewController>;
 
 function useSettingsOnboardingTarget(ready: boolean) {
   useEffect(() => {
@@ -33,6 +40,30 @@ function SettingsImportSection() {
     >
       <ImportExport />
     </SettingsSection>
+  );
+}
+
+function SettingsBottomSections({ controller }: { controller: Controller }) {
+  const { auth, scheduling } = controller;
+  return (
+    <>
+      <SettingsAccountSection auth={auth} />
+      {auth.authMode === "password" && <SecuritySection />}
+      <ArchivedSection collapsible defaultOpen={false} />
+      <SettingsImportSection />
+      <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
+      <SettingsBuildDetails
+        serverMode={controller.serverMode}
+        persistenceDiagnostics={controller.persistenceDiagnostics}
+        stamp={controller.stamp}
+        feedback={controller.feedback}
+      />
+      <SettingsDiagnostics
+        diagnostics={controller.diagnostics}
+        diagnosticsCopyState={controller.diagnosticsCopyState}
+        copyDiagnostics={controller.copyDiagnostics}
+      />
+    </>
   );
 }
 
@@ -75,17 +106,7 @@ export function SettingsView() {
           offlineState={controller.offlineState}
           {...localData}
         />
-        <SettingsAccountSection auth={auth} />
-        {auth.authMode === "password" && <SecuritySection />}
-        <ArchivedSection collapsible defaultOpen={false} />
-        <SettingsImportSection />
-        <SettingsAccountOptions activeAccount={controller.activeAccount} scheduling={scheduling} />
-        <SettingsBuildDetails
-          serverMode={controller.serverMode}
-          persistenceDiagnostics={controller.persistenceDiagnostics}
-          stamp={controller.stamp}
-          feedback={controller.feedback}
-        />
+        <SettingsBottomSections controller={controller} />
       </div>
     </ListPage>
   );

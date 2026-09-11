@@ -39,6 +39,10 @@ export const accountClient = {
     return apiFetch(`${API_BASE}/api/accounts`, { credentials: "include", ...(signal ? { signal } : {}) });
   },
 
+  diagnostics(signal?: AbortSignal): Promise<Response> {
+    return apiFetch(`${API_BASE}/api/diagnostics`, { credentials: "include", ...(signal ? { signal } : {}) });
+  },
+
   signOut(): Promise<Response> {
     return apiFetch(`${API_BASE}/api/account/sign-out`, {
       method: "POST",

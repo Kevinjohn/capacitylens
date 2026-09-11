@@ -60,6 +60,7 @@ interface PublicRouteDependencies {
   section: "public";
   securityEvent: (event: Record<string, unknown>) => void;
   healthStatement: { get(): unknown } | null;
+  diagnosticsSchemaStatement: { get(): unknown };
   auditDrainer: { pendingCount(): number };
   auditSink: Pick<AuditSink, "degraded">;
   backupHealth?: () => Readonly<{ degraded: boolean; lastSuccessAt: string | null }>;
@@ -78,10 +79,78 @@ function buildAuditStatus(auditSink: Pick<AuditSink, "degraded">, pendingCount: 
 }
 
 function buildBackupHealth(backupHealth: Readonly<{ degraded: boolean; lastSuccessAt: string | null }>) {
+  const lastSuccessAt = readBackupTimestamp(backupHealth.lastSuccessAt);
   let status: "degraded" | "ok" | "pending" = "pending";
   if (backupHealth.degraded) status = "degraded";
-  else if (backupHealth.lastSuccessAt) status = "ok";
-  return { status, lastSuccessAt: backupHealth.lastSuccessAt };
+  else if (lastSuccessAt) status = "ok";
+  return { status, lastSuccessAt };
+}
+
+function readBackupHealth(dependencies: PublicRouteDependencies) {
+  if (!dependencies.backupHealth) return { status: "unavailable" as const, lastSuccessAt: null };
+  try {
+    return buildBackupHealth(dependencies.backupHealth());
+  } catch {
+    return { status: "unavailable" as const, lastSuccessAt: null };
+  }
+}
+
+function readBackupTimestamp(value: unknown): string | null {
+  if (
+    typeof value !== "string" ||
+    value.length > 64 ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) ||
+    !Number.isFinite(Date.parse(value)) ||
+    new Date(value).toISOString() !== value
+  )
+    return null;
+  return value;
+}
+
+function readDatabaseSchemaVersion(statement: { get(): unknown }): number | null {
+  try {
+    const row = statement.get();
+    if (
+      !isRecord(row) ||
+      typeof row.user_version !== "number" ||
+      !Number.isSafeInteger(row.user_version) ||
+      row.user_version < 0
+    )
+      return null;
+    return row.user_version;
+  } catch {
+    // Diagnostics surface the unavailable state; returning a raw SQLite error would disclose
+    // implementation details and private paths.
+    return null;
+  }
+}
+
+function registerDiagnosticsRoute(app: FastifyInstance, dependencies: PublicRouteDependencies): void {
+  // Authenticated through the existing application session pre-handler. Keep this response a
+  // fixed projection so support tooling cannot accidentally copy tenant data or future fields.
+  app.get("/api/diagnostics", (_req, reply) => {
+    const schemaVersion = readDatabaseSchemaVersion(dependencies.diagnosticsSchemaStatement);
+    const databaseStatus = schemaVersion === null ? "unavailable" : "ok";
+    const backup = readBackupHealth(dependencies);
+    if (databaseStatus === "unavailable") {
+      return reply.code(503).send({
+        server: {
+          connectivity: "ok",
+          database: { status: databaseStatus, schemaVersion: null },
+          persistence: "unknown",
+          backup,
+        },
+      });
+    }
+    return {
+      server: {
+        connectivity: "ok",
+        database: { status: databaseStatus, schemaVersion },
+        persistence: "unknown" as const,
+        backup,
+      },
+    };
+  });
 }
 
 function registerMetaRoute(app: FastifyInstance, dependencies: MetaRouteDependencies): void {
@@ -148,6 +217,8 @@ function registerPublicRoutes(app: FastifyInstance, dependencies: PublicRouteDep
       return reply.code(503).send({ ok: false });
     }
   });
+
+  registerDiagnosticsRoute(app, dependencies);
 }
 
 // These routes are grouped as system endpoints but intentionally share no common access policy.

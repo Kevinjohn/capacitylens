@@ -659,8 +659,9 @@ via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the
 governs **free scroll only** — the always-on **navigation** snap (Weeks visible / Prev-Next / Today,
 see _Scheduler toolbar_ above) re-anchors to the week start regardless of this switch.
 
-**Account options selected at creation (per-account, FROZEN after creation — P1.14).** The final
-Settings card is a compact, read-only four-row table: **Company name**, **Week starts on**,
+**Account options selected at creation (per-account, FROZEN after creation — P1.14).** Near the
+bottom of Settings, this compact, read-only four-row table appears before the Diagnostics card:
+**Company name**, **Week starts on**,
 **Time zone** (including its numeric UTC offset) and **Language** (`data-testid="settings-language"`,
 **English**). It replaces the editable Company card and the disabled Calendar controls. These values
 are captured ONCE in the company-create form (see _Launching the app_ above), and the help modal
@@ -794,7 +795,7 @@ message because their on-demand module graph cannot provide a complete, immutabl
 offline promotion.
 
 **Build stamp + feedback link (Settings, flag-gated).** When the build sets
-`VITE_CAPACITYLENS_BUILD_SHA`, the Settings page ends with a muted one-line footer containing the
+`VITE_CAPACITYLENS_BUILD_SHA`, the Settings page includes a muted one-line footer near the bottom containing the
 stamp (`data-testid="build-stamp"`) reading `build <sha> · server` (a server backend is
 configured, i.e. `VITE_CAPACITYLENS_API` was baked in) or `build <sha> · demo` (in-memory
 mode). When the build also sets `VITE_CAPACITYLENS_FEEDBACK_MAILTO`, a **Send feedback** link
@@ -809,6 +810,20 @@ disclosure (`data-testid="persistence-diagnostics"`) reports process-local, priv
 failed saves, armed retries, completed reconciliations, superseded reloads, rebased edits and
 discarded edits, plus whether writes are currently suspended. It contains counts and state only—no
 company, person, project or note values—and resets when a fresh persistence lifecycle attaches.
+
+**Diagnostics (Settings).** At the bottom of Settings, a **Diagnostics** card offers
+**Copy diagnostics** (`data-testid="copy-diagnostics"`). The card shows a **Snapshot observed** ISO
+timestamp captured by the client when the response arrives or its failure is observed. This is a
+point-in-time snapshot, not a live monitor. The copied text contains a fixed allowlist: the snapshot
+timestamp, app version, a validated build revision when one is present, deployment mode and export
+schema, followed by separately labelled server connectivity, database schema, persistence and
+backup status. The card is present in demo mode too, with server values unavailable. A missing or
+unavailable value is shown as **Unknown** or **Unavailable**; `null` schema/version fields mean that
+value was unavailable or invalid, not zero or a browser fallback, while a `null` backup timestamp
+means no valid backup timestamp was observed and does not assert that no backup exists. Browser
+constants are never presented as the server's database schema. The projection contains no names, emails,
+identifiers, paths, hostnames, secrets, invite or session values, raw errors or arbitrary response
+fields. The button reports a generic success or clipboard failure message.
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
 server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `CAPACITYLENS_AUTH=password` or
@@ -1277,7 +1292,7 @@ carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Se
 30-day grace elapses, purge-tier/admin-only),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy; absent in the default OFF/local deploy and for any non-viewer role),
-`persistence-diagnostics` (Settings diagnostics disclosure; server mode), `build-stamp` (Settings footer; only rendered when the build sets
+`persistence-diagnostics` (Settings diagnostics disclosure; server mode), `copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `build-stamp` (Settings footer; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,

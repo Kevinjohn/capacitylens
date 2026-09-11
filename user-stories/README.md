@@ -211,6 +211,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-13](settings/US-SET-13-password-reset-links.md)  | Admin-issued password-reset links                     | `e2e/reset-password.auth.spec.ts`                       |
 | [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours                                 | `e2e/internal-colours.spec.ts`                          |
 | [US-SET-15](settings/US-SET-15-global-working-days.md)   | Company-wide working days                             | `e2e/global-working-days.spec.ts`                       |
+| [US-SET-16](settings/US-SET-16-diagnostics.md)           | Copy privacy-safe diagnostics                         | `src/data/buildInfo.test.ts` + `SettingsView.test.tsx`  |
 
 ## Keyboard & accessibility — `accessibility/`
 
