@@ -9,8 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Narrow the Schedule project filter choices to the selected client while retaining **All projects**
+  and resetting incompatible project selections (#716).
 - Explain every empty activity category and keep creation actions beside the Activities and Time off headings (#742).
-
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
   and simplify drawer entries to a compact activity-first agenda (#753, #754).
 

@@ -30,3 +30,6 @@ When focused on one project's delivery, the manager wants the schedule reduced t
   case-insensitive and deterministic.
 - ✅ Each project option keeps its complete `Client / Project` accessible label while visually
   muting the client and slash so the project name remains prominent in every interaction state.
+- ✅ When a client is selected, the project picker keeps **All projects** and only that client's
+  eligible projects; choosing a different client clears an incompatible project selection while
+  retaining a project that belongs to the newly selected client.
