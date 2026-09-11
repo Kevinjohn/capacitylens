@@ -33,6 +33,8 @@ new features and **patch** versions carry fixes.
   activity creation, company-settings review and direct links to each action (#741).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
   manually triggered workflow (#752).
+- Review free capacity, overload and unassigned demand across a fixed four-week Capacity Overview,
+  with tentative and availability filters plus company-controlled role access (#722).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is
   hidden and task details above Notes in schedule popovers and person drawers (#720).
 - Add optional inclusive **Start date** and **End date** fields for Studio and

@@ -67,6 +67,7 @@ const accountsColumns = [
   { name: "showInternalActivities", json: true, optional: true },
   { name: "inlineActivityCreateEnabled", json: true, optional: true },
   { name: "showTaskFieldInSchedule", json: true, optional: true },
+  { name: "capacityOverviewAccess", json: true, optional: true },
   ...META,
 ] as const satisfies ColumnSpec[];
 

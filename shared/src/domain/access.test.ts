@@ -8,7 +8,9 @@ import {
   canManageMemberRole,
   canRemoveMember,
   canResetMemberAcrossAccounts,
+  canViewCapacityOverview,
 } from "./access";
+import type { CapacityOverviewAccess } from "../types/entities";
 import type { Role, Action } from "./access";
 import { canAdministerAccount } from "../account/policy";
 
@@ -170,6 +172,26 @@ describe("canSeePrivateNames(role) — field-level rule (owner only)", () => {
     ["viewer", false],
   ] as const)("%s → %s", (role, expected) => {
     expect(canSeePrivateNames(role)).toBe(expected);
+  });
+});
+
+describe("canViewCapacityOverview(role, access) — account setting policy", () => {
+  const settings: readonly CapacityOverviewAccess[] = ["owner_admin", "owner_admin_editor", "everyone"];
+
+  it("defaults to owner/admin when the setting is absent or malformed", () => {
+    expect(canViewCapacityOverview("owner", undefined)).toBe(true);
+    expect(canViewCapacityOverview("admin", undefined)).toBe(true);
+    expect(canViewCapacityOverview("editor", undefined)).toBe(false);
+    expect(canViewCapacityOverview("viewer", "invalid" as CapacityOverviewAccess)).toBe(false);
+  });
+
+  it.each(settings)("applies the %s setting across all roles", (access) => {
+    const expected = {
+      owner_admin: { owner: true, admin: true, editor: false, viewer: false },
+      owner_admin_editor: { owner: true, admin: true, editor: true, viewer: false },
+      everyone: { owner: true, admin: true, editor: true, viewer: true },
+    }[access];
+    for (const role of ROLES) expect(canViewCapacityOverview(role, access)).toBe(expected[role]);
   });
 });
 

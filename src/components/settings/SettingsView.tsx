@@ -47,6 +47,7 @@ export function SettingsView() {
         <SettingsSchedulingSection
           id="getting-started-settings"
           canEdit={controller.canEdit}
+          canManageCapacityOverviewAccess={controller.canManageCapacityOverviewAccess}
           {...scheduling}
           workingDaysMinimumId={controller.workingDaysMinimumId}
           updateSetting={controller.updateSetting}

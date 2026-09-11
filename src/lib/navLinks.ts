@@ -1,6 +1,7 @@
 import {
   BriefcaseIcon,
   CalendarIcon,
+  ChartNoAxesColumnIncreasingIcon,
   ClipboardCheckIcon,
   FolderIcon,
   ShieldCheckIcon,
@@ -13,6 +14,7 @@ import {
 import { m } from "@/i18n";
 import {
   ROUTE_ACTIVITIES,
+  ROUTE_CAPACITY_OVERVIEW,
   ROUTE_CLIENTS,
   ROUTE_DISCIPLINES,
   ROUTE_PROJECTS,
@@ -40,6 +42,7 @@ export type NavigationLinkDefinition = { to: string; label: () => string; icon: 
 // anchor to a real element in the rendered schedule) — but the rest use the constants too so no
 // reader has to work out which literals are load-bearing.
 export const LINKS: NavigationLinkDefinition[] = [
+  { to: ROUTE_CAPACITY_OVERVIEW, label: () => m.nav_capacity_overview(), icon: ChartNoAxesColumnIncreasingIcon },
   { to: ROUTE_SCHEDULE, label: () => m.nav_schedule(), icon: CalendarIcon },
   { to: ROUTE_RESOURCES, label: () => m.nav_resources(), icon: UsersIcon },
   // External / 3rd parties moved INTO the Resources tab behind a per-account setting

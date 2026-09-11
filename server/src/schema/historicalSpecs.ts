@@ -66,13 +66,17 @@ const V29_ACCOUNTS: TableSpec = {
     (column) =>
       column.name !== "groupResourcesByEngagement" &&
       column.name !== "workingDays" &&
-      column.name !== "showTaskFieldInSchedule",
+      column.name !== "showTaskFieldInSchedule" &&
+      column.name !== "capacityOverviewAccess",
   ),
 };
 const V30_ACCOUNTS: TableSpec = {
   ...liveTableSpec("accounts"),
   columns: liveTableSpec("accounts").columns.filter(
-    (column) => column.name !== "workingDays" && column.name !== "showTaskFieldInSchedule",
+    (column) =>
+      column.name !== "workingDays" &&
+      column.name !== "showTaskFieldInSchedule" &&
+      column.name !== "capacityOverviewAccess",
   ),
 };
 const PRE_V35_ALLOCATIONS: TableSpec = {
@@ -101,7 +105,9 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: {
     ...liveTableSpec("accounts"),
-    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "showTaskFieldInSchedule"),
+    columns: liveTableSpec("accounts").columns.filter(
+      (column) => column.name !== "showTaskFieldInSchedule" && column.name !== "capacityOverviewAccess",
+    ),
   },
   allocations: {
     ...liveTableSpec("allocations"),
@@ -119,11 +125,23 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
 // precondition proves the exact released shape before adding its two columns.
 export const V37_TABLES: Record<string, TableSpec> = {
   ...TABLES,
+  accounts: {
+    ...liveTableSpec("accounts"),
+    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "capacityOverviewAccess"),
+  },
   resources: {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
       (column) => column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
     ),
+  },
+};
+/** Released v38 shape before the Capacity Overview access preference is added. */
+export const V38_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: {
+    ...liveTableSpec("accounts"),
+    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "capacityOverviewAccess"),
   },
 };
 const PRE_V34_TABLES = Object.fromEntries(

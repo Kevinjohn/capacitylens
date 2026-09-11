@@ -181,10 +181,13 @@ function createFieldVisibility(
   resolveRole: ResolveEffectiveRole,
 ) {
   return function readFieldVisibility(req: FastifyRequest, table: string, accountId: unknown): SanitizeWriteOptions {
-    if (!hasGatedFields(table) || authMode === "off") return ALL_FIELDS_VISIBLE;
+    if (authMode === "off") return ALL_FIELDS_VISIBLE;
+    if (table !== "accounts" && !hasGatedFields(table)) return ALL_FIELDS_VISIBLE;
     const resolved = typeof accountId === "string" ? resolveRole(req, accountId) : null;
     const role = resolved?.kind === "resolved" ? resolved.role : null;
-    return resolveVisibilityForRole(role);
+    const visibility = resolveVisibilityForRole(role);
+    visibility.canChangeCapacityOverviewAccess = role !== null && (role === "owner" || role === "admin");
+    return visibility;
   };
 }
 

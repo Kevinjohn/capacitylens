@@ -1,7 +1,7 @@
 import { m } from "@/i18n";
 import type { ReactNode } from "react";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import type { InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
+import type { CapacityOverviewAccess, InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
 import { externalExplainer } from "../../lib/externalCopy";
 import { buildLabels, buildLabelOptions } from "../../lib/metadata";
 import { listAccountWorkingDays } from "../../store/selectors";
@@ -9,12 +9,14 @@ import type { StoreState } from "../../store/useStore";
 import { SegmentedControl, SwitchField } from "../common/ui";
 import { SettingsSection } from "./SettingsSection";
 import { SettingsWorkingDaysSection } from "./SettingsWorkingDaysSection";
-import { INTERNAL_COLOUR_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
+import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, INTERNAL_COLOUR_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
 
 type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => void;
 type SettingsSchedulingSectionProps = {
   id?: string;
   canEdit: boolean;
+  canManageCapacityOverviewAccess: boolean;
+  capacityOverviewAccess: CapacityOverviewAccess;
   schedulingMode: SchedulingMode;
   workingDayOrder: ReturnType<typeof orderedWeekdays>;
   workingDays: ReturnType<typeof listAccountWorkingDays>;
@@ -36,6 +38,32 @@ type SettingsSchedulingSectionProps = {
   compactView: StoreState["compactView"];
   setCompactView: StoreState["setCompactView"];
 };
+
+function CapacityOverviewAccessSection({
+  canManageCapacityOverviewAccess,
+  capacityOverviewAccess,
+  updateSetting,
+}: Pick<
+  SettingsSchedulingSectionProps,
+  "canManageCapacityOverviewAccess" | "capacityOverviewAccess" | "updateSetting"
+>) {
+  return (
+    <SettingsSection
+      title={m.settings_capacity_overview_access_heading()}
+      help={m.settings_capacity_overview_access_intro()}
+    >
+      <SegmentedControl
+        ariaLabel={m.settings_capacity_overview_access_aria()}
+        value={capacityOverviewAccess}
+        onChange={(value) => updateSetting({ capacityOverviewAccess: value })}
+        options={buildLabelOptions(buildLabels(CAPACITY_OVERVIEW_ACCESS_MESSAGES))}
+        disabled={!canManageCapacityOverviewAccess}
+        fullWidth
+        density="compact"
+      />
+    </SettingsSection>
+  );
+}
 
 function SchedulingModeSection({
   canEdit,
@@ -269,12 +297,17 @@ function SchedulingFeatureSections({
   );
 }
 
-export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps) {
+function SchedulingFoundationSections(props: SettingsSchedulingSectionProps) {
   return (
-    <div id={props.id} tabIndex={props.id ? -1 : undefined} className="flex scroll-mt-4 flex-col gap-6">
+    <>
       <SchedulingModeSection
         canEdit={props.canEdit}
         schedulingMode={props.schedulingMode}
+        updateSetting={props.updateSetting}
+      />
+      <CapacityOverviewAccessSection
+        canManageCapacityOverviewAccess={props.canManageCapacityOverviewAccess}
+        capacityOverviewAccess={props.capacityOverviewAccess}
         updateSetting={props.updateSetting}
       />
       <SettingsWorkingDaysSection
@@ -284,6 +317,14 @@ export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps)
         workingDaysMinimumId={props.workingDaysMinimumId}
         updateSetting={props.updateSetting}
       />
+    </>
+  );
+}
+
+export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps) {
+  return (
+    <div id={props.id} tabIndex={props.id ? -1 : undefined} className="flex scroll-mt-4 flex-col gap-6">
+      <SchedulingFoundationSections {...props} />
       <AccountToggleSection
         title={m.settings_disciplines_heading()}
         help={m.settings_disciplines_intro()}
