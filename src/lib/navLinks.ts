@@ -66,6 +66,7 @@ export const ADMIN_LINKS: NavigationLinkDefinition[] = [
   { to: ROUTE_SETTINGS, label: () => m.nav_settings(), icon: SlidersHorizontalIcon },
 ];
 
+/** The personal account destination rendered in the sidebar session footer. */
 export const ACCOUNT_LINK: NavigationLinkDefinition = {
   to: ROUTE_ACCOUNT,
   label: () => m.nav_account(),

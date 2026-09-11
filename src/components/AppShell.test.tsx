@@ -9,6 +9,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { setOfflineReadState } from "../data/offlineCache";
 import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
 import { m } from "@/i18n";
+import * as accountTransition from "../auth/accountTransition";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock("@/i18n", async (importOriginal) => ({
@@ -473,6 +474,41 @@ function registerAccountNavigationStateTest(): void {
 
     expect(screen.getByRole("main")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
+    expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+  });
+
+  it("returns to the company picker from Account only after a successful switch", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/");
+    expect(transition).toHaveBeenCalledWith(null);
+  });
+
+  it("keeps Account in place when a company switch is cancelled or fails", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockResolvedValue(false);
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+    await waitFor(() => expect(transition).toHaveBeenCalledWith(null));
+
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/account");
     expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
   });
 }

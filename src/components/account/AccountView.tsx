@@ -23,6 +23,7 @@ function resolveAccess(authMode: ReturnType<typeof useAuth>["authMode"], demo: b
   return m.account_signed_in();
 }
 
+/** Renders the signed-in person's identity and personal security controls outside company data. */
 export function AccountView() {
   const auth = useAuth();
   const demo = useDemoAuthActive();

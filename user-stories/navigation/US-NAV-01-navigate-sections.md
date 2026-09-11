@@ -45,7 +45,7 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 - ✅ **Team & access** and **Settings** are the last two links, in that order, below the divider —
   they never appear among the working destinations above it.
 - ✅ **Schedule** renders the scheduler grid (`data-testid="scheduler-grid"`).
-- ✅ Each of the other eight links renders its screen with at least the seeded rows /
+- ✅ Each of the other nine links renders its screen with at least the seeded rows /
   fields visible (e.g. _Bruce Wayne_ on Resources, _Queen Consolidated_ on Clients, the
   **Account Options Selected at Creation** heading on Settings).
 - ✅ Navigating away and back (e.g. Resources → Schedule) re-renders each screen

@@ -180,6 +180,15 @@ function GatedSidebar({
   signOutDemo,
   sidebarOpen,
 }: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "signOutDemo" | "sidebarOpen">) {
+  const navigate = useNavigate();
+  const switchAccount = async () => {
+    try {
+      const switched = await transitionAccount(null);
+      if (switched) void navigate("/");
+    } catch (error: unknown) {
+      console.error("Company switch failed", error);
+    }
+  };
   return (
     <>
       <a
@@ -194,7 +203,7 @@ function GatedSidebar({
         demoAuthActive={demoAuthActive}
         navLinks={navLinks}
         onSignOut={signOutDemo}
-        onSwitchAccount={() => void transitionAccount(null)}
+        onSwitchAccount={() => void switchAccount()}
         open={sidebarOpen}
       />
     </>

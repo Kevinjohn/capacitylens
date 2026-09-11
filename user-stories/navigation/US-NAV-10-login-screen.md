@@ -12,7 +12,7 @@
 ## Goal
 
 Be the only kind of visitor who can read or change data on an auth-enabled deploy: one
-who has signed in — and be able to sign out again from Account or the sidebar.
+who has signed in — and be able to sign out again from the sidebar.
 
 ## Why
 
