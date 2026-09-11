@@ -49,6 +49,9 @@ The days that count are those in both this pattern and the company's
 capacity for this person. Set the pattern correctly, or the overwork indicators on
 [the schedule](/guide/the-schedule#reading-overwork) will be wrong for that person.
 
+In a self-hosted company, Save waits for the server to accept the person. If the server rejects
+the change, the dialog stays open and shows the returned error so you can correct it and try again.
+
 The current **Engagement** choice has a selected state. Saving **Supplementary** moves the person
 into that section immediately; it does not change their discipline, role or working days.
 

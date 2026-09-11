@@ -18,6 +18,8 @@ new features and **patch** versions carry fixes.
 - Explain every empty activity category and keep creation actions beside the Activities and Time off headings (#742).
 - Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
   and simplify drawer entries to a compact activity-first agenda (#753, #754).
+- Keep the Add person dialog open when a self-hosted save is rejected, and allow people whose
+  optional Role is blank to persist (#736).
 - Simplify resource add/edit forms with always-visible Studio/Supplementary choices, compact Start date and End date labels,
   and separators around the date group (#765).
 

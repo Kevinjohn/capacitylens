@@ -127,6 +127,40 @@ function registerAuthOnDurabilityTests(): void {
   });
 }
 
+function registerFreshCompanyResourceTest(): void {
+  it("fresh password-auth company accepts a person with no role through browser sync", async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true });
+    const { cookie } = await signUp(app, "blank-role@capacitylens.dev");
+    const created = await createOrg(app, { name: "Wayne Enterprises" }, { cookie });
+    expect(created.statusCode, created.body).toBe(201);
+    const accountId = readStringField(created, "id");
+    const resource = {
+      id: "resource-without-role",
+      accountId,
+      createdAt: TS,
+      updatedAt: TS,
+      kind: "person",
+      role: "",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#5c34d4",
+    };
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/batch",
+      headers: { cookie },
+      payload: { ops: [{ method: "PUT", table: "resources", id: resource.id, row: resource }] },
+    });
+
+    expect(response.statusCode, response.body).toBe(200);
+    expect(readState(db).resources).toEqual([expect.objectContaining({ id: resource.id, accountId, role: "" })]);
+  });
+}
+
 function registerAuthOnBootstrapTests(): void {
   it("serializes concurrent first-company creates and rechecks the cap under the account lock", async () => {
     const { app, db } = await appWithAuth();
@@ -289,6 +323,7 @@ function registerAuthOnRestrictionTests(): void {
 describe("POST /api/orgs (P1.8) — auth-on", () => {
   registerAuthOnDurabilityTests();
   registerAuthOnBootstrapTests();
+  registerFreshCompanyResourceTest();
   registerAuthOnMembershipTests();
   registerAuthOnRestrictionTests();
 });

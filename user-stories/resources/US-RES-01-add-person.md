@@ -37,6 +37,9 @@ off that resource record.
 - ✅ **Start date** and **End date** are optional inclusive date boundaries for Studio and
   Supplementary people; leaving them blank leaves that side unbounded. The same date is valid, and
   a first date after a last date is rejected.
+- ✅ Role is optional; leaving it blank still saves the person.
+- ✅ If a self-hosted server rejects the save, the dialog stays open and shows the server error
+  instead of implying that the person was saved.
 - ✅ At normal dialog widths, Name, Role, Discipline and Engagement use compact rows with roughly
   one quarter for the label and three quarters for the control; on a narrow screen they stack
   vertically, while Working days remains full width.
