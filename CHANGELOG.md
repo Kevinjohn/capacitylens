@@ -9,6 +9,10 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Show both years on a date range that crosses one, instead of a repeated month that read as a
+  single day (#819).
+- Name the company-closure Edit and Delete buttons with the date range shown on the row they act
+  on, so a voice-control user can speak what is on screen (#793).
 - Reduced memory pressure during direct deployment builds by keeping test and build-tool type-checking
   in validation while checking only browser-shipped sources in `pnpm run build`.
 

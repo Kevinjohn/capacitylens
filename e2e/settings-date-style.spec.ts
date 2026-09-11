@@ -36,6 +36,19 @@ test.describe("Settings — date style", () => {
     await expect(row).toContainText("Wed Jun 10th");
   });
 
+  test("reformats a collapsed range on the schedule", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/settings");
+    await page.getByRole("radio", { name: "Sep 9", exact: true }).click();
+
+    await page.getByRole("link", { name: "Schedule", exact: true }).click();
+    await page.getByRole("button", { name: "View Bruce Wayne's schedule" }).click();
+    const sheet = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
+    // The header's range collapses the repeated month at both styles; only the order moves, so
+    // this is the assertion that would catch a call site left on a hand-built range.
+    await expect(sheet.getByTestId("person-schedule-header")).toContainText(/Jun \d{1,2} – \d{1,2}/);
+    await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/\d{1,2} – \d{1,2} Jun/);
+  });
+
   test("the choice survives a reload (device-global pref)", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("radio", { name: "Sep 9", exact: true }).click();
