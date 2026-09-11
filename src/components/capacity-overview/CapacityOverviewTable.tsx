@@ -20,8 +20,10 @@ interface CapacityOverviewTableProps {
   model: CapacityOverviewModel;
   includeTentative: boolean;
   hasAvailability: boolean;
+  showTotals: boolean;
   onIncludeTentativeChange: (checked: boolean) => void;
   onHasAvailabilityChange: (checked: boolean) => void;
+  onShowTotalsChange: (checked: boolean) => void;
 }
 
 function formatDays(days: number, kind: "capacity" | "overbooked" | "unassigned") {
@@ -103,6 +105,17 @@ function OverviewToolbar(props: CapacityOverviewTableProps) {
         geometry="connected"
         size="md"
       />
+      <SegmentedControl
+        ariaLabel={m.capacity_overview_totals_filter()}
+        value={props.showTotals ? "show" : "hide"}
+        onChange={(value) => props.onShowTotalsChange(value === "show")}
+        options={[
+          { value: "show", label: m.capacity_overview_show_totals() },
+          { value: "hide", label: m.capacity_overview_hide_totals() },
+        ]}
+        geometry="connected"
+        size="md"
+      />
     </div>
   );
 }
@@ -112,11 +125,13 @@ function GroupHeader({
   collapsed,
   onToggle,
   height,
+  showTotals,
 }: {
   group: CapacityOverviewGroup;
   collapsed: boolean;
   onToggle: () => void;
   height: number;
+  showTotals: boolean;
 }) {
   return (
     <TableRow
@@ -141,7 +156,7 @@ function GroupHeader({
       </TableHead>
       {group.summary.weeks.map((result, index) => (
         <TableCell key={index} className="text-center text-xs">
-          {collapsed ? null : <SummaryValues result={result} peopleCount={group.summary.peopleCount} />}
+          {!collapsed && showTotals && <SummaryValues result={result} peopleCount={group.summary.peopleCount} />}
         </TableCell>
       ))}
     </TableRow>
@@ -170,12 +185,14 @@ function CapacityTableBody({
   toggleGroup,
   rowHeight,
   groupHeight,
+  showTotals,
 }: {
   model: CapacityOverviewModel;
   collapsedGroups: Set<string>;
   toggleGroup: (key: string) => void;
   rowHeight: number;
   groupHeight: number;
+  showTotals: boolean;
 }) {
   const hasRows = model.groups.some((group) => group.rows.length > 0);
   return (
@@ -189,6 +206,7 @@ function CapacityTableBody({
               collapsed={collapsed}
               onToggle={() => toggleGroup(group.key)}
               height={groupHeight}
+              showTotals={showTotals}
             />
             {!collapsed &&
               group.rows.map((row) => (
@@ -217,7 +235,7 @@ function CapacityTableBody({
   );
 }
 
-function CapacityTable({ model }: { model: CapacityOverviewModel }) {
+function CapacityTable({ model, showTotals }: { model: CapacityOverviewModel; showTotals: boolean }) {
   const density = useSchedulerDensity();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const toggleGroup = (key: string) =>
@@ -252,6 +270,7 @@ function CapacityTable({ model }: { model: CapacityOverviewModel }) {
         toggleGroup={toggleGroup}
         rowHeight={density.identityBandHeight}
         groupHeight={density.groupHeaderHeight}
+        showTotals={showTotals}
       />
     </Table>
   );
@@ -272,7 +291,7 @@ export function CapacityOverviewTable(props: CapacityOverviewTableProps) {
             </Alert>
           </div>
         ) : (
-          <CapacityTable model={props.model} />
+          <CapacityTable model={props.model} showTotals={props.showTotals} />
         )}
       </div>
     </div>

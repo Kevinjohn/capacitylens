@@ -31,6 +31,10 @@ Choose **Has availability** to show only people with at least 0.25 days capacity
 weeks. Placeholders remain when they have demand. Each group summary still covers all eligible
 people in that group, including rows hidden by this filter.
 
+**Hide totals** starts selected and keeps group header rows to just the group name and its collapse
+control. Choose **Show totals** to reveal each group's free, overbooked and unassigned-demand
+figures for every week.
+
 Companies using Blocks mode see an explanation because Blocks do not measure capacity. Switch to
 Hours or Days in **Settings** to use the overview.
 

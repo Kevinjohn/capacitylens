@@ -113,8 +113,10 @@ describe("CapacityOverviewTable content", () => {
         model={model}
         includeTentative
         hasAvailability={false}
+        showTotals
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
       />,
     );
 
@@ -145,8 +147,10 @@ describe("CapacityOverviewTable interactions", () => {
         model={model}
         includeTentative
         hasAvailability={false}
+        showTotals={false}
         onIncludeTentativeChange={onIncludeTentativeChange}
         onHasAvailabilityChange={onHasAvailabilityChange}
+        onShowTotalsChange={vi.fn()}
       />,
     );
 
@@ -156,6 +160,48 @@ describe("CapacityOverviewTable interactions", () => {
     expect(onHasAvailabilityChange).toHaveBeenCalledWith(true);
   });
 
+  it("hides group totals by default and shows them when toggled on", async () => {
+    const user = userEvent.setup();
+    const onShowTotalsChange = vi.fn();
+    const { rerender } = render(
+      <CapacityOverviewTable
+        model={model}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={onShowTotalsChange}
+      />,
+    );
+
+    expect(screen.getByRole("radio", { name: "Hide totals" })).toHaveAttribute("aria-checked", "true");
+    const groupRow = screen.getByTestId("capacity-overview-group");
+    expect(within(groupRow).queryByText("1.5d")).not.toBeInTheDocument();
+    expect(within(groupRow).queryByText("0.25d overbooked")).not.toBeInTheDocument();
+    expect(within(groupRow).queryByText("2d unassigned")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Show totals" }));
+    expect(onShowTotalsChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <CapacityOverviewTable
+        model={model}
+        includeTentative
+        hasAvailability={false}
+        showTotals
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={onShowTotalsChange}
+      />,
+    );
+
+    const groupRowWithTotals = screen.getByTestId("capacity-overview-group");
+    expect(within(groupRowWithTotals).getByText("1.5d")).toBeInTheDocument();
+    expect(within(groupRowWithTotals).getByText("0.25d overbooked")).toBeInTheDocument();
+    expect(within(groupRowWithTotals).getByText("2d unassigned")).toBeInTheDocument();
+  });
+
   it("collapses and expands discipline rows", async () => {
     const user = userEvent.setup();
     render(
@@ -163,8 +209,10 @@ describe("CapacityOverviewTable interactions", () => {
         model={model}
         includeTentative
         hasAvailability={false}
+        showTotals={false}
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
       />,
     );
 
@@ -183,8 +231,10 @@ describe("CapacityOverviewTable interactions", () => {
         model={{ ...model, measured: false, reason: "blocks-mode", groups: [] }}
         includeTentative
         hasAvailability={false}
+        showTotals={false}
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
       />,
     );
 

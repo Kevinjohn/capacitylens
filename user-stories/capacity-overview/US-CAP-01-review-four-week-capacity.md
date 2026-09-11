@@ -20,6 +20,7 @@ the schedule.
 2. Read the four fixed week columns and each group's summary.
 3. Choose **Hide tentative** to recalculate capacity and unassigned demand from confirmed work only.
 4. Choose **Has availability** to keep people with at least 0.25 days capacity in any shown week and placeholders with demand.
+5. Choose **Show totals** to reveal each group header's free, overbooked and unassigned-demand figures; **Hide totals** is the default.
 
 ## Acceptance criteria
 
@@ -28,6 +29,7 @@ the schedule.
 - ✅ Fully booked and unavailable periods appear as muted dashes so available capacity is easy to scan.
 - ✅ Placeholder allocations appear as separate unassigned demand when placeholders are enabled.
 - ✅ Group summaries continue to cover all eligible people in that group when the row filter is on.
+- ✅ Group header totals are hidden by default; **Show totals** reveals them without changing the group name or collapse control.
 - ✅ Blocks mode explains that the overview needs Hours or Days without showing capacity figures.
 - ✅ Owners and Admins can choose Owner/Admin, Owner/Admin/Editor or Everyone access in Settings; the default is Owner/Admin.
 

@@ -17,6 +17,7 @@ import { buildCapacityOverviewModel } from "./capacityOverviewModel";
 export function CapacityOverviewView() {
   const [includeTentative, setIncludeTentative] = useState(true);
   const [hasAvailability, setHasAvailability] = useState(false);
+  const [showTotals, setShowTotals] = useState(false);
   const data = useStore((state) => state.data);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const scopedData = useActiveScopedData();
@@ -61,8 +62,10 @@ export function CapacityOverviewView() {
       model={model}
       includeTentative={includeTentative}
       hasAvailability={hasAvailability}
+      showTotals={showTotals}
       onIncludeTentativeChange={setIncludeTentative}
       onHasAvailabilityChange={setHasAvailability}
+      onShowTotalsChange={setShowTotals}
     />
   );
 }
