@@ -76,6 +76,34 @@ describe("supportedTimeZones", () => {
   });
 });
 
+describe("supportedTimeZones runtime fallbacks", () => {
+  it("warns when browser zone detection fails and keeps the stable default", () => {
+    const error = new Error("browser zone lookup failed");
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(() => {
+      throw error;
+    });
+
+    expect(resolveBrowserTimeZone(["Etc/GMT", "Europe/London"])).toBe(DEFAULT_TIME_ZONE);
+    expect(warnSpy).toHaveBeenCalledWith("timezones: browser zone detection failed; using Etc/GMT", error);
+  });
+
+  it("warns when the engine zone list is unavailable and uses the hand-list", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(Intl, "supportedValuesOf").mockImplementation(() => {
+      throw new Error("zone list unavailable");
+    });
+    vi.resetModules();
+    const { listSupportedTimeZones: fresh } = await import("./timezones");
+
+    expect(fresh()).toContain("Europe/London");
+    expect(warnSpy).toHaveBeenCalledWith(
+      "timezones: supported zone list unavailable; using hand-list",
+      expect.any(Error),
+    );
+  });
+});
+
 describe("time zone option labels", () => {
   it("shows a numeric UTC offset for a zero-offset zone", () => {
     expect(resolveTimeZoneOffsetLabel("Etc/GMT", new Date("2026-07-01T12:00:00.000Z"))).toBe("UTC+00:00");
@@ -121,6 +149,20 @@ describe("time zone option labels", () => {
 
   it("falls back to zero offset for an invalid persisted zone", () => {
     expect(resolveTimeZoneOffsetLabel("Not/A_Zone", new Date("2026-07-01T12:03:00.000Z"))).toBe("UTC+00:00");
+  });
+
+  it("warns safely when offset formatting fails without logging the private zone or error", async () => {
+    const privateZone = "Private/Account-Zone";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(Intl.DateTimeFormat.prototype, "formatToParts").mockImplementation(() => {
+      throw new Error(`unsupported ${privateZone}`);
+    });
+    vi.resetModules();
+    const { resolveTimeZoneOffsetLabel: freshResolveOffset } = await import("./timezones");
+
+    expect(freshResolveOffset(privateZone, new Date("2026-07-01T12:03:00.000Z"))).toBe("UTC+00:00");
+    expect(warnSpy).toHaveBeenCalledWith("timezones: offset formatting failed; using UTC+00:00");
+    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(privateZone);
   });
 });
 

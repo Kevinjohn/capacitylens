@@ -64,6 +64,7 @@ function requireAccount(name: string) {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 

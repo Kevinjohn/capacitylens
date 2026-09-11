@@ -59,6 +59,13 @@ function TimeZoneMenu({
   );
 }
 
+/**
+ * Render a searchable, keyboard-accessible IANA time-zone combobox.
+ *
+ * The selected value remains the canonical IANA identifier while the supplied option labels may
+ * include friendly names, current abbreviations, and offsets. Closing the popover restores focus
+ * to the trigger so form keyboard flow remains predictable.
+ */
 export function TimeZoneField({ label, value, onChange, options }: TimeZoneFieldProps) {
   const id = useId();
   const popupId = `${id}-options`;
