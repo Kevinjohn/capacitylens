@@ -98,6 +98,7 @@ jobs:
           fi
 
           production="$(printf '%s\n' "$message" | grep -c '^  dependency-type: direct:production' || true)"
+          development="$(printf '%s\n' "$message" | grep -c '^  dependency-type: direct:development' || true)"
 
           if [ -n "$grouped" ] || [ -z "$previous" ]; then
             # dependabot.yml takes patch updates only, so "latest" would overstate it.
@@ -122,15 +123,18 @@ jobs:
             npm_and_yarn)
               # Most grouped updates here are mixed: calling development tooling
               # "application dependencies that ship in the product" is simply untrue.
-              if [ "$production" -eq 0 ]; then
+              if [ "$development" -eq "$count" ]; then
                 what="**Development $plural.** $subject $movement."
                 why="Build and test tooling. Nothing here is shipped to users."
               elif [ "$production" -eq "$count" ]; then
                 what="**Application $plural.** $subject $movement."
                 why="This code ships inside the product."
+              elif [ "$production" -eq 0 ]; then
+                what="**npm $plural.** $subject $movement."
+                why="None are direct application dependencies. They are transitive packages, so some of them still reach the shipped bundle."
               else
                 what="**npm $plural.** $subject $movement."
-                why="$production of them ship inside the product; the rest are build and test tooling."
+                why="$production of them are direct application dependencies; the rest are development or transitive packages."
               fi
               scope="Read the release notes in the pull-request body for behaviour changes. The full gate runs on merge to main."
               ;;
