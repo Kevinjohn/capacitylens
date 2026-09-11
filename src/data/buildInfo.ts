@@ -10,19 +10,35 @@ import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 import packageJson from "../../package.json";
 
+/** Whether the observed diagnostics response was reachable; `unavailable` means no response was usable. */
 export type DiagnosticsConnectivity = "ok" | "unavailable";
+/** Whether the observed database schema could be read safely; `unavailable` means the value is unknown. */
 export type DiagnosticsDatabaseStatus = "ok" | "unavailable";
+/** The persistence state included in the snapshot; `unknown` means this endpoint did not expose it. */
 export type DiagnosticsPersistenceStatus = "ok" | "degraded" | "unknown";
+/** The backup state: `pending` has no successful snapshot yet, `degraded` saw a failure, and `unavailable` could not be read. */
 export type DiagnosticsBackupStatus = "ok" | "degraded" | "pending" | "unavailable";
 
+/** Fixed server fields allowed into a client diagnostics snapshot. */
 export interface ServerDiagnostics {
   connectivity: DiagnosticsConnectivity;
-  database: { status: DiagnosticsDatabaseStatus; schemaVersion: number | null };
+  database: {
+    status: DiagnosticsDatabaseStatus;
+    /** Null means the schema version was unavailable or invalid, never zero or a browser fallback. */
+    schemaVersion: number | null;
+  };
   persistence: DiagnosticsPersistenceStatus;
-  backup: { status: DiagnosticsBackupStatus; lastSuccessAt: string | null };
+  backup: {
+    status: DiagnosticsBackupStatus;
+    /** Null means no valid backup timestamp was observed; it does not assert that no backup exists. */
+    lastSuccessAt: string | null;
+  };
 }
 
+/** Privacy-safe client report captured for a local demo or server observation; it is not a live monitor. */
 export interface DiagnosticsReport {
+  /** Client ISO timestamp for a local demo snapshot, server response, or observed failure; null means it is still pending. */
+  observedAt: string | null;
   appVersion: string;
   buildRevision: string | null;
   deploymentMode: "server" | "demo";
@@ -110,8 +126,9 @@ function readBackupProjection(backup: Record<string, unknown> | null) {
 }
 
 /** Build the fixed, privacy-safe diagnostics projection. Unknown server fields are ignored. */
-export function readDiagnostics(serverResponse: unknown = null): DiagnosticsReport {
+export function readDiagnostics(serverResponse: unknown = null, observedAt?: string): DiagnosticsReport {
   return {
+    observedAt: readTimestamp(observedAt) ?? null,
     appVersion: packageJson.version,
     buildRevision: readBuildRevision(),
     deploymentMode: isServerConfigured() ? "server" : "demo",
@@ -127,6 +144,7 @@ export function formatDiagnostics(report: DiagnosticsReport): string {
   const { server } = report;
   return [
     `${APP_NAME} diagnostics`,
+    `Snapshot observed: ${report.observedAt ?? "Unknown"}`,
     `App version: ${report.appVersion}`,
     `Build revision: ${report.buildRevision ?? "Unknown"}`,
     `Deployment mode: ${report.deploymentMode}`,

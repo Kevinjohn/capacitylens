@@ -791,12 +791,16 @@ discarded edits, plus whether writes are currently suspended. It contains counts
 company, person, project or note values—and resets when a fresh persistence lifecycle attaches.
 
 **Diagnostics (Settings).** At the bottom of Settings, a **Diagnostics** card offers
-**Copy diagnostics** (`data-testid="copy-diagnostics"`). The copied text contains a fixed allowlist:
-the app version, a validated build revision when one is present, deployment mode and export schema,
-followed by separately labelled server connectivity, database schema, persistence and backup
-status. The card is present in demo mode too, with server values unavailable. A missing or
-unavailable value is shown as **Unknown** or **Unavailable**; browser constants are never presented
-as the server's database schema. The projection contains no names, emails,
+**Copy diagnostics** (`data-testid="copy-diagnostics"`). The card shows a **Snapshot observed** ISO
+timestamp captured by the client when the response arrives or its failure is observed. This is a
+point-in-time snapshot, not a live monitor. The copied text contains a fixed allowlist: the snapshot
+timestamp, app version, a validated build revision when one is present, deployment mode and export
+schema, followed by separately labelled server connectivity, database schema, persistence and
+backup status. The card is present in demo mode too, with server values unavailable. A missing or
+unavailable value is shown as **Unknown** or **Unavailable**; `null` schema/version fields mean that
+value was unavailable or invalid, not zero or a browser fallback, while a `null` backup timestamp
+means no valid backup timestamp was observed and does not assert that no backup exists. Browser
+constants are never presented as the server's database schema. The projection contains no names, emails,
 identifiers, paths, hostnames, secrets, invite or session values, raw errors or arbitrary response
 fields. The button reports a generic success or clipboard failure message.
 

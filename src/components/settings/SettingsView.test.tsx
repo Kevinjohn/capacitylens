@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsView } from "./SettingsView";
 import { AuthContext } from "../../auth/authContext";
@@ -352,15 +352,77 @@ describe("SettingsView — diagnostics", () => {
     expect(card).toHaveTextContent("2026-09-10T12:00:00.000Z");
     expect(card).not.toHaveTextContent("must not render");
   });
+});
 
+describe("SettingsView — diagnostics observation", () => {
+  it("records the client time when a diagnostics snapshot fails", async () => {
+    const observedAt = "2026-09-11T10:11:12.123Z";
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(observedAt));
+    fetchMock.fetch.mockRejectedValueOnce(new TypeError("offline"));
+    try {
+      render(<SettingsView />);
+      await act(async () => {
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent(`Snapshot observed${observedAt}`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a pending server snapshot unobserved until its response arrives", async () => {
+    const observedAt = "2026-09-11T10:11:12.123Z";
+    let resolveResponse: ((response: unknown) => void) | undefined;
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(observedAt));
+    fetchMock.fetch.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveResponse = resolve;
+        }),
+    );
+    try {
+      render(<SettingsView />);
+      expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Snapshot observedUnknown");
+
+      await act(async () => {
+        resolveResponse?.({
+          ok: true,
+          json: async () => ({
+            server: {
+              connectivity: "ok",
+              database: { status: "ok", schemaVersion: 38 },
+              persistence: "unknown",
+              backup: { status: "unavailable", lastSuccessAt: null },
+            },
+          }),
+        });
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent(`Snapshot observed${observedAt}`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("SettingsView — diagnostics clipboard", () => {
   it("reports both clipboard success and failure", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.spyOn(navigator, "clipboard", "get").mockReturnValue({ writeText } as unknown as Clipboard);
     render(<SettingsView />);
 
+    await waitFor(() => expect(fetchMock.fetch.mock.calls.length).toBeGreaterThan(0));
+    const fetchCountBeforeCopy = fetchMock.fetch.mock.calls.length;
+
     await user.click(screen.getByTestId("copy-diagnostics"));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("CapacityLens diagnostics"));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Snapshot observed:"));
+    expect(fetchMock.fetch).toHaveBeenCalledTimes(fetchCountBeforeCopy);
     expect(screen.getByRole("status")).toHaveTextContent("Diagnostics copied.");
 
     writeText.mockRejectedValueOnce(new Error("denied"));

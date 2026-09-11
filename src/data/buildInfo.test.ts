@@ -92,6 +92,24 @@ describe("feedbackMailto", () => {
 });
 
 describe("diagnostics projection", () => {
+  it("records when the client observed the point-in-time snapshot", async () => {
+    const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
+    const observedAt = "2026-09-11T10:11:12.123Z";
+    const report = readDiagnostics(null, observedAt);
+
+    expect(report.observedAt).toBe(observedAt);
+    expect(formatDiagnostics(report)).toContain(`Snapshot observed: ${observedAt}`);
+  });
+
+  it("leaves the observation time empty until a snapshot or failure is classified", async () => {
+    const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();
+    expect(readDiagnostics().observedAt).toBeNull();
+    expect(readDiagnostics(null, "not-a-timestamp").observedAt).toBeNull();
+    expect(formatDiagnostics(readDiagnostics())).toContain("Snapshot observed: Unknown");
+  });
+});
+
+describe("diagnostics projection privacy", () => {
   it("keeps only the fixed allowlist and validates server values", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "A1B2C3D4");
     const { readDiagnostics, formatDiagnostics } = await freshBuildInfo();

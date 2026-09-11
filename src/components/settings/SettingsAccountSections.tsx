@@ -114,6 +114,7 @@ export function SettingsBuildDetails({
   );
 }
 
+/** Renders a fixed, point-in-time diagnostics snapshot and its user-gesture clipboard action. */
 export function SettingsDiagnostics({
   diagnostics,
   diagnosticsCopyState,
@@ -127,6 +128,8 @@ export function SettingsDiagnostics({
       testId="settings-diagnostics"
     >
       <div className="grid gap-1 text-sm sm:grid-cols-2">
+        <span className="text-muted-foreground">{m.settings_diagnostics_snapshot_observed()}</span>
+        <span>{diagnostics.observedAt ?? m.settings_diagnostics_unknown()}</span>
         <span className="text-muted-foreground">{m.settings_diagnostics_app_version()}</span>
         <span>{diagnostics.appVersion}</span>
         <span className="text-muted-foreground">{m.settings_diagnostics_build_revision()}</span>

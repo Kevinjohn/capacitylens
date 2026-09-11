@@ -64,7 +64,9 @@ function readSchedulingSettings(data: ReturnType<(typeof useStore)["getState"]>[
 }
 
 function useDiagnosticsController(serverMode: boolean) {
-  const [diagnostics, setDiagnostics] = useState<DiagnosticsReport>(() => readDiagnostics());
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsReport>(() =>
+    readDiagnostics(null, serverMode ? undefined : new Date().toISOString()),
+  );
   const [diagnosticsCopyState, setDiagnosticsCopyState] = useState<"idle" | "copied" | "failed">("idle");
   useEffect(() => {
     if (!serverMode) return;
@@ -73,12 +75,12 @@ function useDiagnosticsController(serverMode: boolean) {
       .diagnostics(controller.signal)
       .then(async (response) => {
         const body = (await response.json().catch(() => null)) as unknown;
-        setDiagnostics(readDiagnostics(body));
+        setDiagnostics(readDiagnostics(body, new Date().toISOString()));
       })
       .catch(() => {
         // An unavailable diagnostics read is itself represented in the fixed projection. The
         // caught error is intentionally not rendered or copied, because it may contain internals.
-        if (!controller.signal.aborted) setDiagnostics(readDiagnostics());
+        if (!controller.signal.aborted) setDiagnostics(readDiagnostics(null, new Date().toISOString()));
       });
     return () => controller.abort();
   }, [serverMode]);

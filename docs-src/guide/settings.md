@@ -135,11 +135,15 @@ The rest of Settings, roughly top to bottom:
 | Deleted items                 | A closed-by-default disclosure for permanently deleting items after their 30-day retention period. Archived items are restored or deleted from the bottom of their Resources, Clients, Projects or Activities page. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                     |
 | Import & export               | A closed-by-default disclosure for downloading this company's data as JSON or replacing it from an earlier export. Importing asks you to confirm first.                                                                                                                                                                                |
 | Account Options Selected at Creation | A compact, read-only summary of the company name, week start, time zone and language. Week start and time zone affect the whole team but are frozen after company creation; see [Calendar](#calendar).                                                                                                                             |
-| Diagnostics                   | Copy a privacy-safe, fixed allowlist of app and observable server health metadata for support reports.                                                                                                                                                                                                                              |
+| Diagnostics                   | Review and copy a privacy-safe, point-in-time snapshot of app and observable server status for support reports. It is not a live monitor.                                                                                                                                                                                           |
 
 **Device data**, **Deleted items** and **Import & export** are independent
 disclosures and start closed. Opening one does not close another. Destructive actions
 still explain their consequences in the confirmation dialog.
+
+The Diagnostics card records the **Snapshot observed** time when the server response arrives, or
+when its failure is observed. **Copy diagnostics** copies that same snapshot and does not request a
+fresh report, so the support note describes one clear observation rather than a live stream.
 
 ![The bottom of Settings with Appearance, closed Device data, Deleted items and Import disclosures, the account options summary, and Diagnostics](../screenshots/flows/settings_account_disclosures.jpg)
 
