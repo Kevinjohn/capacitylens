@@ -53,7 +53,7 @@ function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedul
     start: formatDayMonthEndpoint(bar.allocation.startDate, bar.allocation.endDate),
     end: formatDayMonthEndpoint(bar.allocation.endDate, bar.allocation.startDate),
     series: bar.seriesEnd
-      ? m.scheduler_bar_aria_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.endDate) })
+      ? m.scheduler_bar_aria_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.startDate) })
       : "",
   };
   const task =

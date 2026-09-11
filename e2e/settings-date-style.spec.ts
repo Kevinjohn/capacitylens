@@ -45,10 +45,10 @@ test.describe("Settings — date style", () => {
     const sheet = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
     // The header's range collapses the repeated month at both styles; only the order moves, so
     // this is the assertion that would catch a call site left on a hand-built range.
-    // Month-agnostic on purpose: the assertion is the day/month ORDER the style picks, not which
-    // month the seeded week happens to fall in.
-    await expect(sheet.getByTestId("person-schedule-header")).toContainText(/[A-Z][a-z]{2} \d{1,2} – \d{1,2}/);
-    await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/\d{1,2} – \d{1,2} [A-Z][a-z]{2}/);
+    // "Jun" is a pin, not an accident: `freezeBrowserDate` (e2e/helpers.ts) holds the clock at
+    // 2026-06-03, so a regression that rendered the window against the wrong month would show here.
+    await expect(sheet.getByTestId("person-schedule-header")).toContainText(/Jun \d{1,2} – \d{1,2}/);
+    await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/\d{1,2} – \d{1,2} Jun/);
   });
 
   test("the choice survives a reload (device-global pref)", async ({ page }) => {

@@ -1,6 +1,7 @@
 # US-SET-17 — Choose the date format
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/settings-date-style.spec.ts`
+· **Docs:** [Settings → Appearance](../../docs-src/guide/settings.md)
 
 ## Goal
 

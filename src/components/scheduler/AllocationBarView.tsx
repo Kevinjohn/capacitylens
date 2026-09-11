@@ -172,7 +172,7 @@ function BarPopover({
       {bar.seriesEnd && (
         <div className="mt-1 text-muted-foreground">
           <Repeat2 aria-hidden className="mr-1 inline size-3" />
-          {m.scheduler_bar_pop_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.endDate) })}
+          {m.scheduler_bar_pop_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.startDate) })}
         </div>
       )}
       {showTaskFieldInSchedule && bar.allocation.task && (
