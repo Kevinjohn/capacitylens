@@ -11,7 +11,7 @@ CapacityLens. Allow about fifteen minutes for the first dependency install and b
 
 ## Prerequisites
 
-- Complete [Choose the release source](choose-the-release-source.md).
+- Complete [Choose the release source](/self-hosting/managed-vps/choose-the-release-source).
 - Choose a unique site name and a unique API loopback port.
 - Confirm the server has Node 24 or newer and Corepack.
 
@@ -178,4 +178,4 @@ The public site may still show an error because the API and proxy are configured
 
 ## What's next
 
-Continue to [Configure the API and nginx](configure-the-api-and-nginx.md).
+Continue to [Configure the API and nginx](/self-hosting/managed-vps/configure-the-api-and-nginx).

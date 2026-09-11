@@ -149,4 +149,4 @@ Before continuing, confirm all of the following:
 
 ## What's next
 
-Continue to [Create and build the site](create-and-build-the-site.md).
+Continue to [Create and build the site](/self-hosting/managed-vps/create-and-build-the-site).

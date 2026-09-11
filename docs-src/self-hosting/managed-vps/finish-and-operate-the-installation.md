@@ -6,16 +6,16 @@ description: Claim the first Owner, move to the final domain, configure company 
 # Finish and operate the managed installation
 
 This page completes the installation and gives you a repeatable operating routine. You will claim
-the first Owner, move from a temporary platform domain when necessary, and verify backups and
-monitoring. Allow about fifteen minutes without a domain change; DNS and certificate issuance may
+the first [Owner](/reference/glossary), move from a temporary platform domain when necessary, and
+verify backups and monitoring. Allow about fifteen minutes without a domain change; DNS and certificate issuance may
 take longer.
 
 ## Prerequisites
 
-- Complete [Deploy and upgrade safely](deploy-and-upgrade-safely.md).
+- Complete [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely).
 - Have the one-time Owner setup token in a password manager.
 - Have access to DNS and the platform's domain and certificate settings.
-- Keep company login disabled until the final public origin is stable.
+- Keep [company login](/reference/glossary) disabled until the final public origin is stable.
 
 ## 1. Claim the first Owner
 
@@ -88,8 +88,9 @@ redirect, make it redirect to the final origin rather than serving a second usab
 Password sign-in and company login are configured independently for each CapacityLens installation.
 One installation enabling company login does not change another installation on the same server.
 
-Complete [Set up your company login](../../company-login/set-up-company-login.md) only after the
-final public origin is stable. Register this exact redirect URI with the company login provider:
+Complete [Set up your company login](/company-login/set-up-company-login) only after the
+final public origin is stable. Register this exact [redirect URI](/reference/glossary) with the
+company login provider:
 
 ```text
 https://capacity.example.com/api/auth/oauth2/callback/sso
@@ -115,7 +116,7 @@ At minimum:
 - **After any domain or sign-in change:** test sign-in and session revocation in a private browser
   session.
 
-Read [Monitoring and health checks](../monitoring.md) for every health field and alert condition.
+Read [Monitoring and health checks](/self-hosting/monitoring) for every health field and alert condition.
 
 ## 7. Watch shared-server resources
 
@@ -172,5 +173,5 @@ The installation is complete when:
 
 ## What's next
 
-- Read [Monitoring and health checks](../monitoring.md) for the regular operating routine.
-- Keep [When something goes wrong](../incidents.md) available to the person on call.
+- Read [Monitoring and health checks](/self-hosting/monitoring) for the regular operating routine.
+- Keep [When something goes wrong](/self-hosting/incidents) available to the person on call.

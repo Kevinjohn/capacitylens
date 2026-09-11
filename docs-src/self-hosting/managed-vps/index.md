@@ -8,11 +8,15 @@ description: Follow a complete production deployment path for Forge, Ploi, RunCl
 This guide takes you from an empty site on a managed Linux server to a production
 CapacityLens installation with manual releases, persistent data, backups and health checks.
 It is for platforms such as Laravel Forge, Ploi and RunCloud that manage nginx and a process
-supervisor while your application runs directly on the host. Allow about an hour when the
-server, source-control connection and domain are ready.
+supervisor while your application runs directly on the host. Allow about ninety minutes in total
+when the server, source-control connection and domain are ready. Each page below carries its own
+estimate, and they add up to roughly that.
 
 Laravel Forge is the worked example. Other platforms use different labels, but the same
 parts are required.
+
+If you have never used a platform like this, read it in order and do not skip a page. Each page
+assumes only the result of the page before it, and every command is written out in full.
 
 ## What you will build
 
@@ -20,7 +24,8 @@ One CapacityLens installation consists of:
 
 - static web files from `dist/`, served by the platform's nginx site;
 - one Node API process from `server/dist/index.mjs`, listening only on a loopback port;
-- one SQLite database, audit log and backup directory outside every release directory;
+- one [SQLite database](/reference/glossary), audit log and backup directory outside every
+  release directory;
 - one exact public origin, with nginx sending `/api/` to the API process; and
 - one manually promoted source branch, so a push to the public project cannot deploy itself.
 
@@ -67,16 +72,17 @@ stronger resource and operational isolation.
 
 Complete these pages in order:
 
-1. [Choose the release source](choose-the-release-source.md) — pin releases and prevent
+1. [Choose the release source](/self-hosting/managed-vps/choose-the-release-source) — pin releases and prevent
    automatic deployment from the public project.
-2. [Create and build the site](create-and-build-the-site.md) — map CapacityLens onto the
+2. [Create and build the site](/self-hosting/managed-vps/create-and-build-the-site) — map CapacityLens onto the
    platform's site and release-directory settings.
-3. [Configure the API and nginx](configure-the-api-and-nginx.md) — add secrets, persistent
+3. [Configure the API and nginx](/self-hosting/managed-vps/configure-the-api-and-nginx) — add secrets, persistent
    paths, the background process and the same-origin proxy.
-4. [Deploy and upgrade safely](deploy-and-upgrade-safely.md) — stop, activate and start one
+4. [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely) — stop, activate and start one
    API version at a time, with backups and rollback points.
-5. [Finish and operate the installation](finish-and-operate-the-installation.md) — claim the
-   Owner, move to the final domain, add company login and monitor the instance.
+5. [Finish and operate the installation](/self-hosting/managed-vps/finish-and-operate-the-installation) — claim the
+   [Owner](/reference/glossary), move to the final domain, add
+   [company login](/reference/glossary) and monitor the instance.
 
 Do not skip the verification section at the end of each page. Each result is the prerequisite
 for the next page.
@@ -121,4 +127,4 @@ platform's secret store or a password manager, not in this worksheet.
 
 ## What's next
 
-Start with [Choose the release source](choose-the-release-source.md).
+Start with [Choose the release source](/self-hosting/managed-vps/choose-the-release-source).

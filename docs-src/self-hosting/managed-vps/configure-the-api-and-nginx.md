@@ -11,10 +11,10 @@ Allow about twenty minutes, including verification.
 
 ## Prerequisites
 
-- Complete [Create and build the managed site](create-and-build-the-site.md).
+- Complete [Create and build the managed site](/self-hosting/managed-vps/create-and-build-the-site).
 - Know the exact temporary or final public origin.
 - Choose a loopback port not used by another site. This guide uses `8788` as an example.
-- Have a private place to store the one-time Owner setup token.
+- Have a private place to store the one-time [Owner](/reference/glossary) setup token.
 
 ## 1. Generate the secrets
 
@@ -82,10 +82,17 @@ SMALLSASS_ACCOUNT_REQUIRE_MFA
 ```
 
 Unset is different from `0` for some environment parsers. Remove the lines unless the
-[Configuration](../configuration.md) page specifically says that an empty value has meaning.
+[Configuration](/self-hosting/configuration) page specifically says that an empty value has meaning.
 
 If the platform already emits an HSTS header, leave `CAPACITYLENS_HTTPS` unset to avoid duplicate
 headers. The public origin must still use HTTPS.
+
+`CAPACITYLENS_HOST=127.0.0.1` does more than hide the API from the internet. A loopback listener
+automatically trusts the `X-Forwarded-For` and `X-Forwarded-Proto` headers that nginx sets on the
+next page, so rate limiting and audit records show the real visitor address rather than the proxy's.
+Keep the API on loopback. If you ever bind it to another address, you must also set
+`CAPACITYLENS_TRUST_PROXY_HEADERS=1`, and only when the API accepts connections from your proxy
+alone — see [Configuration](/self-hosting/configuration).
 
 ## 3. Create the background process
 
@@ -109,6 +116,20 @@ Use this command:
 The shell exports every value read from `.env`, then `exec` replaces the shell with Node so the
 process supervisor sends shutdown signals directly to the API. CapacityLens needs more than ten
 seconds before a forced kill so in-flight requests and backup work can drain.
+
+::: warning `.env` is read as shell, so quote awkward values
+`source` runs the file as a shell script. A value containing a space, `#`, `$`, backtick, quote or
+backslash will be cut short or mangled, and the API will start with the wrong secret rather than
+fail loudly. The `openssl rand -base64 48` values above are safe unquoted. Anything you paste from
+elsewhere — a company-login client secret, for example — must be wrapped in single quotes:
+
+```dotenv
+SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET='the value exactly as issued'
+```
+
+A single quote inside the value itself cannot be escaped between single quotes. If one appears, ask
+the provider to reissue the secret rather than inventing an escape.
+:::
 
 Do not use `pnpm start` for the production process. The prebuilt `index.mjs` has no runtime
 dependency on pnpm or the development packages.
@@ -216,5 +237,5 @@ Do not claim the Owner until the public origin is HTTPS and matches
 
 ## What's next
 
-Continue to [Deploy and upgrade safely](deploy-and-upgrade-safely.md) before making this site's
+Continue to [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely) before making this site's
 deployment script permanent.
