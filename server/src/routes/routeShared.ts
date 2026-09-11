@@ -32,9 +32,14 @@ export interface AuthorizeRouteInput {
 /**
  * The `options` value every ordinary administrative action passes to `authorize`. Role and MFA
  * gating are unaffected; only the fresh-sign-in re-prompt is waived. Freshness stays mandatory by
- * default, so grepping for this constant lists exactly the actions that opt out — the high-impact
- * ones (ownership transfer, credential and session administration, company deletion, import/purge,
- * SSO identity work) must never appear among them.
+ * default, so grepping for this constant lists every CALL SITE that opts out.
+ *
+ * The opt-out is per call site, not per action: the same `Action` can legitimately appear both with
+ * and without this constant (`manageMembers` is opted out for role, status and removal routes, and
+ * NOT opted out for credential and session administration). So the grep is an inventory to review,
+ * never a rule to complete — never add this constant to a call site for consistency with another
+ * site sharing its action. Ownership transfer, credential and session administration, company
+ * deletion, import/purge and SSO identity work must never opt out; see AGENTS.md and DECISIONS.md.
  */
 export const NO_REPROMPT: AuthorizeRouteInput["options"] = { requireFreshSession: false };
 
