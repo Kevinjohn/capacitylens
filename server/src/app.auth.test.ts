@@ -12,7 +12,24 @@ import {
   buildSessionUser,
 } from "./auth";
 import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
-import { call, PASSWORD_ENV, readCookies as cookiesOf } from "./testHelpers";
+import { call, PASSWORD_ENV } from "./testHelpers";
+
+/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
+function headerValues(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value;
+  if (value === undefined) return [];
+  return [value];
+}
+
+// Deliberately NOT testHelpers' readCookies: that one drops expired cookies and de-duplicates by
+// name, which would silently weaken the negative assertions below (a cleared session cookie would
+// no longer be seen). This keeps the original semantics — every Set-Cookie the server sent.
+function cookiesOf(res: LightMyRequestResponse): string {
+  const raw = res.headers["set-cookie"];
+  return headerValues(raw)
+    .map((c) => String(c).split(";")[0])
+    .join("; ");
+}
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that

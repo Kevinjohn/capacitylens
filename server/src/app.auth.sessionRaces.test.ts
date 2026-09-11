@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
 import {
@@ -9,7 +9,24 @@ import {
   SESSION_INACTIVITY_TTL_SECONDS,
 } from "./auth";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
-import { call, PASSWORD_ENV, readCookies as cookiesOf } from "./testHelpers";
+import { call, PASSWORD_ENV } from "./testHelpers";
+
+/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
+function headerValues(value: string | string[] | undefined): string[] {
+  if (Array.isArray(value)) return value;
+  if (value === undefined) return [];
+  return [value];
+}
+
+// Deliberately NOT testHelpers' readCookies: that one drops expired cookies and de-duplicates by
+// name, which would silently weaken the negative assertions below (a cleared session cookie would
+// no longer be seen). This keeps the original semantics — every Set-Cookie the server sent.
+function cookiesOf(res: LightMyRequestResponse): string {
+  const raw = res.headers["set-cookie"];
+  return headerValues(raw)
+    .map((c) => String(c).split(";")[0])
+    .join("; ");
+}
 
 const TS = "2026-01-01T00:00:00.000Z";
 
