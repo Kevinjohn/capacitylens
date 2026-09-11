@@ -84,10 +84,10 @@ function registerSuiteScenario2() {
     // auth — they all converge on a chosen account); dismiss it to reach the app.
     await expect(page.getByRole("heading", { name: "Welcome to CapacityLens" })).toBeVisible();
     await page.getByTestId("intro-continue").click();
-    await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
 
     // Settings gains the Account section only on an auth-enabled deploy.
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
     await expect(page.getByText(`Signed in as ${email}`)).toBeVisible();
     // Scoped to the page body: the sidebar footer carries its own avatar'd Sign out (#169), so an

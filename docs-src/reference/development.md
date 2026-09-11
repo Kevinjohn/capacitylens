@@ -155,6 +155,20 @@ separate signals.
 `src/components/scheduler/schedulerModel.test.ts`; check `e2e/holiday-overallocation.spec.ts` when
 visible capacity or over-capacity presentation changes.
 
+#### Four-week Capacity Overview {#task-capacity-overview}
+
+**Start:** `src/components/capacity-overview/CapacityOverviewView.tsx` connects active scoped data,
+calendar settings and the two page controls to the table.
+
+**Follow through:** `capacityOverviewDates.ts` owns the fixed partial-plus-three-full-week window;
+`capacityOverviewModel.ts` owns eligibility, precise aggregation, display rounding, grouping and
+filtering. Access policy is shared in `shared/src/domain/access.ts`, while `src/auth/capacityOverviewAccess.ts`
+gates the sidebar and direct route.
+
+**Tests:** Start with `src/components/capacity-overview/capacityOverview.test.ts`,
+`CapacityOverviewTable.test.tsx` and `src/auth/capacityOverviewAccess.test.ts`; use
+`e2e/capacity-overview.spec.ts` and `e2e/capacity-overview.auth.spec.ts` for browser coverage.
+
 #### Scheduler gestures and viewport {#task-scheduler-interactions}
 
 **Start:** `src/components/scheduler/SchedulerGrid.tsx` composes the timeline viewport, row model,

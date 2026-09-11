@@ -1,6 +1,8 @@
 # US-RES-03 — Edit a resource's fields
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "edits a resource and the change persists"
+**Area:** Resources · **Persona:** Studio manager · **Coverage:** component (`src/components/resources/ResourceForm.test.tsx`) + store availability coverage · **Linked E2E:** `e2e/resources.spec.ts` → "edits a resource and the change persists" (base flow; no availability-date assertions)
+
+**Documentation:** [People and placeholders — set availability dates](../../docs-src/guide/people-and-placeholders.md#set-availability-dates)
 
 ## Goal
 
@@ -22,7 +24,8 @@ there's no second place to keep in sync.
 2. Change **Role** = `Lead Developer`.
 3. Change **Discipline** = _Design_.
 4. Change Wednesday to **Half day**.
-5. Click **Save**. The dialog closes.
+5. Set **Start date** = `2026-06-08` and leave **End date** blank.
+6. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
 
@@ -36,3 +39,7 @@ there's no second place to keep in sync.
   (moved out of _Development_).
 - ✅ In the server-backed app, the changes persist across a page reload.
 - ✅ In the public demo, the change lasts for the current page only and reload restores the seed.
+- ✅ Availability dates are inclusive. A blank boundary is unbounded, the same date on both sides
+  is valid, and a first date after a last date keeps the dialog open with an inline validation error.
+- ✅ Editing role, discipline, engagement, working days or availability metadata does not rewrite
+  existing allocations, even when one now falls outside the person's availability range.

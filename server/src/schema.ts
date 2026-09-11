@@ -12,6 +12,8 @@ import {
   V34_TABLES,
   V35_TABLES,
   V36_TABLES,
+  V37_TABLES,
+  V38_TABLES,
   V8_TABLES,
   V9_TABLES,
 } from "./schema/historicalSpecs";
@@ -85,6 +87,16 @@ export function assertSchemaV35(db: Db): void {
 /** Assert the released v36 shape before allocation task fields are added. */
 export function assertSchemaV36(db: Db): void {
   assertSchemaVersion(db, V36_TABLES, true);
+}
+
+/** Assert the released v37 shape before person availability columns are added. */
+export function assertSchemaV37(db: Db): void {
+  assertSchemaVersion(db, V37_TABLES, true);
+}
+
+/** Assert the released v38 shape before Capacity Overview access is added. */
+export function assertSchemaV38(db: Db): void {
+  assertSchemaVersion(db, V38_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */

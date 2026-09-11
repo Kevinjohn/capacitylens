@@ -13,6 +13,7 @@ describe("sanitizeImportedRecord", () => {
 
   registerImportedRecordBasics();
   registerImportedResourceTests();
+  registerImportedAvailabilityTests();
   registerImportedFieldTests();
   registerImportedColorTests();
   registerImportedDateTests();
@@ -148,6 +149,21 @@ function registerImportedResourceTests(): void {
     expect(sanitizeImportedRecord("resources", { kind: "person" }).name).toBe("Unnamed person");
     expect(sanitizeImportedRecord("resources", { kind: "external", name: "  " }).name).toBe("Unnamed company");
     expect(sanitizeImportedRecord("resources", { kind: "placeholder" }).name).toBeUndefined();
+  });
+}
+
+function registerImportedAvailabilityTests(): void {
+  it("strips availability boundaries from non-person imports", () => {
+    const placeholder = sanitizeImportedRecord("resources", {
+      kind: "placeholder",
+      firstAvailableDate: "2026-01-01",
+      lastAvailableDate: "2026-12-31",
+    });
+    expect(placeholder).not.toHaveProperty("firstAvailableDate");
+    expect(placeholder).not.toHaveProperty("lastAvailableDate");
+    expect(
+      sanitizeImportedRecord("resources", { kind: "external", firstAvailableDate: "2026-01-01" }),
+    ).not.toHaveProperty("firstAvailableDate");
   });
 }
 
@@ -608,6 +624,16 @@ function registerAccountVisibilityTests(): void {
   it("keeps a boolean inlineActivityCreateEnabled (both true and false survive import)", () => {
     expect(sanitizeAccount({ inlineActivityCreateEnabled: false }).inlineActivityCreateEnabled).toBe(false);
     expect(sanitizeAccount({ inlineActivityCreateEnabled: true }).inlineActivityCreateEnabled).toBe(true);
+  });
+
+  it("keeps valid Capacity Overview access and drops malformed values", () => {
+    expect(sanitizeAccount({ capacityOverviewAccess: "owner_admin" }).capacityOverviewAccess).toBe("owner_admin");
+    expect(sanitizeAccount({ capacityOverviewAccess: "owner_admin_editor" }).capacityOverviewAccess).toBe(
+      "owner_admin_editor",
+    );
+    expect(sanitizeAccount({ capacityOverviewAccess: "everyone" }).capacityOverviewAccess).toBe("everyone");
+    expect(sanitizeAccount({ capacityOverviewAccess: "viewer" }).capacityOverviewAccess).toBeUndefined();
+    expect(sanitizeAccount({ capacityOverviewAccess: 1 }).capacityOverviewAccess).toBeUndefined();
   });
 }
 

@@ -5,7 +5,7 @@ import { ActivityForm } from "./ActivityForm";
 import type { Activity } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { Fragment, useEffect, useMemo, useRef } from "react";
-import { ClipboardCheck, Plus } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { buildActivityListModel } from "./activityListModel";
 import { useLifecycleActions } from "../../hooks/useLifecycleActions";
@@ -15,7 +15,7 @@ interface BoxInput {
   rows: Activity[];
   empty: string;
   testid: string;
-  enrich?: { description: string; action: { label: string; onClick: () => void } } | undefined;
+  description: string;
 }
 
 interface ActivityRowProps {
@@ -56,16 +56,12 @@ function ActivityBox({
   rows,
   empty,
   testid,
-  enrich,
+  description,
   renderRow,
 }: BoxInput & { renderRow: (activity: Activity) => React.ReactNode }) {
   if (rows.length === 0) {
     return (
-      <EmptyState
-        {...(enrich ? { icon: ClipboardCheck } : {})}
-        {...(enrich?.description !== undefined ? { description: enrich.description } : {})}
-        {...(enrich?.action ? { action: { ...enrich.action, icon: Plus, requiresEdit: true } } : {})}
-      >
+      <EmptyState icon={ClipboardCheck} description={description}>
         {empty}
       </EmptyState>
     );
@@ -89,7 +85,13 @@ function ProjectActivities({
   clients: ReturnType<typeof buildActivityListModel>["clients"];
   renderRow: (activity: Activity) => React.ReactNode;
 }) {
-  if (clients.length === 0) return <EmptyState>{m.list_activities_project_empty()}</EmptyState>;
+  if (clients.length === 0) {
+    return (
+      <EmptyState icon={ClipboardCheck} description={m.list_activities_project_empty_desc()}>
+        {m.list_activities_project_empty()}
+      </EmptyState>
+    );
+  }
   return (
     <div data-testid="project-specific-activities" className="space-y-6">
       {clients.map((client) => (
@@ -118,12 +120,10 @@ function ProjectActivities({
 
 interface ActivitySectionsProps {
   model: ReturnType<typeof buildActivityListModel>;
-  activityCount: number;
-  onCreate: () => void;
   renderRow: (activity: Activity) => React.ReactNode;
 }
 
-function ActivitySections({ model, activityCount, onCreate, renderRow }: ActivitySectionsProps) {
+function ActivitySections({ model, renderRow }: ActivitySectionsProps) {
   const box = (input: BoxInput) => <ActivityBox {...input} renderRow={renderRow} />;
   return model.kindOrder.map((kind, index) => {
     const headingClassName = `mb-4 flex items-center justify-between${index > 0 ? " mt-8" : ""}`;
@@ -137,13 +137,7 @@ function ActivitySections({ model, activityCount, onCreate, renderRow }: Activit
             rows: model.internal,
             empty: m.list_activities_internal_empty(),
             testid: "internal-activities",
-            enrich:
-              activityCount === 0
-                ? {
-                    description: m.list_activities_empty_desc(),
-                    action: { label: m.list_activities_empty_action(), onClick: onCreate },
-                  }
-                : undefined,
+            description: m.list_activities_empty_desc(),
           })}
         </Fragment>
       );
@@ -158,6 +152,7 @@ function ActivitySections({ model, activityCount, onCreate, renderRow }: Activit
             rows: model.crossProject,
             empty: m.list_activities_repeatable_empty(),
             testid: "cross-project-activities",
+            description: m.list_activities_repeatable_empty_desc(),
           })}
         </Fragment>
       );
@@ -210,12 +205,7 @@ export function ActivityList({ selectedActivityId }: { selectedActivityId?: stri
 
   return (
     <ListPage title={m.list_activities_title()} addLabel={m.list_activities_add()} onAdd={() => setCreating(true)}>
-      <ActivitySections
-        model={activityList}
-        activityCount={activities.length}
-        onCreate={() => setCreating(true)}
-        renderRow={renderRow}
-      />
+      <ActivitySections model={activityList} renderRow={renderRow} />
 
       <ArchivedEntitySection entity="activities" />
 

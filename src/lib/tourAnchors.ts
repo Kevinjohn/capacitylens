@@ -6,6 +6,7 @@
 // whole set lives here so `navLinks.ts` never re-types a path as a literal: a route rename is one
 // edit, and the spotlighted ones (used in TOUR_ANCHORS below) cannot drift out of the selectors.
 export const ROUTE_SCHEDULE = "/";
+export const ROUTE_CAPACITY_OVERVIEW = "/capacity-overview";
 export const ROUTE_RESOURCES = "/resources";
 export const ROUTE_DISCIPLINES = "/disciplines";
 export const ROUTE_CLIENTS = "/clients";

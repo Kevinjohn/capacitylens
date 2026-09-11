@@ -102,6 +102,9 @@ export function migrateSchema(db: Db): void {
       // Account task visibility and allocation task text are owned by the v37 ledger step.
       "accounts.showTaskFieldInSchedule",
       "allocations.task",
+      "resources.firstAvailableDate",
+      "resources.lastAvailableDate",
+      "accounts.capacityOverviewAccess",
     ]),
   );
 }

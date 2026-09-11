@@ -432,6 +432,8 @@ function registerServerCreateRequestTest() {
     expect(body.name).toBe("Stark Industries");
     expect(body.weekStartsOn).toBe(1);
     expect(body.timezone).toBe("Etc/GMT");
+    expect(body.schedulingMode).toBe("days");
+    expect(body.inlineActivityCreateEnabled).toBe(false);
     expect(body.internalColourMode).toBe("grey");
     // Summary seeded (the picker lists it; setActiveAccount validated against it)…
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain("org-1");

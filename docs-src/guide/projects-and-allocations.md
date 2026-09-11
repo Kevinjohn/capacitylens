@@ -12,6 +12,9 @@ as bars on [the schedule](/guide/the-schedule).
 
 ## Choose where an activity can be used
 
+On **Activities**, each empty category explains where its activities can be used. Select
+**Add activity** beside the page heading to create one.
+
 Before you create an allocation, decide whether its activity is for internal work,
 reusable across projects or unique to one project:
 
@@ -128,12 +131,15 @@ stores a different number of hours, the closed select keeps showing that exact v
 is not rounded; choosing one of the four options is an explicit change.
 
 Leave **Ignore working days** unchecked to follow the person's effective working week — the days
-in both the company's [global working days](/guide/settings#global-working-days) and their own
+in both the company's [company-wide working days](/guide/settings#company-wide-working-days) and their own
 pattern. Check it when the allocation must use every calendar day in its date span, including
 company and personal non-working weekdays. Either way, a new allocation must start on an effective
 working day that isn't covered by the person's time off — the checkbox never changes where a new
 allocation may begin. To place work over closed days, create it starting on an open day with the
-checkbox ticked, then drag or extend it onto the closed days.
+checkbox ticked, then drag or extend it onto the closed days. If the assignee has an availability
+date range, the placement must also stay within that inclusive range. **Ignore working days** does
+not bypass those date boundaries. Existing bookings that become outside the range stay visible, and
+metadata edits remain possible; only a new or placement-changing date/assignee edit is blocked.
 
 ![The New allocation form showing a rejected Saturday start date and the message that new allocations must begin on a company and personal working day](../screenshots/flows/allocation_non_working_day_rejected.jpg)
 
@@ -157,10 +163,12 @@ project attribution.
 
 - **Move** a bar by dragging it to a different set of days, or drop it on another
   person's row to reassign the work. A vertical reassignment keeps its start date: if that
-  date is outside either the company or person's working pattern, the drop is rejected and
-  the original allocation stays put. An allocation with **Ignore working days** enabled may
-  use those dates literally.
-- **Resize** a bar from either edge to change its start or end date.
+  date is outside either the company or person's working pattern, or outside that person's
+  availability date range, the drop is rejected and the original allocation stays put. An allocation
+  with **Ignore working days** enabled may use recurring non-working dates literally, but it still
+  cannot cross the person's availability boundaries.
+- **Resize** a bar from either edge to change its start or end date. A new placement outside the
+  assignee's inclusive availability range is rejected atomically.
 - **Open** a bar to change its status between tentative, confirmed and completed, or
   to duplicate or delete it. Duplicate is available for unlinked allocations, but not
   occurrences in a linked repeat series. Deleting can be undone from the toolbar, or
