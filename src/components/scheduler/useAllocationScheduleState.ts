@@ -86,6 +86,7 @@ function resolveInitialDetails(seed: AllocationModalSeed) {
     hoursPerDay: seed.editing?.hoursPerDay ?? (seed.initialScheduledHours || FULL_DAY_HOURS),
     status: seed.editing?.status ?? "confirmed",
     note: seed.editing?.note ?? "",
+    task: seed.editing?.task ?? "",
     ignoreWeekends: seed.editing?.ignoreWeekends ?? false,
   };
 }
@@ -127,6 +128,7 @@ function useScheduleFields(seed: AllocationModalSeed, calendarTimeZone: string) 
   const [note, setNote] = useState(initialDetails.note);
   const [noteEdited, setNoteEdited] = useState(false);
   const [ignoreWeekends, setIgnoreWeekends] = useState(initialDetails.ignoreWeekends);
+  const [task, setTask] = useState(initialDetails.task);
   const [daysOver, setDaysOver] = useState(seed.initialDaysOver);
   const [daysOfWork, setDaysOfWork] = useState(() => resolveInitialDaysOfWork(seed));
   return {
@@ -142,6 +144,8 @@ function useScheduleFields(seed: AllocationModalSeed, calendarTimeZone: string) 
     setNote,
     noteEdited,
     setNoteEdited,
+    task,
+    setTask,
     ignoreWeekends,
     setIgnoreWeekends,
     daysOver,

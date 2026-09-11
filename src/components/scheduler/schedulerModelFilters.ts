@@ -1,32 +1,10 @@
 import { foldForSearch } from "../../lib/fuzzy";
 import { resolveResourceDisplayName } from "../../lib/metadata";
 import { hasLensFilter, type Filters } from "../../store/useStore";
-import { effectiveProjectId } from "@capacitylens/shared/lib/integrity";
 import { internalClientFor } from "@capacitylens/shared/data/internalClient";
 import { isExternalResource, type Allocation, type AppData, type Resource } from "@capacitylens/shared/types/entities";
 import type { SchedulerModelOptions } from "./schedulerModelTypes";
-
-function resolveAllocationClient({
-  allocation,
-  activitiesById,
-  projectsById,
-  clientsById,
-  internalClient,
-}: {
-  allocation: Allocation;
-  activitiesById: Map<string, AppData["activities"][number]>;
-  projectsById: Map<string, AppData["projects"][number]>;
-  clientsById: Map<string, AppData["clients"][number]>;
-  internalClient: AppData["clients"][number] | undefined;
-}) {
-  const activity = activitiesById.get(allocation.activityId);
-  const projectId = effectiveProjectId(allocation, activity ?? {});
-  const project = projectId ? projectsById.get(projectId) : undefined;
-  let client: AppData["clients"][number] | undefined;
-  if (project) client = clientsById.get(project.clientId);
-  else if (!projectId && activity) client = internalClient;
-  return { projectId, project, client };
-}
+import { buildAllocationAttribution } from "./buildAllocationAttribution";
 
 function createResourceVisibility({
   search,
@@ -60,7 +38,7 @@ function createWorkVisibility({
 }: {
   filters: Filters;
   activitiesById: Map<string, AppData["activities"][number]>;
-  resolveProjectClient: (allocation: Allocation) => ReturnType<typeof resolveAllocationClient>;
+  resolveProjectClient: (allocation: Allocation) => ReturnType<typeof buildAllocationAttribution>;
   showInternalActivities: boolean;
   showInternalProjects: boolean;
 }) {
@@ -139,7 +117,7 @@ export function createAllocationFilters(
   const scopedAccountId = data.clients[0]?.accountId;
   const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined;
   const resolveProjectClient = (allocation: Allocation) =>
-    resolveAllocationClient({ allocation, activitiesById, projectsById, clientsById, internalClient });
+    buildAllocationAttribution({ allocation, activitiesById, projectsById, clientsById, internalClient });
   // Any "what work" filter is active — drives the dimmed / show-unmatched staffing view, which
   // is identical whether the active lens is client/project or activity.
   const workFilterActive = hasLensFilter(filters);

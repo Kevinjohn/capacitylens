@@ -93,7 +93,19 @@ export function migrateSchemaV8(db: Db): void {
 export function migrateSchema(db: Db): void {
   // Activity lifecycle tombstones are owned by the explicit v36 migration. Keep the generic
   // pre-ledger repair from silently adding them before historical migration assertions run.
-  migrateSchemaVersion(db, TABLES, new Set(["activities.archivedAt", "activities.deletedAt"]));
+  migrateSchemaVersion(
+    db,
+    TABLES,
+    new Set([
+      "activities.archivedAt",
+      "activities.deletedAt",
+      // Account task visibility and allocation task text are owned by the v37 ledger step.
+      "accounts.showTaskFieldInSchedule",
+      "allocations.task",
+      "resources.firstAvailableDate",
+      "resources.lastAvailableDate",
+    ]),
+  );
 }
 
 /** Rebuild the `activities` table (the SQLite-docs 'create new + copy + drop + rename' approach,

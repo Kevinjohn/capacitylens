@@ -169,6 +169,13 @@ export async function showPlaceholders(page: Page): Promise<void> {
   await expect(toggle).toHaveAttribute("aria-checked", "true");
 }
 
+/** Turn on workspace inline activity creation from Settings for flows that exercise the opt-in UI. */
+export async function enableInlineActivityCreation(page: Page): Promise<void> {
+  const toggle = page.getByRole("switch", { name: "Inline activity creation" });
+  if ((await toggle.getAttribute("aria-checked")) !== "true") await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-checked", "true");
+}
+
 /** Re-anchor the schedule on the seeded week. `freezeBrowserDate` pins the clock to 2026-06-03,
  *  whose week start is 2026-06-01, so **Today** puts the seed week's Monday at the left edge. */
 export async function goToSeedWeek(page: Page): Promise<void> {

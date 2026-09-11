@@ -102,7 +102,7 @@ describe("SchedulerToolbar filter panel", () => {
     expect(hide).toHaveAttribute("aria-controls", "scheduler-filters");
     expect(screen.getByLabelText("Search people")).toBeInTheDocument();
     expect(screen.getByRole("radiogroup", { name: "Draw mode" })).toBeInTheDocument();
-    expect(document.getElementById("scheduler-filters")).toHaveClass("justify-center");
+    expect(document.getElementById("scheduler-filters")).toHaveClass("flex-wrap");
 
     await user.click(hide);
     expect(screen.getByRole("button", { name: "Show filters" })).toHaveAttribute("aria-expanded", "false");
@@ -149,7 +149,7 @@ function optionNames(label: string) {
 }
 
 describe("SchedulerToolbar filter ordering", () => {
-  it("orders search, lenses, tentative visibility, draw mode, unallocated, and Clear", () => {
+  it("keeps search left of one wrapping right-aligned group with Clear last", () => {
     useStore.getState().addDiscipline({ name: "Design", color: "#111", sortOrder: 0 });
     const client = useStore.getState().addClient({ name: "Queen Consolidated", color: "#222" });
     useStore.getState().addProject({ name: "Project Watchtower", clientId: client.id, color: "#333" });
@@ -160,6 +160,7 @@ describe("SchedulerToolbar filter ordering", () => {
 
     const filterbar = document.getElementById("scheduler-filters");
     if (!filterbar) throw new Error("Expected the scheduler filters container.");
+    const rightGroup = screen.getByTestId("scheduler-filter-controls");
     const controls = [
       screen.getByRole("textbox", { name: "Search people" }),
       screen.getByRole("combobox", { name: "Filter by discipline" }),
@@ -171,13 +172,20 @@ describe("SchedulerToolbar filter ordering", () => {
       screen.getByRole("checkbox", { name: "Show unallocated" }),
       screen.getByRole("button", { name: "Clear Filters" }),
     ];
-    const childIndexes = controls.map((control) =>
-      Array.from(filterbar.children).findIndex((child) => child === control || child.contains(control)),
-    );
+    const rightGroupControls = controls.slice(1);
 
-    expect(childIndexes).toEqual([...childIndexes].sort((a, b) => a - b));
-    expect(childIndexes.every((index) => index >= 0)).toBe(true);
-    expect(childIndexes.at(-1)).toBe(filterbar.children.length - 1);
+    expect(filterbar.children).toHaveLength(2);
+    expect(filterbar.children[0]).toBe(controls[0]);
+    expect(filterbar.children[1]).toBe(rightGroup);
+    expect(filterbar).toHaveClass("flex-wrap");
+    expect(rightGroup).toHaveClass("ml-auto", "flex-wrap", "justify-end");
+    expect(rightGroupControls.every((control) => rightGroup.contains(control))).toBe(true);
+    expect(
+      rightGroupControls.map((control) =>
+        Array.from(rightGroup.children).findIndex((child) => child === control || child.contains(control)),
+      ),
+    ).toEqual(rightGroupControls.map((_, index) => index));
+    expect(rightGroup.lastElementChild).toBe(controls.at(-1));
   });
 
   it("hides the discipline filter when disciplines are enabled but none exist", () => {
@@ -226,13 +234,22 @@ describe("SchedulerToolbar discipline and client ordering", () => {
 });
 
 describe("SchedulerToolbar project and activity ordering", () => {
-  it("pins Internal-owned projects before alphabetically ordered external projects", () => {
+  it("orders projects by effective client name, then effective project name", () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
     useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
-    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
+    const queen = useStore
+      .getState()
+      .addClient({ name: "Queen Consolidated", color: "#111", isPrivate: true, codeName: "Xavier" });
     const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
-    useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    useStore.getState().addProject({
+      name: "Project Watchtower",
+      clientId: queen.id,
+      color: "#333",
+      isPrivate: true,
+      codeName: "Alpha",
+    });
     useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: lex.id, color: "#444" });
+    useStore.getState().addProject({ name: "Annual report", clientId: lex.id, color: "#777" });
     useStore.getState().addProject({ name: "Website", clientId: internal.id, color: "#555" });
     useStore.getState().addProject({ name: "Admin", clientId: internal.id, color: "#666" });
     render(<SchedulerToolbar />);
@@ -242,9 +259,29 @@ describe("SchedulerToolbar project and activity ordering", () => {
       "All projects",
       "Internal / Admin",
       "Internal / Website",
+      "LexCorp / Annual report",
       "LexCorp / Metropolis Rebrand",
       "Queen Consolidated / Project Watchtower",
     ]);
+  });
+});
+
+describe("SchedulerToolbar project option presentation", () => {
+  it("mutes client context while preserving the complete accessible label and keyboard selection", async () => {
+    const user = userEvent.setup();
+    const client = useStore.getState().addClient({ name: "LexCorp", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: client.id, color: "#222" });
+    render(<SchedulerToolbar />);
+    showFilters();
+
+    const trigger = screen.getByRole("combobox", { name: "Filter by project" });
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    const option = screen.getByRole("option", { name: "LexCorp / Metropolis Rebrand" });
+    expect(option.querySelector('[data-slot="project-option-client"]')).toHaveClass("text-muted-foreground");
+    expect(option.querySelector('[data-slot="project-option-name"]')).toHaveClass("text-current");
+
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(useStore.getState().ui.filters.projectId).toBe(project.id);
   });
 
   it("alphabetises activities within the existing Internal and All projects groups", () => {
@@ -327,7 +364,7 @@ describe("SchedulerToolbar Clear filter presentation", () => {
     const clear = screen.getByRole("button", { name: "Clear Filters" });
     expect(clear).toBeDisabled();
     expect(clear).toHaveAttribute("data-variant", "outline");
-    expect(clear).toHaveClass("ml-auto");
+    expect(clear).toBe(screen.getByTestId("scheduler-filter-controls").lastElementChild);
     expect(clear.querySelector("svg")).toBeNull();
   });
 

@@ -10,6 +10,7 @@ import { resolveResourceDisplayName } from "../../lib/metadata";
 import {
   hasExternalResourcesEnabled,
   canCreateInlineActivity,
+  hasVisibleTaskFieldInSchedule,
   hasPlaceholdersEnabled,
   resolveSchedulingMode,
   resolveTimeZone,
@@ -59,6 +60,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
   const inlineActivityCreateEnabled = useStore((state) => canCreateInlineActivity(state.data, state.activeAccountId));
+  const showTaskFieldInSchedule = useStore((state) => hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId));
   const calendarTimeZone = useStore((state) => resolveTimeZone(state.data, state.activeAccountId));
   const isDays = mode === "days";
   const isBlocks = !carriesHourlyLoad(mode);
@@ -102,6 +104,7 @@ function useAllocationModalContext(props: AllocationModalProps) {
     placeholdersEnabled,
     externalEnabled,
     inlineActivityCreateEnabled,
+    showTaskFieldInSchedule,
     calendarTimeZone,
     isDays,
     isBlocks,
@@ -182,6 +185,7 @@ function buildModalState(
     targetFields: target.fields,
     scheduleFields: {
       ...schedule.fields,
+      showTaskFieldInSchedule: context.showTaskFieldInSchedule,
       endDateHint,
       create: context.create,
       repeatProjection,
@@ -222,6 +226,7 @@ function buildRepeatProjectionInput(
     isExternal: schedule.fields.isExternal,
     mode: context.mode,
     note: schedule.fields.note,
+    task: schedule.fields.task,
     repeat: schedule.fields.repeat,
     repeatUntil: schedule.fields.repeatUntil,
     repeatUntilMaximum: schedule.fields.repeatUntilMaximum,
@@ -273,7 +278,7 @@ function buildAdvisoryInput({
 function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0]) {
   // prettier-ignore
   const { activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
-    ignoreWeekends, isBlocks, isDays, isExternal, mode, note, repeat, repeatUntil, repeatUntilMaximum,
+    ignoreWeekends, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
     repeatUntilMinimum, resourceId, selectedActivity, selectedEffectiveProjectId, selectedResource,
     selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver } = input;
   return useMemo(
@@ -292,6 +297,7 @@ function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0])
         isExternal,
         mode,
         note,
+        task,
         repeat,
         repeatUntil,
         repeatUntilMaximum,
@@ -308,7 +314,7 @@ function useRepeatProjection(input: Parameters<typeof buildRepeatProjection>[0])
       }),
     // prettier-ignore
     [activityId, create, attributedProjectId, daysOfWork, daysOver, effEndDate, effHoursPerDay,
-      ignoreWeekends, isBlocks, isDays, isExternal, mode, note, repeat, repeatUntil, repeatUntilMaximum,
+      ignoreWeekends, isBlocks, isDays, isExternal, mode, note, task, repeat, repeatUntil, repeatUntilMaximum,
       repeatUntilMinimum, resourceId, selectedActivity, selectedEffectiveProjectId, selectedResource,
       selectedEffectiveWeek, spanFitsDateDomain, startDate, status, validDaysOver],
   );

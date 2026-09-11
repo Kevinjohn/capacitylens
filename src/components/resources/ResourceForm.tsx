@@ -7,19 +7,12 @@ import { resolveErrorMessage } from "../../lib/errorMessage";
 import { validateText, validateWorkingDays } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
-import {
-  FormActions,
-  Modal,
-  RequiredLegend,
-  SelectField,
-  TextField,
-  WorkingDayPicker,
-  type Option,
-} from "../common/ui";
+import { FormActions, Modal, RequiredLegend, SelectField, TextField, type Option } from "../common/ui";
 import { FieldError, FieldGroup } from "../ui/field";
 import { buildResourceEngagementOptions } from "../../lib/metadata";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { useResourceFormState, type ResourceFormState } from "./useResourceFormState";
+import { ResourceAvailabilityFields } from "./ResourceAvailabilityFields";
 import {
   FULL_DAY_HOURS,
   placeholderCapacityDefaults,
@@ -32,6 +25,8 @@ import {
   type Weekday,
 } from "@capacitylens/shared/types/entities";
 
+const optionalValue = (value: string): string | undefined => (value === "" ? undefined : value);
+
 type ResourceFormProps = { resource?: Resource; kind?: ResourceKind; onClose: () => void };
 type ResourceDraft = {
   name: string;
@@ -40,6 +35,8 @@ type ResourceDraft = {
   engagement: ResourceEngagement;
   workingDays: Weekday[];
   halfDays: Weekday[];
+  firstAvailableDate: string;
+  lastAvailableDate: string;
   projectId: string;
 };
 type ProjectOptionsInput = {
@@ -95,6 +92,8 @@ type ParseFormFieldsInput = {
   role: string;
   projectId: string;
   workingDays: Weekday[];
+  firstAvailableDate: string;
+  lastAvailableDate: string;
   isPlaceholder: boolean;
   fail: Fail;
 };
@@ -114,6 +113,15 @@ function parseFormFields(input: ParseFormFieldsInput): ValidatedFields | null {
     return null;
   }
   if (!isPlaceholder && !validateWorkingDays(workingDays, fail)) return null;
+  if (
+    !isPlaceholder &&
+    input.firstAvailableDate &&
+    input.lastAvailableDate &&
+    input.firstAvailableDate > input.lastAvailableDate
+  ) {
+    fail("lastAvailableDate", m.form_resource_err_availability_dates_order());
+    return null;
+  }
   return { name, role };
 }
 
@@ -125,11 +133,24 @@ type BuildResourcePatchInput = {
   engagement: ResourceEngagement;
   workingDays: Weekday[];
   halfDays: Weekday[];
+  firstAvailableDate: string;
+  lastAvailableDate: string;
   projectId: string;
   fields: ValidatedFields;
 };
 
-function buildResourcePatch(input: BuildResourcePatchInput) {
+type ResourcePatch = Pick<
+  Resource,
+  "kind" | "role" | "employmentType" | "engagement" | "workingHoursPerDay" | "workingDays" | "halfDays" | "color"
+> & {
+  name: string | undefined;
+  disciplineId: string | undefined;
+  projectId: string | undefined;
+  firstAvailableDate?: string | undefined;
+  lastAvailableDate?: string | undefined;
+};
+
+function buildResourcePatch(input: BuildResourcePatchInput): ResourcePatch {
   const { resource, kind, isPlaceholder, fields } = input;
   const basePatch = {
     name: fields.name || undefined,
@@ -143,10 +164,15 @@ function buildResourcePatch(input: BuildResourcePatchInput) {
   };
   return isPlaceholder
     ? { ...basePatch, kind: "placeholder" as const, ...placeholderCapacityDefaults() }
-    : { ...basePatch, kind, workingDays: input.workingDays, halfDays: input.halfDays };
+    : {
+        ...basePatch,
+        kind,
+        workingDays: input.workingDays,
+        halfDays: input.halfDays,
+        firstAvailableDate: optionalValue(input.firstAvailableDate),
+        lastAvailableDate: optionalValue(input.lastAvailableDate),
+      };
 }
-
-type ResourcePatch = ReturnType<typeof buildResourcePatch>;
 
 type SaveResourceInput = {
   resource: Resource | undefined;
@@ -180,6 +206,8 @@ function saveResource(input: SaveResourceInput) {
     ...(patch.name ? { name: patch.name } : {}),
     ...(patch.disciplineId ? { disciplineId: patch.disciplineId } : {}),
     ...(patch.projectId ? { projectId: patch.projectId } : {}),
+    ...(patch.firstAvailableDate ? { firstAvailableDate: patch.firstAvailableDate } : {}),
+    ...(patch.lastAvailableDate ? { lastAvailableDate: patch.lastAvailableDate } : {}),
   });
 }
 
@@ -190,6 +218,8 @@ function createSubmit(input: SubmitInput) {
       role: input.draft.role,
       projectId: input.draft.projectId,
       workingDays: input.draft.workingDays,
+      firstAvailableDate: input.draft.firstAvailableDate,
+      lastAvailableDate: input.draft.lastAvailableDate,
       isPlaceholder: input.isPlaceholder,
       fail: input.fail,
     });
@@ -202,6 +232,8 @@ function createSubmit(input: SubmitInput) {
       engagement: input.draft.engagement,
       workingDays: input.draft.workingDays,
       halfDays: input.draft.halfDays,
+      firstAvailableDate: input.draft.firstAvailableDate,
+      lastAvailableDate: input.draft.lastAvailableDate,
       projectId: input.draft.projectId,
       fields,
     });
@@ -288,41 +320,6 @@ function ResourceFields(props: ResourceFieldsProps) {
   );
 }
 
-type ResourceCapacityFieldsState = Pick<
-  ResourceFormState,
-  "workingDays" | "setWorkingDays" | "halfDays" | "setHalfDays"
->;
-
-type ResourceCapacityFieldsProps = {
-  form: ResourceCapacityFieldsState;
-  isPlaceholder: boolean;
-  error: string | null;
-  errorField: string | null;
-  errorId: string;
-};
-
-function ResourceCapacityFields({ form, isPlaceholder, error, errorField, errorId }: ResourceCapacityFieldsProps) {
-  return (
-    <>
-      {!isPlaceholder && (
-        <WorkingDayPicker
-          label={m.form_resource_working_days_label()}
-          workingDays={form.workingDays}
-          halfDays={form.halfDays}
-          onChange={(workingDays, halfDays) => {
-            form.setWorkingDays(workingDays);
-            form.setHalfDays(halfDays);
-          }}
-          invalid={errorField === "workingDays"}
-          describedById={errorId}
-        />
-      )}
-      <FieldError id={errorId}>{error}</FieldError>
-      <RequiredLegend />
-    </>
-  );
-}
-
 /** Add or edit a person or placeholder while preserving kind-specific capacity semantics. */
 export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceFormProps) {
   const add = useStore((state) => state.addResource);
@@ -331,6 +328,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
   const raw = useScopedData();
   const kind = resource?.kind ?? kindProp ?? "person";
   const isPlaceholder = kind === "placeholder";
+  const isPerson = kind === "person";
   const form = useResourceFormState(resource);
   const { error, errorField, errorId, fail } = useFieldError();
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
@@ -348,6 +346,8 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
     engagement: form.engagement,
     workingDays: form.workingDays,
     halfDays: form.halfDays,
+    firstAvailableDate: form.firstAvailableDate,
+    lastAvailableDate: form.lastAvailableDate,
     projectId: form.projectId,
   };
   const readResources = () => useStore.getState().data.resources;
@@ -368,13 +368,9 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: ResourceForm
         errorField={errorField}
         errorId={errorId}
       />
-      <ResourceCapacityFields
-        form={form}
-        isPlaceholder={isPlaceholder}
-        error={error}
-        errorField={errorField}
-        errorId={errorId}
-      />
+      {isPerson && <ResourceAvailabilityFields form={form} errorField={errorField} errorId={errorId} />}
+      <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   );
 }

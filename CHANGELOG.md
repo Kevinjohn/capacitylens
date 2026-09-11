@@ -7,6 +7,44 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
+  and simplify drawer entries to a compact activity-first agenda (#753, #754).
+
+### Added
+
+- Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
+  manually triggered workflow (#752).
+- Add an optional account-wide allocation **Task** field, with preserved text when the field is
+  hidden and task details above Notes in schedule popovers and person drawers (#720).
+- Add optional inclusive **First available date** and **Last available date** fields for Studio and
+  Supplementary people. Capacity is zero outside a person's range while existing allocated work
+  remains visible; new or placement-changing work cannot be placed outside the range (#723).
+
+## [0.63.0-alpha.1] - 2026-09-10
+
+This minor release adds a focused way to understand one person's near-term commitments without
+losing the wider planning context.
+
+### Added
+
+- Open a read-only four-week schedule from the eye action beside any visible person's name.
+- Review confirmed and tentative allocations, repeated work, hours, attribution, notes and eligible
+  personal time off together, independently of the current grid dates and filters.
+- Keep the underlying schedule exactly where it was while the drawer is open, including its dates,
+  filters and scroll position, then return keyboard focus to the same person when it closes.
+- Respect private client and project code names for non-owners, and limit personal time-off notes to
+  owners and administrators in authenticated companies (#709).
+
+## [0.62.1-alpha.1] - 2026-09-10
+
+### Changed
+
+- Made inline activity creation opt-in, aligned the Schedule filter controls, and sorted project
+  choices and the Projects page consistently by client then project, including code names
+  (#724, #712, #713, #718).
+
 ## [0.62.0-alpha.5] - 2026-09-10
 
 CapacityLens Alpha 5 makes archived work easier to find and recover. This public milestone also
@@ -4193,7 +4231,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...HEAD
+[0.63.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.1-alpha.1...v0.63.0-alpha.1
+[0.62.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...v0.62.1-alpha.1
 [0.62.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.62.0-alpha.5
 [0.61.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.2-alpha.1...v0.61.0-alpha.1
 [0.60.2-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.60.1-alpha.1...v0.60.2-alpha.1

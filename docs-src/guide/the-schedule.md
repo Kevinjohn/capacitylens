@@ -25,6 +25,13 @@ Each row starts with an avatar and name, with the person's role shown underneath
 placeholder row is labelled with the word "Placeholder" instead of a name, and has a
 faint diagonal hatch on its header so it reads as unfilled at a glance.
 
+Select the eye beside any visible name to open that person's read-only schedule. The
+drawer covers the current company week and the following three weeks, combining every
+allocation and personal time-off entry that overlaps that range. It opens over the grid,
+so your visible dates, filters and scroll position stay exactly where you left them.
+
+![Bruce Wayne's four-week individual schedule drawer with two project allocations and a personal holiday entry](../screenshots/flows/person_schedule_drawer.jpg)
+
 People marked as favourites stay at the top of their discipline, in alphabetical order.
 Everyone else follows alphabetically, then placeholders. Favourite external parties lead
 the separate External group. Favourites are shared with everyone in the company rather
@@ -62,6 +69,12 @@ a fully non-working day still fills the whole cell.
 
 ![The two-week schedule with the lower half of Diana Prince's unobscured Wednesday cell tinted to show her saved half-day working pattern](../screenshots/flows/schedule_half_days.jpg)
 
+A Studio or Supplementary person's optional availability dates also apply to these columns. Days
+before **First available date** or after **Last available date** have zero capacity. Existing allocation bars
+stay visible, so the work and its allocated load remain available for review even when the dates now
+fall outside the person's range. The zero-capacity state does not create a new control or a separate
+row type.
+
 ## Allocation bars
 
 An [allocation](/reference/glossary) — a person booked on a project for a date range —
@@ -84,6 +97,17 @@ Allocations created together with **Repeat** show a small repeat cue at the star
 each linked bar. Hover or focus the bar to see the last surviving date in that series.
 The cue marks the link between occurrences; each occurrence can still be edited on its
 own.
+
+Select a person's avatar to open their individual schedule. The avatar changes to an eye
+when you hover it or move keyboard focus to it. The drawer keeps each allocation compact:
+activity first, quieter project and client context, then its date range and daily hours on
+one line. Task and note details remain below when present. Allocation status and repeat-series
+metadata stay out of this scan-first view.
+
+When **Show task field in schedule** is enabled in [Settings](/guide/settings), an allocation can
+also carry a short **Task** description. It appears above Notes when you hover or focus a bar and
+in the person's schedule drawer. The setting is off by default; turning it off hides the field and
+details but preserves existing task text for when it is enabled again.
 
 ![The schedule with repeat cues at the start of two linked CMS Review allocation bars for Clark Kent](../screenshots/flows/schedule_repeat_cue.jpg)
 
@@ -117,6 +141,10 @@ range.
 grid as work, as a hatched block with no project colour, so a person's real availability
 is always visible in one place rather than hidden in a separate calendar.
 
+Personal time off also appears in the individual's four-week drawer. Owners and Admins
+can read its note; Editors and Viewers see the dated absence without that private detail.
+Company closures and ordinary non-working days are not repeated in the drawer.
+
 Company closures are created in their own section of the Time off page. Each closure
 appears once as a named band across every person and placeholder it covers, including
 people added later. It does not cover the External group. A personal time-off block can
@@ -136,13 +164,20 @@ Use **Show filters** at the right of the toolbar, after Undo and Redo, to open t
 row. Select **Hide filters** when you want the extra vertical space back. Hiding the row
 does not clear an active filter.
 
-![The open schedule filter row with person search, four filter dropdowns, Show tentative and Hide tentative, then Work and Time off draw modes](../screenshots/flows/schedule_filters_open.jpg)
+![The open schedule filter row with person search on the left and the filter, visibility, draw-mode and Clear Filters controls grouped on the right](../screenshots/flows/schedule_filters_open.jpg)
 
-The row starts with person search and the discipline, client, project and activity
-filters. Next are the **Show tentative** / **Hide tentative** and **Work** / **Time off**
-segmented controls. Selecting a client or project narrows the bars and rows to that work.
-The active value stays visible in the row, and **Clear Filters** turns red so the filtered
-state cannot be mistaken for the complete schedule.
+Person search stays on the left. The discipline, client, project and activity filters sit
+in a group on the right, followed by the **Show tentative** / **Hide tentative** and
+**Work** / **Time off** controls. The group wraps at narrower desktop widths without
+changing the keyboard order.
+
+The project menu keeps **All projects** first, then sorts projects by client and project.
+A code name controls the alphabetical position when one is set. In each option, the
+client and slash are grey so the project name is easier to scan; the complete
+**Client / Project** label remains available to assistive technology. Selecting a client
+or project narrows the bars and rows to that work. The active value stays visible, and
+**Clear Filters** turns red so the filtered state cannot be mistaken for the complete
+schedule.
 
 ![The Schedule filtered to Queen Consolidated and Project Watchtower, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.jpg)
 
@@ -156,6 +191,10 @@ them useful candidates to staff without implying they are already booked to the 
 nothing is filtered, then turns red with a bin icon when a filter is active. One click
 resets the search, every dropdown and **Show unallocated**, and returns tentative work to
 **Show tentative**.
+
+An individual schedule is independent of this grid view. Its fixed four-week range does
+not change when you pan or zoom, and it includes the person's matching commitments even
+when a search, project filter, tentative-work setting or draw mode hides them on the grid.
 
 Every change on the schedule — dragging, resizing, deleting an allocation — can be
 undone and redone from the toolbar, or with Ctrl/Cmd+Z, if you have edit access.

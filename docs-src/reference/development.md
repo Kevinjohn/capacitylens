@@ -105,6 +105,130 @@ pnpm exec playwright test --project=auth-backed \
 
 Read `AGENTS.md`, `DECISIONS.md` and `DEFENSIVE-CODING.md` before broad changes.
 
+### Task navigation {#task-navigation}
+
+Use these entries to find the first owner for a familiar kind of change, then follow only the
+boundaries that the task reaches. They supplement the repository map; they are neither an
+exhaustive dependency list nor a substitute for the required validation policy.
+
+#### Allocation forms and recurrence {#task-allocation}
+
+**Start:** `src/components/scheduler/AllocationModal.tsx` composes the allocation form and delegates
+its state, fields and commands.
+
+**Follow through:** Read `src/components/scheduler/useAllocationModalState.ts`,
+`src/components/scheduler/AllocationTargetFields.tsx` and
+`src/components/scheduler/AllocationScheduleFields.tsx` for field ownership,
+`src/components/scheduler/AllocationModalFieldLayout.tsx` for layout, and
+`src/components/scheduler/allocationSubmit.ts` plus `src/lib/repeatingAllocations.ts` when save or
+recurrence behaviour changes.
+
+**Tests:** Start with `src/components/scheduler/AllocationModal.test.tsx` and
+`src/components/common/compactFormLayouts.test.tsx`; include `e2e/modal-layout.spec.ts`,
+`e2e/allocation-modal-layout.spec.ts` and `e2e/allocation.spec.ts` when their layout or complete
+browser flow is affected.
+
+#### Time off and recurrence {#task-time-off}
+
+**Start:** `src/components/timeoff/TimeOffForm.tsx` owns the personal time-off form and connects its
+draft, permission and repeat state to saving.
+
+**Follow through:** Read `src/components/timeoff/useTimeOffRepeat.ts`,
+`src/components/timeoff/timeOffFormSubmission.ts` and `src/lib/repeatingTimeOff.ts` for repeat
+projection and persistence; shared date-series rules live in `shared/src/lib/repeatingDates.ts`.
+
+**Tests:** Start with `src/components/timeoff/TimeOffForm.repeat.test.tsx`,
+`src/lib/repeatingTimeOff.test.ts` and `src/store/useStore.timeOff.test.ts`; use
+`e2e/timeoff.spec.ts` for the complete browser flow.
+
+#### Capacity and visible Utilisation {#task-capacity}
+
+**Start:** `src/components/scheduler/visibleSpan.ts` resolves the actual visible date window and its
+labels from the viewport.
+
+**Follow through:** `src/components/scheduler/schedulerRowCapacity.ts` builds row capacity sources
+for both `visibleWindow` and the fixed `overSoonWindow`; `src/lib/capacity.ts` owns the
+straight-line availability, allocation and Utilisation calculations. Preserve those two windows as
+separate signals.
+
+**Tests:** Start with `src/components/scheduler/visibleSpan.test.ts`, `src/lib/capacity.test.ts` and
+`src/components/scheduler/schedulerModel.test.ts`; check `e2e/holiday-overallocation.spec.ts` when
+visible capacity or over-capacity presentation changes.
+
+#### Scheduler gestures and viewport {#task-scheduler-interactions}
+
+**Start:** `src/components/scheduler/SchedulerGrid.tsx` composes the timeline viewport, row model,
+virtual window and interaction surfaces.
+
+**Follow through:** Read `src/components/scheduler/useAllocationGesture.ts` for allocation movement
+and resizing, `src/components/scheduler/useSchedulerViewport.ts` for scrolling and column geometry,
+and `src/components/scheduler/useSchedulerGridVirtualization.ts` with
+`src/components/scheduler/virtualWindow.ts` for rendered rows.
+
+**Tests:** Start with `src/components/scheduler/AllocationBar.interaction.test.tsx`,
+`src/components/scheduler/useSchedulerViewport.test.tsx` and
+`src/components/scheduler/virtualWindow.test.ts`; use `e2e/scheduler.spec.ts` and
+`e2e/snap-week.spec.ts` for browser-level gesture and viewport behaviour.
+
+#### Client account projection and scoped reads {#task-client-account-projection}
+
+**Start:** `src/store/useScopedData.ts` is the client read seam that projects the active account and
+its active-only view.
+
+**Follow through:** `src/auth/PermissionProvider.tsx` projects the active membership into UI and
+store capabilities, using the account summaries owned by `src/auth/useAccountSummaries.ts`. These
+client projections control visibility and affordances; they never authorize a server operation.
+
+**Tests:** Start with `src/store/useScopedData.test.tsx`, `src/auth/PermissionProvider.test.tsx` and
+`src/store/multitenancy.test.ts`; use `e2e/private-name-permissions.auth.spec.ts` when role-based
+projection reaches the signed-in browser flow.
+
+#### Server tenant authorization {#task-server-tenant-authorization}
+
+**Start:** `server/src/routes/appAuthorization.ts` resolves membership, capability and fresh-session
+requirements for account-scoped requests.
+
+**Follow through:** Inspect the route that consumes the authorization seam, such as
+`server/src/routes/entityRoutes.ts`, then `server/src/tenantStore.ts` when the operation crosses the
+scoped storage boundary. Client visibility or permission projection is never server authority.
+
+**Tests:** Start with `server/src/app.authz.test.ts`; include `server/src/db.tenantStore.test.ts` and
+`e2e/viewer.auth.spec.ts` when storage isolation or end-to-end role enforcement is affected.
+
+#### Online persistence and refresh {#task-online-persistence}
+
+**Start:** `src/data/persistence/attachPersistence.ts` composes the store subscription, write queue,
+account switching, refresh and browser lifecycle hooks.
+
+**Follow through:** Read `src/data/persistence/refreshController.ts`,
+`src/data/persistence/accountSwitch.ts` and `src/data/persistence/writeQueue.ts` for the relevant
+coordination path. `src/data/ServerSyncAdapter.ts` owns whole-slice loading and ordered,
+transactional batch diffs against the server.
+
+**Tests:** Start with `src/data/persist.test.ts`, `src/data/persist.overlap.test.ts` and
+`src/data/ServerSyncAdapter.test.ts`; use `e2e/persistence.db.spec.ts` and
+`e2e/resilience.db.spec.ts` for database-backed browser boundaries.
+
+#### Offline snapshots {#task-offline-snapshots}
+
+**Start:** `src/data/offlineCache.ts` is the public facade for opt-in cached identity, account lists
+and read-only account slices.
+
+**Follow through:** `src/data/offline/records.ts` owns validated encrypted record reads and writes,
+`src/data/offline/state.ts` owns the offline episode and preference state, and
+`src/data/offline/crypto.ts` plus `src/data/offline/shell.ts` own the device boundary and cached app
+shell. The service worker lives at `public/offline-worker.js`.
+
+**Tests:** Start with `src/data/offlineCache.test.ts` and `src/data/offlineWorker.test.ts`; include
+the offline transport cases in `src/data/ServerSyncAdapter.test.ts` and
+`e2e/clear-local-storage.spec.ts` when cleanup or browser storage boundaries change.
+
+Maintain an entry when its starting point or ownership changes. A task brief should link to the
+relevant entry and name the exact implementation and test paths it needs, rather than copy this
+whole section. For work not mapped here, use targeted source, caller and import searches. Import and
+schema changes continue to follow [Database migrations](#database-migrations), while standing
+invariants remain in their existing authoritative documents.
+
 A few rules the codebase enforces structurally, worth knowing before you touch the
 relevant area:
 

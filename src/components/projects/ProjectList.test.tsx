@@ -19,12 +19,36 @@ afterEach(() => vi.unstubAllEnvs());
 
 // eslint-disable-next-line max-lines-per-function -- integration scenarios intentionally share one fixture lifecycle
 describe("ProjectList", () => {
-  it("sorts by project name rather than client label without changing stored order", () => {
-    const alphaClient = useStore.getState().addClient({ name: "Alpha Client", color: "#111111" });
-    const zuluClient = useStore.getState().addClient({ name: "Zulu Client", color: "#222222" });
-    useStore.getState().addProject({ name: "Zulu Project", clientId: alphaClient.id, color: "#333333" });
-    useStore.getState().addProject({ name: "alpha project", clientId: zuluClient.id, color: "#444444" });
-    useStore.getState().addProject({ name: "Bravo Project", clientId: alphaClient.id, color: "#555555" });
+  it("sorts by effective client then effective project name without changing stored order", () => {
+    const zuluClient = useStore.getState().addClient({ name: "Zulu Client", color: "#111111" });
+    const alphaClient = useStore.getState().addClient({ name: "Alpha Client", color: "#222222" });
+    const alphaZuluProject = useStore
+      .getState()
+      .addProject({ name: "Alpha Project", clientId: zuluClient.id, color: "#333333" });
+    const zuluBravoProject = useStore
+      .getState()
+      .addProject({ name: "Zulu Project", clientId: zuluClient.id, color: "#444444" });
+    const betaAlphaProject = useStore
+      .getState()
+      .addProject({ name: "Beta Project", clientId: alphaClient.id, color: "#555555" });
+    const betaZuluProject = useStore
+      .getState()
+      .addProject({ name: "Zulu Project", clientId: alphaClient.id, color: "#666666" });
+
+    useStore.getState().replaceAll({
+      ...useStore.getState().data,
+      clients: useStore
+        .getState()
+        .data.clients.map((client) =>
+          client.id === alphaClient.id ? { ...client, isPrivate: true, codeName: "  Beta Client  " } : client,
+        ),
+      projects: useStore.getState().data.projects.map((project) => {
+        if (project.id === alphaZuluProject.id) return { ...project, isPrivate: true, codeName: "Zulu Project" };
+        if (project.id === zuluBravoProject.id) return { ...project, isPrivate: true, codeName: "Bravo Project" };
+        if (project.id === betaZuluProject.id) return { ...project, isPrivate: true, codeName: "Alpha Project" };
+        return project;
+      }),
+    });
     const storedIds = useStore.getState().data.projects.map((project) => project.id);
 
     render(
@@ -34,10 +58,14 @@ describe("ProjectList", () => {
     );
 
     expect(screen.getAllByTestId("project-row").map((row) => row.querySelector(".font-medium")?.textContent)).toEqual([
-      "alpha project",
-      "Bravo Project",
-      "Zulu Project",
+      betaZuluProject.name,
+      betaAlphaProject.name,
+      zuluBravoProject.name,
+      alphaZuluProject.name,
     ]);
+    expect(
+      screen.getAllByTestId("project-row").map((row) => row.querySelector(".text-muted-foreground")?.textContent),
+    ).toEqual(["· Alpha Client", "· Alpha Client", "· Zulu Client", "· Zulu Client"]);
     expect(useStore.getState().data.projects.map((project) => project.id)).toEqual(storedIds);
   });
 

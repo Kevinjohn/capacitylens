@@ -31,7 +31,11 @@ nothing, and a typed start date, a duplicate or a reassignment is rejected with 
 draw that begins on an allowed date may still cross blocked dates. The per-allocation
 **Ignore working days** checkbox makes that allocation use every calendar day in its span and lets
 an existing allocation be dragged or extended onto closed days — it never changes where a new
-allocation may start — and time off stays a separate, visible conflict.
+allocation may start — and time off stays a separate, visible conflict. A person's optional
+**First available date** and **Last available date** add an inclusive
+date boundary: capacity is zero outside the range, existing load remains visible, and Ignore
+working days does not bypass it. New or placement-changing work outside the range is rejected, while
+metadata edits and existing conflicting allocations remain allowed.
 
 For example, if the company works Monday to Friday and Bruce Wayne works Monday, Wednesday and
 Friday, his capacity and ordinary allocations use Monday, Wednesday and Friday.
@@ -71,13 +75,22 @@ bars come back the moment you turn the switch back on.
 
 ## Inline activity creation
 
-When you're booking an allocation and the [activity](/reference/glossary) you need
-doesn't exist yet, the allocation form normally lets you add it on the spot without
-leaving the form. That
-convenience is controlled by **Inline activity creation** under **Activity creation**,
-on by default. Turning it off means everyone has to create new activities from the
-**Activities** page first, then pick from the existing list when they allocate — useful
-if you'd rather keep activity names tidy and reviewed.
+New activities normally start on the **Activities** page, where your team can agree and
+reuse consistent names. The allocation form still lets everyone pick an existing
+[activity](/reference/glossary).
+
+To let people create an activity without leaving an allocation, turn on **Inline
+activity creation** under **Activity creation**. This workspace setting is off by
+default. Turning it on adds the inline **Add activity** controls for everyone who can
+edit allocations; turning it off again hides only those controls and does not remove
+activities or allocations.
+
+## Allocation task field
+
+Turn on **Show task field in schedule** to add an optional single-line **Task** description to the
+allocation editor. It is off by default. Enabled task text appears above Notes in schedule details
+and the person's schedule drawer. Turning the setting off hides the field and text without deleting
+it, so re-enabling the setting restores existing tasks.
 
 ## Calendar
 

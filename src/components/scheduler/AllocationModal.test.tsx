@@ -506,6 +506,7 @@ function expectAllocationSpanRow(controls: HTMLElement[]) {
 function registerCompactCreateLayoutTest() {
   it("aligns Hours-mode create fields, the full-width scheduling row, inline creation and repeat hints", async () => {
     const resource = useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5] });
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -1575,7 +1576,31 @@ function registerEditScopeTests() {
   );
 }
 
-function registerEditScopeAndHoursTests() {
+function registerRetainedConflictAndScopeTests() {
+  it("allows a metadata-only full-form save for a retained availability conflict", async () => {
+    const resource = useStore.getState().addResource({ ...person("Clark Kent"), workingDays: [1, 2, 3, 4, 5] });
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    useStore.getState().updateResource(resource.id, { firstAvailableDate: "2026-06-08" });
+    const user = userEvent.setup();
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Note"), { target: { value: "Retained scheduling context" } });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.allocations.find(({ id }) => id === allocation.id)).toMatchObject({
+      note: "Retained scheduling context",
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+    });
+  });
+
   it("clears attributed All-projects work when its scope changes", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
@@ -1599,7 +1624,9 @@ function registerEditScopeAndHoursTests() {
       "projectId",
     );
   });
+}
 
+function registerUnmatchedHoursPreservationTest() {
   it("shows an unmatched hours value and preserves it through an unrelated save", async () => {
     const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
     const allocation = useStore.getState().addAllocation({
@@ -2180,7 +2207,8 @@ function registerEditDuplicateAvailabilityTests() {
 
 describe("AllocationModal edit", () => {
   registerEditScopeTests();
-  registerEditScopeAndHoursTests();
+  registerRetainedConflictAndScopeTests();
+  registerUnmatchedHoursPreservationTest();
   registerEditHoursAndNoteTests();
   registerRejectedDeletionTest();
   registerFutureDeletionTest();
@@ -2394,8 +2422,9 @@ function addInlineActivityTestPerson() {
 }
 
 function registerInlineActivityEnabledTests() {
-  it('renders the inline "Add activity" input + button by default (pref absent → enabled)', () => {
+  it('renders the inline "Add activity" input + button when explicitly enabled', () => {
     const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     render(
       <AllocationModal
         kind="create"
@@ -2410,6 +2439,7 @@ function registerInlineActivityEnabledTests() {
   it("places an inline-created project activity in the project-specific group", async () => {
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
     const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -2437,6 +2467,20 @@ function registerInlineActivityEnabledTests() {
 }
 
 function registerInlineActivityUnavailableTests() {
+  it('hides the inline "Add activity" controls by default while retaining the Activity picker', () => {
+    const resourceId = addInlineActivityTestPerson();
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.queryByLabelText("New activity name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add activity" })).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Activity" })).toBeInTheDocument();
+  });
+
   it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', () => {
     const resourceId = addInlineActivityTestPerson();
     useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false });
@@ -2456,6 +2500,7 @@ function registerInlineActivityUnavailableTests() {
 
   it("removes inline activity creation when an open editor modal is downgraded to viewer", async () => {
     const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const user = userEvent.setup();
     const view = render(
       <PermissionContext.Provider value={{ role: "editor" }}>
@@ -2487,6 +2532,90 @@ function registerInlineActivityUnavailableTests() {
 describe("AllocationModal inline activity creation pref", () => {
   registerInlineActivityEnabledTests();
   registerInlineActivityUnavailableTests();
+});
+
+function registerTaskCreateTest() {
+  it("shows and saves an optional single-line task when the workspace setting is enabled", async () => {
+    const resourceId = addInlineActivityTestPerson();
+    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId, startDate: "2026-06-01", endDate: "2026-06-03" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await user.type(screen.getByLabelText("Task"), "Launch review");
+    await chooseOption(user, "Project", "Acme / Lightning");
+    await chooseOption(user, "Activity", "Wireframes");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations[0]?.task).toBe("Launch review");
+  });
+}
+
+function registerTaskClearTest() {
+  it("allows an existing task to be cleared", async () => {
+    const resourceId = addInlineActivityTestPerson();
+    const allocation = useStore.getState().addAllocation({
+      resourceId,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+      task: "Original task",
+    });
+    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    const user = userEvent.setup();
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+    await user.clear(screen.getByLabelText("Task"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.allocations[0]).not.toHaveProperty("task");
+  });
+}
+
+function registerHiddenTaskPreservationTest() {
+  it("preserves a hidden task while an unrelated allocation is edited and restores it when enabled", async () => {
+    const resourceId = addInlineActivityTestPerson();
+    const taskAllocation = useStore.getState().addAllocation({
+      resourceId,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+      task: "Keep this task",
+    });
+    const unrelated = useStore.getState().addAllocation({
+      resourceId,
+      activityId: "t1",
+      startDate: "2026-06-08",
+      endDate: "2026-06-10",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: false });
+    const user = userEvent.setup();
+    const view = render(<AllocationModal kind="edit" allocationId={unrelated.id} onClose={vi.fn()} />);
+    expect(screen.queryByLabelText("Task")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "Tentative" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    view.unmount();
+
+    useStore.getState().updateAccount(ACC, { showTaskFieldInSchedule: true });
+    render(<AllocationModal kind="edit" allocationId={taskAllocation.id} onClose={vi.fn()} />);
+    expect(screen.getByLabelText("Task")).toHaveValue("Keep this task");
+    expect(useStore.getState().data.allocations.find(({ id }) => id === taskAllocation.id)?.task).toBe(
+      "Keep this task",
+    );
+  });
+}
+
+describe("AllocationModal task field", () => {
+  registerTaskCreateTest();
+  registerTaskClearTest();
+  registerHiddenTaskPreservationTest();
 });
 
 function registerEnterSubmissionTests() {
@@ -2547,6 +2676,7 @@ function registerInlineActivityEnterTest() {
   it("pressing Enter in the new-activity input calls onAddActivity, not submit", async () => {
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
     const resourceId = first(useStore.getState().data.resources).id;
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: true });
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -3075,6 +3205,26 @@ function registerRepeatEffectiveWeekAndDuplicateTests() {
     expect(useStore.getState().data.allocations).toHaveLength(2);
     oneSpy.mockRestore();
     bulkSpy.mockRestore();
+  });
+
+  it("surfaces an availability error when duplication would recreate retained conflicting dates", async () => {
+    const resource = addPerson();
+    const allocation = useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: "t1",
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    useStore.getState().updateResource(resource.id, { firstAvailableDate: "2026-06-08" });
+    const user = userEvent.setup();
+    render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Duplicate" }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/before this person is available/i);
+    expect(useStore.getState().data.allocations).toHaveLength(1);
   });
 }
 

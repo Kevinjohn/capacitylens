@@ -1,6 +1,7 @@
 import { test, expect, type Locator, type Page } from "./fixtures";
 import {
   boundingBoxOrThrow,
+  enableInlineActivityCreation,
   openApp,
   resetSchedulerScroll,
   selectShadOption,
@@ -175,6 +176,12 @@ test("keeps a legacy unattributed edit unchanged and places inline activities in
   editor = page.getByRole("dialog", { name: "Edit allocation" });
   await expect(editor.getByLabel("Project", { exact: true })).toHaveText("No specific project");
   await editor.getByRole("button", { name: "Cancel" }).click();
+
+  await page.getByRole("link", { name: "Settings" }).click();
+  await enableInlineActivityCreation(page);
+  await page.getByRole("link", { name: "Schedule" }).click();
+  await setZoom(page, 4);
+  await resetSchedulerScroll(page);
 
   await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
   const create = page.getByRole("dialog", { name: "New allocation" });

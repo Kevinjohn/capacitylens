@@ -48,10 +48,12 @@ activities from the activities in that project's **Project-specific** group.
 4. Click **Add project**. Every project belongs to a client, so choose one from the
    list.
 
-![The Projects page listing Metropolis Rebrand before Project Watchtower alphabetically, with client names and an Add project button](../screenshots/flows/projects-page.jpg)
+![The Projects page ordered by client then project, with project names first, client names in grey and an Add project button](../screenshots/flows/projects-page.jpg)
 
-The Clients and Projects pages keep their rows alphabetical. A project is sorted by its
-project name; its client appears as supporting information underneath.
+The Clients page keeps its rows alphabetical. The Projects page sorts first by client,
+then by project within that client. A private client's or project's code name controls
+its alphabetical position when one is set. Each row still puts the project name first
+and shows its client in grey as supporting information.
 
 Every company starts with one built-in client called **Internal** for non-billable
 work — general admin, internal meetings, anything that isn't client work. It can't be
@@ -110,13 +112,15 @@ towards a different project. When you edit the booking, choosing **No specific p
 clears that attribution. Existing unattributed bookings stay unattributed until you make
 that choice explicitly.
 
-If the activity you need doesn't exist yet, an "Add activity" option inside the same form
-can create it in the selected scope — unless your company has turned that convenience off
-in [Settings](/guide/settings). Adding one under a real project creates a project-specific
-activity and places it in that group.
+If the activity you need doesn't exist yet, create it on the **Activities** page. Your
+company can opt in to an inline **Add activity** option in [Settings](/guide/settings).
+When enabled, adding one under a real project creates a project-specific activity and
+places it in that group.
 
 Status is a compact **Confirmed**, **Tentative** or **Completed** choice. Notes are
-single-line.
+single-line. If **Show task field in schedule** is enabled in [Settings](/guide/settings),
+the form also offers an optional single-line **Task** description beneath the activity controls.
+The task is shown above Notes in schedule details and is preserved when the setting is turned off.
 
 When the company plans in Hours, **Hours / day** is a four-option select: **1 hour**,
 **Quarter day (2h)**, **Half day (4h)** or **Full day (8h)**. If an existing allocation
@@ -129,7 +133,10 @@ pattern. Check it when the allocation must use every calendar day in its date sp
 company and personal non-working weekdays. Either way, a new allocation must start on an effective
 working day that isn't covered by the person's time off — the checkbox never changes where a new
 allocation may begin. To place work over closed days, create it starting on an open day with the
-checkbox ticked, then drag or extend it onto the closed days.
+checkbox ticked, then drag or extend it onto the closed days. If the assignee has an availability
+date range, the placement must also stay within that inclusive range. **Ignore working days** does
+not bypass those date boundaries. Existing bookings that become outside the range stay visible, and
+metadata edits remain possible; only a new or placement-changing date/assignee edit is blocked.
 
 ![The New allocation form showing a rejected Saturday start date and the message that new allocations must begin on a company and personal working day](../screenshots/flows/allocation_non_working_day_rejected.jpg)
 
@@ -153,10 +160,12 @@ project attribution.
 
 - **Move** a bar by dragging it to a different set of days, or drop it on another
   person's row to reassign the work. A vertical reassignment keeps its start date: if that
-  date is outside either the company or person's working pattern, the drop is rejected and
-  the original allocation stays put. An allocation with **Ignore working days** enabled may
-  use those dates literally.
-- **Resize** a bar from either edge to change its start or end date.
+  date is outside either the company or person's working pattern, or outside that person's
+  availability date range, the drop is rejected and the original allocation stays put. An allocation
+  with **Ignore working days** enabled may use recurring non-working dates literally, but it still
+  cannot cross the person's availability boundaries.
+- **Resize** a bar from either edge to change its start or end date. A new placement outside the
+  assignee's inclusive availability range is rejected atomically.
 - **Open** a bar to change its status between tentative, confirmed and completed, or
   to duplicate or delete it. Duplicate is available for unlinked allocations, but not
   occurrences in a linked repeat series. Deleting can be undone from the toolbar, or

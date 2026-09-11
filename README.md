@@ -50,6 +50,8 @@ Then open <http://127.0.0.1:5173>, pick a demo account, and you're in.
   just off the edge of the screen.
 - **Plan work you haven't won yet** — placeholder people for roles you'd need to hire or borrow, and
   external partners who don't count against your capacity.
+- **Plan around people's dates** — give Studio and Supplementary people optional inclusive start and
+  end availability dates while keeping existing bookings visible for history.
 - **Keep holidays in the picture** — time off sits in the same view as the work, so it stops being a
   surprise.
 - **Know how full you really are** — utilisation per person and across the whole visible window.
@@ -99,8 +101,9 @@ Details: [how sign-in works](docs-src/company-login/index.md) ·
 
 ## Documentation
 
-The docs ship with the repository. Open [`docs/index.html`](docs/) straight from a checkout — no
-server, no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
+Read the [CapacityLens documentation](https://kevinjohn.github.io/capacitylens/) online. The same
+docs ship with the repository: open [`docs/index.html`](docs/) straight from a checkout — no server,
+no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
 
 - [Getting started](docs-src/getting-started/what-is-capacitylens.md) — the two-minute demo, the
   Docker and direct Node installation routes, invites and roles.

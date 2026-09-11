@@ -419,7 +419,8 @@ describe("SettingsView — account toggle wiring", () => {
     ["Show external resources", "externalEnabled", false],
     ["Show internal projects", "showInternalProjects", true],
     ["Show internal activities", "showInternalActivities", true],
-    ["Inline activity creation", "inlineActivityCreateEnabled", true],
+    ["Inline activity creation", "inlineActivityCreateEnabled", false],
+    ["Show task field in schedule", "showTaskFieldInSchedule", false],
   ] as const)("wires %s to account.%s (absent reads as %s)", async (label, key, whenAbsent) => {
     const user = userEvent.setup();
     render(<SettingsView />);

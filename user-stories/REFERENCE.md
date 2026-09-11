@@ -342,7 +342,8 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline` (when disciplines are
-enabled and at least one exists), `Engagement`, `Bound project`, `Working days` (for people only: a
+enabled and at least one exists), `Engagement`, `First available date`, `Last available date` (for Studio and
+Supplementary people only), `Bound project`, `Working days` (for people only: a
 full-width Monday–Sunday radio grid aligned with the field label whose `Full day`, `Half day` and
 `Not working` column headings appear once; every cell's native radio is labelled by both its weekday
 and availability, and each row permits one choice; long labels remain on one line inside a
@@ -520,7 +521,9 @@ The archive flow is reversible and retains children; it must not be described as
 
 **Scheduler toolbar.** A filter-icon button at the right of the toolbar, after **Undo**/**Redo** and
 its own divider, starts as **Show filters** with `aria-expanded="false"`; it becomes **Hide filters**
-with `aria-expanded="true"` while the centred secondary filter row is present. Viewers retain the
+with `aria-expanded="true"` while the secondary filter row is present. Search stays at the left;
+the remaining controls form a right-aligned group that wraps at narrower desktop widths without
+changing their order. Viewers retain the
 filter button in the same right-hand action area while the unavailable history controls are hidden.
 Opening and closing the row moves the schedule body down and back up without changing any filter or
 draw-mode state. A **Weeks visible** dropdown (a `role="combobox"` select whose accessible name
@@ -564,7 +567,8 @@ The expanded filter row starts with `Search people…`, which matches accent-ins
 displayed name, stored name and role as one phrase, so a query may span those fields. The remaining
 controls are `Filter by discipline` (shown only when disciplines are enabled and at least one exists,
 in the scheduler grid's canonical discipline order), `Filter by client` (Internal first, then
-alphabetical), `Filter by project` (Internal-owned projects first, then alphabetical by project name),
+alphabetical), `Filter by project` (`All projects` first, then client-first/project-second order
+using each item's trimmed non-empty code name when present, otherwise its ordinary name),
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
 `Internal — All` + each internal activity, then an `All projects` optgroup with `All projects — All` +
 each group's activities alphabetically; shown only when the account has internal/All-projects activities. Project-specific activities
@@ -574,8 +578,10 @@ clears the client/project filter and vice-versa. The `Tentative visibility` radi
 `Work`/`Time off` (note "Time off" here is the _toggle_, distinct from the "Time off" _nav link_), then `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
 resources with no matching work in the displayed timeline; ticking it brings them back
-visible-but-dimmed so you can see who's free to staff), `Clear Filters` (always shown at the far
-right; disabled and visually quiet with no active filters, then red with a bin icon while active).
+visible-but-dimmed so you can see who's free to staff), `Clear Filters` (always shown last in the
+right-hand group; disabled and visually quiet with no active filters, then red with a bin icon while
+active). Project options visually mute the client and slash while preserving the complete
+`Client / Project` accessible label and ordinary keyboard selection.
 
 **Schedule display (minimise weekends).** Settings → **Schedule** has a switch
 **Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.
@@ -687,6 +693,34 @@ project (or whose toggle is off) just skips that part. The hover/focus popover k
 activity-first layout regardless of these toggles. Its visible card contains allocation details
 only; the retained drag/resize/reassign guidance is exposed as the popover's assistive label rather
 than as a footer over the schedule.
+
+**Individual schedule drawer.** Every visible resource row uses its avatar as the schedule button,
+named **View _name_'s schedule** (`data-testid="person-schedule-trigger"`). Initials (or the
+placeholder question mark) remain visible at rest; pointer hover and keyboard focus replace them
+with an eye icon, and focus has the standard visible ring. It is
+available to every role, including Viewers, and opens one read-only Sheet from the right without
+changing the grid's dates, zoom, filters, dimensions or scroll position. The Sheet
+(`data-testid="person-schedule-sheet"`) lists that resource's project, internal, All-projects and
+personal-time-off commitments for the current company week plus the following three weeks. Its
+window follows the company's timezone and Sunday/Monday week start, ignores grid filters and shows
+every overlapping occurrence once with its complete stored date range. Entries
+(`data-testid="person-schedule-entry"`) are chronological readable text, never edit links or
+buttons. Allocations lead with activity, then effective project/client context, followed by a
+compact year-free date range and appropriate hours per day on one line. Status and repeat-series
+metadata are deliberately omitted; task and note content remain when available. Personal time off
+includes its type, year-free dates and an authorised note, distinguished without an accent rail by
+its calendar icon and explicit type label.
+External-resource time off, company closures and ordinary non-working days are not entries. Empty
+schedules show **Nothing scheduled in these four weeks.**
+(`data-testid="person-schedule-empty"`). The standard modal backdrop, close button and Escape
+dismiss the Sheet and focus returns to its connected avatar button, or to the schedule when that row
+has disappeared. Owners see real private client/project names; Admins, Editors and Viewers retain
+the independently projected quoted code names. Time-off notes are visible only to authenticated
+Owners/Admins (and in existing auth-off/demo semantics), and account, permission or resource
+invalidation removes all stale drawer content immediately. See [The schedule](../docs-src/guide/the-schedule.md).
+If the optional allocation Task field from #720 is available and populated under its workspace
+visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
+setting. See [US-ALL-10](allocation/US-ALL-10-task-field.md).
 
 **Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
 two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
@@ -1169,7 +1203,8 @@ row plus the expandable draw-mode/filter row; the WCAG 1.4.10 reflow check asser
 state doesn't overflow at 320 CSS px),
 the toolbar rows expose `data-chrome-band="toolbar"|"filterbar"` for depth-tier styling, and shared
 segmented controls expose `data-segmented-control` for their source-owned connected geometry,
-`scheduler-row`, `discipline-group`, `resource-lane`,
+`scheduler-row`, `discipline-group`, `resource-lane`, `person-schedule-trigger`,
+`person-schedule-sheet`, `person-schedule-entry`, `person-schedule-empty`,
 `allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`, `half-day`,
 `scheduler-live-region` (a grid-level visually-hidden `role="status"` `aria-live="polite"` region —
 WCAG 4.1.3; announces the recomputed over-capacity outcome for a resource AFTER a KEYBOARD move/resize
@@ -1260,8 +1295,9 @@ multiple).
   sections; turning it off combines Studio and Supplementary into one People list. Each section
   sorts independently. Favourite people appear first within their engagement partition and
   favourite external parties appear first in External; each favourite and non-favourite partition
-  remains alphabetical. Projects
-  sort by project name; their client label is secondary text. The hidden built-in **Internal** client
+  remains alphabetical. Projects sort by effective client name and then effective project name,
+  where a trimmed, non-empty code name takes precedence over the ordinary name. Their project name
+  remains first in each row and the client label remains secondary text. The hidden built-in **Internal** client
   remains excluded before client rows are sorted. Case- or accent-equivalent names use their exact
   spelling and then stable record id as deterministic tie-breakers. This ordering is display-only:
   stored arrays are unchanged. The schedule keeps its deliberate discipline `sortOrder` and
@@ -1432,6 +1468,17 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   **Supplementary**, defaulting to Studio. The resource form shows Engagement instead of the
   retained employment field; editing preserves the existing employment value. Placeholders are
   always Studio and do not show the Engagement control.
+- **Optional availability dates apply to capacity-tracked people.** Studio and Supplementary
+  people may have an inclusive **First available date** and **Last available date**. Leaving either
+  field blank leaves that side unbounded; the same date in both fields is valid, while a first date
+  after the last date is rejected. Placeholders and External / 3rd party resources keep their
+  existing company-wide or literal behaviour and never show these controls. Outside a person's
+  availability range, their capacity is zero but any already-stored allocation remains visible and
+  its allocated load is retained. Existing allocations that conflict with a newly narrowed range
+  are not rewritten or removed, and metadata-only edits remain allowed. New allocations and
+  placement-changing edits (move, resize, reassignment or repeat occurrence placement) are rejected
+  when they would place work on a scheduled working day outside the inclusive range. **Ignore
+  working days** can include recurring non-working days but never bypasses these date boundaries.
 - **Capacity:** a full day's available hours are always **8 hours**, a half day is always
   **4 hours**, and a non-working weekday or time-off day is **0 hours**. Resource forms therefore
   do not expose a separate working-hours field and always save `workingHoursPerDay: 8`; editing a

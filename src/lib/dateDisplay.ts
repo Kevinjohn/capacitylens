@@ -35,6 +35,25 @@ export function formatDayMonth(date: ISODate): string {
   return format(parseDate(date), "d MMM", { locale: readActiveDateLocale() });
 }
 
+/** A standalone calendar date with an explicit year for schedule details. */
+export function formatScheduleDate(date: ISODate): string {
+  return format(parseDate(date), "d MMM yyyy", { locale: readActiveDateLocale() });
+}
+
+/**
+ * An unambiguous schedule range. A same-year range carries the year once, while a range crossing a
+ * year boundary carries it at both endpoints. A one-day range is rendered as one full date.
+ */
+export function formatScheduleDateRange(startDate: ISODate, endDate: ISODate): string {
+  if (startDate === endDate) return formatScheduleDate(startDate);
+  const locale = readActiveDateLocale();
+  const start = parseDate(startDate);
+  const end = parseDate(endDate);
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const formattedStart = format(start, sameYear ? "d MMM" : "d MMM yyyy", { locale });
+  return `${formattedStart} – ${format(end, "d MMM yyyy", { locale })}`;
+}
+
 /**
  * The inclusive day count as a label: "1 day" / "5 days".
  *

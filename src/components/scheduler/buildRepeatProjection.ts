@@ -22,6 +22,7 @@ type ProjectionInput = Pick<
   | "isExternal"
   | "mode"
   | "note"
+  | "task"
   | "repeat"
   | "repeatUntil"
   | "repeatUntilMaximum"
@@ -80,6 +81,7 @@ function buildProjection(input: ProjectionInput, context: NonNullable<ReturnType
     isExternal,
     mode,
     note,
+    task,
     repeatUntil,
     startDate,
     status,
@@ -96,6 +98,7 @@ function buildProjection(input: ProjectionInput, context: NonNullable<ReturnType
         hoursPerDay,
         status,
         ...(note ? { note } : {}),
+        ...(task ? { task } : {}),
         ignoreWeekends: isExternal ? true : ignoreWeekends,
         ...(attributedProjectId ? { projectId: attributedProjectId } : {}),
       },

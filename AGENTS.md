@@ -70,6 +70,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   demo; it must never persist scheduling data.
 - Scoped reads go through `useScopedData` / `scopedTables()`. The server independently authorizes
   every tenant operation from session membership.
+- When locating unfamiliar behaviour, consult the relevant “Task navigation” entry in
+  `docs-src/reference/development.md`; task briefs should name that entry and the exact paths needed.
 
 ## Naming and module contracts
 
@@ -165,6 +167,12 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   upgrades, monitoring, incidents) and `docs-src/company-login/` (sign-in modes, SSO cutover).
 - Update `user-stories/REFERENCE.md` first for user-visible route, label, test-id or seed changes.
 - Add user-visible changes under `CHANGELOG.md` → `Unreleased`.
+- Authorised issue, pull-request and documentation work includes permission to publish reviewed
+  project screenshots to GitHub, both as attachments and as committed documentation assets.
+  Do not request separate upload approval for those screenshots. Use fictional/demo data or
+  appropriately redacted examples, and exclude live credentials and private customer information.
+  This permission does not authorise unrelated uploads or change an explicit instruction to leave
+  pull requests unmerged.
 - Documentation screenshots have no capture harness. Capture manually against the demo
   (`VITE_CAPACITYLENS_DEMO=1 pnpm exec vite --port 5199 --strictPort`) — never port 5173, which
   `playwright.config.ts` hardcodes, so a capture run there collides with any concurrent E2E run.

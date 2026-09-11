@@ -55,6 +55,7 @@ function anonymiseSchedulingData(db: DatabaseSync): void {
     { table: "resources", column: "role", expression: `'Rehearsal Role ' || rowid` },
     { table: activityTable, column: "name", expression: `'Rehearsal Activity ' || rowid` },
     { table: "allocations", column: "note", expression: "NULL" },
+    { table: "allocations", column: "task", expression: "NULL" },
     { table: "timeOff", column: "note", expression: "NULL" },
     { table: "closures", column: "name", expression: `'Rehearsal Closure ' || rowid` },
   ]);

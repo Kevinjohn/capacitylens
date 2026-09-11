@@ -19,8 +19,14 @@ When focused on one project's delivery, the manager wants the schedule reduced t
 
 ## Acceptance criteria
 
-- ✅ Internal-owned projects come first; each section is alphabetical by project name.
+- ✅ **All projects** stays first; projects then follow client-first/project-second order, using
+  each code name for sorting when one is set.
 - ✅ Choosing **Metropolis Rebrand** collapses the view to exactly that project's work — the _Brand System_ bar; allocations from other projects (e.g. _Project Watchtower_ activities) are hidden, along with the resources that have no Metropolis Rebrand work.
 - ✅ Ticking **Show unallocated** (off by default) brings the non-matching resources back **visible but dimmed**, still showing their full real utilisation.
 - ✅ Setting the select back to **All projects** restores every bar.
 - ✅ While a project filter is active, the **Clear Filters** button is enabled.
+- ✅ The project picker keeps **All projects** first, then sorts by client and project using each
+  item's trimmed code name when available, otherwise its ordinary name. Comparison is
+  case-insensitive and deterministic.
+- ✅ Each project option keeps its complete `Client / Project` accessible label while visually
+  muting the client and slash so the project name remains prominent in every interaction state.

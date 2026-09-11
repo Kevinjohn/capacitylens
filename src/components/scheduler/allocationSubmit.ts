@@ -2,7 +2,7 @@ import { m } from "@/i18n";
 import { newId } from "@capacitylens/shared/lib/id";
 import { validateAllocationAssignment } from "@capacitylens/shared/lib/integrity";
 import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingDates";
-import { MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
+import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
 import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
 import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "../../lib/repeatingAllocations";
 import { validateText } from "../../lib/validation";
@@ -53,6 +53,17 @@ function resolveDraftEndDate(input: CommandInput) {
   });
 }
 
+function validateOptionalTask(input: CommandInput): string | undefined | null {
+  const task = validateText(input.task, input.fail, {
+    field: "task",
+    required: false,
+    multiline: false,
+    maxLength: MAX_NAME_LENGTH,
+  });
+  if (task === null) return null;
+  return task === "" ? undefined : task;
+}
+
 function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
   const repeat =
     input.create && input.repeat !== "none"
@@ -93,6 +104,8 @@ function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
     maxLength: MAX_NOTE_LENGTH,
   });
   if (cleanNote === null) return null;
+  const cleanTask = validateOptionalTask(input);
+  if (cleanTask === null) return null;
   const assignmentError = resolveAssignmentError(input);
   if (assignmentError) {
     input.fail("activity", assignmentError);
@@ -106,6 +119,8 @@ function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
     hoursPerDay: input.effHoursPerDay,
     status: input.status,
     ...(cleanNote ? { note: cleanNote } : {}),
+    // Include the optional field even when empty so editing can intentionally clear an existing task.
+    task: cleanTask ?? undefined,
     ...(input.attributedProjectId ? { projectId: input.attributedProjectId } : {}),
     ignoreWeekends: input.isExternal ? true : input.ignoreWeekends,
   };
