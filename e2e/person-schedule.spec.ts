@@ -25,7 +25,8 @@ async function assertReadOnlySchedule(page: import("@playwright/test").Page) {
   await expect(sheet).toContainText("Visual Design");
   await expect(sheet).toContainText("Long weekend");
   await expect(sheet.getByTestId("person-schedule-header")).toContainText(
-    /\d{1,2} [A-Z][a-z]{2} – \d{1,2} [A-Z][a-z]{2}/,
+    // A same-month range collapses the repeated month: "1 – 28 Jun" as well as "28 Jun – 4 Jul".
+    /\d{1,2}( [A-Z][a-z]{2})? – \d{1,2} [A-Z][a-z]{2}/,
   );
   await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/Four weeks:|2026/);
   await expect(sheet).not.toContainText(/Confirmed|Tentative|Completed|Series through/);

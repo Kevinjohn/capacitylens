@@ -108,7 +108,7 @@ async function createClosure(page: Page, request: APIRequestContext, accountId: 
   await create.getByRole("button", { name: "Save" }).click();
   const closureRow = page.getByTestId("company-closure-row");
   await expect(closureRow).toContainText("Long weekend");
-  await expect(closureRow).toContainText("Fri 5th Jun – Mon 8th Jun");
+  await expect(closureRow).toContainText("Fri 5th – Mon 8th Jun");
 
   let closureId = "";
   await expect
