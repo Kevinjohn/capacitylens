@@ -121,9 +121,11 @@ describe("MasqueradeController transitions", () => {
     await expect(first).resolves.toBe(true);
     expect(dependencies.flush).toHaveBeenCalledOnce();
     expect(dependencies.api.start).toHaveBeenCalledOnce();
+    // Informational, not an error: the first start succeeds, and an error notice never
+    // auto-dismisses, so an error tone here would leave a permanent banner over a working view.
     expect(useStore.getState().notice).toMatchObject({
       message: "A member view is already starting.",
-      tone: "error",
+      tone: "info",
     });
   });
 
