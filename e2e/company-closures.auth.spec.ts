@@ -130,7 +130,9 @@ async function assertClosureBand(page: Page) {
   await goToSeedWeek(page);
   const band = page.getByTestId("scheduler-closure-band");
   await expect(band).toHaveCount(1);
-  await expect(band).toContainText("Long weekend");
+  // The closure name lives on its own sibling layer, not inside the band: `z-0` on the band makes
+  // a stacking context, so a nested label could never clear the group-header rows (#788).
+  await expect(page.getByTestId("scheduler-closure-label-layer")).toContainText("Long weekend");
   await expect(band).toHaveAttribute("data-start-date", "2026-06-05");
   await expect(band).toHaveAttribute("data-end-date", "2026-06-08");
   const literalSpanWidth = await page.getByTestId("scheduler-day-tier").evaluate((tier) =>
@@ -191,7 +193,7 @@ async function assertEditedAndDeletedClosure(
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 1);
   await goToSeedWeek(page);
-  await expect(page.getByTestId("scheduler-closure-band")).toContainText("Studio shutdown");
+  await expect(page.getByTestId("scheduler-closure-label-layer")).toContainText("Studio shutdown");
   await expect(page.getByTestId("scheduler-closure-band")).toHaveAttribute("data-end-date", "2026-06-09");
 
   await page.getByRole("link", { name: "Time off" }).click();
