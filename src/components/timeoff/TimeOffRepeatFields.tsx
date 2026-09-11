@@ -3,7 +3,7 @@ import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { parseDate } from "@capacitylens/shared/lib/dateMath";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 import { readActiveDateLocale, m } from "@/i18n";
-import { formatScheduleDate } from "@/lib/dateDisplay";
+import { formatScheduleDateRange } from "@/lib/dateDisplay";
 import type { TimeOffRepeatChoice } from "./useTimeOffRepeat";
 import type { buildRepeatedTimeOffDrafts } from "../../lib/repeatingTimeOff";
 import { DateField, SelectField, type Option } from "../common/ui";
@@ -53,17 +53,14 @@ function TimeOffRepeatPreview({ projection }: { projection: RepeatProjection }) 
       <p>
         {m.form_timeoff_repeat_preview({
           count: projection.drafts.length,
-          start: formatScheduleDate(finalDraft.startDate),
-          end: formatScheduleDate(finalDraft.endDate),
+          range: formatScheduleDateRange(finalDraft.startDate, finalDraft.endDate),
         })}
       </p>
       <details data-testid="timeoff-repeat-ranges">
         <summary className="cursor-pointer">{m.form_timeoff_repeat_show_dates()}</summary>
         <ol className="mt-1 list-decimal pl-5">
           {projection.drafts.map((draft) => (
-            <li key={draft.startDate}>
-              {formatScheduleDate(draft.startDate)} – {formatScheduleDate(draft.endDate)}
-            </li>
+            <li key={draft.startDate}>{formatScheduleDateRange(draft.startDate, draft.endDate)}</li>
           ))}
         </ol>
       </details>
