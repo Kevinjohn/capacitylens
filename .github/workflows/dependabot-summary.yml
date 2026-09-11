@@ -1,0 +1,168 @@
+# Dependabot writes its pull-request bodies from registry metadata, and a base-image
+# digest supplies none: "Bumps node from `6f7b03f` to `ba849c6`" is the whole
+# description. Nothing there says whether the application moved, what the tag is, or
+# what merging it implies. `dependabot.yml` has no body template to fix that with, so
+# this workflow adds a summary comment instead.
+#
+# The metadata is parsed from Dependabot's own commit rather than read through
+# `dependabot/fetch-metadata`. That action derives the previous version from the
+# "Bumps X from A to B." line with a numeric pattern, which a backtick-wrapped digest
+# does not match, so the digest update — the case this exists for — reaches it with an
+# empty previous version. Parsing the commit directly keeps the digests and removes a
+# third-party dependency from a workflow that holds a write token.
+#
+# `pull_request` with an explicit `permissions` block is the documented way to give a
+# Dependabot-triggered run write access; `pull_request_target` is not needed and would
+# widen the trust boundary for nothing.
+
+name: Dependabot summary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Dependabot pushes to its branch while an earlier run is still listing comments.
+# Without this, two runs can both miss the marker and both create a comment.
+concurrency:
+  group: dependabot-summary-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  summary:
+    name: Explain the update
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Comment the summary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          # Dependabot names its branches dependabot/<ecosystem>/<detail>; the
+          # ecosystem strings are npm_and_yarn, github_actions and docker.
+          ecosystem="$(printf '%s' "$HEAD_REF" | cut -d/ -f2)"
+
+          # The update metadata lives in Dependabot's own commit. A branch brought up
+          # to date with main carries later merge commits, so select by author.
+          message="$(gh api "repos/$REPO/pulls/$PR/commits" --paginate \
+            --jq '[.[] | select((.author.login // "") == "dependabot[bot]")] | last | .commit.message')"
+          if [ -z "$message" ] || [ "$message" = "null" ]; then
+            echo "No Dependabot commit found on this pull request; nothing to summarise." >&2
+            exit 0
+          fi
+
+          names="$(printf '%s\n' "$message" | sed -n 's/^- dependency-name: //p' | paste -sd ', ' -)"
+          version="$(printf '%s\n' "$message" | sed -n 's/^  dependency-version: //p' | head -1)"
+          update_type="$(printf '%s\n' "$message" | sed -n 's/^  update-type: version-update:semver-//p' | head -1)"
+
+          # "Bumps X from A to B." carries the only record of the previous value, and
+          # for a digest re-pin the only record of either digest.
+          bumps="$(printf '%s\n' "$message" | sed -n 's/^Bumps .* from \(.*\) to \(.*\)\.$/\1 \2/p' | head -1)"
+          previous="$(printf '%s' "${bumps% *}" | tr -d '`')"
+          latest="$(printf '%s' "${bumps#* }" | tr -d '`')"
+
+          # A grouped update lists every member; naming sixteen packages in one
+          # sentence helps nobody, so past a handful they are counted instead.
+          count="$(printf '%s\n' "$message" | grep -c '^- dependency-name: ' || true)"
+          plural="dependency"
+          grouped=""
+          subject="\`$names\`"
+          if [ "$count" -gt 1 ]; then
+            plural="dependencies"
+            grouped="yes"
+            group="$(printf '%s\n' "$message" | sed -n 's/^Bumps the \(.*\) group with .*/\1/p' | head -1)"
+            subject="$count packages"
+            [ -n "$group" ] && subject="$count packages in the \`$group\` group"
+          fi
+
+          # Absent for an update whose versions are not semver, such as an image tag.
+          severity=""
+          [ -n "$update_type" ] && severity=" (a $update_type change)"
+
+          # A digest re-pin leaves the tag alone and moves only the content hash, so
+          # both sides of the "Bumps" line are abbreviated hashes rather than versions.
+          digest=""
+          if [ "$ecosystem" = "docker" ] &&
+            [[ "$previous" =~ ^[0-9a-f]{7,}$ ]] && [[ "$latest" =~ ^[0-9a-f]{7,}$ ]]; then
+            digest="yes"
+          fi
+
+          production="$(printf '%s\n' "$message" | grep -c '^  dependency-type: direct:production' || true)"
+          development="$(printf '%s\n' "$message" | grep -c '^  dependency-type: direct:development' || true)"
+
+          if [ -n "$grouped" ] || [ -z "$previous" ]; then
+            # dependabot.yml takes patch updates only, so "latest" would overstate it.
+            release="newer releases"
+            [ -n "$update_type" ] && release="new $update_type releases"
+            movement="moved to $release"
+          else
+            movement="moved from \`$previous\` to \`$latest\`$severity"
+          fi
+
+          case "$ecosystem" in
+            docker)
+              if [ -n "$digest" ]; then
+                what="**Base image digest re-pinned.** \`$names\` stays on tag \`$version\`; only the digest moves, \`$previous\` → \`$latest\`."
+                why="The tag is unchanged, so the image's base distribution and major version stay where they were. The contents do change: upstream rebuilt the image, which normally means updated OS packages."
+              else
+                what="**Base image tag moved.** $subject $movement."
+                why="The runtime the container is built on changes. Check the new tag's support window before merging."
+              fi
+              scope="No application dependency changes. The effect is on the container image only."
+              ;;
+            npm_and_yarn)
+              # Most grouped updates here are mixed: calling development tooling
+              # "application dependencies that ship in the product" is simply untrue.
+              if [ "$development" -eq "$count" ]; then
+                what="**Development $plural.** $subject $movement."
+                why="Build and test tooling. Nothing here is shipped to users."
+              elif [ "$production" -eq "$count" ]; then
+                what="**Application $plural.** $subject $movement."
+                why="This code ships inside the product."
+              elif [ "$production" -eq 0 ]; then
+                what="**npm $plural.** $subject $movement."
+                why="None are direct application dependencies. They are transitive packages, so some of them still reach the shipped bundle."
+              else
+                what="**npm $plural.** $subject $movement."
+                why="$production of them are direct application dependencies; the rest are development or transitive packages."
+              fi
+              scope="Read the release notes in the pull-request body for behaviour changes. The full gate runs on merge to main."
+              ;;
+            github_actions)
+              what="**CI action.** $subject $movement."
+              why="Affects the workflows that build, test, release and scan this repository."
+              scope="Nothing in the shipped application changes."
+              ;;
+            *)
+              what="**$ecosystem update.** $subject $movement."
+              why="No tailored summary is written for this ecosystem yet."
+              scope="Read the pull-request body for the details Dependabot supplied."
+              ;;
+          esac
+
+          # A marker makes the comment idempotent: Dependabot rebases its branch onto
+          # main repeatedly, and each push must refresh this summary, not stack another.
+          marker="<!-- dependabot-summary -->"
+          body="$(printf '%s\n%s %s\n\n%s\n' "$marker" "$what" "$why" "$scope")"
+
+          existing="$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq "[.[] | select(.body | startswith(\"$marker\"))] | first | .id // empty")"
+          # --paginate applies --jq per page, so a pre-existing duplicate on a later
+          # page would add a second id. Trim in the shell: piping to head would close
+          # the pipe early and pipefail would report the SIGPIPE as a failed step.
+          existing="${existing%%$'\n'*}"
+          if [ -n "$existing" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$existing" -f body="$body" --silent
+          else
+            printf '%s' "$body" | gh pr comment "$PR" --repo "$REPO" --body-file -
+          fi
