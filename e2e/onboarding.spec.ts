@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
-import { openNewCompanyForm, createCompany, selectShadOption } from "./helpers";
+import { openNewCompanyForm, createCompany } from "./helpers";
 
-test.use({ contextOptions: { reducedMotion: "reduce" } });
+test.use({ contextOptions: { reducedMotion: "reduce", timezoneId: "Europe/London" } });
 
 // Onboarding capture (P1.14): the create-company form captures week-start, time zone and language
 // (the three fields the server FREEZES after creation), then lands in the app; Settings shows those
@@ -18,17 +18,31 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     // The three frozen-after-creation fields are present with concrete defaults.
     await expect(page.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = page.getByLabel("Timezone");
-    await expect(tz).toHaveText("GMT (UTC+00:00)");
+    // The abbreviation follows the current date: BST in summer, GMT in winter.
+    await expect(tz).toContainText(/London.*Europe\/London.*(?:BST|GMT)/);
     await tz.click();
-    await expect(page.getByRole("option", { name: "GMT (UTC+00:00)" })).toBeVisible();
-    await expect(page.getByRole("option", { name: "Europe/London (UTC+01:00)" })).toBeVisible();
-    await page.keyboard.press("Escape");
+    await expect(page.getByRole("option", { name: "GMT (UTC+00:00)", exact: true })).toBeVisible();
+    await expect(page.getByRole("option", { name: /London.*Europe\/London/ })).toBeVisible();
+    const list = await page.getByRole("listbox").boundingBox();
+    expect(list).not.toBeNull();
+    expect(list!.y).toBeGreaterThanOrEqual(0);
+    expect(list!.height).toBeLessThanOrEqual(256);
+    const search = page.getByRole("combobox", { name: "Search time zones" });
+    await search.fill("no_matching_zone");
+    await expect(page.getByText("No time zones found.", { exact: true })).toBeVisible();
+    await search.fill("America/New_York");
+    await page.keyboard.press("ArrowDown");
+    await page.keyboard.press("Enter");
+    await expect(tz).toContainText("America/New_York");
+    await expect(tz).toBeFocused();
     await expect(page.getByTestId("create-language")).toHaveText("English");
 
     // Capture a non-default week-start and time zone, then create.
     await page.getByRole("radio", { name: "Sunday" }).click();
-    await selectShadOption(tz, "Europe/London");
-    await createCompany(page, "Onboarded Co");
+    await tz.click();
+    await page.getByRole("combobox", { name: "Search time zones" }).fill("Europe/London");
+    await page.getByRole("option", { name: /London.*Europe\/London/ }).click();
+    await createCompany(page, "Queen Industries");
 
     // Navigate to Settings via the in-app nav (a full reload would drop the never-persisted
     // active account and bounce back to the picker). Settings shows the captured values read-only.
@@ -36,9 +50,11 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     const accountOptions = page
       .getByRole("heading", { name: "Account Options Selected at Creation" })
       .locator('xpath=ancestor::*[@data-slot="card"]');
-    await expect(accountOptions.getByRole("row", { name: "Company name Onboarded Co" })).toBeVisible();
+    await expect(accountOptions.getByRole("row", { name: "Company name Queen Industries" })).toBeVisible();
     await expect(accountOptions.getByRole("row", { name: "Week starts on Sunday" })).toBeVisible();
-    await expect(accountOptions.getByRole("row", { name: "Time zone Europe/London (UTC+01:00)" })).toBeVisible();
+    await expect(
+      accountOptions.getByRole("row", { name: /Time zone London.*Europe\/London.*(?:BST|GMT)/ }),
+    ).toBeVisible();
     await expect(page.getByTestId("settings-language")).toHaveText("English");
   });
 });

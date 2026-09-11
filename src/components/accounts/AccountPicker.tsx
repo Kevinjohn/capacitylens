@@ -12,7 +12,7 @@ import { useDemoAuthActive } from "../../lib/fakeAuth";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import type { AccountSummary } from "../../store/useStore";
 import { useStore } from "../../store/useStore";
-import { AddButton, Avatar, DeleteButton, SegmentedControl, SelectField, TextField } from "../common/ui";
+import { AddButton, Avatar, DeleteButton, SegmentedControl, TextField } from "../common/ui";
 import type { Option, SegmentedOption } from "../common/ui";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
@@ -21,6 +21,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { FieldError } from "../ui/field";
 import { Item, ItemGroup } from "../ui/item";
 import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
+import { TimeZoneField } from "./TimeZoneField";
 import { AccountPickerHeader } from "./AccountPickerHeader";
 import { useCreateAccountForm } from "./useCreateAccountForm";
 import { useDeleteAccount } from "./useDeleteAccount";
@@ -215,9 +216,10 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
               value={input.weekStartsOn}
               onChange={input.onWeekStartChange}
               options={input.weekStartSelectOptions}
+              fullWidth
             />
           </div>
-          <SelectField
+          <TimeZoneField
             label={m.picker_timezone()}
             value={input.timezone}
             onChange={input.onTimeZoneChange}
@@ -226,7 +228,7 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
           <AccountLanguageDisplay />
           <FieldError id={input.errorId}>{input.error}</FieldError>
         </CardContent>
-        <CardFooter className="justify-end">
+        <CardFooter className="flex-col gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">
           <Button size="sm" type="button" variant="outline" onClick={input.onCancel}>
             {m.picker_cancel()}
           </Button>

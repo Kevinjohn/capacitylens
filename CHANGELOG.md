@@ -13,6 +13,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Make company creation actions responsive and spaced, use equal-width week-start choices, and
+  replace the overwhelming timezone select with a searchable browser-aware IANA combobox that
+  presents local/common zones first and reflects daylight-saving abbreviations (#740).
 - Clarify manual invitation delivery, keep the one-time link confirmation inline, and separate
   sign-in and account-creation journeys with fully readable permissions, local expiry and recipient
   email hints that hide the domain (#746).

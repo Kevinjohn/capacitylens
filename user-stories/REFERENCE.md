@@ -35,10 +35,11 @@ If the app changes, update this file first, then the affected stories.
    _"Signed in as Bruce Wayne"_ with a **Sign out** link. **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
-   Monday/Sunday, default Monday), **Timezone** (select, default `GMT`, with its numeric UTC offset
-   shown in every option), and **Language** (read-only **English** — `data-testid="create-language"`;
-   English-only until Paraglide). Company colour uses the default preset automatically rather than asking for a
-   one-off choice during onboarding. These three are set ONCE here and are then **disabled** in
+   Monday/Sunday, default Monday), **Timezone** (a searchable combobox that detects and preselects
+   the browser's IANA zone, puts local/common choices first, and shows a friendly name, current
+   abbreviation and numeric UTC offset for every option), and **Language** (read-only **English** —
+   `data-testid="create-language"`; English-only until Paraglide). Company colour uses the default
+   preset automatically rather than asking for a one-off choice during onboarding. These three are set ONCE here and are then **disabled** in
    Settings; the server rejects a later change with **409**.
    When there are no companies and the caller may create one, the picker presents only two next
    steps: **New company** or **Ask an admin for an invite**. A caller without create permission sees
