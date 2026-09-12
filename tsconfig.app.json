@@ -2,10 +2,11 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
-    /* DOM.Iterable, not just DOM: the app iterates live DOM collections directly
-       (`for (const el of document.querySelectorAll(…))` in src/lib/shortcutGuards.ts) rather than
-       copying them into an array first. Without it those collections have no `[Symbol.iterator]`
-       and the compile fails — which it did, silently masked by stale incremental build state. */
+    /* DOM.Iterable is listed explicitly, not because the compile currently needs it: this
+       TypeScript folds the iterable NodeList declarations into lib.dom.d.ts, so
+       `for (const el of document.querySelectorAll(…))` in src/lib/shortcutGuards.ts type-checks
+       under plain DOM today. Naming the lib states the requirement the source actually has
+       rather than leaning on where a given TypeScript release happens to declare it. */
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
     "types": ["vite/client"],
