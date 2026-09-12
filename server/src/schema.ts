@@ -14,6 +14,8 @@ import {
   V36_TABLES,
   V37_TABLES,
   V38_TABLES,
+  V39_TABLES,
+  V40_TABLES,
   V8_TABLES,
   V9_TABLES,
 } from "./schema/historicalSpecs";
@@ -97,6 +99,16 @@ export function assertSchemaV37(db: Db): void {
 /** Assert the released v38 shape before Capacity Overview access is added. */
 export function assertSchemaV38(db: Db): void {
   assertSchemaVersion(db, V38_TABLES, true);
+}
+
+/** Assert the released v39 shape before the account-wide date format is added. */
+export function assertSchemaV39(db: Db): void {
+  assertSchemaVersion(db, V39_TABLES, true);
+}
+
+/** Assert the released v40 shape once the account-wide date format has been added. */
+export function assertSchemaV40(db: Db): void {
+  assertSchemaVersion(db, V40_TABLES, true);
 }
 
 /** Assert that the live database matches the current entity/table specification. */
