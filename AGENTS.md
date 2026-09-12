@@ -56,6 +56,44 @@ establish that GitHub, CI, credentials, Git writes or a supported runtime are un
 - Keep unrelated cleanup out of the diff. Later simplification requires its own scope and must
   preserve shared types, entities and public contracts unless their change is explicitly authorised.
 
+### GitHub bug-issue batches
+
+Use this workflow when triaging and delivering a checklist of open GitHub issues reported as bugs.
+
+1. **Triage before implementation.** Reproduce or inspect each issue, confirm its current status,
+   classify its severity and distinguish bugs from maintenance, questions and release-verification
+   items. Bring titles, labels and open/closed state into line with that evidence, and leave a concise
+   status comment when it will prevent duplicate investigation. Keep presumed fixes open until the
+   required deployed environment can be tested. Do not expose customer or tester data. Do not
+   speculate on a code change when the available evidence does not identify the failing condition;
+   request the smallest redacted reproduction data needed instead.
+2. **Order by risk and dependency.** Identify dependencies and overlapping files or guarantees,
+   then separate the batch into: independent quick fixes; ordered changes that share a subsystem or
+   validation lane; and investigation-only issues. Give each implementation task a cohesive scope,
+   expected files, acceptance test, affected story/documentation decision, known invariants and
+   merge predecessor.
+3. **Route high-priority work deliberately.** P1 implementation uses the designated senior
+   implementation role and receives one independent architecture/correctness review in addition to
+   the standard severity review below. P2 work may use the normal implementation role. Reviewers
+   must be independent of the implementation they assess.
+4. **Test and review in a fixed sequence.** During implementation, add or update the focused test
+   that proves the reported failure and run the applicable focused checks. Once the change is
+   complete, run formatting, type-checking and linting before review. Every P1 and P2 change then
+   receives an independent code review before any E2E suite. Resolve blocking findings, rerun the
+   affected static checks and repeat review when the correction invalidates earlier evidence.
+5. **Control expensive validation.** After review passes, run the checks required by the Green gate.
+   Run only one E2E suite at a time across worktrees and stagger other resource-intensive suites to
+   avoid contention. Treat an environment or contention failure as a hypothesis and obtain an
+   isolated supported-runtime result before discounting it.
+6. **Publish small, ordered pull requests.** Keep one cohesive issue or inseparable issue group per
+   branch and pull request. State the merge predecessor explicitly, including `none` for independent
+   work. Before pushing, inspect the complete diff, commit metadata and public text. Open ready PRs
+   only after their required review and local evidence pass; do not merge when a separate merge owner
+   is responsible for landing the batch.
+7. **Report live state.** Take a fresh GitHub snapshot before the handoff. Distinguish implemented,
+   locally verified, CI-verified and merged work; list the current merge order, investigations still
+   awaiting evidence and fixes awaiting deployment verification.
+
 ## Product boundary
 
 CapacityLens is a deliberately small, week-granularity agency capacity scheduler. Budgets,
