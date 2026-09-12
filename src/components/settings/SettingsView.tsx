@@ -5,6 +5,7 @@ import { ImportExport } from "../ImportExport";
 import { ArchivedSection } from "./ArchivedSection";
 import { SettingsAccountOptions, SettingsBuildDetails, SettingsDiagnostics } from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
+import { SettingsDateFormatSection } from "./SettingsDateFormatSection";
 import { SettingsDataSection } from "./SettingsDataSection";
 import { SettingsSchedulingSection } from "./SettingsSchedulingSection";
 import { SettingsSection } from "./SettingsSection";
@@ -88,9 +89,12 @@ export function SettingsView() {
           setUtilizationPref={display.setUtilizationPref}
           theme={display.theme}
           setTheme={display.setTheme}
-          dateStyle={display.dateStyle}
-          setDateStyle={display.setDateStyle}
           disciplinesEnabled={scheduling.disciplinesEnabled}
+        />
+        <SettingsDateFormatSection
+          canEdit={controller.canEdit}
+          dateStyle={scheduling.dateStyle}
+          onChange={(dateStyle) => controller.updateSetting({ dateStyle })}
         />
         <SettingsDataSection
           serverMode={controller.serverMode}

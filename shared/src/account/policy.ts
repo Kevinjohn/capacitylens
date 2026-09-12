@@ -13,6 +13,7 @@ export type AccountAdminAction =
   | "masquerade-member"
   | "manage-member-sign-in-tracking"
   | "transfer-ownership"
+  | "act-on-ownership-transfer"
   | "erase-workspace";
 
 const ROLE_RANK: Readonly<Record<Role, number>> = {
@@ -29,6 +30,13 @@ const MIN_ADMIN_TIER = {
   "masquerade-member": "admin",
   "manage-member-sign-in-tracking": "owner",
   "transfer-ownership": "owner",
+  // Admin tier, NOT owner: this is the gate every ceremony route shares, and the nominated Admin
+  // must pass it to give or withdraw their own consent. It is deliberately the weakest necessary
+  // gate — who may actually perform each ceremony action is decided by canActOnOwnershipTransfer,
+  // which knows participant identity, and by the owner-only "transfer-ownership" threshold above
+  // for the Owner's three actions. Making this gate owner-only would lock the nominee out of
+  // consenting; making it the ONLY check would let any Admin consent on the nominee's behalf.
+  "act-on-ownership-transfer": "admin",
   "erase-workspace": "owner",
 } as const satisfies Record<AccountAdminAction, Role>;
 

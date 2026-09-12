@@ -2,10 +2,15 @@ import { memo, useMemo } from "react";
 import { format } from "date-fns";
 import { m } from "@/i18n";
 import { formatDayMonth, formatMonthYear } from "@/lib/dateDisplay";
+import { useDateStyle } from "../../store/useDateStyle";
 import { parseDate, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { type WeeksZoom } from "../../lib/schedulerConfig";
 import { LAYOUT } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
+import { buildVisibleSpanInsets } from "./visibleSpanInsets";
+
+/** Same visible-portion clamp the allocation bars and closure bands use, over a month span. */
+const MONTH_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--month-start)", "var(--month-width)");
 
 interface Span {
   key: string;
@@ -115,11 +120,7 @@ function DateMonthTier({ months, geometry, alignVisibleMonths }: DateMonthTierPr
                 <div
                   data-month-placement="visible-segment"
                   className="absolute inset-y-0 flex items-center justify-start overflow-hidden"
-                  style={{
-                    left: "clamp(0px, calc(var(--sched-scroll-left, 0px) - var(--month-start)), var(--month-width))",
-                    right:
-                      "clamp(0px, calc(var(--month-start) + var(--month-width) - var(--sched-scroll-left, 0px) - var(--sched-visible-width, 100%)), var(--month-width))",
-                  }}
+                  style={{ left: MONTH_LABEL_INSETS.leading, right: MONTH_LABEL_INSETS.trailing }}
                 >
                   <span
                     data-month-label
@@ -171,10 +172,17 @@ export const DateHeader = memo(function DateHeader({
   const totalWidth = geometry.totalWidth;
   // Width of a span [start, start+days-1] from the real per-column widths.
   const resolveSpanWidth = (span: Span) => geometry.spanWidth(span.start, span.start + span.days - 1);
-  // Month/week groupings depend only on `days` — recompute on the day set changing,
-  // not on a pure dayWidth (zoom) change that only re-widths the same blocks.
+  // Month/week groupings depend on `days` — recompute on the day set changing, not on a pure
+  // dayWidth (zoom) change that only re-widths the same blocks. `formatMonthYear` reads "MMM yyyy"
+  // at every style, so the month spans are style-independent; the week labels are not.
+  // Subscribing here is also what wakes this component at all: it is `memo()`d, and its props are
+  // stable across the account write that carries a date-format change.
+  const dateStyle = useDateStyle();
   const months = useMemo(() => buildMonthSpans(days), [days]);
-  const weeks = useMemo(() => buildWeekBlocks(days, weekStartsOn), [days, weekStartsOn]);
+  // `buildWeekBlocks` formats its labels through `formatDayMonth`, which reads the active style
+  // from a module-level mirror rather than an argument, so the linter cannot see the dependency.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the style is a real input to the labels
+  const weeks = useMemo(() => buildWeekBlocks(days, weekStartsOn), [days, weekStartsOn, dateStyle]);
 
   return (
     /* Column 2 of the scheduler grid: the timeline date header (col 1 is the sticky utilisation
