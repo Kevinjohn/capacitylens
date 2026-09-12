@@ -195,8 +195,11 @@ describe("ownership transfer ceremony port: expiry", () => {
       live: null,
       latestOutcome: null,
     });
+    // The participant is told the deadline has passed, without the read writing it: the projection
+    // says what is true, the next command is what makes it durable.
     await expect(port.readOwnershipTransfer({ actor: target, workspaceId })).resolves.toMatchObject({
-      live: { id: initiated.request.id, state: "awaiting_target" },
+      live: null,
+      latestOutcome: { id: initiated.request.id, state: "expired", terminalReason: "deadline_passed" },
     });
     expect(readRequestById(seeded(), workspaceId, initiated.request.id)).toMatchObject({
       state: "awaiting_target",
@@ -306,5 +309,60 @@ describe("ownership transfer ceremony port: replay", () => {
       }),
     ).resolves.toEqual(first);
     expect(auditEvents.filter(({ action }) => action === "ownership_transfer.initiated")).toHaveLength(1);
+  });
+});
+
+describe("ownership transfer ceremony port: staying readable and unblocked", () => {
+  it("shows the ceremony to a participant whose session is no longer fresh", async () => {
+    seedWorkspace();
+    const port = createPort();
+    const initiated = await port.initiateOwnershipTransfer({
+      actor: owner,
+      workspaceId,
+      targetPrincipalId: target.principalId,
+      expectedRequestId: null,
+      expectedRevision: null,
+      command: command("initiate"),
+    });
+    if (initiated.kind !== "applied") throw new Error("initiation did not apply");
+    // Freshness is a threshold for ACTING. An Owner who signed in an hour ago must still be able to
+    // see the nomination they are being asked to approve, or the ceremony is unreachable.
+    await expect(port.readOwnershipTransfer({ actor: { ...owner, fresh: false }, workspaceId })).resolves.toMatchObject(
+      { live: { id: initiated.request.id, state: "awaiting_target" } },
+    );
+  });
+
+  it("commits a forgotten request's expiry rather than letting it block the next nomination", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T09:00:00.000Z"));
+    seedWorkspace({ observer: true });
+    const port = createPort();
+    const stale = await port.initiateOwnershipTransfer({
+      actor: owner,
+      workspaceId,
+      targetPrincipalId: target.principalId,
+      expectedRequestId: null,
+      expectedRevision: null,
+      command: command("initiate"),
+    });
+    if (stale.kind !== "applied") throw new Error("initiation did not apply");
+    seeded()
+      .prepare("UPDATE account_ownership_transfers SET createdAt = ?, expiresAt = ? WHERE id = ?")
+      .run("2026-08-25T09:00:00.000Z", "2026-09-01T09:00:00.000Z", stale.request.id);
+
+    // The Owner nominates somebody else WITHOUT naming the dead request: there is nothing to replace.
+    const next = await port.initiateOwnershipTransfer({
+      actor: owner,
+      workspaceId,
+      targetPrincipalId: observer.principalId,
+      expectedRequestId: null,
+      expectedRevision: null,
+      command: command("second"),
+    });
+    expect(next.kind).toBe("applied");
+    expect(readRequestById(seeded(), workspaceId, stale.request.id)).toMatchObject({
+      state: "expired",
+      terminalReason: "deadline_passed",
+    });
   });
 });
