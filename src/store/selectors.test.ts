@@ -279,19 +279,14 @@ describe("visibleRange", () => {
 });
 
 describe("resolveDateStyle", () => {
-  const withStyle = (dateStyle?: string): AppData => ({
-    ...emptyAppData(),
-    accounts: [
-      {
-        id: "a1",
-        createdAt: "t",
-        updatedAt: "t",
-        name: "Studio",
-        color: "#1",
-        ...(dateStyle ? { dateStyle: dateStyle as Account["dateStyle"] } : {}),
-      },
-    ],
-  });
+  const withStyle = (dateStyle?: string): AppData => {
+    // Built by assignment rather than a conditional spread: under exactOptionalPropertyTypes a
+    // spread of `{ dateStyle } | {}` widens to `dateStyle?: DateStyle | undefined`, which the
+    // optional-but-never-undefined property on Account rejects.
+    const account: Account = { id: "a1", createdAt: "t", updatedAt: "t", name: "Studio", color: "#1" };
+    if (dateStyle) account.dateStyle = dateStyle as NonNullable<Account["dateStyle"]>;
+    return { ...emptyAppData(), accounts: [account] };
+  };
 
   it("defaults absent and unmatched accounts to day-month", () => {
     expect(resolveDateStyle(withStyle(), "a1")).toBe("day-month");
