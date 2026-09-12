@@ -55,10 +55,11 @@ interface MutationOptions<Execute extends () => unknown> {
   audit?: {
     action: StandardAccountAuditAction;
     changedFields: readonly string[];
-    /** Derive the event for a committed result. Failure and denial keep the static action. */
+    /** Derive the event for a committed result. Failure and denial keep the static action, and
+     *  `changedFields` above covers every outcome — a committed result names which event it was,
+     *  not which columns moved. */
     successAction?: (result: ReturnType<Execute>) => {
       action: StandardAccountAuditAction;
-      changedFields: readonly string[];
       eventKey?: string;
     };
   };
@@ -101,7 +102,7 @@ function writeMutationAudit<Execute extends () => unknown>(
     actorPrincipalId: options.actorPrincipalId,
     ...(options.targetPrincipalId === undefined ? {} : { targetPrincipalId: options.targetPrincipalId }),
     command: options.command,
-    ...(outcome === "success" ? { changedFields: event.changedFields } : {}),
+    ...(outcome === "success" ? { changedFields: options.audit.changedFields } : {}),
   });
 }
 

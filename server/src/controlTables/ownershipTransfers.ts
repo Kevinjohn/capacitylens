@@ -7,6 +7,7 @@ import {
 import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/account/ownershipTransferPolicy";
 import { createTableExistenceProbe } from "../auth";
 import type { Db } from "../db";
+import { cachedStatement, type PreparedStatement } from "./preparedStatement";
 import {
   LIVE_STATES_PREDICATE,
   type OwnershipTransferRow,
@@ -57,12 +58,12 @@ export function nextOwnershipTransferRevision(revision: string): string {
 
 /** The company's live request, or `null`. At most one row can match — the partial unique index is
  *  what makes that a guarantee rather than a convention. */
+const liveRequestStatement = cachedStatement(
+  `SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE accountId = ? AND ${LIVE_STATES_PREDICATE}`,
+);
+
 export function readLiveRequest(db: Db, accountId: string): OwnershipTransferRequest | null {
-  const row = db
-    .prepare(
-      `SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE accountId = ? AND ${LIVE_STATES_PREDICATE}`,
-    )
-    .get(accountId) as OwnershipTransferRow | undefined;
+  const row = liveRequestStatement(db).get(accountId) as OwnershipTransferRow | undefined;
   return row ? toOwnershipTransferRequest(row, "readLiveRequest") : null;
 }
 
@@ -74,12 +75,23 @@ export function readLiveRequest(db: Db, accountId: string): OwnershipTransferReq
  * a request id from another company indistinguishable from an absent one at the storage layer,
  * instead of relying on each caller to compare the row's `accountId` afterwards.
  */
+const requestByIdStatement = cachedStatement(
+  `SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE id = ? AND accountId = ?`,
+);
+
 export function readRequestById(db: Db, accountId: string, id: string): OwnershipTransferRequest | null {
-  const row = db
-    .prepare(`SELECT ${SELECTED_COLUMNS} FROM account_ownership_transfers WHERE id = ? AND accountId = ?`)
-    .get(id, accountId) as OwnershipTransferRow | undefined;
+  const row = requestByIdStatement(db).get(id, accountId) as OwnershipTransferRow | undefined;
   return row ? toOwnershipTransferRequest(row, "readRequestById") : null;
 }
+
+const latestTerminalStatement = cachedStatement(
+  `SELECT ${SELECTED_COLUMNS}
+     FROM account_ownership_transfers
+    WHERE accountId = ? AND NOT (${LIVE_STATES_PREDICATE})
+      AND (initiatorUserId = ? OR targetUserId = ?)
+    ORDER BY terminalAt DESC, id ASC
+    LIMIT 1`,
+);
 
 /**
  * The most recent TERMINAL request this principal took part in, or `null`.
@@ -94,16 +106,7 @@ export function readLatestTerminalForParticipant(
   accountId: string,
   userId: string,
 ): OwnershipTransferRequest | null {
-  const row = db
-    .prepare(
-      `SELECT ${SELECTED_COLUMNS}
-         FROM account_ownership_transfers
-        WHERE accountId = ? AND NOT (${LIVE_STATES_PREDICATE})
-          AND (initiatorUserId = ? OR targetUserId = ?)
-        ORDER BY terminalAt DESC, id ASC
-        LIMIT 1`,
-    )
-    .get(accountId, userId, userId) as OwnershipTransferRow | undefined;
+  const row = latestTerminalStatement(db).get(accountId, userId, userId) as OwnershipTransferRow | undefined;
   return row ? toOwnershipTransferRequest(row, "readLatestTerminalForParticipant") : null;
 }
 
@@ -117,13 +120,15 @@ export function readLatestTerminalForParticipant(
  * refuses the second live row, so a concurrent second initiation surfaces as a SQLite constraint
  * error the caller maps to a conflict. A read-then-insert would pass both racers.
  */
+const insertRequestStatement = cachedStatement(
+  `INSERT INTO account_ownership_transfers
+     (id, accountId, initiatorUserId, targetUserId, state, revision,
+      createdAt, expiresAt, targetAcceptedAt, terminalAt, terminalReason)
+   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+);
+
 export function insertRequest(db: Db, request: OwnershipTransferRequest): void {
-  db.prepare(
-    `INSERT INTO account_ownership_transfers
-       (id, accountId, initiatorUserId, targetUserId, state, revision,
-        createdAt, expiresAt, targetAcceptedAt, terminalAt, terminalReason)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(
+  insertRequestStatement(db).run(
     request.id,
     request.accountId,
     request.initiatorUserId,
@@ -156,6 +161,12 @@ interface ApplyTransitionInput {
   terminalReason: OwnershipTransferTerminalReason | null;
 }
 
+const applyTransitionStatement = cachedStatement(
+  `UPDATE account_ownership_transfers
+      SET state = ?, revision = ?, targetAcceptedAt = ?, terminalAt = ?, terminalReason = ?
+    WHERE id = ? AND accountId = ? AND state = ? AND revision = ?`,
+);
+
 /**
  * Compare-and-set one transition, returning whether it applied.
  *
@@ -186,23 +197,17 @@ export function applyTransition({
   if (!isLiveOwnershipTransferState(expectedState)) {
     throw new Error(`applyTransition: ${expectedState} is terminal and cannot be transitioned (request ${id}).`);
   }
-  const result = db
-    .prepare(
-      `UPDATE account_ownership_transfers
-          SET state = ?, revision = ?, targetAcceptedAt = ?, terminalAt = ?, terminalReason = ?
-        WHERE id = ? AND accountId = ? AND state = ? AND revision = ?`,
-    )
-    .run(
-      nextState,
-      nextRevision,
-      targetAcceptedAt,
-      terminalAt,
-      terminalReason,
-      id,
-      accountId,
-      expectedState,
-      expectedRevision,
-    );
+  const result = applyTransitionStatement(db).run(
+    nextState,
+    nextRevision,
+    targetAcceptedAt,
+    terminalAt,
+    terminalReason,
+    id,
+    accountId,
+    expectedState,
+    expectedRevision,
+  );
   return result.changes === 1;
 }
 
@@ -236,7 +241,7 @@ export function terminaliseLiveRequestsForAccount({
   reason,
   now,
 }: TerminaliseForAccountInput): string[] {
-  return invalidateLive({ db, now, reason, predicate: "", parameters: [accountId] });
+  return invalidateLive({ db, now, reason, scope: ACCOUNT_SCOPE, parameters: [accountId] });
 }
 
 /**
@@ -256,41 +261,55 @@ export function terminaliseLiveRequestsForMember({
   reason,
   now,
 }: TerminaliseForMemberInput): string[] {
-  return invalidateLive({
-    db,
-    now,
-    reason,
-    predicate: " AND (initiatorUserId = ? OR targetUserId = ?)",
-    parameters: [accountId, userId, userId],
-  });
+  return invalidateLive({ db, now, reason, scope: MEMBER_SCOPE, parameters: [accountId, userId, userId] });
 }
+
+/** The two row sets an invalidation can name: one company's live requests, or the subset of them
+ *  naming one principal. Each is a fixed pair of statements rather than an interpolated predicate,
+ *  because this runs from the membership-write choke point and a per-call `prepare()` there is a
+ *  SQL compile on the hot path. */
+interface InvalidateScope {
+  select: (db: Db) => PreparedStatement;
+  update: (db: Db) => PreparedStatement;
+}
+
+function invalidateScope(predicate: string): InvalidateScope {
+  const where = `accountId = ? AND ${LIVE_STATES_PREDICATE}${predicate}`;
+  return {
+    select: cachedStatement(`SELECT id FROM account_ownership_transfers WHERE ${where}`),
+    update: cachedStatement(
+      `UPDATE account_ownership_transfers
+          SET state = 'invalidated', terminalAt = ?, terminalReason = ?,
+              revision = CAST(CAST(revision AS INTEGER) + 1 AS TEXT)
+        WHERE ${where}`,
+    ),
+  };
+}
+
+const ACCOUNT_SCOPE = invalidateScope("");
+const MEMBER_SCOPE = invalidateScope(" AND (initiatorUserId = ? OR targetUserId = ?)");
 
 interface InvalidateLiveInput {
   db: Db;
   now: string;
   reason: OwnershipTransferTerminalReason;
-  predicate: string;
+  scope: InvalidateScope;
+  /** The `accountId` the scope's `where` opens with, followed by whatever its predicate adds. */
   parameters: string[];
 }
 
 /** The shared body of the two terminalisers. Reads the matching ids BEFORE the update so the caller
  *  learns exactly which rows it changed; both statements run inside the caller's transaction, so no
  *  row can appear or disappear between them. */
-function invalidateLive({ db, now, reason, predicate, parameters }: InvalidateLiveInput): string[] {
+function invalidateLive({ db, now, reason, scope, parameters }: InvalidateLiveInput): string[] {
   if (!ownershipTransfersTableExists(db)) return [];
-  const where = `accountId = ? AND ${LIVE_STATES_PREDICATE}${predicate}`;
-  const ids = (
-    db.prepare(`SELECT id FROM account_ownership_transfers WHERE ${where}`).all(...parameters) as Array<{ id: string }>
-  ).map(({ id }) => id);
+  const ids = (scope.select(db).all(...parameters) as Array<{ id: string }>).map(({ id }) => id);
   if (ids.length === 0) return [];
-  db.prepare(
-    `UPDATE account_ownership_transfers
-        SET state = 'invalidated', terminalAt = ?, terminalReason = ?,
-            revision = CAST(CAST(revision AS INTEGER) + 1 AS TEXT)
-      WHERE ${where}`,
-  ).run(now, reason, ...parameters);
+  scope.update(db).run(now, reason, ...parameters);
   return ids;
 }
+
+const deleteForAccountStatement = cachedStatement(`DELETE FROM account_ownership_transfers WHERE accountId = ?`);
 
 /**
  * Delete every request row of one company — live and terminal alike.
@@ -302,8 +321,12 @@ function invalidateLive({ db, now, reason, predicate, parameters }: InvalidateLi
  */
 export function deleteRequestsForAccount(db: Db, accountId: string): void {
   if (!ownershipTransfersTableExists(db)) return;
-  db.prepare(`DELETE FROM account_ownership_transfers WHERE accountId = ?`).run(accountId);
+  deleteForAccountStatement(db).run(accountId);
 }
+
+const sweepHistoryStatement = cachedStatement(
+  `DELETE FROM account_ownership_transfers WHERE terminalAt IS NOT NULL AND terminalAt < ?`,
+);
 
 /**
  * Remove terminal rows whose retention window has passed, returning how many were removed.
@@ -319,8 +342,6 @@ export function sweepExpiredHistory(db: Db, now: number): number {
     throw new Error(`sweepExpiredHistory: ${JSON.stringify(now)} is not a usable current instant.`);
   }
   const cutoff = new Date(now - OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS).toISOString();
-  const { changes } = db
-    .prepare(`DELETE FROM account_ownership_transfers WHERE terminalAt IS NOT NULL AND terminalAt < ?`)
-    .run(cutoff);
+  const { changes } = sweepHistoryStatement(db).run(cutoff);
   return Number(changes);
 }

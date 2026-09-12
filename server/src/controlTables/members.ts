@@ -1,10 +1,10 @@
 import type { Role } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
-import type { SynchronousCallback } from "../txn";
 import { terminaliseLiveRequestsForAccount, terminaliseLiveRequestsForMember } from "./ownershipTransfers";
 import { revokeResetTokensForUser } from "../auth";
 import { bumpSecurityRevision } from "../accounts/state";
 import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTracking";
+import { cachedStatement } from "./preparedStatement";
 import {
   isKnownRole,
   toAccountMember,
@@ -13,35 +13,30 @@ import {
   type MembershipStatus,
 } from "./members.model";
 
-let ownershipTransferExempt = false;
-
-/** Only the ownership exchange kernel may use this exemption. The callback must be synchronous:
- * this module-private flag is not async-safe and must never be held across an await. Security
- * revision bumps and reset-link revocation remain enabled for both participants. */
-export function withOwnershipTransferExemption<Run extends () => unknown>(
-  run: SynchronousCallback<Run>,
-): ReturnType<Run> {
-  const previous = ownershipTransferExempt;
-  ownershipTransferExempt = true;
-  try {
-    return run() as ReturnType<Run>;
-  } finally {
-    ownershipTransferExempt = previous;
-  }
-}
+/**
+ * What a membership write should do to the live ownership-transfer requests naming this principal.
+ *
+ * `"invalidate"` — the default and the answer for every ordinary write — ends them: a demotion,
+ * promotion, status change or removal means the person whose consent the ceremony holds is no
+ * longer the person it names. `"keep"` belongs to ONE caller, the ownership exchange kernel, whose
+ * two role writes ARE the ceremony completing; without it, completion would invalidate the request
+ * it is in the middle of applying.
+ *
+ * Passed explicitly rather than carried in module state, so the exemption is visible at the call
+ * site that claims it and cannot be turned on for a write that never asked for it.
+ */
+export type LiveTransferHandling = "invalidate" | "keep";
 
 // A migration-era handle has no v40 table yet; the terminaliser itself answers "nothing to end"
 // rather than throwing, so only the completion exemption is decided here.
 function terminaliseMemberTransfers(db: Db, accountId: string, userId: string): string[] {
-  return ownershipTransferExempt
-    ? []
-    : terminaliseLiveRequestsForMember({
-        db,
-        accountId,
-        userId,
-        reason: "participant_membership_changed",
-        now: new Date().toISOString(),
-      });
+  return terminaliseLiveRequestsForMember({
+    db,
+    accountId,
+    userId,
+    reason: "participant_membership_changed",
+    now: new Date().toISOString(),
+  });
 }
 
 /**
@@ -59,7 +54,7 @@ function terminaliseMemberTransfers(db: Db, accountId: string, userId: string): 
  *   integrity throws) rather than silently coercing it to a default, which would hand someone the
  *   wrong access level.
  */
-export function upsertMember(db: Db, member: AccountMember): string[] {
+export function upsertMember(db: Db, member: AccountMember, transfers: LiveTransferHandling = "invalidate"): string[] {
   if (!isKnownRole(member.role)) {
     throw new Error(
       `upsertMember: unknown role ${JSON.stringify(member.role)} — expected owner, admin, editor, or viewer.`,
@@ -94,7 +89,7 @@ export function upsertMember(db: Db, member: AccountMember): string[] {
   // different — ending one is visible to two people and undoes work, so it needs a real change.
   revokeResetTokensForUser(db, member.userId);
   bumpSecurityRevision(db, member.userId);
-  return changed ? terminaliseMemberTransfers(db, member.accountId, member.userId) : [];
+  return changed && transfers === "invalidate" ? terminaliseMemberTransfers(db, member.accountId, member.userId) : [];
 }
 
 interface SetMemberStatusInput {
@@ -156,6 +151,16 @@ export function setMemberStatus({ db, accountId, userId, status }: SetMemberStat
   return { outcome: "changed", invalidatedTransferIds: terminaliseMemberTransfers(db, accountId, userId) };
 }
 
+const membershipRowStatement = cachedStatement(
+  `SELECT accountId, userId, role, status, createdAt FROM account_members
+        WHERE accountId = ? AND userId = ?`,
+);
+const memberRoleStatement = cachedStatement(`SELECT role FROM account_members WHERE accountId = ? AND userId = ?`);
+const activeMemberRoleStatement = cachedStatement(`
+    SELECT role FROM account_members
+     WHERE accountId = ? AND userId = ? AND status = 'active'
+  `);
+
 /**
  * Read ONE membership row, whatever its lifecycle status.
  *
@@ -172,37 +177,6 @@ export function setMemberStatus({ db, accountId, userId, status }: SetMemberStat
  * @throws Error  If the stored role is not a known {@link Role} — control-table corruption, which
  *   fails loud here exactly as it does in {@link listMembersForAccount}.
  */
-type PreparedStatement = ReturnType<Db["prepare"]>;
-
-/**
- * Factory for a per-handle prepared-statement cache, so a hot `account_members` read (reached via
- * {@link authorize} on most requests) is prepared at most ONCE per Db handle rather than on every
- * call. WeakMap keyed by the Db handle — mirrors {@link auth.ts}'s `cachedTableExists` idiom — so an
- * entry is collected with its handle and the many short-lived `:memory:` handles tests open never
- * leak. SQL text is unchanged; only the repeated `prepare()` call is elided.
- */
-function cachedStatement(sql: string): (db: Db) => PreparedStatement {
-  const cache = new WeakMap<Db, PreparedStatement>();
-  return (db: Db): PreparedStatement => {
-    let statement = cache.get(db);
-    if (!statement) {
-      statement = db.prepare(sql);
-      cache.set(db, statement);
-    }
-    return statement;
-  };
-}
-
-const membershipRowStatement = cachedStatement(
-  `SELECT accountId, userId, role, status, createdAt FROM account_members
-        WHERE accountId = ? AND userId = ?`,
-);
-const memberRoleStatement = cachedStatement(`SELECT role FROM account_members WHERE accountId = ? AND userId = ?`);
-const activeMemberRoleStatement = cachedStatement(`
-    SELECT role FROM account_members
-     WHERE accountId = ? AND userId = ? AND status = 'active'
-  `);
-
 export function getMembershipRow(db: Db, accountId: string, userId: string): AccountMember | null {
   const row = membershipRowStatement(db).get(accountId, userId) as AccountMemberRow | undefined;
   if (!row) return null;
@@ -279,6 +253,18 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
  * @param accountId  The account whose members to list.
  * @returns The account's membership rows (possibly empty), in a stable order.
  */
+const activeOwnerCountStatement = cachedStatement(
+  `SELECT COUNT(*) AS owners FROM account_members WHERE accountId = ? AND role = 'owner' AND status = 'active'`,
+);
+
+/** How many active Owners one account has. Counted in SQLite — served directly by the partial
+ *  unique index that holds the single-active-Owner invariant — rather than by mapping every member
+ *  row into objects to answer a question about a number. */
+export function countActiveOwners(db: Db, accountId: string): number {
+  const row = activeOwnerCountStatement(db).get(accountId) as { owners: number };
+  return Number(row.owners);
+}
+
 export function listMembersForAccount(db: Db, accountId: string): AccountMember[] {
   const rows = db
     .prepare(
@@ -321,7 +307,7 @@ export function removeMember(db: Db, accountId: string, userId: string): string[
  * @param db         The open SQLite handle.
  * @param accountId  The account whose memberships to remove entirely.
  */
-export function removeAllMembersForAccount(db: Db, accountId: string): string[] {
+export function removeAllMembersForAccount(db: Db, accountId: string): void {
   const affected = db
     .prepare(`SELECT DISTINCT userId FROM account_members WHERE accountId = ?`)
     .all(accountId) as Array<{ userId: string }>;
@@ -331,12 +317,10 @@ export function removeAllMembersForAccount(db: Db, accountId: string): string[] 
     revokeResetTokensForUser(db, userId);
     bumpSecurityRevision(db, userId);
   }
-  return ownershipTransferExempt
-    ? []
-    : terminaliseLiveRequestsForAccount({
-        db,
-        accountId,
-        reason: "participant_membership_changed",
-        now: new Date().toISOString(),
-      });
+  terminaliseLiveRequestsForAccount({
+    db,
+    accountId,
+    reason: "participant_membership_changed",
+    now: new Date().toISOString(),
+  });
 }
