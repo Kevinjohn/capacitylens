@@ -62,6 +62,12 @@ function anonymiseSchedulingData(db: DatabaseSync): void {
 }
 
 function anonymiseOperationalData(db: DatabaseSync): void {
+  remapIds({
+    db,
+    table: "account_federated_provider_bindings",
+    idColumn: "applicationId",
+    references: [],
+  });
   applyRedactions(db, [
     { table: "capacitylens_audit_outbox", column: "id", expression: `'rehearsal-audit-' || rowid` },
     { table: "capacitylens_audit_outbox", column: "payload", expression: `'{}'` },
@@ -76,7 +82,6 @@ function anonymiseOperationalData(db: DatabaseSync): void {
       column: "resultJson",
       expression: `CASE WHEN status = 'pending' THEN NULL WHEN status = 'completed' THEN '{}' WHEN resultJson IS NULL THEN NULL ELSE '{"kind":"rehearsal-redacted"}' END`,
     },
-    { table: "account_federated_provider_bindings", column: "applicationId", expression: `'rehearsal-app'` },
     {
       table: "account_federated_provider_bindings",
       column: "issuer",

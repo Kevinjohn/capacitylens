@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Hide the previously open company's data when a newly selected company cannot load, and offer
   explicit retry or company-selection recovery actions (#945).
+- Allow migration rehearsal copies to anonymise federated provider bindings when several
+  applications use the same provider identifier (#904).
 - Make the bare-metal installation select Node from the repository's `.nvmrc`, then run the
   systemd service from a root-owned copy of that verified binary, including upgrade and runtime
   checks (#931, #932).
