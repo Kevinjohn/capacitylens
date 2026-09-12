@@ -62,6 +62,7 @@ export {
   setMemberStatus,
   getMembershipRow,
   getMemberRole,
+  countActiveOwners,
   getActiveMemberRole,
   listMembershipsForUser,
   listMembersForAccount,

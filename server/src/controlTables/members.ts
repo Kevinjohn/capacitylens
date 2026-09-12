@@ -1,5 +1,6 @@
 import type { Role } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
+import { terminaliseLiveRequestsForAccount, terminaliseLiveRequestsForMember } from "./ownershipTransfers";
 import { revokeResetTokensForUser } from "../auth";
 import { bumpSecurityRevision } from "../accounts/state";
 import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTracking";
@@ -11,6 +12,32 @@ import {
   type AccountMemberRow,
   type MembershipStatus,
 } from "./members.model";
+
+/**
+ * What a membership write should do to the live ownership-transfer requests naming this principal.
+ *
+ * `"invalidate"` — the default and the answer for every ordinary write — ends them: a demotion,
+ * promotion, status change or removal means the person whose consent the ceremony holds is no
+ * longer the person it names. `"keep"` belongs to ONE caller, the ownership exchange kernel, whose
+ * two role writes ARE the ceremony completing; without it, completion would invalidate the request
+ * it is in the middle of applying.
+ *
+ * Passed explicitly rather than carried in module state, so the exemption is visible at the call
+ * site that claims it and cannot be turned on for a write that never asked for it.
+ */
+export type LiveTransferHandling = "invalidate" | "keep";
+
+// A migration-era handle has no v40 table yet; the terminaliser itself answers "nothing to end"
+// rather than throwing, so only the completion exemption is decided here.
+function terminaliseMemberTransfers(db: Db, accountId: string, userId: string): string[] {
+  return terminaliseLiveRequestsForMember({
+    db,
+    accountId,
+    userId,
+    reason: "participant_membership_changed",
+    now: new Date().toISOString(),
+  });
+}
 
 /**
  * Insert a membership, or update the role/status of an existing `(accountId, userId)`. `createdAt`
@@ -27,12 +54,18 @@ import {
  *   integrity throws) rather than silently coercing it to a default, which would hand someone the
  *   wrong access level.
  */
-export function upsertMember(db: Db, member: AccountMember): void {
+export function upsertMember(db: Db, member: AccountMember, transfers: LiveTransferHandling = "invalidate"): string[] {
   if (!isKnownRole(member.role)) {
     throw new Error(
       `upsertMember: unknown role ${JSON.stringify(member.role)} — expected owner, admin, editor, or viewer.`,
     );
   }
+  // Read the membership BEFORE the upsert: SQLite counts a row it matched as changed even when the
+  // values written are identical, so an unguarded write would let anyone end a live nomination by
+  // re-applying the role its participant already holds — repeatedly, and with nothing to show for
+  // it. The same distinction setMemberStatus already draws between "changed" and "unchanged".
+  const previous = getMembershipRow(db, member.accountId, member.userId);
+  const changed = previous === null || previous.role !== member.role || previous.status !== member.status;
   db.prepare(
     `INSERT INTO account_members (accountId, userId, role, status, createdAt, signInConfirmed)
      VALUES (?, ?, ?, ?, ?, CASE WHEN EXISTS (
@@ -50,8 +83,13 @@ export function upsertMember(db: Db, member: AccountMember): void {
   // accept, POST /api/orgs) can forget it — the sprinkle-at-each-callsite approach missed two.
   // No-op when the user holds no reset token (the common case: fresh membership) or in OFF mode
   // (no Better Auth tables). The reset-token implementation remains identity-owned in auth.ts.
+  // Deliberately unconditional, unlike the ceremony below: the reset-link and security-revision
+  // protocol is this path's TOCTOU close, it is pinned by the late-auth probe test, and narrowing
+  // it is a change to that security decision rather than to this ceremony. A live nomination is
+  // different — ending one is visible to two people and undoes work, so it needs a real change.
   revokeResetTokensForUser(db, member.userId);
   bumpSecurityRevision(db, member.userId);
+  return changed && transfers === "invalidate" ? terminaliseMemberTransfers(db, member.accountId, member.userId) : [];
 }
 
 interface SetMemberStatusInput {
@@ -83,12 +121,10 @@ interface SetMemberStatusInput {
  *   are distinguished rather than collapsed to a boolean precisely because "no row" and "no change"
  *   demand opposite responses, and because a re-applied status must not pay the security cost below.
  */
-export function setMemberStatus({
-  db,
-  accountId,
-  userId,
-  status,
-}: SetMemberStatusInput): "changed" | "unchanged" | "missing" {
+export function setMemberStatus({ db, accountId, userId, status }: SetMemberStatusInput): {
+  outcome: "changed" | "unchanged" | "missing";
+  invalidatedTransferIds: string[];
+} {
   // `AND status <> ?` makes a same-value write matchless, which is what keeps the security protocol
   // below off the no-op path: SQLite counts a row it MATCHED as changed even when the value written
   // is identical, so an unguarded UPDATE would burn an unrelated admin's freshly-minted reset link
@@ -105,11 +141,14 @@ export function setMemberStatus({
   if (!changed) {
     // Matchless: either the membership is absent, or it already holds this status. Only the second
     // is success, so distinguish them with a read rather than guessing.
-    return getMembershipRow(db, accountId, userId) === null ? "missing" : "unchanged";
+    return {
+      outcome: getMembershipRow(db, accountId, userId) === null ? "missing" : "unchanged",
+      invalidatedTransferIds: [],
+    };
   }
   revokeResetTokensForUser(db, userId);
   bumpSecurityRevision(db, userId);
-  return "changed";
+  return { outcome: "changed", invalidatedTransferIds: terminaliseMemberTransfers(db, accountId, userId) };
 }
 
 const membershipRowStatement = cachedStatement(
@@ -214,6 +253,18 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
  * @param accountId  The account whose members to list.
  * @returns The account's membership rows (possibly empty), in a stable order.
  */
+const activeOwnerCountStatement = cachedStatement(
+  `SELECT COUNT(*) AS owners FROM account_members WHERE accountId = ? AND role = 'owner' AND status = 'active'`,
+);
+
+/** How many active Owners one account has. Counted in SQLite — served directly by the partial
+ *  unique index that holds the single-active-Owner invariant — rather than by mapping every member
+ *  row into objects to answer a question about a number. */
+export function countActiveOwners(db: Db, accountId: string): number {
+  const row = activeOwnerCountStatement(db).get(accountId) as { owners: number };
+  return Number(row.owners);
+}
+
 export function listMembersForAccount(db: Db, accountId: string): AccountMember[] {
   const rows = db
     .prepare(
@@ -233,12 +284,14 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
  * @param accountId  The account the membership belongs to.
  * @param userId     The login whose membership to remove.
  */
-export function removeMember(db: Db, accountId: string, userId: string): void {
+export function removeMember(db: Db, accountId: string, userId: string): string[] {
   const result = db.prepare(`DELETE FROM account_members WHERE accountId = ? AND userId = ?`).run(accountId, userId);
   if (result.changes > 0) {
     revokeResetTokensForUser(db, userId);
     bumpSecurityRevision(db, userId);
+    return terminaliseMemberTransfers(db, accountId, userId);
   }
+  return [];
 }
 
 /**
@@ -264,4 +317,10 @@ export function removeAllMembersForAccount(db: Db, accountId: string): void {
     revokeResetTokensForUser(db, userId);
     bumpSecurityRevision(db, userId);
   }
+  terminaliseLiveRequestsForAccount({
+    db,
+    accountId,
+    reason: "participant_membership_changed",
+    now: new Date().toISOString(),
+  });
 }

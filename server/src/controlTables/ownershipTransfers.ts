@@ -5,6 +5,7 @@ import {
   type OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
 import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/account/ownershipTransferPolicy";
+import { createTableExistenceProbe } from "../auth";
 import type { Db } from "../db";
 import { cachedStatement, type PreparedStatement } from "./preparedStatement";
 import {
@@ -23,6 +24,19 @@ import {
  * alongside its command-ledger row and its audit event or not at all, and only the caller owns that
  * transaction.
  */
+
+/**
+ * Not every handle that reaches the terminalisers HAS this table.
+ *
+ * Two callers arrive before v41 exists: the membership choke point, which application migrations
+ * v12 and v14 drive on a handle where `ensureControlTables` has installed the membership tables but
+ * not this one; and the stopped-server repair commands, which deliberately run against a database
+ * whose migration 40 is still pending. A live request cannot exist in either case, so absence means
+ * "nothing to end" — but the query would still throw. Guarding HERE, rather than at each call site,
+ * is what keeps a repair path from failing with an opaque `no such table`. Absence is re-probed
+ * every call, never cached, so the same handle starts terminalising the moment v41 runs on it.
+ */
+const ownershipTransfersTableExists = createTableExistenceProbe("account_ownership_transfers");
 
 /**
  * The workflow revision one step on.
@@ -288,6 +302,7 @@ interface InvalidateLiveInput {
  *  learns exactly which rows it changed; both statements run inside the caller's transaction, so no
  *  row can appear or disappear between them. */
 function invalidateLive({ db, now, reason, scope, parameters }: InvalidateLiveInput): string[] {
+  if (!ownershipTransfersTableExists(db)) return [];
   const ids = (scope.select(db).all(...parameters) as Array<{ id: string }>).map(({ id }) => id);
   if (ids.length === 0) return [];
   scope.update(db).run(now, reason, ...parameters);
@@ -306,6 +321,7 @@ const deleteForAccountStatement = cachedStatement(`DELETE FROM account_ownership
  * the audit trail of WHY the ceremony ended outlives the rows under audit policy.
  */
 export function deleteRequestsForAccount(db: Db, accountId: string): void {
+  if (!ownershipTransfersTableExists(db)) return;
   deleteForAccountStatement(db).run(accountId);
 }
 

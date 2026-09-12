@@ -8,6 +8,8 @@ import {
   removeAllInvitesForAccount,
   removeAllMembersForAccount,
   upsertMember,
+  terminaliseLiveRequestsForAccount,
+  deleteRequestsForAccount,
 } from "../../controlTables";
 import type { Db } from "../../db";
 import { getRow } from "../../db";
@@ -64,6 +66,14 @@ function createCutoverInspection(
       const members = listMembersForAccount(db, workspaceId).filter((member) => member.status === "active");
       const target = members.find((member) => member.userId === principalId);
       if (!target || members.some((member) => member.role === "owner")) return false;
+      // Why: stopped-server repair has no request audit port. The retained terminal row is
+      // durable evidence that the nomination ended because the workspace Owner was repaired.
+      terminaliseLiveRequestsForAccount({
+        db,
+        accountId: workspaceId,
+        reason: "owner_repaired",
+        now: new Date().toISOString(),
+      });
       upsertMember(db, { ...target, role: "owner" });
       return true;
     },
@@ -103,6 +113,11 @@ function createCutoverAdministration(
       if (role !== "owner") throw createAccountFailure("FORBIDDEN", "Only the workspace owner may erase it.");
     },
     eraseWorkspaceAdministrationInTx(workspaceId) {
+      // Why: the existing workspace-erasure audit event records that the company, and every
+      // ceremony in it, ended. The rows themselves go, rather than being terminalised first: this
+      // deletes in the same transaction, so an invalidation written here would never be visible to
+      // anyone, and the audit trail of why the ceremony ended outlives the rows anyway.
+      deleteRequestsForAccount(db, workspaceId);
       const principalIds = [...new Set(listMembersForAccount(db, workspaceId).map((row) => row.userId))];
       removeAllMembersForAccount(db, workspaceId);
       removeAllInvitesForAccount(db, workspaceId);
