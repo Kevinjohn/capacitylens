@@ -68,13 +68,15 @@ function commitLapsedRequest(
   });
   context.audit({
     actorPrincipalId: input.actor.principalId,
-    targetPrincipalId: input.targetPrincipalId,
+    // The LAPSED request's own nominee, never the new one: this event says who was party to the
+    // ceremony that ended, and the person being nominated now was never part of it.
+    targetPrincipalId: live.targetUserId,
     workspaceId: input.workspaceId,
     command: input.command,
     eventKey: live.id,
     action: "ownership_transfer.expired",
     outcome: "success",
-    changedFields: ["state", "terminalReason"],
+    changedFields: CHANGED_FIELDS,
   });
 }
 
@@ -224,6 +226,9 @@ function executeRowCommand(
   const instant = Date.now();
   const now = new Date(instant).toISOString();
   if (isLiveOwnershipTransferState(row.state) && isOwnershipTransferExpired(row.expiresAt, instant)) {
+    // This commits a terminal row too, so it sweeps like any other committed command: on an
+    // instance where nominations mostly lapse, this is the path that mints the history.
+    sweepExpiredHistory(db, instant);
     return terminaliseRequest(context, {
       row,
       state: "expired",
