@@ -24,6 +24,7 @@ const ACTIONS = [
   "purge",
   "deleteAccount",
   "transferOwnership",
+  "actOnOwnershipTransfer",
   "masquerade",
 ] as const satisfies readonly Action[];
 

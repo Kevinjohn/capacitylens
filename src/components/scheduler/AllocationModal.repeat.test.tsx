@@ -414,6 +414,29 @@ describe("AllocationModal repeat creation", { timeout: 15_000 }, () => {
     ).toBeInTheDocument();
   });
 
+  it("dates both ends of the preview once the repeat runs into the next year", async () => {
+    const resource = addPerson();
+    const user = userEvent.setup();
+    render(
+      <AllocationModal
+        kind="create"
+        create={{ resourceId: resource.id, startDate: "2099-12-21", endDate: "2099-12-23" }}
+        onClose={vi.fn()}
+      />,
+    );
+    await completeAssignment(user);
+    await chooseOption(user, "Repeat", "Weekly");
+    const repeatUntil = screen.getByLabelText("Repeat until");
+
+    await user.clear(repeatUntil);
+    await user.type(repeatUntil, "2100-01-11");
+    // Undated, this reads "through Mon 11th Jan. Last start: Mon 11th Jan." — a forward repeat that
+    // appears to end eleven months before it starts.
+    expect(
+      await screen.findByText("Creates 4 linked allocations through Mon 11th Jan 2100. Last start: Mon 11th Jan 2100."),
+    ).toBeInTheDocument();
+  });
+
   it("aggregates singular/plural repeat advisory fragments and keeps saving advisory-only", async () => {
     const resource = addPerson();
     const user = userEvent.setup();

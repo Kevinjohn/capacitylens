@@ -31,13 +31,16 @@ interface SchedulerViewportOptions {
   calendarWeekStartsOn: 0 | 1;
 }
 
-const publishScrollLeft = (element: HTMLElement) => {
+/** One writer for both scroll offsets: overlays clamped to the visible window read them as custom
+ *  properties instead of each subscribing to the scroll event (see visibleSpanInsets). */
+const publishScrollOffsets = (element: HTMLElement) => {
   element.style.setProperty("--sched-scroll-left", `${element.scrollLeft}px`);
+  element.style.setProperty("--sched-scroll-top", `${element.scrollTop}px`);
 };
 
 const setScrollLeft = (element: HTMLElement, value: number) => {
   element.scrollLeft = value;
-  publishScrollLeft(element);
+  publishScrollOffsets(element);
 };
 
 function disconnectResizeObserver(observer: ResizeObserver, timer: number) {
@@ -276,7 +279,7 @@ function useViewportScrolling(input: ViewportScrollingInput) {
   } = input;
   const onScroll = useCallback(() => {
     const current = scrollRef.current;
-    if (current) publishScrollLeft(current);
+    if (current) publishScrollOffsets(current);
     if (scrollRafRef.current) return;
     scrollRafRef.current = requestAnimationFrame(() => {
       scrollRafRef.current = 0;
