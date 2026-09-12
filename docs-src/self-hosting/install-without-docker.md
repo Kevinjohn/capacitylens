@@ -84,8 +84,6 @@ installed.
    sudo -u capacitylens /opt/capacitylens/bin/node --version
    ```
 
-   The printed version must match the `node --version` output from step 1.
-
 4. Build the web app and the server:
 
    ```bash
@@ -131,19 +129,9 @@ installed.
 
    Expect `active (running)` with no restart loop. Follow the logs with
    `journalctl -u capacitylens -f` — like the Docker install, there's no single "ready"
-   line, so a quiet log with no restart is what you're looking for.
-
-   Confirm that systemd started the copied Node binary:
-
-   ```bash
-   sudo readlink /proc/$(systemctl show -p MainPID --value capacitylens)/exe
-   ```
-
-   Expected output:
-
-   ```text
-   /opt/capacitylens/bin/node
-   ```
+   line, so a quiet log with no restart is what you're looking for. To confirm it's
+   running the copied binary, `sudo readlink /proc/$(systemctl show -p MainPID --value
+   capacitylens)/exe` should print `/opt/capacitylens/bin/node`.
 
 6. Configure nginx to serve the built app and proxy `/api/` to the API. Create
    `/etc/nginx/sites-available/capacitylens`, pointing `root` at the `dist/` directory
@@ -197,8 +185,8 @@ installed.
    and first company exist, remove the variable from `.env` and restart the server to invalidate the
    handoff secret. See [Configuration](/self-hosting/configuration#sign-in-mode).
 
-After changing Node with nvm during an upgrade, rerun the `sudo install` command from step 3 and
-then run `sudo systemctl restart capacitylens`.
+After changing Node with nvm during an upgrade, redo the binary copy from step 3 and restart the
+service.
 
 ## What's next
 
