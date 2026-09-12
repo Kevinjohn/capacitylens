@@ -987,8 +987,12 @@ edit its companies. In an authenticated server deploy, Owner/Admin additionally 
 management section
 (heading `Members`, `data-testid="members-section"`). Editor/Viewer see their own access explanation
 but no company directory, invitations or management controls; the server's 403 remains the backstop.
-Owner/Admin can read the member directory, outstanding invites and SSO readiness without a fresh
-authentication prompt. Sensitive mutations still require fresh authentication; their **Confirm it's
+Owner/Admin can read the member directory, outstanding invites and SSO readiness — and carry out
+ordinary member administration (inviting, revoking an invitation, changing a role or access state,
+removing a member, the sign-in-tracking switch and viewing as a member) — without a fresh
+authentication prompt. The high-impact actions still require fresh authentication: transferring
+ownership, resetting another member's password, revoking another member's sessions, deleting a
+company, importing or purging data, and linking or repairing an SSO identity. Their **Confirm it's
 you** dialog names the requested action. Cancelling leaves the directory visible and does not apply
 the requested change.
 
@@ -1489,7 +1493,7 @@ indistinguishable response. Insufficient-role members still receive 403 for rows
 can already read.
 The built-in **Internal** client remains server-managed: generic POST cannot create one and direct
 writes cannot modify the active singleton. A legacy-id PUT that atomically replaces the generated
-singleton and reparents its projects is a fresh-session Admin/Owner operation; an Editor receives 403. The same authority applies to a direct PUT and the atomic batch path.
+singleton and reparents its projects is an Admin/Owner operation; an Editor receives 403. The same authority applies to a direct PUT and the atomic batch path.
 
 ### Server lifecycle routes (P2.5a)
 
