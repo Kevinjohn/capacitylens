@@ -104,9 +104,11 @@ as:
 sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf status
 ```
 
-`-n` means "never ask for a password". Next, run `sudo -l`. Continue only if it lists exactly the
-four configuration-pinned commands shown below. A bare `/usr/bin/supervisorctl` entry is the old,
-broad grant and must be replaced before you continue. If the status command prints `sudo: a
+`-n` means "never ask for a password". If you will keep `supervisorctl`, next run `sudo -l` and
+continue only if it lists exactly the four configuration-pinned commands shown below. A bare
+`/usr/bin/supervisorctl` entry is the old, broad grant and must be replaced before you continue. If
+you replace both process-control calls with separate platform stop and start actions instead, you
+can continue after configuring and testing those actions. If the status command prints `sudo: a
 password is required`, choose one of the two fixes below.
 
 ### Use the platform's own restart action
