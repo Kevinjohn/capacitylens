@@ -1,10 +1,142 @@
 {
   "ceiling": 400,
+  "testCeiling": 800,
   "permanent": [
     {
       "path": "src/components/ui/sidebar.tsx",
       "reason": "source-owned shadcn primitive"
+    },
+    {
+      "path": "server/src/accounts/conformance/accountFlows.conformance.test.ts",
+      "reason": "per-account-flow conformance ledger; grows by one scenario block per account flow"
+    },
+    {
+      "path": "server/src/accounts/conformance/localIdentityPort.conformance.test.ts",
+      "reason": "local identity-port conformance ledger; grows by one scenario block per identity flow"
+    },
+    {
+      "path": "server/src/app.authz.test.ts",
+      "reason": "authorization matrix; grows with each route and action permission case"
+    },
+    {
+      "path": "server/src/db.migrate.test.ts",
+      "reason": "per-migration checksum ledger; grows by one block per migration"
+    },
+    {
+      "path": "shared/src/domain/mutations.test.ts",
+      "reason": "domain mutation matrix; grows with each mutation and invariant case"
     }
   ],
-  "temporary": []
+  "temporary": [
+    {
+      "path": "server/src/accounts/state.test.ts",
+      "baseline": 825,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "server/src/app.auth.test.ts",
+      "baseline": 903,
+      "reason": "retained head of the #827 auth split, pinned"
+    },
+    {
+      "path": "server/src/app.invites.test.ts",
+      "baseline": 1370,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "server/src/app.lifecycle.test.ts",
+      "baseline": 1894,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "server/src/app.members.lifecycle.test.ts",
+      "baseline": 838,
+      "reason": "retained head of the #827 auth split, pinned"
+    },
+    {
+      "path": "server/src/app.members.test.ts",
+      "baseline": 1222,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "server/src/audit.test.ts",
+      "baseline": 991,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "server/src/auth.test.ts",
+      "baseline": 1197,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "server/src/backup.test.ts",
+      "baseline": 1008,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "server/src/strictOidc.test.ts",
+      "baseline": 885,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "shared/src/domain/lifecycle.test.ts",
+      "baseline": 1028,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "shared/src/lib/integrity.test.ts",
+      "baseline": 844,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/auth/AuthProvider.test.tsx",
+      "baseline": 1308,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/components/accounts/AccountPicker.test.tsx",
+      "baseline": 884,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/components/AppShell.test.tsx",
+      "baseline": 1301,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/components/common/ui.test.tsx",
+      "baseline": 1446,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/components/ImportExport.test.tsx",
+      "baseline": 1040,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/components/invites/InviteAccept.test.tsx",
+      "baseline": 1208,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/components/scheduler/schedulerModel.test.ts",
+      "baseline": 1933,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/components/settings/SettingsView.test.tsx",
+      "baseline": 840,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/lib/capacity.test.ts",
+      "baseline": 1416,
+      "reason": "test-size ratchet baseline; split when touched"
+    },
+    {
+      "path": "src/store/useStore.crud.test.ts",
+      "baseline": 1233,
+      "reason": "test-size ratchet baseline; split when touched"
+    }
+  ]
 }
