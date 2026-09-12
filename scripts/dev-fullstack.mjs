@@ -15,6 +15,7 @@
 
 import { spawn } from "node:child_process";
 import { parsePort } from "./port.mjs";
+import { ports } from "./ports.mjs";
 import { portInUse, requireNode24, terminateProcessTrees } from "./dev-processes.mjs";
 
 // Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
@@ -29,13 +30,14 @@ requireNode24(
 );
 
 // Keep the launcher, the API child (server reads PORT), and the Vite proxy on the SAME port.
-// vite.config.ts's proxy target MUST use the same `CAPACITYLENS_DEV_API_PORT ?? 8787` default so the
-// launcher and the Vite proxy stay in lockstep (the 8787 is the shared default, not a copy to drift).
+// vite.config.ts's proxy target MUST resolve the same `CAPACITYLENS_DEV_API_PORT ?? lane db API`
+// default so the launcher and the Vite proxy stay in lockstep (scripts/ports.mjs is the one source).
 // NB this is the DEV-proxy API port, distinct from serve-dist.mjs's bare API_PORT (its dist-serving port).
-const API_PORT = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, 8787, "CAPACITYLENS_DEV_API_PORT");
-// Vite is strictPort:true on 5173 (vite.config.ts), so a collision there is a hard EADDRINUSE AFTER
+const lanePorts = ports();
+const API_PORT = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, lanePorts.dbApi, "CAPACITYLENS_DEV_API_PORT");
+// Vite is strictPort:true on the lane's web port (vite.config.ts), so a collision is a hard EADDRINUSE AFTER
 // the API child has already booted. Pre-flight it too (below), symmetric with the API check.
-const WEB_PORT = 5173;
+const WEB_PORT = lanePorts.web;
 
 /**
  * Resolve true iff something is already listening on 127.0.0.1:port. A short-lived connect probe —
@@ -70,7 +72,7 @@ let shuttingDown = false;
 /**
  * SIGTERM a child's WHOLE process group, not just the immediate `pnpm`. With `shell:true` each child
  * is a shell → pnpm → node(vite/tsx) tree; signalling only the shell leaves vite/tsx orphaned holding
- * :5173/:8787. `detached:true` (below) makes each child a group leader, so a negative-pid kill
+ * the lane's web/API ports. `detached:true` (below) makes each child a group leader, so a negative-pid kill
  * reaches the whole tree. ESRCH (group already gone) is fine; Windows has no POSIX groups, so fall
  * back to `taskkill /T` which walks the tree there.
  */

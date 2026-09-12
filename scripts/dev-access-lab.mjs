@@ -3,11 +3,14 @@ import { fileURLToPath } from "node:url";
 import { buildAccessLabEnv } from "./access-lab-env.mjs";
 import { spawnPnpm } from "./pnpm-spawn.mjs";
 import { acquireExclusiveFile, portInUse, requireNode24, terminateProcessTrees } from "./dev-processes.mjs";
+import { OIDC_FIXED_PORTS } from "./ports.mjs";
 
 requireNode24((version) => `dev:access needs Node 24+ — found ${version}. Run \`nvm use\` and retry.`);
 
-const API_PORT = 8897;
-const WEB_PORT = 5473;
+// The access lab shares the OIDC flavour's fixed ports, which are deliberately outside the lane
+// system (see scripts/ports.mjs). Its own exclusive lock below is what keeps it single-flight.
+const API_PORT = OIDC_FIXED_PORTS.oidcApi;
+const WEB_PORT = OIDC_FIXED_PORTS.oidcWeb;
 const dbUrl = new URL("../server/.access-lab.db", import.meta.url);
 const dbPath = fileURLToPath(dbUrl);
 const ownershipPath = fileURLToPath(new URL("../server/.access-lab.lock", import.meta.url));

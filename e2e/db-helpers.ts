@@ -1,4 +1,5 @@
 import { expect, type APIRequestContext } from "@playwright/test";
+import { ports } from "../scripts/ports.mjs";
 
 // Helpers for the DB-backed E2E project. State lives on the SQLite server (not
 // browser memory), so isolation comes from resetting the server over its API between
@@ -7,7 +8,7 @@ import { expect, type APIRequestContext } from "@playwright/test";
 // UI → store → ServerSyncAdapter → REST → SQLite, and rehydration via GET /api/state.
 
 // The server origin the db-backed Vite build points at (see playwright.config.ts).
-export const API = process.env.VITE_CAPACITYLENS_API ?? "http://localhost:8787";
+export const API = process.env.VITE_CAPACITYLENS_API ?? `http://localhost:${ports().dbApi}`;
 
 /** Wipe the server DB and re-seed the demo data so each test starts identically. */
 export async function resetServer(request: APIRequestContext, withSeed = true): Promise<void> {

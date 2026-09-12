@@ -1,21 +1,31 @@
 import { defineConfig, devices } from "@playwright/test";
 import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
 import { resolvePlaywrightRunMode } from "./scripts/playwright-run-mode.mjs";
+import { OIDC_FIXED_PORTS, browserShare, ports, testShare } from "./scripts/ports.mjs";
 
 // Playwright drives the real app via Vite. Three project flavours:
-//   chromium    — the in-memory DEMO build on :5173 (VITE_CAPACITYLENS_DEMO=1; the existing specs).
-//   db-backed   — the SQLite server (:8787, reset enabled, temp DB) + a second Vite
-//                 dev server (:5273) whose same-origin /api proxy targets that server
+//   chromium    — the in-memory DEMO build on the lane web port (VITE_CAPACITYLENS_DEMO=1).
+//   db-backed   — the SQLite server (lane db API, reset enabled, temp DB) + a second Vite
+//                 dev server (lane db web) whose same-origin /api proxy targets that server
 //                 through the entity-level ServerSyncAdapter. *.db.spec.ts run here.
-//   auth-backed — a third server (:8887) booted with SMALLSASS_ACCOUNT_MODE=password (fresh DB per
-//                 run) + a Vite dev server (:5373) whose /api proxy targets it — the ONLY place the
+//   auth-backed — a third server (lane auth API) booted with SMALLSASS_ACCOUNT_MODE=password (fresh
+//                 DB per run) + a Vite dev server (lane auth web) proxying to it — the ONLY place the
 //                 flag-gated login screen exists (US-NAV-10). *.auth.spec.ts run here.
-const API_PORT = 8787;
-const DB_WEB_PORT = 5273;
-const AUTH_API_PORT = 8887;
-const AUTH_WEB_PORT = 5373;
-const OIDC_API_PORT = 8897;
-const OIDC_WEB_PORT = 5473;
+// Lane-derived (scripts/ports.mjs). Lane 0 is the historical 5173/5273/5373/8787/8887, so a single
+// checkout and CI see no change; a run launched through scripts/with-lane.mjs gets its own lane, so
+// ten worktrees can run this suite at once. The lane is already fixed in the environment by the
+// time this file is evaluated — a globalSetup would claim one far too late to choose these ports.
+const lanePorts = ports();
+const WEB_PORT = lanePorts.web;
+const API_PORT = lanePorts.dbApi;
+const DB_WEB_PORT = lanePorts.dbWeb;
+const AUTH_API_PORT = lanePorts.authApi;
+const AUTH_WEB_PORT = lanePorts.authWeb;
+// OIDC is deliberately NOT lane-derived: e2e/oidc/dex.yaml pins the issuer and callback, and
+// scripts/e2e-oidc.mjs maps the dex host port fixedly in a container. `pnpm run e2e:oidc` is
+// single-flight machine-wide and keeps its historical ports.
+const OIDC_API_PORT = OIDC_FIXED_PORTS.oidcApi;
+const OIDC_WEB_PORT = OIDC_FIXED_PORTS.oidcWeb;
 const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
 const coreSpec = coreSpecPattern;
 const flavourSpec = (flavour: "db" | "auth" | "oidc") =>
@@ -23,7 +33,7 @@ const flavourSpec = (flavour: "db" | "auth" | "oidc") =>
 
 // Cross-browser opt-in (WebKit/Safari + Firefox/Gecko). `e2e:webkit` / `e2e:firefox` set the
 // matching *_ONLY flag: each runs ONLY that browser's twin of the core in-memory demo specs against
-// the :5173 dev server, so it needs neither the SQLite nor the auth server — and pointedly NOT
+// the lane web dev server, so it needs neither the SQLite nor the auth server — and pointedly NOT
 // Node 24 (those servers need node:sqlite; the core specs don't). `e2e:browsers`
 // (scripts/e2e-browsers.mjs) runs the core specs on all THREE engines (Chromium+WebKit, then
 // Firefox) Vite-only via CAPACITYLENS_VITE_ONLY; `e2e:all` (scripts/e2e-all.mjs) runs Chromium with
@@ -35,19 +45,21 @@ const runMode = resolvePlaywrightRunMode(process.env, process.argv, selectsOnlyE
 const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name);
 const reportPhase = reportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
 
-// The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
+// The base app under Vite on the lane web port — the only server the core (and WebKit/Firefox) specs need.
 // Runs the in-memory DEMO build so the core specs stay backend-free now that server is the
 // app's default; the db/auth flavours below carry their own proxy target.
 const devWebServer = {
   command: "pnpm run dev:demo",
-  url: "http://localhost:5173",
-  // Never reuse: Playwright matches a running server by URL (:5173) only — it can't see the
-  // persistence flavour. Post-flip, `pnpm run dev` boots a SERVER-mode dev server on :5173; reusing
-  // that for the in-memory demo specs would run them against the wrong backend. Always spawn a
-  // fresh demo build (the CI guard is moot now that we never reuse).
-  // CONSEQUENCE: if a full-stack `pnpm run dev` is already holding :5173, this spawn collides
-  // (strictPort) and `pnpm run e2e` fails to start rather than reusing it — BY DESIGN (a reused
-  // server-mode :5173 would corrupt the demo specs). Stop `pnpm run dev` first.
+  url: `http://localhost:${WEB_PORT}`,
+  // Never reuse: Playwright matches a running server by URL only — it can't see the persistence
+  // flavour. Post-flip, `pnpm run dev` boots a SERVER-mode dev server on the same port; reusing that
+  // for the in-memory demo specs would run them against the wrong backend. Always spawn a fresh
+  // demo build (the CI guard is moot now that we never reuse).
+  // CONSEQUENCE: if something is already holding this lane's web port, the spawn collides
+  // (strictPort) and the run fails to start rather than reusing it — BY DESIGN. Lanes are what stop
+  // that being another worktree: scripts/with-lane.mjs gives each concurrent run its own port, and
+  // clears this worktree's own orphans first. A full-stack `pnpm run dev` in THIS worktree still
+  // holds this lane's port, so stop it first.
   reuseExistingServer: false,
   timeout: 120_000,
 };
@@ -60,6 +72,10 @@ export default defineConfig({
   // These are measured suite budgets, stated explicitly instead of inheriting Playwright defaults.
   timeout: 30_000,
   expect: { timeout: 5_000 },
+  // Half the run's CPU reservation, because every worker drives a browser — the same ratio to the
+  // machine that Playwright's own default takes, but measured against this run's share of it rather
+  // than the whole box. Unset reservation means nothing else is running and the default applies.
+  workers: browserShare(testShare()),
   retries: process.env.CI ? 2 : 0,
   // No global override here on purpose: only db-backed and rehearsal share a mutable SQLite
   // fixture across tests (see their own `workers: 1`, below) — chromium, auth-backed, and
@@ -83,7 +99,7 @@ export default defineConfig({
           {
             name: "chromium",
             testMatch: coreSpec,
-            use: { ...devices["Desktop Chrome"], baseURL: "http://localhost:5173" },
+            use: { ...devices["Desktop Chrome"], baseURL: `http://localhost:${WEB_PORT}` },
           },
         ]
       : []),
@@ -138,7 +154,7 @@ export default defineConfig({
             testMatch: coreSpec,
             use: {
               ...devices["Desktop Safari"],
-              baseURL: "http://localhost:5173",
+              baseURL: `http://localhost:${WEB_PORT}`,
             },
           },
         ]
@@ -154,7 +170,7 @@ export default defineConfig({
             // WebKit pass had a single failure, hiding Firefox-only regressions.
             use: {
               ...devices["Desktop Firefox"],
-              baseURL: "http://localhost:5173",
+              baseURL: `http://localhost:${WEB_PORT}`,
             },
           },
         ]
@@ -184,7 +200,7 @@ export default defineConfig({
   ],
   // Rehearsal runs bring their own production-shaped stack (runbook) — don't boot the dev
   // servers under them. A core-specs-only run (`e2e:webkit`/`e2e:firefox`/`e2e:browsers`, i.e.
-  // viteOnly) needs only Vite on :5173. Every other run keeps the full list (the SQLite + auth
+  // viteOnly) needs only Vite on the lane web port. Every other run keeps the full list (the SQLite + auth
   // servers the db/auth specs depend on).
   webServer:
     runMode.serverProfile === "rehearsal"
@@ -233,10 +249,10 @@ export default defineConfig({
               {
                 // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
                 // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
-                // already-running :8887 — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
+                // already-running auth API — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
                 // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
-                // bootstrap-credential spec with a confusing red (same lesson as the :5173 block above
-                // and the 2026-07-08 orphaned-:8787 war story in the decisions log).
+                // bootstrap-credential spec with a confusing red (same lesson as the web-port block
+                // above and the 2026-07-08 orphaned-:8787 war story in the decisions log).
                 command: "pnpm run start:auth-e2e",
                 cwd: "./server",
                 url: `http://localhost:${AUTH_API_PORT}/api/health`,
