@@ -2,7 +2,7 @@ import { useState, type PointerEvent as ReactPointerEvent } from "react";
 import { m } from "@/i18n";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { rangesOverlap } from "@capacitylens/shared/lib/dateMath";
-import { MAX_HOURS_PER_DAY, type ID, type Weekday } from "@capacitylens/shared/types/entities";
+import { MAX_HOURS_PER_DAY, type Allocation, type ID, type Weekday } from "@capacitylens/shared/types/entities";
 import { useDragResize, type DragResizePreviewInput, type Pointer } from "../../hooks/useDragResize";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { applyGesture, type DateRange, type DragMode } from "../../lib/gestureMath";
@@ -60,10 +60,10 @@ function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID)
 }
 
 interface ReadPreviewDatesInput {
-  bar: BarLayout;
-  runtime: GestureRuntime;
-  input: DragResizePreviewInput;
-  destination: LaneSnapshot | null;
+  bar: { allocation: Pick<Allocation, "resourceId" | "startDate" | "endDate" | "ignoreWeekends"> };
+  runtime: Pick<GestureRuntime, "previewDaysRef">;
+  input: Pick<DragResizePreviewInput, "mode" | "deltaDays">;
+  destination: Pick<LaneSnapshot, "id"> | null;
 }
 
 /** The snapped range for this frame, judged in the lane the pointer is over. A reassignment also
@@ -73,7 +73,7 @@ function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDates
   const previewDays = resolveMemoisedWorkingDays(runtime.previewDaysRef.current, destination?.id ?? resourceId);
   return {
     result: buildGesturePreviewDates({
-      bar,
+      allocation: bar.allocation,
       mode: input.mode,
       deltaDays: input.deltaDays,
       previewDays,

@@ -1,10 +1,10 @@
 import { applyGesture, type DateRange, type DragMode } from "../../lib/gestureMath";
-import type { Weekday } from "@capacitylens/shared/types/entities";
+import type { Allocation, Weekday } from "@capacitylens/shared/types/entities";
 import type { BarLayout } from "./schedulerModel";
 import type { ColumnGeometry } from "./columnGeometry";
 
 interface BuildGesturePreviewDatesInput {
-  bar: BarLayout;
+  allocation: Pick<Allocation, "startDate" | "endDate" | "ignoreWeekends">;
   mode: DragMode;
   deltaDays: number;
   /** The lane the pointer is over: the week the previewed range is placed in, and the one the
@@ -21,7 +21,7 @@ interface BuildGesturePreviewDatesInput {
 type GesturePreviewResult = { kind: "blocked" } | { kind: "unchanged" } | { kind: "ready"; dates: DateRange };
 
 export function buildGesturePreviewDates({
-  bar,
+  allocation,
   mode,
   deltaDays,
   previewDays,
@@ -33,7 +33,7 @@ export function buildGesturePreviewDates({
   // A zero-column resize moves nothing, so it keeps the view-model's placement (dates: null).
   // An empty memoized week ([]) is the collapsed "none" state: the commit below refuses the
   // gesture, so the preview shows no movement rather than calendar-day math the save rejects.
-  if (previewDays?.length === 0 && !bar.allocation.ignoreWeekends) return { kind: "blocked" };
+  if (previewDays?.length === 0 && !allocation.ignoreWeekends) return { kind: "blocked" };
   // A zero-column gesture that is not also a reassignment commits nothing, so it must preview
   // nothing: re-deriving the range here would renormalise a bar whose stored dates predate a change
   // to its own resource's week, then snap it back on release.
@@ -42,12 +42,12 @@ export function buildGesturePreviewDates({
     kind: "ready",
     dates: applyGesture({
       mode: mode,
-      range: { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
+      range: { startDate: allocation.startDate, endDate: allocation.endDate },
       deltaDays: deltaDays,
       options: {
         ...(previewDays !== undefined ? { workingDays: previewDays } : {}),
         ...(sourceDays !== undefined ? { sourceWorkingDays: sourceDays } : {}),
-        ...(bar.allocation.ignoreWeekends !== undefined ? { ignoreWeekends: bar.allocation.ignoreWeekends } : {}),
+        ...(allocation.ignoreWeekends !== undefined ? { ignoreWeekends: allocation.ignoreWeekends } : {}),
       },
     }),
   };

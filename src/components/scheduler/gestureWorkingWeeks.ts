@@ -1,4 +1,4 @@
-import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import { effectiveWorkingWeek, lacksEffectiveWorkingDays } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import type { ID, ISODate, Weekday } from "@capacitylens/shared/types/entities";
 import { listAccountWorkingDays } from "../../store/selectors";
@@ -35,10 +35,9 @@ interface EffectiveDaysQuery {
 /** Does this allocation have any day it could occupy on `resourceId`? False only for a collapsed
  *  working week, which a weekend-aware gesture cannot place anything into. */
 export function hasEffectiveDaysFor({ resourceId, ignoreWeekends }: EffectiveDaysQuery) {
-  if (ignoreWeekends) return true;
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return true;
-  return effectiveWorkingWeek(resource, accountWorkingDays).kind !== "none";
+  return !lacksEffectiveWorkingDays(effectiveWorkingWeek(resource, accountWorkingDays), ignoreWeekends);
 }
 
 interface DropStartQuery {
