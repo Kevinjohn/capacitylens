@@ -16,6 +16,7 @@ import { ownershipTransferAccess } from "./ownershipTransferAccess";
 export { resolveRejectionMessage, type TeamAccessResult } from "./accessResult";
 export type {
   OwnershipTransferOutcomeView,
+  OwnershipTransferTerminalView,
   OwnershipTransferProjectionView,
   OwnershipTransferView,
 } from "./ownershipTransferAccess";
@@ -197,8 +198,8 @@ function parseToken(value: unknown): OneTimeToken | null {
   };
 }
 
-/** Shared by {@link readCommandResult} and {@link readResult}: both treat a decode failure on an ok
- * response the same way, so the success-path decoding lives once. */
+/** The decoder for an endpoint whose success carries no body: there is nothing to read, and the ok
+ *  response itself is the whole answer. */
 const noContent = (): true => true;
 
 /** Typed account-administration boundary. Raw Response handling and untrusted payload codecs stay

@@ -53,6 +53,10 @@ export type OwnershipTransferOutcomeView =
   | { kind: "applied"; request: OwnershipTransferView }
   | { kind: "terminal"; state: OwnershipTransferState; reason: OwnershipTransferTerminalReason | null };
 
+/** The committed-terminal half on its own. The card only ever holds one of these to explain, so
+ *  naming it saves every reader of that state re-proving which variant it is. */
+export type OwnershipTransferTerminalView = Extract<OwnershipTransferOutcomeView, { kind: "terminal" }>;
+
 /** The reason vocabulary is closed and server-authored, so an unrecognised one is decoded as "no
  *  reason" rather than rendered: the card explains outcomes it understands and stays silent
  *  otherwise, instead of printing an identifier at the user. */
@@ -64,7 +68,11 @@ function isOwnershipTransferTerminalReason(value: unknown): value is OwnershipTr
  *  stays one readable shape rather than a wall of guards. */
 function hasOwnershipTransferShape(
   value: Record<string, unknown>,
-): value is Record<string, unknown> & Pick<OwnershipTransferView, "id" | "fromUserId" | "toUserId" | "revision"> {
+): value is Record<string, unknown> &
+  Pick<
+    OwnershipTransferView,
+    "id" | "fromUserId" | "toUserId" | "revision" | "createdAt" | "expiresAt" | "targetAcceptedAt" | "terminalAt"
+  > {
   return (
     typeof value.id === "string" &&
     typeof value.fromUserId === "string" &&
@@ -79,8 +87,8 @@ function hasOwnershipTransferShape(
 
 function parseOwnershipTransfer(value: unknown): OwnershipTransferView | null {
   if (!isRecord(value) || !hasOwnershipTransferShape(value)) return null;
-  const { id, fromUserId, toUserId, state, revision, createdAt, expiresAt } = value;
-  if (!isOwnershipTransferState(state) || typeof createdAt !== "string" || typeof expiresAt !== "string") return null;
+  const { id, fromUserId, toUserId, state, revision, createdAt, expiresAt, targetAcceptedAt, terminalAt } = value;
+  if (!isOwnershipTransferState(state)) return null;
   const reason = value.terminalReason;
   if (reason !== null && !isOwnershipTransferTerminalReason(reason)) return null;
   return {
@@ -91,8 +99,8 @@ function parseOwnershipTransfer(value: unknown): OwnershipTransferView | null {
     revision,
     createdAt,
     expiresAt,
-    targetAcceptedAt: value.targetAcceptedAt as string | null,
-    terminalAt: value.terminalAt as string | null,
+    targetAcceptedAt,
+    terminalAt,
     terminalReason: reason,
   };
 }
