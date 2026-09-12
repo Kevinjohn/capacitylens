@@ -336,7 +336,8 @@ describe("ownership transfer ceremony port: staying readable and unblocked", () 
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-02T09:00:00.000Z"));
     seedWorkspace({ observer: true });
-    const port = createPort();
+    const auditEvents: AccountAuditEvent[] = [];
+    const port = createPort(auditEvents);
     const stale = await port.initiateOwnershipTransfer({
       actor: owner,
       workspaceId,
@@ -364,5 +365,45 @@ describe("ownership transfer ceremony port: staying readable and unblocked", () 
       state: "expired",
       terminalReason: "deadline_passed",
     });
+    // A ceremony that ended leaves a record of ending, wherever the expiry was committed.
+    const expiries = auditEvents.filter(({ action }) => action === "ownership_transfer.expired");
+    expect(expiries).toHaveLength(1);
+    expect(expiries[0]?.outcome).toBe("success");
+    expect(expiries[0]?.id).toContain(`:${stale.request.id}`);
+  });
+});
+
+describe("ownership transfer ceremony port: replacement beliefs", () => {
+  // "Replace exactly this one, at exactly this revision" must not become "replace whatever is there"
+  // merely because a deadline passed while the card was open.
+  it("still refuses a replacement predicate that names the wrong request, expired or not", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-02T09:00:00.000Z"));
+    seedWorkspace({ observer: true });
+    const port = createPort();
+    const stale = await port.initiateOwnershipTransfer({
+      actor: owner,
+      workspaceId,
+      targetPrincipalId: target.principalId,
+      expectedRequestId: null,
+      expectedRevision: null,
+      command: command("initiate"),
+    });
+    if (stale.kind !== "applied") throw new Error("initiation did not apply");
+    seeded()
+      .prepare("UPDATE account_ownership_transfers SET createdAt = ?, expiresAt = ? WHERE id = ?")
+      .run("2026-08-25T09:00:00.000Z", "2026-09-01T09:00:00.000Z", stale.request.id);
+
+    await expect(
+      port.initiateOwnershipTransfer({
+        actor: owner,
+        workspaceId,
+        targetPrincipalId: observer.principalId,
+        expectedRequestId: "a-request-that-is-not-live",
+        expectedRevision: "7",
+        command: command("second"),
+      }),
+    ).rejects.toMatchObject({ failure: { code: "CONFLICT" } });
+    expect(readRequestById(seeded(), workspaceId, stale.request.id)).toMatchObject({ state: "awaiting_target" });
   });
 });
