@@ -21,9 +21,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - name: Compile translations
-        run: pnpm run paraglide:compile
       - name: Type-check shared and application projects
-        run: pnpm --filter @capacitylens/shared type-check && pnpm exec tsc -b && pnpm run typecheck:e2e
+        run: pnpm run typecheck
       - name: Lint authored sources
         run: pnpm run lint

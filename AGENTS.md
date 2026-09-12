@@ -220,6 +220,10 @@ Use this lightweight workflow for user-facing changes:
 ## Validation environment
 
 - Run focused tests during implementation. Select submission checks using “Green gate” below.
+- Type-check with `pnpm run typecheck`, never a bare `tsc` at the repository root, which reads no
+  files and exits 0 whatever the tree contains — `docs-src/reference/development.md` explains why.
+  It covers the shared, application, Node and end-to-end projects, but not `server/`, which
+  `pnpm run gate:server` type-checks.
 - Before running Node or pnpm commands, activate the version selected by `.nvmrc` in that
   worktree and verify `node --version`; do not use the machine default. Include this requirement
   in delegated briefs and reapply it when switching shells or execution tools.
@@ -239,8 +243,9 @@ validation failures.
 - Within a migration, create SQLite triggers only after every table and column they reference
   exists; trigger creation order relative to DDL matters.
 - After editing `messages/en.json`, run `pnpm run paraglide:compile` (the `test`/`build` scripts do
-  this automatically, but direct `vitest`/`tsc` invocations do not) or type-checking will fail on
-  stale generated messages.
+  this automatically, as do `lint` and `typecheck`, but a direct `vitest`, `tsc` or
+  `pnpm --filter @capacitylens/shared type-check` invocation does not) or type-checking will fail
+  on stale generated messages.
 - Merging `origin/main` into a feature branch across a release boundary can silently move that
   branch's `[Unreleased]` changelog entry into the newly dated section. The release moved the
   heading above the entry, so Git auto-resolves it without a conflict and the result stays valid
