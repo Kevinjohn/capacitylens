@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import { daysInclusive, parseDate } from "@capacitylens/shared/lib/dateMath";
 import { readActiveDateLocale, m } from "@/i18n";
-import { DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@capacitylens/shared/types/entities";
+import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@capacitylens/shared/types/entities";
 
 // Human-readable date presentation for at-a-glance lists (e.g. the Time-off list), where a
 // reader wants "which days, how long" — not a machine date. Pure display formatting only; the
@@ -41,8 +41,8 @@ import { DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@capacitylens/
 //
 // LOCALE: all of the above take the date-fns locale from `readActiveDateLocale()`
 // (`src/i18n/index.ts:34`, `en → enGB`). Style is independent of locale today (no `en`/`enGB`
-// literal lives outside `src/i18n`); a locale-driven style default is future work, with its
-// insertion point marked in `dateStyle.ts`.
+// literal lives outside `src/i18n`); a locale-driven style default is future work, and its
+// insertion point is the account default in `resolveDateStyle` (`src/store/selectors.ts`).
 
 interface DateStyleDescriptor {
   /** Day-then-month ("9 Sep") when false, month-then-day ("Sep 9") when true. */
@@ -71,7 +71,12 @@ const DATE_STYLE_DESCRIPTORS: Record<DateStyle, DateStyleDescriptor> = {
 let activeDateStyle: DateStyle = DEFAULT_DATE_STYLE;
 
 export function setActiveDateStyle(style: DateStyle): void {
-  activeDateStyle = style;
+  // Validated, not trusted. The style is a lookup key in every formatter and the column behind it
+  // (`accounts.dateStyle`) is plain nullable TEXT with no CHECK constraint, so a database written by
+  // a build that shipped another style — or a hand-edited row — reaches here as a well-typed value
+  // that has no descriptor. Reading it as the default keeps every date on screen; the import
+  // sanitiser is what rejects it at the boundary.
+  activeDateStyle = DATE_STYLES.includes(style) ? style : DEFAULT_DATE_STYLE;
 }
 
 export function readActiveDateStyle(): DateStyle {

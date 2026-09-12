@@ -255,7 +255,6 @@ export interface StoreState {
   setDraggingAllocation: (id: ID | null) => void;
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
   setTheme: (pref: ThemePreference) => void;
-  /** Set the date-display style preference: persist it and update state. */
   /** Toggle a single utilisation display preference: persist and update state. */
   setUtilizationPref: (key: keyof UtilizationPreferences, value: boolean) => void;
   /** Toggle a single bar-label display preference: persist and update state. */

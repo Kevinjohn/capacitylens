@@ -4,6 +4,7 @@ import {
   hasExternalResourcesEnabled,
   hasResourceEngagementGrouping,
   canCreateInlineActivity,
+  resolveDateStyle,
   resolveInternalColourMode,
   hasPlaceholdersEnabled,
   buildDisciplineGroups,
@@ -274,5 +275,37 @@ describe("visibleRange", () => {
       scrollToResource: null,
     });
     expect(range).toEqual({ start: "2026-06-01", end: "2026-06-07" });
+  });
+});
+
+describe("resolveDateStyle", () => {
+  const withStyle = (dateStyle?: string): AppData => ({
+    ...emptyAppData(),
+    accounts: [
+      {
+        id: "a1",
+        createdAt: "t",
+        updatedAt: "t",
+        name: "Studio",
+        color: "#1",
+        ...(dateStyle ? { dateStyle: dateStyle as Account["dateStyle"] } : {}),
+      },
+    ],
+  });
+
+  it("defaults absent and unmatched accounts to day-month", () => {
+    expect(resolveDateStyle(withStyle(), "a1")).toBe("day-month");
+    expect(resolveDateStyle(withStyle("month-day"), "missing")).toBe("day-month");
+  });
+
+  it("returns an explicit choice", () => {
+    expect(resolveDateStyle(withStyle("month-day-ordinal"), "a1")).toBe("month-day-ordinal");
+  });
+
+  it("reads a style this build has no descriptor for as the default", () => {
+    // `accounts.dateStyle` is plain nullable TEXT with no CHECK constraint, and the style is a
+    // lookup key in every formatter. A database from a build that shipped another style, or a
+    // hand-edited row, would otherwise take every date on screen down with it.
+    expect(resolveDateStyle(withStyle("year-month-day"), "a1")).toBe("day-month");
   });
 });

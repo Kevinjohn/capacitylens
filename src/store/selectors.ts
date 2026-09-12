@@ -8,7 +8,7 @@ import {
   scopedTables,
   SCOPED_KEYS,
 } from "@capacitylens/shared/types/entities";
-import { DEFAULT_DATE_STYLE } from "@capacitylens/shared/types/entities";
+import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle } from "@capacitylens/shared/types/entities";
 import type { Account, AppData, Discipline, ID, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import type { SchedulerUI } from "./useStore";
 import { DEFAULT_TIME_ZONE } from "../lib/timezones";
@@ -30,8 +30,18 @@ const createAccountFieldSelector =
 /** The active company's date format. Absent on the account reads as 'day-month', the format the app
  *  shipped with. Company data, not a device preference: everyone in the account reads one
  *  convention. `useStore` mirrors this into `dateDisplay.ts` on every change so the pure formatters
- *  can read it synchronously. */
-export const resolveDateStyle = createAccountFieldSelector("dateStyle", DEFAULT_DATE_STYLE);
+ *  can read it synchronously.
+ *
+ *  Unlike the other account-field selectors this one checks MEMBERSHIP, not just presence. The
+ *  column is plain nullable TEXT with no CHECK constraint, so a database written by a build that
+ *  shipped a fifth style — or a row edited by hand — can hold a string this build has no descriptor
+ *  for, and the formatters take the style as a lookup key. Reading an unknown value as the default
+ *  keeps every date on screen; the import sanitiser is what rejects it at the boundary. */
+const rawDateStyle = createAccountFieldSelector("dateStyle", DEFAULT_DATE_STYLE);
+export function resolveDateStyle(data: AppData, activeAccountId: ID | null): DateStyle {
+  const stored = rawDateStyle(data, activeAccountId);
+  return DATE_STYLES.includes(stored) ? stored : DEFAULT_DATE_STYLE;
+}
 
 /** The active company's scheduling input mode. Absent on the account reads as the
  *  original 'hourly' behaviour. Single source so the modal and the bar can't drift. */
