@@ -78,6 +78,22 @@ const patchRoleReq = ({ app, accountId, userId, role, headers = {} }: PatchRoleR
     headers,
   });
 
+interface PatchStatusReqInput {
+  app: FastifyInstance;
+  accountId: string;
+  userId: string;
+  status: unknown;
+  headers?: Record<string, string> | undefined;
+}
+
+const patchStatusReq = ({ app, accountId, userId, status, headers = {} }: PatchStatusReqInput) =>
+  call(app, {
+    method: "PATCH",
+    url: `/api/accounts/${accountId}/members/${userId}/status`,
+    payload: { status },
+    headers,
+  });
+
 interface RemoveReqInput {
   app: FastifyInstance;
   accountId: string;
