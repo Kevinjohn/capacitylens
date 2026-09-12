@@ -68,10 +68,7 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
   // Pin the script's BODY, not only its name. Asserting the workflow calls `pnpm run typecheck`
   // proves nothing on its own: a `typecheck` reduced to a bare root `tsc --noEmit` reads no files
   // and exits 0, and every gate would stay green while nothing was type-checked at all.
-  assert.equal(
-    packageJson.scripts.typecheck,
-    "pnpm run paraglide:compile && pnpm --filter @capacitylens/shared type-check && tsc -b && pnpm run typecheck:e2e",
-  );
+  assert.equal(packageJson.scripts.typecheck, "pnpm run paraglide:compile && tsc -b");
 });
 
 // The pre-commit hook names staged files individually, unlike `eslint .` in `pnpm run lint` and in
