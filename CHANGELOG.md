@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Refresh personal time off and company closures when the company week rolls over, so newly
+  historical rows no longer remain visible until an unrelated page update (#902, #903).
 - Allow migration rehearsal copies to anonymise federated provider bindings when several
   applications use the same provider identifier (#904).
 - Make the bare-metal installation select Node from the repository's `.nvmrc`, then run the

@@ -444,7 +444,9 @@ Viewers do not see the toggle, and placeholder rows never show one.
 The **Time off** page is a forward-looking capacity view with separate personal-time-off and
 **Company closures** sections. Personal entries whose end date falls on or after the start of the
 current company week remain grouped into one compact bordered list per resource, with the displayed
-resource name shown once as the section heading. Resource sections sort alphabetically, their rows
+resource name shown once as the section heading. When the company week rolls over, both sections
+refresh while the page remains open and hide entries and closures that have become historical.
+Resource sections sort alphabetically, their rows
 sort by start date, end date and id, and placeholder entries follow **Show placeholders**. An
 unexpected dangling resource stays visible in a final **(unknown)** section rather than crashing.
 The company section has one **Add closure** button beside its heading and an explanatory empty state.

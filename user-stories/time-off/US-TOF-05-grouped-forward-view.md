@@ -1,6 +1,6 @@
 # US-TOF-05 — Scan current and future time off by resource
 
-**Area:** Time off · **Persona:** Studio manager · **Linked automated coverage:** `src/components/timeoff/timeOffView.test.ts` (week boundary, grouping and ordering), `src/components/timeoff/TimeOffList.test.tsx` (account settings, placeholders, lifecycle and permissions), `e2e/timeoff.spec.ts` → "groups current and future entries by resource"
+**Area:** Time off · **Persona:** Studio manager · **Linked automated coverage:** `src/components/timeoff/timeOffView.test.ts` (grouping and ordering), `src/components/timeoff/TimeOffList.test.tsx` and `src/components/timeoff/CompanyClosureSection.test.tsx` (mounted company-week rollover, account settings, placeholders, lifecycle and permissions), `e2e/timeoff.spec.ts` → "groups current and future entries by resource"
 
 ## Goal
 
@@ -33,7 +33,9 @@ See [Review current and upcoming time off](../../docs-src/guide/time-off.md#revi
   section are ordered by start date, then end date, then a deterministic final tie-breaker.
 - ✅ The boundary is the start of the current week in the active company's timezone, using that
   company's Monday/Sunday week-start setting. An entry remains visible when its end date is on or
-  after the boundary; an entry that ended before it is hidden without being deleted.
+  after the boundary; an entry that ended before it is hidden without being deleted. Personal
+  entries and company closures refresh at the account-local date boundary while the page remains
+  open, without requiring navigation or a data change.
 - ✅ Placeholder time off still follows **Show placeholders**. An unexpected dangling resource is
   shown safely in a final **(unknown)** section. Time off beneath an archived resource remains hidden.
 - ✅ Empty sections explain their purpose. **Add closure** and **Add time off** appear once each,
