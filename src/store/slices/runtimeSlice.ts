@@ -21,6 +21,7 @@ import {
   writeStoredUtilizationPrefs,
 } from "../../lib/displayPrefs";
 import { applyThemeToDom, readStoredTheme, writeStoredTheme } from "../../lib/theme";
+import { readActiveDateStyle, writeStoredDateStyle } from "../../lib/dateStyle";
 import type { StoreState } from "../types";
 
 type RuntimeSliceKeys =
@@ -34,6 +35,7 @@ type RuntimeSliceKeys =
   | "dirtyFormSources"
   | "draggingAllocationId"
   | "theme"
+  | "dateStyle"
   | "utilizationPrefs"
   | "barLabelPrefs"
   | "sidebarOpen"
@@ -57,6 +59,7 @@ type RuntimeSliceKeys =
   | "setDirtyFormSource"
   | "setDraggingAllocation"
   | "setTheme"
+  | "setDateStyle"
   | "setUtilizationPref"
   | "setBarLabelPref"
   | "setSidebarOpen"
@@ -108,6 +111,7 @@ function readRuntimeInitialState() {
     dirtyFormSources: new Set<symbol>(),
     draggingAllocationId: null,
     theme: readStoredTheme(),
+    dateStyle: readActiveDateStyle(),
     utilizationPrefs: readStoredUtilizationPrefs(),
     barLabelPrefs: readStoredBarLabelPrefs(),
     sidebarOpen: readStoredSidebarOpen() ?? readDefaultSidebarOpen(),
@@ -157,6 +161,13 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
       writeStoredTheme(preference);
       applyThemeToDom(preference);
       set({ theme: preference });
+    },
+    // Unlike `theme`, this field is not what gets rendered: formatters resolve the style through
+    // `readActiveDateStyle()`. When storage refuses the write, `dateStyle.ts` holds the choice for
+    // the session so the two cannot disagree — change one of these and read the other.
+    setDateStyle: (style) => {
+      writeStoredDateStyle(style);
+      set({ dateStyle: style });
     },
     // The two pref MAPS stay written out: a shared factory over them needs a double cast to keep
     // the mapped key/value pair typed, which costs more clarity than the four lines it saves.

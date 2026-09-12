@@ -2,10 +2,10 @@ import { m } from "@/i18n";
 import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { parseDate, todayISO } from "@capacitylens/shared/lib/dateMath";
 import { carriesHourlyLoad } from "@capacitylens/shared/types/entities";
-import { format } from "date-fns";
 import { useEffect, useMemo, useState } from "react";
 import { useCanEdit } from "../../auth/permissionContext";
 import { useFieldError, useFieldErrorFocus } from "../../hooks/useFieldError";
+import { formatWeekdayScheduleDate } from "../../lib/dateDisplay";
 import { resolveResourceDisplayName } from "../../lib/metadata";
 import {
   hasExternalResourcesEnabled,
@@ -138,9 +138,9 @@ function useTargetSchedule(context: ReturnType<typeof useAllocationModalContext>
   });
   const repeatProjection = useRepeatProjection(buildRepeatProjectionInput(context, target, schedule));
   const advisory = useAllocationAdvisory(buildAdvisoryInput({ context, target, schedule, repeatProjection }));
-  // A typed span can produce an invalid date; guard format() to avoid crashing the modal.
+  // A typed span can produce an invalid date; guard formatWeekdayScheduleDate() to avoid crashing the modal.
   const parsedEndDate = parseDate(schedule.effEndDate);
-  const endDateHint = Number.isNaN(parsedEndDate.getTime()) ? null : format(parsedEndDate, "EEE d MMM yyyy");
+  const endDateHint = Number.isNaN(parsedEndDate.getTime()) ? null : formatWeekdayScheduleDate(schedule.effEndDate);
   return { target, schedule, repeatProjection, advisory, endDateHint };
 }
 

@@ -4,7 +4,7 @@ import { SegmentedControl, SwitchField } from "../common/ui";
 import { SettingsSection } from "./SettingsSection";
 
 import type { StoreState } from "../../store/useStore";
-import { BAR_LABEL_MESSAGES, THEME_MESSAGES, UTILIZATION_MESSAGES } from "./settingsLabels";
+import { BAR_LABEL_MESSAGES, DATE_STYLE_MESSAGES, THEME_MESSAGES, UTILIZATION_MESSAGES } from "./settingsLabels";
 export function SettingsAppearanceSection({
   barLabelPrefs: barLabelPreferences,
   setBarLabelPref: setBarLabelPreference,
@@ -12,6 +12,8 @@ export function SettingsAppearanceSection({
   setUtilizationPref: setUtilizationPreference,
   theme,
   setTheme,
+  dateStyle,
+  setDateStyle,
   disciplinesEnabled,
 }: {
   barLabelPrefs: StoreState["barLabelPrefs"];
@@ -20,6 +22,8 @@ export function SettingsAppearanceSection({
   setUtilizationPref: StoreState["setUtilizationPref"];
   theme: StoreState["theme"];
   setTheme: StoreState["setTheme"];
+  dateStyle: StoreState["dateStyle"];
+  setDateStyle: StoreState["setDateStyle"];
   disciplinesEnabled: boolean;
 }) {
   return (
@@ -59,6 +63,12 @@ export function SettingsAppearanceSection({
           value={theme}
           onChange={setTheme}
           options={buildLabelOptions(buildLabels(THEME_MESSAGES))}
+        />
+        <SegmentedControl
+          ariaLabel={m.settings_date_style_aria()}
+          value={dateStyle}
+          onChange={setDateStyle}
+          options={buildLabelOptions(buildLabels(DATE_STYLE_MESSAGES))}
         />
       </SettingsSection>
     </>

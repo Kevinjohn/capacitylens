@@ -88,6 +88,8 @@ export function SettingsView() {
           setUtilizationPref={display.setUtilizationPref}
           theme={display.theme}
           setTheme={display.setTheme}
+          dateStyle={display.dateStyle}
+          setDateStyle={display.setDateStyle}
           disciplinesEnabled={scheduling.disciplinesEnabled}
         />
         <SettingsDataSection
