@@ -75,12 +75,22 @@ function createSharedProviderDb(reverseOrder: boolean): DatabaseSync {
 }
 
 function insertSharedProviderRows(db: DatabaseSync, reverseOrder: boolean): void {
-  const bindings = [
+  const bindings: Array<[applicationId: string, issuer: string, providerId: string, createdAt: string]> = [
     ["app-a", "https://a-one.example.test", "provider-shared", "2026-01-01"],
     ["app-b", "https://b.example.test", "provider-shared", "2026-01-02"],
     ["app-a", "https://a-two.example.test", "provider-other", "2026-01-03"],
   ];
-  const identities = [
+  const identities: Array<
+    [
+      accountId: string,
+      principalId: string,
+      providerId: string,
+      subject: string,
+      sessionId: string,
+      ceremonyId: string,
+      timestamp: string,
+    ]
+  > = [
     ["account-a", "principal-a", "provider-shared", "subject-a", "session-a", "ceremony-a", "2026-02-01"],
     ["account-b", "principal-b", "provider-shared", "subject-b", "session-b", "ceremony-b", "2026-02-02"],
     ["account-c", "principal-c", "provider-other", "subject-c", "session-c", "ceremony-c", "2026-02-03"],
