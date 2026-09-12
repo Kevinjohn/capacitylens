@@ -7,6 +7,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep an allocation's length when it is dragged to someone with different working days: the
+  duration is now measured against the working week it came from and re-placed in the new one,
+  so a two-day booking stays two days instead of being re-read against the destination's calendar.
+  The drag preview shows the resulting length before release (#338).
+
 ## [0.65.0-alpha.1] - 2026-09-12
 
 ### Fixed
