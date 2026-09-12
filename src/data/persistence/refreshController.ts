@@ -232,9 +232,9 @@ async function runRefresh(
     return { kind: "reloaded" };
   } catch (error) {
     if (isRefreshInactive(owner, myToken)) return { kind: "skipped" };
-    // Keep the prior store data and adapter snapshot paired when loadAll fails. The suspension's
-    // finally-resume re-schedules any edit parked during the failed request, and the error remains
-    // visible through the persistence callback.
+    // Keep the prior store data and adapter snapshot paired when loadAll fails. A failed account
+    // switch retains recovery ownership of any parked edit until an explicit retry rebases it or a
+    // different selection deliberately discards it. The error remains visible through the callback.
     publishFailure();
     onError?.(error);
     return { kind: "failed" };

@@ -27,11 +27,10 @@ function createRegisteredRetry({
   };
 }
 
-function discardRecoveryForDifferentAccount(owner: AttachmentState, cancelDebounce: () => void, id: string): void {
+function discardRecoveryForDifferentAccount(owner: AttachmentState, id: string): void {
   const recovery = owner.current.failedAccountLoadRecovery;
   if (recovery === null || recovery.accountId === id) return;
-  cancelDebounce();
-  owner.update({ failedAccountLoadRecovery: null, pending: null, unacknowledged: null });
+  owner.discardFailedAccountLoadRecovery();
 }
 
 export function attachAccountSwitch({ store, owner, writes, refresh, serverMode }: AttachAccountSwitchInput) {
@@ -64,9 +63,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
             if (owner.current.inFlightSave) await owner.current.inFlightSave;
             if (owner.current.disposed || myToken !== owner.current.switchToken) return; // detached/newer owner owns effects
             cancelDebounce();
-            if (owner.current.failedAccountLoadRecovery !== null) {
-              owner.update({ failedAccountLoadRecovery: null, pending: null, unacknowledged: null });
-            }
+            owner.discardFailedAccountLoadRecovery();
             // A parked edit belongs to whichever slice replacement still holds the suspension.
             // A token bump supersedes an internal refresh's outcome, not its outstanding load or
             // suspension; that refresh rebases and saves the edit when it settles.
@@ -78,7 +75,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
           })();
           return;
         }
-        discardRecoveryForDifferentAccount(owner, cancelDebounce, newId);
+        discardRecoveryForDifferentAccount(owner, newId);
         void refreshActive(newId, { markAccountLoadFailure: true }).then((outcome) => {
           // A successful company switch just loaded this same slice. Count it as a refresh so a
           // focus event delivered by the picker transition cannot immediately load it again.

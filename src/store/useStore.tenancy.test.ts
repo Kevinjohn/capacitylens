@@ -59,10 +59,10 @@ beforeEach(() => {
 describe("active-account replacement invariant", () => {
   it("rejects scoped writes only while the active account's hydration is marked failed", () => {
     useStore.setState({ activeAccountLoadFailed: A });
-    expect(() => s().addClient({ name: "Blocked", color: "#111111" })).toThrow(/not loaded/i);
+    expect(() => s().addClient({ name: "Wayne Enterprises", color: "#111111" })).toThrow(/not loaded/i);
 
     useStore.setState({ activeAccountLoadFailed: B });
-    expect(() => s().addClient({ name: "Allowed", color: "#111111" })).not.toThrow();
+    expect(() => s().addClient({ name: "Wayne Foundation", color: "#111111" })).not.toThrow();
   });
 
   it("atomically returns to the picker when a replacement omits the selected account", () => {

@@ -91,7 +91,7 @@ async function attachFailedSwitchWithParkedEdit() {
   await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
   const switching = switchAndAwaitHydration("b1");
   await new Promise((resolve) => setTimeout(resolve, 0));
-  useStore.getState().addClient({ name: "Parked for B", color: "#222222" });
+  useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
   rejectB(new Error("B unavailable"));
   await expect(switching).resolves.toEqual({ kind: "failed" });
   return { detach, saveAll };
@@ -131,6 +131,120 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     detach();
   });
 
+  it("clears failed retry state when a failed-load edit is discarded for the picker", async () => {
+    const { aSlice } = accountSwitchSlices();
+    let rejectB!: (error: Error) => void;
+    const loadAll = vi
+      .fn<(accountId?: string) => Promise<AppData>>()
+      .mockResolvedValueOnce(aSlice)
+      .mockImplementationOnce(
+        () =>
+          new Promise<AppData>((_resolve, reject) => {
+            rejectB = reject;
+          }),
+      );
+    const saveAll = vi.fn().mockRejectedValueOnce(new Error("A save failed")).mockResolvedValue(undefined);
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ]);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: vi.fn(),
+      serverMode: true,
+    });
+
+    await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#222222" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const switchingToB = switchAndAwaitHydration("b1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
+    rejectB(new Error("B unavailable"));
+    await expect(switchingToB).resolves.toEqual({ kind: "failed" });
+
+    await expect(switchAndAwaitHydration(null)).resolves.toEqual({ kind: "reloaded" });
+    window.dispatchEvent(new Event("online"));
+    window.dispatchEvent(new Event("focus"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    detach();
+    expect(saveAll).toHaveBeenCalledTimes(1);
+    expect(useStore.getState().activeAccountId).toBeNull();
+  });
+
+  it("does not automatically retry a failed account load on focus", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
+    try {
+      const { aSlice } = accountSwitchSlices();
+      const loadAll = vi
+        .fn<(accountId?: string) => Promise<AppData>>()
+        .mockResolvedValueOnce(aSlice)
+        .mockRejectedValueOnce(new Error("B unavailable"));
+      useStore.getState().replaceAll(emptyAppData());
+      useStore.getState().setActiveAccount(null);
+      useStore.getState().setAccountSummaries([
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ]);
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
+        debounceMs: 0,
+        onError: vi.fn(),
+        serverMode: true,
+      });
+
+      await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+      await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
+      now.mockReturnValue(131_000);
+      window.dispatchEvent(new Event("focus"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      detach();
+      expect(loadAll).toHaveBeenCalledTimes(2);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
+  it("does not automatically retry a failed account load after the visible refresh interval", async () => {
+    vi.useFakeTimers();
+    try {
+      const { aSlice } = accountSwitchSlices();
+      const loadAll = vi
+        .fn<(accountId?: string) => Promise<AppData>>()
+        .mockResolvedValueOnce(aSlice)
+        .mockRejectedValueOnce(new Error("B unavailable"));
+      useStore.getState().replaceAll(emptyAppData());
+      useStore.getState().setActiveAccount(null);
+      useStore.getState().setAccountSummaries([
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ]);
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
+        debounceMs: 0,
+        onError: vi.fn(),
+        serverMode: true,
+      });
+
+      await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+      await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
+      await vi.advanceTimersByTimeAsync(60_001);
+
+      detach();
+      expect(loadAll).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps an edit parked when the selected account load rejects", async () => {
     vi.useFakeTimers();
     try {
@@ -164,7 +278,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
       const switching = switchAndAwaitHydration("b1");
       await vi.advanceTimersByTimeAsync(0);
-      const edit = useStore.getState().addClient({ name: "Parked for B", color: "#222222" });
+      const edit = useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
       rejectB(new Error("B unavailable"));
       await expect(switching).resolves.toEqual({ kind: "failed" });
       await vi.advanceTimersByTimeAsync(31_000);
@@ -208,13 +322,13 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
     expect(useStore.getState().activeAccountLoadFailed).toBe("b1");
     expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["ca"]);
-    expect(() => useStore.getState().addClient({ name: "Blocked", color: "#222222" })).toThrow(/not loaded/i);
+    expect(() => useStore.getState().addClient({ name: "Oscorp", color: "#222222" })).toThrow(/not loaded/i);
     expect(saveAll).not.toHaveBeenCalled();
 
     await expect(retryActiveAccountLoad("b1")).resolves.toEqual({ kind: "reloaded" });
     expect(useStore.getState().activeAccountLoadFailed).toBeNull();
     expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb"]);
-    useStore.getState().addClient({ name: "Recovered", color: "#222222" });
+    useStore.getState().addClient({ name: "Rand Enterprises", color: "#222222" });
     await new Promise((resolve) => setTimeout(resolve, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
     detach();
@@ -243,7 +357,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     });
 
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
-    useStore.getState().addClient({ name: "Unsaved A", color: "#222222" });
+    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#222222" });
     await new Promise((resolve) => setTimeout(resolve, 5));
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
     await expect(retryActiveAccountLoad("b1")).resolves.toEqual({ kind: "reloaded" });
@@ -332,7 +446,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     const switchingToB = switchAndAwaitHydration("b1");
     await new Promise((resolve) => setTimeout(resolve, 0));
-    const edit = useStore.getState().addClient({ name: "Parked for B", color: "#222222" });
+    const edit = useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
     rejectB(new Error("B unavailable"));
     await expect(switchingToB).resolves.toEqual({ kind: "failed" });
 
@@ -412,7 +526,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
         {
           id: "c2",
           accountId: "a2",
-          name: "Beta Client",
+          name: "Stark Industries",
           color: "#1",
           createdAt: "t",
           updatedAt: "t",

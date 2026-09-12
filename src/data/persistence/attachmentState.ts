@@ -110,6 +110,20 @@ class AttachmentOwner {
     clearTimeout(this.values.retryTimer);
     this.values.retryTimer = null;
   }
+  discardFailedAccountLoadRecovery(): void {
+    if (this.values.failedAccountLoadRecovery === null) return;
+    this.cancelDebounce();
+    this.cancelRetry();
+    this.update({
+      failedAccountLoadRecovery: null,
+      pending: null,
+      unacknowledged: null,
+      retryAttempts: 0,
+      failedSinceSuccess: false,
+      lastError: null,
+      terminalBatchSnapshot: null,
+    });
+  }
   discardEdit(warning: string, message: string): void {
     incrementPersistenceDiagnostic("editsDiscarded");
     console.warn(warning);
@@ -220,6 +234,7 @@ export function createAttachmentState(
     dispose: owner.dispose.bind(owner),
     cancelDebounce: owner.cancelDebounce.bind(owner),
     cancelRetry: owner.cancelRetry.bind(owner),
+    discardFailedAccountLoadRecovery: owner.discardFailedAccountLoadRecovery.bind(owner),
     discardEdit: owner.discardEdit.bind(owner),
     supersededBy: owner.supersededBy.bind(owner),
     beginAuthoritativeReloadFor: owner.beginAuthoritativeReloadFor.bind(owner),
