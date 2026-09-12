@@ -136,7 +136,7 @@ T1 first. T2 and T3 in parallel worktrees after T1 merges. T3 owns every shared 
   **Focused tests:** `useStore.test.ts` (new case mirroring lines 298-315 for `dateStyle`), `SettingsView.test.tsx` (new describe mirroring 300-316), the new e2e spec, `pnpm run paraglide:compile`, tsc, eslint, prettier, `pnpm run docs:build`.
   **Done:** setting round-trips through storage and the schedule, story and docs describe it, CHANGELOG updated.
 
-## Batch validation (orchestrator)
+## Batch validation
 
 Merge T1+T2+T3 into an integration worktree on Node from `.nvmrc`: `pnpm run gate`, `pnpm run gate:server`, `pnpm run e2e`.
 After the three PRs land: a separate assets PR recaptures `docs-src/screenshots/flows/settings_account_disclosures.jpg`

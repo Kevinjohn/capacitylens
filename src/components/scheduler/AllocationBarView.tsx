@@ -7,11 +7,12 @@ import type {
 } from "react";
 import { Repeat2 } from "lucide-react";
 import { m } from "@/i18n";
-import { formatDayMonth, formatDayMonthRange } from "../../lib/dateDisplay";
+import { formatDayMonthEndpoint, formatDayMonthRange } from "../../lib/dateDisplay";
 import { resolveAllocationStatusLabel } from "../../lib/metadata";
 import { TooltipContent, TooltipRoot, TooltipTrigger } from "../ui/tooltip";
 import { LAYOUT } from "./layout";
 import type { BarLayout } from "./schedulerModel";
+import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 
 interface AllocationBarViewProps {
   bar: BarLayout;
@@ -40,6 +41,9 @@ interface AllocationBarViewProps {
 
 /** Keep the display rounding local so this view has no import cycle with its orchestrator. */
 const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
+
+/** Constant per axis, so the clamp strings are built once rather than per bar per render. */
+const BAR_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");
 
 const gripClass = "group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center";
 const gripLine = (
@@ -73,7 +77,14 @@ function BarContents({
           }}
         />
       )}
-      <span className="flex min-w-0 items-center gap-1 px-2.5">
+      {/* Centred over the bar's VISIBLE portion, not its start: a bar that began before the
+          window would otherwise carry its label off-screen with it. `pointer-events-none` keeps
+          the resize grips underneath hittable, and the bar itself still receives the gesture. */}
+      <span
+        data-testid="allocation-bar-label"
+        className="pointer-events-none absolute inset-y-0 flex min-w-0 items-center justify-center gap-1 px-2.5"
+        style={{ left: BAR_LABEL_INSETS.leading, right: BAR_LABEL_INSETS.trailing }}
+      >
         {showSeriesIcon && <Repeat2 aria-hidden data-testid="allocation-series-icon" className="size-3 shrink-0" />}
         <span className="truncate">
           {bar.allocation.status === "completed" ? "✓ " : ""}
@@ -112,6 +123,9 @@ function BarTrigger(props: AllocationBarViewProps) {
         style={{
           left: props.insetLeft,
           width: props.insetWidth,
+          // Published for the label overlay's visible-portion clamp (see visibleSpanInsets).
+          ["--bar-left" as string]: `${props.insetLeft}px`,
+          ["--bar-width" as string]: `${props.insetWidth}px`,
           top: bar.top,
           height: LAYOUT.barHeight,
           backgroundColor: background,
@@ -172,7 +186,7 @@ function BarPopover({
       {bar.seriesEnd && (
         <div className="mt-1 text-muted-foreground">
           <Repeat2 aria-hidden className="mr-1 inline size-3" />
-          {m.scheduler_bar_pop_series({ end: formatDayMonth(bar.seriesEnd) })}
+          {m.scheduler_bar_pop_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.startDate) })}
         </div>
       )}
       {showTaskFieldInSchedule && bar.allocation.task && (

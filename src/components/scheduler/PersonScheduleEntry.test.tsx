@@ -5,6 +5,34 @@ import type { PersonScheduleAllocationEntry, PersonScheduleTimeOffEntry } from "
 import { PersonScheduleEntry } from "./PersonScheduleEntry";
 
 describe("PersonScheduleEntry", () => {
+  it("leaves the year off a range that stays inside one", () => {
+    // The compact entry is deliberately terse; only a range crossing a year boundary is allowed to
+    // spend width on the year (#819), and this is the case that proves the rest still cannot.
+    const entry: PersonScheduleAllocationEntry = {
+      kind: "allocation",
+      key: "allocation:a2",
+      sourceId: "a2",
+      activity: "Prototype discovery",
+      project: "Project Gotham",
+      client: "Wayne Enterprises",
+      color: "#2563eb",
+      status: "confirmed",
+      hoursPerDay: 6.25,
+      startDate: "2026-09-09",
+      endDate: "2026-10-14",
+    };
+
+    render(
+      <ul>
+        <PersonScheduleEntry entry={entry} />
+      </ul>,
+    );
+
+    const item = screen.getByTestId("person-schedule-entry");
+    expect(within(item).getByText("9 Sep – 14 Oct · 6.25h/day")).toBeVisible();
+    expect(within(item).queryByText(/2026/)).not.toBeInTheDocument();
+  });
+
   it("renders compact allocation details as readable, read-only content", () => {
     const entry: PersonScheduleAllocationEntry = {
       kind: "allocation",
@@ -32,8 +60,10 @@ describe("PersonScheduleEntry", () => {
     expect(item).toHaveAttribute("data-entry-id", "allocation:a1");
     expect(within(item).getByText("Prototype discovery")).toBeVisible();
     expect(within(item).getByText("Project Gotham · Wayne Enterprises")).toBeVisible();
-    expect(within(item).getByText("28 Dec – 8 Jan · 6.25h/day")).toBeVisible();
-    expect(within(item).queryByText(/2026|2027|Confirmed|Series through/)).not.toBeInTheDocument();
+    // The fixture crosses a year boundary, so both years show: "28 Dec – 8 Jan" would read as a
+    // span of days rather than the eleven-day one it is (#819).
+    expect(within(item).getByText("28 Dec 2026 – 8 Jan 2027 · 6.25h/day")).toBeVisible();
+    expect(within(item).queryByText(/Confirmed|Series through/)).not.toBeInTheDocument();
     expect(within(item).getByText(/Review the research/)).toHaveClass("whitespace-pre-wrap");
     expect(within(item).getByTestId("person-schedule-colour")).toHaveAttribute("aria-hidden", "true");
     expect(item).not.toHaveClass("border-l-4");
