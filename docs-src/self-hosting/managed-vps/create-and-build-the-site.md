@@ -83,12 +83,16 @@ Managed platforms often provide their own global pnpm. Calling `corepack pnpm` f
 command is not sufficient: nested lifecycle scripts may find the platform's global binary and fail
 the version check.
 
-Add this build section to the deployment script:
+Add this build section to the deployment script. Save it only when the platform runs deployment
+scripts under Bash, which is Forge's default deployment shell. A runner configured for plain `sh`
+rejects `pipefail` before it runs any deployment command.
 
 ```bash
+set -eo pipefail
+
 $CREATE_RELEASE()
 
-cd "$FORGE_RELEASE_DIRECTORY"
+cd "${FORGE_RELEASE_DIRECTORY:?}"
 
 mkdir -p "$FORGE_RELEASE_DIRECTORY/.corepack"
 corepack enable --install-directory "$FORGE_RELEASE_DIRECTORY/.corepack"
@@ -99,6 +103,9 @@ pnpm --version
 pnpm install --frozen-lockfile
 pnpm run build
 pnpm --filter capacitylens-server run build:runtime
+
+test -f dist/index.html
+test -f server/dist/index.mjs
 ```
 
 `$FORGE_RELEASE_DIRECTORY` is Laravel Forge's new release path. On another platform, replace it

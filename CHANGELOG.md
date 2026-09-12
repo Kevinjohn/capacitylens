@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
+  one installation's process group, and describe the initial pending backup health state accurately
+  (#921, #933, #936).
 - Scale Overview capacity bars against the company working days in each column, so people with
   different working patterns remain visually comparable (#890).
 - Keep the Overview's ordered week-column headers compact across a year boundary, so the one
