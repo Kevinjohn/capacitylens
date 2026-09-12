@@ -544,6 +544,11 @@ function registerAccountWeekTests(): void {
 }
 
 function registerAccountFeatureTests(): void {
+  it("keeps valid scheduling modes and drops malformed values", () => {
+    expect(sanitizeAccount({ schedulingMode: "blocks" }).schedulingMode).toBe("blocks");
+    expect(sanitizeAccount({ schedulingMode: "wizard" }).schedulingMode).toBeUndefined();
+  });
+
   it("strips a non-boolean disciplinesEnabled", () => {
     expect(sanitizeAccount({ disciplinesEnabled: "yes" }).disciplinesEnabled).toBeUndefined();
     expect(sanitizeAccount({ disciplinesEnabled: 1 }).disciplinesEnabled).toBeUndefined();

@@ -1,5 +1,10 @@
 import { normalizeAccountWorkingDays } from "../accountWorkingDays";
-import { CAPACITY_OVERVIEW_ACCESS_VALUES, DATE_STYLES, INTERNAL_COLOUR_MODES } from "../../types/entities";
+import {
+  CAPACITY_OVERVIEW_ACCESS_VALUES,
+  DATE_STYLES,
+  INTERNAL_COLOUR_MODES,
+  SCHEDULING_MODES,
+} from "../../types/entities";
 import type { Account } from "../../types/entities";
 
 /**
@@ -46,10 +51,22 @@ void accountBooleanFieldsAreComplete;
  *   internalColourMode  an unknown mode's absence deliberately reads as the safe/default grey.
  *   dateStyle           an unknown style's absence reads as 'day-month', the historical format.
  */
-const ACCOUNT_ENUM_FIELDS: {
-  readonly [K in "language" | "internalColourMode" | "capacityOverviewAccess" | "dateStyle"]: readonly unknown[];
-} = {
+/** Every Account property whose type is a finite string union, plus `language`, which is
+ * intentionally typed as `string` until additional locales are supported. The mapped type makes
+ * a new enum-valued Account field fail the build until its allowed values are added below. */
+type AccountEnumField =
+  | "language"
+  | {
+      [K in keyof Account]-?: NonNullable<Account[K]> extends string
+        ? string extends NonNullable<Account[K]>
+          ? never
+          : K
+        : never;
+    }[keyof Account];
+
+const ACCOUNT_ENUM_FIELDS: { readonly [K in AccountEnumField]: readonly unknown[] } = {
   language: ["en"],
+  schedulingMode: SCHEDULING_MODES,
   internalColourMode: INTERNAL_COLOUR_MODES,
   capacityOverviewAccess: CAPACITY_OVERVIEW_ACCESS_VALUES,
   dateStyle: DATE_STYLES,
