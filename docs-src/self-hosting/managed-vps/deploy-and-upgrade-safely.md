@@ -105,8 +105,10 @@ sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf status
 
 `-n` means "never ask for a password". If you will keep `supervisorctl`, run `sudo -l`. Continue
 only if it lists exactly four commands — `status`, `stop`, `start` and `restart` — each pinned to
-this Supervisor group and configuration path, as granted below. A bare `/usr/bin/supervisorctl`
-entry is the old, broad grant and must be replaced first. If you replace both process-control calls
+this Supervisor configuration path. Only the three process-changing commands — `stop`, `start` and
+`restart` — are additionally pinned to this Supervisor group; `status` intentionally lists all
+Supervisor processes. A bare `/usr/bin/supervisorctl` entry is the old, broad grant and must be
+replaced first. If you replace both process-control calls
 with separate platform stop and start actions instead, continue after configuring and testing those
 actions. If the status command prints `sudo: a password is required`, choose one of the two fixes
 below.
