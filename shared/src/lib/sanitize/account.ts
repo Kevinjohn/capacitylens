@@ -1,5 +1,6 @@
 import { normalizeAccountWorkingDays } from "../accountWorkingDays";
-import { CAPACITY_OVERVIEW_ACCESS_VALUES, INTERNAL_COLOUR_MODES, type Account } from "../../types/entities";
+import { CAPACITY_OVERVIEW_ACCESS_VALUES, DATE_STYLES, INTERNAL_COLOUR_MODES } from "../../types/entities";
+import type { Account } from "../../types/entities";
 
 /**
  * Every optional BOOLEAN preference on an account. Each is dropped rather than persisted when a
@@ -43,13 +44,15 @@ void accountBooleanFieldsAreComplete;
  *   language            English-only until P1.5.1 (Paraglide); a hand-edited 'fr'/123/etc. must not
  *                       persist — its absence reads back as 'en'.
  *   internalColourMode  an unknown mode's absence deliberately reads as the safe/default grey.
+ *   dateStyle           an unknown style's absence reads as 'day-month', the historical format.
  */
 const ACCOUNT_ENUM_FIELDS: {
-  readonly [K in "language" | "internalColourMode" | "capacityOverviewAccess"]: readonly unknown[];
+  readonly [K in "language" | "internalColourMode" | "capacityOverviewAccess" | "dateStyle"]: readonly unknown[];
 } = {
   language: ["en"],
   internalColourMode: INTERNAL_COLOUR_MODES,
   capacityOverviewAccess: CAPACITY_OVERVIEW_ACCESS_VALUES,
+  dateStyle: DATE_STYLES,
 };
 
 /** Sanitize the optional calendar fields of an account record in place.

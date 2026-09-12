@@ -68,6 +68,8 @@ const accountsColumns = [
   { name: "inlineActivityCreateEnabled", json: true, optional: true },
   { name: "showTaskFieldInSchedule", json: true, optional: true },
   { name: "capacityOverviewAccess", json: true, optional: true },
+  // Plain TEXT like internalColourMode: an enum string, not a JSON-encoded value.
+  { name: "dateStyle", optional: true },
   ...META,
 ] as const satisfies ColumnSpec[];
 
