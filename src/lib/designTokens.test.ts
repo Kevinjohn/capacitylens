@@ -198,6 +198,18 @@ describe("time-off draw-mode treatment", () => {
   });
 });
 
+describe("time-off draw-mode treatment of company closures (#787)", () => {
+  const rule = indexCss.match(/\[data-draw-mode="timeoff"\] \.scheduler-closure-band\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+
+  it("highlights the closure band with the same timeoff-selected tokens as personal time off, in work mode's own hook", () => {
+    expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
+    expect(rule).toMatch(/background-color:\s*var\(--color-timeoff-selected\) !important/);
+    expect(rule).toMatch(/0 0 6px 1px/);
+    // Work mode is unchanged: the rule is scoped under the timeoff draw-mode attribute only.
+    expect(indexCss).not.toMatch(/\[data-draw-mode="work"\]\s*\.scheduler-closure-band/);
+  });
+});
+
 describe("action and identity token contrast", () => {
   it("keeps the light-theme blue readable on white and the green action fill readable with white ink", () => {
     expect(contrastRatio("#2563eb", "#ffffff")).toBeGreaterThanOrEqual(4.5);

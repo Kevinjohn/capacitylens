@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Highlight company closures the same way as personal time off when the schedule's draw mode is
+  switched to Time off, instead of leaving the closure band unchanged (#787).
+
 ## [0.64.0-alpha.1] - 2026-09-12
 
 ### Fixed
