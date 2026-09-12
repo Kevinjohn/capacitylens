@@ -1,6 +1,6 @@
 import type { Db } from "../../db";
 import { TENANT_ENTITY_INDEXES_V34_SQL, assertTenantEntityIndexesCurrent } from "../../tenantIndexes";
-import { assertSchemaV39, assertSchemaCurrent } from "../../schema";
+import { assertSchemaV39, assertSchemaV40 } from "../../schema";
 import { tableHasColumns } from "../introspection";
 import { CLOSURE_TENANT_INTEGRITY_V34_SQL, assertTenantRelationshipIntegrityCurrent } from "../../tenantIntegrity";
 /**
@@ -129,15 +129,15 @@ export const ACCOUNT_DATE_STYLE_V40_DEFINITION = [
   "ALTER TABLE accounts ADD COLUMN dateStyle TEXT;",
 ].join("\n");
 
-/** The v40 runner. It lives here rather than inline in the ledger because
- *  `db/migrations/index.ts` sits four lines under the 400-line ceiling; the runner is outside the
- *  checksum (`defineMigration` hashes version, name and definition only), so moving it is safe. */
+/** The v40 runner. It lives here rather than inline in the ledger because `db/migrations/index.ts`
+ *  has only two lines of headroom under the 400-line ceiling; the runner is outside the checksum
+ *  (`defineMigration` hashes version, name and definition only), so moving it is safe. */
 export function runAccountDateStyleV40(db: Db): void {
   assertSchemaV39(db);
   if (!tableHasColumns(db, "accounts", ["dateStyle"])) {
     db.exec("ALTER TABLE accounts ADD COLUMN dateStyle TEXT;");
   }
-  assertSchemaCurrent(db);
+  assertSchemaV40(db);
   assertTenantRelationshipIntegrityCurrent(db);
   assertTenantEntityIndexesCurrent(db);
 }

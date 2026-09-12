@@ -161,6 +161,10 @@ export const V39_TABLES: Record<string, TableSpec> = {
     columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "dateStyle"),
   },
 };
+/** Released v40 shape: the newest migration, so nothing is excluded yet. The next migration that
+ *  adds a column filters it out here, which is also what keeps v40's own post-condition pinned to
+ *  the shape it produced rather than to a still-moving `TABLES`. */
+export const V40_TABLES: Record<string, TableSpec> = { ...TABLES };
 const PRE_V34_TABLES = Object.fromEntries(
   Object.entries(PRE_V37_TABLES).filter(([key]) => key !== "closures"),
 ) as Record<string, TableSpec>;
