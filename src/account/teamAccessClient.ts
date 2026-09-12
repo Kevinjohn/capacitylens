@@ -1,10 +1,24 @@
 import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
 import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { accountClient, readUnknownAccountCommandOutcome } from "./accountClient";
+import { accountClient } from "./accountClient";
 import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
-import { isIsoInstant } from "@capacitylens/shared/account/types";
-import { extractApiErrorMessage, readApiError } from "../lib/readApiError";
+import {
+  isNullableString,
+  isRecord,
+  isTimestamp,
+  readCommandResult,
+  readResult,
+  type TeamAccessResult,
+} from "./accessResult";
+import { ownershipTransferAccess } from "./ownershipTransferAccess";
+
+export { resolveRejectionMessage, type TeamAccessResult } from "./accessResult";
+export type {
+  OwnershipTransferOutcomeView,
+  OwnershipTransferProjectionView,
+  OwnershipTransferView,
+} from "./ownershipTransferAccess";
 
 export interface TeamMember {
   userId: string;
@@ -39,38 +53,6 @@ export interface OneTimeToken {
   token: string;
   expiresAt?: string;
 }
-
-export type TeamAccessResult<T> =
-  | { kind: "ok"; status: number; value: T }
-  | { kind: "rejected"; status: number; message: string | null }
-  | { kind: "unknown"; status: number; message: string | null }
-  | { kind: "invalid"; status: number; message: string };
-
-/**
- * The sentence to show a user for a non-ok {@link TeamAccessResult}: the SERVER's own message when a
- * rejection carried one, otherwise the caller's per-operation fallback.
- *
- * Only `kind: 'rejected'` is server-authored refusal ("that member is the last owner"), so only that
- * kind's message is preferred. `unknown` (the write may or may not have landed) and `invalid` (we
- * could not decode the body) carry messages that describe OUR uncertainty, not the user's problem,
- * and the caller's fallback stays the better sentence for them — which is exactly what every Team &
- * access call site already open-codes. An empty-string message falls back too: a blank toast is a
- * worse outcome than a generic one.
- *
- * @param result   - the outcome returned by any {@link teamAccessClient} method.
- * @param fallback - the caller's own operation-specific sentence, already localised.
- * @returns the message to surface; never empty as long as `fallback` isn't.
- */
-export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
-  return result.kind === "rejected" && result.message ? result.message : fallback;
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
-
-const isTimestamp = isIsoInstant;
-
-const isNullableString = (value: unknown): value is string | null => value === null || typeof value === "string";
 
 const isOptionalBoolean = (value: unknown): value is boolean | undefined =>
   value === undefined || typeof value === "boolean";
@@ -217,55 +199,13 @@ function parseToken(value: unknown): OneTimeToken | null {
 
 /** Shared by {@link readCommandResult} and {@link readResult}: both treat a decode failure on an ok
  * response the same way, so the success-path decoding lives once. */
-async function parseOkBody<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
-  const body: unknown = await response.json().catch(() => null);
-  const value = decode(body);
-  return value === null
-    ? {
-        kind: "invalid",
-        status: response.status,
-        message: "The server returned an invalid response.",
-      }
-    : { kind: "ok", status: response.status, value };
-}
-
-async function readCommandResult<T>(
-  response: Response,
-  decode: (body: unknown) => T | null,
-  expectedStatus?: number,
-): Promise<TeamAccessResult<T>> {
-  if (!response.ok) {
-    const clonedMessage = typeof response.clone === "function" ? await readApiError(response) : undefined;
-    const body: unknown = await response.json().catch(() => null);
-    const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
-    return (await readUnknownAccountCommandOutcome(response, body))
-      ? { kind: "unknown", status: response.status, message }
-      : { kind: "rejected", status: response.status, message };
-  }
-  if (expectedStatus !== undefined && response.status !== expectedStatus) {
-    console.warn(
-      `teamAccessClient: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
-    );
-  }
-  return parseOkBody(response, decode);
-}
-
-async function readResult<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
-  if (!response.ok) {
-    return {
-      kind: "rejected",
-      status: response.status,
-      message: (await readApiError(response)) ?? null,
-    };
-  }
-  return parseOkBody(response, decode);
-}
-
 const noContent = (): true => true;
 
 /** Typed account-administration boundary. Raw Response handling and untrusted payload codecs stay
  * here; the Team & access controller consumes semantic outcomes only. */
 export const teamAccessClient = {
+  ...ownershipTransferAccess,
+
   async listMembers(workspaceId: string): Promise<TeamAccessResult<TeamDirectory>> {
     return readResult(await accountClient.listMembers(workspaceId), parseMembers);
   },
@@ -300,10 +240,6 @@ export const teamAccessClient = {
 
   async removeMember(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
     return readCommandResult(await accountClient.removeMember(workspaceId, principalId), noContent);
-  },
-
-  async transferOwnership(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
-    return readCommandResult(await accountClient.transferOwnership(workspaceId, principalId), noContent);
   },
 
   async issuePasswordReset(workspaceId: string, principalId: string): Promise<TeamAccessResult<OneTimeToken>> {

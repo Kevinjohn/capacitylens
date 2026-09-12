@@ -6,6 +6,7 @@ import { resolveAccessLabel, resolveAccessSummary } from "../../lib/accessCopy";
 import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
 import { useOfflineState } from "../../data/useOfflineState";
 import { MembersSection } from "../settings/MembersSection";
+import { OwnershipTransferCard } from "./OwnershipTransferCard";
 import { Badge } from "../ui/badge";
 import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -189,6 +190,11 @@ export function TeamAccessView() {
         offlineReadOnly={offline.readOnly}
         permissionStatus={permissionStatus}
       />
+
+      {/* Below member management, because a transfer is a consequence of who administers the
+          company rather than a way to administer it. The card renders nothing for anyone who is
+          not a participant, and nothing at all while writes are suspended. */}
+      {authenticated && mayManage && <OwnershipTransferCard />}
     </div>
   );
 }
