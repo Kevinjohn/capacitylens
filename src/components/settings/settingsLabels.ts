@@ -3,7 +3,7 @@ import type { CapacityOverviewAccess, InternalColourMode, SchedulingMode } from 
 import type { BarLabelPreferences, UtilizationPreferences } from "../../lib/displayPrefs";
 import { type LabelMessages } from "../../lib/metadata";
 import type { ThemePreference } from "../../lib/theme";
-import type { DateStyle } from "../../lib/dateStyle";
+import type { DateStyle } from "@capacitylens/shared/types/entities";
 
 // Module-scope option tables hold UNCALLED message references (`m.key`, never `m.key()`) and are
 // resolved at RENDER through metadata.ts's `buildLabels`/`buildLabelOptions` — the same lazy rule the enum
