@@ -9,8 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
-- Start a fresh ownership-transfer attempt after the server reports that the previous request has
-  already reached a terminal outcome, instead of replaying the earlier command (#908).
+- Release an ownership-transfer step's retry handle (accept, withdraw, decline, cancel or complete)
+  once the server reports that request already reached a terminal outcome, instead of letting a
+  retry with the same identity replay the earlier terminal receipt (#908).
 - Scale Overview capacity bars against the company working days in each column, so people with
   different working patterns remain visually comparable (#890).
 - Keep the Overview's ordered week-column headers compact across a year boundary, so the one

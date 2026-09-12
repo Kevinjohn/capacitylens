@@ -767,4 +767,34 @@ function registerOwnershipTransferTerminalCommandTests(): void {
     expect(commandHeadersAt(0)).toEqual(commandHeadersAt(2));
     expect(commandHeadersAt(1)).toEqual({ commandId: command.commandId, idempotencyKey: command.idempotencyKey });
   });
+
+  // Locks in the current (post-fix) behavior on purpose: the released retry handle means an
+  // identical retry after a terminal 409 mints a fresh command and is answered with a generic
+  // conflict, not a replay of the earlier terminal receipt. This is a known, accepted trade-off of
+  // releasing the handle (see the review discussion on #908), not a guarantee to improve here.
+  it("mints a fresh command and receives a generic conflict on retry after a row command's terminal outcome", async () => {
+    vi.spyOn(globalThis.crypto, "randomUUID")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000141")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000142")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000143")
+      .mockReturnValueOnce("00000000-0000-4000-8000-000000000144");
+    mocks.apiFetchReauth
+      .mockImplementationOnce(() => Promise.resolve(terminalOwnershipTransferResponse("expired")))
+      .mockImplementationOnce(() => Promise.resolve(Response.json({ code: "CONFLICT" }, { status: 409 })));
+    bindStoredAccountCommandsToIdentity("bruce-wayne");
+    const input = {
+      workspaceId: "wayne-enterprises",
+      requestId: "transfer-one",
+      step: "accept" as const,
+      expectedRevision: "0",
+    };
+
+    const first = await ownershipTransferAccess.commandOwnershipTransfer(input);
+    expect(first).toMatchObject({ kind: "ok", value: { kind: "terminal", state: "expired" } });
+
+    const retry = await ownershipTransferAccess.commandOwnershipTransfer(input);
+
+    expect(retry).toMatchObject({ kind: "rejected", status: 409 });
+    expect(commandHeadersAt(0)).not.toEqual(commandHeadersAt(1));
+  });
 }

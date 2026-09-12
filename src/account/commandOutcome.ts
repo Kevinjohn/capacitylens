@@ -1,5 +1,5 @@
 import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
-import { isOwnershipTransferState } from "@capacitylens/shared/account/ownershipTransfer";
+import { isOwnershipTransferTerminalOutcomeBody } from "@capacitylens/shared/account/ownershipTransfer";
 
 // These currently defined 409 codes prove that the server reached a terminal rejection. A valid
 // ownership-transfer terminal response instead proves that ceremony committed; this classification
@@ -59,7 +59,7 @@ export async function readUnknownAccountCommandOutcome(response: Response, parse
     const body = await readResponseBody(response, parsedBody);
     if (!isRecord(body)) return true;
     const code = body.code;
-    if (code === "OWNERSHIP_TRANSFER_TERMINAL" && isOwnershipTransferState(body.state)) return false;
+    if (isOwnershipTransferTerminalOutcomeBody(body)) return false;
     return typeof code !== "string" || !TERMINAL_COMMAND_CONFLICT_CODES.has(code);
   } catch {
     // Status alone cannot distinguish a terminal rejection from an in-flight command. Retain the
