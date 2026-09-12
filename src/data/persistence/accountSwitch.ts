@@ -27,6 +27,13 @@ function createRegisteredRetry({
   };
 }
 
+function discardRecoveryForDifferentAccount(owner: AttachmentState, cancelDebounce: () => void, id: string): void {
+  const recovery = owner.current.failedAccountLoadRecovery;
+  if (recovery === null || recovery.accountId === id) return;
+  cancelDebounce();
+  owner.update({ failedAccountLoadRecovery: null, pending: null, unacknowledged: null });
+}
+
 export function attachAccountSwitch({ store, owner, writes, refresh, serverMode }: AttachAccountSwitchInput) {
   const { save } = writes;
   const { refreshActive } = refresh;
@@ -71,6 +78,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
           })();
           return;
         }
+        discardRecoveryForDifferentAccount(owner, cancelDebounce, newId);
         void refreshActive(newId, { markAccountLoadFailure: true }).then((outcome) => {
           // A successful company switch just loaded this same slice. Count it as a refresh so a
           // focus event delivered by the picker transition cannot immediately load it again.

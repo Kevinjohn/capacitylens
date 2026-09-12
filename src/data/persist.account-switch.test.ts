@@ -290,6 +290,64 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     detach();
   });
 
+  it("discards a failed-load edit before loading a different company", async () => {
+    const { aSlice } = accountSwitchSlices();
+    const cSlice = {
+      ...emptyAppData(),
+      accounts: [{ id: "c1", name: "Gamma", color: "#1", createdAt: "t", updatedAt: "t" }],
+    };
+    let rejectB!: (error: Error) => void;
+    let resolveC!: (data: AppData) => void;
+    const loadAll = vi
+      .fn<(accountId?: string) => Promise<AppData>>()
+      .mockResolvedValueOnce(aSlice)
+      .mockImplementationOnce(
+        () =>
+          new Promise<AppData>((_resolve, reject) => {
+            rejectB = reject;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<AppData>((resolve) => {
+            resolveC = resolve;
+          }),
+      );
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+      { id: "c1", name: "Gamma", role: "owner" },
+    ]);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: vi.fn(),
+      serverMode: true,
+    });
+
+    await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+    const switchingToB = switchAndAwaitHydration("b1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const edit = useStore.getState().addClient({ name: "Parked for B", color: "#222222" });
+    rejectB(new Error("B unavailable"));
+    await expect(switchingToB).resolves.toEqual({ kind: "failed" });
+
+    useStore.getState().setActiveAccount("c1");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveAll).not.toHaveBeenCalled();
+
+    resolveC(cSlice);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(saveAll).not.toHaveBeenCalled();
+    expect(useStore.getState().data.clients).not.toContainEqual(edit);
+    expect(useStore.getState().data.accounts[0]?.id).toBe("c1");
+    detach();
+  });
+
   // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
   // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
   it("lets the account-transition owner await the subscriber's exact hydration, including null", async () => {
