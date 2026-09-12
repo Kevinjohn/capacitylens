@@ -28,8 +28,8 @@ import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@
 // in `formatShortDateRange` and `formatDayMonthRange` too, the two that otherwise never print a
 // year, because without it a range from one September to the next reads as a single day. The one
 // deliberate exception is `formatWeekColumnRange`, whose dates sit in an ordered run of adjacent
-// week columns; neighbouring headers supply the year and the narrow cell must stay compact. The
-// range separator is always ` – ` (U+2013 EN DASH), never a hyphen.
+// week columns; neighbouring headers establish the ordered calendar context, while the narrow cell
+// stays compact. The range separator is always ` – ` (U+2013 EN DASH), never a hyphen.
 //
 // COLLAPSE IN ACCESSIBLE NAMES: a name that labels a control sitting beside a visible date range
 // uses the same collapsed string that range shows, so a voice-control user can speak what is on
@@ -121,7 +121,7 @@ function buildPattern(descriptor: DateStyleDescriptor, parts: DateParts): string
 type PartsFor = (descriptor: DateStyleDescriptor) => DateParts;
 
 interface RangeOptions {
-  /** Used only by the ordered week-column header, where adjacent cells supply the year. */
+  /** Used only by the ordered week-column header, where adjacent cells establish calendar context. */
   collapseYearBoundary?: boolean;
 }
 
@@ -231,8 +231,8 @@ export function formatDayMonthRange(startDate: ISODate, endDate: ISODate): strin
 /**
  * A week-column header in an ordered run of consecutive weeks: the same range as
  * {@link formatDayMonthRange}, minus the year across a year boundary. The neighbouring columns
- * supply the year, and the cell is too narrow to spend two lines on it. Do NOT use this anywhere
- * a range stands alone — that is what the year exists for.
+ * establish the ordered calendar context, and the cell is too narrow to spend two lines on it. Do
+ * NOT use this anywhere a range stands alone — that is what the year exists for.
  */
 export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): string {
   return formatRange({
