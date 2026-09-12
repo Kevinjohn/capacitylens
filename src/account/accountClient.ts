@@ -13,6 +13,26 @@ interface ChangeMemberRoleInput {
   command?: BrowserAccountCommand | undefined;
 }
 
+/** The four steps that move an existing request, plus the cancellation that ends it. */
+export type OwnershipTransferStep = "accept" | "withdraw" | "decline" | "complete" | "cancel";
+
+interface InitiateOwnershipTransferInput {
+  workspaceId: string;
+  targetPrincipalId: string;
+  /** The live request this nomination replaces, at the revision it was read at. Omitted when the
+   *  caller believes there is none; the server refuses either belief if it is wrong. */
+  replaces?: { requestId: string; revision: string } | undefined;
+  command?: BrowserAccountCommand | undefined;
+}
+
+interface OwnershipTransferCommandInput {
+  workspaceId: string;
+  requestId: string;
+  step: OwnershipTransferStep;
+  expectedRevision: string;
+  command?: BrowserAccountCommand | undefined;
+}
+
 interface ChangeMemberStatusInput {
   workspaceId: string;
   principalId: string;
@@ -223,18 +243,54 @@ export const accountClient = {
     });
   },
 
-  transferOwnership(
-    workspaceId: string,
-    targetPrincipalId: string,
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
+  readOwnershipTransfer(workspaceId: string, signal?: AbortSignal): Promise<Response> {
+    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/ownership-transfer`, {
+      credentials: "include",
+      ...(signal ? { signal } : {}),
+    });
+  },
+
+  initiateOwnershipTransfer(input: InitiateOwnershipTransferInput): Promise<Response> {
+    const { workspaceId, targetPrincipalId, replaces, command } = input;
     return runCommand({
-      operationKey: `ownership-transfer:${workspaceId}:${targetPrincipalId}`,
+      operationKey: `ownership-transfer:initiate:${workspaceId}:${targetPrincipalId}`,
       explicit: command,
       request: (resolved) =>
         apiFetchReauth(
-          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/transfer-ownership`,
-          buildJsonCommandRequestInit("POST", { toUserId: targetPrincipalId }, resolved),
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/ownership-transfer`,
+          buildJsonCommandRequestInit(
+            "POST",
+            {
+              toUserId: targetPrincipalId,
+              // Both halves or neither: half a predicate names no particular predecessor, and the
+              // server refuses it rather than replacing whatever happens to be live.
+              ...(replaces ? { expectedRequestId: replaces.requestId, expectedRevision: replaces.revision } : {}),
+            },
+            resolved,
+          ),
+          { action: "transfer-ownership" satisfies ReauthAction },
+        ),
+    });
+  },
+
+  /**
+   * One ceremony step against one request at one revision.
+   *
+   * `cancel` is the DELETE; the other four are POSTs to their own sub-path. The revision travels in
+   * the body for all five, including the DELETE, because it is the compare half of the transition,
+   * not an identifier — and it is part of the command payload the server hashes, so a retry naming
+   * a different revision is refused rather than replayed.
+   */
+  commandOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<Response> {
+    const { workspaceId, requestId, step, expectedRevision, command } = input;
+    const base = `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/ownership-transfer/${encodeURIComponent(requestId)}`;
+    return runCommand({
+      operationKey: `ownership-transfer:${step}:${workspaceId}:${requestId}:${expectedRevision}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          step === "cancel" ? base : `${base}/${step}`,
+          buildJsonCommandRequestInit(step === "cancel" ? "DELETE" : "POST", { expectedRevision }, resolved),
           { action: "transfer-ownership" satisfies ReauthAction },
         ),
     });

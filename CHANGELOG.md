@@ -7,6 +7,16 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Handing a company to someone else is a three-step ceremony again, replacing the one-click
+  transfer that was removed. The Owner nominates another Admin, that person agrees, and only then
+  does the Owner confirm the exchange — so nobody is made Owner without having said yes, and the
+  Owner cannot be moved aside by a single mis-click. Either side can pull out until the moment it
+  completes: the nominee can decline or withdraw an agreement, the Owner can cancel or nominate
+  someone else, and a request that nobody acts on expires on a stated date. Team settings shows
+  whose turn it is and why a previous attempt ended (#780).
+
 ## [0.66.0-alpha.1] - 2026-09-12
 
 ### Fixed

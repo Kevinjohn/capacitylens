@@ -148,7 +148,18 @@ function registerMutationRouteTests(): void {
       command: command,
     });
     await accountClient.removeMember("workspace / one", "person / one", command);
-    await accountClient.transferOwnership("workspace / one", "person / one", command);
+    await accountClient.initiateOwnershipTransfer({
+      workspaceId: "workspace / one",
+      targetPrincipalId: "person / one",
+      command,
+    });
+    await accountClient.commandOwnershipTransfer({
+      workspaceId: "workspace / one",
+      requestId: "request / one",
+      step: "accept",
+      expectedRevision: "0",
+      command,
+    });
     await accountClient.issuePasswordReset("workspace / one", "person / one", command);
     await accountClient.revokeMemberSessions("workspace / one", "person / one", command);
     await accountClient.createInvitation({ accountId: "workspace / one", role: "viewer" }, command);
@@ -173,7 +184,8 @@ function registerMutationRouteTests(): void {
     expect(urls).toEqual(
       expect.arrayContaining([
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one",
-        "https://app.example/api/accounts/workspace%20%2F%20one/transfer-ownership",
+        "https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer",
+        "https://app.example/api/accounts/workspace%20%2F%20one/ownership-transfer/request%20%2F%20one/accept",
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/reset-password",
         "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/revoke-sessions",
         "https://app.example/api/accounts/workspace%20%2F%20one/invites/invite%20%2F%20one",
