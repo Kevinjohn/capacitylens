@@ -67,11 +67,7 @@ export function useInactiveAccountData(): {
 
   if (!mayViewInactive) return { data: null, mayViewInactive, reload };
   if (!server) return { data: localData, mayViewInactive, reload };
-  if (
-    serverData?.accountId !== activeAccountId ||
-    serverData.reloadKey !== reloadKey ||
-    serverData.requestIdentity !== requestIdentity
-  )
+  if (serverData?.accountId !== activeAccountId || serverData.requestIdentity !== requestIdentity)
     return { data: null, mayViewInactive, reload };
   return { data: serverData.data, mayViewInactive, reload };
 }

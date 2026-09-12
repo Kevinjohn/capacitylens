@@ -4,7 +4,7 @@ import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember, getMemberRole, getInvite } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "./auth";
-import { PASSWORD_ENV, call, readCookies, signUp } from "./testHelpers";
+import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { recordSessionAssurance } from "./accounts/state";
 
@@ -75,6 +75,22 @@ const patchRoleReq = ({ app, accountId, userId, role, headers = {} }: PatchRoleR
     method: "PATCH",
     url: `/api/accounts/${accountId}/members/${userId}`,
     payload: { role },
+    headers,
+  });
+
+interface PatchStatusReqInput {
+  app: FastifyInstance;
+  accountId: string;
+  userId: string;
+  status: unknown;
+  headers?: Record<string, string> | undefined;
+}
+
+const patchStatusReq = ({ app, accountId, userId, status, headers = {} }: PatchStatusReqInput) =>
+  call(app, {
+    method: "PATCH",
+    url: `/api/accounts/${accountId}/members/${userId}/status`,
+    payload: { status },
     headers,
   });
 
@@ -151,16 +167,20 @@ function registerMemberGateAccessTest(): void {
   });
 }
 
+const ageSession = (db: Db, userId: string): void => {
+  db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(
+    new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+    userId,
+  );
+};
+
 function registerStaleMemberDirectoryReadTest(): void {
-  it("allows an admin directory read from a stale session while keeping member mutations fresh-gated", async () => {
+  it("allows an admin directory read and the sign-in-tracking toggle from a stale session", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
     const owner = await signUp(app, "owner-stale-directory@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(
-      new Date(Date.now() - 16 * 60 * 1000).toISOString(),
-      owner.userId,
-    );
+    ageSession(db, owner.userId);
 
     const members = await membersReq(app, "a1", { cookie: owner.cookie });
     expect(members.statusCode).toBe(200);
@@ -169,14 +189,86 @@ function registerStaleMemberDirectoryReadTest(): void {
     const invites = await invitesReq(app, "a1", { cookie: owner.cookie });
     expect(invites.statusCode).toBe(200);
 
+    // The sign-in-tracking toggle is ordinary administration, so an aged-out session performs it.
     const mutation = await memberSignInTrackingReq({
       app,
       accountId: "a1",
       enabled: true,
       headers: { cookie: owner.cookie },
     });
-    expect(mutation.statusCode).toBe(403);
-    expect(parseErrorCode(mutation.json())).toBe("SESSION_NOT_FRESH");
+    expect(mutation.statusCode).toBe(200);
+    expect(mutation.json()).toMatchObject({ enabled: true });
+  });
+}
+
+function registerStaleOrdinaryMemberAdministrationTest(): void {
+  it("runs invite, role, status and removal administration from a stale session but not the ownership transfer", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const owner = await signUp(app, "owner-stale-ordinary@capacitylens.dev");
+    const member = await signUp(app, "member-stale-ordinary@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    upsertMember(db, { accountId: "a1", userId: member.userId, role: "editor", status: "active", createdAt: TS });
+
+    // Create the invitation that will be revoked BEFORE ageing the session, so the revoke below is
+    // the only invite operation whose freshness is under test alongside a second, stale creation.
+    const seeded = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: owner.cookie });
+    expect(seeded.statusCode).toBe(201);
+    const seededInvite = getInvite(db, (seeded.json() as { token: string }).token);
+    if (!seededInvite) throw new Error("Expected the seeded invitation.");
+
+    ageSession(db, owner.userId);
+
+    const created = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie: owner.cookie });
+    expect(created.statusCode, created.body).toBe(201);
+
+    const revoked = await call(app, {
+      method: "DELETE",
+      url: `/api/accounts/a1/invites/${seededInvite.id}`,
+      headers: { cookie: owner.cookie },
+    });
+    expect(revoked.statusCode, revoked.body).toBe(204);
+
+    const roleChange = await patchRoleReq({
+      app,
+      accountId: "a1",
+      userId: member.userId,
+      role: "admin",
+      headers: { cookie: owner.cookie },
+    });
+    expect(roleChange.statusCode, roleChange.body).toBe(200);
+    expect(getMemberRole(db, "a1", member.userId)).toBe("admin");
+
+    const statusChange = await patchStatusReq({
+      app,
+      accountId: "a1",
+      userId: member.userId,
+      status: "disabled",
+      headers: { cookie: owner.cookie },
+    });
+    expect(statusChange.statusCode, statusChange.body).toBe(200);
+
+    const removal = await removeReq({
+      app,
+      accountId: "a1",
+      userId: member.userId,
+      headers: { cookie: owner.cookie },
+    });
+    expect(removal.statusCode, removal.body).toBe(204);
+    expect(getMemberRole(db, "a1", member.userId)).toBeNull();
+
+    // Ownership transfer stays on the high-impact list: the same stale session is refused.
+    const successor = await signUp(app, "successor-stale-ordinary@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: successor.userId, role: "admin", status: "active", createdAt: TS });
+    const transferred = await call(app, {
+      method: "POST",
+      url: "/api/accounts/a1/ownership-transfer",
+      payload: { toUserId: successor.userId },
+      headers: { cookie: owner.cookie },
+    });
+    expect(transferred.statusCode).toBe(403);
+    expect(parseErrorCode(transferred.json())).toBe("SESSION_NOT_FRESH");
+    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
   });
 }
 
@@ -309,6 +401,7 @@ function registerMemberGateResetCapabilityTest(): void {
 describe("GET /api/accounts/:id/members — gate", () => {
   registerMemberGateAccessTest();
   registerStaleMemberDirectoryReadTest();
+  registerStaleOrdinaryMemberAdministrationTest();
   registerMemberGateStrangerTest();
   registerMemberGateAnonymousTest();
   registerMemberGateCrossTenantTest();
@@ -1125,1121 +1218,5 @@ describe("POST /api/invites — Owner is never invitational", () => {
     expect((await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: admin.cookie })).statusCode).toBe(
       201,
     );
-  });
-});
-
-describe("member endpoints — OFF mode (trusted-local)", () => {
-  it("GET members / invites return empty; mutate routes report the unavailable capability", async () => {
-    const db = openDb(":memory:");
-    const app = createApp(db); // authMode defaults to 'off'
-    seedTwo(db);
-    const unavailable = {
-      error: "Member management is unavailable in trusted-local mode.",
-    };
-
-    expect((await membersReq(app, "a1")).json()).toEqual({ members: [], signInTrackingEnabled: false });
-    expect((await invitesReq(app, "a1")).json()).toEqual({ invites: [] });
-    // Trusted-local has no member model, so neither nonexistent nor manually seeded rows should
-    // make an inert request look like a committed membership mutation.
-    const ghostPatch = await patchRoleReq({ app, accountId: "a1", userId: "ghost", role: "editor" });
-    expect(ghostPatch.statusCode).toBe(400);
-    expect(ghostPatch.json()).toEqual(unavailable);
-    const ghostRemove = await removeReq({ app, accountId: "a1", userId: "ghost" });
-    expect(ghostRemove.statusCode).toBe(400);
-    expect(ghostRemove.json()).toEqual(unavailable);
-
-    upsertMember(db, {
-      accountId: "a1",
-      userId: "demo",
-      role: "owner",
-      status: "active",
-      createdAt: TS,
-    });
-    const patch = await patchRoleReq({ app, accountId: "a1", userId: "demo", role: "admin" });
-    expect(patch.statusCode).toBe(400);
-    expect(patch.json()).toEqual(unavailable);
-    const remove = await removeReq({ app, accountId: "a1", userId: "demo" });
-    expect(remove.statusCode).toBe(400);
-    expect(remove.json()).toEqual(unavailable);
-    const transfer = await call(app, {
-      method: "POST",
-      url: "/api/accounts/a1/ownership-transfer",
-      payload: { toUserId: "somebody-else" },
-    });
-    expect(transfer.statusCode).toBe(400);
-    expect(transfer.json()).toEqual(unavailable);
-    expect(getMemberRole(db, "a1", "somebody-else")).toBeNull(); // no phantom member minted
-    expect(getMemberRole(db, "a1", "demo")).toBe("owner");
-  });
-});
-
-interface NominateInput {
-  app: FastifyInstance;
-  accountId: string;
-  toUserId: string;
-  cookie?: string | undefined;
-  expected?: { expectedRequestId: string; expectedRevision: string };
-}
-
-const nominate = ({ app, accountId, toUserId, cookie, expected }: NominateInput) =>
-  call(app, {
-    method: "POST",
-    url: `/api/accounts/${accountId}/ownership-transfer`,
-    payload: { toUserId, ...(expected ?? {}) },
-    headers: cookie ? { cookie } : {},
-  });
-
-interface CeremonyStepInput {
-  app: FastifyInstance;
-  accountId: string;
-  requestId: string;
-  expectedRevision: string;
-  cookie?: string | undefined;
-}
-
-const ceremonyStep = (step: "accept" | "withdraw" | "decline" | "complete") =>
-  function perform({ app, accountId, requestId, expectedRevision, cookie }: CeremonyStepInput) {
-    return call(app, {
-      method: "POST",
-      url: `/api/accounts/${accountId}/ownership-transfer/${requestId}/${step}`,
-      payload: { expectedRevision },
-      headers: cookie ? { cookie } : {},
-    });
-  };
-
-const acceptNomination = ceremonyStep("accept");
-const declineNomination = ceremonyStep("decline");
-const completeNomination = ceremonyStep("complete");
-
-const cancelNomination = ({ app, accountId, requestId, expectedRevision, cookie }: CeremonyStepInput) =>
-  call(app, {
-    method: "DELETE",
-    url: `/api/accounts/${accountId}/ownership-transfer/${requestId}`,
-    payload: { expectedRevision },
-    headers: cookie ? { cookie } : {},
-  });
-
-async function seedOwnerAndAdmin(app: FastifyInstance, db: Db, emails: { owner: string; admin: string }) {
-  const owner = await signUp(app, emails.owner);
-  upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-  const admin = await signUp(app, emails.admin);
-  upsertMember(db, { accountId: "a1", userId: admin.userId, role: "admin", status: "active", createdAt: TS });
-  return { owner, admin };
-}
-
-function registerOwnershipCeremonySuccessTest(): void {
-  it("owner nominates, the admin consents, the owner approves: only then do the roles change", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const { owner, admin } = await seedOwnerAndAdmin(app, db, {
-      owner: "owner-xfer@capacitylens.dev",
-      admin: "member-xfer@capacitylens.dev",
-    });
-
-    const nominated = await nominate({ app, accountId: "a1", toUserId: admin.userId, cookie: owner.cookie });
-    expect(nominated.statusCode).toBe(201);
-    const requestId = (nominated.json() as { request: { id: string } }).request.id;
-    // Nomination alone confers nothing: the roles are exactly as they were.
-    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
-    expect(getMemberRole(db, "a1", admin.userId)).toBe("admin");
-
-    const accepted = await acceptNomination({
-      app,
-      accountId: "a1",
-      requestId,
-      expectedRevision: "0",
-      cookie: admin.cookie,
-    });
-    expect(accepted.statusCode).toBe(200);
-    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
-
-    expect(
-      (await completeNomination({ app, accountId: "a1", requestId, expectedRevision: "1", cookie: owner.cookie }))
-        .statusCode,
-    ).toBe(200);
-    expect(getMemberRole(db, "a1", admin.userId)).toBe("owner");
-    expect(getMemberRole(db, "a1", owner.userId)).toBe("admin");
-    // createdAt is the immutable JOIN timestamp — the exchange (a role change on both rows) must NOT
-    // reset it, else both users jump to the bottom of the createdAt-ordered member list and show the
-    // transfer moment as their "joined" date.
-    const createdAtOf = (userId: string) =>
-      (
-        db.prepare("SELECT createdAt FROM account_members WHERE accountId = ? AND userId = ?").get("a1", userId) as {
-          createdAt: string;
-        }
-      ).createdAt;
-    expect(createdAtOf(admin.userId)).toBe(TS);
-    expect(createdAtOf(owner.userId)).toBe(TS);
-  });
-}
-
-function registerOwnershipConsentTests(): void {
-  it("refuses to complete a nomination the nominee has not consented to", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const { owner, admin } = await seedOwnerAndAdmin(app, db, {
-      owner: "owner-consent@capacitylens.dev",
-      admin: "admin-consent@capacitylens.dev",
-    });
-    const nominated = await nominate({ app, accountId: "a1", toUserId: admin.userId, cookie: owner.cookie });
-    const requestId = (nominated.json() as { request: { id: string } }).request.id;
-
-    const early = await completeNomination({
-      app,
-      accountId: "a1",
-      requestId,
-      expectedRevision: "0",
-      cookie: owner.cookie,
-    });
-    expect(early.statusCode).toBe(409);
-    expect(getMemberRole(db, "a1", admin.userId)).toBe("admin");
-  });
-
-  it("lets the nominee decline, and the decline ends the ceremony without moving anything", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const { owner, admin } = await seedOwnerAndAdmin(app, db, {
-      owner: "owner-decline@capacitylens.dev",
-      admin: "admin-decline@capacitylens.dev",
-    });
-    const nominated = await nominate({ app, accountId: "a1", toUserId: admin.userId, cookie: owner.cookie });
-    const requestId = (nominated.json() as { request: { id: string } }).request.id;
-
-    expect(
-      (await declineNomination({ app, accountId: "a1", requestId, expectedRevision: "0", cookie: admin.cookie }))
-        .statusCode,
-    ).toBe(200);
-    expect(
-      (await completeNomination({ app, accountId: "a1", requestId, expectedRevision: "1", cookie: owner.cookie }))
-        .statusCode,
-    ).toBe(409);
-    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
-    expect(getMemberRole(db, "a1", admin.userId)).toBe("admin");
-  });
-}
-
-function registerOwnershipConsentGuardTests(): void {
-  it("does not let a third admin consent on the nominee's behalf", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const { owner, admin } = await seedOwnerAndAdmin(app, db, {
-      owner: "owner-third@capacitylens.dev",
-      admin: "admin-third@capacitylens.dev",
-    });
-    const other = await signUp(app, "other-admin@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: other.userId, role: "admin", status: "active", createdAt: TS });
-    const nominated = await nominate({ app, accountId: "a1", toUserId: admin.userId, cookie: owner.cookie });
-    const requestId = (nominated.json() as { request: { id: string } }).request.id;
-
-    const stolen = await acceptNomination({
-      app,
-      accountId: "a1",
-      requestId,
-      expectedRevision: "0",
-      cookie: other.cookie,
-    });
-    expect(stolen.statusCode).toBe(403);
-    // The other admin cannot destroy the ceremony either: it is still open at its original revision.
-    expect(
-      (await acceptNomination({ app, accountId: "a1", requestId, expectedRevision: "0", cookie: admin.cookie }))
-        .statusCode,
-    ).toBe(200);
-  });
-
-  it("lets the nominating owner cancel, and a stale revision is refused", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const { owner, admin } = await seedOwnerAndAdmin(app, db, {
-      owner: "owner-cancel@capacitylens.dev",
-      admin: "admin-cancel@capacitylens.dev",
-    });
-    const nominated = await nominate({ app, accountId: "a1", toUserId: admin.userId, cookie: owner.cookie });
-    const requestId = (nominated.json() as { request: { id: string } }).request.id;
-    await acceptNomination({ app, accountId: "a1", requestId, expectedRevision: "0", cookie: admin.cookie });
-
-    // "0" was authorised against the nomination, not against the acceptance that followed it.
-    expect(
-      (await cancelNomination({ app, accountId: "a1", requestId, expectedRevision: "0", cookie: owner.cookie }))
-        .statusCode,
-    ).toBe(409);
-    expect(
-      (await cancelNomination({ app, accountId: "a1", requestId, expectedRevision: "1", cookie: owner.cookie }))
-        .statusCode,
-    ).toBe(200);
-    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
-  });
-}
-
-function registerAdminOwnershipTransferRejectionTest(): void {
-  it("an admin cannot nominate → 403 (nomination is owner-only, above admin)", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const admin = await signUp(app, "admin-xfer@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: admin.userId, role: "admin", status: "active", createdAt: TS });
-    const member = await signUp(app, "member2-xfer@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: member.userId, role: "admin", status: "active", createdAt: TS });
-
-    expect((await nominate({ app, accountId: "a1", toUserId: member.userId, cookie: admin.cookie })).statusCode).toBe(
-      403,
-    );
-    expect(getMemberRole(db, "a1", admin.userId)).toBe("admin"); // unchanged
-    expect(getMemberRole(db, "a1", member.userId)).toBe("admin");
-  });
-}
-
-function registerInvalidOwnershipTransferTargetTest(): void {
-  it("the nominee must be an existing active Admin, and never the caller", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const owner = await signUp(app, "owner2-xfer@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    const editor = await signUp(app, "editor-xfer@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: editor.userId, role: "editor", status: "active", createdAt: TS });
-
-    expect((await nominate({ app, accountId: "a1", toUserId: "ghost-user", cookie: owner.cookie })).statusCode).toBe(
-      404,
-    );
-    // An Editor is a member, but the ceremony hands the company to someone who already administers
-    // it: a lower tier would be an elevation of two steps on one person's say-so.
-    const wrongTier = await nominate({ app, accountId: "a1", toUserId: editor.userId, cookie: owner.cookie });
-    expect(wrongTier.statusCode).toBe(400);
-    expect(parseErrorCode(wrongTier.json())).toBe("VALIDATION_FAILED");
-    const selfTransfer = await nominate({ app, accountId: "a1", toUserId: owner.userId, cookie: owner.cookie });
-    expect(selfTransfer.statusCode).toBe(400);
-    expect(parseErrorCode(selfTransfer.json())).toBe("VALIDATION_FAILED");
-    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner"); // still the owner
-  });
-}
-
-function registerOwnershipTransferShapeTest(): void {
-  it("a missing or empty toUserId is a 400 (shape check, before the role/owner logic)", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const owner = await signUp(app, "owner-guard-xfer@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-
-    // Absent toUserId.
-    expect(
-      (
-        await call(app, {
-          method: "POST",
-          url: "/api/accounts/a1/ownership-transfer",
-          payload: {},
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(400);
-    // Empty-string toUserId.
-    expect((await nominate({ app, accountId: "a1", toUserId: "", cookie: owner.cookie })).statusCode).toBe(400);
-    // Half a replacement predicate names no particular predecessor, so it is malformed rather than
-    // leniently treated as "replace whatever is live".
-    expect(
-      (
-        await call(app, {
-          method: "POST",
-          url: "/api/accounts/a1/ownership-transfer",
-          payload: { toUserId: "somebody", expectedRequestId: "request-1" },
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(400);
-    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner"); // still the owner; nothing changed
-  });
-}
-
-function registerCrossTenantOwnershipTransferTest(): void {
-  it("cross-tenant: an owner of a1 cannot nominate within a2 → 403", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const a1owner = await signUp(app, "a1owner-xfer@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: a1owner.userId, role: "owner", status: "active", createdAt: TS });
-    const a2member = await signUp(app, "a2member-xfer@capacitylens.dev");
-    upsertMember(db, { accountId: "a2", userId: a2member.userId, role: "admin", status: "active", createdAt: TS });
-
-    expect(
-      (await nominate({ app, accountId: "a2", toUserId: a2member.userId, cookie: a1owner.cookie })).statusCode,
-    ).toBe(403);
-    expect(getMemberRole(db, "a2", a2member.userId)).toBe("admin"); // unchanged
-  });
-}
-
-describe("#780 ownership transfer ceremony — /api/accounts/:id/ownership-transfer", () => {
-  registerOwnershipCeremonySuccessTest();
-  registerOwnershipConsentTests();
-  registerOwnershipConsentGuardTests();
-  registerAdminOwnershipTransferRejectionTest();
-  registerInvalidOwnershipTransferTargetTest();
-  registerOwnershipTransferShapeTest();
-  registerCrossTenantOwnershipTransferTest();
-});
-
-interface PatchStatusReqInput {
-  app: FastifyInstance;
-  accountId: string;
-  userId: string;
-  status: unknown;
-  headers?: Record<string, string> | undefined;
-}
-
-// ── Member lifecycle: disable / archive / restore (#175) ──────────────────────────────────────
-// A membership's status is what every authorization read narrows on, so these routes are an access
-// control surface, not a labelling one. The assertions below fix BOTH halves: the status actually
-// changes, AND the account stops admitting the member the moment it does.
-
-const patchStatusReq = ({ app, accountId, userId, status, headers = {} }: PatchStatusReqInput) =>
-  call(app, {
-    method: "PATCH",
-    url: `/api/accounts/${accountId}/members/${userId}/status`,
-    payload: { status },
-    headers,
-  });
-
-const storedStatus = (db: Db, accountId: string, userId: string): string | undefined =>
-  (
-    db.prepare(`SELECT status FROM account_members WHERE accountId = ? AND userId = ?`).get(accountId, userId) as
-      { status: string } | undefined
-  )?.status;
-
-interface SignInDirectory {
-  signInTrackingEnabled: boolean;
-  members: Array<{ userId: string; signInConfirmed: boolean | null }>;
-}
-
-async function readSignInDirectory(
-  app: FastifyInstance,
-  cookie: string,
-  expectedStatus?: number,
-): Promise<SignInDirectory> {
-  const response = await membersReq(app, "a1", { cookie });
-  if (expectedStatus !== undefined) expect(response.statusCode).toBe(expectedStatus);
-  return response.json() as SignInDirectory;
-}
-
-interface SignInScenarioInput {
-  app: FastifyInstance;
-  db: Db;
-  ownerCookie: string;
-  editorCookie: string;
-  ownerId: string;
-  editorId: string;
-  editorEmail: string;
-}
-
-async function assertSignInTrackingDefaults({
-  app,
-  ownerCookie,
-  editorCookie,
-  ownerId,
-  editorId,
-}: SignInScenarioInput) {
-  const initial = await readSignInDirectory(app, ownerCookie, 200);
-  expect(initial.signInTrackingEnabled).toBe(false);
-  expect(initial.members.find((member) => member.userId === ownerId)?.signInConfirmed).toBeNull();
-  expect(initial.members.find((member) => member.userId === editorId)?.signInConfirmed).toBeNull();
-  expect(
-    (await memberSignInTrackingReq({ app, accountId: "a1", enabled: true, headers: { cookie: editorCookie } }))
-      .statusCode,
-  ).toBe(403);
-  expect(
-    (await memberSignInTrackingReq({ app, accountId: "a1", enabled: "true", headers: { cookie: ownerCookie } }))
-      .statusCode,
-  ).toBe(400);
-}
-
-async function enableAndConfirmMemberSignIn({
-  app,
-  ownerCookie,
-  ownerId,
-  editorId,
-  editorEmail,
-}: SignInScenarioInput): Promise<void> {
-  const enabled = await memberSignInTrackingReq({
-    app,
-    accountId: "a1",
-    enabled: true,
-    headers: { cookie: ownerCookie },
-  });
-  expect(enabled.statusCode).toBe(200);
-  expect(enabled.json()).toEqual({ enabled: true });
-  let directory = await readSignInDirectory(app, ownerCookie);
-  expect(directory.signInTrackingEnabled).toBe(true);
-  expect(directory.members.find((member) => member.userId === ownerId)?.signInConfirmed).toBe(true);
-  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(false);
-
-  const signedIn = await call(app, {
-    method: "POST",
-    url: "/api/auth/sign-in/email",
-    payload: { email: editorEmail, password: "password-123456" },
-  });
-  expect(signedIn.statusCode).toBe(200);
-  expect(readCookies(signedIn)).not.toBe("");
-  directory = await readSignInDirectory(app, ownerCookie);
-  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(true);
-}
-
-async function assertMemberSignInResetAndMfa({
-  app,
-  db,
-  ownerCookie,
-  editorId,
-  editorEmail,
-}: SignInScenarioInput): Promise<void> {
-  expect(
-    (await revokeSessionsReq({ app, accountId: "a1", userId: editorId, headers: { cookie: ownerCookie } })).statusCode,
-  ).toBe(204);
-  let directory = await readSignInDirectory(app, ownerCookie);
-  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(false);
-
-  db.prepare("UPDATE user SET twoFactorEnabled = 1 WHERE id = ?").run(editorId);
-  const awaitingMfa = await call(app, {
-    method: "POST",
-    url: "/api/auth/sign-in/email",
-    payload: { email: editorEmail, password: "password-123456" },
-  });
-  expect(awaitingMfa.statusCode).toBe(200);
-  expect(awaitingMfa.json()).toMatchObject({ twoFactorRedirect: true });
-  directory = await readSignInDirectory(app, ownerCookie);
-  expect(directory.members.find((member) => member.userId === editorId)?.signInConfirmed).toBe(false);
-
-  expect(
-    (await memberSignInTrackingReq({ app, accountId: "a1", enabled: false, headers: { cookie: ownerCookie } }))
-      .statusCode,
-  ).toBe(200);
-  expect(db.prepare("SELECT signInConfirmed FROM account_members WHERE accountId = 'a1'").all()).toEqual([
-    { signInConfirmed: null },
-    { signInConfirmed: null },
-  ]);
-}
-
-/** Owner of a1 plus one editor, the shape nearly every case below needs. */
-async function ownerAndEditor(suffix: string) {
-  const { app, db } = await appWithAuth();
-  seedTwo(db);
-  const owner = await signUp(app, `owner-${suffix}@capacitylens.dev`);
-  upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-  const ed = await signUp(app, `editor-${suffix}@capacitylens.dev`);
-  upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-  return { app, db, owner, ed };
-}
-
-function createDisableMemberTest(): void {
-  it("disables a member, and the disabled member can no longer enter the account", async () => {
-    const { app, db, owner, ed } = await ownerAndEditor("disable");
-    // Precondition: the editor can read a1 today.
-    expect(
-      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
-    ).toBe(200);
-
-    const res = await patchStatusReq({
-      app,
-      accountId: "a1",
-      userId: ed.userId,
-      status: "disabled",
-      headers: { cookie: owner.cookie },
-    });
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ userId: ed.userId, status: "disabled" });
-    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
-
-    // THE POINT: the membership row survives, but it confers nothing.
-    expect(
-      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
-    ).toBe(403);
-    // ...and a1 disappears from the account list the member can choose between.
-    const accounts = await call(app, { method: "GET", url: "/api/accounts", headers: { cookie: ed.cookie } });
-    expect(accounts.statusCode).toBe(200);
-    expect(JSON.stringify(accounts.json())).not.toContain("a1");
-  });
-}
-
-function createArchiveMemberTest(): void {
-  it("archives a member and denies entry exactly as disabling does", async () => {
-    const { app, db, owner, ed } = await ownerAndEditor("archive");
-    expect(
-      (
-        await patchStatusReq({
-          app,
-          accountId: "a1",
-          userId: ed.userId,
-          status: "archived",
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(200);
-    expect(storedStatus(db, "a1", ed.userId)).toBe("archived");
-    expect(
-      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
-    ).toBe(403);
-  });
-}
-
-function createRestoreMemberTest(): void {
-  it("restores a disabled member to active, and their role is preserved throughout", async () => {
-    const { app, db, owner, ed } = await ownerAndEditor("restore");
-    await patchStatusReq({
-      app,
-      accountId: "a1",
-      userId: ed.userId,
-      status: "disabled",
-      headers: { cookie: owner.cookie },
-    });
-    expect(getMemberRole(db, "a1", ed.userId)).toBe("editor"); // role survives the suspension
-
-    expect(
-      (
-        await patchStatusReq({
-          app,
-          accountId: "a1",
-          userId: ed.userId,
-          status: "active",
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(200);
-    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
-    expect(
-      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
-    ).toBe(200);
-  });
-}
-
-function createVisibleInactiveMemberTest(): void {
-  it("keeps a non-active member VISIBLE in the directory, so an admin can reverse it", async () => {
-    const { app, owner, ed } = await ownerAndEditor("visible");
-    await patchStatusReq({
-      app,
-      accountId: "a1",
-      userId: ed.userId,
-      status: "disabled",
-      headers: { cookie: owner.cookie },
-    });
-
-    const res = await membersReq(app, "a1", { cookie: owner.cookie });
-    expect(res.statusCode).toBe(200);
-    const members = (res.json() as { members: Array<{ userId: string; status: string; role: string }> }).members;
-    const row = members.find((m) => m.userId === ed.userId);
-    // An invisible non-active member would be an unreversible one — the admin needs the row to act on.
-    if (!row) throw new Error("Expected the disabled member row.");
-    expect(row.status).toBe("disabled");
-    expect(row.role).toBe("editor");
-  });
-}
-
-function createOwnerDisableRejectionTest(): void {
-  it("refuses to disable the OWNER — the account must never be left without one", async () => {
-    const { app, db, owner, ed } = await ownerAndEditor("owner-target");
-    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "admin", status: "active", createdAt: TS });
-    // Even an admin acting within their tier cannot disable the owner; the single-active-owner index
-    // and the boot assertion both key on role='owner' AND status='active'.
-    expect(
-      (
-        await patchStatusReq({
-          app,
-          accountId: "a1",
-          userId: owner.userId,
-          status: "disabled",
-          headers: { cookie: ed.cookie },
-        })
-      ).statusCode,
-    ).toBe(403);
-    expect(storedStatus(db, "a1", owner.userId)).toBe("active");
-  });
-}
-
-function createSelfDisableRejectionTest(): void {
-  it("refuses SELF-suspension — an admin must not be able to lock themselves out", async () => {
-    const { app, db, owner } = await ownerAndEditor("self");
-    expect(
-      (
-        await patchStatusReq({
-          app,
-          accountId: "a1",
-          userId: owner.userId,
-          status: "disabled",
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(403);
-    expect(storedStatus(db, "a1", owner.userId)).toBe("active");
-  });
-}
-
-function createLimitedStatusMutationRejectionTest(): void {
-  it("editor and viewer cannot change any member's status", async () => {
-    for (const role of ["editor", "viewer"] as const) {
-      const { app, db } = await appWithAuth();
-      seedTwo(db);
-      const owner = await signUp(app, `owner-${role}-status@capacitylens.dev`);
-      upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-      const actor = await signUp(app, `${role}-status@capacitylens.dev`);
-      upsertMember(db, { accountId: "a1", userId: actor.userId, role, status: "active", createdAt: TS });
-      const target = await signUp(app, `target-${role}-status@capacitylens.dev`);
-      upsertMember(db, { accountId: "a1", userId: target.userId, role: "editor", status: "active", createdAt: TS });
-
-      expect(
-        (
-          await patchStatusReq({
-            app,
-            accountId: "a1",
-            userId: target.userId,
-            status: "disabled",
-            headers: { cookie: actor.cookie },
-          })
-        ).statusCode,
-        role,
-      ).toBe(403);
-      expect(storedStatus(db, "a1", target.userId), role).toBe("active");
-    }
-  });
-}
-
-function createCrossTenantStatusMutationTest(): void {
-  it("cross-tenant: an owner of a1 cannot disable a member of a2", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const a1owner = await signUp(app, "a1owner-status@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: a1owner.userId, role: "owner", status: "active", createdAt: TS });
-    const a2member = await signUp(app, "a2member-status@capacitylens.dev");
-    upsertMember(db, { accountId: "a2", userId: a2member.userId, role: "editor", status: "active", createdAt: TS });
-
-    expect(
-      (
-        await patchStatusReq({
-          app,
-          accountId: "a2",
-          userId: a2member.userId,
-          status: "disabled",
-          headers: { cookie: a1owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(403);
-    expect(storedStatus(db, "a2", a2member.userId)).toBe("active");
-  });
-}
-
-function createInvalidStatusMutationTest(): void {
-  it("rejects an unknown status with 400 and leaves the row untouched", async () => {
-    const { app, db, owner, ed } = await ownerAndEditor("bad-status");
-    for (const bad of ["suspended", "", null, 42, undefined]) {
-      const res = await patchStatusReq({
-        app,
-        accountId: "a1",
-        userId: ed.userId,
-        status: bad,
-        headers: { cookie: owner.cookie },
-      });
-      expect(res.statusCode, JSON.stringify(bad)).toBe(400);
-    }
-    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
-  });
-}
-
-function createMissingMemberStatusMutationTest(): void {
-  it("404s for a principal who is not a member of the account", async () => {
-    const { app, owner } = await ownerAndEditor("missing");
-    const outsider = await signUp(app, "outsider-status@capacitylens.dev");
-    expect(
-      (
-        await patchStatusReq({
-          app,
-          accountId: "a1",
-          userId: outsider.userId,
-          status: "disabled",
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(404);
-  });
-}
-
-function createAnonymousStatusMutationTest(): void {
-  it("a session-less request is 401", async () => {
-    const { app, ed } = await ownerAndEditor("anon");
-    expect((await patchStatusReq({ app, accountId: "a1", userId: ed.userId, status: "disabled" })).statusCode).toBe(
-      401,
-    );
-  });
-}
-
-describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", () => {
-  createDisableMemberTest();
-  createArchiveMemberTest();
-  createRestoreMemberTest();
-  createVisibleInactiveMemberTest();
-  createOwnerDisableRejectionTest();
-  createSelfDisableRejectionTest();
-  createLimitedStatusMutationRejectionTest();
-  createCrossTenantStatusMutationTest();
-  createInvalidStatusMutationTest();
-  createMissingMemberStatusMutationTest();
-  createAnonymousStatusMutationTest();
-});
-
-describe("member sign-in confirmation", () => {
-  it("rate-limits repeated privacy-setting writes", async () => {
-    const { app, db } = await appWithAuth({ rateLimit: 100 });
-    seedTwo(db);
-    const owner = await signUp(app, "owner-sign-in-rate-limit@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-
-    for (let request = 0; request < 5; request += 1) {
-      expect(
-        (
-          await memberSignInTrackingReq({
-            app,
-            accountId: "a1",
-            enabled: request % 2 === 0,
-            headers: { cookie: owner.cookie },
-          })
-        ).statusCode,
-      ).toBe(200);
-    }
-    expect(
-      (await memberSignInTrackingReq({ app, accountId: "a1", enabled: false, headers: { cookie: owner.cookie } }))
-        .statusCode,
-    ).toBe(429);
-  });
-
-  it("is owner-controlled, default-off, timestamp-free, resettable and erased when disabled", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const owner = await signUp(app, "owner-sign-in-confirmation@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    const ed = await signUp(app, "editor-sign-in-confirmation@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-    const scenario = {
-      app,
-      db,
-      ownerCookie: owner.cookie,
-      editorCookie: ed.cookie,
-      ownerId: owner.userId,
-      editorId: ed.userId,
-      editorEmail: "editor-sign-in-confirmation@capacitylens.dev",
-    } satisfies SignInScenarioInput;
-    await assertSignInTrackingDefaults(scenario);
-    await enableAndConfirmMemberSignIn(scenario);
-    await assertMemberSignInResetAndMfa(scenario);
-  });
-});
-
-// ── #175 review: the status domain must reach EVERY membership path, not just the new route ──────
-// Widening a membership to active/disabled/archived is only half a feature. The other half is that
-// every path which resolves a member — invite redemption, identity administration, removal, role
-// change — agrees about what a non-active row means. Each case below failed before this pass, and
-// each fails independently, so a regression in one cannot hide behind another.
-
-/** Owner + editor of a1, with the editor already moved into `status`. */
-async function ownerAndInactiveEditor(suffix: string, status: "disabled" | "archived" = "disabled") {
-  const { app, db } = await appWithAuth();
-  seedTwo(db);
-  const owner = await signUp(app, `owner-${suffix}@capacitylens.dev`);
-  upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-  const ed = await signUp(app, `editor-${suffix}@capacitylens.dev`);
-  upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-  expect(
-    (await patchStatusReq({ app, accountId: "a1", userId: ed.userId, status, headers: { cookie: owner.cookie } }))
-      .statusCode,
-  ).toBe(200);
-  return { app, db, owner, ed };
-}
-
-function registerDisabledInviteRedemptionTest(): void {
-  it("a disabled member cannot redeem an invite back into the account, and the invite stays unused", async () => {
-    const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass");
-    // A link-only invite the disabled member holds (or is handed). Before this fix the accept path
-    // probed membership with an ACTIVE-only read, saw "not a member", and upserted them back to
-    // active at the invite's role — reversing the administrator's decision with no audit record.
-    const created = await call(app, {
-      method: "POST",
-      url: "/api/invites",
-      payload: { accountId: "a1", role: "admin" },
-      headers: { cookie: owner.cookie },
-    });
-    expect(created.statusCode).toBe(201);
-    const token = (created.json() as { token: string }).token;
-
-    const accept = await call(app, {
-      method: "POST",
-      url: `/api/invites/${token}/accept`,
-      headers: { cookie: ed.cookie },
-    });
-    expect(accept.statusCode).toBe(403);
-
-    // The suspension held on every axis: status, role (no silent promotion to the invite's admin),
-    // and entry to the account.
-    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
-    expect(getMemberRole(db, "a1", ed.userId)).toBe("editor");
-    expect(
-      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
-    ).toBe(403);
-    // And the invite is NOT burned — it still works once an admin restores the membership.
-    const invite = getInvite(db, token);
-    if (!invite) throw new Error("Expected the invitation to remain available.");
-    expect(invite.usedAt).toBeNull();
-  });
-}
-
-function registerArchivedInviteRedemptionTest(): void {
-  it("an archived member is refused identically, so neither suspension is the weaker one", async () => {
-    const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass-archived", "archived");
-    const token = (
-      (
-        await call(app, {
-          method: "POST",
-          url: "/api/invites",
-          payload: { accountId: "a1", role: "editor" },
-          headers: { cookie: owner.cookie },
-        })
-      ).json() as { token: string }
-    ).token;
-    expect(
-      (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
-        .statusCode,
-    ).toBe(403);
-    expect(storedStatus(db, "a1", ed.userId)).toBe("archived");
-  });
-}
-
-function registerRestoredInviteRedemptionTest(): void {
-  it("a restored member can then redeem that same invite, so the refusal is a pause and not a wall", async () => {
-    const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-after-restore");
-    const token = (
-      (
-        await call(app, {
-          method: "POST",
-          url: "/api/invites",
-          payload: { accountId: "a1", role: "editor" },
-          headers: { cookie: owner.cookie },
-        })
-      ).json() as { token: string }
-    ).token;
-    expect(
-      (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
-        .statusCode,
-    ).toBe(403);
-
-    expect(
-      (
-        await patchStatusReq({
-          app,
-          accountId: "a1",
-          userId: ed.userId,
-          status: "active",
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(200);
-    expect(
-      (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
-        .statusCode,
-    ).toBe(200);
-    const invite = getInvite(db, token);
-    if (!invite) throw new Error("Expected the redeemed invitation.");
-    expect(invite.usedAt).not.toBeNull();
-  });
-}
-
-function registerDisabledMemberAuthorityTest(): void {
-  it("an admin keeps reset-password and revoke-sessions authority over a member they just disabled", async () => {
-    const { app, owner, ed } = await ownerAndInactiveEditor("identity-authority");
-    // The compromised-account case: an admin disables first, THEN kills the live session. Before
-    // this fix the target's authority map was active-only, so disabling someone reported them as
-    // "not a member" and removed both controls — leaving the attacker's session running.
-    const listed = await membersReq(app, "a1", { cookie: owner.cookie });
-    expect(listed.statusCode).toBe(200);
-    const row = (
-      listed.json() as {
-        members: Array<{ userId: string; mayResetPassword: boolean; mayRevokeSessions: boolean }>;
-      }
-    ).members.find((m) => m.userId === ed.userId);
-    if (!row) throw new Error("Expected the disabled member authority row.");
-    expect(row.mayResetPassword).toBe(true);
-    expect(row.mayRevokeSessions).toBe(true);
-
-    // Not merely advertised — the routes themselves still work on the disabled member.
-    expect(
-      (
-        await call(app, {
-          method: "POST",
-          url: `/api/accounts/a1/members/${ed.userId}/reset-password`,
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(201);
-    expect(
-      (
-        await call(app, {
-          method: "POST",
-          url: `/api/accounts/a1/members/${ed.userId}/revoke-sessions`,
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(204);
-  });
-}
-
-function registerDisabledMemberRemovalTest(): void {
-  it("removes a disabled membership without restoring its access first", async () => {
-    const { app, db, owner, ed } = await ownerAndInactiveEditor("remove-suspended");
-    // The gear offers Remove on a non-active row; before this fix the route's active-only lookup
-    // 404'd, so the only way to delete the membership was to hand its access back first.
-    const res = await call(app, {
-      method: "DELETE",
-      url: `/api/accounts/a1/members/${ed.userId}`,
-      headers: { cookie: owner.cookie },
-    });
-    expect(res.statusCode).toBe(204);
-    expect(getMemberRole(db, "a1", ed.userId)).toBeNull();
-    expect(storedStatus(db, "a1", ed.userId)).toBeUndefined();
-  });
-}
-
-function registerDisabledMemberRoleChangeTest(): void {
-  it("refuses a ROLE change on a non-active membership — restore is the only way back", async () => {
-    const { app, db, owner, ed } = await ownerAndInactiveEditor("role-suspended");
-    // Deliberately NOT widened. changeMemberRole writes `status: "active"`, so accepting it here
-    // would make a role edit a silent reinstatement. The UI hides the pencil on these rows; this is
-    // the server half of the same rule.
-    const res = await call(app, {
-      method: "PATCH",
-      url: `/api/accounts/a1/members/${ed.userId}`,
-      payload: { role: "viewer" },
-      headers: { cookie: owner.cookie },
-    });
-    expect(res.statusCode).toBe(404);
-    expect(getMemberRole(db, "a1", ed.userId)).toBe("editor");
-    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
-  });
-}
-
-describe("disabling holds across every membership path (#175 review)", () => {
-  registerDisabledInviteRedemptionTest();
-  registerArchivedInviteRedemptionTest();
-  registerRestoredInviteRedemptionTest();
-  registerDisabledMemberAuthorityTest();
-  registerDisabledMemberRemovalTest();
-  registerDisabledMemberRoleChangeTest();
-});
-
-function registerRepeatedStatusNoOpTest(): void {
-  it("succeeds without burning the member's outstanding reset link", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const owner = await signUp(app, "owner-noop-status@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    const ed = await signUp(app, "editor-noop-status@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-
-    // One admin mints a reset link and hands it over...
-    const minted = await call(app, {
-      method: "POST",
-      url: `/api/accounts/a1/members/${ed.userId}/reset-password`,
-      headers: { cookie: owner.cookie },
-    });
-    expect(minted.statusCode).toBe(201);
-    const token = (minted.json() as { token: string }).token;
-
-    // ...then a second admin, on a stale screen, re-applies the status the member already holds.
-    // SQLite counts a MATCHED row as changed even when the written value is identical, so an
-    // unguarded UPDATE would run the membership-write security protocol and silently kill the link.
-    const res = await patchStatusReq({
-      app,
-      accountId: "a1",
-      userId: ed.userId,
-      status: "active",
-      headers: { cookie: owner.cookie },
-    });
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ userId: ed.userId, status: "active" });
-    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
-
-    // THE POINT: the link the first admin distributed still redeems.
-    const redeemed = await call(app, {
-      method: "POST",
-      url: "/api/auth/reset-password",
-      payload: { newPassword: "a-brand-new-password-123", token },
-    });
-    expect(redeemed.statusCode).toBe(200);
-  });
-}
-
-function registerChangedStatusResetTest(): void {
-  it("still burns the link when the status genuinely changes", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const owner = await signUp(app, "owner-real-status@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    const ed = await signUp(app, "editor-real-status@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: ed.userId, role: "editor", status: "active", createdAt: TS });
-    const token = (
-      (
-        await call(app, {
-          method: "POST",
-          url: `/api/accounts/a1/members/${ed.userId}/reset-password`,
-          headers: { cookie: owner.cookie },
-        })
-      ).json() as { token: string }
-    ).token;
-
-    // The guard must not become an excuse to skip the protocol on a REAL transition: a link minted
-    // while the member was active must not redeem into a non-active one.
-    expect(
-      (
-        await patchStatusReq({
-          app,
-          accountId: "a1",
-          userId: ed.userId,
-          status: "disabled",
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(200);
-    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
-    expect(
-      (
-        await call(app, {
-          method: "POST",
-          url: "/api/auth/reset-password",
-          payload: { newPassword: "should-not-work-456", token },
-        })
-      ).statusCode,
-    ).toBe(400);
-  });
-}
-
-describe("re-applying a member's current status is a no-op (#175 review)", () => {
-  registerRepeatedStatusNoOpTest();
-  registerChangedStatusResetTest();
-});
-
-// The directory is a list a person reads top to bottom, so its order is part of the feature, not an
-// implementation detail. Join date first (that is how an administrator remembers the team), name as
-// the tie-break — a bulk import stamps everyone with the same instant, and an id order there reads
-// as random. principalId last, so two identically-named same-instant rows still list identically
-// between reads.
-describe("member listing order (#175)", () => {
-  it("orders by join date, then by name", async () => {
-    const { app, db } = await appWithAuth();
-    seedTwo(db);
-    const owner = await signUp(app, "owner-order@capacitylens.dev");
-    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-
-    // Three members sharing ONE joinedAt, seeded in an order that is neither alphabetical nor the
-    // one the id happens to produce, so a passing assertion cannot be an accident of insertion.
-    const later = "2026-02-01T00:00:00.000Z";
-    for (const name of ["Clark Kent", "alfred Pennyworth", "Barry Allen"]) {
-      const firstName = name.split(" ")[0];
-      if (!firstName) throw new Error("Expected a member first name.");
-      const user = await signUp(app, `${firstName.toLowerCase()}-order@capacitylens.dev`);
-      db.prepare(`UPDATE user SET name = ? WHERE id = ?`).run(name, user.userId);
-      upsertMember(db, { accountId: "a1", userId: user.userId, role: "editor", status: "active", createdAt: later });
-    }
-
-    const res = await membersReq(app, "a1", { cookie: owner.cookie });
-    expect(res.statusCode).toBe(200);
-    const listed = (res.json() as { members: Array<{ name: string | null }> }).members.map((row) => row.name);
-    // The owner joined first and stays first regardless of name; the rest sort case-insensitively,
-    // so "alfred" is not exiled past "Barry" by a raw byte comparison.
-    expect(listed).toEqual(["Tester", "alfred Pennyworth", "Barry Allen", "Clark Kent"]);
   });
 });

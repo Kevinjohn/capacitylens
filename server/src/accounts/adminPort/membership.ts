@@ -114,7 +114,13 @@ function createRoleChange({
         lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
         audit: { action: "member.role_changed", changedFields: ["role"] },
         execute: () => {
-          assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+          assertAdministrativeAssurance({
+            actor,
+            requireMfa,
+            trustedLocal,
+            commandId: command.commandId,
+            requireFresh: false,
+          });
           const acting = assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
           const target = getActiveMemberRole(db, workspaceId, targetPrincipalId);
           if (!target) throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
@@ -159,7 +165,13 @@ function createStatusChange({
         lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
         audit: { action: "member.status_changed", changedFields: ["status"] },
         execute: () => {
-          assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+          assertAdministrativeAssurance({
+            actor,
+            requireMfa,
+            trustedLocal,
+            commandId: command.commandId,
+            requireFresh: false,
+          });
           const acting = assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
           // Status-agnostic: restoring a disabled or archived membership is the operation's purpose.
           const target = getMembershipRow(db, workspaceId, targetPrincipalId);
@@ -203,7 +215,13 @@ function createRemoval({
         lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
         audit: { action: "member.removed", changedFields: ["membership"] },
         execute: () => {
-          assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+          assertAdministrativeAssurance({
+            actor,
+            requireMfa,
+            trustedLocal,
+            commandId: command.commandId,
+            requireFresh: false,
+          });
           const acting = assertAccountAuthority({ db, actor, workspaceId, action: "manage-members", trustedLocal });
           // Status-agnostic so an administrator can remove non-active members without restoring access.
           const target = getMembershipRow(db, workspaceId, targetPrincipalId);

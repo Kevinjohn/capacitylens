@@ -191,6 +191,23 @@ describe("computeGesture", () => {
     expect(hours).toBe(8);
   });
 
+  it("carries the origin's working-day duration into the target week on a reassign", () => {
+    // Issue #338: Thu 2026-08-13 - Tue 08-18 is two working days for a Tue/Wed/Thu resource;
+    // dropped on a Mon-Fri one it must stay two days and not be re-read as four.
+    const { dates, hours } = resolveGesture({
+      mode: "move",
+      current: range("2026-08-13", "2026-08-18"),
+      deltaDays: 0,
+      options: { workingDays: [1, 2, 3, 4, 5], sourceWorkingDays: [2, 3, 4] },
+      hoursPerDay: 8,
+      isDays: true,
+    });
+
+    expect(dates).toEqual(range("2026-08-13", "2026-08-14"));
+    // The duration is preserved in working days, so there is no volume to rescale.
+    expect(hours).toBe(8);
+  });
+
   it("keeps hours unchanged for a move (only a resize rescales)", () => {
     const { dates, hours } = resolveGesture({
       mode: "move",

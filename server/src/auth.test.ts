@@ -418,13 +418,7 @@ const registerStartupControlTests = () => {
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
 
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(
-      expect.objectContaining({
-        version: 40,
-        name: "add-ownership-transfer-requests",
-        checksum: "4d52360dc6ba7ddfd0ac0e5de00b0746051e64603a5de88fb9a579a57f45ba55",
-      }),
-    );
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(OWNERSHIP_TRANSFER_MIGRATION));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -597,11 +591,21 @@ const CAPACITY_OVERVIEW_MIGRATION = {
   name: "add-capacity-overview-access",
   checksum: "098f2980febe986613c549b5f1a48c003d17528c34ea3c7deec706d6afdbae45",
 };
+const DATE_STYLE_MIGRATION = {
+  version: 40,
+  name: "add-account-date-style",
+  checksum: "5523524112cbd00936ed3fff90c0e00e142472abf78122e39dbc32f3bf59e2cc",
+};
+const RESOURCE_AVAILABILITY_MIGRATION = {
+  version: 38,
+  name: "add-resource-availability-dates",
+  checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
+};
 
 const OWNERSHIP_TRANSFER_MIGRATION = {
-  version: 40,
+  version: 41,
   name: "add-ownership-transfer-requests",
-  checksum: "4d52360dc6ba7ddfd0ac0e5de00b0746051e64603a5de88fb9a579a57f45ba55",
+  checksum: "d9dc51a48af818e1ccefcbb0fa0d7a703258c9149545f8cc62eaef5c6a5015e7",
 };
 
 /** The tail of the pending list whose checksums are pinned, newest last. Held as one list rather
@@ -622,12 +626,9 @@ const CHECKSUM_PINNED_MIGRATIONS = [
     name: "add-allocation-task-field",
     checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
   },
-  {
-    version: 38,
-    name: "add-resource-availability-dates",
-    checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
-  },
+  RESOURCE_AVAILABILITY_MIGRATION,
   CAPACITY_OVERVIEW_MIGRATION,
+  DATE_STYLE_MIGRATION,
   OWNERSHIP_TRANSFER_MIGRATION,
 ];
 

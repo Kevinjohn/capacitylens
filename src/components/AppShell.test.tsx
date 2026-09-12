@@ -598,7 +598,7 @@ function registerPinnedNavigationOrderTest(): void {
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
     expect(order).toEqual([
-      "/capacity-overview",
+      "/overview",
       "/",
       "/resources",
       "/disciplines",
@@ -616,7 +616,7 @@ function registerNavigationRoutesTest(): void {
   it("nav links point to correct routes", () => {
     renderAppShell();
 
-    expect(screen.getByRole("link", { name: "Capacity Overview" })).toHaveAttribute("href", "/capacity-overview");
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("href", "/overview");
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Resources" })).toHaveAttribute("href", "/resources");
     expect(screen.getByRole("link", { name: "Team & access" })).toHaveAttribute("href", "/team");
