@@ -117,7 +117,13 @@ export class MasqueradeController {
   }
 
   async start(accountId: string, targetUserId: string): Promise<boolean> {
-    if (this.startPendingGeneration !== null) return false;
+    // Not fail(): the in-flight start usually succeeds, and an error notice is created with
+    // duration Infinity, so a double-click would leave a permanent error banner over a working
+    // member view. This is ordinary feedback about a duplicate click, not a failure.
+    if (this.startPendingGeneration !== null) {
+      useStore.getState().setNotice("A member view is already starting.", "info");
+      return false;
+    }
     if (useStore.getState().masquerade.kind !== "inactive") {
       return this.fail("End the current masquerade before starting another.");
     }
