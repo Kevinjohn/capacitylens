@@ -63,7 +63,8 @@ function freshDb(): Db {
 
 function stateOf(db: Db, id: string): string | undefined {
   const row = db.prepare(`SELECT state FROM account_ownership_transfers WHERE id = ?`).get(id) as
-    { state: string } | undefined;
+    | { state: string }
+    | undefined;
   return row?.state;
 }
 
@@ -383,10 +384,24 @@ describe("retention and erasure", () => {
       nomination({ id: "ot-recent", state: "completed", terminalAt: justInside, terminalReason: null }),
     );
 
-    expect(sweepExpiredHistory(db, now)).toBe(1);
+    // Another company's equally stale row: the sweep runs inside ONE workspace's mutation lock, so
+    // it must not reach outside it however far past the retention window the other row is.
+    insertRequest(
+      db,
+      nomination({
+        id: "ot-other",
+        accountId: STARK,
+        state: "declined",
+        terminalAt: longAgo,
+        terminalReason: "target_declined",
+      }),
+    );
+
+    expect(sweepExpiredHistory(db, WAYNE, now)).toBe(1);
     expect(stateOf(db, "ot-stale")).toBeUndefined();
     expect(stateOf(db, "ot-recent")).toBe("completed");
     expect(stateOf(db, "ot-1")).toBe("awaiting_target");
+    expect(stateOf(db, "ot-other")).toBe("declined");
     db.close();
   });
 
