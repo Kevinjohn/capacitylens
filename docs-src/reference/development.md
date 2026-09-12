@@ -39,6 +39,39 @@ pnpm run dev:demo   # web :5173, editable in-memory data, resets on reload
 pnpm run dev:access # isolated password-auth role lab: API :8897 + web :5473
 ```
 
+Those are the lane-0 ports — what a single checkout binds. See [Port lanes](#port-lanes) for what
+happens when several checkouts run at once.
+
+### Port lanes {#port-lanes}
+
+Every local server takes its port from a *lane*: an integer from 0 to 9 that one run holds for its
+duration. A port is `base + lane`, so lane 0 is the historical `5173`/`8787`/`4173` and ten
+concurrent worktrees never collide.
+
+`pnpm run dev`, `preview`, `test`, `gate`, `gate:server`, `e2e` and the documentation servers all
+run through `scripts/with-lane.mjs`, which claims a lane before the command starts and releases it
+after. Configuration files only read the resolved lane, so there is nothing to pass by hand:
+
+```bash
+pnpm run e2e              # claims the lowest free lane, prints which
+CAPACITYLENS_PORT_LANE=4 pnpm run e2e   # pin a lane (CI pins 0)
+```
+
+The claim also reserves a share of the machine's CPUs and passes it to Vitest and Playwright as a
+worker count, so ten concurrent runs divide the cores instead of each assuming it owns them. A run
+that arrives when the pool is empty still gets one worker — nothing queues.
+
+Two deliberate exceptions:
+
+- `pnpm run e2e:oidc` and `pnpm run dev:access` keep fixed ports, because the dex container pins its
+  issuer and callback. They share one lock, so they are single-flight machine-wide and exclude each
+  other; starting one while the other runs fails immediately with that explanation.
+- Documentation screenshots are captured by hand on `:5199`, which no automated run binds.
+
+If a lane's port is still held when a run claims it, the launcher clears the process only when it
+belongs to this worktree. Anything else is reported by pid and the run stops, rather than killing
+another checkout's server.
+
 An empty `VITE_CAPACITYLENS_API` means same-origin server mode. A non-empty value must be
 an absolute HTTP(S) origin with no credentials, path, query or fragment; surrounding
 whitespace and a trailing slash are normalized. Only `VITE_CAPACITYLENS_DEMO=1` selects the
@@ -80,8 +113,8 @@ Never use these fictional credentials on a real installation.
 3. Compare the sidebar role badge, **Team & access**, edit affordances, private names and
    time-off note against the [roles and permissions
    table](/getting-started/roles-and-permissions). Stop the command with Ctrl-C before
-   running auth-backed Playwright; the automated suite deliberately owns different ports
-   and a separate database.
+   running auth-backed Playwright; the access lab is single-flight on fixed ports, outside
+   the lane system, and keeps a separate database.
 
 Useful automated counterparts are:
 

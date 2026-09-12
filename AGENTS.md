@@ -179,8 +179,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   This permission does not authorise unrelated uploads or change an explicit instruction to leave
   pull requests unmerged.
 - Documentation screenshots have no capture harness. Capture manually against the demo
-  (`VITE_CAPACITYLENS_DEMO=1 pnpm exec vite --port 5199 --strictPort`) — never port 5173, which
-  `playwright.config.ts` hardcodes, so a capture run there collides with any concurrent E2E run.
+  (`VITE_CAPACITYLENS_DEMO=1 pnpm exec vite --port 5199 --strictPort`) — never a lane port such as
+  5173, which a concurrent E2E run may be using.
   Keep throwaway capture scripts in a scratch directory and out of the commit.
 - Capture screenshots only after every UI change in the batch has landed, and open every changed
   image before merging: a stale capture is a valid image of UI that no longer exists, and no test
@@ -261,8 +261,12 @@ validation failures.
 - The full validation suites compete for the same machine. Run them concurrently only in
   combinations that do not starve each other. Failures in untouched files can still be regressions
   through changed dependencies. Treat contention as a hypothesis; obtain evidence or rerun in
-  isolation before discounting a failure. Run only one E2E suite at a time across worktrees because
-  it binds fixed ports.
+  isolation before discounting a failure. Concurrent runs share the machine through port lanes:
+  `pnpm run e2e`, `gate`, `gate:server`, `test`, `dev` and the documentation servers claim a lane
+  (and a CPU share) through `scripts/with-lane.mjs`, so up to ten worktrees can run at once without
+  colliding or oversubscribing. `pnpm run e2e:oidc` and `pnpm run dev:access` are the exceptions:
+  they keep fixed ports and are single-flight machine-wide. Never hardcode a port in a file that
+  binds or addresses one — `pnpm run policy:ports` names the files that must derive theirs.
 
 ## Green gate
 

@@ -12,6 +12,14 @@ new features and **patch** versions carry fixes.
 - Scale Overview capacity bars against the company working days in each column, so people with
   different working patterns remain visually comparable (#890).
 
+### Changed
+
+- Local development and test servers now take their ports from a lane claimed for the duration of
+  each command, so several checkouts can run the suites at the same time without colliding on a
+  port or inheriting a crashed run's orphaned server. Each run also reserves a share of the
+  machine's CPUs, which stops concurrent runs from each assuming they own every core. A single
+  checkout keeps the ports it always had (#886).
+
 ## [0.67.0-alpha.1] - 2026-09-12
 
 ### Added

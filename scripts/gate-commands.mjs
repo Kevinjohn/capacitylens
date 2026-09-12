@@ -1,5 +1,7 @@
 const structuralChecks = [
   "policy:gate-runner:test",
+  "policy:ports",
+  "policy:ports:test",
   "policy:lint-coverage:test",
   "policy:server-script-lint:test",
   "policy:shared-environment:test",

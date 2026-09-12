@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "vitepress";
 import { imageLightbox } from "./lightbox.mts";
 import { BASE } from "./base.mjs";
+import { ports } from "../../scripts/ports.mjs";
 
 // The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
 // Sidebar order is the reading order: sections run from "never seen it" to
@@ -19,7 +20,17 @@ import { BASE } from "./base.mjs";
 // Read measured source at build time; the generated page still contains this one inline script.
 const escapeClosesLightbox = readFileSync(new URL("../../scripts/docs-lightbox.js", import.meta.url), "utf8").trimEnd();
 
+// VitePress is Vite, so `docs:dev` would default to 5173 and `docs:preview` to 4173 — the exact
+// ports the application dev server and the E2E suite bind. Writing documentation would then quietly
+// block a test run in another worktree, and the collision surfaces as an unrelated E2E failure.
+// Pin both to the documentation lane instead (scripts/ports.mjs).
+const lanePorts = ports();
+
 export default defineConfig({
+  vite: {
+    server: { port: lanePorts.docsDev, strictPort: true },
+    preview: { port: lanePorts.docsPreview, strictPort: true },
+  },
   head: [["script", { "data-cl-keep": "" }, escapeClosesLightbox]],
   title: "CapacityLens",
   description:
