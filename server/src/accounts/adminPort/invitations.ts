@@ -205,12 +205,28 @@ async function createInvitation(
     },
     replayGuard: () => {
       // Re-evaluate current authority before re-disclosing the cached write-once bearer token.
-      assertInvitationAuthority({ db, actor, requireMfa, trustedLocal, workspaceId, commandId: command.commandId });
+      assertInvitationAuthority({
+        db,
+        actor,
+        requireMfa,
+        trustedLocal,
+        workspaceId,
+        commandId: command.commandId,
+        requireFresh: false,
+      });
     },
     afterCommit: (invitation) => invitationSecretReplay.storeReserved(command.commandId, invitation),
     afterRollback: () => invitationSecretReplay.releaseReservation(command.commandId),
     execute: () => {
-      assertInvitationAuthority({ db, actor, requireMfa, trustedLocal, workspaceId, commandId: command.commandId });
+      assertInvitationAuthority({
+        db,
+        actor,
+        requireMfa,
+        trustedLocal,
+        workspaceId,
+        commandId: command.commandId,
+        requireFresh: false,
+      });
       return executeInvitationCreation(context, input);
     },
   });
@@ -229,7 +245,13 @@ async function revokeInvitation(context: InvitationsContext, input: InvitationIn
     audit: { action: "invitation.revoked", changedFields: ["invitation"] },
     afterCommit: () => invitationSecretReplay.deleteWhere((invitation) => invitation.id === invitationId),
     execute: () => {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+      assertAdministrativeAssurance({
+        actor,
+        requireMfa,
+        trustedLocal,
+        commandId: command.commandId,
+        requireFresh: false,
+      });
       assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
       const changed = listInvitesForAccount(db, workspaceId).some((invite) => invite.id === invitationId);
       revokeInvite(db, workspaceId, invitationId);

@@ -8,6 +8,8 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import { makeAccount, makeAllocation as makeAllocationBase, makeBar as makeBarBase } from "../../test/fixtures";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
+import { LAYOUT } from "./layout";
+import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData());
@@ -54,6 +56,26 @@ describe("AllocationBar rendering", () => {
     expect(el).toHaveTextContent("8h");
   });
 
+  // #786: a bar that began before the visible window used to carry its label off-screen with it.
+  // The bar publishes its own geometry and the label overlay clamps to the intersection of that
+  // geometry with the scroll container's viewport, so no bar needs its own scroll listener.
+  it("positions the label over the bar's visible portion rather than its start", () => {
+    const bar = makeBar(makeAllocation());
+
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+
+    const barElement = screen.getByTestId("allocation-bar");
+    expect(barElement.style.getPropertyValue("--bar-left")).toBe(`${LAYOUT.barInset}px`);
+    expect(barElement.style.getPropertyValue("--bar-width")).toBe(`${bar.width - LAYOUT.barInset * 2}px`);
+
+    const label = screen.getByTestId("allocation-bar-label");
+    const insets = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");
+    expect(label.style.left).toBe(insets.leading);
+    expect(label.style.right).toBe(insets.trailing);
+    // Centred within that clamped box, and inert so the resize grips underneath stay hittable.
+    expect(label).toHaveClass("justify-center", "pointer-events-none");
+  });
+
   it("shows the label from the bar object", () => {
     const allocation = makeAllocation();
     const bar = makeBar(allocation, "Sprint Planning");
@@ -95,6 +117,18 @@ describe("AllocationBar rendering", () => {
     expect(screen.getByTestId("allocation-popover")).toHaveTextContent("Series through 31 Aug");
     expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(/series through 31 Aug/i);
   });
+  it("carries the year on every date in the name once the booking crosses one", () => {
+    const bar = makeBar(makeAllocation({ seriesId: "series-1", startDate: "2026-12-28", endDate: "2027-01-08" }));
+    bar.seriesEnd = "2027-03-02";
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+
+    // The series end is measured against the booking's START — the earliest date in the label — so
+    // it cannot be the one bare date among dated ones and be heard as ending before the booking
+    // begins.
+    expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(/28 Dec 2026 to 8 Jan 2027/i);
+    expect(screen.getByTestId("allocation-bar")).toHaveAccessibleName(/series through 2 Mar 2027/i);
+  });
+
   registerAllocationBarRenderingModeTests();
 });
 
