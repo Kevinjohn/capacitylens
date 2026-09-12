@@ -201,12 +201,15 @@ CapacityLens has no "snapshot now" button. It writes a verified snapshot into
 `CAPACITYLENS_BACKUP_DIR` when the API starts, and again every
 `CAPACITYLENS_BACKUP_INTERVAL_MIN` minutes. Use one of these:
 
-**Restart the API.** A restart writes a snapshot immediately, before it serves any traffic. This is
-the simplest method and it costs the same few seconds of downtime the deployment will cost anyway:
+**Restart the API.** A restart begins the asynchronous snapshot attempt. This is the simplest method
+and it costs the same few seconds of downtime the deployment will cost anyway:
 
 ```bash
 sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf restart 'daemon-1234567:*'
 ```
+
+Wait for the attempt to finish, then confirm the backup directory contains the new verified file
+before relying on it.
 
 **Or take the latest scheduled snapshot.** If the newest file is only minutes old and nothing
 important has been written since, it is already a valid restore point.
