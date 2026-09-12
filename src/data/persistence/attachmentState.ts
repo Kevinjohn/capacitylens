@@ -29,6 +29,7 @@ interface AttachmentValues {
   terminalBatchSnapshot: AppData | null;
   resolvingAuthoritativeReload: boolean;
   authoritativeReloadRequiredFor: string | null;
+  failedAccountLoadBase: AppData | null;
   inFlightSave: Promise<void> | null;
   suspendDepth: number;
   externalSuspendDepth: number;
@@ -56,6 +57,7 @@ function createAttachmentValues(store: StoreApi<StoreState>): AttachmentValues {
     terminalBatchSnapshot: null,
     resolvingAuthoritativeReload: false,
     authoritativeReloadRequiredFor: null,
+    failedAccountLoadBase: null,
     inFlightSave: null,
     suspendDepth: 0,
     externalSuspendDepth: 0,
@@ -174,6 +176,8 @@ class AttachmentOwner {
     if (external) this.values.externalSuspendDepth -= 1;
     if (this.values.suspendDepth > 0) return;
     setPersistenceSuspended(false);
+    const state = this.store.getState();
+    if (state.activeAccountLoadFailed !== null && state.activeAccountLoadFailed === state.activeAccountId) return;
     if (!this.values.pending) {
       this.clearExternalState();
       if (this.values.failedSinceSuccess && this.values.authoritativeReloadRequiredFor === null) writes.scheduleRetry();

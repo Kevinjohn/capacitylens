@@ -63,6 +63,57 @@ function recordingAccountSwitchAdapter() {
 }
 
 describe("account-switch orchestrator (P1.13, server mode)", () => {
+  it("keeps an edit parked when the selected account load rejects", async () => {
+    vi.useFakeTimers();
+    try {
+      const { aSlice, bSlice } = accountSwitchSlices();
+      let rejectB!: (error: Error) => void;
+      const loadAll = vi
+        .fn<(accountId?: string) => Promise<AppData>>()
+        .mockResolvedValueOnce(aSlice)
+        .mockImplementationOnce(
+          () =>
+            new Promise<AppData>((_resolve, reject) => {
+              rejectB = reject;
+            }),
+        )
+        .mockResolvedValueOnce(bSlice);
+      const saveAll = vi.fn().mockResolvedValue(undefined);
+      useStore.getState().replaceAll(emptyAppData());
+      useStore.getState().setActiveAccount(null);
+      useStore.getState().setAccountSummaries([
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ]);
+      const detach = attachPersistence({
+        store: useStore,
+        adapter: { loadAll, saveAll },
+        debounceMs: 0,
+        onError: vi.fn(),
+        serverMode: true,
+      });
+
+      await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+      const switching = switchAndAwaitHydration("b1");
+      await vi.advanceTimersByTimeAsync(0);
+      const edit = useStore.getState().addClient({ name: "Parked for B", color: "#222222" });
+      rejectB(new Error("B unavailable"));
+      await expect(switching).resolves.toEqual({ kind: "failed" });
+      await vi.advanceTimersByTimeAsync(31_000);
+
+      expect(useStore.getState().activeAccountLoadFailed).toBe("b1");
+      expect(saveAll).not.toHaveBeenCalled();
+
+      await expect(retryActiveAccountLoad("b1")).resolves.toEqual({ kind: "reloaded" });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb", edit.id]);
+      expect(saveAll).toHaveBeenCalledTimes(1);
+      detach();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("blocks writes after a failed switch hydration and recovers through an explicit retry", async () => {
     const { aSlice, bSlice } = accountSwitchSlices();
     const loadAll = vi

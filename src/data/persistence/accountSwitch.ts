@@ -68,13 +68,10 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
           })();
           return;
         }
-        void refreshActive(newId).then((outcome) => {
+        void refreshActive(newId, { markAccountLoadFailure: true }).then((outcome) => {
           // A successful company switch just loaded this same slice. Count it as a refresh so a
           // focus event delivered by the picker transition cannot immediately load it again.
           if (outcome.kind === "reloaded") owner.update({ lastRefreshAt: Date.now() });
-          if (outcome.kind === "failed" && store.getState().activeAccountId === newId) {
-            store.setState({ activeAccountLoadFailed: newId });
-          }
           settleSwitch(newId, outcome);
         });
       })
