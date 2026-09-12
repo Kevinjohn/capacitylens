@@ -216,7 +216,7 @@ function WeekValuesCell({
       {showBar && (
         <CapacityBarFillLayer
           fill={computeCapacityBarFill({
-            availableHours: result.availableHours,
+            companyWorkingHours: result.companyWorkingHours,
             freeHours: result.freeHours,
             overHours: result.overHours,
           })}

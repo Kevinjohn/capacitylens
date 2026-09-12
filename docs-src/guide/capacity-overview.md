@@ -44,12 +44,16 @@ figures for every week.
 
 **Number** starts selected and shows each week's figures as text, as described above. Switch to
 **Bar** to see a person's free capacity as a fill that grows from the bottom of the cell,
-proportioned against that person's own availability for the week — a 3-day-a-week person who is
-fully free shows a full bar. Green fill shows free capacity; red fill shows overbooking, capped at
-a full cell. A person with nothing to show, including someone fully booked or with no availability
-that week, keeps a plain grey cell. **Bar & number** shows the fill and the figures together. The
-underlying value stays available to assistive technology in every mode. Group header totals and
-unassigned-demand rows always show figures only; the bar never applies to them.
+proportioned against the company working days in that column. For a five-day company week, four
+free days fill 80% of the cell and 1.5 free days fill 30%. This makes people with different working
+patterns directly comparable: a fully free three-day person fills 60%, not the whole cell. The
+first column uses only the company working days remaining between today and the week end.
+
+Green fill shows free capacity; red fill shows overbooking, capped at a full cell. A person with
+nothing to show, including someone fully booked or with no availability that week, keeps a plain
+grey cell. **Bar & number** shows the fill and the figures together. The underlying value stays
+available to assistive technology in every mode. Group header totals and unassigned-demand rows
+always show figures only; the bar never applies to them.
 
 Companies using Blocks mode see an explanation because Blocks do not measure capacity. Switch to
 Hours or Days in **Settings** to use the overview.
