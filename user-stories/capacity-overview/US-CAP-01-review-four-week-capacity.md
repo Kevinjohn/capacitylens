@@ -29,6 +29,8 @@ the schedule.
 ## Acceptance criteria
 
 - ✅ The first column runs from today through the company's week end; three full weeks follow.
+- ✅ Week headings remain compact at a year boundary (for example, `28 Dec – 3 Jan`) while the
+  ordered columns keep the dates' calendar context clear.
 - ✅ Active Studio and Supplementary people appear in Schedule order; external and inactive people do not.
 - ✅ Fully booked and unavailable periods appear as muted dashes so available capacity is easy to scan.
 - ✅ Placeholder allocations appear as separate unassigned demand when placeholders are enabled.
