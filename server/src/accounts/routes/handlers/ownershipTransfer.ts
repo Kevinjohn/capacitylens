@@ -1,4 +1,3 @@
-import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type {
   OwnershipTransferOutcome,
   OwnershipTransferRequest,
@@ -6,6 +5,7 @@ import type {
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountRouteContext } from "../createReplyHelpers";
+import { requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
 
 /**
  * The HTTP adapter for the three-step ownership transfer ceremony.
@@ -31,19 +31,6 @@ function toWire(request: OwnershipTransferRequest) {
     terminalAt: request.terminalAt,
     terminalReason: request.terminalReason,
   };
-}
-
-function createAuthenticationRequiredError() {
-  return new AccountContractError({
-    code: "AUTHENTICATION_REQUIRED",
-    message: "Sign in to continue.",
-    retryable: false,
-  });
-}
-
-function requireAuthenticatedPrincipal(req: FastifyRequest) {
-  if (!req.accountActor || !req.user) throw createAuthenticationRequiredError();
-  return { actor: req.accountActor, user: req.user };
 }
 
 /**

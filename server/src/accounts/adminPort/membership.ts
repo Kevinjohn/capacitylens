@@ -1,5 +1,4 @@
 import { canChangeMemberStatus, canManageMemberRole, canRemoveMember } from "@capacitylens/shared/account/policy";
-import type { OwnershipTransfer } from "@capacitylens/shared/account/types";
 import {
   getActiveMemberRole,
   getMembershipRow,
@@ -257,7 +256,7 @@ export function exchangeOwnershipInTx({
   previousOwnerId,
   nextOwnerId,
   now,
-}: ExchangeOwnershipInput): OwnershipTransfer {
+}: ExchangeOwnershipInput): void {
   // "keep": these two writes ARE the ceremony completing, so they must not invalidate the request
   // they are applying. Every other membership write ends a live nomination naming its principal.
   upsertMember(
@@ -270,10 +269,6 @@ export function exchangeOwnershipInTx({
     { accountId: workspaceId, userId: nextOwnerId, role: "owner", status: "active", createdAt: now },
     "keep",
   );
-  return {
-    previousOwner: readMembership(db, readRequiredMembership(db, previousOwnerId, workspaceId)),
-    nextOwner: readMembership(db, readRequiredMembership(db, nextOwnerId, workspaceId)),
-  };
 }
 
 export function createMembership(context: MembershipContext): MembershipPort {

@@ -1,30 +1,8 @@
-import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import type { AccountRouteContext } from "../createReplyHelpers";
-
-function createAuthenticationRequiredError() {
-  return new AccountContractError({
-    code: "AUTHENTICATION_REQUIRED",
-    message: "Sign in to continue.",
-    retryable: false,
-  });
-}
-
-function requireAccountActor(req: FastifyRequest) {
-  if (!req.accountActor) throw createAuthenticationRequiredError();
-  return req.accountActor;
-}
-
-function requireAuthenticatedUser(req: FastifyRequest) {
-  if (!req.user) throw createAuthenticationRequiredError();
-  return req.user;
-}
-
-function requireAuthenticatedPrincipal(req: FastifyRequest) {
-  return { actor: requireAccountActor(req), user: requireAuthenticatedUser(req) };
-}
+import { requireAccountActor, requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
 
 export async function listMembers(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
