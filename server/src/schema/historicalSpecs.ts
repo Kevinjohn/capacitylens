@@ -67,7 +67,8 @@ const V29_ACCOUNTS: TableSpec = {
       column.name !== "groupResourcesByEngagement" &&
       column.name !== "workingDays" &&
       column.name !== "showTaskFieldInSchedule" &&
-      column.name !== "capacityOverviewAccess",
+      column.name !== "capacityOverviewAccess" &&
+      column.name !== "dateStyle",
   ),
 };
 const V30_ACCOUNTS: TableSpec = {
@@ -76,7 +77,8 @@ const V30_ACCOUNTS: TableSpec = {
     (column) =>
       column.name !== "workingDays" &&
       column.name !== "showTaskFieldInSchedule" &&
-      column.name !== "capacityOverviewAccess",
+      column.name !== "capacityOverviewAccess" &&
+      column.name !== "dateStyle",
   ),
 };
 const PRE_V35_ALLOCATIONS: TableSpec = {
@@ -106,7 +108,10 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
   accounts: {
     ...liveTableSpec("accounts"),
     columns: liveTableSpec("accounts").columns.filter(
-      (column) => column.name !== "showTaskFieldInSchedule" && column.name !== "capacityOverviewAccess",
+      (column) =>
+        column.name !== "showTaskFieldInSchedule" &&
+        column.name !== "capacityOverviewAccess" &&
+        column.name !== "dateStyle",
     ),
   },
   allocations: {
@@ -127,7 +132,9 @@ export const V37_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: {
     ...liveTableSpec("accounts"),
-    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "capacityOverviewAccess"),
+    columns: liveTableSpec("accounts").columns.filter(
+      (column) => column.name !== "capacityOverviewAccess" && column.name !== "dateStyle",
+    ),
   },
   resources: {
     ...liveTableSpec("resources"),
@@ -141,7 +148,17 @@ export const V38_TABLES: Record<string, TableSpec> = {
   ...TABLES,
   accounts: {
     ...liveTableSpec("accounts"),
-    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "capacityOverviewAccess"),
+    columns: liveTableSpec("accounts").columns.filter(
+      (column) => column.name !== "capacityOverviewAccess" && column.name !== "dateStyle",
+    ),
+  },
+};
+/** Released v39 shape before the account-wide date format is added. */
+export const V39_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: {
+    ...liveTableSpec("accounts"),
+    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "dateStyle"),
   },
 };
 const PRE_V34_TABLES = Object.fromEntries(
