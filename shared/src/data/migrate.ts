@@ -73,12 +73,16 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
 
 // Guards against a migration step being added without bumping EXPORT_SCHEMA_VERSION to match (or
 // vice versa): the last POST_REPAIR_BASE_STEPS version is the ceiling migrate() can bring data up to.
+// This is a development-time mistake, not a runtime condition, but it must never throw merely from
+// IMPORTING this module (shared/data/migrate is on the app's entry graph, before any error boundary
+// exists — see migrate.test.ts). The mismatch is instead asserted lazily, the first time migrate()
+// actually runs, and covered directly by a dedicated test so CI catches it regardless of whether any
+// other test happens to call migrate().
 const lastPostRepairBaseVersion = POST_REPAIR_BASE_STEPS[POST_REPAIR_BASE_STEPS.length - 1]?.version;
-if (lastPostRepairBaseVersion !== EXPORT_SCHEMA_VERSION) {
-  throw new Error(
-    `migrate.ts: last POST_REPAIR_BASE_STEPS version (${String(lastPostRepairBaseVersion)}) must equal EXPORT_SCHEMA_VERSION (${EXPORT_SCHEMA_VERSION}).`,
-  );
-}
+const postRepairBaseVersionMismatch =
+  lastPostRepairBaseVersion !== EXPORT_SCHEMA_VERSION
+    ? `migrate.ts: last POST_REPAIR_BASE_STEPS version (${String(lastPostRepairBaseVersion)}) must equal EXPORT_SCHEMA_VERSION (${EXPORT_SCHEMA_VERSION}).`
+    : undefined;
 
 export interface MigrationWithRepairBase {
   /** Fully migrated and repaired data presented to the application. */
@@ -93,6 +97,11 @@ export interface MigrationWithRepairBase {
  * local persistence callers should continue to use {@link migrate}.
  */
 export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
+  // Runtime half of the invariant above: cheap to check on every call, and it stops corrupt
+  // migration output reaching a caller instead of merely being caught by CI later.
+  if (postRepairBaseVersionMismatch) {
+    throw new Error(postRepairBaseVersionMismatch);
+  }
   if (!raw || typeof raw !== "object") {
     const empty = emptyAppData();
     return { data: empty, repairBase: empty };
