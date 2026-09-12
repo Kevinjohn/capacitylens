@@ -370,6 +370,8 @@ describe("ownership transfer ceremony port: staying readable and unblocked", () 
     expect(expiries).toHaveLength(1);
     expect(expiries[0]?.outcome).toBe("success");
     expect(expiries[0]?.id).toContain(`:${stale.request.id}`);
+    // The event names the nominee of the request that ENDED, not the person being nominated now.
+    expect(expiries[0]?.targetPrincipalId).toBe(target.principalId);
   });
 });
 
