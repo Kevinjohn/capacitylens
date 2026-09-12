@@ -7,12 +7,24 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.66.0-alpha.1] - 2026-09-12
+
 ### Fixed
 
 - Keep an allocation's length when it is dragged to someone with different working days: the
   duration is now measured against the working week it came from and re-placed in the new one,
   so a two-day booking stays two days instead of being re-read against the destination's calendar.
   The drag preview shows the resulting length before release (#338).
+
+### Added
+
+- Add a **Show totals** / **Hide totals** toggle to the Overview toolbar, hiding group header
+  figures by default (#794).
+- Add a **Bar** / **Bar & number** / **Number** capacity display toggle to the Overview toolbar,
+  filling each cell from the bottom with free (green) or overbooked (red) capacity proportioned
+  against that week's own availability (#795).
+- Open a person's read-only schedule drawer from their avatar on Overview rows, using the same
+  hover/focus-to-eye trigger and 28-day drawer as the Schedule (#790).
 
 ### Changed
 
@@ -120,13 +132,6 @@ new features and **patch** versions carry fixes.
   manually triggered workflow (#752).
 - Review free capacity, overload and unassigned demand across a fixed four-week Capacity Overview,
   with tentative and availability filters plus company-controlled role access (#722).
-- Add a **Show totals** / **Hide totals** toggle to the Overview toolbar, hiding group header
-  figures by default (#794).
-- Add a **Bar** / **Bar & number** / **Number** capacity display toggle to the Overview toolbar,
-  filling each cell from the bottom with free (green) or overbooked (red) capacity proportioned
-  against that week's own availability (#795).
-- Open a person's read-only schedule drawer from their avatar on Overview rows, using the same
-  hover/focus-to-eye trigger and 28-day drawer as the Schedule (#790).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is
   hidden and task details above Notes in schedule popovers and person drawers (#720).
 - Add optional inclusive **Start date** and **End date** fields for Studio and
@@ -4342,7 +4347,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.65.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.66.0-alpha.1...HEAD
+[0.66.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.65.0-alpha.1...v0.66.0-alpha.1
 [0.65.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.64.1-alpha.1...v0.65.0-alpha.1
 [0.64.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.64.0-alpha.1...v0.64.1-alpha.1
 [0.64.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...v0.64.0-alpha.1
