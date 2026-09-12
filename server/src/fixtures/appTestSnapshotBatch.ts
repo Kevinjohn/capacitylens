@@ -246,6 +246,15 @@ export function readValidatedStateValue(value: unknown): ValidatedStateResponse 
   };
 }
 
+/** Fetch and validate the whole state document. This lives beside its validator rather than in
+ *  `appTestHttp`, which would otherwise have to import from here and close an import cycle. */
+export const state = async (app: FastifyInstance) => {
+  // Generic account creation now guarantees its required Internal client. Most legacy CRUD tests
+  // predate that invariant and reason about the regular clients they explicitly create. The exact
+  // state validator retains that view by filtering rows whose validated builtin flag is true.
+  return readValidatedStateValue((await call(app, { method: "GET", url: "/api/state" })).json());
+};
+
 export function readSuccessfulStateResponse(response: LightMyRequestResponse): {
   state: ValidatedStateResponse;
   value: unknown;
