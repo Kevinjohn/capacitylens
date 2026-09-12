@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 import test from "node:test";
 import ts from "typescript";
 
@@ -12,18 +13,40 @@ function readConfig(path) {
   return result.config;
 }
 
-test("the root solution references every typechecked project", () => {
-  const references = readConfig("tsconfig.json").references.map(({ path }) => path);
-  assert.deepEqual(references.sort(), [
-    "./shared/tsconfig.json",
-    "./shared/tsconfig.test.json",
-    "./tsconfig.app.json",
-    "./tsconfig.e2e.json",
-    "./tsconfig.node.json",
-  ]);
+function parseConfig(path) {
+  const filePath = `${root}${path}`;
+  const result = ts.readConfigFile(filePath, ts.sys.readFile);
+  assert.equal(result.error, undefined);
+  const parsed = ts.parseJsonConfigFileContent(result.config, ts.sys, dirname(filePath), {}, filePath);
+  assert.deepEqual(parsed.errors, [], path);
+  return parsed;
+}
+
+const referencedProjects = [
+  "./shared/tsconfig.json",
+  "./shared/tsconfig.test.json",
+  "./tsconfig.app.json",
+  "./tsconfig.e2e.json",
+  "./tsconfig.node.json",
+];
+
+test("the root solution has exactly the five intended typecheck projects", () => {
+  const solution = readConfig("tsconfig.json");
+  assert.deepEqual(solution.files, []);
+  assert.deepEqual(
+    solution.references.map(({ path }) => path),
+    [
+      "./shared/tsconfig.json",
+      "./shared/tsconfig.test.json",
+      "./tsconfig.app.json",
+      "./tsconfig.e2e.json",
+      "./tsconfig.node.json",
+    ],
+  );
 });
 
-test("the referenced projects retain their distinct compiler environments", () => {
+test("each referenced project has inputs and retains its declared compiler environment", () => {
+  for (const path of referencedProjects) assert.ok(parseConfig(path).fileNames.length > 0, path);
   assert.deepEqual(readConfig("tsconfig.app.json").compilerOptions.types, ["vite/client"]);
   assert.deepEqual(readConfig("tsconfig.app.json").compilerOptions.lib, ["ES2023", "DOM", "DOM.Iterable"]);
   assert.deepEqual(readConfig("tsconfig.node.json").compilerOptions.types, ["node"]);
