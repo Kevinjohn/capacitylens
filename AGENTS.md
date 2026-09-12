@@ -105,8 +105,9 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   do not change when a display name does. `Northwind Identity`, the fictional identity provider in
   `docs-src/company-login/`, is deliberately outside this scheme.
 - Forms reject invalid input; import/server sanitise and repair. Server imports are atomic.
-- Device preferences are not account data. Offline snapshots are opt-in, seven-day and read-only;
-  never add queued offline writes.
+- Device preferences are not account data; the date format is the deliberate exception, because a
+  company reads one convention (see `DECISIONS.md`). Offline snapshots are opt-in, seven-day and
+  read-only; never add queued offline writes.
 - Surface errors. No empty catches on a data path. Follow `DEFENSIVE-CODING.md`.
 - New fields flow through shared types → full fixtures → server columns → explicit SQLite migration
   → sanitisation. Keep `EXPORT_SCHEMA_VERSION` and `DB_SCHEMA_VERSION` independent; retain every
