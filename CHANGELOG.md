@@ -9,6 +9,12 @@ new features and **patch** versions carry fixes.
 
 ## [0.65.0-alpha.1] - 2026-09-12
 
+### Fixed
+
+- Restore importing and exporting after the account date-format change: the export schema version
+  had moved ahead of the migration steps, so every import and export failed with an internal
+  migration message (#866).
+
 ### Changed
 
 - The date format is a company setting rather than a per-browser one, so everyone in an account
