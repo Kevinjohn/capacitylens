@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Release an ownership-transfer step's retry handle (accept, withdraw, decline, cancel or complete)
+  once the server reports that request already reached a terminal outcome, instead of letting a
+  retry with the same identity replay the earlier terminal receipt (#908).
 - Allow migration rehearsal copies to anonymise federated provider bindings when several
   applications use the same provider identifier (#904).
 - Make the bare-metal installation select Node from the repository's `.nvmrc`, then run the
