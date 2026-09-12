@@ -3,13 +3,30 @@ import { spawnSync } from "node:child_process";
 import { basename, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+const TEST_FILE_PATTERN = /\.(test|spec)\./;
+
 export function countLines(content) {
   if (content === "") return 0;
   return content.split(/\r?\n/).length - (content.endsWith("\n") ? 1 : 0);
 }
 
+function isTestFile(path) {
+  return TEST_FILE_PATTERN.test(basename(path));
+}
+
+function ceilingForPath(path, config) {
+  if (!isTestFile(path)) return config.ceiling;
+  if (!Number.isFinite(config.testCeiling)) {
+    throw new Error("testCeiling must be a finite number when test files are checked.");
+  }
+  return config.testCeiling;
+}
+
 // files contains repository-relative paths and source contents; no disk access here.
 export function evaluateFileSizes(files, config) {
+  if (files.some(({ path }) => isTestFile(path)) && !Number.isFinite(config.testCeiling)) {
+    throw new Error("testCeiling must be a finite number when test files are checked.");
+  }
   const sizes = new Map(files.map(({ path, content }) => [path, countLines(content)]));
   const permanent = new Set(config.permanent.map(({ path }) => path));
   const temporary = new Set(config.temporary.map(({ path }) => path));
@@ -22,15 +39,19 @@ export function evaluateFileSizes(files, config) {
     const lines = sizes.get(path);
     if (lines === undefined) {
       errors.push(`${path}: stale, remove entry (file missing).`);
-    } else if (lines <= config.ceiling) {
-      errors.push(`${path}: stale, remove entry (${lines} lines, ceiling ${config.ceiling}).`);
-    } else if (lines > baseline) {
-      errors.push(`${path}: raised to ${lines} lines above baseline ${baseline}.`);
+    } else {
+      const ceiling = ceilingForPath(path, config);
+      if (lines <= ceiling) {
+        errors.push(`${path}: stale, remove entry (${lines} lines, ceiling ${ceiling}).`);
+      } else if (lines > baseline) {
+        errors.push(`${path}: raised to ${lines} lines above baseline ${baseline}.`);
+      }
     }
   }
   for (const [path, lines] of sizes) {
-    if (lines > config.ceiling && !permanent.has(path) && !temporary.has(path)) {
-      errors.push(`${path}: ${lines} lines exceeds ceiling ${config.ceiling}; no exception listed.`);
+    const ceiling = ceilingForPath(path, config);
+    if (lines > ceiling && !permanent.has(path) && !temporary.has(path)) {
+      errors.push(`${path}: ${lines} lines exceeds ceiling ${ceiling}; no exception listed.`);
     }
   }
   return { valid: errors.length === 0, errors };
@@ -48,7 +69,6 @@ export function collectSourceFiles(root) {
     .filter(
       (path) =>
         /\.tsx?$/.test(path) &&
-        !/\.(test|spec)\./.test(basename(path)) &&
         !path.endsWith(".d.ts") &&
         !path.startsWith("src/paraglide/") &&
         !/(?:^|\/)(?:node_modules|e2e)\//.test(path),
@@ -90,7 +110,7 @@ function main() {
     const result = evaluateFileSizes(files, config);
     if (result.valid) {
       console.log(
-        `File-size check passed: ${files.length} source files, ceiling ${config.ceiling}, ${config.temporary.length} temporary exceptions.`,
+        `File-size check passed: ${files.length} source files, ceiling ${config.ceiling}, test ceiling ${config.testCeiling}, ${config.temporary.length} temporary exceptions.`,
       );
     } else {
       for (const error of result.errors) console.error(error);
