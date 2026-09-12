@@ -31,11 +31,6 @@ export const LAYOUT = {
   groupHeaderHeight: 30,
 };
 
-export interface AllocationBarInset {
-  insetLeft: number;
-  insetWidth: number;
-}
-
 /**
  * Resolve the rendered allocation-bar geometry inside its raw column span.
  *
@@ -43,7 +38,7 @@ export interface AllocationBarInset {
  * this calculation beside the scheduler's fixed geometry gives production and interaction tests
  * one owner for the bar's visual width and left edge.
  */
-export function buildAllocationBarInset(left: number, width: number): AllocationBarInset {
+export function buildAllocationBarInset(left: number, width: number) {
   const inset = Math.min(LAYOUT.barInset, width / 3);
   return { insetLeft: left + inset, insetWidth: Math.max(1, width - inset * 2) };
 }
