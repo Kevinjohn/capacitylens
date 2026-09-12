@@ -75,7 +75,10 @@ async function readCeremony(accountId: string): Promise<CeremonyRead> {
       members: directory.kind === "ok" ? directory.value.members : null,
       error: projection.kind === "ok" ? null : m.ownership_transfer_read_failed(),
     };
-  } catch {
+  } catch (cause) {
+    // Offline, a dropped connection, the request timeout aborting. The user gets one sentence; the
+    // operator needs the reason, because "it can't load" alone cannot tell them which of those it is.
+    console.error("OwnershipTransferCard: ceremony read failed", cause);
     return { projection: null, members: null, error: m.ownership_transfer_read_failed() };
   }
 }
@@ -90,34 +93,55 @@ function mergeCeremonyRead(previous: OwnershipTransferReadState, next: CeremonyR
 }
 
 /**
- * Which company the card is showing RIGHT NOW.
+ * Is the answer we are holding still the one the card asked for LAST?
  *
  * Every answer this hook waits for — the first read, a command, the re-read that follows it — can
- * outlive the company that asked for it. Applying a late answer would put one company's ceremony,
- * and the two people it names, on another company's screen, so each answer is checked against the
- * company still on screen before it is merged.
+ * be overtaken. Comparing companies is not enough: two reads of the SAME company can resolve out of
+ * order, and applying the older one puts a nomination back on screen that has already been accepted,
+ * with a revision every later click would be refused for. A counter answers both cases.
  */
-function useShownAccount(accountId: string | null): (candidate: string) => boolean {
-  const shown = useRef(accountId);
-  useEffect(() => {
-    shown.current = accountId;
-  }, [accountId]);
-  return useCallback((candidate: string) => shown.current === candidate, []);
+function useLatestRead(): () => () => boolean {
+  const issued = useRef(0);
+  return useCallback(() => {
+    const mine = ++issued.current;
+    return () => issued.current === mine;
+  }, []);
 }
 
-/** Keep the card's projection in step with the company it is showing. */
-function useCeremonyRead(
-  accountId: string | null,
-  isShown: (candidate: string) => boolean,
-  apply: Dispatch<SetStateAction<OwnershipTransferReadState>>,
-): void {
+const EMPTY_STATE: OwnershipTransferReadState = {
+  projection: null,
+  members: EMPTY_MEMBERS,
+  busy: false,
+  error: null,
+};
+
+/**
+ * Keep the card's projection in step with the company it is showing.
+ *
+ * Changing company empties the card FIRST, before the new read lands. Merging keeps what the server
+ * last said, which is right within one company and wrong across two: it would leave one company's
+ * nomination, and the two people it names, on another company's screen if the new read failed.
+ */
+interface CeremonyReadInput {
+  accountId: string | null;
+  beginRead: () => () => boolean;
+  apply: Dispatch<SetStateAction<OwnershipTransferReadState>>;
+  forgetOutcome: (outcome: OwnershipTransferOutcomeView | null) => void;
+}
+
+function useCeremonyRead({ accountId, beginRead, apply, forgetOutcome }: CeremonyReadInput): void {
   useEffect(() => {
+    const isLatest = beginRead();
+    apply(EMPTY_STATE);
+    // The explanation of a command's outcome belongs to the company it happened in, and to nobody
+    // else's team page.
+    forgetOutcome(null);
     if (!accountId) return;
     void (async () => {
       const next = await readCeremony(accountId);
-      if (isShown(accountId)) apply((previous) => mergeCeremonyRead(previous, next));
+      if (isLatest()) apply((previous) => mergeCeremonyRead(previous, next));
     })();
-  }, [accountId, isShown, apply]);
+  }, [accountId, beginRead, apply, forgetOutcome]);
 }
 
 /**
@@ -140,7 +164,10 @@ async function submit(
       return null;
     }
     return resolveRejectionMessage(result, m.ownership_transfer_command_failed());
-  } catch {
+  } catch (cause) {
+    // A request that never came back may still have been applied, so the reason matters: this is the
+    // one failure the user is told about without the server having said anything.
+    console.error("OwnershipTransferCard: ceremony command failed", cause);
     return m.ownership_transfer_command_failed();
   }
 }
@@ -149,16 +176,11 @@ export function useOwnershipTransfer(
   accountId: string | null,
   refreshAuth: () => Promise<void>,
 ): OwnershipTransferController {
-  const [state, setState] = useState<OwnershipTransferReadState>({
-    projection: null,
-    members: EMPTY_MEMBERS,
-    busy: false,
-    error: null,
-  });
+  const [state, setState] = useState<OwnershipTransferReadState>(EMPTY_STATE);
   const [lastTerminal, setLastTerminal] = useState<OwnershipTransferOutcomeView | null>(null);
 
-  const isShown = useShownAccount(accountId);
-  useCeremonyRead(accountId, isShown, setState);
+  const beginRead = useLatestRead();
+  useCeremonyRead({ accountId, beginRead, apply: setState, forgetOutcome: setLastTerminal });
 
   /**
    * Run one command, then reconcile every projection the caller's own authority depends on.
@@ -171,6 +193,7 @@ export function useOwnershipTransfer(
   const run = useCallback(
     async (perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>): Promise<void> => {
       if (!accountId) return;
+      const isLatest = beginRead();
       setState((previous) => ({ ...previous, busy: true, error: null }));
       setLastTerminal(null);
       const failure = await submit(perform, setLastTerminal);
@@ -179,10 +202,15 @@ export function useOwnershipTransfer(
       await refreshAuth().catch(() => undefined);
       await reprojectAccess(accountId).catch(() => undefined);
       const next = await readCeremony(accountId);
-      if (!isShown(accountId)) return;
-      setState((previous) => ({ ...mergeCeremonyRead(previous, next), busy: false, error: failure ?? next.error }));
+      // `busy` is this card's own state and is always released — a command overtaken by a company
+      // switch must not leave every control disabled — but a superseded answer is never merged.
+      setState((previous) =>
+        isLatest()
+          ? { ...mergeCeremonyRead(previous, next), busy: false, error: failure ?? next.error }
+          : { ...previous, busy: false },
+      );
     },
-    [accountId, isShown, refreshAuth],
+    [accountId, beginRead, refreshAuth],
   );
 
   const nominate = useCallback(
