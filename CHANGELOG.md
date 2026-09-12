@@ -7,6 +7,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- The date format is a company setting rather than a per-browser one, so everyone in an account
+  reads the schedule in the same convention. An editor or above sets it in Settings → **Date
+  format**; a viewer sees it, disabled. It applies immediately, without a reload, and it is part of
+  the account — present in Export JSON and undoable like any other account change (#866). It never
+  shipped as the device preference the Added entry below first described.
+
 ## [0.64.1-alpha.1] - 2026-09-12
 
 ### Fixed
@@ -85,8 +93,7 @@ new features and **patch** versions carry fixes.
   the current-user control on every main page (#744).
 - Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
   server health metadata that can be copied for support reports (#745).
-- Add a Date format device preference to Settings → Appearance, choosing between 9 Sep, 9th Sep, Sep 9 and
-  Sep 9th (#793).
+- Add a Date format company setting, choosing between 9 Sep, 9th Sep, Sep 9 and Sep 9th (#793, #866).
 - Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,
   activity creation, company-settings review and direct links to each action (#741).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
