@@ -26,12 +26,15 @@ is expected and safer than a platform's generic zero-downtime handover.
 ## 1. Save the permanent Forge deployment script
 
 Replace the two values at the top with the isolated site user and exact Supervisor group recorded
-from the background process.
+from the background process. This script needs Bash, Forge's default deployment shell —
+`set -eo pipefail` is a syntax error under plain `sh`.
 
 ```bash
+set -eo pipefail
+
 $CREATE_RELEASE()
 
-cd "$FORGE_RELEASE_DIRECTORY"
+cd "${FORGE_RELEASE_DIRECTORY:?}"
 
 SITE_USER="capacity-example"
 SUPERVISOR_GROUP="daemon-1234567"
@@ -46,14 +49,17 @@ pnpm install --frozen-lockfile
 pnpm run build
 pnpm --filter capacitylens-server run build:runtime
 
+test -f dist/index.html
+test -f server/dist/index.mjs
+
 install -d -m 700 "/home/$SITE_USER/data"
 install -d -m 700 "/home/$SITE_USER/backups"
 
-sudo -n supervisorctl stop "${SUPERVISOR_GROUP}:*"
+sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf stop "${SUPERVISOR_GROUP}:*"
 
 $ACTIVATE_RELEASE()
 
-sudo -n supervisorctl start "${SUPERVISOR_GROUP}:*"
+sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf start "${SUPERVISOR_GROUP}:*"
 ```
 
 The order is load-bearing:
@@ -66,6 +72,9 @@ The order is load-bearing:
 
 Do not replace stop and start with a process-manager reload that overlaps workers. Do not activate
 before stopping the old process.
+
+A failure before `supervisorctl stop` leaves the old release serving traffic. A failure after the
+stop needs the recovery steps below; the script does not restart the old release automatically.
 
 The first deployment is deliberately different from every later deployment. It activates the
 initial build without Supervisor commands. Create the background process from that active release,
@@ -91,20 +100,26 @@ First find out whether you already have permission. Run this as the user the dep
 as:
 
 ```bash
-sudo -n supervisorctl status
+sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf status
 ```
 
-`-n` means "never ask for a password". If the command prints the process list, you already have
-permission and can skip to step 3. If it prints `sudo: a password is required`, choose one of the
-two fixes below.
+`-n` means "never ask for a password". If you will keep `supervisorctl`, run `sudo -l`. Continue
+only if it lists exactly four commands — `status`, `stop`, `start` and `restart` — each pinned to
+this Supervisor group and configuration path, as granted below. A bare `/usr/bin/supervisorctl`
+entry is the old, broad grant and must be replaced first. If you replace both process-control calls
+with separate platform stop and start actions instead, continue after configuring and testing those
+actions. If the status command prints `sudo: a password is required`, choose one of the two fixes
+below.
 
 ### Use the platform's own restart action
 
-Some platforms expose a restart command or API endpoint for a background process that does not need
-`sudo` at all. If yours does, use it in place of both `supervisorctl` lines in the script. This is
-the better option, because the platform keeps it working when it changes how processes are managed.
+Some platforms expose separate stop and start commands or API endpoints for a background process
+that do not need `sudo` at all. If yours does, use them in place of the two `supervisorctl` lines in
+the script. A single restart action at both boundaries breaks the required stop, activate, start
+order. Platform actions are the better option because the platform keeps them working when it
+changes how processes are managed.
 
-### Or grant exactly those two commands
+### Or grant exactly four commands
 
 If there is no platform action, grant the site user permission to run `supervisorctl` and nothing
 else. As a user with full `sudo` rights, run:
@@ -113,45 +128,51 @@ else. As a user with full `sudo` rights, run:
 sudo visudo -f /etc/sudoers.d/capacitylens-supervisor
 ```
 
-Add one line, replacing `capacity-example` with your isolated site user:
-
-```text
-capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl
-```
-
-Save and exit. `visudo` checks the syntax before writing; if it reports an error, fix it there
-rather than saving a broken file, because a broken sudoers file can lock everyone out of `sudo`.
-
-Confirm the path is right for your server before you save it:
+Confirm both absolute paths before you save the rule:
 
 ```bash
 which supervisorctl
 ```
 
-If it prints something other than `/usr/bin/supervisorctl`, use the printed path in the sudoers
-line. The path must be absolute and exact; a wildcard here would grant far more than intended.
+```bash
+ls -l /etc/supervisor/supervisord.conf
+```
 
-Then re-run `sudo -n supervisorctl status` as the site user and confirm it now works.
+If either command prints a different path, use that path below instead. Then add these four lines,
+replacing `capacity-example` with your isolated site user and `daemon-1234567` with its exact
+Supervisor group:
 
-::: warning This grants real privilege
-That line lets the site user control every process Supervisor manages on the server, as root — not
-only this installation's. On a server hosting several CapacityLens installations, that is a
-deliberate trade-off for unattended deployment. If it is not acceptable, use a platform restart
-action instead, or give the installation its own server.
-:::
+```text
+capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf status
+capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf stop daemon-1234567\:\*
+capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf start daemon-1234567\:\*
+capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf restart daemon-1234567\:\*
+```
+
+Save and exit. `visudo` checks the syntax before writing; if it reports an error, fix it there
+rather than saving a broken file, because a broken sudoers file can lock everyone out of `sudo`.
+
+The `status` command still lists all Supervisor processes, but it cannot change them; stop, start
+and restart are limited to this group.
+
+If you already installed the broad line, edit the same file with `visudo -f` and replace it with the
+four lines above. Run `sudo -l -U capacity-example` and confirm no unrestricted `supervisorctl`
+entry remains in this or any other sudoers file.
+
+Then re-run the pinned status command as the site user and confirm it works.
 
 ## 3. Test the stop and start commands
 
 Before the next real release, stop the API through the exact saved command:
 
 ```bash
-sudo -n supervisorctl stop 'daemon-1234567:*'
+sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf stop 'daemon-1234567:*'
 ```
 
 Confirm the public health check temporarily fails. Then start it:
 
 ```bash
-sudo -n supervisorctl start 'daemon-1234567:*'
+sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf start 'daemon-1234567:*'
 ```
 
 Confirm the process returns to **Running** and the public health endpoint returns `200` with
@@ -180,12 +201,15 @@ CapacityLens has no "snapshot now" button. It writes a verified snapshot into
 `CAPACITYLENS_BACKUP_DIR` when the API starts, and again every
 `CAPACITYLENS_BACKUP_INTERVAL_MIN` minutes. Use one of these:
 
-**Restart the API.** A restart writes a snapshot immediately, before it serves any traffic. This is
-the simplest method and it costs the same few seconds of downtime the deployment will cost anyway:
+**Restart the API.** A restart begins the asynchronous snapshot attempt. This is the simplest method
+and it costs the same few seconds of downtime the deployment will cost anyway:
 
 ```bash
-sudo -n supervisorctl restart 'daemon-1234567:*'
+sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf restart 'daemon-1234567:*'
 ```
+
+Wait for the attempt to finish, then confirm the backup directory contains the new verified file
+before relying on it.
 
 **Or take the latest scheduled snapshot.** If the newest file is only minutes old and nothing
 important has been written since, it is already a valid restore point.
@@ -292,8 +316,11 @@ Do not let the old release start against a database already migrated by the new 
 
 Confirm all of the following:
 
+- The saved script runs under Bash and exits on a failed command, failed pipeline or missing build
+  output before it stops the old API.
 - The permanent deployment script stops before activation and starts after activation.
-- The stop/start commands work without interaction.
+- The pinned stop/start commands work without interaction for this Supervisor group.
+- `sudo -l` shows no unrestricted `supervisorctl` grant.
 - Only one API process exists for this database.
 - The public health check gates deployment success.
 - The release branch points at the recorded released commit.

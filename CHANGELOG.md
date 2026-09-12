@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
+  one installation's process group, and describe the initial pending backup health state accurately
+  (#921, #933, #936).
 - Release an ownership-transfer step's retry handle (accept, withdraw, decline, cancel or complete)
   once the server reports that request already reached a terminal outcome, instead of letting a
   retry with the same identity replay the earlier terminal receipt (#908).
