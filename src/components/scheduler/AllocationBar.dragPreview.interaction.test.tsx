@@ -75,6 +75,52 @@ function registerTargetCalendarTest() {
     // and this one-working-day span snap to Mon 06-08 (the source's seven-day week would keep Sat).
     expect([moved.startDate, moved.endDate]).toEqual(["2026-06-08", "2026-06-08"]);
   });
+
+  it("does not reread a destination resource from the store on every preview frame", () => {
+    const st = useStore.getState();
+    const c = st.addClient({ name: "Acme", color: "#1" });
+    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
+    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
+    const src = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
+    const dst = st.addResource(makeResourceDraft({ name: "Sam", role: "Dev", color: "#4" }));
+    const a = st.addAllocation({
+      resourceId: src.id,
+      activityId: t.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    render(
+      <>
+        <div data-resource-id={src.id} data-testid="lane-src" />
+        <div data-resource-id={dst.id} data-testid="lane-dst" />
+        <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+      </>,
+    );
+    screen.getByTestId("lane-src").getBoundingClientRect = () => rect(0, 50);
+    screen.getByTestId("lane-dst").getBoundingClientRect = () => rect(100, 150);
+
+    const bar = screen.getByTestId("allocation-bar");
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 });
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointermove", { clientX: 55, clientY: 125, bubbles: true }));
+    });
+
+    const getState = vi.spyOn(useStore, "getState");
+    try {
+      act(() => {
+        document.dispatchEvent(new MouseEvent("pointermove", { clientX: 60, clientY: 125, bubbles: true }));
+      });
+
+      expect(getState).not.toHaveBeenCalled();
+    } finally {
+      getState.mockRestore();
+    }
+    act(() => {
+      document.dispatchEvent(new MouseEvent("pointercancel", { bubbles: true }));
+    });
+  });
 }
 
 function registerSourceCalendarTest() {
@@ -213,7 +259,6 @@ function registerSourceCalendarTest() {
     act(() => {
       document.dispatchEvent(new MouseEvent("pointermove", { clientX: startX, clientY: 125, bubbles: true }));
     });
-
     expect(parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(renderedWidth("2026-06-08", "2026-06-12"), 5);
 
     act(() => {
@@ -285,6 +330,77 @@ function registerSourceCalendarTest() {
       document.dispatchEvent(new MouseEvent("pointerup", { clientX: movedX, clientY: 125, bubbles: true }));
     });
     expect(getStoredAllocation(a.id).resourceId).toBe(src.id);
+  });
+
+  it("keeps previewing a zero-column reassignment when the source resource disappears", () => {
+    const st = useStore.getState();
+    const c = st.addClient({ name: "Acme", color: "#1" });
+    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
+    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
+    const src = st.addResource(
+      makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] }),
+    );
+    const dst = st.addResource(
+      makeResourceDraft({ name: "Full", role: "Dev", color: "#4", workingDays: [...monToFri] }),
+    );
+    // The stored range ends on a Sunday. Reinterpreting its seven target working days should end
+    // on Friday instead, so a missing source week cannot be mistaken for a same-row no-op.
+    const a = st.addAllocation({
+      resourceId: src.id,
+      activityId: t.id,
+      startDate: "2026-06-04",
+      endDate: "2026-06-14",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    render(
+      <>
+        <div data-resource-id={src.id} data-testid="lane-src" />
+        <div data-resource-id={dst.id} data-testid="lane-dst" />
+        <AllocationBar
+          bar={{
+            allocation: a,
+            x: GEOM.xForDateInGeom(a.startDate),
+            width: GEOM.widthForDates(a.startDate, a.endDate),
+            top: 0,
+            color: "#3b82f6",
+            label: "Wires",
+            external: false,
+          }}
+          geom={GEOM}
+          indexAtClientX={indexAtClientX}
+          onEdit={vi.fn()}
+        />
+      </>,
+    );
+    screen.getByTestId("lane-src").getBoundingClientRect = () => rect(0, 50);
+    screen.getByTestId("lane-dst").getBoundingClientRect = () => rect(100, 150);
+
+    const bar = screen.getByTestId("allocation-bar");
+    fireEvent.pointerDown(bar, { clientX: GEOM.xForDateInGeom(a.startDate) + 10, clientY: 25, button: 0 });
+    // Keep the destination lane in the DOM while its source resource is removed from live state,
+    // matching a virtualized row being deleted during an armed gesture.
+    useStore.getState().replaceAll({
+      ...useStore.getState().data,
+      resources: useStore.getState().data.resources.filter((resource) => resource.id !== src.id),
+    });
+    act(() => {
+      document.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: GEOM.xForDateInGeom(a.startDate) + 10, clientY: 125, bubbles: true }),
+      );
+    });
+
+    expect(parseFloat((bar as HTMLElement).style.width)).toBeCloseTo(renderedWidth("2026-06-04", "2026-06-12"), 5);
+    act(() => {
+      document.dispatchEvent(
+        new MouseEvent("pointerup", { clientX: GEOM.xForDateInGeom(a.startDate) + 10, clientY: 125, bubbles: true }),
+      );
+    });
+    expect(getStoredAllocation(a.id)).toMatchObject({
+      resourceId: dst.id,
+      startDate: "2026-06-04",
+      endDate: "2026-06-12",
+    });
   });
 
   it("a same-row vertical wiggle previews nothing, even for a range its own week would renormalise", () => {

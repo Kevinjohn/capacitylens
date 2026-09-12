@@ -15,6 +15,7 @@ import { buildGesturePreviewDates } from "./gestureGeometry";
 import {
   hasEffectiveDaysFor,
   isDropStartBlocked,
+  isPreviewDropBlocked,
   readWorkingDays,
   resolveMemoisedWorkingDays,
 } from "./gestureWorkingWeeks";
@@ -58,24 +59,6 @@ function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID)
   return true;
 }
 
-function isPreviewDestinationBlocked(
-  bar: BarLayout,
-  destination: LaneSnapshot | null,
-  result: ReturnType<typeof buildGesturePreviewDates>,
-) {
-  if (!destination) return false;
-  // A lane whose resource vanished mid-drag is nothing to highlight, but nor is it "blocked" —
-  // there is no placement to refuse. `readWorkingDays` is undefined only when the resource is gone.
-  if (readWorkingDays(destination.id) === undefined) return false;
-  if (result.kind === "blocked") return true;
-  if (result.kind !== "ready") return false;
-  return isDropStartBlocked({
-    resourceId: destination.id,
-    date: result.dates.startDate,
-    ignoreWeekends: bar.allocation.ignoreWeekends,
-  });
-}
-
 interface ReadPreviewDatesInput {
   bar: BarLayout;
   runtime: GestureRuntime;
@@ -87,13 +70,18 @@ interface ReadPreviewDatesInput {
  *  carries the dragged bar's OWN week, which is what sizes the range. */
 function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDatesInput) {
   const resourceId = bar.allocation.resourceId;
-  return buildGesturePreviewDates({
-    bar,
-    mode: input.mode,
-    deltaDays: input.deltaDays,
-    previewDays: resolveMemoisedWorkingDays(runtime.previewDaysRef.current, destination?.id ?? resourceId),
-    sourceDays: destination ? resolveMemoisedWorkingDays(runtime.previewDaysRef.current, resourceId) : undefined,
-  });
+  const previewDays = resolveMemoisedWorkingDays(runtime.previewDaysRef.current, destination?.id ?? resourceId);
+  return {
+    result: buildGesturePreviewDates({
+      bar,
+      mode: input.mode,
+      deltaDays: input.deltaDays,
+      previewDays,
+      sourceDays: destination ? resolveMemoisedWorkingDays(runtime.previewDaysRef.current, resourceId) : undefined,
+      isReassignment: destination !== null,
+    }),
+    previewDays,
+  };
 }
 
 function previewGesture(options: ControllerOptions, runtime: GestureRuntime, input: DragResizePreviewInput) {
@@ -104,13 +92,18 @@ function previewGesture(options: ControllerOptions, runtime: GestureRuntime, inp
       ? resolveLaneAt(runtime.lanesRef.current, input.pointer.clientX, input.pointer.clientY)
       : null;
   const destination = target && target.id !== resourceId ? target : null;
-  const result = readPreviewDates({ bar, runtime, input, destination });
+  const { result, previewDays } = readPreviewDates({ bar, runtime, input, destination });
   // A drop the commit will refuse must not be drawn as a reassignment: the preview would show the
   // destination's re-placement, then snap back on release. Fall back to the range this drag would
   // produce on the bar's OWN row, so it keeps following the pointer sideways while the row under it
   // refuses the drop — suppressing the range entirely froze the bar's horizontal tracking.
-  const blocked = input.mode === "move" && isPreviewDestinationBlocked(bar, destination, result);
-  const settled = blocked ? readPreviewDates({ bar, runtime, input, destination: null }) : result;
+  const blocked = isPreviewDropBlocked({
+    workingDays: previewDays,
+    result,
+    isReassignment: input.mode === "move" && destination !== null,
+    ignoreWeekends: bar.allocation.ignoreWeekends,
+  });
+  const settled = blocked ? readPreviewDates({ bar, runtime, input, destination: null }).result : result;
   const preview: GesturePreview = {
     mode: input.mode,
     deltaDays: input.deltaDays,
