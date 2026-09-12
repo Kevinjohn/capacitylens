@@ -21,19 +21,20 @@ installed.
 
 ## Steps
 
-1. Install Node 24, enable Corepack, and clone the repository:
+1. Clone the repository and select Node 24:
 
    ```bash
-   nvm install
-   nvm use
-   corepack enable
    git clone https://github.com/Kevinjohn/capacitylens.git
    cd capacitylens
+   nvm install
+   nvm use
+   node --version
+   corepack enable
    ```
 
-   `nvm install`/`nvm use` read the pinned version from `.nvmrc` automatically. Confirm
-   with `node --version` — it must be 24 or newer; the server refuses to start
-   otherwise.
+   nvm reads `.nvmrc` from the repository, so run it after changing into the cloned
+   directory. The reported version must be `v24.x`; the server refuses to start with
+   an older version.
 
 2. Install dependencies and copy the example environment file:
 
@@ -76,6 +77,15 @@ installed.
    sudo chown capacitylens:capacitylens /var/lib/capacitylens
    ```
 
+   Copy the selected Node binary to a root-owned path that the service user can run:
+
+   ```bash
+   sudo install -D -m 0755 "$(command -v node)" /opt/capacitylens/bin/node
+   sudo -u capacitylens /opt/capacitylens/bin/node --version
+   ```
+
+   The printed version must match the `node --version` output from step 1.
+
 4. Build the web app and the server:
 
    ```bash
@@ -102,7 +112,7 @@ installed.
    Group=capacitylens
    WorkingDirectory=/opt/capacitylens/server
    EnvironmentFile=/opt/capacitylens/.env
-   ExecStart=/usr/bin/node dist/index.mjs
+   ExecStart=/opt/capacitylens/bin/node dist/index.mjs
    Restart=on-failure
    RestartSec=5
 
@@ -121,6 +131,18 @@ installed.
    Expect `active (running)` with no restart loop. Follow the logs with
    `journalctl -u capacitylens -f` — like the Docker install, there's no single "ready"
    line, so a quiet log with no restart is what you're looking for.
+
+   Confirm that systemd started the copied Node binary:
+
+   ```bash
+   sudo readlink /proc/$(systemctl show -p MainPID --value capacitylens)/exe
+   ```
+
+   Expected output:
+
+   ```text
+   /opt/capacitylens/bin/node
+   ```
 
 6. Configure nginx to serve the built app and proxy `/api/` to the API. Create
    `/etc/nginx/sites-available/capacitylens`, pointing `root` at the `dist/` directory
@@ -173,6 +195,9 @@ installed.
    tickets or screenshots. Do not paste surrounding quotes or whitespace. After the owner account
    and first company exist, remove the variable from `.env` and restart the server to invalidate the
    handoff secret. See [Configuration](/self-hosting/configuration#sign-in-mode).
+
+After changing Node with nvm during an upgrade, rerun the `sudo install` command from step 3 and
+then run `sudo systemctl restart capacitylens`.
 
 ## What's next
 
