@@ -3,7 +3,6 @@ import test from "node:test";
 import {
   LANE_CEILING,
   OIDC_FIXED_PORTS,
-  browserShare,
   portsForLane,
   reservationCeiling,
   resolveLane,
@@ -50,8 +49,8 @@ test("the lane comes from the environment, defaulting to 0 when nothing claimed 
   assert.throws(() => resolveLane({ CAPACITYLENS_PORT_LANE: "10" }), RangeError);
 });
 
-test("an unset reservation means nothing else is running, so the run keeps the whole pool", () => {
-  assert.equal(testShare({}), soloShare());
+test("a run outside a lane gets the same ceiling a solo claim would", () => {
+  assert.equal(testShare({}), reservationCeiling());
   assert.equal(testShare({ CAPACITYLENS_TEST_SHARE: "3" }), 3);
   assert.throws(() => testShare({ CAPACITYLENS_TEST_SHARE: "0" }), RangeError);
   assert.throws(() => testShare({ CAPACITYLENS_TEST_SHARE: "-2" }), RangeError);
@@ -62,10 +61,4 @@ test("the pool leaves a core for everything that is not a test worker, and never
   assert.equal(soloShare(1), 1);
   assert.equal(reservationCeiling(10), 5);
   assert.equal(reservationCeiling(1), 1);
-});
-
-test("a browser worker costs twice a test worker, with a floor of one", () => {
-  assert.equal(browserShare(9), 4);
-  assert.equal(browserShare(2), 1);
-  assert.equal(browserShare(1), 1);
 });

@@ -22,12 +22,16 @@ export const GUARDED_FILES = Object.freeze([
 // The lane bases, and the fixed OIDC ports that scripts/ports.mjs also owns.
 const GUARDED_PORTS = Object.freeze([4173, 5173, 5273, 5373, 5473, 5900, 5910, 8787, 8887, 8897]);
 
-/** Drop comments so prose about a port never fails the check; only executable text is inspected. */
+/**
+ * Drop comments so prose about a port never fails the check; only executable text is inspected.
+ * A `//` preceded by a colon is a URL scheme, not a comment — dropping the rest of that line would
+ * blind the check to `http://localhost:5173`, which is the most likely way a literal comes back.
+ */
 export function stripComments(content) {
   return content
     .replace(/\/\*[\s\S]*?\*\//g, " ")
     .split(/\r?\n/)
-    .map((line) => line.replace(/\/\/.*$/, ""))
+    .map((line) => line.replace(/(^|[^:])\/\/.*$/, "$1"))
     .join("\n");
 }
 

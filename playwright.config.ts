@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
 import { resolvePlaywrightRunMode } from "./scripts/playwright-run-mode.mjs";
-import { OIDC_FIXED_PORTS, browserShare, ports, testShare } from "./scripts/ports.mjs";
+import { OIDC_FIXED_PORTS, ports, testShare } from "./scripts/ports.mjs";
 
 // Playwright drives the real app via Vite. Three project flavours:
 //   chromium    — the in-memory DEMO build on the lane web port (VITE_CAPACITYLENS_DEMO=1).
@@ -72,10 +72,10 @@ export default defineConfig({
   // These are measured suite budgets, stated explicitly instead of inheriting Playwright defaults.
   timeout: 30_000,
   expect: { timeout: 5_000 },
-  // Half the run's CPU reservation, because every worker drives a browser — the same ratio to the
-  // machine that Playwright's own default takes, but measured against this run's share of it rather
-  // than the whole box. Unset reservation means nothing else is running and the default applies.
-  workers: browserShare(testShare()),
+  // This run's CPU reservation (scripts/lane-claim.mjs). A solo run reserves half the cores, which
+  // is exactly Playwright's own default; concurrent runs divide the machine instead of each taking
+  // that half. Every worker drives a browser, so the reservation is the right unit here.
+  workers: testShare(),
   retries: process.env.CI ? 2 : 0,
   // No global override here on purpose: only db-backed and rehearsal share a mutable SQLite
   // fixture across tests (see their own `workers: 1`, below) — chromium, auth-backed, and

@@ -10,7 +10,6 @@
 // and scripts/with-lane.mjs is the launcher that owns both for the lifetime of a command.
 // Configuration files must only ever READ: see the note on LANE_ENVIRONMENT_KEY below.
 import { availableParallelism } from "node:os";
-import { parsePort } from "./port.mjs";
 
 // Ten lanes, deliberately. The bases below are spaced 100 apart except the auth/OIDC API pair
 // (8887/8897), which is spaced 10 — so a ceiling above 10 would make lane 10's auth API collide
@@ -41,6 +40,10 @@ const BASES = Object.freeze({
 // container; moving them is Docker work. `pnpm run e2e:oidc` therefore stays single-flight
 // machine-wide on its historical ports and is excluded from the ten-lane guarantee.
 export const OIDC_FIXED_PORTS = Object.freeze({ oidcWeb: 5473, oidcApi: 8897, dex: 5556, dexFaultProxy: 5557 });
+
+// `pnpm run e2e:oidc` and `pnpm run dev:access` both bind the ports above, so they have to exclude
+// each other as well as a second run of themselves. One lock file, held by whichever starts first.
+export const FIXED_PORTS_LOCK_FILE = "server/.fixed-ports.lock";
 
 export function assertLane(lane) {
   if (!Number.isInteger(lane) || lane < 0 || lane >= LANE_CEILING) {
@@ -80,12 +83,13 @@ export function ports(environment = process.env) {
 
 /**
  * A run's own CPU reservation: how many test workers it may start. scripts/lane-claim.mjs reserves
- * this from a machine-wide pool and exports it; a process launched without one falls back to the
- * historical "take the machine" default, so running a suite by hand behaves as it always did.
+ * this from a machine-wide pool and exports it. A suite run by hand, outside a lane, gets the same
+ * ceiling a solo claim would — half the cores, which is Playwright's own default and the point
+ * where the app suite stops failing on timeouts (see reservationCeiling).
  */
 export function testShare(environment = process.env) {
   const raw = environment[SHARE_ENVIRONMENT_KEY];
-  if (raw === undefined || raw === "") return soloShare();
+  if (raw === undefined || raw === "") return reservationCeiling();
   const share = Number(raw);
   if (!Number.isInteger(share) || share < 1) {
     throw new RangeError(`${SHARE_ENVIRONMENT_KEY} must be a positive integer; received ${JSON.stringify(raw)}.`);
@@ -93,7 +97,7 @@ export function testShare(environment = process.env) {
   return share;
 }
 
-/** The reservation a run gets when nothing else is running: the whole pool. */
+/** The size of the machine-wide pool the allocator hands out, leaving one core for everything else. */
 export function soloShare(cores = availableParallelism()) {
   return Math.max(1, cores - 1);
 }
@@ -103,15 +107,12 @@ export function soloShare(cores = availableParallelism()) {
  * hard cap: a run that arrives to an empty pool still gets one worker. Capping a single run at half
  * the cores keeps the worst case — one early large holder plus nine latecomers at the floor — near
  * the core count instead of nearly twice it.
+ *
+ * Half the cores is also where this suite is reliable. Measured on a 10-core machine: the app suite
+ * at 9 workers finished 23% faster and failed two AuthProvider tests on a 5s timeout; at 5 workers
+ * it passed. Those timeouts are assertions about scheduling, so oversubscription reads as a red
+ * suite, and the investigation costs more than the 23%.
  */
 export function reservationCeiling(cores = availableParallelism()) {
   return Math.max(1, Math.ceil(cores / 2));
 }
-
-/** Playwright drives a browser per worker, so it has always taken half the share Vitest does. */
-export function browserShare(share) {
-  return Math.max(1, Math.floor(share / 2));
-}
-
-/** Re-exported so a caller needing one port from an environment variable has a single import. */
-export { parsePort };

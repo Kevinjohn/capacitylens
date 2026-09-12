@@ -64,7 +64,8 @@ that arrives when the pool is empty still gets one worker — nothing queues.
 Two deliberate exceptions:
 
 - `pnpm run e2e:oidc` and `pnpm run dev:access` keep fixed ports, because the dex container pins its
-  issuer and callback. Both are single-flight machine-wide.
+  issuer and callback. They share one lock, so they are single-flight machine-wide and exclude each
+  other; starting one while the other runs fails immediately with that explanation.
 - Documentation screenshots are captured by hand on `:5199`, which no automated run binds.
 
 If a lane's port is still held when a run claims it, the launcher clears the process only when it

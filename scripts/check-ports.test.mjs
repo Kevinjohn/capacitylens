@@ -28,6 +28,13 @@ test("prose about a port is not code, so comments never fail the check", () => {
   assert.ok(!stripComments(content).includes("5173"));
 });
 
+test("a URL's scheme is not a comment, so a hardcoded origin is still caught", () => {
+  const content = 'import { ports } from "./ports.mjs";\nconst api = "http://localhost:8787";\n';
+  assert.deepEqual(evaluatePortUsage([{ path: "x.ts", content }]), [
+    "x.ts: hardcodes port 8787. Derive it from scripts/ports.mjs so every lane is correct, not only lane 0.",
+  ]);
+});
+
 test("a port that merely shares digits with a guarded one is left alone", () => {
   const content = 'import { ports } from "./ports.mjs";\nconst unrelated = 51730;\nconst other = 15173;\n';
   assert.deepEqual(evaluatePortUsage([{ path: "x.ts", content }]), []);

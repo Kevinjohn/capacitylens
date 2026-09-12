@@ -72,3 +72,6 @@ _code-review-2026-07-17-below-cap.md
 
 # VitePress (build output lives in the committed docs/ folder)
 docs-src/.vitepress/cache
+
+# Transient single-flight locks for the fixed-port suites (see scripts/ports.mjs)
+server/*.lock
