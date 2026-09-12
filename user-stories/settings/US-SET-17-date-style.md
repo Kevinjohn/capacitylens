@@ -45,10 +45,12 @@ seed window — see _Seed data_ in REFERENCE.md).
   on ranges, wherever the app shows a human-readable date, and takes effect **without a reload**.
 - A date range inside one month shows the month once (`9 – 14 Sep`, `Sep 9 – 14`); a range across two
   months shows both (`9 Sep – 14 Oct`, `Sep 9 – Oct 14`).
-- A range that crosses a year collapses nothing: both ends carry the year (`28 Dec 2026 – 8 Jan 2027`),
-  including in the short list form that otherwise never shows one — without it a range from one
-  December to the next January reads as a single day. Screen-reader names that state the two dates
-  separately, such as an allocation bar's, carry the year on the same rule.
+- A standalone range that crosses a year collapses nothing: both ends carry the year
+  (`28 Dec 2026 – 8 Jan 2027`), including in the short list form that otherwise never shows one —
+  without it a range from one December to the next January reads as a single day. The ordered
+  week-column headers in Overview are the deliberate narrow exception: neighbouring columns supply
+  the calendar context, so their one cross-year week may read `28 Dec – 3 Jan`. Screen-reader names
+  that state the two dates separately, such as an allocation bar's, carry the year on the general rule.
 - Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal, whatever the preference.
 - The choice is **account data**: it is stored on the account, it appears in Export JSON, changing it
   is undoable, and every member of the company sees it. It is **not** a device preference and is not
