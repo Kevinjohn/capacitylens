@@ -46,6 +46,7 @@
     "ui:registry": "pnpm dlx shadcn@4.16.0",
     "lint": "pnpm run paraglide:compile && eslint . --max-warnings 0",
     "lint:staged": "pnpm run paraglide:compile && lint-staged",
+    "typecheck": "pnpm --filter @capacitylens/shared type-check && tsc -b && pnpm run typecheck:e2e",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

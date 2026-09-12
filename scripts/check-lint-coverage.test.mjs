@@ -64,7 +64,7 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
   assert.deepEqual(workflow.on.pull_request.branches, ["main"]);
   const commands = workflow.jobs.application.steps.map(({ run }) => run).filter(Boolean);
   assert.ok(commands.includes("pnpm run lint"));
-  assert.ok(commands.some((command) => command.includes("pnpm exec tsc -b")));
+  assert.ok(commands.includes("pnpm run typecheck"));
 });
 
 // The pre-commit hook names staged files individually, unlike `eslint .` in `pnpm run lint` and in
