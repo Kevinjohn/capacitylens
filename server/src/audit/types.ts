@@ -37,6 +37,10 @@ export interface AuditRecord {
     | "memberSignInTrackingChange"
     | "memberRemove"
     | "ownershipTransfer"
+    /** A step of the ownership transfer consent ceremony that did NOT move ownership: a nomination,
+     *  the nominee's consent or its withdrawal, a decline, a cancellation. `ownershipTransfer` stays
+     *  reserved for completion, the moment the roles actually change hands. */
+    | "ownershipTransferRequest"
     | "inviteCreate"
     | "inviteAccept"
     | "inviteRevoke"

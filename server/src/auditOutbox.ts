@@ -94,6 +94,7 @@ const PRODUCT_ACTION_VALUES = [
   "memberSignInTrackingChange",
   "memberRemove",
   "ownershipTransfer",
+  "ownershipTransferRequest",
   "inviteCreate",
   "inviteAccept",
   "inviteRevoke",

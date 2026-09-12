@@ -617,6 +617,38 @@ function registerExpiryAndMutationGuardTests(): void {
   });
 }
 
+function registerOwnershipTransferConcealmentTest(): void {
+  // The global policy refuses every unsafe method, so the ceremony's six commands are already
+  // covered. The READ is not, and it names who is being handed the company — so it conceals rather
+  // than redacts: a masquerading session is not the participant whose ceremony this is.
+  it("refuses the ownership transfer read while masquerading, and admits it otherwise", async () => {
+    const { app, db } = await fixture();
+    seedAccount(db);
+    const owner = await signUp(app, "owner@capacitylens.dev");
+    const admin = await signUp(app, "admin@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    upsertMember(db, { accountId: "a1", userId: admin.userId, role: "admin", status: "active", createdAt: TS });
+
+    const read = () =>
+      call(app, { method: "GET", url: "/api/accounts/a1/ownership-transfer", headers: { cookie: owner.cookie } });
+    expect((await read()).statusCode).toBe(200);
+
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: "/api/accounts/a1/masquerade",
+          headers: { cookie: owner.cookie },
+          payload: { targetUserId: admin.userId },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const concealed = await read();
+    expect(concealed.statusCode).toBe(403);
+    expect(readStringField(concealed, "code")).toBe("MASQUERADE_READ_ONLY");
+  });
+}
+
 function registerStaleSessionStartTest(): void {
   it("starts a projection from a stale session: viewing as a member is ordinary administration", async () => {
     const { app, db, actor, target } = await memberFixture();
@@ -650,4 +682,5 @@ describe("identity masquerade", () => {
   registerIdentityCapabilityTests();
   registerSessionRevocationTests();
   registerExpiryAndMutationGuardTests();
+  registerOwnershipTransferConcealmentTest();
 });

@@ -100,7 +100,7 @@ describe("member endpoints — OFF mode (trusted-local)", () => {
     expect(remove.json()).toEqual(unavailable);
     const transfer = await call(app, {
       method: "POST",
-      url: "/api/accounts/a1/transfer-ownership",
+      url: "/api/accounts/a1/ownership-transfer",
       payload: { toUserId: "somebody-else" },
     });
     expect(transfer.statusCode).toBe(400);

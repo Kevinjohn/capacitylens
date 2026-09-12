@@ -262,7 +262,7 @@ function registerStaleOrdinaryMemberAdministrationTest(): void {
     upsertMember(db, { accountId: "a1", userId: successor.userId, role: "admin", status: "active", createdAt: TS });
     const transferred = await call(app, {
       method: "POST",
-      url: "/api/accounts/a1/transfer-ownership",
+      url: "/api/accounts/a1/ownership-transfer",
       payload: { toUserId: successor.userId },
       headers: { cookie: owner.cookie },
     });
@@ -419,7 +419,7 @@ function createAnonymousRevocationTest(): void {
       (
         await call(app, {
           method: "POST",
-          url: "/api/accounts/a1/transfer-ownership",
+          url: "/api/accounts/a1/ownership-transfer",
           payload: { toUserId: "target" },
         })
       ).statusCode,

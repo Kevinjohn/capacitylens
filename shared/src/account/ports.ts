@@ -16,7 +16,6 @@ import type {
   MembershipStatus,
   OperationReceipt,
   PendingOperationReceipt,
-  OwnershipTransfer,
   PasswordResetCeremony,
   PrincipalId,
   PrincipalSummary,
@@ -195,12 +194,6 @@ export interface AccountAdminPort {
     targetPrincipalId: PrincipalId;
     command: CommandIdentity;
   }): Promise<OperationReceipt>;
-  transferOwnership(input: {
-    actor: ActorContext;
-    workspaceId: WorkspaceId;
-    targetPrincipalId: PrincipalId;
-    command: CommandIdentity;
-  }): Promise<OwnershipTransfer>;
   readOwnershipTransfer(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<OwnershipTransferProjection>;
   initiateOwnershipTransfer(input: {
     actor: ActorContext;
