@@ -60,10 +60,10 @@ function refuseIneffectiveResize(bar: BarLayout, mode: DragMode, resourceId: ID)
 }
 
 interface ReadPreviewDatesInput {
-  bar: BarLayout;
-  runtime: GestureRuntime;
-  input: DragResizePreviewInput;
-  destination: LaneSnapshot | null;
+  bar: Pick<BarLayout, "allocation">;
+  runtime: Pick<GestureRuntime, "previewDaysRef">;
+  input: Pick<DragResizePreviewInput, "mode" | "deltaDays">;
+  destination: Pick<LaneSnapshot, "id"> | null;
 }
 
 /** The snapped range for this frame, judged in the lane the pointer is over. A reassignment also
@@ -73,7 +73,7 @@ function readPreviewDates({ bar, runtime, input, destination }: ReadPreviewDates
   const previewDays = resolveMemoisedWorkingDays(runtime.previewDaysRef.current, destination?.id ?? resourceId);
   return {
     result: buildGesturePreviewDates({
-      bar,
+      allocation: bar.allocation,
       mode: input.mode,
       deltaDays: input.deltaDays,
       previewDays,
