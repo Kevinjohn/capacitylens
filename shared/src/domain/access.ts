@@ -31,7 +31,10 @@ export type { Role } from "../account/types";
  * - `'manageMemberSignInTracking'` — opt into coarse sign-in confirmation. Owner ONLY.
  * - `'purge'`            — hard-delete (purge) tombstoned data. Admin tier (owner | admin).
  * - `'deleteAccount'`    — erase an entire account and its members' orphaned identities. Owner ONLY.
- * - `'transferOwnership'`— hand the account to another login. Owner ONLY.
+ * - `'transferOwnership'`— propose, cancel or finally approve an ownership transfer. Owner ONLY.
+ * - `'actOnOwnershipTransfer'` — reach the ownership-transfer ceremony at all. Admin tier, because
+ *   the nominated Admin must be able to give or withdraw their own consent; participant identity
+ *   decides each specific action.
  *
  * INVARIANT: this union is the closed vocabulary the matrix is exhaustive over (see {@link can}'s
  * `satisfies Record<Action, …>`): adding a member here without a rule fails to compile.
@@ -46,7 +49,8 @@ export type Action =
   | "manageMemberSignInTracking"
   | "purge"
   | "deleteAccount"
-  | "transferOwnership";
+  | "transferOwnership"
+  | "actOnOwnershipTransfer";
 
 // Product-data policy stays here; account-administration policy lives in account/policy.ts. Both
 // use the account boundary's one canonical role ordering.
@@ -74,6 +78,7 @@ const ACCOUNT_ADMIN_ACTION = {
   manageMemberSignInTracking: "manage-member-sign-in-tracking",
   deleteAccount: "erase-workspace",
   transferOwnership: "transfer-ownership",
+  actOnOwnershipTransfer: "act-on-ownership-transfer",
 } as const satisfies Record<AccountAdministrationAction, AccountAdminAction>;
 
 type ProductDataAction = "read" | "write" | "manageInternalClient" | "purge";

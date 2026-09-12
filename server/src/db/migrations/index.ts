@@ -10,10 +10,10 @@ import {
   assertSchemaV33,
   assertSchemaV34,
   assertSchemaV35,
-  assertSchemaCurrent,
   assertSchemaV36,
   assertSchemaV37,
   assertSchemaV38,
+  assertSchemaV39,
 } from "../../schema";
 import { ensureControlTables, assertControlTablesCurrent, SINGLE_OWNER_INDEX } from "../../controlTables";
 import { migrateSingleOwnerControlPlaneV10, assertSingleOwnerControlPlaneV10 } from "../../controlTables";
@@ -34,6 +34,8 @@ import {
   ALLOCATION_TASK_V37_DEFINITION,
   RESOURCE_AVAILABILITY_V38_DEFINITION,
   CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION,
+  ACCOUNT_DATE_STYLE_V40_DEFINITION,
+  runAccountDateStyleV40,
 } from "./definitions";
 import { migrateTimeOffResourceNullableV33, COMPANY_CLOSURES_V34_DEFINITION } from "./definitions";
 import { migrateCompanyClosuresV34 } from "./definitions";
@@ -377,10 +379,11 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     if (!tableHasColumns(db, "accounts", ["capacityOverviewAccess"])) {
       db.exec("ALTER TABLE accounts ADD COLUMN capacityOverviewAccess TEXT;");
     }
-    assertSchemaCurrent(db);
+    assertSchemaV39(db);
     assertTenantRelationshipIntegrityCurrent(db);
     assertTenantEntityIndexesCurrent(db);
   }),
+  defineMigration(40, "add-account-date-style", ACCOUNT_DATE_STYLE_V40_DEFINITION, runAccountDateStyleV40),
 ];
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {

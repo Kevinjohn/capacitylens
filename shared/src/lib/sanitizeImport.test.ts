@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { sanitizeImportedRecord, sanitizeAccount } from "./sanitizeImport";
 import { FALLBACK_PRESET_COLOR, snapToPresetColor } from "./color";
-import { SCOPED_KEYS } from "../types/entities";
+import { DATE_STYLES, SCOPED_KEYS } from "../types/entities";
 import { softDelete } from "../domain/lifecycle";
 
 type LifecycleKey = "resources" | "clients" | "projects" | "activities";
@@ -634,6 +634,16 @@ function registerAccountVisibilityTests(): void {
     expect(sanitizeAccount({ capacityOverviewAccess: "everyone" }).capacityOverviewAccess).toBe("everyone");
     expect(sanitizeAccount({ capacityOverviewAccess: "viewer" }).capacityOverviewAccess).toBeUndefined();
     expect(sanitizeAccount({ capacityOverviewAccess: 1 }).capacityOverviewAccess).toBeUndefined();
+  });
+
+  it("keeps every date format and drops malformed values", () => {
+    // Every member of the union, so dropping one from ACCOUNT_ENUM_FIELDS' list is caught here
+    // rather than silently persisting a style the UI can never offer back.
+    for (const style of DATE_STYLES) {
+      expect(sanitizeAccount({ dateStyle: style }).dateStyle).toBe(style);
+    }
+    expect(sanitizeAccount({ dateStyle: "year-month-day" }).dateStyle).toBeUndefined();
+    expect(sanitizeAccount({ dateStyle: 1 }).dateStyle).toBeUndefined();
   });
 }
 
