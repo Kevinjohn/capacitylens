@@ -37,6 +37,7 @@ import {
   type Auth,
 } from "./auth";
 import { TABLES } from "./tables";
+import { runAccountDateStyleV40 } from "./db/migrations/definitions";
 import {
   assertMigrationValuesPreserved,
   captureMigrationValues,
@@ -2789,15 +2790,24 @@ describe("schema migration of an existing on-disk DB", () => {
     db.close();
   });
 
-  it("v40 adds the account date format without changing existing account data", () => {
-    const db = openDb(":memory:");
-    seedIfUninitialized(db, seed());
-    const before = readState(db).accounts;
+  // The accounts carry a non-default value in a neighbouring optional column, so the preservation
+  // assertion below has something to lose: `dateStyle` itself is absent on both sides of the
+  // migration (v40 is what introduces it), which would make a snapshot comparison of seeded
+  // accounts alone pass whatever the migration did to the table.
+  function rewindToV39(db: Db): void {
     db.exec(`
       ALTER TABLE accounts DROP COLUMN dateStyle;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 40;
       PRAGMA user_version = 39;
     `);
+  }
+
+  it("v40 adds the account date format without changing existing account data", () => {
+    const db = openDb(":memory:");
+    seedIfUninitialized(db, seed());
+    db.exec("UPDATE accounts SET internalColourMode = 'palette';");
+    const before = readState(db).accounts;
+    rewindToV39(db);
 
     expect(planDatabaseMigrations(db).migrations).toEqual([V40_MIGRATION]);
     initializeOpenDb(db, ":memory:");
@@ -2806,6 +2816,24 @@ describe("schema migration of an existing on-disk DB", () => {
       expect.arrayContaining([expect.objectContaining({ name: "dateStyle", type: "TEXT", notnull: 0 })]),
     );
     expect(readState(db).accounts).toEqual(before);
+    db.close();
+  });
+
+  it("v40 leaves the column it added writable, and running it again is a no-op", () => {
+    const db = openDb(":memory:");
+    seedIfUninitialized(db, seed());
+    rewindToV39(db);
+    initializeOpenDb(db, ":memory:");
+
+    const accountId = db.prepare("SELECT id FROM accounts LIMIT 1").get() as { id: string };
+    db.prepare("UPDATE accounts SET dateStyle = ? WHERE id = ?").run("month-day", accountId.id);
+
+    // Re-running the runner exercises its `tableHasColumns` guard. Without it SQLite raises
+    // "duplicate column name: dateStyle" and startup migration of an already-migrated DB fails.
+    expect(() => runAccountDateStyleV40(db)).not.toThrow();
+    expect(db.prepare("SELECT dateStyle FROM accounts WHERE id = ?").get(accountId.id)).toEqual({
+      dateStyle: "month-day",
+    });
     db.close();
   });
 });
