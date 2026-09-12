@@ -1,7 +1,8 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { Resource } from "@capacitylens/shared/types/entities";
+import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { AppData, Resource } from "@capacitylens/shared/types/entities";
 import type { CapacityOverviewModel, CapacityOverviewWeekResult } from "./capacityOverviewModel";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 
@@ -47,6 +48,13 @@ function week(index: number, values: Partial<CapacityOverviewWeekResult>): Capac
   };
 }
 
+const clarkKent = resource("Clark Kent");
+const placeholderSlot = resource("slot", "placeholder");
+
+// Real (if minimal) AppData, matched by id to the model's rows above, so the person schedule
+// trigger resolves the real per-resource title instead of the fallback an empty dataset produces.
+const data: AppData = { ...emptyAppData(), resources: [clarkKent, placeholderSlot] };
+
 const model: CapacityOverviewModel = {
   measured: true,
   weeks: [...weeks],
@@ -56,16 +64,18 @@ const model: CapacityOverviewModel = {
       title: "Design",
       rows: [
         {
-          resource: resource("Clark Kent"),
+          resource: clarkKent,
           weeks: [
-            week(0, { freeDays: 1.5, overDays: 0.25 }),
-            week(1, { state: "fully-booked", freeDays: 0 }),
+            // Hours are set (not just the rounded display days) so the bar-fill kind computed from
+            // them matches what "over" days imply: overHours > 0 always wins the fill kind.
+            week(0, { freeHours: 12, freeDays: 1.5, overHours: 2, overDays: 0.25 }),
+            week(1, { state: "fully-booked", freeHours: 0, freeDays: 0 }),
             week(2, { state: "unavailable", availableHours: 0, freeHours: 0, freeDays: 0 }),
             week(3, {}),
           ],
         },
         {
-          resource: resource("slot", "placeholder"),
+          resource: placeholderSlot,
           weeks: [
             week(0, { state: "unassigned", freeDays: 0, unassignedDemandDays: 2 }),
             week(1, { state: "unassigned", freeDays: 0 }),
@@ -111,10 +121,15 @@ describe("CapacityOverviewTable content", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
+        showTotals
+        capacityDisplayMode="number"
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 
@@ -133,6 +148,29 @@ describe("CapacityOverviewTable content", () => {
     expect(within(placeholder).getByText("2d unassigned")).toBeInTheDocument();
     expect(screen.queryByRole("row", { name: /All eligible people/ })).not.toBeInTheDocument();
   });
+
+  it("names a placeholder's trigger from its role, not the generic placeholder fallback", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    // Without a real resource behind it, the trigger's title degrades to the generic
+    // "View Placeholder's schedule" instead of naming the role — the case a defaulted-to-empty
+    // `data` prop was silently masking.
+    const trigger = screen.getByRole("button", { name: "View Placeholder — Designer's schedule" });
+    expect(trigger).toHaveAttribute("data-testid", "person-schedule-trigger");
+  });
 });
 
 describe("CapacityOverviewTable interactions", () => {
@@ -143,10 +181,15 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
         onIncludeTentativeChange={onIncludeTentativeChange}
         onHasAvailabilityChange={onHasAvailabilityChange}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 
@@ -156,15 +199,209 @@ describe("CapacityOverviewTable interactions", () => {
     expect(onHasAvailabilityChange).toHaveBeenCalledWith(true);
   });
 
+  it("switches the capacity display mode", async () => {
+    const user = userEvent.setup();
+    const onCapacityDisplayModeChange = vi.fn();
+    render(
+      <CapacityOverviewTable
+        model={model}
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={onCapacityDisplayModeChange}
+      />,
+    );
+
+    await user.click(screen.getByRole("radio", { name: /^Bar$/ }));
+    expect(onCapacityDisplayModeChange).toHaveBeenCalledWith("bar");
+    await user.click(screen.getByRole("radio", { name: "Bar & number" }));
+    expect(onCapacityDisplayModeChange).toHaveBeenCalledWith("bar-number");
+  });
+
+  it("hides group totals by default and shows them when toggled on", async () => {
+    const user = userEvent.setup();
+    const onShowTotalsChange = vi.fn();
+    const { rerender } = render(
+      <CapacityOverviewTable
+        model={model}
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={onShowTotalsChange}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("radio", { name: "Hide totals" })).toHaveAttribute("aria-checked", "true");
+    const groupRow = screen.getByTestId("capacity-overview-group");
+    expect(within(groupRow).queryByText("1.5d")).not.toBeInTheDocument();
+    expect(within(groupRow).queryByText("0.25d overbooked")).not.toBeInTheDocument();
+    expect(within(groupRow).queryByText("2d unassigned")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Show totals" }));
+    expect(onShowTotalsChange).toHaveBeenCalledWith(true);
+
+    rerender(
+      <CapacityOverviewTable
+        model={model}
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals
+        capacityDisplayMode="number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={onShowTotalsChange}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const groupRowWithTotals = screen.getByTestId("capacity-overview-group");
+    expect(within(groupRowWithTotals).getByText("1.5d")).toBeInTheDocument();
+    expect(within(groupRowWithTotals).getByText("0.25d overbooked")).toBeInTheDocument();
+    expect(within(groupRowWithTotals).getByText("2d unassigned")).toBeInTheDocument();
+  });
+
+  it("renders Number mode with visible figures and no bar background", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const person = screen.getByRole("row", { name: /Clark Kent/ });
+    expect(within(person).getByText("1.5d")).toBeInTheDocument();
+    const firstWeekCell = within(person).getByText("1.5d").closest("td");
+    expect(within(firstWeekCell as HTMLElement).queryByTestId("capacity-bar-fill")).not.toBeInTheDocument();
+  });
+
+  it("renders Bar mode with a fill background and no visible number, keeping the value accessible", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="bar"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const person = screen.getByRole("row", { name: /Clark Kent/ });
+    expect(within(person).queryByText("1.5d")).not.toBeInTheDocument();
+    const accessibleValue = within(person).getByText("1.5d, 0.25d overbooked");
+    expect(accessibleValue).toHaveClass("sr-only");
+    const firstWeekCell = accessibleValue.closest("td") as HTMLElement;
+    const fill = within(firstWeekCell).getByTestId("capacity-bar-fill");
+    // Overbooked (overHours > 0 wins the fill kind) and, in pure Bar mode, carries the diagonal
+    // hatch — the non-colour cue for WCAG 1.4.1 since the number above is not visually rendered.
+    expect(fill).toHaveAttribute("data-bar-kind", "over");
+    expect(fill.style.background).toContain("repeating-linear-gradient");
+    // Bar mode uses the saturated, no-text "-cell" pair (not the AA-softened "-soft" pair used by
+    // Bar & number) — the number here is `sr-only`, so nothing needs to clear AA on this fill.
+    expect(fill.style.background).toContain("var(--color-danger-cell)");
+
+    // A free (available) fill never carries the hatch — it needs no non-colour cue, since it
+    // reads the same regardless of colour vision.
+    const rowCells = within(person).getAllByRole("cell");
+    const fourthWeekFill = within(rowCells[3] as HTMLElement).getByTestId("capacity-bar-fill");
+    expect(fourthWeekFill).toHaveAttribute("data-bar-kind", "free");
+    expect(fourthWeekFill.style.background).not.toContain("repeating-linear-gradient");
+    expect(fourthWeekFill.style.background).toBe("var(--color-ok-cell)");
+  });
+
+  it("renders Bar & number mode with both the fill and the visible number", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="bar-number"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const person = screen.getByRole("row", { name: /Clark Kent/ });
+    const value = within(person).getByText("1.5d");
+    expect(value).toBeInTheDocument();
+    // The overbooked label is also visible here (unlike pure Bar mode) — SC 1.4.1 is already
+    // satisfied by that printed text, so the hatch (which would sit under the same-hue label and
+    // re-fail SC 1.4.3) is intentionally NOT applied in this mode.
+    const overLabel = within(person).getByText("0.25d overbooked");
+    // The label sits on the danger-soft fill here, so it must use the ink that fill is paired
+    // with — NOT text-destructive, which shares the fill's hue and fails WCAG 1.4.3 on it.
+    expect(overLabel).toHaveClass("text-danger-soft-ink");
+    expect(overLabel).not.toHaveClass("text-destructive");
+    const firstWeekCell = value.closest("td") as HTMLElement;
+    const fill = within(firstWeekCell).getByTestId("capacity-bar-fill");
+    expect(fill).toHaveAttribute("data-bar-kind", "over");
+    expect(fill.style.background).toBe("var(--color-danger-soft)");
+    expect(fill.style.background).not.toContain("repeating-linear-gradient");
+  });
+
+  it("never renders a bar for unassigned-demand rows", () => {
+    render(
+      <CapacityOverviewTable
+        model={model}
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="bar"
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const placeholder = screen.getByRole("row", { name: /Placeholder.*Designer/ });
+    const value = within(placeholder).getByText("2d unassigned");
+    const cell = value.closest("td") as HTMLElement;
+    expect(within(cell).queryByTestId("capacity-bar-fill")).not.toBeInTheDocument();
+  });
+
   it("collapses and expands discipline rows", async () => {
     const user = userEvent.setup();
     render(
       <CapacityOverviewTable
         model={model}
+        data={data}
         includeTentative
         hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 
@@ -181,14 +418,19 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={{ ...model, measured: false, reason: "blocks-mode", groups: [] }}
+        data={data}
         includeTentative
         hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
         onIncludeTentativeChange={vi.fn()}
         onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Capacity Overview needs measured capacity" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Overview needs measured capacity" })).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
   });
 });

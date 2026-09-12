@@ -12,7 +12,7 @@ vi.mock("./components/activities/ActivityList", () => ({
   ActivityList: vi.fn(() => <div data-testid="activity-list-route" />),
 }));
 vi.mock("./components/capacity-overview/CapacityOverviewView", () => ({
-  CapacityOverviewView: () => <div>Capacity overview content</div>,
+  CapacityOverviewView: () => <div>Overview content</div>,
 }));
 
 describe("router loading boundary", () => {
@@ -50,14 +50,14 @@ describe("activity route selection", () => {
   });
 });
 
-describe("Capacity Overview route access", () => {
+describe("Overview route access", () => {
   function renderRoute(role: "owner" | "admin" | "editor" | "viewer", status: "pending" | "resolved" | "unavailable") {
     return render(
       <PermissionContext.Provider value={{ role, status }}>
-        <MemoryRouter initialEntries={["/capacity-overview"]}>
+        <MemoryRouter initialEntries={["/overview"]}>
           <Routes>
             <Route path="/" element={<div>Schedule content</div>} />
-            <Route path="/capacity-overview" element={<CapacityOverviewRoute />} />
+            <Route path="/overview" element={<CapacityOverviewRoute />} />
           </Routes>
         </MemoryRouter>
       </PermissionContext.Provider>,
@@ -71,7 +71,7 @@ describe("Capacity Overview route access", () => {
     useStore.getState().updateAccount(accountId, { capacityOverviewAccess: "everyone" });
     renderRoute("viewer", "resolved");
 
-    expect(await screen.findByText("Capacity overview content")).toBeInTheDocument();
+    expect(await screen.findByText("Overview content")).toBeInTheDocument();
   });
 
   it("redirects a viewer under the default policy", () => {

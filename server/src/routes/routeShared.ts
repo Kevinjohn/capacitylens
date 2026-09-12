@@ -22,10 +22,26 @@ export interface AuthorizeRouteInput {
   reply: FastifyReply;
   accountId: string;
   action: Action;
-  /** Read-only account-management projections may retain role gating without requiring a recent
-   * sign-in. The authorization seam applies this opt-out only to GET/HEAD requests. */
+  /** Ordinary administrative actions, and read-only account-management projections, keep role and
+   * MFA gating without requiring a recent sign-in. Freshness stays mandatory by default: only the
+   * call sites that pass this flag opt out, and the high-impact actions (ownership transfer,
+   * credential/session administration, company deletion, import/purge, SSO identity work) never do. */
   options?: { concealNonMembership?: boolean; requireFreshSession?: boolean } | undefined;
 }
+
+/**
+ * The `options` value every ordinary administrative action passes to `authorize`. Role and MFA
+ * gating are unaffected; only the fresh-sign-in re-prompt is waived. Freshness stays mandatory by
+ * default, so grepping for this constant lists every CALL SITE that opts out.
+ *
+ * The opt-out is per call site, not per action: the same `Action` can legitimately appear both with
+ * and without this constant (`manageMembers` is opted out for role, status and removal routes, and
+ * NOT opted out for credential and session administration). So the grep is an inventory to review,
+ * never a rule to complete — never add this constant to a call site for consistency with another
+ * site sharing its action. Ownership transfer, credential and session administration, company
+ * deletion, import/purge and SSO identity work must never opt out; see AGENTS.md and DECISIONS.md.
+ */
+export const NO_REPROMPT: AuthorizeRouteInput["options"] = { requireFreshSession: false };
 
 export const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
   Object.prototype.hasOwnProperty.call(TABLES, entity);
