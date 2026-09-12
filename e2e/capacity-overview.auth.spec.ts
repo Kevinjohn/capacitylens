@@ -32,9 +32,9 @@ test("the account access setting gates viewer navigation and direct routes", asy
   expect(accepted.status()).toBe(200);
 
   await signIn(page, VIEWER, accountName);
-  await expect(page.getByRole("link", { name: "Capacity Overview" })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Overview" })).toHaveCount(0);
   await page.evaluate(() => {
-    window.history.pushState({}, "", "/capacity-overview");
+    window.history.pushState({}, "", "/overview");
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
   await expect(page).toHaveURL(/\/$/);
@@ -46,8 +46,8 @@ test("the account access setting gates viewer navigation and direct routes", asy
   });
   expect(enabled.status()).toBe(200);
   await page.reload();
-  const capacityOverviewLink = page.getByRole("link", { name: "Capacity Overview" });
+  const capacityOverviewLink = page.getByRole("link", { name: "Overview" });
   await expect(capacityOverviewLink).toBeVisible();
   await capacityOverviewLink.click();
-  await expect(page.getByRole("heading", { name: "Capacity Overview" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
 });

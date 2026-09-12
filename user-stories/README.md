@@ -48,7 +48,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Company picker and company-creation choices                    | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`            |
 | [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `e2e/navigation.spec.ts` + `src/components/common/ui.test.tsx` + `src/lib/designTokens.test.ts` + `e2e/a11y.spec.ts` |
 
-## Capacity overview — `capacity-overview/`
+## Overview — `capacity-overview/`
 
 | Story                                                                 | Title                     | Automated coverage                                                     |
 | --------------------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------- |
@@ -212,7 +212,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours                           | `e2e/internal-colours.spec.ts`                          |
 | [US-SET-15](settings/US-SET-15-global-working-days.md)   | Company-wide working days                       | `e2e/global-working-days.spec.ts`                       |
 | [US-SET-16](settings/US-SET-16-diagnostics.md)           | Copy privacy-safe diagnostics                   | `src/data/buildInfo.test.ts` + `SettingsView.test.tsx`  |
-| [US-SET-17](settings/US-SET-17-date-style.md)            | Date format preference on the schedule          | `e2e/settings-date-style.spec.ts`                       |
+| [US-SET-17](settings/US-SET-17-date-style.md)            | Company-wide date format                        | `e2e/settings-date-style.spec.ts` + `.db.spec.ts`       |
 | [US-SET-18](settings/US-SET-18-ownership-transfer.md)    | Hand the company to someone else                | `e2e/ownership-transfer.auth.spec.ts`                   |
 
 ## Keyboard & accessibility — `accessibility/`

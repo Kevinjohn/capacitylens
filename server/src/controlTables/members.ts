@@ -27,7 +27,7 @@ import {
  */
 export type LiveTransferHandling = "invalidate" | "keep";
 
-// A migration-era handle has no v40 table yet; the terminaliser itself answers "nothing to end"
+// A migration-era handle has no v41 table yet; the terminaliser itself answers "nothing to end"
 // rather than throwing, so only the completion exemption is decided here.
 function terminaliseMemberTransfers(db: Db, accountId: string, userId: string): string[] {
   return terminaliseLiveRequestsForMember({

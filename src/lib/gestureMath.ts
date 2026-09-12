@@ -1,11 +1,11 @@
 import {
   addDaysISO,
-  countWorkingDays,
   daysInclusive,
   endDateForWorkingDays,
   isWeekendAware,
   weekdayOf,
 } from "@capacitylens/shared/lib/dateMath";
+import { spanDays } from "@capacitylens/shared/lib/schedulingDays";
 import type { ISODate, Weekday } from "@capacitylens/shared/types/entities";
 
 interface ResolveResizedEdgeInput {
@@ -20,6 +20,17 @@ interface ApplyGestureInput {
   range: DateRange;
   deltaDays: number;
   options?: GestureOptions | undefined;
+}
+
+interface ApplyMoveInput {
+  range: DateRange;
+  deltaDays: number;
+  /** How long the range is in the ORIGIN's units; 0 when the origin has no duration to carry. */
+  sourceSpan: number;
+  /** True when the two weeks differ, i.e. the move re-places the range in a calendar that did not
+   *  produce it. A same-resource move leaves this false and keeps its existing behaviour exactly. */
+  placesIntoAnotherWeek: boolean;
+  targetDays: Weekday[] | null;
 }
 
 interface ApplyResizeInput {
@@ -45,7 +56,14 @@ export interface DateRange {
  *  *working-day* count by extending its end across non-working days. Omit (or
  *  set `ignoreWeekends`) to get the plain calendar-shift behavior. */
 export interface GestureOptions {
+  /** The DESTINATION's working week: where the moved range is placed, and the only week a resize
+   *  ever sees. */
   workingDays?: Weekday[];
+  /** The ORIGIN's working week, when a move crosses rows. A reassignment keeps the allocation's
+   *  duration as its own resource measured it and re-places that duration in the target's calendar,
+   *  so the two weeks answer different questions: this one sizes the range, `workingDays` positions
+   *  it. Omit for a same-resource gesture, where the two are the same week. */
+  sourceWorkingDays?: Weekday[];
   ignoreWeekends?: boolean;
 }
 
@@ -101,19 +119,30 @@ function resolveResizedEdge({ range, deltaDays, edge, weekendAwareDays }: Resolv
   return moved;
 }
 
-function applyMove(range: DateRange, deltaDays: number, weekendAwareDays: Weekday[] | null): DateRange {
+// Measure against the ORIGIN, place against the DESTINATION. Measuring under the destination
+// instead would reinterpret the old dates in a calendar that never produced them: two days of work
+// on a Tue/Thu week read as four on a Mon-Fri one, and the bar refuses to shrink. When both weeks
+// count in the same units — two full weeks, or an allocation that ignores them — this reduces to
+// the plain calendar shift it has always been.
+function applyMove({ range, deltaDays, sourceSpan, placesIntoAnotherWeek, targetDays }: ApplyMoveInput): DateRange {
   const shiftedStart = addDaysISO(range.startDate, deltaDays);
-  if (!weekendAwareDays) return { startDate: shiftedStart, endDate: addDaysISO(range.endDate, deltaDays) };
-
-  const workingDays = countWorkingDays(range.startDate, range.endDate, weekendAwareDays);
-  const newStart =
-    deltaDays !== 0 && workingDays > 0
-      ? snapToWorkingDay(shiftedStart, weekendAwareDays, deltaDays > 0 ? 1 : -1)
-      : shiftedStart;
-  const newEnd =
-    workingDays > 0
-      ? endDateForWorkingDays(newStart, workingDays, weekendAwareDays)
-      : addDaysISO(newStart, daysInclusive(range.startDate, range.endDate) - 1);
+  // The DESTINATION's week decides where the range starts. An origin with nothing to carry must
+  // still snap when it is being placed in a DIFFERENT week: a start the destination does not work
+  // is refused at commit, so leaving it unsnapped turns the drop into a rejection toast. Within one
+  // week there is nothing to re-place, and a range already sitting on non-working days stays put.
+  const snaps = deltaDays !== 0 && targetDays && (sourceSpan > 0 || placesIntoAnotherWeek);
+  const newStart = snaps ? snapToWorkingDay(shiftedStart, targetDays, deltaDays > 0 ? 1 : -1) : shiftedStart;
+  // An origin with no duration to carry — its range lands entirely on days it does not work, or
+  // its working week has collapsed to none at all. Preserving the raw calendar span is the only
+  // non-destructive answer; re-placing a zero span would silently delete the booking.
+  const span = sourceSpan > 0 ? sourceSpan : daysInclusive(range.startDate, range.endDate);
+  const placeUnderTarget = sourceSpan > 0 && targetDays;
+  // The inverse of `spanDays`, written out rather than borrowed from `endDateForSpan`: that one
+  // clamps the span to the date domain, and a gesture should surface an impossible drag as the
+  // store's rejection rather than silently land somewhere the pointer never went.
+  const newEnd = placeUnderTarget
+    ? endDateForWorkingDays(newStart, span, placeUnderTarget)
+    : addDaysISO(newStart, span - 1);
   return { startDate: newStart, endDate: newEnd };
 }
 
@@ -125,16 +154,52 @@ function applyResize({ mode, range, deltaDays, weekendAwareDays }: ApplyResizeIn
     : { startDate: range.startDate, endDate: moved };
 }
 
+/** The week a gesture must respect, or `null` when it may treat every calendar day alike: a full or
+ *  empty working week, or an allocation that opted out. Returning the array rather than a boolean is
+ *  what lets every branch below drop the `options!.workingDays!` assertions. */
+function resolveWeekendAwareWeek(days: Weekday[] | undefined, ignoreWeekends: boolean | undefined): Weekday[] | null {
+  return isWeekendAware(days, ignoreWeekends) ? (days ?? null) : null;
+}
+
+/** Do two resolved weeks describe the same working days? A same-resource move reads its week twice
+ *  and gets two equal-but-distinct arrays, so identity alone cannot answer this. */
+function isSameWeek(a: Weekday[] | null, b: Weekday[] | null): boolean {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((day) => b.includes(day));
+}
+
+/** The duration a move carries away from its ORIGIN. A collapsed working week (no effective days at
+ *  all) reports 0 rather than a calendar span: `resolveWeekendAwareWeek` cannot tell it apart from a full
+ *  seven-day week, and treating "works no day" as "works every day" would inflate the booking. */
+function resolveMoveSpan(range: DateRange, options: GestureOptions | undefined): number {
+  const workingDays = options?.sourceWorkingDays ?? options?.workingDays;
+  if (workingDays?.length === 0 && !options?.ignoreWeekends) return 0;
+  // `spanDays` owns the working-days-versus-calendar-days split for the whole product; measuring
+  // through it is what keeps a dragged duration and a typed one meaning the same thing.
+  return spanDays(range.startDate, range.endDate, {
+    ...(workingDays ? { workingDays } : {}),
+    ...(options?.ignoreWeekends !== undefined ? { ignoreWeekends: options.ignoreWeekends } : {}),
+  });
+}
+
 export function applyGesture({ mode, range, deltaDays, options }: ApplyGestureInput): DateRange {
-  // Resolve weekend-awareness ONCE for the whole gesture: non-null exactly when the resource has a
-  // partial working week and the allocation hasn't opted out. Carrying the working-day array rather
-  // than a boolean is what lets every branch below drop the `opts!.workingDays!` assertions.
-  const weekendAwareDays = isWeekendAware(options?.workingDays, options?.ignoreWeekends)
-    ? (options?.workingDays ?? null)
-    : null;
+  // Resolve weekend-awareness ONCE for the whole gesture. A resize only ever sees one week; a move
+  // sees two, and absent a source week it stays on one resource, so both of its ends are the same
+  // calendar and every existing caller keeps its behaviour untouched.
+  const weekendAwareDays = resolveWeekendAwareWeek(options?.workingDays, options?.ignoreWeekends);
   switch (mode) {
     case "move":
-      return applyMove(range, deltaDays, weekendAwareDays);
+      return applyMove({
+        range,
+        deltaDays,
+        sourceSpan: resolveMoveSpan(range, options),
+        placesIntoAnotherWeek: !isSameWeek(
+          resolveWeekendAwareWeek(options?.sourceWorkingDays ?? options?.workingDays, options?.ignoreWeekends),
+          weekendAwareDays,
+        ),
+        targetDays: weekendAwareDays,
+      });
     case "resize-start":
     case "resize-end":
       return applyResize({ mode, range, deltaDays, weekendAwareDays });

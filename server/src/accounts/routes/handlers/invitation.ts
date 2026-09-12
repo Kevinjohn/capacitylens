@@ -5,6 +5,7 @@ import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from 
 import { cleanText } from "@capacitylens/shared/lib/strings";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
+import { NO_REPROMPT } from "../../../routes/routeShared";
 import { parseStrictIsoInstant } from "../isoInstant";
 import type { AccountRouteContext } from "../createReplyHelpers";
 
@@ -130,7 +131,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   if ("failure" in input) return accountFail(reply, input.failure);
   const { value } = input;
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
-  if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites" })) return;
+  if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   const expiryResult = parseInvitationExpiry(value.requestedExpiry, createValidationFailure);
   if ("failure" in expiryResult) return accountFail(reply, expiryResult.failure);
   try {
@@ -308,7 +309,7 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
   const { authMode, administration: accountAdminPort, authorize, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
-  if (!authorize({ req, reply, accountId, action: "manageInvites", options: { requireFreshSession: false } })) return;
+  if (!authorize({ req, reply, accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   if (authMode === "off") return { invites: [] };
   try {
     const invites = await accountAdminPort.listInvitations({
@@ -342,7 +343,7 @@ export async function revokeInvitation(req: FastifyRequest, reply: FastifyReply,
   } = context;
 
   const { accountId, id } = req.params as { accountId: string; id: string };
-  if (!authorize({ req, reply, accountId, action: "manageInvites" })) return;
+  if (!authorize({ req, reply, accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
     const revoked = await accountAdminPort.revokeInvitation({
