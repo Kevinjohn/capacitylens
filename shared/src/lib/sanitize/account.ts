@@ -1,5 +1,10 @@
 import { normalizeAccountWorkingDays } from "../accountWorkingDays";
-import { CAPACITY_OVERVIEW_ACCESS_VALUES, DATE_STYLES, INTERNAL_COLOUR_MODES } from "../../types/entities";
+import {
+  CAPACITY_OVERVIEW_ACCESS_VALUES,
+  DATE_STYLES,
+  INTERNAL_COLOUR_MODES,
+  SCHEDULING_MODES,
+} from "../../types/entities";
 import type { Account } from "../../types/entities";
 
 /**
@@ -41,15 +46,28 @@ void accountBooleanFieldsAreComplete;
 
 /**
  * Optional account fields constrained to a fixed value set. Anything outside it is dropped:
- *   language            English-only until P1.5.1 (Paraglide); a hand-edited 'fr'/123/etc. must not
- *                       persist — its absence reads back as 'en'.
- *   internalColourMode  an unknown mode's absence deliberately reads as the safe/default grey.
- *   dateStyle           an unknown style's absence reads as 'day-month', the historical format.
+ *   schedulingMode: absence reads as 'hourly', the original behaviour.
+ *   language: English-only until P1.5.1 (Paraglide); absence reads as 'en'.
+ *   internalColourMode: absence reads as the safe/default grey.
+ *   capacityOverviewAccess: absence reads as owner/admin-only access.
+ *   dateStyle: absence reads as 'day-month', the historical format.
  */
-const ACCOUNT_ENUM_FIELDS: {
-  readonly [K in "language" | "internalColourMode" | "capacityOverviewAccess" | "dateStyle"]: readonly unknown[];
-} = {
+/** Every Account property whose type is a finite string union, plus `language`, which is
+ * intentionally typed as `string` until additional locales are supported. The mapped type makes
+ * a new enum-valued Account field fail the build until its allowed values are added below. */
+type AccountEnumField =
+  | "language"
+  | {
+      [K in keyof Account]-?: NonNullable<Account[K]> extends string
+        ? string extends NonNullable<Account[K]>
+          ? never
+          : K
+        : never;
+    }[keyof Account];
+
+const ACCOUNT_ENUM_FIELDS: { readonly [K in AccountEnumField]: readonly unknown[] } = {
   language: ["en"],
+  schedulingMode: SCHEDULING_MODES,
   internalColourMode: INTERNAL_COLOUR_MODES,
   capacityOverviewAccess: CAPACITY_OVERVIEW_ACCESS_VALUES,
   dateStyle: DATE_STYLES,
