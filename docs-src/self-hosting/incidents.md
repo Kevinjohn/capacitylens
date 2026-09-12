@@ -237,10 +237,12 @@ like this emits a structured security event so an operator can review it.
 
 1. If this appeared right after an upgrade, check the audit/security log for the
    automatic promotion event first — the migration has usually already fixed it. Confirm
-   the promoted person is the right one; if not, use an explicit ownership transfer
-   inside the app to move it to the right person (that's the only ordinary
-   ownership-change operation — Owner can never be assigned through an invite or a
-   regular role change).
+   the promoted person is the right one; if not, use the in-app [ownership
+   transfer](/getting-started/roles-and-permissions#hand-the-company-to-someone-else) to
+   move it to the right person (that's the only ordinary ownership-change operation —
+   Owner can never be assigned through an invite or a regular role change). It needs the
+   nominated Admin to agree, so it is not an instant fix; the repair command below is
+   what to reach for when nobody can act as Owner at all.
 2. If a company still has no Owner and the automatic repair doesn't apply (for example,
    mid SSO cutover), use the stopped-server `assign-workspace-owner` repair command
    documented under [Cutover repair

@@ -866,9 +866,15 @@ them before cutover.
 ### 8.5 The Owner, specifically
 
 Owner cannot be invited (`InvitationRole`, `types.ts`). A second Owner cannot be created (partial
-unique index). Ownership moves only via `POST /api/accounts/:accountId/transfer-ownership`
-(`accountRoutes.ts`), owner-tier, with self-transfer refused in the port
-(`sqliteAccountAdminPort.ts`).
+unique index). Ownership moves only through the three-step consent ceremony under
+`/api/accounts/:accountId/ownership-transfer` (`accounts/routes/handlers/ownershipTransfer.ts`): the
+Owner nominates, the nominated Admin consents, the same Owner completes. Every step is owner- or
+nominee-specific rather than merely owner-tier, and self-nomination is refused in the port
+(`accounts/adminPort/ownershipTransfer.ts`).
+
+The ceremony makes the interlock below stricter, not weaker: a transfer now spans three acts and up
+to seven days, so an unlinked Owner cannot be moved out of the way in a single call during a cutover
+window.
 
 So for the Owner there is exactly one non-destructive route: **link before cutover.** That is why the
 interlock treats an unlinked Owner as unconditionally critical, and why the preflight exists.
@@ -1338,7 +1344,7 @@ duplicate-subject detection `:357-368`, `:445-458` · freshness derivation `:406
 
 **Routes** — `accountRoutes.ts`: invites `:197-274`, preview `:279-291`, accept `:303-339`, signup
 `:344-394` (mode gate `:345-347`) · members `:414`, `mayResetPassword` `:442`, patch `:454`, delete
-`:493` · transfer-ownership `:531` · admin reset `:573-585`, response `:611` · revoke-sessions `:620`
+`:493` · ownership-transfer ceremony `:531` · admin reset `:573-585`, response `:611` · revoke-sessions `:620`
 `sqliteAccountAdminPort.ts`: preauth lookup `:70-83` · invitation roles `:163-180` ·
 `assertAdministrativeAssurance` `:209-222` · `removeMemberRow` `:933` · self-transfer refusal
 `:955-957`

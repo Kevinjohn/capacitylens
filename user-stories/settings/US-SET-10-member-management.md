@@ -8,8 +8,9 @@ Let an Owner or Admin manage who can access their company from Team & access: se
 people (a link, optionally pre-authorised to one email), change a member's role, disable or restore a
 member's access, remove a member, and list/revoke outstanding invites. An Owner may also opt in to a
 coarse "has signed in" confirmation for each membership. An Admin manages members but cannot do
-owner-only operations. Ownership transfer is owner-only and, since #175, has no per-row control: it
-is an API operation awaiting its own owner-only section.
+owner-only operations. Ownership transfer is not part of this story: it has no per-row control
+(since #175) and now has its own three-step ceremony and section — see
+[US-SET-18](US-SET-18-ownership-transfer.md).
 
 **Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md)
 
@@ -18,8 +19,8 @@ is an API operation awaiting its own owner-only section.
 On an auth-enabled, server-backed deploy, access to a company is a real membership (a role per login),
 so the people who run a company need a place to grant, adjust, and revoke that access without touching
 the database. Team & access is visible to every role so a Viewer/Editor can understand their own
-limits; management controls remain Owner/Admin-only. Ownership has one explicit, atomic transfer path,
-and the database prevents a second active Owner. Disabling is the reversible middle ground between
+limits; management controls remain Owner/Admin-only. Ownership moves only through its own consent ceremony
+(US-SET-18), and the database prevents a second active Owner. Disabling is the reversible middle ground between
 "nothing changed" and "removed": a **disabled** or **archived** membership keeps its role and history
 but authorizes nothing, because every server-side authorization read narrows on an _active_ row.
 Invites reuse the P1.9 single-use link: the secret token is shown once at creation, stored only as a
@@ -88,11 +89,9 @@ intro.
    row shows B neither a pencil nor a gear (an Admin can't touch an owner). Signed in as A, that same
    row keeps a gear holding only the self-service **Reset password** and **Revoke sessions**: nobody
    can disable an Owner, or themselves. See US-SET-13 for the reset-link flow itself.
-9. **Ownership transfer** remains owner-only and atomic, but is currently reached through
-   `POST …/transfer-ownership {toUserId}` rather than the member table: it promotes the target to
-   **Owner** and steps the caller down to **Admin** in one server call, and the account always keeps
-   exactly one Owner. The caller cannot target themselves (400) or a non-member (404). A follow-up
-   issue gives it a dedicated owner-only section.
+9. **Ownership transfer** is not reachable from the member table at all. It lives in its own
+   **Company ownership** section below, as a three-step ceremony the nominated Admin must agree to —
+   see [US-SET-18](US-SET-18-ownership-transfer.md).
 10. Signed in as A, the Owner can turn on **Record member sign-ins**
     (`data-testid="member-sign-in-tracking"`). This adds a **Signed in** column between **Email** and
     the two right-aligned action columns. It shows only **Yes** or **Not yet** for a successful
@@ -147,9 +146,9 @@ intro.
   - the **Owner** option is absent for everyone (role select and invite-role picker);
   - the **Owner row** shows no ordinary role control or Remove action for anyone;
   - no row carries a transfer-ownership control for anyone (`data-testid="member-make-owner"` is
-    absent everywhere); `POST …/transfer-ownership` stays owner-only, atomically promoting the target
-    to Owner and demoting the caller to Admin, and both membership projections are re-read afterwards
-    so the caller's role badge and affordances reflect the demotion.
+    absent everywhere); ownership moves only through the ceremony in US-SET-18, which re-reads both
+    membership projections afterwards so the former Owner's role badge and affordances reflect the
+    demotion.
 - Invitation creation explains that CapacityLens sends no email: the administrator must copy and
   send the link. Email guidance is available to screen readers before validation and alongside
   any error. Success and recovery instructions remain inline with the one-time link.
@@ -163,14 +162,13 @@ intro.
   hash, and the invites list carries no token. Accepted (used) invites remain listed (marked _used_)
   for admin visibility; an expired, unaccepted link is pruned.
 - The server is the backstop regardless of the UI: any generic Owner assignment or Owner invite is
-  **400**; touching or removing the Owner outside transfer is **403**;
-  transferring ownership as a non-owner is **403**, to a non-member is **404**, and to a missing/empty
-  or self target is **400**; revoking another account's invite is a no-op; and reading another
+  **400**; touching or removing the Owner outside the ownership-transfer ceremony is **403**;
+  revoking another account's invite is a no-op; and reading another
   account's members is **403** (no cross-tenant member leak).
 - API routes: `GET /api/accounts/:accountId/members` (returns
   `{members, signInTrackingEnabled}`; each member carries `status` and nullable
   `signInConfirmed`), `PUT …/member-sign-in-tracking {enabled}` (Owner only),
   `PATCH …/members/:userId {role}`, `PATCH …/members/:userId/status {status}`,
-  `DELETE …/members/:userId`, `POST …/transfer-ownership {toUserId}` (owner-only),
+  `DELETE …/members/:userId`,
   `GET /api/accounts/:accountId/invites` (no token), `DELETE …/invites/:id`. OFF mode returns empty
   lists and inert mutates.

@@ -46,13 +46,9 @@ throughout these docs.
 | Import, delete the company, transfer ownership |    —     |    —     |   —   |  Yes  |
 
 There is exactly one Owner per company, and Owner can't be assigned through an invite or
-an ordinary role change — only through an explicit ownership transfer to an existing
-member. Ownership transfer has no screen of its own yet: the per-member button was
-removed because it doesn't belong on every row, and its replacement is still being
-designed. Until then, transferring ownership needs a self-hosting admin (see [A company
-has no Owner](/self-hosting/incidents#a-company-has-no-owner) for the related recovery
-tool). An Admin can invite, remove, disable or change the role of any other member, but
-can't touch the Owner — and nobody, not even the Owner, can disable or archive the Owner
+an ordinary role change — only through the ownership transfer described in [Hand the
+company to someone else](#hand-the-company-to-someone-else). An Admin can invite,
+remove, disable or change the role of any other member, but can't touch the Owner — and nobody, not even the Owner, can disable or archive the Owner
 or themselves. Disabling or archiving someone stops them opening the company straight
 away while keeping their role and history, and it can be undone from the same menu. Those
 people leave the main member list and move into the **No longer active** group beneath it,
@@ -67,6 +63,33 @@ invite or access reset worked. It is off by default and records only **Yes** or 
 for each company membership—never when someone signed in or what they did. Turning it off
 deletes the confirmations. See [Invite your team](/getting-started/invite-your-team#managing-someone-who-already-joined)
 for the member-management details.
+
+## Hand the company to someone else
+
+Ownership moves in three steps, and nothing changes until all three have happened:
+
+1. The **Owner nominates an Admin** in **Team & access → Company ownership**. Only active
+   Admins can be nominated: the new Owner is someone who already administers the company,
+   not a promotion of two steps on one person's say-so.
+2. The **nominated Admin agrees**. Nobody can agree on their behalf — not another Admin,
+   and not the Owner who asked. They can decline instead, or take their agreement back
+   again at any point before the last step.
+3. The **same Owner confirms**. Only then do the two of you swap: they become the Owner,
+   you become an Admin.
+
+Both people see the request in **Team & access**, and nobody else does — a transfer in
+progress, and who it names, isn't ordinary member information. Either side can stop it:
+the Owner can cancel, and the nominee can decline. The Owner can also nominate somebody
+else instead, which replaces the standing request rather than opening a second one.
+
+A request expires seven days after it is made, whether or not the nominee has agreed. It
+also ends by itself if the people it names stop being the right people: if the nominee
+stops being an active Admin, or the Owner who asked stops being the Owner, the request
+ends and the card says so. In every case the company keeps the Owner it already had.
+
+Both people need a recent sign-in confirmation for their step, the same as every other
+sensitive action. If a company somehow ends up with no Owner at all, see [A company has
+no Owner](/self-hosting/incidents#a-company-has-no-owner).
 
 ## Masquerade (view as a member)
 

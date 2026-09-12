@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-129 stories across 16 areas. The **Automated coverage** column names the spec file(s) whose
+130 stories across 16 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -205,7 +205,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-07](settings/US-SET-07-show-external.md)         | Show external / 3rd parties                           | `e2e/external.spec.ts`                                  |
 | [US-SET-08](settings/US-SET-08-clear-local-storage.md)   | Clear local storage                                   | `e2e/clear-local-storage.spec.ts`                       |
 | [US-SET-09](settings/US-SET-09-snap-to-week-start.md)    | Snap the schedule's left edge to the week start       | `e2e/snap-week.spec.ts`                                 |
-| [US-SET-10](settings/US-SET-10-member-management.md)     | Member management (invite / role / revoke / transfer) | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts`  |
+| [US-SET-10](settings/US-SET-10-member-management.md)     | Member management (invite / role / revoke)            | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts`  |
 | [US-SET-11](settings/US-SET-11-viewer-readonly.md)       | Viewer read-only mode                                 | `e2e/viewer.auth.spec.ts`                               |
 | [US-SET-12](settings/US-SET-12-archived-deleted.md)      | Inline archives and Deleted items                     | `e2e/archived.spec.ts`                                  |
 | [US-SET-13](settings/US-SET-13-password-reset-links.md)  | Admin-issued password-reset links                     | `e2e/reset-password.auth.spec.ts`                       |
@@ -213,6 +213,7 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 | [US-SET-15](settings/US-SET-15-global-working-days.md)   | Company-wide working days                             | `e2e/global-working-days.spec.ts`                       |
 | [US-SET-16](settings/US-SET-16-diagnostics.md)           | Copy privacy-safe diagnostics                         | `src/data/buildInfo.test.ts` + `SettingsView.test.tsx`  |
 | [US-SET-17](settings/US-SET-17-date-style.md)            | Date format preference on the schedule                | `e2e/settings-date-style.spec.ts`                       |
+| [US-SET-18](settings/US-SET-18-ownership-transfer.md)    | Hand the company to someone else                      | `e2e/ownership-transfer.auth.spec.ts`                   |
 
 ## Keyboard & accessibility — `accessibility/`
 

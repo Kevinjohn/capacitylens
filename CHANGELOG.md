@@ -43,8 +43,16 @@ new features and **patch** versions carry fixes.
 - Simplify resource add/edit forms with always-visible Studio/Supplementary choices, compact Start date and End date labels,
   and separators around the date group (#765).
 - Collapse the repeated month in date ranges on the schedule: "9 – 14 Sep" rather than "9 Sep – 14 Sep" (#793).
+- Retire the single-call ownership transfer: ownership now moves only through the consent ceremony
+  above, so the person receiving a company has agreed to receive it (#780).
 
 ### Added
+
+- Move company ownership through a three-step consent ceremony in **Team & access**: the Owner
+  nominates an Admin, the nominated Admin agrees, and the same Owner confirms. Nothing changes until
+  all three have happened, either side can stop it, a request expires after seven days, and a request
+  ends by itself if either participant's membership changes. Both participants — and nobody else —
+  can see it, and a participant who was away learns how it ended (#780).
 
 - Document deploying on a managed VPS platform such as Forge, Ploi or RunCloud (#734).
 - Add a personal Account page for identity, password, MFA status and active sessions, linked beside
