@@ -100,7 +100,7 @@ describe("SettingsView — scheduling mode", () => {
   });
 });
 
-describe("SettingsView — Capacity Overview access", () => {
+describe("SettingsView — Overview access", () => {
   it("defaults to Owner and Admin and lets an administrator widen access", async () => {
     const user = userEvent.setup();
     render(
@@ -140,7 +140,7 @@ describe("SettingsView — section help", () => {
 
     for (const section of [
       "Scheduling",
-      "Capacity Overview access",
+      "Overview access",
       "Company-wide working days",
       "Disciplines",
       "Engagement grouping",

@@ -14,6 +14,11 @@ new features and **patch** versions carry fixes.
   so a two-day booking stays two days instead of being re-read against the destination's calendar.
   The drag preview shows the resulting length before release (#338).
 
+### Changed
+
+- Rename "Capacity Overview" to "Overview" in the sidebar, page heading, table, settings and
+  route (`/overview`); no redirect from the old `/capacity-overview` path (#791).
+
 ## [0.65.0-alpha.1] - 2026-09-12
 
 ### Fixed

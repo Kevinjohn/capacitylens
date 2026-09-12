@@ -136,19 +136,19 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label        | Route                | Screen                                                                                                                                                                          |
-| ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Capacity Overview | `/capacity-overview` | Four-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting                                                             |
-| Schedule          | `/`                  | Timeline scheduler                                                                                                                                                              |
-| Resources         | `/resources`         | Resource list (incl. the **External** section when enabled)                                                                                                                     |
-| Disciplines       | `/disciplines`       | Discipline list                                                                                                                                                                 |
-| Clients           | `/clients`           | Client list                                                                                                                                                                     |
-| Projects          | `/projects`          | Project list                                                                                                                                                                    |
-| Activities        | `/activities`        | Activity list                                                                                                                                                                   |
-| Time off          | `/timeoff`           | Time-off list                                                                                                                                                                   |
-| Team & access     | `/team`              | Current role, capability summary and app-member access management                                                                                                               |
-| Settings          | `/settings`          | Settings (scheduling, date format, company-wide working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
-| Account           | `/account`           | Signed-in identity and personal security controls                                                                                                                               |
+| Link label    | Route          | Screen                                                                                                                                                                          |
+| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview      | `/overview`    | Four-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting                                                             |
+| Schedule      | `/`            | Timeline scheduler                                                                                                                                                              |
+| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                                     |
+| Disciplines   | `/disciplines` | Discipline list                                                                                                                                                                 |
+| Clients       | `/clients`     | Client list                                                                                                                                                                     |
+| Projects      | `/projects`    | Project list                                                                                                                                                                    |
+| Activities    | `/activities`  | Activity list                                                                                                                                                                   |
+| Time off      | `/timeoff`     | Time-off list                                                                                                                                                                   |
+| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                                               |
+| Settings      | `/settings`    | Settings (scheduling, date format, company-wide working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
+| Account       | `/account`     | Signed-in identity and personal security controls                                                                                                                               |
 
 **Team & access** and **Settings** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
@@ -163,7 +163,7 @@ parties no longer have their own nav link — they moved INTO the **Resources** 
 **redirects to `/resources`** so saved bookmarks don't 404. Each link
 carries a small decorative icon (`aria-hidden`; the accessible name stays the label text).
 
-**Capacity Overview** is immediately above **Schedule**, while Schedule remains the landing page.
+**Overview** is immediately above **Schedule**, while Schedule remains the landing page.
 It defaults to Owner and Admin access. Those roles can extend access in Settings to Editors or
 Everyone; members outside the chosen level do not see the link and a direct URL redirects to Schedule.
 

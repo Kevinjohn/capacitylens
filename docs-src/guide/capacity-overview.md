@@ -1,12 +1,12 @@
 # Find capacity for the next four weeks
 
-Capacity Overview shows who can take work during the remainder of this week and the next three
+Overview shows who can take work during the remainder of this week and the next three
 full company weeks. It uses the same working patterns, time off and company closures as the
 Schedule.
 
 ## Open the overview
 
-Choose **Capacity Overview** immediately above **Schedule** in the sidebar. The table shows active
+Choose **Overview** immediately above **Schedule** in the sidebar. The table shows active
 Studio and Supplementary people in the same order and groups as the Schedule. External resources
 and archived or deleted people are excluded.
 
@@ -36,14 +36,14 @@ Hours or Days in **Settings** to use the overview.
 
 ## Control access
 
-Capacity Overview is available to Owners and Admins by default. An Owner or Admin can open
-**Settings**, find **Capacity Overview access**, and choose:
+Overview is available to Owners and Admins by default. An Owner or Admin can open
+**Settings**, find **Overview access**, and choose:
 
 - **Owner and Admin only**;
 - **Owner, Admin, and Editors**; or
 - **Everyone**.
 
-The chosen access applies to both the sidebar link and the direct `/capacity-overview` route.
+The chosen access applies to both the sidebar link and the direct `/overview` route.
 
 This setting controls who can open the page, not the underlying data: everyone with sign-in
 access to the company already receives the same allocations and resources through the schedule.
