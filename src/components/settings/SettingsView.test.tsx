@@ -51,6 +51,7 @@ beforeEach(() => {
   offlineMocks.clearAll.mockResolvedValue(undefined);
   resetStoreWithAccount();
   useStore.getState().setTheme("light");
+  useStore.getState().setDateStyle("day-month");
   vi.stubGlobal("fetch", fetchMock.fetch);
   fetchMock.fetch.mockReset();
   fetchMock.fetch.mockResolvedValue({
@@ -313,6 +314,24 @@ describe("SettingsView — theme", () => {
     expect(dark).toHaveAttribute("aria-checked", "true");
     // The choice is reflected onto <html> for the CSS to key off.
     expect(document.documentElement.dataset.theme).toBe("dark");
+  });
+});
+
+describe("SettingsView — date style", () => {
+  it("reflects the current preference and switches it on click", async () => {
+    const user = userEvent.setup();
+    render(<SettingsView />);
+
+    const dayMonth = screen.getByRole("radio", { name: "9 Sep" });
+    const monthDay = screen.getByRole("radio", { name: "Sep 9" });
+    expect(dayMonth).toHaveAttribute("aria-checked", "true");
+    expect(monthDay).toHaveAttribute("aria-checked", "false");
+
+    await user.click(monthDay);
+
+    expect(useStore.getState().dateStyle).toBe("month-day");
+    expect(monthDay).toHaveAttribute("aria-checked", "true");
+    expect(dayMonth).toHaveAttribute("aria-checked", "false");
   });
 });
 

@@ -3,6 +3,7 @@ import type { CapacityOverviewAccess, InternalColourMode, SchedulingMode } from 
 import type { BarLabelPreferences, UtilizationPreferences } from "../../lib/displayPrefs";
 import { type LabelMessages } from "../../lib/metadata";
 import type { ThemePreference } from "../../lib/theme";
+import type { DateStyle } from "../../lib/dateStyle";
 
 // Module-scope option tables hold UNCALLED message references (`m.key`, never `m.key()`) and are
 // resolved at RENDER through metadata.ts's `buildLabels`/`buildLabelOptions` — the same lazy rule the enum
@@ -14,6 +15,13 @@ export const THEME_MESSAGES: LabelMessages<ThemePreference> = {
   light: m.settings_theme_light,
   dark: m.settings_theme_dark,
   system: m.settings_theme_system,
+};
+
+export const DATE_STYLE_MESSAGES: LabelMessages<DateStyle> = {
+  "day-month": m.settings_date_style_day_month,
+  "day-ordinal-month": m.settings_date_style_day_ordinal_month,
+  "month-day": m.settings_date_style_month_day,
+  "month-day-ordinal": m.settings_date_style_month_day_ordinal,
 };
 
 export const SCHEDULING_MESSAGES: LabelMessages<SchedulingMode> = {
