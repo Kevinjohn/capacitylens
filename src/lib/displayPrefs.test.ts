@@ -339,7 +339,19 @@ describe("sidebar default (viewport-derived)", () => {
     const matchMedia = vi.fn().mockReturnValue({ matches: false });
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
     readDefaultSidebarOpen();
-    expect(matchMedia).toHaveBeenCalledWith("(max-width: 767px), (max-height: 480px)");
+    expect(matchMedia).toHaveBeenCalledWith("(max-width: 1023px), (max-height: 480px)");
+  });
+
+  it("collapses by default at 1023px (below the lg breakpoint)", () => {
+    const matchMedia = vi.fn((query: string) => ({ matches: query.includes("max-width: 1023px") }));
+    window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
+    expect(readDefaultSidebarOpen()).toBe(false);
+  });
+
+  it("opens by default at 1024px (the lg breakpoint)", () => {
+    const matchMedia = vi.fn(() => ({ matches: false }));
+    window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
+    expect(readDefaultSidebarOpen()).toBe(true);
   });
 
   it("defaults open when matchMedia throws", () => {

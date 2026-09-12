@@ -9,6 +9,10 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Show both years on a date range that crosses one, instead of a repeated month that read as a
+  single day (#819).
+- Name the company-closure Edit and Delete buttons with the date range shown on the row they act
+  on, so a voice-control user can speak what is on screen (#793).
 - Reduced memory pressure during direct deployment builds by keeping test and build-tool type-checking
   in validation while checking only browser-shipped sources in `pnpm run build`.
 
@@ -16,6 +20,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Default the sidebar to collapsed below 1024px viewport width so it no longer crowds the
+  schedule on tablet-sized screens; a saved open/closed choice still wins (#792).
 - Make company creation actions responsive and spaced, use equal-width week-start choices, and
   replace the overwhelming timezone select with a searchable browser-aware IANA combobox that
   presents local/common zones first and reflects daylight-saving abbreviations (#740).
@@ -42,6 +48,8 @@ new features and **patch** versions carry fixes.
   optional Role is blank to persist (#736).
 - Simplify resource add/edit forms with always-visible Studio/Supplementary choices, compact Start date and End date labels,
   and separators around the date group (#765).
+- Collapse the repeated month in date ranges across the schedule, Capacity Overview, Time off and company
+  closures: "9 – 14 Sep" rather than "9 Sep – 14 Sep" (#793).
 
 ### Added
 
@@ -50,6 +58,8 @@ new features and **patch** versions carry fixes.
   the current-user control on every main page (#744).
 - Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
   server health metadata that can be copied for support reports (#745).
+- Add a Date format device preference to Settings → Appearance, choosing between 9 Sep, 9th Sep, Sep 9 and
+  Sep 9th (#793).
 - Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,
   activity creation, company-settings review and direct links to each action (#741).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
