@@ -617,8 +617,29 @@ function registerExpiryAndMutationGuardTests(): void {
   });
 }
 
+function registerStaleSessionStartTest(): void {
+  it("starts a projection from a stale session: viewing as a member is ordinary administration", async () => {
+    const { app, db, actor, target } = await memberFixture();
+    db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(
+      new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+      actor.userId,
+    );
+
+    const started = await call(app, {
+      method: "POST",
+      url: "/api/accounts/a1/masquerade",
+      headers: { cookie: actor.cookie },
+      payload: { targetUserId: target.userId },
+    });
+
+    expect(started.statusCode, started.body).toBe(200);
+    expect(readJsonObject(started)).toMatchObject({ accountId: "a1", targetUserId: target.userId });
+  });
+}
+
 describe("identity masquerade", () => {
   registerProjectionStartTests();
+  registerStaleSessionStartTest();
   registerReadOnlyGuardTest();
   registerStartGuardTests();
   registerTrustedLocalGuardTest();

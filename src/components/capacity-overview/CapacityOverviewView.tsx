@@ -1,10 +1,10 @@
+import { normalizeAccountWorkingDays } from "@capacitylens/shared/lib/accountWorkingDays";
 import { useMemo, useState } from "react";
 import { useActiveScopedData } from "@/store/useScopedData";
 import {
   hasDisciplinesEnabled,
   hasPlaceholdersEnabled,
   hasResourceEngagementGrouping,
-  listAccountWorkingDays,
   resolveSchedulingMode,
   resolveTimeZone,
   resolveWeekStart,
@@ -24,7 +24,13 @@ export function CapacityOverviewView() {
   const today = useCalendarToday(timezone);
   const schedulingMode = resolveSchedulingMode(data, activeAccountId);
   const weekStartsOn = resolveWeekStart(data, activeAccountId);
-  const accountWorkingDays = listAccountWorkingDays(data, activeAccountId);
+  const activeAccount = useStore((state) =>
+    state.data.accounts.find((account) => account.id === state.activeAccountId),
+  );
+  const accountWorkingDays = useMemo(
+    () => normalizeAccountWorkingDays(activeAccount?.workingDays, activeAccount?.weekStartsOn ?? 1),
+    [activeAccount],
+  );
   const placeholdersEnabled = hasPlaceholdersEnabled(data, activeAccountId);
   const disciplinesEnabled = hasDisciplinesEnabled(data, activeAccountId);
   const groupResourcesByEngagement = hasResourceEngagementGrouping(data, activeAccountId);

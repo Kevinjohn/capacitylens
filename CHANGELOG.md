@@ -7,6 +7,19 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.64.1-alpha.1] - 2026-09-12
+
+### Fixed
+
+- Highlight company closures the same way as personal time off when the schedule's draw mode is
+  switched to Time off, instead of leaving the closure band unchanged (#787).
+- Keep an allocation bar's label inside the part of the bar on screen, so a booking that started
+  before the visible window is no longer unlabelled (#786).
+- Show a company closure's name in the standard text colour and keep it centred in the part of the
+  band on screen, so the closure stays named after scrolling a long list of people (#788).
+
+## [0.64.0-alpha.1] - 2026-09-12
+
 ### Fixed
 
 - Show both years on a date range that crosses one, instead of a repeated month that read as a
@@ -20,9 +33,20 @@ new features and **patch** versions carry fixes.
   in validation while checking only browser-shipped sources in `pnpm run build`.
 
 - Keep schedule group headers above company closure shading (#766).
+- Warn how many active allocations an activity archive would pull out of the schedule, matching the
+  existing client and project archive copy (#805).
+- Show a notice instead of failing silently when a member view is started while another start is
+  already in flight, and show the generic persistence message instead of a raw internal error when a
+  resource save fails through batch reconciliation (#806).
+- Keep the archive confirmation on screen when the row stops being active while the dialog is open,
+  instead of losing the page to an error (#817).
 
 ### Changed
 
+- Ask for the password again only for high-impact administration — ownership transfer, resetting
+  another member's password, revoking another member's sessions, company deletion, import/purge and
+  SSO cutover/identity link and repair — and drop the re-prompt from invites, role and status changes,
+  member removal, the sign-in-tracking toggle, masquerade start and internal-client adoption (#807).
 - Default the sidebar to collapsed below 1024px viewport width so it no longer crowds the
   schedule on tablet-sized screens; a saved open/closed choice still wins (#792).
 - Make company creation actions responsive and spaced, use equal-width week-start choices, and
@@ -4284,7 +4308,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.64.1-alpha.1...HEAD
+[0.64.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.64.0-alpha.1...v0.64.1-alpha.1
+[0.64.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...v0.64.0-alpha.1
 [0.63.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.1-alpha.1...v0.63.0-alpha.1
 [0.62.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...v0.62.1-alpha.1
 [0.62.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.62.0-alpha.5

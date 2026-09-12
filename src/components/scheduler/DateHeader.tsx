@@ -7,6 +7,10 @@ import { parseDate, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { type WeeksZoom } from "../../lib/schedulerConfig";
 import { LAYOUT } from "./layout";
 import type { ColumnGeometry } from "./columnGeometry";
+import { buildVisibleSpanInsets } from "./visibleSpanInsets";
+
+/** Same visible-portion clamp the allocation bars and closure bands use, over a month span. */
+const MONTH_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--month-start)", "var(--month-width)");
 
 interface Span {
   key: string;
@@ -116,11 +120,7 @@ function DateMonthTier({ months, geometry, alignVisibleMonths }: DateMonthTierPr
                 <div
                   data-month-placement="visible-segment"
                   className="absolute inset-y-0 flex items-center justify-start overflow-hidden"
-                  style={{
-                    left: "clamp(0px, calc(var(--sched-scroll-left, 0px) - var(--month-start)), var(--month-width))",
-                    right:
-                      "clamp(0px, calc(var(--month-start) + var(--month-width) - var(--sched-scroll-left, 0px) - var(--sched-visible-width, 100%)), var(--month-width))",
-                  }}
+                  style={{ left: MONTH_LABEL_INSETS.leading, right: MONTH_LABEL_INSETS.trailing }}
                 >
                   <span
                     data-month-label

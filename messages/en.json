@@ -815,6 +815,7 @@
   "list_activities_archive_aria": "Archive {name}",
   "list_activities_archive_title": "Archive activity?",
   "list_activities_archive_message": "Archive \"{name}\"? This hides it from scheduling while keeping its history. An owner or admin can restore or delete it from Archived activities.",
+  "list_activities_archive_cascade": "This also hides {allocations} from the schedule; restore the activity to bring them back.",
   "settings_archived_restore": "Restore",
   "settings_archived_restore_aria": "Restore {name}",
   "settings_archived_delete": "Delete",
