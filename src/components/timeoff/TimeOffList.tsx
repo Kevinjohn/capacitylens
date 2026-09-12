@@ -3,7 +3,7 @@ import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from "../..
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useEntityListState } from "../../hooks/useEntityListState";
 import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
-import { formatShortDate, formatDayCount } from "../../lib/dateDisplay";
+import { formatShortDate, formatShortDateEndpoint, formatDayCount } from "../../lib/dateDisplay";
 import { TimeOffForm } from "./TimeOffForm";
 import { buildTimeOffGroups, readCurrentTimeOffWeekStart, type TimeOffGroup } from "./timeOffView";
 import type { TimeOff } from "@capacitylens/shared/types/entities";
@@ -88,8 +88,8 @@ interface TimeOffItemProps {
 function TimeOffItem({ timeOff, resourceName, separated, onEdit, onDelete }: TimeOffItemProps) {
   const labelContext = {
     name: resourceName,
-    start: formatShortDate(timeOff.startDate),
-    end: formatShortDate(timeOff.endDate),
+    start: formatShortDateEndpoint(timeOff.startDate, timeOff.endDate),
+    end: formatShortDateEndpoint(timeOff.endDate, timeOff.startDate),
   };
   return (
     <Fragment>
