@@ -5,6 +5,7 @@ import {
   type OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
 import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/account/ownershipTransferPolicy";
+import { createTableExistenceProbe } from "../auth";
 import type { Db } from "../db";
 import {
   LIVE_STATES_PREDICATE,
@@ -22,6 +23,19 @@ import {
  * alongside its command-ledger row and its audit event or not at all, and only the caller owns that
  * transaction.
  */
+
+/**
+ * Not every handle that reaches the terminalisers HAS this table.
+ *
+ * Two callers arrive before v40 exists: the membership choke point, which application migrations
+ * v12 and v14 drive on a handle where `ensureControlTables` has installed the membership tables but
+ * not this one; and the stopped-server repair commands, which deliberately run against a database
+ * whose migration 40 is still pending. A live request cannot exist in either case, so absence means
+ * "nothing to end" — but the query would still throw. Guarding HERE, rather than at each call site,
+ * is what keeps a repair path from failing with an opaque `no such table`. Absence is re-probed
+ * every call, never cached, so the same handle starts terminalising the moment v40 runs on it.
+ */
+const ownershipTransfersTableExists = createTableExistenceProbe("account_ownership_transfers");
 
 /**
  * The workflow revision one step on.
@@ -263,6 +277,7 @@ interface InvalidateLiveInput {
  *  learns exactly which rows it changed; both statements run inside the caller's transaction, so no
  *  row can appear or disappear between them. */
 function invalidateLive({ db, now, reason, predicate, parameters }: InvalidateLiveInput): string[] {
+  if (!ownershipTransfersTableExists(db)) return [];
   const where = `accountId = ? AND ${LIVE_STATES_PREDICATE}${predicate}`;
   const ids = (
     db.prepare(`SELECT id FROM account_ownership_transfers WHERE ${where}`).all(...parameters) as Array<{ id: string }>
@@ -286,6 +301,7 @@ function invalidateLive({ db, now, reason, predicate, parameters }: InvalidateLi
  * of WHY the ceremony ended outlives the rows, under audit policy rather than this table's.
  */
 export function deleteRequestsForAccount(db: Db, accountId: string): void {
+  if (!ownershipTransfersTableExists(db)) return;
   db.prepare(`DELETE FROM account_ownership_transfers WHERE accountId = ?`).run(accountId);
 }
 
