@@ -24,6 +24,7 @@ import { masqueradeController } from "../auth/masqueradeController";
 import { Button } from "./ui/button";
 import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
 import { retryActiveAccountLoad } from "../data/persist";
+import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
 
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
@@ -145,14 +146,6 @@ function GatedApp({
   masqueradeBanner,
   navigate,
 }: GatedAppProps) {
-  const chooseAnotherAccount = async () => {
-    try {
-      const switched = await transitionAccount(null);
-      if (switched && allowWithoutActiveAccount) void navigate("/");
-    } catch (error: unknown) {
-      console.error("Company switch failed", error);
-    }
-  };
   return (
     <AppEntryGate
       hydrated={hydrated}
@@ -171,7 +164,7 @@ function GatedApp({
       onRetryActiveAccountLoad={() => {
         if (activeAccountId) void retryActiveAccountLoad(activeAccountId);
       }}
-      onChooseAnotherAccount={() => void chooseAnotherAccount()}
+      onChooseAnotherAccount={() => void chooseAnotherAccountAfterLoadFailure(allowWithoutActiveAccount, navigate)}
     >
       <PermissionProvider>
         <SidebarProvider
