@@ -1070,8 +1070,8 @@ The management section has four parts:
   picker and need a new invitation; revoking your own sessions warns that the current browser will
   reload into sign-in. Disable and archive are offered only where the target is neither the Owner nor
   yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
-  the member stays listed under **No longer active** so the change is visible and reversible. No row carries a transfer-ownership control
-  for anyone. In **password mode only**, the menu's **Reset password** mints a
+  the member stays listed under **No longer active** so the change is visible and reversible. No row
+  carries an ownership-transfer control for anyone. In **password mode only**, the menu's **Reset password** mints a
   **single-use, 24-hour** reset link
   shown **once** (`data-testid="reset-link"`, `<origin>/reset-password/<token>`) with a **Copy**
   button named **Copy reset link for _member_** and a note naming the member and the expiry date — nothing is emailed; the admin hands the
@@ -1112,13 +1112,14 @@ The Owner row carries no pencil for anyone, and no gear for anyone but the Owner
 own row still offers the self-service Reset password and Revoke sessions): each company has exactly
 one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
 removed nor disabled.
-Ownership transfer is owner-only and atomic — it promotes the target and steps the caller down to
-Admin in one transaction — but has no control in the member table; it is reached through
-`POST /api/accounts/:accountId/transfer-ownership` while its own owner-only section is designed. No generic
+Ownership transfer has no control in the member table at all: it is a three-step ceremony in its own
+**Company ownership** section (see below), and the swap itself is a single transaction that demotes
+before it promotes. No generic
 role-change or invite endpoint can assign Owner, even for the current Owner. A partial unique SQLite
 index prevents multiple active owners for an account, and the server prevents removing/demoting the
-Owner outside transfer. The server remains the backstop: bypassing the UI cannot grant a second
-Owner, transfer as Admin, revoke another account's invite or read another account's member list.
+Owner outside the ceremony. The server remains the backstop: bypassing the UI cannot grant a second
+Owner, take part in somebody else's ceremony, revoke another account's invite or read another
+account's member list.
 
 The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; returns
 `{members, signInTrackingEnabled}` and each member carries `status` plus nullable
@@ -1136,9 +1137,7 @@ while the administrative directory keeps listing them),
 `DELETE /api/accounts/:accountId/members/:userId` (204; 403 for the Owner),
 `GET /api/accounts/:accountId/invites` (gated manageInvites; NO token; OFF → `{invites:[]}`),
 `DELETE /api/accounts/:accountId/invites/:id` (204, idempotent, cross-tenant-safe),
-`POST /api/accounts/:accountId/transfer-ownership {toUserId}` (owner-only; 400 missing/empty or
-self-target, 404 non-member target, 403 non-owner; OFF → inert 200 no-op — hands the account to an
-existing member and demotes the caller to admin atomically). `POST /api/invites` rejects `owner` for
+`POST /api/invites` rejects `owner` for
 every caller — ownership is transferred, never invited — and
 `POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password mode
 only — sso/OFF → 400; admin resetting an owner → 403; 404 non-member; 201 `{token, expiresAt}`,
@@ -1150,6 +1149,30 @@ mixed-mode-only and identity-global. The management UI is
 `src/components/settings/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
+
+**Company ownership (Team & access; server mode, auth on).** The ownership-transfer ceremony sits
+below member management as `src/components/team/OwnershipTransferCard.tsx`
+(`data-testid="ownership-transfer-card"`), driven by `src/components/team/useOwnershipTransfer.ts`
+and `src/account/ownershipTransferAccess.ts`. Ownership moves in three acts — the Owner nominates,
+the nominated Admin agrees, the same Owner confirms — and nothing changes until all three have
+happened. Controls: **Next Owner** (`ownership-transfer-nominee`, active Admins only), **Start
+transfer** (`ownership-transfer-start`), **Nominate someone else instead**
+(`ownership-transfer-replace`), **Cancel the transfer** (`ownership-transfer-cancel`), **Confirm the
+transfer** (`ownership-transfer-complete`), **Agree to become Owner**
+(`ownership-transfer-accept`), **Decline** (`ownership-transfer-decline`), **Withdraw my agreement**
+(`ownership-transfer-withdraw`); the live status line is `ownership-transfer-state` and the
+explanation of a request that already ended is `ownership-transfer-outcome`. The card renders for
+participants only — a non-participant reads an empty projection, so hiding is presentation, not
+authorisation. Routes: `GET /api/accounts/:accountId/ownership-transfer`
+(`{live, latestOutcome}`, both nullable; refused under masquerade),
+`POST …/ownership-transfer {toUserId, expectedRequestId?, expectedRevision?}` (201),
+`POST …/ownership-transfer/:requestId/accept|withdraw|decline|complete`, and
+`DELETE …/ownership-transfer/:requestId` (cancel). Every command carries `expectedRevision`; a
+request the server has already ended answers **409** `{code: "OWNERSHIP_TRANSFER_TERMINAL", state,
+reason}`, which the client reads as a committed outcome rather than an error. A request expires
+seven days after it was made, and ends by itself when either participant's membership changes.
+Story `user-stories/settings/US-SET-18-ownership-transfer.md`;
+spec `e2e/ownership-transfer.auth.spec.ts`.
 
 `POST /api/accounts/:accountId/members/:userId/revoke-sessions` uses the same cross-account
 takeover-authority rule as password reset and revokes every active session for that identity.

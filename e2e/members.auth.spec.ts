@@ -16,12 +16,12 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // invites admin B + editor C (both accept via the API). Then, as B (admin), we drive the Team &
 // access UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
 // revoke it. We assert the Owner option is ABSENT for B in the UI, and at the API layer that nobody
-// can assign Owner through PATCH (400), cannot touch owner A (→ 403), cannot transfer ownership
+// can assign Owner through PATCH (400), cannot touch owner A (→ 403), cannot nominate a next Owner
 // (→ 403), that owner membership cannot be removed through the ordinary member endpoint (→ 403),
 // and — the cross-tenant headline — that B cannot read ANOTHER account's members (→ 403). Then owner
-// A drives the gear menu to disable and restore C, and finally transfers ownership through the API
-// (#175 removed the per-row transfer button) so the live shell reprojects A as Admin on its next
-// authoritative read. Browser-agnostic (no UA branching).
+// A drives the gear menu to disable and restore C, and we assert ownership is reachable from no
+// member row and no longer from the retired single-call endpoint (#175, #780) — the ceremony itself
+// is covered by e2e/ownership-transfer.auth.spec.ts. Browser-agnostic (no UA branching).
 
 // Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp/signUpUserWithId) comes from ./auth-helpers.
 const STAMP = Date.now();
@@ -55,11 +55,13 @@ async function setupMembersApi(request: APIRequestContext) {
     data: { role: "editor" },
   });
   expect(touchOwner.status()).toBe(403);
-  const adminTransfer = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
+  // An Admin cannot start the ownership ceremony: it belongs to the Owner, and the nominee's own
+  // consent belongs to the nominee. The ceremony itself is covered by ownership-transfer.auth.spec.
+  const adminNominate = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
     headers: { cookie: admin.cookie },
     data: { toUserId: editor.userId },
   });
-  expect(adminTransfer.status()).toBe(403);
+  expect(adminNominate.status()).toBe(403);
   const selfRemove = await request.delete(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
     headers: { cookie: owner.cookie },
   });
@@ -128,34 +130,22 @@ async function manageAdminMembers(
   await expect(page.getByTestId("invite-link")).toHaveCount(0);
 }
 
-async function transferOwner(
+/** Ownership never moves from the member table. The per-row control is gone (#175) and the single
+ *  call that replaced it is gone too (#780): the whole ceremony lives in its own spec. */
+async function assertOwnershipIsNotAMemberRowAction(
   ownerContext: BrowserContext,
   ownerPage: Page,
   request: APIRequestContext,
-  owner: { cookie: string; userId: string },
+  owner: { cookie: string },
   editor: { userId: string },
   accountId: string,
 ) {
   await expect(ownerPage.getByTestId("member-make-owner")).toHaveCount(0);
-  const transfer = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
+  const retired = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
     headers: { cookie: owner.cookie },
     data: { toUserId: editor.userId },
   });
-  expect(transfer.status()).toBe(200);
-  await ownerPage.reload();
-  await expect(ownerPage).toHaveURL(/\/team$/);
-  await expect(ownerPage.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
-  await expect(ownerPage.getByTestId("active-role")).toContainText("Admin");
-  await expect
-    .poll(async () => {
-      const res = await request.get(`${API}/api/accounts/${accountId}/members`, { headers: { cookie: owner.cookie } });
-      const members = (await res.json()).members as Array<{ userId: string; role: string }>;
-      return [
-        members.find((member) => member.userId === editor.userId)?.role,
-        members.find((member) => member.userId === owner.userId)?.role,
-      ];
-    })
-    .toEqual(["owner", "admin"]);
+  expect(retired.status()).toBe(404);
   await ownerContext.close();
 }
 
@@ -208,7 +198,7 @@ async function manageOwnerMembers(
   await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Restore access" }).click();
   await expect(ownerTarget).not.toContainText("Disabled");
   await expect(ownerPage.getByTestId("members-inactive-toggle")).toHaveCount(0);
-  await transferOwner(ownerContext, ownerPage, request, owner, editor, accountId);
+  await assertOwnershipIsNotAMemberRowAction(ownerContext, ownerPage, request, owner, editor, accountId);
 }
 
 test("admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak", async ({

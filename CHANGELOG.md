@@ -130,6 +130,12 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Move company ownership through a three-step consent ceremony in **Team & access**: the Owner
+  nominates an Admin, the nominated Admin agrees, and the same Owner confirms. Nothing changes until
+  all three have happened, either side can stop it, a request expires after seven days, and a request
+  ends by itself if either participant's membership changes. Both participants — and nobody else —
+  can see it, and a participant who was away learns how it ended (#780).
+
 - Document deploying on a managed VPS platform such as Forge, Ploi or RunCloud (#734).
 - Add a personal Account page for identity, password, MFA status and active sessions, linked beside
   the current-user control on every main page (#744).
