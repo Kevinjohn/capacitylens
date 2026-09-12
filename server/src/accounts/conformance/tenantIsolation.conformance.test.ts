@@ -1,3 +1,4 @@
+import { readFileSync, readdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "vitest";
 import type { OwnershipTransferRequest } from "@capacitylens/shared/account/ownershipTransfer";
@@ -6,11 +7,18 @@ import type { Db } from "../../db";
 import { ensureAccountBoundaryState } from "../state/schema";
 import { ensureControlTables } from "../../controlTables";
 import { runOwnershipTransfersV41 } from "../../controlTables/ownershipTransfersSchema";
-import * as members from "../../controlTables/members";
-import * as invites from "../../controlTables/invites";
+import * as assertions from "../../controlTables/assert";
 import * as inviteRetention from "../../controlTables/inviteRetention";
+import * as inviteTokens from "../../controlTables/inviteTokens";
+import * as invites from "../../controlTables/invites";
+import * as membersModel from "../../controlTables/members.model";
+import * as members from "../../controlTables/members";
+import * as ownershipMigrations from "../../controlTables/ownershipMigrations";
 import * as ownershipTransfers from "../../controlTables/ownershipTransfers";
-import { newInviteId } from "../../controlTables/inviteTokens";
+import * as ownershipTransfersSchema from "../../controlTables/ownershipTransfersSchema";
+import * as preparedStatement from "../../controlTables/preparedStatement";
+import * as retentionV24 from "../../controlTables/retentionV24";
+import * as signInTracking from "../memberSignInTracking";
 import type { AccountMember } from "../../controlTables/members.model";
 
 /**
@@ -36,6 +44,7 @@ const STARK = "a-loft";
 /** Deliberately a member of BOTH companies: the shared principal is what makes a lost `accountId`
  *  visible on every membership write. */
 const SHARED = "u-bruce-wayne";
+const NEWCOMER = "u-barbara-gordon";
 const NOW = "2026-09-01T09:00:00.000Z";
 const LATER = "2026-09-08T09:00:00.000Z";
 
@@ -91,8 +100,8 @@ function seedBothCompanies(db: Db): void {
   }
 }
 
-function membershipOf(db: Db, accountId: string) {
-  return members.getMembershipRow(db, accountId, SHARED);
+function membershipOf(db: Db, accountId: string, userId: string = SHARED) {
+  return members.getMembershipRow(db, accountId, userId);
 }
 
 function inviteIds(db: Db, accountId: string): string[] {
@@ -107,12 +116,32 @@ function transferStates(db: Db, accountId: string): Array<{ id: string; state: s
   ).map(({ id, state }) => ({ id, state }));
 }
 
+/** The observation bit is not part of the mapped membership, and it is exactly what one company's
+ *  privacy switch must never write into another's rows. */
+function observationBits(db: Db, accountId: string): Array<{ userId: string; signInConfirmed: string | null }> {
+  return (
+    db
+      .prepare(`SELECT userId, signInConfirmed FROM account_members WHERE accountId = ? ORDER BY userId`)
+      .all(accountId) as Array<{ userId: string; signInConfirmed: string | null }>
+  ).map(({ userId, signInConfirmed }) => ({ userId, signInConfirmed: signInConfirmed ?? null }));
+}
+
+function trackingAccounts(db: Db): string[] {
+  return (
+    db.prepare(`SELECT accountId FROM account_member_sign_in_tracking ORDER BY accountId`).all() as Array<{
+      accountId: string;
+    }>
+  ).map(({ accountId }) => accountId);
+}
+
 /** Everything about Stark Industries that a write addressed to Wayne Enterprises must not move. */
 function starkSnapshot(db: Db) {
   return {
     membership: membershipOf(db, STARK),
+    observation: observationBits(db, STARK),
     invites: inviteIds(db, STARK),
     transfers: transferStates(db, STARK),
+    tracking: trackingAccounts(db).includes(STARK),
   };
 }
 
@@ -128,6 +157,26 @@ describe("control-table writes stay inside their account: membership", () => {
     // The same principal, in another company, at the role they held before.
     expect(membershipOf(db, STARK)?.role).toBe("admin");
     expect(starkSnapshot(db)).toEqual(before);
+    db.close();
+  });
+
+  it("upsertMember reads the sign-in tracking opt-in of the account it writes, not of any account", () => {
+    const db = freshDb();
+    seedBothCompanies(db);
+    // Wayne Enterprises alone opts in to sign-in tracking.
+    signInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: true });
+
+    members.upsertMember(db, member(WAYNE, { userId: NEWCOMER, role: "editor" }));
+    members.upsertMember(db, member(STARK, { userId: NEWCOMER, role: "editor" }));
+
+    // The observation column is stamped from a correlated EXISTS over the tracking table. If that
+    // subquery lost its accountId, Stark's newcomer would be stamped 'false' — a "never signed in"
+    // flag on a company that never turned tracking on, written by another company's switch.
+    expect(observationBits(db, WAYNE)).toContainEqual({ userId: NEWCOMER, signInConfirmed: "false" });
+    expect(observationBits(db, STARK)).toEqual([
+      { userId: NEWCOMER, signInConfirmed: null },
+      { userId: SHARED, signInConfirmed: null },
+    ]);
     db.close();
   });
 
@@ -152,19 +201,64 @@ describe("control-table writes stay inside their account: membership", () => {
     members.removeMember(db, WAYNE, SHARED);
 
     expect(membershipOf(db, WAYNE)).toBeNull();
-    expect(membershipOf(db, STARK)).not.toBeNull();
-    expect(starkSnapshot(db).membership).toEqual(before.membership);
+    expect(starkSnapshot(db)).toEqual(before);
     db.close();
   });
 
-  it("removeAllMembersForAccount empties one company", () => {
+  it("removeAllMembersForAccount empties one company and touches nothing of the other", () => {
     const db = freshDb();
     seedBothCompanies(db);
+    signInTracking.setMemberSignInTracking({ db, accountId: STARK, actorPrincipalId: SHARED, enabled: true });
+    const before = starkSnapshot(db);
 
     members.removeAllMembersForAccount(db, WAYNE);
 
     expect(members.listMembersForAccount(db, WAYNE)).toEqual([]);
-    expect(members.listMembersForAccount(db, STARK)).toHaveLength(1);
+    // The whole snapshot, because this erasure also removes sign-in tracking and ends live
+    // transfers: an unscoped predicate in either callee would take Stark's with it.
+    expect(starkSnapshot(db)).toEqual(before);
+    db.close();
+  });
+});
+
+describe("control-table writes stay inside their account: sign-in tracking", () => {
+  it("setMemberSignInTracking switches one company's observation on", () => {
+    const db = freshDb();
+    seedBothCompanies(db);
+    const before = starkSnapshot(db);
+
+    signInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: true });
+
+    expect(observationBits(db, WAYNE)).toEqual([{ userId: SHARED, signInConfirmed: "true" }]);
+    expect(starkSnapshot(db)).toEqual(before);
+    db.close();
+  });
+
+  it("setMemberSignInTracking switches one company's observation off", () => {
+    const db = freshDb();
+    seedBothCompanies(db);
+    for (const accountId of [WAYNE, STARK]) {
+      signInTracking.setMemberSignInTracking({ db, accountId, actorPrincipalId: SHARED, enabled: true });
+    }
+
+    signInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: false });
+
+    expect(observationBits(db, WAYNE)).toEqual([{ userId: SHARED, signInConfirmed: null }]);
+    expect(observationBits(db, STARK)).toEqual([{ userId: SHARED, signInConfirmed: "true" }]);
+    expect(trackingAccounts(db)).toEqual([STARK]);
+    db.close();
+  });
+
+  it("removeMemberSignInTrackingForAccount removes one company's opt-in", () => {
+    const db = freshDb();
+    seedBothCompanies(db);
+    for (const accountId of [WAYNE, STARK]) {
+      signInTracking.setMemberSignInTracking({ db, accountId, actorPrincipalId: SHARED, enabled: true });
+    }
+
+    signInTracking.removeMemberSignInTrackingForAccount(db, WAYNE);
+
+    expect(trackingAccounts(db)).toEqual([STARK]);
     db.close();
   });
 });
@@ -174,7 +268,7 @@ describe("control-table writes stay inside their account: invitations", () => {
     const db = freshDb();
     seedBothCompanies(db);
 
-    invites.createInvite(db, invite(WAYNE, newInviteId(), "token-second-wayne"));
+    invites.createInvite(db, invite(WAYNE, inviteTokens.newInviteId(), "token-second-wayne"));
 
     expect(inviteIds(db, WAYNE)).toHaveLength(2);
     expect(inviteIds(db, STARK)).toEqual([`inv-${STARK}`]);
@@ -209,10 +303,15 @@ describe("control-table writes stay inside their account: invitations", () => {
 describe("control-table writes stay inside their account: ownership transfers", () => {
   it("insertRequest files the request under the account it names", () => {
     const db = freshDb();
-    seedBothCompanies(db);
+    members.upsertMember(db, member(STARK));
+    ownershipTransfers.insertRequest(db, request(STARK));
+
+    ownershipTransfers.insertRequest(db, request(WAYNE));
 
     expect(transferStates(db, WAYNE)).toEqual([{ id: `ot-${WAYNE}`, state: "awaiting_target" }]);
-    expect(transferStates(db, STARK)).toEqual([{ id: `ot-${STARK}`, state: "awaiting_target" }]);
+    // The live slot is per company: the partial unique index must not have refused Wayne's request
+    // because another company already holds one, and Stark's must still read as Stark's.
+    expect(ownershipTransfers.readLiveRequest(db, STARK)?.id).toBe(`ot-${STARK}`);
     db.close();
   });
 
@@ -305,81 +404,156 @@ describe("control-table writes stay inside their account: ending and bounding tr
 });
 
 /**
- * Every export of the four operational control-table modules is either exercised above or excluded
- * here with a reason.
+ * The inventory: every export of every control-table module is classified, and every classification
+ * that claims coverage is backed by a case above that still calls it.
  *
- * The inventory is the point: a new exported write appears in neither list, and this test fails
- * until somebody decides which it is. Reads, assertions and pure helpers cannot move another
- * company's rows; the token-keyed and migration operations are addressed by identity or run once
- * over the whole database, and keep their guarantees in their own focused tests.
+ * Keyed by `module.export` rather than by bare name, because two modules may export the same name
+ * and one module's decision must never silently classify another module's function.
  */
-const COVERED = new Set([
-  "upsertMember",
-  "setMemberStatus",
-  "removeMember",
-  "removeAllMembersForAccount",
-  "createInvite",
-  "removeAllInvitesForAccount",
-  "revokeInvite",
-  "insertRequest",
-  "applyTransition",
-  "terminaliseLiveRequestsForAccount",
-  "terminaliseLiveRequestsForMember",
-  "deleteRequestsForAccount",
-  "sweepExpiredHistory",
-]);
-
-const EXCLUDED: Record<string, string> = {
-  // Reads and pure helpers: they return rows, they do not write them.
-  getMembershipRow: "read",
-  getMemberRole: "read",
-  getActiveMemberRole: "read",
-  listMembershipsForUser: "read",
-  listMembersForAccount: "read",
-  countActiveOwners: "read",
-  listInvitesForAccount: "read",
-  getInvite: "read",
-  readLiveRequest: "read",
-  readRequestById: "read",
-  readLatestTerminalForParticipant: "read",
-  inviteIsExpired: "pure helper",
-  normalizeEmail: "pure helper",
-  preauthInviteAllows: "pure helper",
-  looksLikeEmail: "pure helper",
-  nextOwnershipTransferRevision: "pure helper",
-  // Addressed by a secret the holder already possesses, not by account.
-  markInviteUsed: "token-keyed: the token IS the authorisation, and it names exactly one row",
-  // Deliberately dual-mode. Its scoped-call guarantee is pinned in controlTables.test.ts, where the
-  // unscoped maintenance mode is also exercised; claiming it here would overstate what this covers.
-  pruneInvites: "dual-mode maintenance; scoped-call isolation pinned in its own tests",
-  // An error class, not a write.
-  InviteAlreadyUsedError: "error type",
-  // One-time migrations run once over the whole database, by design.
-  migrateUsedInvitationHistoryV24: "one-time migration over every account",
+const MODULES: Record<string, Record<string, unknown>> = {
+  assert: assertions,
+  inviteRetention,
+  inviteTokens,
+  invites,
+  members,
+  "members.model": membersModel,
+  ownershipMigrations,
+  ownershipTransfers,
+  ownershipTransfersSchema,
+  preparedStatement,
+  retentionV24,
+  // Not under controlTables/, but it writes `account_members` and owns the per-account tracking
+  // table, so it is the same surface and belongs to the same inventory.
+  memberSignInTracking: signInTracking,
 };
 
-describe("the isolation inventory", () => {
-  const modules = {
-    members: members as Record<string, unknown>,
-    invites: invites as Record<string, unknown>,
-    inviteRetention: inviteRetention as Record<string, unknown>,
-    ownershipTransfers: ownershipTransfers as Record<string, unknown>,
-  };
+/** The modules whose files live in `controlTables/`. Kept separate so the directory check below can
+ *  compare like with like. */
+const CONTROL_TABLE_MODULES = Object.keys(MODULES).filter((name) => name !== "memberSignInTracking");
 
-  for (const [name, module] of Object.entries(modules)) {
+const COVERED = new Set([
+  "members.upsertMember",
+  "members.setMemberStatus",
+  "members.removeMember",
+  "members.removeAllMembersForAccount",
+  "memberSignInTracking.setMemberSignInTracking",
+  "memberSignInTracking.removeMemberSignInTrackingForAccount",
+  "invites.createInvite",
+  "invites.removeAllInvitesForAccount",
+  "inviteRetention.revokeInvite",
+  "ownershipTransfers.insertRequest",
+  "ownershipTransfers.applyTransition",
+  "ownershipTransfers.terminaliseLiveRequestsForAccount",
+  "ownershipTransfers.terminaliseLiveRequestsForMember",
+  "ownershipTransfers.deleteRequestsForAccount",
+  "ownershipTransfers.sweepExpiredHistory",
+]);
+
+/** Why each remaining export cannot carry one company's rows out of its own account. */
+const EXCLUDED = new Map<string, string>([
+  ["members.getMembershipRow", "read"],
+  ["members.getMemberRole", "read"],
+  ["members.getActiveMemberRole", "read"],
+  ["members.listMembershipsForUser", "read"],
+  ["members.listMembersForAccount", "read"],
+  ["members.countActiveOwners", "read"],
+  ["members.model.toAccountMember", "row mapper"],
+  ["members.model.isKnownRole", "pure helper"],
+  ["inviteRetention.listInvitesForAccount", "read"],
+  ["inviteRetention.inviteIsExpired", "pure helper"],
+  ["invites.getInvite", "read"],
+  ["invites.normalizeEmail", "pure helper"],
+  ["invites.preauthInviteAllows", "pure helper"],
+  ["invites.looksLikeEmail", "pure helper"],
+  ["invites.InviteAlreadyUsedError", "error type"],
+  ["inviteTokens.inviteTokenHash", "pure helper"],
+  ["inviteTokens.newInviteId", "pure helper"],
+  ["ownershipTransfers.readLiveRequest", "read"],
+  ["ownershipTransfers.readRequestById", "read"],
+  ["ownershipTransfers.readLatestTerminalForParticipant", "read"],
+  ["ownershipTransfers.nextOwnershipTransferRevision", "pure helper"],
+  ["ownershipTransfersSchema.toOwnershipTransferRequest", "row mapper"],
+  ["ownershipTransfersSchema.assertOwnershipTransfersCurrent", "schema assertion"],
+  ["ownershipTransfersSchema.runOwnershipTransfersV41", "schema installer"],
+  ["preparedStatement.cachedStatement", "statement cache; carries no SQL of its own"],
+  ["assert.assertControlTablesCurrent", "schema assertion"],
+  ["assert.assertSingleOwnerControlPlaneV10", "schema assertion"],
+  ["assert.assertSingleOwnerControlPlaneCurrent", "schema assertion"],
+  ["retentionV24.ensureControlTables", "schema installer"],
+  ["memberSignInTracking.readMemberSignInTrackingSnapshot", "read"],
+  ["memberSignInTracking.migrateMemberSignInTrackingV26", "one-time migration over every account"],
+  ["memberSignInTracking.assertMemberSignInTrackingSchemaCurrent", "schema assertion"],
+  // Identity-keyed by design: one sign-in, or one deliberate access reset, is a fact about the
+  // principal in EVERY company that opted in, so these cross accounts on purpose. Their per-account
+  // opt-in correlation is covered in memberSignInTracking's own tests.
+  ["memberSignInTracking.confirmTrackedMemberSignIn", "identity-keyed across every opted-in account"],
+  ["memberSignInTracking.clearTrackedMemberSignIn", "identity-keyed across every opted-in account"],
+  // Deliberately dual-mode. Its scoped-call isolation is pinned in controlTables.test.ts, where the
+  // unscoped maintenance mode is exercised too; claiming it here would overstate this suite.
+  ["inviteRetention.pruneInvites", "dual-mode maintenance; scoped-call isolation pinned in its own tests"],
+  ["inviteRetention.migrateUsedInvitationHistoryV24", "one-time migration over every account"],
+  ["ownershipMigrations.migrateSingleOwnerControlPlaneV10", "one-time migration over every account"],
+  ["ownershipMigrations.migrateOwnerlessControlPlaneV11", "one-time migration over every account"],
+  ["ownershipMigrations.migrateOwnerResetCeremoniesV12", "one-time migration over every account"],
+  ["ownershipMigrations.migrateMemberResetCeremoniesV14", "one-time migration over every account"],
+  ["ownershipMigrations.reportOwnerlessPromotionsV11", "read"],
+  ["invites.markInviteUsed", "token-keyed: the token IS the authorisation, and it names exactly one row"],
+  // Values, not operations: SQL text, index names and policy numbers. They cannot write anything;
+  // the statements built from them are classified at the function that runs them.
+  ["assert.SINGLE_OWNER_INDEX", "index name"],
+  ["memberSignInTracking.MEMBER_SIGN_IN_TRACKING_V26_DEFINITION", "schema definition"],
+  ["ownershipTransfersSchema.OWNERSHIP_TRANSFER_REQUESTS_V41_SQL", "schema definition"],
+  ["ownershipTransfersSchema.OWNERSHIP_TRANSFER_LIVE_INDEX", "index name"],
+  ["ownershipTransfersSchema.OWNERSHIP_TRANSFER_TARGET_INDEX", "index name"],
+  ["ownershipTransfersSchema.LIVE_STATES_PREDICATE", "SQL fragment"],
+  ["ownershipTransfersSchema.SELECTED_COLUMNS", "SQL fragment"],
+  ["retentionV24.INVITATION_RETENTION_INDEXES_V24_SQL", "schema definition"],
+  ["retentionV24.USED_INVITATION_RETENTION_V24_DEFINITION", "schema definition"],
+  ["retentionV24.USED_INVITATION_RETENTION_LIMIT", "retention policy value"],
+  ["retentionV24.USED_INVITATION_RETENTION_MS", "retention policy value"],
+]);
+
+describe("the isolation inventory", () => {
+  it("reflects over every module in controlTables/", () => {
+    // Read from disk rather than trusting the import list: a NEW control-table module is the
+    // easiest way for an unscoped write to arrive unclassified.
+    const onDisk = readdirSync(new URL("../../controlTables/", import.meta.url))
+      .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
+      .map((file) => file.replace(/\.ts$/, ""))
+      .sort();
+
+    expect([...CONTROL_TABLE_MODULES].sort()).toEqual(onDisk);
+  });
+
+  for (const [name, module] of Object.entries(MODULES)) {
     it(`classifies every export of ${name}`, () => {
+      // Every export, not only the functions: a writer exported as an object of operations, or
+      // built by a factory, is still a writer, and filtering by type would drop it before the check.
       const unclassified = Object.keys(module)
-        .filter((key) => typeof module[key] === "function")
-        .filter((key) => !COVERED.has(key) && !(key in EXCLUDED));
+        .map((key) => `${name}.${key}`)
+        .filter((key) => !COVERED.has(key) && !EXCLUDED.has(key));
 
       expect(unclassified).toEqual([]);
     });
   }
 
-  it("keeps no stale entry in either list", () => {
-    const exported = new Set(Object.values(modules).flatMap((module) => Object.keys(module)));
-    const stale = [...COVERED, ...Object.keys(EXCLUDED)].filter((key) => !exported.has(key));
+  it("keeps no stale entry in either collection", () => {
+    const exported = new Set(
+      Object.entries(MODULES).flatMap(([name, module]) => Object.keys(module).map((key) => `${name}.${key}`)),
+    );
+    const stale = [...COVERED, ...EXCLUDED.keys()].filter((key) => !exported.has(key));
 
     expect(stale).toEqual([]);
+  });
+
+  it("backs every covered mutator with a case that still calls it", () => {
+    // The set above only CLAIMS coverage; this proves it. Without it, deleting or renaming a case
+    // leaves the inventory certifying isolation that nothing tests any more — worse than no
+    // inventory at all, because a reader who sees the name stops looking.
+    const source = readFileSync(new URL(import.meta.url), "utf8");
+    const cases = source.slice(0, source.indexOf("const MODULES:"));
+    const uncalled = [...COVERED].filter((key) => !cases.includes(`.${key.split(".").at(-1)}(`));
+
+    expect(uncalled).toEqual([]);
   });
 });
