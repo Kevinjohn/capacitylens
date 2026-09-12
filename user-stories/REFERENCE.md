@@ -136,19 +136,19 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label        | Route                | Screen                                                                                                                                                                                   |
-| ----------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Capacity Overview | `/capacity-overview` | Four-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting                                                                      |
-| Schedule          | `/`                  | Timeline scheduler                                                                                                                                                                       |
-| Resources         | `/resources`         | Resource list (incl. the **External** section when enabled)                                                                                                                              |
-| Disciplines       | `/disciplines`       | Discipline list                                                                                                                                                                          |
-| Clients           | `/clients`           | Client list                                                                                                                                                                              |
-| Projects          | `/projects`          | Project list                                                                                                                                                                             |
-| Activities        | `/activities`        | Activity list                                                                                                                                                                            |
-| Time off          | `/timeoff`           | Time-off list                                                                                                                                                                            |
-| Team & access     | `/team`              | Current role, capability summary and app-member access management                                                                                                                        |
-| Settings          | `/settings`          | Settings (scheduling, company-wide working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance including date format, local data and account options) |
-| Account           | `/account`           | Signed-in identity and personal security controls                                                                                                                                        |
+| Link label        | Route                | Screen                                                                                                                                                                          |
+| ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Capacity Overview | `/capacity-overview` | Four-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting                                                             |
+| Schedule          | `/`                  | Timeline scheduler                                                                                                                                                              |
+| Resources         | `/resources`         | Resource list (incl. the **External** section when enabled)                                                                                                                     |
+| Disciplines       | `/disciplines`       | Discipline list                                                                                                                                                                 |
+| Clients           | `/clients`           | Client list                                                                                                                                                                     |
+| Projects          | `/projects`          | Project list                                                                                                                                                                    |
+| Activities        | `/activities`        | Activity list                                                                                                                                                                   |
+| Time off          | `/timeoff`           | Time-off list                                                                                                                                                                   |
+| Team & access     | `/team`              | Current role, capability summary and app-member access management                                                                                                               |
+| Settings          | `/settings`          | Settings (scheduling, date format, company-wide working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
+| Account           | `/account`           | Signed-in identity and personal security controls                                                                                                                               |
 
 **Team & access** and **Settings** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
@@ -612,13 +612,13 @@ account and NOT in export) — like the theme and bar-label toggles. On → narr
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See _Weekend
 columns_ above.
 
-**Appearance (date format).** Settings → **Appearance** has a **Date format** control below the theme
-control, labelled `Date format`, with four options shown as samples: **9 Sep** (default), **9th Sep**,
-**Sep 9**, **Sep 9th**. It's a **device-global** display pref (own `localStorage` key
-`capacitylens/dateStyle`, NOT on the account and NOT in export) — like the theme. It sets day/month
-order and whether the day number carries an ordinal, on single dates and ranges alike; pages pick up a
-change when they are next opened. Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the
-ordinal, and machine dates (ISO inputs, exports, URLs) are unchanged.
+**Date format (account-level).** Settings → **Date format** has a control labelled
+`Date format`, with four options shown as samples: **9 Sep** (default), **9th Sep**, **Sep 9**,
+**Sep 9th**. It is **account data** — stored on the account, present in export, changed by an editor
+or above and applied to every member; a viewer sees the control disabled. It sets day/month order and
+whether the day number carries an ordinal, on single dates and ranges alike, and takes effect without
+a reload. A range crossing a year carries the year at both ends. Weekday forms (`Mon 8th Jun` /
+`Mon Jun 8th`) always keep the ordinal, and machine dates (ISO inputs, exports, URLs) are unchanged.
 
 **Company-wide working days (account-level).** Settings → **Company-wide working days** exposes a two-row table:
 seven abbreviated weekday headings and seven checkboxes directly beneath them, in the account's

@@ -7,6 +7,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- The date format is now a company setting rather than a per-browser one, so everyone in an account
+  reads the schedule in the same convention. An editor or above sets it in Settings → **Date
+  format**; a viewer sees it, disabled. It applies immediately, without a reload, and it is part of
+  the account — present in Export JSON and undoable like any other account change (#866).
+
 ### Fixed
 
 - Show both years on a date range that crosses one, instead of a repeated month that read as a
