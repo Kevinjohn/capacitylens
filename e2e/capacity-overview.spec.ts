@@ -22,8 +22,16 @@ test("reviews the fixed four-week capacity window and filters available rows", a
   await expect(table.getByText("Unavailable")).toHaveCount(0);
   await expect(page.getByRole("radio", { name: "Show tentative" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("radio", { name: "Everyone" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("radio", { name: "Hide totals" })).toHaveAttribute("aria-checked", "true");
   await page.getByRole("radio", { name: "Hide tentative" }).click();
   await page.getByRole("radio", { name: "Has availability" }).click();
   await expect(page.getByRole("radio", { name: "Hide tentative" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByRole("radio", { name: "Has availability" })).toHaveAttribute("aria-checked", "true");
+
+  await page.getByRole("radio", { name: "Show totals" }).click();
+  await expect(page.getByRole("radio", { name: "Show totals" })).toHaveAttribute("aria-checked", "true");
+
+  await expect(page.getByRole("radio", { name: "Number", exact: true })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "Bar", exact: true }).click();
+  await expect(page.getByRole("radio", { name: "Bar", exact: true })).toHaveAttribute("aria-checked", "true");
 });

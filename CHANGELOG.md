@@ -120,6 +120,11 @@ new features and **patch** versions carry fixes.
   manually triggered workflow (#752).
 - Review free capacity, overload and unassigned demand across a fixed four-week Capacity Overview,
   with tentative and availability filters plus company-controlled role access (#722).
+- Add a **Show totals** / **Hide totals** toggle to the Overview toolbar, hiding group header
+  figures by default (#794).
+- Add a **Bar** / **Bar & number** / **Number** capacity display toggle to the Overview toolbar,
+  filling each cell from the bottom with free (green) or overbooked (red) capacity proportioned
+  against that week's own availability (#795).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is
   hidden and task details above Notes in schedule popovers and person drawers (#720).
 - Add optional inclusive **Start date** and **End date** fields for Studio and

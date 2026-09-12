@@ -9,6 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { useSchedulerDensity } from "../scheduler/layout";
+import { capacityBarFillStyle, computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
+import type { CapacityBarFill, CapacityBarFillContext, CapacityDisplayMode } from "./capacityOverviewBar";
 import type {
   CapacityOverviewGroup,
   CapacityOverviewModel,
@@ -20,8 +22,12 @@ interface CapacityOverviewTableProps {
   model: CapacityOverviewModel;
   includeTentative: boolean;
   hasAvailability: boolean;
+  showTotals: boolean;
+  capacityDisplayMode: CapacityDisplayMode;
   onIncludeTentativeChange: (checked: boolean) => void;
   onHasAvailabilityChange: (checked: boolean) => void;
+  onShowTotalsChange: (checked: boolean) => void;
+  onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void;
 }
 
 function formatDays(days: number, kind: "capacity" | "overbooked" | "unassigned") {
@@ -34,7 +40,13 @@ function EmptyCapacity() {
   return <span className="text-muted-foreground">—</span>;
 }
 
-function WeekValues({ result }: { result: CapacityOverviewWeekResult }) {
+function WeekValues({
+  result,
+  capacityDisplayMode,
+}: {
+  result: CapacityOverviewWeekResult;
+  capacityDisplayMode: CapacityDisplayMode;
+}) {
   if (result.state === "unassigned") {
     return result.unassignedDemandDays > 0 ? (
       <span>{formatDays(result.unassignedDemandDays, "unassigned")}</span>
@@ -42,6 +54,15 @@ function WeekValues({ result }: { result: CapacityOverviewWeekResult }) {
       <span className="text-muted-foreground">—</span>
     );
   }
+  const showNumber = capacityDisplayMode !== "bar";
+  if (!showNumber) {
+    return <span className="sr-only">{formatWeekValueText(result, formatDays, "—")}</span>;
+  }
+  // "bar-number" paints this text on the `--color-danger-soft` fill (see capacityOverviewBar.ts):
+  // the overbooked label switches to `text-danger-soft-ink`, the ink that fill is paired with, so
+  // it clears AA there. Plain "number" mode has no coloured fill, so `text-destructive` still reads
+  // correctly against the ordinary cell background.
+  const overLabelInkClass = capacityDisplayMode === "bar-number" ? "text-danger-soft-ink" : "text-destructive";
   return (
     <div className="flex flex-col gap-0.5">
       {result.state === "available" ? (
@@ -50,7 +71,7 @@ function WeekValues({ result }: { result: CapacityOverviewWeekResult }) {
         <EmptyCapacity />
       )}
       {result.overDays > 0 && (
-        <span className="text-xs text-destructive">{formatDays(result.overDays, "overbooked")}</span>
+        <span className={`text-xs ${overLabelInkClass}`}>{formatDays(result.overDays, "overbooked")}</span>
       )}
     </div>
   );
@@ -103,6 +124,29 @@ function OverviewToolbar(props: CapacityOverviewTableProps) {
         geometry="connected"
         size="md"
       />
+      <SegmentedControl
+        ariaLabel={m.capacity_overview_totals_filter()}
+        value={props.showTotals ? "show" : "hide"}
+        onChange={(value) => props.onShowTotalsChange(value === "show")}
+        options={[
+          { value: "show", label: m.capacity_overview_show_totals() },
+          { value: "hide", label: m.capacity_overview_hide_totals() },
+        ]}
+        geometry="connected"
+        size="md"
+      />
+      <SegmentedControl
+        ariaLabel={m.capacity_overview_display_mode_filter()}
+        value={props.capacityDisplayMode}
+        onChange={props.onCapacityDisplayModeChange}
+        options={[
+          { value: "bar", label: m.capacity_overview_display_mode_bar() },
+          { value: "bar-number", label: m.capacity_overview_display_mode_bar_number() },
+          { value: "number", label: m.capacity_overview_display_mode_number() },
+        ]}
+        geometry="connected"
+        size="md"
+      />
     </div>
   );
 }
@@ -112,11 +156,13 @@ function GroupHeader({
   collapsed,
   onToggle,
   height,
+  showTotals,
 }: {
   group: CapacityOverviewGroup;
   collapsed: boolean;
   onToggle: () => void;
   height: number;
+  showTotals: boolean;
 }) {
   return (
     <TableRow
@@ -124,7 +170,10 @@ function GroupHeader({
       className="bg-scheduler-group hover:bg-scheduler-group"
       style={{ height }}
     >
-      <TableHead className="h-auto p-0">
+      {/* `scope="row"`: with totals hidden the week cells in this row are empty, and a scope-less
+          `th` beside empty cells is treated as a column header by the accessibility tree, so the
+          group name would be announced as a column heading. It is a row header either way. */}
+      <TableHead scope="row" className="h-auto p-0">
         <Button
           variant="ghost"
           onClick={onToggle}
@@ -141,7 +190,7 @@ function GroupHeader({
       </TableHead>
       {group.summary.weeks.map((result, index) => (
         <TableCell key={index} className="text-center text-xs">
-          {collapsed ? null : <SummaryValues result={result} peopleCount={group.summary.peopleCount} />}
+          {!collapsed && showTotals && <SummaryValues result={result} peopleCount={group.summary.peopleCount} />}
         </TableCell>
       ))}
     </TableRow>
@@ -164,18 +213,75 @@ function PersonIdentity({ group, row }: { group: CapacityOverviewGroup; row: Cap
   );
 }
 
+// The fill paints as absolutely-positioned layers behind the cell's own text (kept in a `relative
+// z-10` wrapper) rather than as a single `background` on the <td>, so the overbooked hatch can be
+// confined to exactly the filled sub-region (its own div, sized to `fraction * 100%`) without
+// distorting the pattern or bleeding into the grey portion above it.
+function CapacityBarFillLayer({ fill, context }: { fill: CapacityBarFill; context: CapacityBarFillContext }) {
+  return (
+    <>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "var(--color-faint)" }}
+      />
+      {fill.kind !== "none" && (
+        <div
+          aria-hidden="true"
+          data-testid="capacity-bar-fill"
+          data-bar-kind={fill.kind}
+          className="pointer-events-none absolute inset-x-0 bottom-0"
+          style={{ height: `${fill.fraction * 100}%`, ...capacityBarFillStyle(fill, context) }}
+        />
+      )}
+    </>
+  );
+}
+
+function WeekValuesCell({
+  result,
+  capacityDisplayMode,
+}: {
+  result: CapacityOverviewWeekResult;
+  capacityDisplayMode: CapacityDisplayMode;
+}) {
+  const showBar = capacityDisplayMode !== "number" && result.state !== "unassigned";
+  return (
+    <TableCell key={result.week.key} className="relative whitespace-normal px-2 text-center">
+      {showBar && (
+        <CapacityBarFillLayer
+          fill={computeCapacityBarFill({
+            availableHours: result.availableHours,
+            freeHours: result.freeHours,
+            overHours: result.overHours,
+          })}
+          // capacityDisplayMode is "bar" or "bar-number" here (showBar excludes "number").
+          context={capacityDisplayMode}
+        />
+      )}
+      <div className="relative z-10">
+        <WeekValues result={result} capacityDisplayMode={capacityDisplayMode} />
+      </div>
+    </TableCell>
+  );
+}
+
 function CapacityTableBody({
   model,
   collapsedGroups,
   toggleGroup,
   rowHeight,
   groupHeight,
+  showTotals,
+  capacityDisplayMode,
 }: {
   model: CapacityOverviewModel;
   collapsedGroups: Set<string>;
   toggleGroup: (key: string) => void;
   rowHeight: number;
   groupHeight: number;
+  showTotals: boolean;
+  capacityDisplayMode: CapacityDisplayMode;
 }) {
   const hasRows = model.groups.some((group) => group.rows.length > 0);
   return (
@@ -189,6 +295,7 @@ function CapacityTableBody({
               collapsed={collapsed}
               onToggle={() => toggleGroup(group.key)}
               height={groupHeight}
+              showTotals={showTotals}
             />
             {!collapsed &&
               group.rows.map((row) => (
@@ -197,9 +304,7 @@ function CapacityTableBody({
                     <PersonIdentity group={group} row={row} />
                   </TableHead>
                   {row.weeks.map((result) => (
-                    <TableCell key={result.week.key} className="whitespace-normal px-2 text-center">
-                      <WeekValues result={result} />
-                    </TableCell>
+                    <WeekValuesCell key={result.week.key} result={result} capacityDisplayMode={capacityDisplayMode} />
                   ))}
                 </TableRow>
               ))}
@@ -217,7 +322,15 @@ function CapacityTableBody({
   );
 }
 
-function CapacityTable({ model }: { model: CapacityOverviewModel }) {
+function CapacityTable({
+  model,
+  showTotals,
+  capacityDisplayMode,
+}: {
+  model: CapacityOverviewModel;
+  showTotals: boolean;
+  capacityDisplayMode: CapacityDisplayMode;
+}) {
   const density = useSchedulerDensity();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const toggleGroup = (key: string) =>
@@ -252,6 +365,8 @@ function CapacityTable({ model }: { model: CapacityOverviewModel }) {
         toggleGroup={toggleGroup}
         rowHeight={density.identityBandHeight}
         groupHeight={density.groupHeaderHeight}
+        showTotals={showTotals}
+        capacityDisplayMode={capacityDisplayMode}
       />
     </Table>
   );
@@ -272,7 +387,11 @@ export function CapacityOverviewTable(props: CapacityOverviewTableProps) {
             </Alert>
           </div>
         ) : (
-          <CapacityTable model={props.model} />
+          <CapacityTable
+            model={props.model}
+            showTotals={props.showTotals}
+            capacityDisplayMode={props.capacityDisplayMode}
+          />
         )}
       </div>
     </div>

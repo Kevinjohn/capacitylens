@@ -31,6 +31,21 @@ Choose **Has availability** to show only people with at least 0.25 days capacity
 weeks. Placeholders remain when they have demand. Each group summary still covers all eligible
 people in that group, including rows hidden by this filter.
 
+**Hide totals** starts selected and keeps group header rows to just the group name and its collapse
+control. Choose **Show totals** to reveal each group's free, overbooked and unassigned-demand
+figures for every week.
+
+## Choose a capacity display
+
+**Number** starts selected and shows each week's figures as text, as described above. Switch to
+**Bar** to see a person's free capacity as a fill that grows from the bottom of the cell,
+proportioned against that person's own availability for the week — a 3-day-a-week person who is
+fully free shows a full bar. Green fill shows free capacity; red fill shows overbooking, capped at
+a full cell. A person with nothing to show, including someone fully booked or with no availability
+that week, keeps a plain grey cell. **Bar & number** shows the fill and the figures together. The
+underlying value stays available to assistive technology in every mode. Group header totals and
+unassigned-demand rows always show figures only; the bar never applies to them.
+
 Companies using Blocks mode see an explanation because Blocks do not measure capacity. Switch to
 Hours or Days in **Settings** to use the overview.
 
