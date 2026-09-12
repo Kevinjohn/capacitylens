@@ -183,7 +183,7 @@ function initiateOwnershipTransfer(context: TransferContext, input: InitiateInpu
       replaced = replaceLiveRequest(context, input, new Date(now).toISOString());
       const request = createRequest(input, now);
       insertRequest(db, request);
-      sweepExpiredHistory(db, now);
+      sweepExpiredHistory(db, workspaceId, now);
       return { kind: "applied", request };
     },
   });
@@ -227,7 +227,7 @@ function executeRowCommand(
   if (isLiveOwnershipTransferState(row.state) && isOwnershipTransferExpired(row.expiresAt, instant)) {
     // This commits a terminal row too, so it sweeps like any other committed command: on an
     // instance where nominations mostly lapse, this is the path that mints the history.
-    sweepExpiredHistory(db, instant);
+    sweepExpiredHistory(db, workspaceId, instant);
     return terminaliseRequest(context, {
       row,
       state: "expired",
@@ -245,7 +245,7 @@ function executeRowCommand(
   if (!state) throw new Error("An allowed ownership transfer transition has no destination.");
   // After the command is known to be good: a rejected one would roll the sweep back anyway, having
   // paid for it, and a client retrying a stale revision would pay for it on every attempt.
-  sweepExpiredHistory(db, instant);
+  sweepExpiredHistory(db, workspaceId, instant);
   if (action === "complete") {
     exchangeOwnershipInTx({
       db,
