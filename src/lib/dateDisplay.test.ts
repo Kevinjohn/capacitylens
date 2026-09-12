@@ -84,6 +84,17 @@ describe("formatShortDateRange", () => {
     writeStoredDateStyle("month-day");
     expect(formatShortDateRange("2026-06-05", "2026-07-08")).toBe("Fri Jun 5th – Wed Jul 8th");
   });
+
+  it("spells out both years for a cross-year range under day-month order", () => {
+    // 2026-06-05 is a Friday; 2027-06-08 a Tuesday. Same month either side of a year boundary is
+    // the case that reads as one day without the year.
+    expect(formatShortDateRange("2026-06-05", "2027-06-08")).toBe("Fri 5th Jun 2026 – Tue 8th Jun 2027");
+  });
+
+  it("spells out both years for a cross-year range under month-day order", () => {
+    writeStoredDateStyle("month-day");
+    expect(formatShortDateRange("2026-06-05", "2027-06-08")).toBe("Fri Jun 5th, 2026 – Tue Jun 8th, 2027");
+  });
 });
 
 describe("formatDayMonth", () => {
@@ -203,6 +214,7 @@ const STYLE_TABLE: Record<
     sameMonthWithYear: string;
     crossMonthSameYearWithYear: string;
     crossYear: string;
+    crossYearNoYearHelper: string;
   }
 > = {
   "day-month": {
@@ -213,6 +225,7 @@ const STYLE_TABLE: Record<
     sameMonthWithYear: "9 – 14 Sep 2026",
     crossMonthSameYearWithYear: "9 Sep – 14 Oct 2026",
     crossYear: "28 Dec 2026 – 8 Jan 2027",
+    crossYearNoYearHelper: "9 Sep 2026 – 9 Sep 2027",
   },
   "day-ordinal-month": {
     single: "9th Sep",
@@ -222,6 +235,7 @@ const STYLE_TABLE: Record<
     sameMonthWithYear: "9th – 14th Sep 2026",
     crossMonthSameYearWithYear: "9th Sep – 14th Oct 2026",
     crossYear: "28th Dec 2026 – 8th Jan 2027",
+    crossYearNoYearHelper: "9th Sep 2026 – 9th Sep 2027",
   },
   "month-day": {
     single: "Sep 9",
@@ -231,6 +245,7 @@ const STYLE_TABLE: Record<
     sameMonthWithYear: "Sep 9 – 14, 2026",
     crossMonthSameYearWithYear: "Sep 9 – Oct 14, 2026",
     crossYear: "Dec 28, 2026 – Jan 8, 2027",
+    crossYearNoYearHelper: "Sep 9, 2026 – Sep 9, 2027",
   },
   "month-day-ordinal": {
     single: "Sep 9th",
@@ -240,6 +255,7 @@ const STYLE_TABLE: Record<
     sameMonthWithYear: "Sep 9th – 14th, 2026",
     crossMonthSameYearWithYear: "Sep 9th – Oct 14th, 2026",
     crossYear: "Dec 28th, 2026 – Jan 8th, 2027",
+    crossYearNoYearHelper: "Sep 9th, 2026 – Sep 9th, 2027",
   },
 };
 
@@ -256,6 +272,12 @@ describe.each(Object.entries(STYLE_TABLE))("date style %s", (style, cells) => {
 
   it("formats a cross-month range with no year (formatDayMonthRange)", () => {
     expect(formatDayMonthRange("2026-09-09", "2026-10-14")).toBe(cells.crossMonth);
+  });
+
+  it("spells out both years when a year-less range crosses one (formatDayMonthRange)", () => {
+    // Same month, different years: without the year both endpoints would read alike and a
+    // year-long allocation would claim to start and end on one day.
+    expect(formatDayMonthRange("2026-09-09", "2027-09-09")).toBe(cells.crossYearNoYearHelper);
   });
 
   it("formats a single date with year (formatScheduleDate)", () => {

@@ -120,7 +120,11 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 
 - Password auth and strict OIDC are supported; named social providers remain experimental.
 - Production password mode lets operators require TOTP MFA and defaults to breached-password
-  screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory.
+  screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory. The
+  fresh-session gate applies only to: transferring company ownership, resetting another member's
+  password, revoking another member's sessions, deleting a company, import/purge, and SSO identity
+  link/repair. Other administrative actions need only the actor's role and MFA policy. Data export
+  is served under the `read` action, which the freshness check short-circuits; it is not gated.
 - New external principals require verified email plus an unused pre-authorised invitation. The
   first SSO identity requires `CAPACITYLENS_SSO_BOOTSTRAP_EMAILS`. An already-authenticated local
   principal may explicitly link a verified, email-matching strict-OIDC identity without consuming

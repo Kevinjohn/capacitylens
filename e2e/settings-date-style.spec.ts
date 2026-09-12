@@ -4,10 +4,10 @@ import { openApp } from "./helpers";
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // Covers US-SET-17. The date-style preference (device-global, default "day-month") governs how
-// dates and ranges are displayed across the app; only the T1 resolver/formatters exist on this
-// branch, so this spec exercises the Settings control and its storage round-trip only — the
-// Time off list already reads dates through the shared display helper (T1), so its row text
-// changes with the preference even before the remaining call sites (T2) pick up the style.
+// dates and ranges read across the app. This spec asserts the Settings control, its storage
+// round-trip and one representative surface — the Time off list, whose weekday form reorders
+// without losing its ordinal. Range collapsing itself is covered exhaustively in
+// src/lib/dateDisplay.test.ts, so it is not re-asserted here through the browser.
 test.describe("Settings — date style", () => {
   test("defaults to '9 Sep', switching updates the control and the stored preference", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
@@ -34,6 +34,19 @@ test.describe("Settings — date style", () => {
     // Weekday form always carries the ordinal; the style only reorders day/month — Bruce's first
     // seeded row reads "Wed Jun 10th" under 'month-day' and "Wed 10th Jun" under the default.
     await expect(row).toContainText("Wed Jun 10th");
+  });
+
+  test("reformats a collapsed range on the schedule", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/settings");
+    await page.getByRole("radio", { name: "Sep 9", exact: true }).click();
+
+    await page.getByRole("link", { name: "Schedule", exact: true }).click();
+    await page.getByRole("button", { name: "View Bruce Wayne's schedule" }).click();
+    const sheet = page.getByRole("dialog", { name: "Bruce Wayne's schedule" });
+    // The header's range collapses the repeated month at both styles; only the order moves, so
+    // this is the assertion that would catch a call site left on a hand-built range.
+    await expect(sheet.getByTestId("person-schedule-header")).toContainText(/Jun \d{1,2} – \d{1,2}/);
+    await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/\d{1,2} – \d{1,2} Jun/);
   });
 
   test("the choice survives a reload (device-global pref)", async ({ page }) => {
