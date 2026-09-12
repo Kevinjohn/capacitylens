@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { attachPersistence, switchAndAwaitHydration } from "./persist";
+import { attachPersistence, retryActiveAccountLoad, switchAndAwaitHydration } from "./persist";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "../store/useStore";
@@ -63,6 +63,114 @@ function recordingAccountSwitchAdapter() {
 }
 
 describe("account-switch orchestrator (P1.13, server mode)", () => {
+  it("blocks writes after a failed switch hydration and recovers through an explicit retry", async () => {
+    const { aSlice, bSlice } = accountSwitchSlices();
+    const loadAll = vi
+      .fn<(accountId?: string) => Promise<AppData>>()
+      .mockResolvedValueOnce(aSlice)
+      .mockRejectedValueOnce(new Error("B unavailable"))
+      .mockResolvedValueOnce(bSlice);
+    const saveAll = vi.fn().mockResolvedValue(undefined);
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ]);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: vi.fn(),
+      serverMode: true,
+    });
+
+    await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+    await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
+    expect(useStore.getState().activeAccountLoadFailed).toBe("b1");
+    expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["ca"]);
+    expect(() => useStore.getState().addClient({ name: "Blocked", color: "#222222" })).toThrow(/not loaded/i);
+    expect(saveAll).not.toHaveBeenCalled();
+
+    await expect(retryActiveAccountLoad("b1")).resolves.toEqual({ kind: "reloaded" });
+    expect(useStore.getState().activeAccountLoadFailed).toBeNull();
+    expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb"]);
+    useStore.getState().addClient({ name: "Recovered", color: "#222222" });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(saveAll).toHaveBeenCalledTimes(1);
+    detach();
+  });
+
+  it("retries a failed hydration even when the previous account save failed", async () => {
+    const { aSlice, bSlice } = accountSwitchSlices();
+    const loadAll = vi
+      .fn<(accountId?: string) => Promise<AppData>>()
+      .mockResolvedValueOnce(aSlice)
+      .mockRejectedValueOnce(new Error("B unavailable"))
+      .mockResolvedValueOnce(bSlice);
+    const saveAll = vi.fn().mockRejectedValueOnce(new Error("A save failed")).mockResolvedValue(undefined);
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+    ]);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll },
+      debounceMs: 0,
+      onError: vi.fn(),
+      serverMode: true,
+    });
+
+    await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+    useStore.getState().addClient({ name: "Unsaved A", color: "#222222" });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
+    await expect(retryActiveAccountLoad("b1")).resolves.toEqual({ kind: "reloaded" });
+
+    expect(loadAll).toHaveBeenCalledTimes(3);
+    expect(useStore.getState().activeAccountLoadFailed).toBeNull();
+    expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb"]);
+    detach();
+  });
+
+  it("clears a failed hydration when a newer company switch succeeds", async () => {
+    const { aSlice } = accountSwitchSlices();
+    const cSlice = {
+      ...emptyAppData(),
+      accounts: [{ id: "c1", name: "Gamma", color: "#1", createdAt: "t", updatedAt: "t" }],
+    };
+    const loadAll = vi.fn(async (accountId?: string) => {
+      if (accountId === "a1") return aSlice;
+      if (accountId === "b1") throw new Error("B unavailable");
+      return cSlice;
+    });
+    useStore.getState().replaceAll(emptyAppData());
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setAccountSummaries([
+      { id: "a1", name: "Alpha", role: "owner" },
+      { id: "b1", name: "Beta", role: "owner" },
+      { id: "c1", name: "Gamma", role: "owner" },
+    ]);
+    const detach = attachPersistence({
+      store: useStore,
+      adapter: { loadAll, saveAll: vi.fn().mockResolvedValue(undefined) },
+      debounceMs: 0,
+      onError: vi.fn(),
+      serverMode: true,
+    });
+
+    await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+    await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
+    expect(useStore.getState().activeAccountLoadFailed).toBe("b1");
+    await expect(switchAndAwaitHydration("c1")).resolves.toEqual({ kind: "reloaded" });
+    expect(useStore.getState().activeAccountLoadFailed).toBeNull();
+    expect(useStore.getState().activeAccountId).toBe("c1");
+    expect(useStore.getState().data.accounts[0]?.id).toBe("c1");
+    detach();
+  });
+
   // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
   // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
   it("lets the account-transition owner await the subscriber's exact hydration, including null", async () => {

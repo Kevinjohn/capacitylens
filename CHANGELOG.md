@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Hide the previously open company's data when a newly selected company cannot load, and offer
+  explicit retry or company-selection recovery actions (#945).
 - Scale Overview capacity bars against the company working days in each column, so people with
   different working patterns remain visually comparable (#890).
 - Keep the Overview's ordered week-column headers compact across a year boundary, so the one

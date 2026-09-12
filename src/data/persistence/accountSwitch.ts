@@ -13,6 +13,20 @@ interface AttachAccountSwitchInput {
   serverMode: boolean;
 }
 
+function createRegisteredRetry({
+  store,
+  refresh,
+  serverMode,
+}: Pick<AttachAccountSwitchInput, "store" | "refresh" | "serverMode">) {
+  if (!serverMode) return null;
+  return async (id: string): Promise<RefreshOutcome> => {
+    if (store.getState().activeAccountLoadFailed !== id || store.getState().activeAccountId !== id) {
+      return { kind: "skipped" };
+    }
+    return refresh.refreshActive(id);
+  };
+}
+
 export function attachAccountSwitch({ store, owner, writes, refresh, serverMode }: AttachAccountSwitchInput) {
   const { save } = writes;
   const { refreshActive } = refresh;
@@ -58,6 +72,9 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
           // A successful company switch just loaded this same slice. Count it as a refresh so a
           // focus event delivered by the picker transition cannot immediately load it again.
           if (outcome.kind === "reloaded") owner.update({ lastRefreshAt: Date.now() });
+          if (outcome.kind === "failed" && store.getState().activeAccountId === newId) {
+            store.setState({ activeAccountLoadFailed: newId });
+          }
           settleSwitch(newId, outcome);
         });
       })
@@ -77,5 +94,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
         })
     : null;
 
-  return { unsubscribeSwitch, myRegisteredSwitch };
+  const myRegisteredRetry = createRegisteredRetry({ store, refresh, serverMode });
+
+  return { unsubscribeSwitch, myRegisteredSwitch, myRegisteredRetry };
 }

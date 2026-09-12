@@ -113,6 +113,7 @@ function installLoadedSlice(input: RefreshSequenceInput): void {
     );
   }
   owner.installSlice(installed);
+  store.setState({ activeAccountLoadFailed: null });
   if (!editedMidLoad) owner.update({ unacknowledged: null });
   owner.update({ authoritativeReloadRequiredFor: null });
   owner.update({ failedSinceSuccess: false });
