@@ -3,6 +3,7 @@ import { m } from "@/i18n";
 import {
   teamAccessClient,
   type OwnershipTransferOutcomeView,
+  type OwnershipTransferTerminalView,
   type OwnershipTransferProjectionView,
   type TeamAccessResult,
   type TeamMember,
@@ -45,7 +46,7 @@ export interface OwnershipTransferController extends OwnershipTransferState {
   command(input: CommandInput): Promise<void>;
   /** The committed terminal outcome of the last command, if it had one. Cleared by the next
    *  command, so a stale explanation cannot outlive the thing it explains. */
-  lastTerminal: OwnershipTransferOutcomeView | null;
+  lastTerminal: OwnershipTransferTerminalView | null;
 }
 
 const EMPTY_MEMBERS: readonly TeamMember[] = [];
@@ -139,7 +140,7 @@ interface CeremonyReadInput {
   accountId: string | null;
   beginRead: () => () => boolean;
   apply: Dispatch<SetStateAction<OwnershipTransferReadState>>;
-  forgetOutcome: (outcome: OwnershipTransferOutcomeView | null) => void;
+  forgetOutcome: (outcome: OwnershipTransferTerminalView | null) => void;
 }
 
 function useCeremonyRead({ accountId, beginRead, apply, forgetOutcome }: CeremonyReadInput): void {
@@ -170,7 +171,7 @@ interface CommandAnswer {
   failure: string | null;
   /** The committed terminal outcome to explain, if the server committed one. Returned rather than
    *  stored directly, so it can be discarded with the rest of a superseded answer. */
-  terminal: OwnershipTransferOutcomeView | null;
+  terminal: OwnershipTransferTerminalView | null;
   /** Did the roles actually move? Only completion changes the caller's own authority. */
   completed: boolean;
 }
@@ -201,7 +202,7 @@ export function useOwnershipTransfer(
   refreshAuth: () => Promise<void>,
 ): OwnershipTransferController {
   const [state, setState] = useState<OwnershipTransferReadState>(EMPTY_STATE);
-  const [lastTerminal, setLastTerminal] = useState<OwnershipTransferOutcomeView | null>(null);
+  const [lastTerminal, setLastTerminal] = useState<OwnershipTransferTerminalView | null>(null);
 
   const beginRead = useLatestRead();
   useCeremonyRead({ accountId, beginRead, apply: setState, forgetOutcome: setLastTerminal });

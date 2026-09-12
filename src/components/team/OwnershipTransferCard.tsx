@@ -50,17 +50,13 @@ function describeReason(reason: OwnershipTransferTerminalReason | null, state: O
   }
 }
 
-function describeOutcome(outcome: OwnershipTransferView): string {
-  return describeReason(outcome.terminalReason, outcome.state);
-}
-
 /** The two things the card says about the last action: what it committed, and what went wrong.
  *  Both are answers to the command the viewer just gave, so they live together. */
 function CeremonyAlerts({ controller }: { controller: OwnershipTransferController }) {
   const terminal = controller.lastTerminal;
   return (
     <>
-      {terminal !== null && terminal.kind === "terminal" && (
+      {terminal !== null && (
         <Alert>
           <AlertDescription>{describeReason(terminal.reason, terminal.state)}</AlertDescription>
         </Alert>
@@ -116,96 +112,96 @@ function NominatePanel({ controller, candidates, replacing }: NominatePanelProps
   );
 }
 
+/** Who may be nominated: the company's active Admins, never the person a live request already
+ *  names. Offering the current nominee again would ask the server to replace a request with itself. */
+function adminCandidates(members: readonly TeamMember[], excludeUserId?: string): readonly TeamMember[] {
+  return members.filter(
+    (member) => member.role === "admin" && member.status === "active" && member.userId !== excludeUserId,
+  );
+}
+
+interface ControlsProps {
+  controller: OwnershipTransferController;
+  request: OwnershipTransferView;
+  /** The nominee has accepted, so the ceremony is waiting on the Owner's second act. */
+  awaitingOwner: boolean;
+}
+
 interface LiveRequestProps {
   controller: OwnershipTransferController;
   request: OwnershipTransferView;
   isInitiator: boolean;
 }
 
-function OwnerControls({
-  controller,
-  request,
-  awaitingOwner,
-}: {
+type CeremonyStep = "complete" | "cancel" | "accept" | "decline" | "withdraw";
+
+interface StepButtonProps {
   controller: OwnershipTransferController;
   request: OwnershipTransferView;
-  awaitingOwner: boolean;
-}) {
-  const command = (step: "complete" | "cancel") => () =>
-    void controller.command({ requestId: request.id, step, expectedRevision: request.revision });
+  step: CeremonyStep;
+  label: string;
+  variant?: "outline";
+}
+
+/** One ceremony step as a button. Every step sends the same command against the same request at the
+ *  revision the card read, so the only things that vary are which step, how it reads and whether it
+ *  is the primary action of the pair. */
+function StepButton({ controller, request, step, label, variant }: StepButtonProps) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={variant}
+      disabled={controller.busy}
+      data-testid={`ownership-transfer-${step}`}
+      onClick={() => void controller.command({ requestId: request.id, step, expectedRevision: request.revision })}
+    >
+      {label}
+    </Button>
+  );
+}
+
+function OwnerControls({ controller, request, awaitingOwner }: ControlsProps) {
   return (
     <div className="flex flex-wrap gap-2">
       {awaitingOwner && (
-        <Button
-          type="button"
-          size="sm"
-          disabled={controller.busy}
-          data-testid="ownership-transfer-complete"
-          onClick={command("complete")}
-        >
-          {m.ownership_transfer_complete()}
-        </Button>
+        <StepButton controller={controller} request={request} step="complete" label={m.ownership_transfer_complete()} />
       )}
-      <Button
-        type="button"
-        size="sm"
+      <StepButton
+        controller={controller}
+        request={request}
+        step="cancel"
         variant="outline"
-        disabled={controller.busy}
-        data-testid="ownership-transfer-cancel"
-        onClick={command("cancel")}
-      >
-        {m.ownership_transfer_cancel()}
-      </Button>
+        label={m.ownership_transfer_cancel()}
+      />
     </div>
   );
 }
 
-function NomineeControls({
-  controller,
-  request,
-  awaitingOwner,
-}: {
-  controller: OwnershipTransferController;
-  request: OwnershipTransferView;
-  awaitingOwner: boolean;
-}) {
-  const command = (step: "accept" | "decline" | "withdraw") => () =>
-    void controller.command({ requestId: request.id, step, expectedRevision: request.revision });
+function NomineeControls({ controller, request, awaitingOwner }: ControlsProps) {
+  // Consent already given: the only thing left to offer is taking it back, which returns the
+  // nomination to the Owner rather than ending it.
   if (awaitingOwner) {
     return (
-      <Button
-        type="button"
-        size="sm"
+      <StepButton
+        controller={controller}
+        request={request}
+        step="withdraw"
         variant="outline"
-        disabled={controller.busy}
-        data-testid="ownership-transfer-withdraw"
-        onClick={command("withdraw")}
-      >
-        {m.ownership_transfer_withdraw()}
-      </Button>
+        label={m.ownership_transfer_withdraw()}
+      />
     );
   }
   return (
     <div className="flex flex-wrap gap-2">
-      <Button
-        type="button"
-        size="sm"
-        disabled={controller.busy}
-        data-testid="ownership-transfer-accept"
-        onClick={command("accept")}
-      >
-        {m.ownership_transfer_accept()}
-      </Button>
-      <Button
-        type="button"
-        size="sm"
+      <StepButton controller={controller} request={request} step="accept" label={m.ownership_transfer_accept()} />
+      <StepButton
+        controller={controller}
+        request={request}
+        step="decline"
         variant="outline"
-        disabled={controller.busy}
-        data-testid="ownership-transfer-decline"
-        onClick={command("decline")}
-      >
-        {m.ownership_transfer_decline()}
-      </Button>
+        label={m.ownership_transfer_decline()}
+      />
     </div>
   );
 }
@@ -240,9 +236,7 @@ function LiveRequest({ controller, request, isInitiator }: LiveRequestProps) {
       {isInitiator && !awaitingOwner && (
         <NominatePanel
           controller={controller}
-          candidates={controller.members.filter(
-            (member) => member.role === "admin" && member.status === "active" && member.userId !== request.toUserId,
-          )}
+          candidates={adminCandidates(controller.members, request.toUserId)}
           replacing
         />
       )}
@@ -265,17 +259,11 @@ function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProp
     return <LiveRequest controller={controller} request={live} isInitiator={live.fromUserId === principalId} />;
   }
   if (mayNominate) {
-    return (
-      <NominatePanel
-        controller={controller}
-        candidates={controller.members.filter((member) => member.role === "admin" && member.status === "active")}
-        replacing={false}
-      />
-    );
+    return <NominatePanel controller={controller} candidates={adminCandidates(controller.members)} replacing={false} />;
   }
   return outcome === null ? null : (
     <p className="text-sm text-muted-foreground" data-testid="ownership-transfer-outcome">
-      {describeOutcome(outcome)}
+      {describeReason(outcome.terminalReason, outcome.state)}
     </p>
   );
 }

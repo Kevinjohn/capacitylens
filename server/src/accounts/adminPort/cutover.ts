@@ -114,13 +114,9 @@ function createCutoverAdministration(
     },
     eraseWorkspaceAdministrationInTx(workspaceId) {
       // Why: the existing workspace-erasure audit event records that the company, and every
-      // ceremony in it, ended. This method has no command and cutover has no request audit port.
-      terminaliseLiveRequestsForAccount({
-        db,
-        accountId: workspaceId,
-        reason: "account_erased",
-        now: new Date().toISOString(),
-      });
+      // ceremony in it, ended. The rows themselves go, rather than being terminalised first: this
+      // deletes in the same transaction, so an invalidation written here would never be visible to
+      // anyone, and the audit trail of why the ceremony ended outlives the rows anyway.
       deleteRequestsForAccount(db, workspaceId);
       const principalIds = [...new Set(listMembersForAccount(db, workspaceId).map((row) => row.userId))];
       removeAllMembersForAccount(db, workspaceId);
