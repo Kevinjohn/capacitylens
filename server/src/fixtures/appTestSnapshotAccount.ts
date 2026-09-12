@@ -27,11 +27,13 @@ export function addAccountDisplayOptions(snapshot: AccountSnapshot, row: Record<
 
 export function addAccountWorkflowOptions(snapshot: AccountSnapshot, row: Record<string, unknown>): void {
   const capacityOverviewAccess = readOptionalString(row, "capacityOverviewAccess", "account row");
+  const dateStyle = readOptionalString(row, "dateStyle", "account row");
   const inlineActivityCreateEnabled = readOptionalBoolean(row, "inlineActivityCreateEnabled", "account row");
   const showInternalActivities = readOptionalBoolean(row, "showInternalActivities", "account row");
   const showInternalProjects = readOptionalBoolean(row, "showInternalProjects", "account row");
   const showTaskFieldInSchedule = readOptionalBoolean(row, "showTaskFieldInSchedule", "account row");
   if (capacityOverviewAccess !== undefined) snapshot.capacityOverviewAccess = capacityOverviewAccess;
+  if (dateStyle !== undefined) snapshot.dateStyle = dateStyle;
   if (inlineActivityCreateEnabled !== undefined) snapshot.inlineActivityCreateEnabled = inlineActivityCreateEnabled;
   if (showInternalActivities !== undefined) snapshot.showInternalActivities = showInternalActivities;
   if (showInternalProjects !== undefined) snapshot.showInternalProjects = showInternalProjects;
@@ -45,6 +47,7 @@ export function readAccountSnapshot(row: Record<string, unknown>): AccountSnapsh
       "color",
       "capacityOverviewAccess",
       "createdAt",
+      "dateStyle",
       "disciplinesEnabled",
       "externalEnabled",
       "groupResourcesByEngagement",

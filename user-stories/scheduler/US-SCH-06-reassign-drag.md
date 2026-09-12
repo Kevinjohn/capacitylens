@@ -2,6 +2,8 @@
 
 **Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/features.spec.ts` → "dragging an allocation onto another row reassigns it" and "rejects a vertical reassignment onto a non-working start date"
 
+**Documentation:** [Projects and allocations → Edit, move and remove allocations](../../docs-src/guide/projects-and-allocations.md#edit-move-and-remove-allocations)
+
 ## Goal
 
 Hand a piece of work to a different person by dragging its bar onto another resource's row; the target row highlights mid-drag and the bar moves there on drop.
@@ -26,6 +28,12 @@ the allocation on its original row and explains that the allocation cannot start
 day. The same rule combines the company and personal calendars. An allocation whose **Ignore
 working days** checkbox is enabled deliberately bypasses both recurring calendars.
 
+A reassignment preserves how long the allocation is, as the person it is leaving counts days, and
+redraws that length across the days the new person works. A two-day booking that spanned Thursday to
+Tuesday on someone who works neither Fridays nor Mondays becomes Thursday and Friday on a
+Monday-to-Friday person, and stretches back out on the return trip. The drag preview shows the
+length the drop will produce, and shows no change at all when the drop will be refused.
+
 ## Acceptance criteria
 
 - ✅ During the drag, the target lane carries `data-droptarget` (it is highlighted).
@@ -36,3 +44,8 @@ working days** checkbox is enabled deliberately bypasses both recurring calendar
 - ✅ **Ignore working days** permits that literal drop; time off remains a visible conflict rather
   than changing the date silently.
 - ✅ The bar tracks vertical pointer movement without an animated transform delay.
+- ✅ A reassignment across differing working weeks keeps the allocation's length as its original
+  week counted it and re-places it in the target's week. Hours per day are untouched, except by the
+  existing external-resource rules.
+- ✅ The drag preview shows the length the drop will produce, and shows no change when the drop will
+  be refused, so the bar never changes width on release.

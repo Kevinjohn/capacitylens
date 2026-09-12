@@ -108,6 +108,7 @@ export interface AccountSnapshot {
   capacityOverviewAccess?: string;
   color: string;
   createdAt: string;
+  dateStyle?: string;
   disciplinesEnabled?: boolean;
   externalEnabled?: boolean;
   groupResourcesByEngagement?: boolean;

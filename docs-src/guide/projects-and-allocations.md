@@ -167,6 +167,11 @@ project attribution.
   availability date range, the drop is rejected and the original allocation stays put. An allocation
   with **Ignore working days** enabled may use recurring non-working dates literally, but it still
   cannot cross the person's availability boundaries.
+- **Reassigning** keeps a booking's length, not the calendar dates it was drawn over. Two days of
+  work run Thursday to the following Tuesday for someone who works neither Fridays nor Mondays.
+  Give it to a Monday-to-Friday colleague and it becomes Thursday and Friday. It stretches back out
+  on the return trip. The bar shows the length you will get while you drag, and does not move at all
+  when the drop will be refused.
 - **Resize** a bar from either edge to change its start or end date. A new placement outside the
   assignee's inclusive availability range is rejected atomically.
 - **Open** a bar to change its status between tentative, confirmed and completed, or
