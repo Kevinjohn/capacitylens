@@ -95,12 +95,11 @@ function insertSharedProviderRows(db: DatabaseSync, reverseOrder: boolean): void
     ["account-b", "principal-b", "provider-shared", "subject-b", "session-b", "ceremony-b", "2026-02-02"],
     ["account-c", "principal-c", "provider-other", "subject-c", "session-c", "ceremony-c", "2026-02-03"],
   ];
-  for (const row of reverseOrder ? bindings.toReversed() : bindings) {
+  const order = <T>(rows: T[]): T[] => (reverseOrder ? rows.toReversed() : rows);
+  for (const row of order(bindings)) {
     db.prepare("INSERT INTO account_federated_provider_bindings VALUES (?, ?, ?, ?)").run(...row);
   }
-  for (const [accountId, principalId, providerId, subject, sessionId, ceremonyId, timestamp] of reverseOrder
-    ? identities.toReversed()
-    : identities) {
+  for (const [accountId, principalId, providerId, subject, sessionId, ceremonyId, timestamp] of order(identities)) {
     db.prepare("INSERT INTO account VALUES (?, ?, ?, ?)").run(accountId, principalId, providerId, subject);
     db.prepare("INSERT INTO account_session_assurance VALUES (?, ?, 'federated', ?, ?)").run(
       sessionId,
@@ -127,6 +126,7 @@ function insertSharedProviderRows(db: DatabaseSync, reverseOrder: boolean): void
 }
 
 function assertSharedProviderJoins(db: DatabaseSync, rows: Record<string, unknown>[]): void {
+  const [sharedProviderId, otherProviderId] = [rows[0]?.providerId, rows[2]?.providerId];
   for (const table of [
     "account",
     "account_session_assurance",
@@ -136,8 +136,8 @@ function assertSharedProviderJoins(db: DatabaseSync, rows: Record<string, unknow
     expect(
       db.prepare(`SELECT providerId, COUNT(*) AS count FROM ${table} GROUP BY providerId ORDER BY count`).all(),
     ).toEqual([
-      { providerId: rows[2]?.providerId, count: 1 },
-      { providerId: rows[0]?.providerId, count: 2 },
+      { providerId: otherProviderId, count: 1 },
+      { providerId: sharedProviderId, count: 2 },
     ]);
   }
   expect(
@@ -162,6 +162,26 @@ function assertSharedProviderJoins(db: DatabaseSync, rows: Record<string, unknow
   ).toEqual({ count: 5 });
 }
 
+function assertOrderedTimestamps(
+  db: DatabaseSync,
+  {
+    table,
+    orderColumn,
+    columns,
+    deriveExtra,
+  }: {
+    table: string;
+    orderColumn: string;
+    columns: string[];
+    deriveExtra: (value: string) => Record<string, unknown>;
+  },
+): void {
+  const timestamps = ["2026-02-01", "2026-02-02", "2026-02-03"];
+  expect(db.prepare(`SELECT ${columns.join(", ")} FROM ${table} ORDER BY ${orderColumn}`).all()).toEqual(
+    timestamps.map((value) => ({ [orderColumn]: value, ...deriveExtra(value) })),
+  );
+}
+
 function assertSharedProviderResult(db: DatabaseSync): Record<string, unknown>[] {
   const rows = db.prepare("SELECT * FROM account_federated_provider_bindings ORDER BY createdAt").all();
   expect(rows).toHaveLength(3);
@@ -172,30 +192,24 @@ function assertSharedProviderResult(db: DatabaseSync): Record<string, unknown>[]
   expect(rows.every(({ issuer }) => /^https:\/\/idp-\d+\.example\.invalid$/.test(String(issuer)))).toBe(true);
   expect(rows.map(({ createdAt }) => createdAt)).toEqual(["2026-01-01", "2026-01-02", "2026-01-03"]);
   assertSharedProviderJoins(db, rows);
-  expect(db.prepare("SELECT createdAt FROM account_session_assurance ORDER BY createdAt").all()).toEqual(
-    ["2026-02-01", "2026-02-02", "2026-02-03"].map((createdAt) => ({ createdAt })),
-  );
-  expect(
-    db
-      .prepare(
-        "SELECT createdAt, expiresAt, completedAt FROM capacitylens_federated_link_ceremonies ORDER BY createdAt",
-      )
-      .all(),
-  ).toEqual(
-    ["2026-02-01", "2026-02-02", "2026-02-03"].map((createdAt) => ({
-      createdAt,
-      expiresAt: `${createdAt}-expires`,
-      completedAt: null,
-    })),
-  );
-  expect(
-    db.prepare("SELECT verifiedAt, auditedAt FROM capacitylens_federated_link_observations ORDER BY verifiedAt").all(),
-  ).toEqual(
-    ["2026-02-01", "2026-02-02", "2026-02-03"].map((verifiedAt) => ({
-      verifiedAt,
-      auditedAt: `${verifiedAt}-audited`,
-    })),
-  );
+  assertOrderedTimestamps(db, {
+    table: "account_session_assurance",
+    orderColumn: "createdAt",
+    columns: ["createdAt"],
+    deriveExtra: () => ({}),
+  });
+  assertOrderedTimestamps(db, {
+    table: "capacitylens_federated_link_ceremonies",
+    orderColumn: "createdAt",
+    columns: ["createdAt", "expiresAt", "completedAt"],
+    deriveExtra: (createdAt) => ({ expiresAt: `${createdAt}-expires`, completedAt: null }),
+  });
+  assertOrderedTimestamps(db, {
+    table: "capacitylens_federated_link_observations",
+    orderColumn: "verifiedAt",
+    columns: ["verifiedAt", "auditedAt"],
+    deriveExtra: (verifiedAt) => ({ auditedAt: `${verifiedAt}-audited` }),
+  });
   const retained = [
     ...rows,
     ...db.prepare("SELECT * FROM account").all(),
