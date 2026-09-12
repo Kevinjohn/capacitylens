@@ -11,6 +11,9 @@ new features and **patch** versions carry fixes.
 
 - Allow migration rehearsal copies to anonymise federated provider bindings when several
   applications use the same provider identifier (#904).
+- Make the bare-metal installation select Node from the repository's `.nvmrc`, then run the
+  systemd service from a root-owned copy of that verified binary, including upgrade and runtime
+  checks (#931, #932).
 - Scale Overview capacity bars against the company working days in each column, so people with
   different working patterns remain visually comparable (#890).
 - Keep the Overview's ordered week-column headers compact across a year boundary, so the one

@@ -55,3 +55,12 @@ test("each referenced project has inputs and retains its declared compiler envir
   assert.deepEqual(readConfig("tsconfig.e2e.json").compilerOptions.lib, ["ES2023", "DOM", "DOM.Iterable"]);
   assert.deepEqual(readConfig("shared/tsconfig.json").compilerOptions.types, []);
 });
+
+test("the Docker build context includes every referenced test config", () => {
+  const dockerignore = ts.sys.readFile(`${root}.dockerignore`);
+  assert.match(dockerignore, /^\*\*\/\*\.test\.\*$/m);
+
+  for (const project of referencedProjects.filter((path) => path.includes(".test."))) {
+    assert.match(dockerignore, new RegExp(`^!${project.slice(2).replaceAll(".", "\\.")}$`, "m"), project);
+  }
+});
