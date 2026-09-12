@@ -9,6 +9,10 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Show both years on a date range that crosses one, instead of a repeated month that read as a
+  single day (#819).
+- Name the company-closure Edit and Delete buttons with the date range shown on the row they act
+  on, so a voice-control user can speak what is on screen (#793).
 - Reduced memory pressure during direct deployment builds by keeping test and build-tool type-checking
   in validation while checking only browser-shipped sources in `pnpm run build`.
 
@@ -44,7 +48,8 @@ new features and **patch** versions carry fixes.
   optional Role is blank to persist (#736).
 - Simplify resource add/edit forms with always-visible Studio/Supplementary choices, compact Start date and End date labels,
   and separators around the date group (#765).
-- Collapse the repeated month in date ranges on the schedule: "9 – 14 Sep" rather than "9 Sep – 14 Sep" (#793).
+- Collapse the repeated month in date ranges across the schedule, Capacity Overview, Time off and company
+  closures: "9 – 14 Sep" rather than "9 Sep – 14 Sep" (#793).
 
 ### Added
 
