@@ -194,26 +194,26 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Settings — `settings/`
 
-| Story                                                    | Title                                                 | Automated coverage                                      |
-| -------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------- |
-| [US-SET-01](settings/US-SET-01-calendar-settings.md)     | Team calendar (week start + timezone)                 | `e2e/settings-calendar.spec.ts`                         |
-| [US-SET-02](settings/US-SET-02-bar-labels.md)            | Allocation-bar label toggles                          | `e2e/settings-bar-labels.spec.ts`                       |
-| [US-SET-03](settings/US-SET-03-build-stamp.md)           | Build stamp (flag-gated)                              | `e2e/settings-build-stamp.spec.ts` (absence by default) |
-| [US-SET-04](settings/US-SET-04-send-feedback.md)         | Send feedback mailto (flag-gated)                     | `e2e/settings-build-stamp.spec.ts` (absence by default) |
-| [US-SET-05](settings/US-SET-05-minimise-weekends.md)     | Minimise weekends on the schedule                     | `e2e/minimise-weekends.spec.ts`                         |
-| [US-SET-06](settings/US-SET-06-show-placeholders.md)     | Show placeholders on the schedule                     | `e2e/placeholders.spec.ts`                              |
-| [US-SET-07](settings/US-SET-07-show-external.md)         | Show external / 3rd parties                           | `e2e/external.spec.ts`                                  |
-| [US-SET-08](settings/US-SET-08-clear-local-storage.md)   | Clear local storage                                   | `e2e/clear-local-storage.spec.ts`                       |
-| [US-SET-09](settings/US-SET-09-snap-to-week-start.md)    | Snap the schedule's left edge to the week start       | `e2e/snap-week.spec.ts`                                 |
-| [US-SET-10](settings/US-SET-10-member-management.md)     | Member management (invite / role / revoke)            | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts`  |
-| [US-SET-11](settings/US-SET-11-viewer-readonly.md)       | Viewer read-only mode                                 | `e2e/viewer.auth.spec.ts`                               |
-| [US-SET-12](settings/US-SET-12-archived-deleted.md)      | Inline archives and Deleted items                     | `e2e/archived.spec.ts`                                  |
-| [US-SET-13](settings/US-SET-13-password-reset-links.md)  | Admin-issued password-reset links                     | `e2e/reset-password.auth.spec.ts`                       |
-| [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours                                 | `e2e/internal-colours.spec.ts`                          |
-| [US-SET-15](settings/US-SET-15-global-working-days.md)   | Company-wide working days                             | `e2e/global-working-days.spec.ts`                       |
-| [US-SET-16](settings/US-SET-16-diagnostics.md)           | Copy privacy-safe diagnostics                         | `src/data/buildInfo.test.ts` + `SettingsView.test.tsx`  |
-| [US-SET-17](settings/US-SET-17-date-style.md)            | Date format preference on the schedule                | `e2e/settings-date-style.spec.ts`                       |
-| [US-SET-18](settings/US-SET-18-ownership-transfer.md)    | Hand the company to someone else                      | `e2e/ownership-transfer.auth.spec.ts`                   |
+| Story                                                    | Title                                           | Automated coverage                                      |
+| -------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------- |
+| [US-SET-01](settings/US-SET-01-calendar-settings.md)     | Team calendar (week start + timezone)           | `e2e/settings-calendar.spec.ts`                         |
+| [US-SET-02](settings/US-SET-02-bar-labels.md)            | Allocation-bar label toggles                    | `e2e/settings-bar-labels.spec.ts`                       |
+| [US-SET-03](settings/US-SET-03-build-stamp.md)           | Build stamp (flag-gated)                        | `e2e/settings-build-stamp.spec.ts` (absence by default) |
+| [US-SET-04](settings/US-SET-04-send-feedback.md)         | Send feedback mailto (flag-gated)               | `e2e/settings-build-stamp.spec.ts` (absence by default) |
+| [US-SET-05](settings/US-SET-05-minimise-weekends.md)     | Minimise weekends on the schedule               | `e2e/minimise-weekends.spec.ts`                         |
+| [US-SET-06](settings/US-SET-06-show-placeholders.md)     | Show placeholders on the schedule               | `e2e/placeholders.spec.ts`                              |
+| [US-SET-07](settings/US-SET-07-show-external.md)         | Show external / 3rd parties                     | `e2e/external.spec.ts`                                  |
+| [US-SET-08](settings/US-SET-08-clear-local-storage.md)   | Clear local storage                             | `e2e/clear-local-storage.spec.ts`                       |
+| [US-SET-09](settings/US-SET-09-snap-to-week-start.md)    | Snap the schedule's left edge to the week start | `e2e/snap-week.spec.ts`                                 |
+| [US-SET-10](settings/US-SET-10-member-management.md)     | Member management (invite / role / revoke)      | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts`  |
+| [US-SET-11](settings/US-SET-11-viewer-readonly.md)       | Viewer read-only mode                           | `e2e/viewer.auth.spec.ts`                               |
+| [US-SET-12](settings/US-SET-12-archived-deleted.md)      | Inline archives and Deleted items               | `e2e/archived.spec.ts`                                  |
+| [US-SET-13](settings/US-SET-13-password-reset-links.md)  | Admin-issued password-reset links               | `e2e/reset-password.auth.spec.ts`                       |
+| [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours                           | `e2e/internal-colours.spec.ts`                          |
+| [US-SET-15](settings/US-SET-15-global-working-days.md)   | Company-wide working days                       | `e2e/global-working-days.spec.ts`                       |
+| [US-SET-16](settings/US-SET-16-diagnostics.md)           | Copy privacy-safe diagnostics                   | `src/data/buildInfo.test.ts` + `SettingsView.test.tsx`  |
+| [US-SET-17](settings/US-SET-17-date-style.md)            | Date format preference on the schedule          | `e2e/settings-date-style.spec.ts`                       |
+| [US-SET-18](settings/US-SET-18-ownership-transfer.md)    | Hand the company to someone else                | `e2e/ownership-transfer.auth.spec.ts`                   |
 
 ## Keyboard & accessibility — `accessibility/`
 

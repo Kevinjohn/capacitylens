@@ -69,7 +69,9 @@ every sensitive action.
 - Only an **active Admin** of the same company may be nominated. A self-nomination, a non-member, a
   member of another company and a member in any other role are all refused.
 - A request expires **seven days** after it was made, whether or not the nominee has agreed;
-  agreeing does not extend it.
+  agreeing does not extend it. Past that deadline both participants are told the request expired
+  rather than being offered controls that can only fail, and the next nomination commits the expiry
+  instead of being blocked by it.
 - A request ends by itself when the people it names stop being the right people: the nominee ceasing
   to be an active Admin, the initiator ceasing to be the Owner, a role change, a status change or a
   removal touching either participant. The request ends; the company keeps the Owner it had.
@@ -77,8 +79,9 @@ every sensitive action.
   reads an empty projection, so hiding the card is presentation, never the authorisation mechanism.
 - A participant who was away when a request ended sees **how** it ended (declined, cancelled,
   replaced, expired, or ended because the people changed) rather than an empty card.
-- Every step requires a fresh administrative assurance, and none of them is available while viewing
-  the company as somebody else (masquerade).
+- Every step requires a fresh administrative assurance; **seeing** the request does not, so a
+  participant who signed in hours ago can still read the nomination they are being asked to approve.
+  Neither reading nor acting is available while viewing the company as somebody else (masquerade).
 - A step submitted against a request that has since moved is refused rather than applied: each
   command carries the workflow revision it was authorised against.
 - API routes: `GET /api/accounts/:accountId/ownership-transfer` (both participants; `{live,
