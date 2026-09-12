@@ -4,16 +4,23 @@ import { DB_SCHEMA_VERSION } from "../constants";
 import { SCHEMA_V8_SQL, INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from "../../tables";
 import { renameLegacyActivityTables, migrateSchemaV8, assertSchemaV8, assertSchemaV9 } from "../../schema";
 import { assertSchemaV16, assertSchemaV27, assertSchemaV28, assertSchemaV29, assertSchemaV30 } from "../../schema";
-import { assertSchemaV31, assertSchemaV32, assertSchemaV33, assertSchemaV34 } from "../../schema";
-import { assertSchemaV35, assertSchemaV36, assertSchemaV37, assertSchemaV38 } from "../../schema";
-import { assertSchemaCurrent } from "../../schema";
+import {
+  assertSchemaV31,
+  assertSchemaV32,
+  assertSchemaV33,
+  assertSchemaV34,
+  assertSchemaV35,
+  assertSchemaV36,
+  assertSchemaV37,
+  assertSchemaV38,
+  assertSchemaV39,
+} from "../../schema";
 import { ensureControlTables, assertControlTablesCurrent, SINGLE_OWNER_INDEX } from "../../controlTables";
 import { migrateSingleOwnerControlPlaneV10, assertSingleOwnerControlPlaneV10 } from "../../controlTables";
 import { migrateOwnerlessControlPlaneV11, assertSingleOwnerControlPlaneCurrent } from "../../controlTables";
 import { reportOwnerlessPromotionsV11, migrateOwnerResetCeremoniesV12 } from "../../controlTables";
 import { migrateMemberResetCeremoniesV14, USED_INVITATION_RETENTION_V24_DEFINITION } from "../../controlTables";
-import { migrateUsedInvitationHistoryV24 } from "../../controlTables";
-import { OWNERSHIP_TRANSFER_REQUESTS_V40_SQL, assertOwnershipTransfersCurrent } from "../../controlTables";
+import { migrateUsedInvitationHistoryV24, OWNERSHIP_TRANSFER_REQUESTS_V41_SQL } from "../../controlTables";
 import { isInitialized, markInitialized } from "../initialization";
 import { isEmpty } from "@capacitylens/shared/types/entities";
 import { readState } from "../slices";
@@ -27,6 +34,9 @@ import {
   ALLOCATION_TASK_V37_DEFINITION,
   RESOURCE_AVAILABILITY_V38_DEFINITION,
   CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION,
+  ACCOUNT_DATE_STYLE_V40_DEFINITION,
+  runAccountDateStyleV40,
+  runOwnershipTransfersV41,
 } from "./definitions";
 import { migrateTimeOffResourceNullableV33, COMPANY_CLOSURES_V34_DEFINITION } from "./definitions";
 import { migrateCompanyClosuresV34 } from "./definitions";
@@ -370,18 +380,12 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     if (!tableHasColumns(db, "accounts", ["capacityOverviewAccess"])) {
       db.exec("ALTER TABLE accounts ADD COLUMN capacityOverviewAccess TEXT;");
     }
-    assertSchemaCurrent(db);
+    assertSchemaV39(db);
     assertTenantRelationshipIntegrityCurrent(db);
     assertTenantEntityIndexesCurrent(db);
   }),
-  defineMigration(40, "add-ownership-transfer-requests", OWNERSHIP_TRANSFER_REQUESTS_V40_SQL, (db) => {
-    // A control-plane table, so no AppData schema moves and EXPORT_SCHEMA_VERSION stays put. Assert
-    // while this transaction still owns both the DDL and the ledger write, so a malformed
-    // pre-existing IF-NOT-EXISTS object rolls the step back rather than leaving the live slot
-    // unguarded.
-    db.exec(OWNERSHIP_TRANSFER_REQUESTS_V40_SQL);
-    assertOwnershipTransfersCurrent(db);
-  }),
+  defineMigration(40, "add-account-date-style", ACCOUNT_DATE_STYLE_V40_DEFINITION, runAccountDateStyleV40),
+  defineMigration(41, "add-ownership-transfer-requests", OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, runOwnershipTransfersV41),
 ];
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {

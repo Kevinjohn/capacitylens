@@ -39,6 +39,10 @@ describe("CompanyClosureSection", () => {
     const row = screen.getByTestId("company-closure-row");
     expect(row).toHaveTextContent("Summer shutdown");
     expect(row).toHaveTextContent("Sat 1st – Wed 5th Aug");
+    // The action names repeat the row's own visible range, so speaking what is on screen
+    // addresses the right button.
+    expect(screen.getByRole("button", { name: "Edit Summer shutdown closure, Sat 1st – Wed 5th Aug" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Delete Summer shutdown closure, Sat 1st – Wed 5th Aug" })).toBeVisible();
   });
 
   it("confirms deletion and keeps the store mutation undoable", async () => {

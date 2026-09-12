@@ -43,6 +43,8 @@ export const FIXTURE_ACCOUNT: Account = {
   // Inline creation defaults false; keeping the explicit value exercises boolean persistence.
   inlineActivityCreateEnabled: false,
   showTaskFieldInSchedule: true,
+  // Non-default so the round-trip proves the optional enum is stored, not merely defaulted.
+  dateStyle: "month-day",
   createdAt: TS1,
   updatedAt: TS2,
 };

@@ -1,6 +1,9 @@
 import type { Db } from "../../db";
-import { TENANT_ENTITY_INDEXES_V34_SQL } from "../../tenantIndexes";
-import { CLOSURE_TENANT_INTEGRITY_V34_SQL } from "../../tenantIntegrity";
+import { TENANT_ENTITY_INDEXES_V34_SQL, assertTenantEntityIndexesCurrent } from "../../tenantIndexes";
+import { assertSchemaV39, assertSchemaV40 } from "../../schema";
+import { OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, assertOwnershipTransfersCurrent } from "../../controlTables";
+import { tableHasColumns } from "../introspection";
+import { CLOSURE_TENANT_INTEGRITY_V34_SQL, assertTenantRelationshipIntegrityCurrent } from "../../tenantIntegrity";
 /**
  * FROZEN preset palette for the v13 `snap-legacy-account-colors` migration — a byte-for-byte copy of
  * shared `PRESET_COLORS` as it stood when v13 was authored. A checksummed migration must stay
@@ -120,6 +123,35 @@ export const CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION = [
   "guard:PRAGMA table_info(accounts):capacityOverviewAccess-missing",
   "ALTER TABLE accounts ADD COLUMN capacityOverviewAccess TEXT;",
 ].join("\n");
+
+/** v40 adds the account-wide date format. */
+export const ACCOUNT_DATE_STYLE_V40_DEFINITION = [
+  "guard:PRAGMA table_info(accounts):dateStyle-missing",
+  "ALTER TABLE accounts ADD COLUMN dateStyle TEXT;",
+].join("\n");
+
+/** The v40 runner. It lives here rather than inline in the ledger because `db/migrations/index.ts`
+ *  has only two lines of headroom under the 400-line ceiling; the runner is outside the checksum
+ *  (`defineMigration` hashes version, name and definition only), so moving it is safe. */
+export function runAccountDateStyleV40(db: Db): void {
+  assertSchemaV39(db);
+  if (!tableHasColumns(db, "accounts", ["dateStyle"])) {
+    db.exec("ALTER TABLE accounts ADD COLUMN dateStyle TEXT;");
+  }
+  assertSchemaV40(db);
+  assertTenantRelationshipIntegrityCurrent(db);
+  assertTenantEntityIndexesCurrent(db);
+}
+
+/** The v41 runner, out of line for the same 400-line ceiling reason as the v40 runner above.
+ *  A control-plane table, so no AppData schema moves and EXPORT_SCHEMA_VERSION stays put. Assert
+ *  while this transaction still owns both the DDL and the ledger write, so a malformed
+ *  pre-existing IF-NOT-EXISTS object rolls the step back rather than leaving the live slot
+ *  unguarded. */
+export function runOwnershipTransfersV41(db: Db): void {
+  db.exec(OWNERSHIP_TRANSFER_REQUESTS_V41_SQL);
+  assertOwnershipTransfersCurrent(db);
+}
 
 // The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
 // checksum, so the definition can never drift from what actually runs.

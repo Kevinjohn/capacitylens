@@ -48,6 +48,146 @@ describe("applyGesture: move", () => {
   });
 });
 
+describe("applyGesture: move across resources with different working weeks", () => {
+  // Issue #338. 2026-08-13 is a Thursday, 08-14 a Friday, 08-17 a Monday, 08-18 a Tuesday.
+  // "Mid" works Tue/Wed/Thu — neither Friday nor Monday; "full" works Mon-Fri.
+  const mid = [2, 3, 4] as Weekday[];
+  const monToFri = [1, 2, 3, 4, 5] as Weekday[];
+  const wholeWeek = [0, 1, 2, 3, 4, 5, 6] as Weekday[];
+
+  it("shrinks a range whose duration the origin measured in fewer working days", () => {
+    // Thu 13 - Tue 18 is TWO working days for Mid. Dropped on Mon-Fri it must stay two days
+    // (Thu, Fri), not be re-read as the four days Mon-Fri sees between those same dates.
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-13", endDate: "2026-08-18" },
+        deltaDays: 0,
+        options: { workingDays: monToFri, sourceWorkingDays: mid },
+      }),
+    ).toEqual({ startDate: "2026-08-13", endDate: "2026-08-14" });
+  });
+
+  it("stretches the same range back when it returns to the narrower week", () => {
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-13", endDate: "2026-08-14" },
+        deltaDays: 0,
+        options: { workingDays: mid, sourceWorkingDays: monToFri },
+      }),
+    ).toEqual({ startDate: "2026-08-13", endDate: "2026-08-18" });
+  });
+
+  it("reads a whole-week origin's duration as calendar days and re-places them as working days", () => {
+    // A seven-day week is not weekend-aware, so Thu 13 - Tue 18 is six CALENDAR days. Six working
+    // days on Mon-Fri run Thu 13 through Thu 20.
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-13", endDate: "2026-08-18" },
+        deltaDays: 0,
+        options: { workingDays: monToFri, sourceWorkingDays: wholeWeek },
+      }),
+    ).toEqual({ startDate: "2026-08-13", endDate: "2026-08-20" });
+  });
+
+  it("re-places a working-day duration as calendar days on a whole-week destination", () => {
+    // Thu 13 - Tue 18 is four working days on Mon-Fri; four calendar days from Thu 13 end Sun 16.
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-13", endDate: "2026-08-18" },
+        deltaDays: 0,
+        options: { workingDays: wholeWeek, sourceWorkingDays: monToFri },
+      }),
+    ).toEqual({ startDate: "2026-08-13", endDate: "2026-08-16" });
+  });
+
+  it("snaps the start against the DESTINATION while taking the duration from the ORIGIN", () => {
+    // Diagonal: one column right lands on Fri 14, which Mid does not work, so the start snaps
+    // forward to Tue 18. The duration is still the two working days Mon-Fri measured.
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-13", endDate: "2026-08-14" },
+        deltaDays: 1,
+        options: { workingDays: mid, sourceWorkingDays: monToFri },
+      }),
+    ).toEqual({ startDate: "2026-08-18", endDate: "2026-08-19" });
+  });
+
+  it("preserves the calendar span when the origin sees no working days in the range", () => {
+    // Fri 14 - Sun 16: zero working days for Mid, so there is no duration to carry across. The
+    // destination DOES work the Friday, so measuring under it instead would collapse this to a
+    // single day — the discriminating case for which week is consulted.
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-14", endDate: "2026-08-16" },
+        deltaDays: 0,
+        options: { workingDays: monToFri, sourceWorkingDays: mid },
+      }),
+    ).toEqual({ startDate: "2026-08-14", endDate: "2026-08-16" });
+  });
+
+  it("snaps the start onto the destination's week even when the origin carries no duration", () => {
+    // Fri 14 alone: zero working days for Mid, so nothing is carried. Dragging it one column right
+    // lands on Sat 15, which Mon-Fri does not work — the commit would refuse it. The destination's
+    // week decides the START whatever the origin measured, so this must reach Mon 17.
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-14", endDate: "2026-08-14" },
+        deltaDays: 1,
+        options: { workingDays: monToFri, sourceWorkingDays: mid },
+      }),
+    ).toEqual({ startDate: "2026-08-17", endDate: "2026-08-17" });
+  });
+
+  it("preserves the calendar span when the origin's working week has collapsed to none", () => {
+    // An empty week is not weekend-aware, so it cannot be told apart from a SEVEN-day week by
+    // awareness alone. Reading "works no day" as "works every day" would measure six calendar days
+    // and re-place them as six of the target's working days, inflating the booking to 2026-08-20.
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-13", endDate: "2026-08-18" },
+        deltaDays: 0,
+        options: { workingDays: monToFri, sourceWorkingDays: [] },
+      }),
+    ).toEqual({ startDate: "2026-08-13", endDate: "2026-08-18" });
+  });
+
+  it("ignores both weeks when the allocation opts out of weekend-awareness", () => {
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-13", endDate: "2026-08-18" },
+        deltaDays: 0,
+        options: { workingDays: monToFri, sourceWorkingDays: mid, ignoreWeekends: true },
+      }),
+    ).toEqual({ startDate: "2026-08-13", endDate: "2026-08-18" });
+  });
+
+  it("is unchanged from a single-week move when the two weeks are the same", () => {
+    const single = applyGesture({
+      mode: "move",
+      range: { startDate: "2026-08-13", endDate: "2026-08-18" },
+      deltaDays: 2,
+      options: { workingDays: monToFri },
+    });
+    expect(
+      applyGesture({
+        mode: "move",
+        range: { startDate: "2026-08-13", endDate: "2026-08-18" },
+        deltaDays: 2,
+        options: { workingDays: monToFri, sourceWorkingDays: monToFri },
+      }),
+    ).toEqual(single);
+  });
+});
+
 describe("applyGesture: resize-start", () => {
   it("moves the start edge", () => {
     expect(applyGesture({ mode: "resize-start", range: range, deltaDays: -2 })).toEqual({

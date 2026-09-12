@@ -17,7 +17,7 @@ import {
 /**
  * Storage operations over the `account_ownership_transfers` control table.
  *
- * The table's own contract — its frozen v40 DDL, its indexes, the row shape and the boot-time
+ * The table's own contract — its frozen v41 DDL, its indexes, the row shape and the boot-time
  * assertion — lives in `ownershipTransfersSchema.ts`. Everything here is a statement against that
  * contract: every function is synchronous and transaction-agnostic, because a ceremony write commits
  * alongside its command-ledger row and its audit event or not at all, and only the caller owns that

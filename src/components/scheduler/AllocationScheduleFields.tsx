@@ -13,7 +13,7 @@ import {
 import { Alert, AlertDescription } from "../ui/alert";
 import { FieldError } from "../ui/field";
 import { buildAllocationStatusOptions } from "../../lib/metadata";
-import { formatShortDate } from "../../lib/dateDisplay";
+import { formatShortDateEndpoint } from "../../lib/dateDisplay";
 import { AllocationControlColumn, AllocationSpanRow, DateRangeFields } from "./AllocationModalFieldLayout";
 import type { AllocationModalState } from "./useAllocationModalState";
 
@@ -202,13 +202,18 @@ function RepeatFields(props: RepeatProps) {
 
 function RepeatPreview(props: RepeatProps) {
   if (!props.repeatProjection || !props.repeatLastStart) return null;
+  // Both dates are read against the FIRST occurrence — the start the reader has just set, a few
+  // fields above — rather than against each other. A repeat running into a new year then dates its
+  // cutoff ("through Mon 11th Jan 2100") instead of naming a bare January day that reads as one
+  // eleven months BEFORE the booking it repeats.
+  const anchor = props.repeatProjection.startDates[0] ?? props.repeatLastStart;
   return (
     <AllocationControlColumn>
       <p className="text-xs text-muted-foreground">
         {m.form_allocation_repeat_preview({
           count: props.repeatProjection.startDates.length,
-          repeatUntil: formatShortDate(props.repeatUntil),
-          lastStart: formatShortDate(props.repeatLastStart),
+          repeatUntil: formatShortDateEndpoint(props.repeatUntil, anchor),
+          lastStart: formatShortDateEndpoint(props.repeatLastStart, anchor),
         })}
       </p>
     </AllocationControlColumn>

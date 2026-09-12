@@ -18,10 +18,10 @@ import type { Db } from "../db";
  * principals and confers a pending elevation path, so letting it reach the entity machinery would
  * publish who is being handed the company through the ordinary state read.
  *
- * FROZEN v40 migration body, and the v40 LEDGER DEFINITION itself: the executed SQL is the hashed
+ * FROZEN v41 migration body, and the v41 LEDGER DEFINITION itself: the executed SQL is the hashed
  * manifest, one copy, so the checksum can never describe something other than what ran (the same
  * arrangement as `FOREIGN_KEY_CHILD_INDEXES_V23_SQL`). The state and reason lists are spelled out as LITERALS rather than
- * interpolated from the shared unions on purpose: this SQL is folded into the v40 ledger checksum,
+ * interpolated from the shared unions on purpose: this SQL is folded into the v41 ledger checksum,
  * and a checksummed migration that read a live shared constant would silently change what it
  * installs while its checksum stayed the same. A test asserts the literals still match the shared
  * unions, so drift is caught in review rather than on disk; a genuinely new state would be a NEW
@@ -40,7 +40,7 @@ import type { Db } from "../db";
  * read "no live request" and both insert; SQLite refusing the second write is the only version of
  * this rule that holds under concurrency.
  */
-export const OWNERSHIP_TRANSFER_REQUESTS_V40_SQL = `
+export const OWNERSHIP_TRANSFER_REQUESTS_V41_SQL = `
 CREATE TABLE IF NOT EXISTS account_ownership_transfers (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL,
@@ -168,8 +168,8 @@ function normalizeSql(sql: string): string {
  * Verify the workflow table after migration and on every open.
  *
  * This table sits outside AppData/TABLES, so `schema.ts` cannot cover it — and it is installed at
- * v40, so the historical `assertControlTablesCurrent` cannot either (migration v24 runs that
- * assertion against a v23 database, where a v40 table is correctly absent). It therefore gets its
+ * v41, so the historical `assertControlTablesCurrent` cannot either (migration v24 runs that
+ * assertion against a v23 database, where a v41 table is correctly absent). It therefore gets its
  * own assertion, in the same shape as `assertAuditOutboxCurrent`.
  *
  * The live index is checked by its full DEFINITION, not merely its presence: an index that existed
