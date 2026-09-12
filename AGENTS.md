@@ -220,10 +220,10 @@ Use this lightweight workflow for user-facing changes:
 ## Validation environment
 
 - Run focused tests during implementation. Select submission checks using “Green gate” below.
-- Type-check with `pnpm run typecheck`: the shared projects, the application and Node projects, and
-  the end-to-end project. It does NOT cover `server/`, which `pnpm run gate:server` type-checks.
-  The root `tsconfig.json` is a solution file with no inputs of its own, so a bare `tsc --noEmit`
-  there reads no files and exits 0 whatever the tree contains.
+- Type-check with `pnpm run typecheck`, never a bare `tsc` at the repository root, which reads no
+  files and exits 0 whatever the tree contains — `docs-src/reference/development.md` explains why.
+  It covers the shared, application, Node and end-to-end projects, but not `server/`, which
+  `pnpm run gate:server` type-checks.
 - Before running Node or pnpm commands, activate the version selected by `.nvmrc` in that
   worktree and verify `node --version`; do not use the machine default. Include this requirement
   in delegated briefs and reapply it when switching shells or execution tools.

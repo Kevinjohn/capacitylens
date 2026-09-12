@@ -23,7 +23,6 @@ const commands = {
     ["run", "policy:workflow-report:test"],
     ["run", "ui:check"],
     ["run", "format:check"],
-    ["run", "paraglide:compile"],
     ["run", "typecheck"],
     ["exec", "eslint", ".", "--max-warnings", "0"],
     ["exec", "vitest", "run", "--coverage"],
