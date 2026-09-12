@@ -10,6 +10,14 @@ new features and **patch** versions carry fixes.
 ### Fixed
 
 - Emit a static Overview route document so direct links work on strict static deployments (#943).
+- Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
+  one installation's process group, and describe the initial pending backup health state accurately
+  (#921, #933, #936).
+- Release an ownership-transfer step's retry handle (accept, withdraw, decline, cancel or complete)
+  once the server reports that request already reached a terminal outcome, instead of letting a
+  retry with the same identity replay the earlier terminal receipt (#908).
+- Allow migration rehearsal copies to anonymise federated provider bindings when several
+  applications use the same provider identifier (#904).
 - Make the bare-metal installation select Node from the repository's `.nvmrc`, then run the
   systemd service from a root-owned copy of that verified binary, including upgrade and runtime
   checks (#931, #932).

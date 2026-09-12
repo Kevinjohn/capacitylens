@@ -1,5 +1,6 @@
 import {
   isOwnershipTransferState,
+  isOwnershipTransferTerminalOutcomeBody,
   OWNERSHIP_TRANSFER_TERMINAL_REASONS,
   type OwnershipTransferState,
   type OwnershipTransferTerminalReason,
@@ -127,7 +128,7 @@ async function readCeremonyResult(response: Response): Promise<TeamAccessResult<
       .clone()
       .json()
       .catch(() => null);
-    if (isRecord(body) && body.code === "OWNERSHIP_TRANSFER_TERMINAL" && isOwnershipTransferState(body.state)) {
+    if (isRecord(body) && isOwnershipTransferTerminalOutcomeBody(body)) {
       const reason = body.reason;
       return {
         kind: "ok",
