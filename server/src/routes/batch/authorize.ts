@@ -3,7 +3,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountMode } from "../../auth";
 import { getRow, type Db } from "../../db";
 import { ACCOUNT_CREATE_CLOSED_MESSAGE, countAccounts } from "../accountEntityRoutes";
-import { isScopedTable } from "../routeShared";
+import { isScopedTable, NO_REPROMPT } from "../routeShared";
 
 import type { BatchRouteDependencies } from "../batchRoutes";
 import { type BatchOp } from "./types";
@@ -62,7 +62,10 @@ function createBatchAuthorizer({
   return (accountId, action) => {
     const actions = authorizedActions.get(accountId);
     if (actions?.has(action)) return true;
-    if (!authorize({ req, reply, accountId, action })) return false;
+    // Adopting a client as the internal one is an ordinary administrative action: role gating
+    // stands, but it does not demand a recent sign-in. `write` is exempt from freshness anyway.
+    const options = action === "manageInternalClient" ? NO_REPROMPT : undefined;
+    if (!authorize({ req, reply, accountId, action, options })) return false;
     if (actions) actions.add(action);
     else authorizedActions.set(accountId, new Set([action]));
     return true;

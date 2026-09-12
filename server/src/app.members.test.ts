@@ -151,16 +151,20 @@ function registerMemberGateAccessTest(): void {
   });
 }
 
+const ageSession = (db: Db, userId: string): void => {
+  db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(
+    new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+    userId,
+  );
+};
+
 function registerStaleMemberDirectoryReadTest(): void {
-  it("allows an admin directory read from a stale session while keeping member mutations fresh-gated", async () => {
+  it("allows an admin directory read and the sign-in-tracking toggle from a stale session", async () => {
     const { app, db } = await appWithAuth();
     seedTwo(db);
     const owner = await signUp(app, "owner-stale-directory@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(
-      new Date(Date.now() - 16 * 60 * 1000).toISOString(),
-      owner.userId,
-    );
+    ageSession(db, owner.userId);
 
     const members = await membersReq(app, "a1", { cookie: owner.cookie });
     expect(members.statusCode).toBe(200);
@@ -169,14 +173,86 @@ function registerStaleMemberDirectoryReadTest(): void {
     const invites = await invitesReq(app, "a1", { cookie: owner.cookie });
     expect(invites.statusCode).toBe(200);
 
+    // The sign-in-tracking toggle is ordinary administration, so an aged-out session performs it.
     const mutation = await memberSignInTrackingReq({
       app,
       accountId: "a1",
       enabled: true,
       headers: { cookie: owner.cookie },
     });
-    expect(mutation.statusCode).toBe(403);
-    expect(parseErrorCode(mutation.json())).toBe("SESSION_NOT_FRESH");
+    expect(mutation.statusCode).toBe(200);
+    expect(mutation.json()).toMatchObject({ enabled: true });
+  });
+}
+
+function registerStaleOrdinaryMemberAdministrationTest(): void {
+  it("runs invite, role, status and removal administration from a stale session but not the ownership transfer", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const owner = await signUp(app, "owner-stale-ordinary@capacitylens.dev");
+    const member = await signUp(app, "member-stale-ordinary@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    upsertMember(db, { accountId: "a1", userId: member.userId, role: "editor", status: "active", createdAt: TS });
+
+    // Create the invitation that will be revoked BEFORE ageing the session, so the revoke below is
+    // the only invite operation whose freshness is under test alongside a second, stale creation.
+    const seeded = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: owner.cookie });
+    expect(seeded.statusCode).toBe(201);
+    const seededInvite = getInvite(db, (seeded.json() as { token: string }).token);
+    if (!seededInvite) throw new Error("Expected the seeded invitation.");
+
+    ageSession(db, owner.userId);
+
+    const created = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie: owner.cookie });
+    expect(created.statusCode, created.body).toBe(201);
+
+    const revoked = await call(app, {
+      method: "DELETE",
+      url: `/api/accounts/a1/invites/${seededInvite.id}`,
+      headers: { cookie: owner.cookie },
+    });
+    expect(revoked.statusCode, revoked.body).toBe(204);
+
+    const roleChange = await patchRoleReq({
+      app,
+      accountId: "a1",
+      userId: member.userId,
+      role: "admin",
+      headers: { cookie: owner.cookie },
+    });
+    expect(roleChange.statusCode, roleChange.body).toBe(200);
+    expect(getMemberRole(db, "a1", member.userId)).toBe("admin");
+
+    const statusChange = await patchStatusReq({
+      app,
+      accountId: "a1",
+      userId: member.userId,
+      status: "disabled",
+      headers: { cookie: owner.cookie },
+    });
+    expect(statusChange.statusCode, statusChange.body).toBe(200);
+
+    const removal = await removeReq({
+      app,
+      accountId: "a1",
+      userId: member.userId,
+      headers: { cookie: owner.cookie },
+    });
+    expect(removal.statusCode, removal.body).toBe(204);
+    expect(getMemberRole(db, "a1", member.userId)).toBeNull();
+
+    // Ownership transfer stays on the high-impact list: the same stale session is refused.
+    const successor = await signUp(app, "successor-stale-ordinary@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: successor.userId, role: "admin", status: "active", createdAt: TS });
+    const transferred = await call(app, {
+      method: "POST",
+      url: "/api/accounts/a1/transfer-ownership",
+      payload: { toUserId: successor.userId },
+      headers: { cookie: owner.cookie },
+    });
+    expect(transferred.statusCode).toBe(403);
+    expect(parseErrorCode(transferred.json())).toBe("SESSION_NOT_FRESH");
+    expect(getMemberRole(db, "a1", owner.userId)).toBe("owner");
   });
 }
 
@@ -309,6 +385,7 @@ function registerMemberGateResetCapabilityTest(): void {
 describe("GET /api/accounts/:id/members — gate", () => {
   registerMemberGateAccessTest();
   registerStaleMemberDirectoryReadTest();
+  registerStaleOrdinaryMemberAdministrationTest();
   registerMemberGateStrangerTest();
   registerMemberGateAnonymousTest();
   registerMemberGateCrossTenantTest();

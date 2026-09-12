@@ -10,6 +10,15 @@ export interface AccountAuditInput {
   targetPrincipalId?: string | null;
   command: CommandIdentity;
   changedFields?: readonly string[];
+  /** Disambiguates two events one command emits with the SAME action and outcome.
+   *
+   *  Event identity is `commandId:action:outcome`, which is unique per command for a mutation that
+   *  changes one thing. It is NOT unique when a single command legitimately acts on several rows —
+   *  erasing a company deprovisions every orphaned principal, and one membership write can
+   *  invalidate more than one ownership-transfer request. Without a key those events collide on the
+   *  outbox row id and all but one are silently dropped, which is exactly the evidence an audit
+   *  trail exists to keep. Pass the id of the thing the event is about. */
+  eventKey?: string;
 }
 
 export function createAccountAuditWriter(
@@ -18,8 +27,12 @@ export function createAccountAuditWriter(
 ): (event: AccountAuditInput) => void {
   const audit = port ?? { append: () => true };
   return (event) => {
-    const targetSuffix =
-      event.action === "identity.local_deprovisioned" && event.targetPrincipalId ? `:${event.targetPrincipalId}` : "";
+    // The per-principal suffix erasure has always needed is the same mechanism as `eventKey`, so it
+    // is now expressed through it rather than as a second, action-specific rule.
+    const legacyPrincipalKey =
+      event.action === "identity.local_deprovisioned" ? (event.targetPrincipalId ?? null) : null;
+    const eventKey = event.eventKey ?? legacyPrincipalKey;
+    const targetSuffix = eventKey === null ? "" : `:${eventKey}`;
     audit.append({
       id: `${event.command.commandId}:${event.action}:${event.outcome}${targetSuffix}`,
       occurredAt: new Date().toISOString(),

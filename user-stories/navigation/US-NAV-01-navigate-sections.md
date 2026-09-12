@@ -17,11 +17,11 @@ trust the schedule they can't navigate to. This story proves the available route
 **Precondition:** Seeded app open at Schedule (`/`). (Running near the seed dates;
 otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 
-1. Confirm the sidebar shows, in order: **Capacity Overview**, **Schedule**, **Resources**, **Disciplines**, **Clients**,
+1. Confirm the sidebar shows, in order: **Overview**, **Schedule**, **Resources**, **Disciplines**, **Clients**,
    **Projects**, **Activities**, **Time off**, then — below a divider, pinned to the bottom of the
    list as the administration group — **Team & access** and **Settings**. Below those sits the
    account block (company name, **Switch company**, **Account**, and the avatar'd **Sign out** row).
-2. Click **Capacity Overview**. The URL is `/capacity-overview` and its four-week table renders.
+2. Click **Overview**. The URL is `/overview` and its four-week table renders.
 3. Click **Schedule**. The URL is `/` and the timeline grid (`scheduler-grid`) renders.
 4. Click **Resources**. The URL is `/resources` and the Resource list shows
    (seed rows include _Bruce Wayne_).
@@ -41,7 +41,7 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 
 ## Acceptance criteria
 
-- ✅ Each available link routes to its mapped path, in nav order: `/capacity-overview`, `/`, `/resources`,
+- ✅ Each available link routes to its mapped path, in nav order: `/overview`, `/`, `/resources`,
   `/disciplines`, `/clients`, `/projects`, `/activities`, `/timeoff`, `/team`, `/settings`, `/account`.
 - ✅ **Team & access** and **Settings** are the last two links, in that order, below the divider —
   they never appear among the working destinations above it.
