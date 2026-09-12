@@ -310,6 +310,35 @@ describe("OwnershipTransferCard outcomes", () => {
     expect(screen.queryByTestId("ownership-transfer-state")).toBeNull();
   });
 
+  it("tells the Owner when the member directory could not be read", async () => {
+    client.readOwnershipTransfer.mockResolvedValue({
+      kind: "ok",
+      status: 200,
+      value: { live: null, latestOutcome: null },
+    });
+    client.listMembers.mockResolvedValue({ kind: "error", status: 500, message: "boom" });
+    renderAs(OWNER.userId);
+
+    // Without the directory there is no nominee list and no name to print, so rendering nothing
+    // would look exactly like "you have no transfer and cannot start one" to the one person who can.
+    expect(await screen.findByText(m.ownership_transfer_read_failed())).toBeInTheDocument();
+  });
+
+  it("does not keep a settled ceremony on screen when the re-read fails", async () => {
+    seed({ live: request(), latestOutcome: null });
+    client.commandOwnershipTransfer.mockResolvedValue(applied(request({ state: "declined" })));
+    renderAs(NOMINEE.userId);
+
+    fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
+    client.readOwnershipTransfer.mockRejectedValue(new Error("offline"));
+    client.listMembers.mockRejectedValue(new Error("offline"));
+
+    // Offering Accept again at the old revision would be refused by the server every time.
+    await waitFor(() => {
+      expect(screen.queryByTestId("ownership-transfer-accept")).toBeNull();
+    });
+  });
+
   it("reports a failed read without blanking the card", async () => {
     client.readOwnershipTransfer.mockResolvedValue({ kind: "error", status: 500, message: "boom" });
     client.listMembers.mockResolvedValue({ kind: "ok", status: 200, value: { members: [OWNER, NOMINEE] } });

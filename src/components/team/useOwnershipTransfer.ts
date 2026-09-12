@@ -73,7 +73,10 @@ async function readCeremony(accountId: string): Promise<CeremonyRead> {
     return {
       projection: projection.kind === "ok" ? projection.value : null,
       members: directory.kind === "ok" ? directory.value.members : null,
-      error: projection.kind === "ok" ? null : m.ownership_transfer_read_failed(),
+      // EITHER half failing is a failed read. Without the directory the card cannot name anybody or
+      // offer a nominee, so silently rendering nothing would look exactly like "you have no
+      // transfer and cannot start one" to the one person who can.
+      error: projection.kind === "ok" && directory.kind === "ok" ? null : m.ownership_transfer_read_failed(),
     };
   } catch (cause) {
     // Offline, a dropped connection, the request timeout aborting. The user gets one sentence; the
@@ -83,10 +86,20 @@ async function readCeremony(accountId: string): Promise<CeremonyRead> {
   }
 }
 
-function mergeCeremonyRead(previous: OwnershipTransferReadState, next: CeremonyRead): OwnershipTransferReadState {
+/**
+ * @param keepStale Keep what the server last said when a half fails. True while the card is only
+ *   watching — the last answer is better evidence than nothing. FALSE after a command: the ceremony
+ *   has just moved, so the old projection would offer controls at a revision the server will now
+ *   refuse, and "I do not know" is the honest answer.
+ */
+function mergeCeremonyRead(
+  previous: OwnershipTransferReadState,
+  next: CeremonyRead,
+  keepStale = true,
+): OwnershipTransferReadState {
   return {
     ...previous,
-    projection: next.projection ?? previous.projection,
+    projection: next.projection ?? (keepStale ? previous.projection : null),
     members: next.members ?? previous.members,
     error: next.error,
   };
@@ -153,24 +166,35 @@ function useCeremonyRead({ accountId, beginRead, apply, forgetOutcome }: Ceremon
  * localised sentence is the better one. A rejected request never escapes: it would leave every
  * control disabled behind a `busy` that nothing clears.
  */
-async function submit(
-  perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>,
-  rememberTerminal: (outcome: OwnershipTransferOutcomeView) => void,
-): Promise<string | null> {
+interface CommandAnswer {
+  failure: string | null;
+  /** The committed terminal outcome to explain, if the server committed one. Returned rather than
+   *  stored directly, so it can be discarded with the rest of a superseded answer. */
+  terminal: OwnershipTransferOutcomeView | null;
+  /** Did the roles actually move? Only completion changes the caller's own authority. */
+  completed: boolean;
+}
+
+async function submit(perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>): Promise<CommandAnswer> {
   try {
     const result = await perform();
-    if (result.kind === "ok") {
-      if (result.value.kind === "terminal") rememberTerminal(result.value);
-      return null;
+    if (result.kind !== "ok") {
+      return { failure: resolveRejectionMessage(result, m.ownership_transfer_command_failed()), ...NOTHING_MOVED };
     }
-    return resolveRejectionMessage(result, m.ownership_transfer_command_failed());
+    return {
+      failure: null,
+      terminal: result.value.kind === "terminal" ? result.value : null,
+      completed: result.value.kind === "applied" && result.value.request.state === "completed",
+    };
   } catch (cause) {
     // A request that never came back may still have been applied, so the reason matters: this is the
     // one failure the user is told about without the server having said anything.
     console.error("OwnershipTransferCard: ceremony command failed", cause);
-    return m.ownership_transfer_command_failed();
+    return { failure: m.ownership_transfer_command_failed(), ...NOTHING_MOVED };
   }
 }
+
+const NOTHING_MOVED = { terminal: null, completed: false } as const;
 
 export function useOwnershipTransfer(
   accountId: string | null,
@@ -186,9 +210,7 @@ export function useOwnershipTransfer(
    * Run one command, then reconcile every projection the caller's own authority depends on.
    *
    * Completion changes the caller's role — often downwards — so the membership cache, the account
-   * summaries and the active slice are all stale the instant it succeeds. Reconciling on EVERY
-   * success, not just completion, costs one round trip and removes a whole class of "the UI still
-   * thinks I am the Owner" states.
+   * summaries and the active slice are all stale the instant it succeeds, and only then.
    */
   const run = useCallback(
     async (perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>): Promise<void> => {
@@ -196,19 +218,22 @@ export function useOwnershipTransfer(
       const isLatest = beginRead();
       setState((previous) => ({ ...previous, busy: true, error: null }));
       setLastTerminal(null);
-      const failure = await submit(perform, setLastTerminal);
-      // Completion changes the caller's own role, so reconcile before re-reading. A failure here is
-      // not the user's problem to solve — the command's own outcome is — so it only costs a re-read.
+      const answer = await submit(perform);
       await refreshAuth().catch(() => undefined);
-      await reprojectAccess(accountId).catch(() => undefined);
+      // Only completion moves the roles, and reprojecting reloads the whole active slice. Doing it
+      // after a decline or a cancel discards a large company's schedule for a command that cannot
+      // have changed anyone's access. A failure here costs a re-read, not the user's attention.
+      if (answer.completed) await reprojectAccess(accountId).catch(() => undefined);
       const next = await readCeremony(accountId);
-      // `busy` is this card's own state and is always released — a command overtaken by a company
-      // switch must not leave every control disabled — but a superseded answer is never merged.
-      setState((previous) =>
-        isLatest()
-          ? { ...mergeCeremonyRead(previous, next), busy: false, error: failure ?? next.error }
-          : { ...previous, busy: false },
-      );
+      // Nothing from a superseded command is applied — not the projection, not the outcome, not
+      // `busy`, which the company switch or the newer command already owns.
+      if (!isLatest()) return;
+      setLastTerminal(answer.terminal);
+      setState((previous) => ({
+        ...mergeCeremonyRead(previous, next, false),
+        busy: false,
+        error: answer.failure ?? next.error,
+      }));
     },
     [accountId, beginRead, refreshAuth],
   );
