@@ -629,7 +629,7 @@ function registerTerminalClassificationTests(): void {
     },
   );
 
-  it.each([undefined, null, "future_state"])(
+  it.each([undefined, null, "future_state", "awaiting_target", "awaiting_owner"])(
     "keeps an ownership-transfer terminal 409 with state %s unknown",
     async (state) => {
       await expect(
@@ -656,6 +656,20 @@ function terminalOwnershipTransferResponse(state = "expired"): Response {
 }
 
 function registerOwnershipTransferTerminalCommandTests(): void {
+  it.each(["awaiting_target", "awaiting_owner"])(
+    "rejects a purported terminal response whose transfer remains in live state %s",
+    async (state) => {
+      mocks.apiFetchReauth.mockResolvedValueOnce(terminalOwnershipTransferResponse(state));
+
+      await expect(
+        ownershipTransferAccess.initiateOwnershipTransfer({
+          workspaceId: "wayne-enterprises",
+          targetPrincipalId: "dick-grayson",
+        }),
+      ).resolves.toMatchObject({ kind: "unknown", status: 409 });
+    },
+  );
+
   it("closes a committed terminal initiation and starts the same transfer with fresh identities", async () => {
     vi.spyOn(globalThis.crypto, "randomUUID")
       .mockReturnValueOnce("00000000-0000-4000-8000-000000000101")
