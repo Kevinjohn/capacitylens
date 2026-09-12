@@ -301,15 +301,16 @@ const deleteForAccountStatement = cachedStatement(`DELETE FROM account_ownership
  *
  * Workspace erasure calls this explicitly. There is no `accounts` cascade to rely on (this table
  * carries no FK by design), so without an explicit delete an erased company would leave behind rows
- * naming two of its principals. Erasure terminalises and audits first, then deletes: the audit trail
- * of WHY the ceremony ended outlives the rows, under audit policy rather than this table's.
+ * naming two of its principals. Erasure deletes rather than terminalising first: the delete runs in
+ * the same transaction, so an invalidation written before it would never be visible to anyone, and
+ * the audit trail of WHY the ceremony ended outlives the rows under audit policy.
  */
 export function deleteRequestsForAccount(db: Db, accountId: string): void {
   deleteForAccountStatement(db).run(accountId);
 }
 
 const sweepHistoryStatement = cachedStatement(
-  `DELETE FROM account_ownership_transfers WHERE terminalAt IS NOT NULL AND terminalAt < ?`,
+  `DELETE FROM account_ownership_transfers WHERE accountId = ? AND terminalAt IS NOT NULL AND terminalAt < ?`,
 );
 
 /**
@@ -318,14 +319,21 @@ const sweepHistoryStatement = cachedStatement(
  * Only terminal rows can match: the table CHECK gives a live row a NULL `terminalAt`, so the
  * predicate cannot reach a running ceremony however far in the past its `createdAt` is.
  *
+ * Scoped to ONE company, like `pruneInvites`: this runs from a ceremony command, inside a mutation
+ * holding that workspace's lock and audited against that workspace. An unscoped DELETE would let one
+ * company's cancel remove another company's rows, outside any lock the caller holds — retention is a
+ * per-company policy, not a housekeeping job that rides along with whoever writes next.
+ *
+ * @param accountId  The company whose history is being bounded — the workspace the caller's mutation
+ *   is locked and audited against.
  * @param now  The current instant in epoch milliseconds — arithmetic, not a stamp, which is why
  *   this one takes a number where the terminalisers take the ISO instant they WRITE.
  */
-export function sweepExpiredHistory(db: Db, now: number): number {
+export function sweepExpiredHistory(db: Db, accountId: string, now: number): number {
   if (!Number.isFinite(now)) {
     throw new Error(`sweepExpiredHistory: ${JSON.stringify(now)} is not a usable current instant.`);
   }
   const cutoff = new Date(now - OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS).toISOString();
-  const { changes } = sweepHistoryStatement(db).run(cutoff);
+  const { changes } = sweepHistoryStatement(db).run(accountId, cutoff);
   return Number(changes);
 }
