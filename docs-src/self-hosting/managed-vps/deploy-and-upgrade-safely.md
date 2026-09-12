@@ -26,9 +26,8 @@ is expected and safer than a platform's generic zero-downtime handover.
 ## 1. Save the permanent Forge deployment script
 
 Replace the two values at the top with the isolated site user and exact Supervisor group recorded
-from the background process. Save this script only when the platform runs deployment scripts under
-Bash, which is Forge's default deployment shell. A runner configured for plain `sh` rejects
-`pipefail` before it runs any deployment command.
+from the background process. This script needs Bash, Forge's default deployment shell —
+`set -eo pipefail` is a syntax error under plain `sh`.
 
 ```bash
 set -eo pipefail
@@ -104,12 +103,13 @@ as:
 sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf status
 ```
 
-`-n` means "never ask for a password". If you will keep `supervisorctl`, next run `sudo -l` and
-continue only if it lists exactly the four configuration-pinned commands shown below. A bare
-`/usr/bin/supervisorctl` entry is the old, broad grant and must be replaced before you continue. If
-you replace both process-control calls with separate platform stop and start actions instead, you
-can continue after configuring and testing those actions. If the status command prints `sudo: a
-password is required`, choose one of the two fixes below.
+`-n` means "never ask for a password". If you will keep `supervisorctl`, run `sudo -l`. Continue
+only if it lists exactly four commands — `status`, `stop`, `start` and `restart` — each pinned to
+this Supervisor group and configuration path, as granted below. A bare `/usr/bin/supervisorctl`
+entry is the old, broad grant and must be replaced first. If you replace both process-control calls
+with separate platform stop and start actions instead, continue after configuring and testing those
+actions. If the status command prints `sudo: a password is required`, choose one of the two fixes
+below.
 
 ### Use the platform's own restart action
 
@@ -138,9 +138,9 @@ which supervisorctl
 ls -l /etc/supervisor/supervisord.conf
 ```
 
-Replace the executable or root-owned configuration path below if either command shows a different
-path. Then add these four lines, replacing `capacity-example` with your isolated site user and
-`daemon-1234567` with its exact Supervisor group:
+If either command prints a different path, use that path below instead. Then add these four lines,
+replacing `capacity-example` with your isolated site user and `daemon-1234567` with its exact
+Supervisor group:
 
 ```text
 capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf status
@@ -152,10 +152,8 @@ capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/
 Save and exit. `visudo` checks the syntax before writing; if it reports an error, fix it there
 rather than saving a broken file, because a broken sudoers file can lock everyone out of `sudo`.
 
-Sudoers matches the arguments as one string. The escaped colon and asterisk therefore match the
-literal group argument, while an extra process name is denied. The `status` command still lists all
-Supervisor processes, but it cannot change them; stop, start and restart are limited to this group.
-Other sudoers rules and a Supervisor socket readable by the site user are outside this page.
+The `status` command still lists all Supervisor processes, but it cannot change them; stop, start
+and restart are limited to this group.
 
 If you already installed the broad line, edit the same file with `visudo -f` and replace it with the
 four lines above. Run `sudo -l -U capacity-example` and confirm no unrestricted `supervisorctl`
@@ -321,7 +319,7 @@ Confirm all of the following:
 - The saved script runs under Bash and exits on a failed command, failed pipeline or missing build
   output before it stops the old API.
 - The permanent deployment script stops before activation and starts after activation.
-- The configuration-pinned stop/start commands work without interaction for this Supervisor group.
+- The pinned stop/start commands work without interaction for this Supervisor group.
 - `sudo -l` shows no unrestricted `supervisorctl` grant.
 - Only one API process exists for this database.
 - The public health check gates deployment success.

@@ -158,10 +158,10 @@ With deep health enabled, an API that has just started can report the first back
 }
 ```
 
-It may already report `"status":"ok"` if the first backup has finished. Re-check after about a
-minute; this is a retry interval, not a completion deadline. Treat `degraded` as a failure. Also
-investigate `pending` that lasts longer than one configured backup interval — 60 minutes with the
-configuration on this page. [Monitoring and health checks](/self-hosting/monitoring#what-each-field-means-and-when-to-alert)
+It may already report `"status":"ok"` if the first backup has finished — a snapshot takes seconds,
+so re-check after about a minute. Treat `degraded` as a failure, and investigate `pending` that
+lasts longer than one configured backup interval (60 minutes with the configuration on this page).
+[Monitoring and health checks](/self-hosting/monitoring#what-each-field-means-and-when-to-alert)
 defines the alert threshold.
 
 Stop here if the command fails. Read the background-process log and correct the first startup

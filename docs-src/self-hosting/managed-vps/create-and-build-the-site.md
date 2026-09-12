@@ -83,9 +83,8 @@ Managed platforms often provide their own global pnpm. Calling `corepack pnpm` f
 command is not sufficient: nested lifecycle scripts may find the platform's global binary and fail
 the version check.
 
-Add this build section to the deployment script. Save it only when the platform runs deployment
-scripts under Bash, which is Forge's default deployment shell. A runner configured for plain `sh`
-rejects `pipefail` before it runs any deployment command.
+Add this build section to the deployment script. It needs Bash, Forge's default deployment shell —
+`set -eo pipefail` is a syntax error under plain `sh`.
 
 ```bash
 set -eo pipefail
