@@ -319,6 +319,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
       resolve(serverRoot, "accounts/adminPort/membership.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransfer.ts"),
+      resolve(serverRoot, "accounts/adminPort/ownershipTransferRequests.ts"),
     ]);
 
     for (const file of sourceFiles(serverRoot)) {

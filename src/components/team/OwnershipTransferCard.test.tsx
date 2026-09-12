@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { m } from "@/i18n";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
 import type {
@@ -9,6 +9,7 @@ import type {
   TeamMember,
 } from "../../account/teamAccessClient";
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
+import { useStore } from "../../store/useStore";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
 
 /**
@@ -45,6 +46,7 @@ function member(userId: string, role: TeamMember["role"], name: string): TeamMem
 const OWNER = member("bruce", "owner", "Bruce Wayne");
 const NOMINEE = member("selina", "admin", "Selina Kyle");
 const OTHER_ADMIN = member("alfred", "admin", "Alfred Pennyworth");
+const OTHER_ACCOUNT_ID = "a-loft";
 
 function request(overrides: Partial<OwnershipTransferView> = {}): OwnershipTransferView {
   return {
@@ -287,6 +289,25 @@ describe("OwnershipTransferCard outcomes", () => {
     renderAs(NOMINEE.userId);
 
     expect(await screen.findByText(m.ownership_transfer_read_failed())).toBeInTheDocument();
+  });
+
+  it("empties the card when the company changes, even if the next read fails", async () => {
+    seed({ live: request(), latestOutcome: null });
+    renderAs(NOMINEE.userId);
+    expect(await screen.findByTestId("ownership-transfer-state")).toBeInTheDocument();
+
+    // The next company's read fails: what stays on screen must not be the previous company's
+    // nomination, which names two people who may not even be members here.
+    client.readOwnershipTransfer.mockRejectedValue(new Error("offline"));
+    client.listMembers.mockRejectedValue(new Error("offline"));
+    act(() => {
+      // Straight at the slice: the picker refuses an id it has no company for, and which company is
+      // active is the only part of the switch this card reacts to.
+      useStore.setState({ activeAccountId: OTHER_ACCOUNT_ID });
+    });
+
+    expect(await screen.findByText(m.ownership_transfer_read_failed())).toBeInTheDocument();
+    expect(screen.queryByTestId("ownership-transfer-state")).toBeNull();
   });
 
   it("reports a failed read without blanking the card", async () => {
