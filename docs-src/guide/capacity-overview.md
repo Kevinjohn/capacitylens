@@ -45,6 +45,9 @@ Overview is available to Owners and Admins by default. An Owner or Admin can ope
 
 The chosen access applies to both the sidebar link and the direct `/overview` route.
 
+This setting controls who can open the page, not the underlying data: everyone with sign-in
+access to the company already receives the same allocations and resources through the schedule.
+
 ## What's next
 
 [The schedule](/guide/the-schedule) explains daily planning and allocation editing. [Settings](/guide/settings)

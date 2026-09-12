@@ -6,6 +6,7 @@ import { AuthContext } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 import { PermissionContext } from "../../auth/permissionContext";
+import { resolveDateStyle } from "../../store/selectors";
 
 const reloadMock = vi.hoisted(() => ({ reloadPage: vi.fn() }));
 vi.mock("../../lib/reloadPage", () => reloadMock);
@@ -51,7 +52,6 @@ beforeEach(() => {
   offlineMocks.clearAll.mockResolvedValue(undefined);
   resetStoreWithAccount();
   useStore.getState().setTheme("light");
-  useStore.getState().setDateStyle("day-month");
   vi.stubGlobal("fetch", fetchMock.fetch);
   fetchMock.fetch.mockReset();
   fetchMock.fetch.mockResolvedValue({
@@ -329,7 +329,7 @@ describe("SettingsView — date style", () => {
 
     await user.click(monthDay);
 
-    expect(useStore.getState().dateStyle).toBe("month-day");
+    expect(resolveDateStyle(useStore.getState().data, DEFAULT_ACCOUNT_ID)).toBe("month-day");
     expect(monthDay).toHaveAttribute("aria-checked", "true");
     expect(dayMonth).toHaveAttribute("aria-checked", "false");
   });

@@ -85,7 +85,7 @@ function parseServerDiagnostics(value: unknown): ServerDiagnostics {
   const backup = isRecord(value.backup) ? value.backup : null;
   return {
     connectivity: readConnectivity(value.connectivity),
-    database: readDatabaseProjection(value.databaseStatus, database),
+    database: readDatabaseProjection(database),
     persistence: readPersistenceStatus(value.persistence),
     backup: readBackupProjection(backup),
   };
@@ -95,18 +95,16 @@ function readConnectivity(value: unknown): DiagnosticsConnectivity {
   return value === "ok" ? "ok" : "unavailable";
 }
 
-function readDatabaseStatus(primary: unknown, secondary: unknown): DiagnosticsDatabaseStatus {
-  if (isOneOf(primary, ["ok", "unavailable"] as const)) return primary;
-  if (isOneOf(secondary, ["ok", "unavailable"] as const)) return secondary;
-  return "unavailable";
+function readDatabaseStatus(value: unknown): DiagnosticsDatabaseStatus {
+  return isOneOf(value, ["ok", "unavailable"] as const) ? value : "unavailable";
 }
 
 function readSchemaVersion(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 }
 
-function readDatabaseProjection(primary: unknown, database: Record<string, unknown> | null) {
-  const declared = readDatabaseStatus(primary, database?.status);
+function readDatabaseProjection(database: Record<string, unknown> | null) {
+  const declared = readDatabaseStatus(database?.status);
   const schemaVersion = declared === "ok" ? readSchemaVersion(database?.schemaVersion) : null;
   return {
     status: declared === "ok" && schemaVersion !== null ? ("ok" as const) : ("unavailable" as const),

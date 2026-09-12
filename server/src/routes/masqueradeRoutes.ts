@@ -1,5 +1,5 @@
 import type { EffectiveRoleResult } from "./appAuthorization";
-import type { AuthorizeBasicInput } from "./routeShared";
+import { NO_REPROMPT, type AuthorizeRouteInput } from "./routeShared";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import type { AccountMode, Role } from "@capacitylens/shared/account/types";
@@ -24,7 +24,7 @@ export interface MasqueradeRouteDependencies {
   accountAudit: AccountAuditPort;
   registry: MasqueradeRegistry;
   identity: IdentityPort;
-  authorize(input: AuthorizeBasicInput): boolean;
+  authorize(input: AuthorizeRouteInput): boolean;
   roleForPrincipal(principalId: string, accountId: string): Role | null;
   effectiveRole(request: FastifyRequest, accountId: string): EffectiveRoleResult;
 }
@@ -95,7 +95,7 @@ function registerMasqueradeStartRoute(app: FastifyInstance, dependencies: Masque
     }
     if (authMode === "off" || !session) return reply.code(403).send({ error: "Forbidden." });
     const { accountId } = request.params as { accountId: string };
-    if (!authorize({ req: request, reply, accountId, action: "masquerade" })) return;
+    if (!authorize({ req: request, reply, accountId, action: "masquerade", options: NO_REPROMPT })) return;
     const targetUserId = readTargetUserId(request.body);
     if (targetUserId === null) {
       return reply.code(400).send({ error: "targetUserId must be a non-empty string." });

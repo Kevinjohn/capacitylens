@@ -2,6 +2,7 @@ import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
+import { NO_REPROMPT } from "../../../routes/routeShared";
 import type { AccountRouteContext } from "../createReplyHelpers";
 
 function createAuthenticationRequiredError() {
@@ -37,7 +38,7 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
   } = context;
 
   const { accountId } = req.params as { accountId: string };
-  if (!authorize({ req, reply, accountId, action: "manageMembers", options: { requireFreshSession: false } })) return;
+  if (!authorize({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT })) return;
   // OFF mode: no real member model (req.user is DEMO_USER, membership is unread) — return empty so
   // the shape is honest and nothing crashes. The UI is hidden in OFF, so this is belt-and-braces.
   if (authMode === "off") return { members: [], signInTrackingEnabled: false };
@@ -79,7 +80,7 @@ export async function setMemberSignInTracking(req: FastifyRequest, reply: Fastif
   const { memberSignInTracking, authorize, audit, fail: accountFail } = context;
 
   const { accountId } = req.params as { accountId: string };
-  if (!authorize({ req, reply, accountId, action: "manageMemberSignInTracking" })) return;
+  if (!authorize({ req, reply, accountId, action: "manageMemberSignInTracking", options: NO_REPROMPT })) return;
   const body = req.body as { enabled?: unknown } | null;
   if (!body || typeof body.enabled !== "boolean") {
     return reply.code(400).send({ error: "enabled must be a boolean." });
@@ -127,7 +128,7 @@ export async function changeMemberRole(req: FastifyRequest, reply: FastifyReply,
     return reply.code(400).send({ error: INVALID_ROLE_MESSAGE });
   }
   const nextRole = body.role;
-  if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers" })) return;
+  if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT })) return;
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
     const changed = await accountAdminPort.changeMemberRole({
@@ -176,7 +177,7 @@ export async function changeMemberStatus(req: FastifyRequest, reply: FastifyRepl
     });
   }
   const nextStatus = body.status;
-  if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers" })) return;
+  if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT })) return;
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
     const changed = await accountAdminPort.changeMemberStatus({
@@ -218,7 +219,7 @@ export async function removeMember(req: FastifyRequest, reply: FastifyReply, con
     accountId: string;
     userId: string;
   };
-  if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers" })) return;
+  if (!authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT })) return;
   try {
     const { actor, user } = requireAuthenticatedPrincipal(req);
     const removed = await accountAdminPort.removeMember({
