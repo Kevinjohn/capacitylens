@@ -88,7 +88,7 @@ T1 first. T2 and T3 in parallel worktrees after T1 merges. T3 owns every shared 
   Every helper resolves the style once per call via `readActiveDateStyle()`.
 - Module header of `dateDisplay.ts` updated: style descriptor, collapse rule and separator live here for locale work later.
   **Discretion:** descriptor field names, private helper split, pattern-building mechanics.
-  **Focused tests:** `dateDisplay.test.ts` covers every cell of the style table for the range helpers plus the single helpers under each style (call `writeStoredDateStyle` in `beforeEach`, `localStorage.clear()` after); `dateStyle.test.ts` covers default, stored valid, stored invalid, storage throwing. Update the two existing pins at lines 87 and 91. `pnpm exec vitest run src/lib/dateDisplay.test.ts src/lib/dateStyle.test.ts`, `pnpm exec tsc --noEmit -p tsconfig.json`, `pnpm exec eslint src/lib`, `pnpm exec prettier --check src/lib`.
+  **Focused tests:** `dateDisplay.test.ts` covers every cell of the style table for the range helpers plus the single helpers under each style (call `writeStoredDateStyle` in `beforeEach`, `localStorage.clear()` after); `dateStyle.test.ts` covers default, stored valid, stored invalid, storage throwing. Update the two existing pins at lines 87 and 91. `pnpm exec vitest run src/lib/dateDisplay.test.ts src/lib/dateStyle.test.ts`, `pnpm run typecheck`, `pnpm exec eslint src/lib`, `pnpm exec prettier --check src/lib`.
   **Done:** the exports above exist, tests green, no call site changed.
 
 ## T2: route every call site through dateDisplay
