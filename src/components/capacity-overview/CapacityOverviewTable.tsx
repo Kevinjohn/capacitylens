@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Fragment, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { m } from "@/i18n";
-import { formatDayMonthRange } from "@/lib/dateDisplay";
+import { formatWeekColumnRange } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
@@ -328,7 +328,7 @@ function CapacityTable({
           <TableHead className="px-4">{m.capacity_overview_person()}</TableHead>
           {model.weeks.map((week) => (
             <TableHead key={week.key} className="whitespace-normal px-2 text-center">
-              {formatDayMonthRange(week.start, week.end)}
+              {formatWeekColumnRange(week.start, week.end)}
             </TableHead>
           ))}
         </TableRow>

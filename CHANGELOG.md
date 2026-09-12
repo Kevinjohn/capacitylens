@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Scale Overview capacity bars against the company working days in each column, so people with
   different working patterns remain visually comparable (#890).
+- Keep the Overview's ordered week-column headers compact across a year boundary, so the one
+  cross-year week does not make the header row taller than its neighbours (#861).
 
 ### Changed
 
