@@ -28,3 +28,9 @@ export function buildProjectArchiveImpactCopy({ phases, allocations }: ArchiveIm
     allocations: allocationCount(allocations),
   });
 }
+
+export function buildActivityArchiveImpactCopy({ allocations }: ArchiveImpact): string {
+  return m.list_activities_archive_cascade({
+    allocations: allocationCount(allocations),
+  });
+}

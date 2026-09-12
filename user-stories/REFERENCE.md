@@ -1437,8 +1437,10 @@ is **Archive**. The row's icon button has the accessible name
 restore it from the archived section below this list."_, confirm button
 **"Archive"**). Confirming hides the row from the list **and** from the schedule (it becomes
 archived), but the record + its children are **retained** (archiving is reversible, unlike the old
-cascade-delete). Client and project confirmations count the projects, phases and allocations the
-archive will additionally hide, using singular nouns only when a count is exactly one. The affordance is gated by `useCanEdit` (a Viewer sees nothing). In **server mode**
+cascade-delete). Client, project and activity confirmations count the projects, phases and
+allocations the archive will additionally hide, using singular nouns only when a count is exactly
+one; the activity confirmation counts allocations only, and appends its sentence only when at least
+one allocation would be hidden. The affordance is gated by `useCanEdit` (a Viewer sees nothing). In **server mode**
 the row POSTs `POST /api/:entity/:id/archive {accountId}` and reloads the active slice; in
 **local/OFF mode** it calls the store's `archiveEntity`. Built-in **Internal** client has no archive
 button (it's hidden from the Clients list and the store/server backstop it). Hook:

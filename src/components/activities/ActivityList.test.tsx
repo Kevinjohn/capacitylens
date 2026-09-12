@@ -334,6 +334,50 @@ describe("ActivityList", () => {
     vi.unstubAllEnvs();
   });
 
+  it("warns how many allocations an archive would hide from the schedule", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
+    const user = userEvent.setup();
+    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    const activity = useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Barbara Gordon",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#333333",
+    });
+    useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    useStore.getState().addAllocation({
+      resourceId: resource.id,
+      activityId: activity.id,
+      startDate: "2026-06-08",
+      endDate: "2026-06-12",
+      hoursPerDay: 8,
+      status: "confirmed",
+    });
+    render(<ActivityList />);
+
+    await user.click(screen.getByRole("button", { name: "Archive My Activity" }));
+
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent(
+      "This also hides 2 allocations from the schedule; restore the activity to bring them back.",
+    );
+    vi.unstubAllEnvs();
+  });
+
   it("surfaces an archive integrity failure without removing the activity", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
