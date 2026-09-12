@@ -88,6 +88,10 @@ export function upsertMember(db: Db, member: AccountMember): string[] {
   // accept, POST /api/orgs) can forget it — the sprinkle-at-each-callsite approach missed two.
   // No-op when the user holds no reset token (the common case: fresh membership) or in OFF mode
   // (no Better Auth tables). The reset-token implementation remains identity-owned in auth.ts.
+  // Deliberately unconditional, unlike the ceremony below: the reset-link and security-revision
+  // protocol is this path's TOCTOU close, it is pinned by the late-auth probe test, and narrowing
+  // it is a change to that security decision rather than to this ceremony. A live nomination is
+  // different — ending one is visible to two people and undoes work, so it needs a real change.
   revokeResetTokensForUser(db, member.userId);
   bumpSecurityRevision(db, member.userId);
   return changed ? terminaliseMemberTransfers(db, member.accountId, member.userId) : [];
