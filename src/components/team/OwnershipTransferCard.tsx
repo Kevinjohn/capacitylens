@@ -287,18 +287,27 @@ function mayNominate(controller: OwnershipTransferController, principalId: strin
   return controller.members.some((member) => member.userId === principalId && member.role === "owner");
 }
 
+/**
+ * Has this card anything to tell this viewer?
+ *
+ * Nothing live, nothing to explain and no standing to start one: render nothing rather than an
+ * empty card that invites a question it cannot answer. A failure IS something to say, so it keeps
+ * the card open — a nominee whose read failed must not be shown the same blank page as a nominee
+ * who has no request at all.
+ */
+function hasSomethingToSay(controller: OwnershipTransferController, nominatable: boolean): boolean {
+  if (controller.loading) return false;
+  if (nominatable || controller.error !== null || controller.lastTerminal !== null) return true;
+  return Boolean(controller.projection?.live ?? controller.projection?.latestOutcome);
+}
+
 export function OwnershipTransferCard() {
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { user, refreshAuth } = useAuth();
   const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
   const principalId = user?.id ?? null;
-  const live = controller.projection?.live ?? null;
-  const outcome = controller.projection?.latestOutcome ?? null;
   const nominatable = mayNominate(controller, principalId);
-
-  // Nothing live, nothing to explain and no standing to start one: render nothing rather than an
-  // empty card that invites a question it cannot answer.
-  if (controller.loading || (live === null && outcome === null && !nominatable)) return null;
+  if (!hasSomethingToSay(controller, nominatable)) return null;
 
   return (
     <Card data-testid="ownership-transfer-card">
