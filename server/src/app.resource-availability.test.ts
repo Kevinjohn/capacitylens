@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { freshApp, client, allocation } from "./fixtures/appTestEntities";
-import { call, readErrorResponse, body, post, patch, batch, orderedBatch, state } from "./fixtures/appTestHttp";
+import { call, readErrorResponse, body, post, patch, batch, orderedBatch } from "./fixtures/appTestHttp";
+import { state } from "./fixtures/appTestSnapshotBatch";
 import { scaffold } from "./fixtures/appTestScaffold";
 
 function createDirectAvailabilityBoundaryTests(): void {
