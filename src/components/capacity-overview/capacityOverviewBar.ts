@@ -7,27 +7,27 @@ export type CapacityBarFillKind = "free" | "over" | "none";
 
 export interface CapacityBarFill {
   kind: CapacityBarFillKind;
-  /** 0..1 proportion of the week's own availability, already capped at 1 for overbooking. */
+  /** 0..1 proportion of the company working capacity, already capped at 1 for overbooking. */
   fraction: number;
 }
 
 /**
  * Pure fraction helper for the Overview bar fill. Uses the model's precise hours (not the
- * quarter-day rounded display values) and the person's own availability for the week, so a
- * partial first week or a part-time working pattern is proportioned correctly.
+ * quarter-day rounded display values) and the company working capacity in the displayed range.
+ * This keeps people comparable: a fully free four-day person fills 80% of a five-day company week.
  */
 export function computeCapacityBarFill({
-  availableHours,
+  companyWorkingHours,
   freeHours,
   overHours,
 }: {
-  availableHours: number;
+  companyWorkingHours: number;
   freeHours: number;
   overHours: number;
 }): CapacityBarFill {
-  if (availableHours <= 0) return { kind: "none", fraction: 0 };
-  if (overHours > 0) return { kind: "over", fraction: Math.min(overHours / availableHours, 1) };
-  if (freeHours > 0) return { kind: "free", fraction: Math.min(freeHours / availableHours, 1) };
+  if (companyWorkingHours <= 0) return { kind: "none", fraction: 0 };
+  if (overHours > 0) return { kind: "over", fraction: Math.min(overHours / companyWorkingHours, 1) };
+  if (freeHours > 0) return { kind: "free", fraction: Math.min(freeHours / companyWorkingHours, 1) };
   return { kind: "none", fraction: 0 };
 }
 

@@ -1,5 +1,5 @@
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { countWorkingDays, eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { isCapacityTracked, isExternalResource, isPlaceholderResource } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Closure, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 import {
@@ -87,6 +87,7 @@ function calculateWeek({
   accountWorkingDays,
 }: CalculateWeekInput): CapacityOverviewWeekResult {
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
+  const companyWorkingHours = countWorkingDays(week.start, week.end, accountWorkingDays) * HOURS_PER_DISPLAY_DAY;
   let availableHours = 0;
   let allocatedHours = 0;
   let freeHours = 0;
@@ -114,6 +115,7 @@ function calculateWeek({
   const overDays = roundUpQuarterDays(overHours);
   return {
     week,
+    companyWorkingHours,
     availableHours,
     allocatedHours,
     freeHours,

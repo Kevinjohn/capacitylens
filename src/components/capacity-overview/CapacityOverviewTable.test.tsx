@@ -35,6 +35,7 @@ function week(index: number, values: Partial<CapacityOverviewWeekResult>): Capac
   if (!overviewWeek) throw new Error(`Missing test week ${index}`);
   return {
     week: overviewWeek,
+    companyWorkingHours: 40,
     availableHours: 40,
     allocatedHours: 0,
     freeHours: 40,
@@ -71,7 +72,7 @@ const model: CapacityOverviewModel = {
             week(0, { freeHours: 12, freeDays: 1.5, overHours: 2, overDays: 0.25 }),
             week(1, { state: "fully-booked", freeHours: 0, freeDays: 0 }),
             week(2, { state: "unavailable", availableHours: 0, freeHours: 0, freeDays: 0 }),
-            week(3, {}),
+            week(3, { availableHours: 32, freeHours: 32, freeDays: 4 }),
           ],
         },
         {
@@ -328,6 +329,7 @@ describe("CapacityOverviewTable interactions", () => {
     const rowCells = within(person).getAllByRole("cell");
     const fourthWeekFill = within(rowCells[3] as HTMLElement).getByTestId("capacity-bar-fill");
     expect(fourthWeekFill).toHaveAttribute("data-bar-kind", "free");
+    expect(fourthWeekFill).toHaveStyle({ height: "80%" });
     expect(fourthWeekFill.style.background).not.toContain("repeating-linear-gradient");
     expect(fourthWeekFill.style.background).toBe("var(--color-ok-cell)");
   });
@@ -364,6 +366,10 @@ describe("CapacityOverviewTable interactions", () => {
     expect(fill).toHaveAttribute("data-bar-kind", "over");
     expect(fill.style.background).toBe("var(--color-danger-soft)");
     expect(fill.style.background).not.toContain("repeating-linear-gradient");
+
+    const rowCells = within(person).getAllByRole("cell");
+    const fourthWeekFill = within(rowCells[3] as HTMLElement).getByTestId("capacity-bar-fill");
+    expect(fourthWeekFill).toHaveStyle({ height: "80%" });
   });
 
   it("never renders a bar for unassigned-demand rows", () => {
