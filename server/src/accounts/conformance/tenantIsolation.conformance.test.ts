@@ -1,12 +1,8 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { DatabaseSync } from "node:sqlite";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { OwnershipTransferRequest } from "@capacitylens/shared/account/ownershipTransfer";
 import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/account/ownershipTransferPolicy";
-import type { Db } from "../../db";
-import { ensureAccountBoundaryState } from "../state/schema";
-import { ensureControlTables } from "../../controlTables";
-import { runOwnershipTransfersV41 } from "../../controlTables/ownershipTransfersSchema";
+import { openDb, type Db } from "../../db";
 import * as assertions from "../../controlTables/assert";
 import * as inviteRetention from "../../controlTables/inviteRetention";
 import * as inviteTokens from "../../controlTables/inviteTokens";
@@ -18,7 +14,7 @@ import * as ownershipTransfers from "../../controlTables/ownershipTransfers";
 import * as ownershipTransfersSchema from "../../controlTables/ownershipTransfersSchema";
 import * as preparedStatement from "../../controlTables/preparedStatement";
 import * as retentionV24 from "../../controlTables/retentionV24";
-import * as signInTracking from "../memberSignInTracking";
+import * as memberSignInTracking from "../memberSignInTracking";
 import type { AccountMember } from "../../controlTables/members.model";
 
 /**
@@ -48,13 +44,15 @@ const NEWCOMER = "u-barbara-gordon";
 const NOW = "2026-09-01T09:00:00.000Z";
 const LATER = "2026-09-08T09:00:00.000Z";
 
-function freshDb(): Db {
-  const db = new DatabaseSync(":memory:") as unknown as Db;
-  ensureControlTables(db);
-  ensureAccountBoundaryState(db);
-  runOwnershipTransfersV41(db);
-  return db;
-}
+let db: Db;
+
+beforeEach(() => {
+  db = openDb(":memory:");
+});
+
+afterEach(() => {
+  db.close();
+});
 
 function member(accountId: string, overrides: Partial<AccountMember> = {}): AccountMember {
   return { accountId, userId: SHARED, role: "admin", status: "active", createdAt: NOW, ...overrides };
@@ -100,8 +98,8 @@ function seedBothCompanies(db: Db): void {
   }
 }
 
-function membershipOf(db: Db, accountId: string, userId: string = SHARED) {
-  return members.getMembershipRow(db, accountId, userId);
+function membershipOf(db: Db, accountId: string) {
+  return members.getMembershipRow(db, accountId, SHARED);
 }
 
 function inviteIds(db: Db, accountId: string): string[] {
@@ -109,21 +107,17 @@ function inviteIds(db: Db, accountId: string): string[] {
 }
 
 function transferStates(db: Db, accountId: string): Array<{ id: string; state: string }> {
-  return (
-    db
-      .prepare(`SELECT id, state FROM account_ownership_transfers WHERE accountId = ? ORDER BY id`)
-      .all(accountId) as Array<{ id: string; state: string }>
-  ).map(({ id, state }) => ({ id, state }));
+  return db
+    .prepare(`SELECT id, state FROM account_ownership_transfers WHERE accountId = ? ORDER BY id`)
+    .all(accountId) as Array<{ id: string; state: string }>;
 }
 
 /** The observation bit is not part of the mapped membership, and it is exactly what one company's
  *  privacy switch must never write into another's rows. */
 function observationBits(db: Db, accountId: string): Array<{ userId: string; signInConfirmed: string | null }> {
-  return (
-    db
-      .prepare(`SELECT userId, signInConfirmed FROM account_members WHERE accountId = ? ORDER BY userId`)
-      .all(accountId) as Array<{ userId: string; signInConfirmed: string | null }>
-  ).map(({ userId, signInConfirmed }) => ({ userId, signInConfirmed: signInConfirmed ?? null }));
+  return db
+    .prepare(`SELECT userId, signInConfirmed FROM account_members WHERE accountId = ? ORDER BY userId`)
+    .all(accountId) as Array<{ userId: string; signInConfirmed: string | null }>;
 }
 
 function trackingAccounts(db: Db): string[] {
@@ -147,7 +141,6 @@ function starkSnapshot(db: Db) {
 
 describe("control-table writes stay inside their account: membership", () => {
   it("upsertMember writes the account it is given and leaves the other company's row alone", () => {
-    const db = freshDb();
     seedBothCompanies(db);
     const before = starkSnapshot(db);
 
@@ -157,14 +150,12 @@ describe("control-table writes stay inside their account: membership", () => {
     // The same principal, in another company, at the role they held before.
     expect(membershipOf(db, STARK)?.role).toBe("admin");
     expect(starkSnapshot(db)).toEqual(before);
-    db.close();
   });
 
   it("upsertMember reads the sign-in tracking opt-in of the account it writes, not of any account", () => {
-    const db = freshDb();
     seedBothCompanies(db);
     // Wayne Enterprises alone opts in to sign-in tracking.
-    signInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: true });
+    memberSignInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: true });
 
     members.upsertMember(db, member(WAYNE, { userId: NEWCOMER, role: "editor" }));
     members.upsertMember(db, member(STARK, { userId: NEWCOMER, role: "editor" }));
@@ -177,22 +168,18 @@ describe("control-table writes stay inside their account: membership", () => {
       { userId: NEWCOMER, signInConfirmed: null },
       { userId: SHARED, signInConfirmed: null },
     ]);
-    db.close();
   });
 
   it("setMemberStatus reports missing for a principal who is a member of another company only", () => {
-    const db = freshDb();
     members.upsertMember(db, member(STARK));
 
     const answer = members.setMemberStatus({ db, accountId: WAYNE, userId: SHARED, status: "disabled" });
 
     expect(answer.outcome).toBe("missing");
     expect(membershipOf(db, STARK)?.status).toBe("active");
-    db.close();
   });
 
   it("removeMember addressed to the wrong company removes nothing", () => {
-    const db = freshDb();
     seedBothCompanies(db);
     const before = starkSnapshot(db);
 
@@ -202,13 +189,11 @@ describe("control-table writes stay inside their account: membership", () => {
 
     expect(membershipOf(db, WAYNE)).toBeNull();
     expect(starkSnapshot(db)).toEqual(before);
-    db.close();
   });
 
   it("removeAllMembersForAccount empties one company and touches nothing of the other", () => {
-    const db = freshDb();
     seedBothCompanies(db);
-    signInTracking.setMemberSignInTracking({ db, accountId: STARK, actorPrincipalId: SHARED, enabled: true });
+    memberSignInTracking.setMemberSignInTracking({ db, accountId: STARK, actorPrincipalId: SHARED, enabled: true });
     const before = starkSnapshot(db);
 
     members.removeAllMembersForAccount(db, WAYNE);
@@ -217,66 +202,56 @@ describe("control-table writes stay inside their account: membership", () => {
     // The whole snapshot, because this erasure also removes sign-in tracking and ends live
     // transfers: an unscoped predicate in either callee would take Stark's with it.
     expect(starkSnapshot(db)).toEqual(before);
-    db.close();
   });
 });
 
 describe("control-table writes stay inside their account: sign-in tracking", () => {
   it("setMemberSignInTracking switches one company's observation on", () => {
-    const db = freshDb();
     seedBothCompanies(db);
     const before = starkSnapshot(db);
 
-    signInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: true });
+    memberSignInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: true });
 
     expect(observationBits(db, WAYNE)).toEqual([{ userId: SHARED, signInConfirmed: "true" }]);
     expect(starkSnapshot(db)).toEqual(before);
-    db.close();
   });
 
   it("setMemberSignInTracking switches one company's observation off", () => {
-    const db = freshDb();
     seedBothCompanies(db);
     for (const accountId of [WAYNE, STARK]) {
-      signInTracking.setMemberSignInTracking({ db, accountId, actorPrincipalId: SHARED, enabled: true });
+      memberSignInTracking.setMemberSignInTracking({ db, accountId, actorPrincipalId: SHARED, enabled: true });
     }
 
-    signInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: false });
+    memberSignInTracking.setMemberSignInTracking({ db, accountId: WAYNE, actorPrincipalId: SHARED, enabled: false });
 
     expect(observationBits(db, WAYNE)).toEqual([{ userId: SHARED, signInConfirmed: null }]);
     expect(observationBits(db, STARK)).toEqual([{ userId: SHARED, signInConfirmed: "true" }]);
     expect(trackingAccounts(db)).toEqual([STARK]);
-    db.close();
   });
 
   it("removeMemberSignInTrackingForAccount removes one company's opt-in", () => {
-    const db = freshDb();
     seedBothCompanies(db);
     for (const accountId of [WAYNE, STARK]) {
-      signInTracking.setMemberSignInTracking({ db, accountId, actorPrincipalId: SHARED, enabled: true });
+      memberSignInTracking.setMemberSignInTracking({ db, accountId, actorPrincipalId: SHARED, enabled: true });
     }
 
-    signInTracking.removeMemberSignInTrackingForAccount(db, WAYNE);
+    memberSignInTracking.removeMemberSignInTrackingForAccount(db, WAYNE);
 
     expect(trackingAccounts(db)).toEqual([STARK]);
-    db.close();
   });
 });
 
 describe("control-table writes stay inside their account: invitations", () => {
   it("createInvite files the invite under the account it names", () => {
-    const db = freshDb();
     seedBothCompanies(db);
 
     invites.createInvite(db, invite(WAYNE, inviteTokens.newInviteId(), "token-second-wayne"));
 
     expect(inviteIds(db, WAYNE)).toHaveLength(2);
     expect(inviteIds(db, STARK)).toEqual([`inv-${STARK}`]);
-    db.close();
   });
 
   it("revokeInvite refuses another company's invite id", () => {
-    const db = freshDb();
     seedBothCompanies(db);
 
     // The id is unique on its own, so a revoke that had lost its accountId predicate would find
@@ -285,24 +260,22 @@ describe("control-table writes stay inside their account: invitations", () => {
 
     expect(removed).toBe(0);
     expect(inviteIds(db, STARK)).toEqual([`inv-${STARK}`]);
-    db.close();
   });
 
   it("removeAllInvitesForAccount empties one company", () => {
-    const db = freshDb();
     seedBothCompanies(db);
 
     invites.removeAllInvitesForAccount(db, WAYNE);
 
     expect(inviteIds(db, WAYNE)).toEqual([]);
     expect(inviteIds(db, STARK)).toEqual([`inv-${STARK}`]);
-    db.close();
   });
 });
 
-describe("control-table writes stay inside their account: ownership transfers", () => {
+// The transfer cases split by what the write does to a ceremony: this group starts and advances
+// one, the next ends one or bounds its history.
+describe("control-table writes stay inside their account: starting and advancing transfers", () => {
   it("insertRequest files the request under the account it names", () => {
-    const db = freshDb();
     members.upsertMember(db, member(STARK));
     ownershipTransfers.insertRequest(db, request(STARK));
 
@@ -312,11 +285,9 @@ describe("control-table writes stay inside their account: ownership transfers", 
     // The live slot is per company: the partial unique index must not have refused Wayne's request
     // because another company already holds one, and Stark's must still read as Stark's.
     expect(ownershipTransfers.readLiveRequest(db, STARK)?.id).toBe(`ot-${STARK}`);
-    db.close();
   });
 
   it("applyTransition refuses another company's request id", () => {
-    const db = freshDb();
     seedBothCompanies(db);
 
     // `id` is the primary key, so a CAS that had lost its accountId predicate would move this row.
@@ -335,11 +306,11 @@ describe("control-table writes stay inside their account: ownership transfers", 
 
     expect(applied).toBe(false);
     expect(transferStates(db, STARK)).toEqual([{ id: `ot-${STARK}`, state: "awaiting_target" }]);
-    db.close();
   });
+});
 
+describe("control-table writes stay inside their account: ending and bounding transfers", () => {
   it("terminaliseLiveRequestsForAccount ends one company's requests", () => {
-    const db = freshDb();
     seedBothCompanies(db);
 
     const ended = ownershipTransfers.terminaliseLiveRequestsForAccount({
@@ -351,13 +322,9 @@ describe("control-table writes stay inside their account: ownership transfers", 
 
     expect(ended).toEqual([`ot-${WAYNE}`]);
     expect(transferStates(db, STARK)).toEqual([{ id: `ot-${STARK}`, state: "awaiting_target" }]);
-    db.close();
   });
-});
 
-describe("control-table writes stay inside their account: ending and bounding transfers", () => {
   it("terminaliseLiveRequestsForMember ends only the named company's request for a shared principal", () => {
-    const db = freshDb();
     seedBothCompanies(db);
 
     const ended = ownershipTransfers.terminaliseLiveRequestsForMember({
@@ -372,22 +339,18 @@ describe("control-table writes stay inside their account: ending and bounding tr
     // would end a ceremony in a company whose membership did not change.
     expect(ended).toEqual([`ot-${WAYNE}`]);
     expect(transferStates(db, STARK)).toEqual([{ id: `ot-${STARK}`, state: "awaiting_target" }]);
-    db.close();
   });
 
   it("deleteRequestsForAccount deletes one company's rows", () => {
-    const db = freshDb();
     seedBothCompanies(db);
 
     ownershipTransfers.deleteRequestsForAccount(db, WAYNE);
 
     expect(transferStates(db, WAYNE)).toEqual([]);
     expect(transferStates(db, STARK)).toHaveLength(1);
-    db.close();
   });
 
   it("sweepExpiredHistory bounds one company's history", () => {
-    const db = freshDb();
     const now = Date.parse("2027-09-01T09:00:00.000Z");
     const longAgo = new Date(now - OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS - 1).toISOString();
     for (const accountId of [WAYNE, STARK]) {
@@ -399,7 +362,6 @@ describe("control-table writes stay inside their account: ending and bounding tr
 
     expect(ownershipTransfers.sweepExpiredHistory(db, WAYNE, now)).toBe(1);
     expect(transferStates(db, STARK)).toHaveLength(1);
-    db.close();
   });
 });
 
@@ -424,7 +386,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
   retentionV24,
   // Not under controlTables/, but it writes `account_members` and owns the per-account tracking
   // table, so it is the same surface and belongs to the same inventory.
-  memberSignInTracking: signInTracking,
+  memberSignInTracking,
 };
 
 /** The modules whose files live in `controlTables/`. Kept separate so the directory check below can
@@ -517,9 +479,10 @@ describe("the isolation inventory", () => {
   it("reflects over every module in controlTables/", () => {
     // Read from disk rather than trusting the import list: a NEW control-table module is the
     // easiest way for an unscoped write to arrive unclassified.
-    const onDisk = readdirSync(new URL("../../controlTables/", import.meta.url))
-      .filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts"))
-      .map((file) => file.replace(/\.ts$/, ""))
+    const onDisk = readdirSync(new URL("../../controlTables/", import.meta.url), { recursive: true })
+      .map(String)
+      .filter((file) => /\.[cm]?ts$/.test(file) && !/\.(?:test|spec)\.[cm]?ts$/.test(file))
+      .map((file) => file.replace(/\.[cm]?ts$/, ""))
       .sort();
 
     expect([...CONTROL_TABLE_MODULES].sort()).toEqual(onDisk);
@@ -552,7 +515,7 @@ describe("the isolation inventory", () => {
     // inventory at all, because a reader who sees the name stops looking.
     const source = readFileSync(new URL(import.meta.url), "utf8");
     const cases = source.slice(0, source.indexOf("const MODULES:"));
-    const uncalled = [...COVERED].filter((key) => !cases.includes(`.${key.split(".").at(-1)}(`));
+    const uncalled = [...COVERED].filter((key) => !cases.includes(`${key}(`));
 
     expect(uncalled).toEqual([]);
   });
