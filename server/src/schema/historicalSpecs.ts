@@ -161,10 +161,42 @@ export const V39_TABLES: Record<string, TableSpec> = {
     columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "dateStyle"),
   },
 };
-/** Released v40 shape: the newest migration, so nothing is excluded yet. The next migration that
- *  adds a column filters it out here, which is also what keeps v40's own post-condition pinned to
- *  the shape it produced rather than to a still-moving `TABLES`. */
+/**
+ * Released v40 shape. Nothing is excluded yet, because v40 is the newest migration — so today this
+ * is the live spec, and the next migration that adds an `accounts` column must filter it out here
+ * for its own `assertSchemaV40` pre-condition to hold. That editing step is what keeps v40's
+ * post-condition tied to the shape v40 produced rather than to a still-moving `TABLES`.
+ *
+ * Forgetting it is the failure mode, so it is not left to memory: `V40_ACCOUNT_COLUMNS` below
+ * spells the column names out, and `db.migrate.test.ts` asserts the live `accounts` spec still
+ * matches. A v41 column fails that test at the moment it is added, naming this file.
+ */
 export const V40_TABLES: Record<string, TableSpec> = { ...TABLES };
+
+/** The `accounts` columns as released at v40, written out rather than derived. */
+export const V40_ACCOUNT_COLUMNS = [
+  "id",
+  "name",
+  "color",
+  "schedulingMode",
+  "timezone",
+  "weekStartsOn",
+  "workingDays",
+  "language",
+  "disciplinesEnabled",
+  "groupResourcesByEngagement",
+  "placeholdersEnabled",
+  "externalEnabled",
+  "internalColourMode",
+  "showInternalProjects",
+  "showInternalActivities",
+  "inlineActivityCreateEnabled",
+  "showTaskFieldInSchedule",
+  "capacityOverviewAccess",
+  "dateStyle",
+  "createdAt",
+  "updatedAt",
+] as const;
 const PRE_V34_TABLES = Object.fromEntries(
   Object.entries(PRE_V37_TABLES).filter(([key]) => key !== "closures"),
 ) as Record<string, TableSpec>;
