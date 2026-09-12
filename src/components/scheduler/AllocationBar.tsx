@@ -11,7 +11,7 @@ import { useStore } from "../../store/useStore";
 import { hasVisibleTaskFieldInSchedule } from "../../store/selectors";
 import { AllocationBarView } from "./AllocationBarView";
 import type { ColumnGeometry } from "./columnGeometry";
-import { LAYOUT } from "./layout";
+import { buildAllocationBarInset } from "./layout";
 import type { BarLayout } from "./schedulerModel";
 import { useAllocationGesture } from "./useAllocationGesture";
 
@@ -154,11 +154,6 @@ function useBarLabelText(bar: BarLayout) {
   );
 }
 
-function buildBarInset(left: number, width: number) {
-  const inset = Math.min(LAYOUT.barInset, width / 3);
-  return { insetLeft: left + inset, insetWidth: Math.max(1, width - inset * 2) };
-}
-
 /**
  * One draggable/resizable allocation bar in a resource lane.
  *
@@ -173,7 +168,7 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
   const hideHours = gesture.isBlocks || bar.external;
   const [popoverOpen, setPopoverOpen] = useState(false);
   const { bg: background, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color]);
-  const { insetLeft, insetWidth } = buildBarInset(gesture.left, gesture.width);
+  const { insetLeft, insetWidth } = buildAllocationBarInset(gesture.left, gesture.width);
   const { label: labelText, viewerLabel: viewerLabelText } = useBarLabelText(bar);
   const showTaskFieldInSchedule = useStore((state) => hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId));
   const ariaLabel = useBarAriaLabel({
