@@ -1,3 +1,4 @@
+import { assertTableColumns, type ExpectedColumn } from "../schema/introspection";
 import {
   isOwnershipTransferState,
   OWNERSHIP_TRANSFER_TERMINAL_REASONS,
@@ -140,13 +141,6 @@ export function toOwnershipTransferRequest(row: OwnershipTransferRow, caller: st
   };
 }
 
-interface ExpectedColumn {
-  name: string;
-  type: string;
-  notnull: number;
-  pk: number;
-}
-
 const EXPECTED_COLUMNS: readonly ExpectedColumn[] = [
   { name: "id", type: "TEXT", notnull: 1, pk: 1 },
   { name: "accountId", type: "TEXT", notnull: 1, pk: 0 },
@@ -183,12 +177,12 @@ function normalizeSql(sql: string): string {
  * a second live request — the one thing this table exists to prevent.
  */
 export function assertOwnershipTransfersCurrent(db: Db): void {
-  const columns = (
-    db.prepare(`PRAGMA table_info(account_ownership_transfers)`).all() as unknown as ExpectedColumn[]
-  ).map(({ name, type, notnull, pk }) => ({ name, type, notnull, pk }));
-  if (JSON.stringify(columns) !== JSON.stringify(EXPECTED_COLUMNS)) {
-    throw new Error("Ownership-transfer schema does not match the current ceremony contract.");
-  }
+  assertTableColumns({
+    db,
+    table: "account_ownership_transfers",
+    expected: EXPECTED_COLUMNS,
+    message: "Ownership-transfer schema does not match the current ceremony contract.",
+  });
   const indexes = new Map(
     (
       db

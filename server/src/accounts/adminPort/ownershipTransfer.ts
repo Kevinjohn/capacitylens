@@ -15,9 +15,9 @@ import {
   OWNERSHIP_TRANSFER_TTL_MS,
 } from "@capacitylens/shared/account/ownershipTransferPolicy";
 import {
+  countActiveOwners,
   getActiveMemberRole,
   insertRequest,
-  listMembersForAccount,
   readLatestTerminalForParticipant,
   readLiveRequest,
   sweepExpiredHistory,
@@ -169,7 +169,6 @@ function initiateOwnershipTransfer(context: TransferContext, input: InitiateInpu
       changedFields: CHANGED_FIELDS,
       successAction: () => ({
         action: replaced ? "ownership_transfer.replaced" : "ownership_transfer.initiated",
-        changedFields: CHANGED_FIELDS,
         eventKey: command.commandId,
       }),
     },
@@ -207,11 +206,8 @@ function assertCommandParticipant(
 }
 
 function assertSingleOwner(context: TransferContext, workspaceId: string): void {
-  const owners = listMembersForAccount(context.db, workspaceId).filter(
-    (member) => member.role === "owner" && member.status === "active",
-  );
-  if (owners.length !== 1)
-    throw new Error(`Ownership exchange left ${owners.length} active Owners in workspace ${workspaceId}.`);
+  const owners = countActiveOwners(context.db, workspaceId);
+  if (owners !== 1) throw new Error(`Ownership exchange left ${owners} active Owners in workspace ${workspaceId}.`);
 }
 
 function executeRowCommand(
@@ -292,7 +288,6 @@ function runRowCommand(
           result.kind === "terminal"
             ? `ownership_transfer.${result.state === "expired" ? "expired" : "invalidated"}`
             : AUDIT_ACTIONS[action],
-        changedFields: CHANGED_FIELDS,
         eventKey: requestId,
       }),
     },

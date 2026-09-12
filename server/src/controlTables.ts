@@ -58,10 +58,10 @@ export {
 } from "./controlTables/assert";
 export {
   upsertMember,
-  withOwnershipTransferExemption,
   setMemberStatus,
   getMembershipRow,
   getMemberRole,
+  countActiveOwners,
   getActiveMemberRole,
   listMembershipsForUser,
   listMembersForAccount,
