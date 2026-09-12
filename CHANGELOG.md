@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Emit a static Overview route document so direct links work on strict static deployments (#943).
 - Scale Overview capacity bars against the company working days in each column, so people with
   different working patterns remain visually comparable (#890).
 - Keep the Overview's ordered week-column headers compact across a year boundary, so the one
