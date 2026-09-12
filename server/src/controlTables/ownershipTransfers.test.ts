@@ -417,3 +417,30 @@ describe("nextOwnershipTransferRevision", () => {
     expect(() => nextOwnershipTransferRevision("-1")).toThrow(/not a non-negative integer/i);
   });
 });
+
+// The stopped-server repair commands deliberately run against a database whose migration 40 is
+// still pending, and application migrations v12/v14 drive membership writes on a handle that has
+// not reached v40 either. A live request cannot exist on such a handle, so the terminalisers answer
+// "nothing to end" rather than failing with an opaque `no such table`.
+describe("a database that has not reached v40", () => {
+  function preV40Db(): Db {
+    const db = new DatabaseSync(":memory:") as unknown as Db;
+    return db;
+  }
+
+  it("ends nothing, deletes nothing and throws nothing", () => {
+    const db = preV40Db();
+    expect(terminaliseLiveRequestsForAccount({ db, accountId: WAYNE, reason: "account_erased", now: NOW })).toEqual([]);
+    expect(
+      terminaliseLiveRequestsForMember({
+        db,
+        accountId: WAYNE,
+        userId: SELINA,
+        reason: "participant_membership_changed",
+        now: NOW,
+      }),
+    ).toEqual([]);
+    expect(() => deleteRequestsForAccount(db, WAYNE)).not.toThrow();
+    db.close();
+  });
+});

@@ -161,6 +161,29 @@ describe("ownership transfer membership binding", () => {
   });
 });
 
+describe("ownership transfer membership binding: writes that change nothing", () => {
+  // Otherwise any Admin could end the Owner's nomination at will, repeatedly, by writing back the
+  // role its participant already holds — a change nobody could see having happened.
+  it("leaves a live request alone when a membership write changes nothing", async () => {
+    const auditEvents: AccountAuditEvent[] = [];
+    const port = seed(auditEvents);
+    const requestId = await initiate(port);
+    await port.changeMemberRole({
+      actor: owner,
+      workspaceId,
+      targetPrincipalId: target.principalId,
+      nextRole: "admin",
+      command: { commandId: "same-role-command", idempotencyKey: "same-role-key" },
+    });
+    expect(readRequestById(seeded(), workspaceId, requestId)).toMatchObject({
+      state: "awaiting_target",
+      revision: "0",
+      terminalReason: null,
+    });
+    expect(auditEvents.filter(({ action }) => action === "ownership_transfer.invalidated")).toHaveLength(0);
+  });
+});
+
 describe("ownership transfer membership binding: completion effects", () => {
   it("keeps both security revisions and burns reset links during completion", async () => {
     const port = seedWithResetLinks();

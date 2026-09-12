@@ -2,7 +2,7 @@ import type { Role } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import type { SynchronousCallback } from "../txn";
 import { terminaliseLiveRequestsForAccount, terminaliseLiveRequestsForMember } from "./ownershipTransfers";
-import { createTableExistenceProbe, revokeResetTokensForUser } from "../auth";
+import { revokeResetTokensForUser } from "../auth";
 import { bumpSecurityRevision } from "../accounts/state";
 import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTracking";
 import {
@@ -30,22 +30,10 @@ export function withOwnershipTransferExemption<Run extends () => unknown>(
   }
 }
 
-/**
- * Migration-era databases reach this choke point BEFORE the v40 table exists: `ensureControlTables`
- * installs the membership tables at v10, and migrations v12 and v14 write memberships through
- * {@link upsertMember} on a handle where `account_ownership_transfers` has not been created yet.
- * A live request cannot exist there, so an absent table means "nothing to terminalise" — but the
- * query would still throw. Absence is re-probed every call, never cached: the same handle gains the
- * table when v40 runs on it (see {@link createTableExistenceProbe}).
- */
-const ownershipTransfersTableExists = createTableExistenceProbe("account_ownership_transfers");
-
-function transfersAreTerminable(db: Db): boolean {
-  return !ownershipTransferExempt && ownershipTransfersTableExists(db);
-}
-
+// A migration-era handle has no v40 table yet; the terminaliser itself answers "nothing to end"
+// rather than throwing, so only the completion exemption is decided here.
 function terminaliseMemberTransfers(db: Db, accountId: string, userId: string): string[] {
-  return !transfersAreTerminable(db)
+  return ownershipTransferExempt
     ? []
     : terminaliseLiveRequestsForMember({
         db,
@@ -77,6 +65,12 @@ export function upsertMember(db: Db, member: AccountMember): string[] {
       `upsertMember: unknown role ${JSON.stringify(member.role)} — expected owner, admin, editor, or viewer.`,
     );
   }
+  // Read the membership BEFORE the upsert: SQLite counts a row it matched as changed even when the
+  // values written are identical, so an unguarded write would let anyone end a live nomination by
+  // re-applying the role its participant already holds — repeatedly, and with nothing to show for
+  // it. The same distinction setMemberStatus already draws between "changed" and "unchanged".
+  const previous = getMembershipRow(db, member.accountId, member.userId);
+  const changed = previous === null || previous.role !== member.role || previous.status !== member.status;
   db.prepare(
     `INSERT INTO account_members (accountId, userId, role, status, createdAt, signInConfirmed)
      VALUES (?, ?, ?, ?, ?, CASE WHEN EXISTS (
@@ -96,7 +90,7 @@ export function upsertMember(db: Db, member: AccountMember): string[] {
   // (no Better Auth tables). The reset-token implementation remains identity-owned in auth.ts.
   revokeResetTokensForUser(db, member.userId);
   bumpSecurityRevision(db, member.userId);
-  return terminaliseMemberTransfers(db, member.accountId, member.userId);
+  return changed ? terminaliseMemberTransfers(db, member.accountId, member.userId) : [];
 }
 
 interface SetMemberStatusInput {
@@ -333,7 +327,7 @@ export function removeAllMembersForAccount(db: Db, accountId: string): string[] 
     revokeResetTokensForUser(db, userId);
     bumpSecurityRevision(db, userId);
   }
-  return !transfersAreTerminable(db)
+  return ownershipTransferExempt
     ? []
     : terminaliseLiveRequestsForAccount({
         db,
