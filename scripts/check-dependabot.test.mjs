@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -111,4 +111,99 @@ test("the application gate owns configuration validation and its regressions in 
   ).toJS();
   assert.ok(workflow.jobs.application.steps.some(({ run }) => run === "pnpm run gate"));
   assert.ok(!workflow.jobs["workflow-lint"].steps.some(({ run }) => run?.includes("ruby -e")));
+});
+
+const dependabotSummaryRun = parseDocument(
+  readFileSync(new URL("../.github/workflows/dependabot-summary.yml", import.meta.url), "utf8"),
+)
+  .toJS()
+  .jobs.summary.steps.find(({ run }) => typeof run === "string" && run.includes("set -euo pipefail"))?.run;
+assert.equal(typeof dependabotSummaryRun, "string");
+
+const runDependabotSummary = (pages, t) => {
+  const directory = mkdtempSync(join(tmpdir(), "dependabot-summary-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const fixture = join(directory, "commits.json");
+  const comment = join(directory, "comment.md");
+  const gh = join(directory, "gh");
+  writeFileSync(fixture, JSON.stringify(pages));
+  writeFileSync(
+    gh,
+    `#!/bin/sh
+if [ "$1" = api ]; then
+  case "$2" in
+    */commits) cat "$DEPENDABOT_COMMITS_FIXTURE" ;;
+    */comments) printf '\\n' ;;
+  esac
+  exit 0
+fi
+if [ "$1" = pr ] && [ "$2" = comment ]; then
+  cat > "$DEPENDABOT_COMMENT_OUTPUT"
+  exit 0
+fi
+exit 1
+`,
+    { mode: 0o755 },
+  );
+  const result = spawnSync("bash", ["-euo", "pipefail", "-c", dependabotSummaryRun], {
+    cwd: directory,
+    encoding: "utf8",
+    timeout: 10_000,
+    env: {
+      ...process.env,
+      DEPENDABOT_COMMITS_FIXTURE: fixture,
+      DEPENDABOT_COMMENT_OUTPUT: comment,
+      HEAD_REF: "dependabot/npm_and_yarn/example",
+      PATH: `${directory}:${process.env.PATH}`,
+      PR: "123",
+      REPO: "example/repository",
+    },
+  });
+  return { comment: existsSync(comment) ? readFileSync(comment, "utf8") : "", result };
+};
+
+test("summarises only the newest Dependabot commit across paginated responses", (t) => {
+  const { comment, result } = runDependabotSummary(
+    [
+      [
+        {
+          author: { login: "dependabot[bot]" },
+          commit: {
+            message:
+              "- dependency-name: old-name\n  dependency-version: 1.0.0\n  update-type: version-update:semver-patch\nBumps old-name from `0.9.0` to `1.0.0`.",
+          },
+        },
+        { author: { login: "maintainer" }, commit: { message: "Merge branch main" } },
+      ],
+      [
+        {
+          author: { login: "dependabot[bot]" },
+          commit: {
+            message:
+              "- dependency-name: new-name\n  dependency-version: 2.0.0\n  update-type: version-update:semver-minor\nBumps new-name from `1.0.0` to `2.0.0`.",
+          },
+        },
+      ],
+    ],
+    t,
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(comment, /`new-name`/);
+  assert.match(comment, /moved from `1\.0\.0` to `2\.0\.0` \(a minor change\)/);
+  assert.doesNotMatch(comment, /old-name|0\.9\.0/);
+});
+
+test("exits without a summary when no paginated commit is authored by Dependabot", (t) => {
+  const { comment, result } = runDependabotSummary(
+    [
+      [{ author: { login: "maintainer" }, commit: { message: "Merge branch main" } }],
+      [{ author: { login: "release-bot" }, commit: { message: "Release" } }],
+    ],
+    t,
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, /No Dependabot commit found/);
+  assert.equal(comment, "");
 });
