@@ -11,6 +11,8 @@
     "./account/audit": "./src/account/audit.ts",
     "./account/conformance": "./src/account/conformance.ts",
     "./account/errors": "./src/account/errors.ts",
+    "./account/ownershipTransfer": "./src/account/ownershipTransfer.ts",
+    "./account/ownershipTransferPolicy": "./src/account/ownershipTransferPolicy.ts",
     "./account/policy": "./src/account/policy.ts",
     "./account/ports": "./src/account/ports.ts",
     "./account/sessionPolicy": "./src/account/sessionPolicy.ts",

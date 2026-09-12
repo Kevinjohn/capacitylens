@@ -12,6 +12,7 @@ import { assertMigrationHistory, assertMigrationHistoryTable } from "./migration
 import {
   ensureControlTables,
   assertControlTablesCurrent,
+  assertOwnershipTransfersCurrent,
   assertSingleOwnerControlPlaneCurrent,
 } from "../controlTables";
 import { repairEmptyAccountWorkingDays } from "./repairs";
@@ -153,6 +154,7 @@ function initializeSchema(db: Db, plan: DatabaseMigrationPlan, hooks: DatabaseMi
   assertSingleOwnerControlPlaneCurrent(db);
   assertAccountBoundaryStateCurrent(db);
   assertAuditOutboxCurrent(db);
+  assertOwnershipTransfersCurrent(db);
   assertSyncOrderingCurrent(db);
   assertTenantRelationshipIntegrityCurrent(db);
   assertBootstrapClaimCurrent(db);

@@ -418,13 +418,7 @@ const registerStartupControlTests = () => {
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
 
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(
-      expect.objectContaining({
-        version: 40,
-        name: "add-account-date-style",
-        checksum: "5523524112cbd00936ed3fff90c0e00e142472abf78122e39dbc32f3bf59e2cc",
-      }),
-    );
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(OWNERSHIP_TRANSFER_MIGRATION));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -608,6 +602,36 @@ const RESOURCE_AVAILABILITY_MIGRATION = {
   checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
 };
 
+const OWNERSHIP_TRANSFER_MIGRATION = {
+  version: 41,
+  name: "add-ownership-transfer-requests",
+  checksum: "d9dc51a48af818e1ccefcbb0fa0d7a703258c9149545f8cc62eaef5c6a5015e7",
+};
+
+/** The tail of the pending list whose checksums are pinned, newest last. Held as one list rather
+ *  than inline literals so appending a migration is one entry, not another repeated block. */
+const CHECKSUM_PINNED_MIGRATIONS = [
+  {
+    version: 35,
+    name: "add-allocation-project-id",
+    checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
+  },
+  {
+    version: 36,
+    name: "add-activity-lifecycle",
+    checksum: "84f944631288597d07740bd183ae549486c68dd642c001bced8108bc1c11b1f2",
+  },
+  {
+    version: 37,
+    name: "add-allocation-task-field",
+    checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
+  },
+  RESOURCE_AVAILABILITY_MIGRATION,
+  CAPACITY_OVERVIEW_MIGRATION,
+  DATE_STYLE_MIGRATION,
+  OWNERSHIP_TRANSFER_MIGRATION,
+];
+
 const registerStartupMigrationPlanningTest = () => {
   it("plans both the app-owned control migration and Better Auth DDL before executing either", async () => {
     const db = openDb(":memory:");
@@ -635,24 +659,7 @@ const registerStartupMigrationPlanningTest = () => {
       expect.objectContaining({ version: 32, name: "add-allocation-series-id" }),
       expect.objectContaining({ version: 33, name: "allow-company-wide-time-off" }),
       expect.objectContaining({ version: 34, name: "separate-company-closures" }),
-      expect.objectContaining({
-        version: 35,
-        name: "add-allocation-project-id",
-        checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
-      }),
-      expect.objectContaining({
-        version: 36,
-        name: "add-activity-lifecycle",
-        checksum: "84f944631288597d07740bd183ae549486c68dd642c001bced8108bc1c11b1f2",
-      }),
-      expect.objectContaining({
-        version: 37,
-        name: "add-allocation-task-field",
-        checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
-      }),
-      expect.objectContaining(RESOURCE_AVAILABILITY_MIGRATION),
-      expect.objectContaining(CAPACITY_OVERVIEW_MIGRATION),
-      expect.objectContaining(DATE_STYLE_MIGRATION),
+      ...CHECKSUM_PINNED_MIGRATIONS.map((migration): unknown => expect.objectContaining(migration)),
     ]);
     const before = await planAuthSchemaMigrations(auth);
     expect(before.pending).toBe(true);

@@ -21,6 +21,7 @@ import { migrateOwnerlessControlPlaneV11, assertSingleOwnerControlPlaneCurrent }
 import { reportOwnerlessPromotionsV11, migrateOwnerResetCeremoniesV12 } from "../../controlTables";
 import { migrateMemberResetCeremoniesV14, USED_INVITATION_RETENTION_V24_DEFINITION } from "../../controlTables";
 import { migrateUsedInvitationHistoryV24 } from "../../controlTables";
+import { OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, runOwnershipTransfersV41 } from "../../controlTables";
 import { isInitialized, markInitialized } from "../initialization";
 import { isEmpty } from "@capacitylens/shared/types/entities";
 import { readState } from "../slices";
@@ -384,6 +385,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     assertTenantEntityIndexesCurrent(db);
   }),
   defineMigration(40, "add-account-date-style", ACCOUNT_DATE_STYLE_V40_DEFINITION, runAccountDateStyleV40),
+  defineMigration(41, "add-ownership-transfer-requests", OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, runOwnershipTransfersV41),
 ];
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {

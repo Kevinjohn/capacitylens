@@ -30,7 +30,7 @@ const appBoundaryFiles = boundaryPaths(serverRoot, "productRoutes");
 // the plural `accounts`, so it can be enforced here without confusing the two ownership zones.
 const sqlTableOperation = String.raw`\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|(?:CREATE\s+)?TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE|DROP\s+TABLE)\s+(?:["'\x60]|\[)?(?:\w+\.)?(?:["'\x60]|\[)?`;
 const identitySql = new RegExp(`${sqlTableOperation}(?:user|session|account|verification|twoFactor)\\b`, "i");
-const accountSql = new RegExp(`${sqlTableOperation}(?:account_members|invites)\\b`, "i");
+const accountSql = new RegExp(`${sqlTableOperation}(?:account_members|account_ownership_transfers|invites)\\b`, "i");
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -266,24 +266,25 @@ describe("account-boundary architecture", () => {
   });
 });
 
+// Raw identity SQL belongs to the vendor lifecycle and concrete identity-port implementations.
+// A newly added sibling is denied until its specific storage responsibility is reviewed here.
+const identitySqlOwners = new Set([
+  resolve(serverRoot, "auth.ts"),
+  resolve(serverRoot, "authConfig/authAdapter.ts"),
+  resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
+  resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
+  resolve(serverRoot, "authConfig/sessionActivity.ts"),
+  resolve(serverRoot, "accounts/identityPort/credentials.ts"),
+  resolve(serverRoot, "accounts/identityPort/cutover.ts"),
+  resolve(serverRoot, "accounts/identityPort/erasure.ts"),
+  resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
+  resolve(serverRoot, "accounts/identityPort/inspection.ts"),
+  resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
+  resolve(serverRoot, "accounts/identityPort/sessions.ts"),
+]);
+
 describe("account-boundary architecture", () => {
   it("makes account and identity storage ownership deny-by-default across production source", () => {
-    // Raw identity SQL belongs to the vendor lifecycle and concrete identity-port implementations.
-    // A newly added sibling is denied until its specific storage responsibility is reviewed here.
-    const identitySqlOwners = new Set([
-      resolve(serverRoot, "auth.ts"),
-      resolve(serverRoot, "authConfig/authAdapter.ts"),
-      resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
-      resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
-      resolve(serverRoot, "authConfig/sessionActivity.ts"),
-      resolve(serverRoot, "accounts/identityPort/credentials.ts"),
-      resolve(serverRoot, "accounts/identityPort/cutover.ts"),
-      resolve(serverRoot, "accounts/identityPort/erasure.ts"),
-      resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
-      resolve(serverRoot, "accounts/identityPort/inspection.ts"),
-      resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
-      resolve(serverRoot, "accounts/identityPort/sessions.ts"),
-    ]);
     // Product membership/invitation SQL is confined to schema/lifecycle owners, the control-table
     // implementation and the two named operations that update tracking or settle invitations.
     const accountSqlOwners = new Set([
@@ -294,6 +295,8 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "controlTables/invites.ts"),
       resolve(serverRoot, "controlTables/members.ts"),
       resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/ownershipTransfers.ts"),
+      resolve(serverRoot, "controlTables/ownershipTransfersSchema.ts"),
       resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
@@ -308,6 +311,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "controlTables/invites.ts"),
       resolve(serverRoot, "controlTables/members.ts"),
       resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/ownershipTransfers.ts"),
       resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/adminPort/authority.ts"),
       resolve(serverRoot, "accounts/adminPort/cutover.ts"),
@@ -336,12 +340,16 @@ describe("account-boundary architecture", () => {
   });
 });
 
+/** Route-layer files may not prepare a statement naming an identity or account control table. */
+const routeLayerPrepareBan =
+  /\b(?:user|session|account_members|account_ownership_transfers|invites)\b[^\n]*\.prepare\s*\(/;
+
 describe("account-boundary architecture", () => {
   it("prevents product routes from reaching identity or membership storage directly", () => {
     for (const file of appBoundaryFiles) {
       const source = read(file);
       expect(internalImports(resolve(serverRoot, file), () => true).filter(isControlTable), file).toEqual([]);
-      expect(source).not.toMatch(/\b(?:user|session|account_members|invites)\b[^\n]*\.prepare\s*\(/);
+      expect(source).not.toMatch(routeLayerPrepareBan);
       expect(importSpecifiers(resolve(serverRoot, file)).filter(isAuthVendor), file).toEqual([]);
     }
   });
