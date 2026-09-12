@@ -26,8 +26,10 @@ import { DATE_STYLES, DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@
 // style, leading for a month-first style). A same-year range shows the year once, at the very end.
 // A range crossing a year boundary collapses nothing: every endpoint carries day, month and year —
 // in `formatShortDateRange` and `formatDayMonthRange` too, the two that otherwise never print a
-// year, because without it a range from one September to the next reads as a single day. The range
-// separator is always ` – ` (U+2013 EN DASH), never a hyphen.
+// year, because without it a range from one September to the next reads as a single day. The one
+// deliberate exception is `formatWeekColumnRange`, whose dates sit in an ordered run of adjacent
+// week columns; neighbouring headers establish the ordered calendar context, while the narrow cell
+// stays compact. The range separator is always ` – ` (U+2013 EN DASH), never a hyphen.
 //
 // COLLAPSE IN ACCESSIBLE NAMES: a name that labels a control sitting beside a visible date range
 // uses the same collapsed string that range shows, so a voice-control user can speak what is on
@@ -118,6 +120,18 @@ function buildPattern(descriptor: DateStyleDescriptor, parts: DateParts): string
  */
 type PartsFor = (descriptor: DateStyleDescriptor) => DateParts;
 
+interface RangeOptions {
+  /** Used only by the ordered week-column header, where adjacent cells establish calendar context. */
+  collapseYearBoundary?: boolean;
+}
+
+interface RangeInput {
+  startDate: ISODate;
+  endDate: ISODate;
+  partsFor: PartsFor;
+  options?: RangeOptions;
+}
+
 function formatSingle(date: ISODate, partsFor: PartsFor): string {
   const descriptor = resolveDescriptor();
   return format(parseDate(date), buildPattern(descriptor, partsFor(descriptor)), {
@@ -131,7 +145,7 @@ function formatSingle(date: ISODate, partsFor: PartsFor): string {
  * year prints every part at both ends; inside a year the month appears once when both ends share
  * it, and the year (when the helper carries one) always trails the range rather than each endpoint.
  */
-function formatRange(startDate: ISODate, endDate: ISODate, partsFor: PartsFor): string {
+function formatRange({ startDate, endDate, partsFor, options = {} }: RangeInput): string {
   if (startDate === endDate) return formatSingle(startDate, partsFor);
   const descriptor = resolveDescriptor();
   const parts = partsFor(descriptor);
@@ -140,7 +154,7 @@ function formatRange(startDate: ISODate, endDate: ISODate, partsFor: PartsFor): 
   const end = parseDate(endDate);
   const render = (date: Date, pattern: string) => format(date, pattern, { locale });
 
-  if (start.getFullYear() !== end.getFullYear()) {
+  if (start.getFullYear() !== end.getFullYear() && !options.collapseYearBoundary) {
     const full = buildPattern(descriptor, { ...parts, year: true });
     return `${render(start, full)} – ${render(end, full)}`;
   }
@@ -182,7 +196,7 @@ export function formatShortDate(date: ISODate): string {
  * {@link formatShortDate}.
  */
 export function formatShortDateRange(startDate: ISODate, endDate: ISODate): string {
-  return formatRange(startDate, endDate, shortParts);
+  return formatRange({ startDate, endDate, partsFor: shortParts });
 }
 
 const dayMonthParts = (descriptor: DateStyleDescriptor): DateParts => ({
@@ -211,7 +225,22 @@ export function formatDayMonth(date: ISODate): string {
  * same-day range degrades to {@link formatDayMonth}.
  */
 export function formatDayMonthRange(startDate: ISODate, endDate: ISODate): string {
-  return formatRange(startDate, endDate, dayMonthParts);
+  return formatRange({ startDate, endDate, partsFor: dayMonthParts });
+}
+
+/**
+ * A week-column header in an ordered run of consecutive weeks: the same range as
+ * {@link formatDayMonthRange}, minus the year across a year boundary. The neighbouring columns
+ * establish the ordered calendar context, and the cell is too narrow to spend two lines on it. Do
+ * NOT use this anywhere a range stands alone — that is what the year exists for.
+ */
+export function formatWeekColumnRange(startDate: ISODate, endDate: ISODate): string {
+  return formatRange({
+    startDate,
+    endDate,
+    partsFor: dayMonthParts,
+    options: { collapseYearBoundary: true },
+  });
 }
 
 /**
@@ -260,7 +289,7 @@ export function formatScheduleDate(date: ISODate): string {
  * date at both endpoints. A one-day range is rendered as one full date.
  */
 export function formatScheduleDateRange(startDate: ISODate, endDate: ISODate): string {
-  return formatRange(startDate, endDate, scheduleParts);
+  return formatRange({ startDate, endDate, partsFor: scheduleParts });
 }
 
 /** A month and year with no day, no style: "Sep 2026". Used for calendar-header-style context. */
