@@ -254,13 +254,14 @@ describe("account-boundary architecture", () => {
     const accountPolicy = readFileSync(resolve(sharedAccountRoot, "policy.ts"), "utf8");
     const productThresholds = productPolicy.match(/const MIN_TIER = \{[\s\S]*?\n\}/)?.[0] ?? "";
     expect(productThresholds).not.toMatch(
-      /manageMembers|manageInvites|manageMemberSignInTracking|deleteAccount|transferOwnership/,
+      /manageMembers|manageInvites|manageMemberSignInTracking|deleteAccount|transferOwnership|actOnOwnershipTransfer/,
     );
     expect(productPolicy).toContain("canAdministerAccount(role, accountAction)");
     expect(accountPolicy).toMatch(/['"]manage-members['"]:\s*['"]admin['"]/);
     expect(accountPolicy).toMatch(/['"]manage-invitations['"]:\s*['"]admin['"]/);
     expect(accountPolicy).toMatch(/['"]manage-member-sign-in-tracking['"]:\s*['"]owner['"]/);
     expect(accountPolicy).toMatch(/['"]transfer-ownership['"]:\s*['"]owner['"]/);
+    expect(accountPolicy).toMatch(/['"]act-on-ownership-transfer['"]:\s*['"]admin['"]/);
     expect(accountPolicy).toMatch(/['"]erase-workspace['"]:\s*['"]owner['"]/);
   });
 });
