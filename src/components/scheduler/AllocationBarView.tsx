@@ -7,7 +7,7 @@ import type {
 } from "react";
 import { Repeat2 } from "lucide-react";
 import { m } from "@/i18n";
-import { formatDayMonth, formatDayMonthRange } from "../../lib/dateDisplay";
+import { formatDayMonthEndpoint, formatDayMonthRange } from "../../lib/dateDisplay";
 import { resolveAllocationStatusLabel } from "../../lib/metadata";
 import { TooltipContent, TooltipRoot, TooltipTrigger } from "../ui/tooltip";
 import { LAYOUT } from "./layout";
@@ -186,7 +186,7 @@ function BarPopover({
       {bar.seriesEnd && (
         <div className="mt-1 text-muted-foreground">
           <Repeat2 aria-hidden className="mr-1 inline size-3" />
-          {m.scheduler_bar_pop_series({ end: formatDayMonth(bar.seriesEnd) })}
+          {m.scheduler_bar_pop_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.startDate) })}
         </div>
       )}
       {showTaskFieldInSchedule && bar.allocation.task && (

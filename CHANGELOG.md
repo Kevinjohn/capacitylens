@@ -24,6 +24,9 @@ new features and **patch** versions carry fixes.
 
 - Show both years on a date range that crosses one, instead of a repeated month that read as a
   single day (#819).
+- Carry the year into the screen-reader names and the "series through" line for a booking or a
+  time-off entry that crosses a year, so a spoken `28 Dec to 8 Jan` can no longer read as a range
+  running backwards through the year (#793).
 - Name the company-closure Edit and Delete buttons with the date range shown on the row they act
   on, so a voice-control user can speak what is on screen (#793).
 - Reduced memory pressure during direct deployment builds by keeping test and build-tool type-checking
