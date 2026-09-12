@@ -8,7 +8,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import { makeAccount, makeAllocation as makeAllocationBase, makeBar as makeBarBase } from "../../test/fixtures";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
-import { LAYOUT } from "./layout";
+import { buildAllocationBarInset } from "./layout";
 import { buildVisibleSpanInsets } from "./visibleSpanInsets";
 
 beforeEach(() => {
@@ -65,8 +65,9 @@ describe("AllocationBar rendering", () => {
     render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     const barElement = screen.getByTestId("allocation-bar");
-    expect(barElement.style.getPropertyValue("--bar-left")).toBe(`${LAYOUT.barInset}px`);
-    expect(barElement.style.getPropertyValue("--bar-width")).toBe(`${bar.width - LAYOUT.barInset * 2}px`);
+    const expectedInset = buildAllocationBarInset(bar.x, bar.width);
+    expect(barElement.style.getPropertyValue("--bar-left")).toBe(`${expectedInset.insetLeft}px`);
+    expect(barElement.style.getPropertyValue("--bar-width")).toBe(`${expectedInset.insetWidth}px`);
 
     const label = screen.getByTestId("allocation-bar-label");
     const insets = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");

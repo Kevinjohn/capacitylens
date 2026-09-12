@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
-import { LAYOUT } from "./layout";
+import { buildAllocationBarInset } from "./layout";
 import { useStore } from "../../store/useStore";
 import { resetStoreWithAccount, makeResourceDraft } from "../../test/fixtures";
 import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/schedulerTestKit";
@@ -129,15 +129,14 @@ function registerSourceCalendarTest() {
   const monToFri = [1, 2, 3, 4, 5] as const;
 
   /** The bar is drawn inset inside its column span, so its rendered width is not the raw geometry
-   *  width. Mirror `buildBarInset` rather than hard-coding the difference. */
+   *  width. Use the same geometry owner as production rather than reimplementing the formula. */
   const renderedWidth = (from: string, to: string) => {
-    const raw = GEOM.widthForDates(from, to);
-    return Math.max(1, raw - Math.min(LAYOUT.barInset, raw / 3) * 2);
+    return buildAllocationBarInset(GEOM.xForDateInGeom(from), GEOM.widthForDates(from, to)).insetWidth;
   };
 
-  /** The bar's rendered left edge: its column position plus the same inset. */
+  /** The bar's rendered left edge, from the same shared geometry owner as production. */
   const renderedLeft = (from: string, to: string) =>
-    GEOM.xForDateInGeom(from) + Math.min(LAYOUT.barInset, GEOM.widthForDates(from, to) / 3);
+    buildAllocationBarInset(GEOM.xForDateInGeom(from), GEOM.widthForDates(from, to)).insetLeft;
 
   function seedCrossWeekPair() {
     const st = useStore.getState();
