@@ -8,7 +8,6 @@ import {
   removeMember as removeMemberRow,
   setMemberStatus,
   upsertMember,
-  withOwnershipTransferExemption,
   type AccountMember,
 } from "../../controlTables";
 import { getRow, type Db } from "../../db";
@@ -260,22 +259,18 @@ export function exchangeOwnershipInTx({
   nextOwnerId,
   now,
 }: ExchangeOwnershipInput): OwnershipTransfer {
-  withOwnershipTransferExemption(() => {
-    upsertMember(db, {
-      accountId: workspaceId,
-      userId: previousOwnerId,
-      role: "admin",
-      status: "active",
-      createdAt: now,
-    });
-    upsertMember(db, {
-      accountId: workspaceId,
-      userId: nextOwnerId,
-      role: "owner",
-      status: "active",
-      createdAt: now,
-    });
-  });
+  // "keep": these two writes ARE the ceremony completing, so they must not invalidate the request
+  // they are applying. Every other membership write ends a live nomination naming its principal.
+  upsertMember(
+    db,
+    { accountId: workspaceId, userId: previousOwnerId, role: "admin", status: "active", createdAt: now },
+    "keep",
+  );
+  upsertMember(
+    db,
+    { accountId: workspaceId, userId: nextOwnerId, role: "owner", status: "active", createdAt: now },
+    "keep",
+  );
   return {
     previousOwner: readMembership(db, readRequiredMembership(db, previousOwnerId, workspaceId)),
     nextOwner: readMembership(db, readRequiredMembership(db, nextOwnerId, workspaceId)),
