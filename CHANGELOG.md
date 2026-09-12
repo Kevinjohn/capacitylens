@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Scale Overview capacity bars against the company working days in each column, so people with
+  different working patterns remain visually comparable (#890).
+
 ## [0.67.0-alpha.1] - 2026-09-12
 
 ### Added

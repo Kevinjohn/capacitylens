@@ -5,6 +5,8 @@ export type CapacityOverviewState = "available" | "fully-booked" | "unavailable"
 
 export interface CapacityOverviewWeekResult {
   week: CapacityOverviewWeek;
+  /** Eight hours for each company working day in this column's date range. */
+  companyWorkingHours: number;
   availableHours: number;
   allocatedHours: number;
   freeHours: number;
