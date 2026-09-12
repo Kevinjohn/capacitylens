@@ -63,8 +63,7 @@ function freshDb(): Db {
 
 function stateOf(db: Db, id: string): string | undefined {
   const row = db.prepare(`SELECT state FROM account_ownership_transfers WHERE id = ?`).get(id) as
-    | { state: string }
-    | undefined;
+    { state: string } | undefined;
   return row?.state;
 }
 
