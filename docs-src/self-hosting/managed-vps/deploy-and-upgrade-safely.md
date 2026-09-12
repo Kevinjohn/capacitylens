@@ -108,10 +108,9 @@ only if it lists exactly four commands — `status`, `stop`, `start` and `restar
 this Supervisor configuration path. Only the three process-changing commands — `stop`, `start` and
 `restart` — are additionally pinned to this Supervisor group; `status` intentionally lists all
 Supervisor processes. A bare `/usr/bin/supervisorctl` entry is the old, broad grant and must be
-replaced first. If you replace both process-control calls
-with separate platform stop and start actions instead, continue after configuring and testing those
-actions. If the status command prints `sudo: a password is required`, choose one of the two fixes
-below.
+replaced first. If you replace both process-control calls with separate platform stop and start
+actions instead, continue after configuring and testing those actions. If the status command
+prints `sudo: a password is required`, choose one of the two fixes below.
 
 ### Use the platform's separate stop and start actions
 
@@ -157,7 +156,8 @@ rather than saving a broken file, because a broken sudoers file can lock everyon
 Sudoers matches the arguments as one string. The escaped colon and asterisk therefore match the
 literal group argument, while an extra process name is denied. The `status` command still lists all
 Supervisor processes, but it cannot change them; stop, start and restart are limited to this group.
-Other sudoers rules and a Supervisor socket readable by the site user are outside this page.
+Other sudoers rules and a Supervisor socket readable by the site user remain outside this limited
+rule set.
 
 If you already installed the broad line, edit the same file with `visudo -f` and replace it with the
 four lines above. Run `sudo -l -U capacity-example` and confirm no unrestricted `supervisorctl`
