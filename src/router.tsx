@@ -114,7 +114,7 @@ export const router = createBrowserRouter([
     errorElement: <RouteError />,
     children: [
       { index: true, element: <SchedulerView /> },
-      { path: "capacity-overview", element: <CapacityOverviewRoute /> },
+      { path: "overview", element: <CapacityOverviewRoute /> },
       { path: "resources", element: <ResourceList /> },
       // External / 3rd parties moved into the Resources tab (behind the per-account
       // `externalEnabled` setting). Keep the old path so saved bookmarks don't 404 — redirect

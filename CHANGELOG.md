@@ -7,10 +7,66 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.66.0-alpha.1] - 2026-09-12
+
+### Fixed
+
+- Keep an allocation's length when it is dragged to someone with different working days: the
+  duration is now measured against the working week it came from and re-placed in the new one,
+  so a two-day booking stays two days instead of being re-read against the destination's calendar.
+  The drag preview shows the resulting length before release (#338).
+
+### Added
+
+- Add a **Show totals** / **Hide totals** toggle to the Overview toolbar, hiding group header
+  figures by default (#794).
+- Add a **Bar** / **Bar & number** / **Number** capacity display toggle to the Overview toolbar,
+  filling each cell from the bottom with free (green) or overbooked (red) capacity proportioned
+  against that week's own availability (#795).
+- Open a person's read-only schedule drawer from their avatar on Overview rows, using the same
+  hover/focus-to-eye trigger and 28-day drawer as the Schedule (#790).
+
+### Changed
+
+- Rename "Capacity Overview" to "Overview" in the sidebar, page heading, table, settings and
+  route (`/overview`); no redirect from the old `/capacity-overview` path (#791).
+
+## [0.65.0-alpha.1] - 2026-09-12
+
+### Fixed
+
+- Restore importing and exporting after the account date-format change: the export schema version
+  had moved ahead of the migration steps, so every import and export failed with an internal
+  migration message (#866).
+
+### Changed
+
+- The date format is a company setting rather than a per-browser one, so everyone in an account
+  reads the schedule in the same convention. An editor or above sets it in Settings → **Date
+  format**; a viewer sees it, disabled. It applies immediately, without a reload, and it is part of
+  the account — present in Export JSON and undoable like any other account change (#866). It never
+  shipped as the device preference the Added entry below first described.
+
+## [0.64.1-alpha.1] - 2026-09-12
+
+### Fixed
+
+- Highlight company closures the same way as personal time off when the schedule's draw mode is
+  switched to Time off, instead of leaving the closure band unchanged (#787).
+- Keep an allocation bar's label inside the part of the bar on screen, so a booking that started
+  before the visible window is no longer unlabelled (#786).
+- Show a company closure's name in the standard text colour and keep it centred in the part of the
+  band on screen, so the closure stays named after scrolling a long list of people (#788).
+
+## [0.64.0-alpha.1] - 2026-09-12
+
 ### Fixed
 
 - Show both years on a date range that crosses one, instead of a repeated month that read as a
   single day (#819).
+- Carry the year into the screen-reader names and the "series through" line for a booking or a
+  time-off entry that crosses a year, so a spoken `28 Dec to 8 Jan` can no longer read as a range
+  running backwards through the year (#793).
 - Name the company-closure Edit and Delete buttons with the date range shown on the row they act
   on, so a voice-control user can speak what is on screen (#793).
 - Type-check the browser sources against `DOM.Iterable`, so iterating a live DOM collection
@@ -19,9 +75,22 @@ new features and **patch** versions carry fixes.
   in validation while checking only browser-shipped sources in `pnpm run build`.
 
 - Keep schedule group headers above company closure shading (#766).
+- Warn how many active allocations an activity archive would pull out of the schedule, matching the
+  existing client and project archive copy (#805).
+- Show a notice instead of failing silently when a member view is started while another start is
+  already in flight, and show the generic persistence message instead of a raw internal error when a
+  resource save fails through batch reconciliation (#806).
+- Keep the archive confirmation on screen when the row stops being active while the dialog is open,
+  instead of losing the page to an error (#817).
 
 ### Changed
 
+- Ask for the password again only for high-impact administration — ownership transfer, resetting
+  another member's password, revoking another member's sessions, company deletion, import/purge and
+  SSO cutover/identity link and repair — and drop the re-prompt from invites, role and status changes,
+  member removal, the sign-in-tracking toggle, masquerade start and internal-client adoption (#807).
+- Default the sidebar to collapsed below 1024px viewport width so it no longer crowds the
+  schedule on tablet-sized screens; a saved open/closed choice still wins (#792).
 - Make company creation actions responsive and spaced, use equal-width week-start choices, and
   replace the overwhelming timezone select with a searchable browser-aware IANA combobox that
   presents local/common zones first and reflects daylight-saving abbreviations (#740).
@@ -58,8 +127,7 @@ new features and **patch** versions carry fixes.
   the current-user control on every main page (#744).
 - Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
   server health metadata that can be copied for support reports (#745).
-- Add a Date format device preference to Settings → Appearance, choosing between 9 Sep, 9th Sep, Sep 9 and
-  Sep 9th (#793).
+- Add a Date format company setting, choosing between 9 Sep, 9th Sep, Sep 9 and Sep 9th (#793, #866).
 - Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,
   activity creation, company-settings review and direct links to each action (#741).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
@@ -4281,7 +4349,11 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.66.0-alpha.1...HEAD
+[0.66.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.65.0-alpha.1...v0.66.0-alpha.1
+[0.65.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.64.1-alpha.1...v0.65.0-alpha.1
+[0.64.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.64.0-alpha.1...v0.64.1-alpha.1
+[0.64.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...v0.64.0-alpha.1
 [0.63.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.1-alpha.1...v0.63.0-alpha.1
 [0.62.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...v0.62.1-alpha.1
 [0.62.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.62.0-alpha.5
