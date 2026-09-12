@@ -1098,7 +1098,7 @@ Ordered by how likely they are to catch a real defect.
 11. Audit failure after provider-account insertion → reconciliation detects it.
 12. Federated-only users created after cutover; IdP-outage rollback for both cohorts.
 13. `server/src/accounts/conformance/localIdentityPort.conformance.test.ts` — assurance behaviour.
-14. `server/src/app.auth.test.ts` — `describe("CAPACITYLENS_AUTH sso")` has **no password→sso
+14. `server/src/app.auth.providers.test.ts` — `describe("CAPACITYLENS_AUTH sso")` has **no password→sso
     transition cases at all** today.
 15. `server/src/accountConfig.test.ts` (strict-OIDC material required for mixed/SSO-only), `:250`
     (external providers refused on the password-only profile) — the two boot constraints that force

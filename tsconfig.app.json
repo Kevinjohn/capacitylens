@@ -2,7 +2,12 @@
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "es2023",
-    "lib": ["ES2023", "DOM"],
+    /* DOM.Iterable is listed explicitly, not because the compile currently needs it: this
+       TypeScript folds the iterable NodeList declarations into lib.dom.d.ts, so
+       `for (const el of document.querySelectorAll(…))` in src/lib/shortcutGuards.ts type-checks
+       under plain DOM today. Naming the lib states the requirement the source actually has
+       rather than leaning on where a given TypeScript release happens to declare it. */
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "module": "esnext",
     "types": ["vite/client"],
     "skipLibCheck": true,

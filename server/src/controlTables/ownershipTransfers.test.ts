@@ -9,7 +9,7 @@ import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/ac
 import { openDb, wipe, type Db } from "../db";
 import {
   OWNERSHIP_TRANSFER_LIVE_INDEX,
-  OWNERSHIP_TRANSFER_REQUESTS_V40_SQL,
+  OWNERSHIP_TRANSFER_REQUESTS_V41_SQL,
   OWNERSHIP_TRANSFER_TARGET_INDEX,
   assertOwnershipTransfersCurrent,
 } from "./ownershipTransfersSchema";
@@ -67,19 +67,19 @@ function stateOf(db: Db, id: string): string | undefined {
   return row?.state;
 }
 
-describe("the v40 migration body", () => {
+describe("the v41 migration body", () => {
   // The DDL spells the two unions out as literals because its text is folded into the ledger
   // checksum and may never be regenerated from a live shared constant. This is the drift guard that
   // makes that safe: it lives OUTSIDE the checksum, so adding a state to the shared contract fails
   // here — where the answer is a new migration — rather than silently on someone's disk.
   it("pins the same states and terminal reasons as the shared contract", () => {
     for (const state of OWNERSHIP_TRANSFER_STATES) {
-      expect(OWNERSHIP_TRANSFER_REQUESTS_V40_SQL).toContain(`'${state}'`);
+      expect(OWNERSHIP_TRANSFER_REQUESTS_V41_SQL).toContain(`'${state}'`);
     }
     for (const reason of OWNERSHIP_TRANSFER_TERMINAL_REASONS) {
-      expect(OWNERSHIP_TRANSFER_REQUESTS_V40_SQL).toContain(`'${reason}'`);
+      expect(OWNERSHIP_TRANSFER_REQUESTS_V41_SQL).toContain(`'${reason}'`);
     }
-    const quoted = [...OWNERSHIP_TRANSFER_REQUESTS_V40_SQL.matchAll(/'([a-z_]+)'/g)].map(([, value]) => value ?? "");
+    const quoted = [...OWNERSHIP_TRANSFER_REQUESTS_V41_SQL.matchAll(/'([a-z_]+)'/g)].map(([, value]) => value ?? "");
     const vocabulary = new Set<string>([...OWNERSHIP_TRANSFER_STATES, ...OWNERSHIP_TRANSFER_TERMINAL_REASONS]);
     expect(quoted.filter((value) => !vocabulary.has(value))).toEqual([]);
   });
@@ -434,16 +434,16 @@ describe("nextOwnershipTransferRevision", () => {
 
 // The stopped-server repair commands deliberately run against a database whose migration 40 is
 // still pending, and application migrations v12/v14 drive membership writes on a handle that has
-// not reached v40 either. A live request cannot exist on such a handle, so the terminalisers answer
+// not reached v41 either. A live request cannot exist on such a handle, so the terminalisers answer
 // "nothing to end" rather than failing with an opaque `no such table`.
-describe("a database that has not reached v40", () => {
-  function preV40Db(): Db {
+describe("a database that has not reached v41", () => {
+  function preV41Db(): Db {
     const db = new DatabaseSync(":memory:") as unknown as Db;
     return db;
   }
 
   it("ends nothing, deletes nothing and throws nothing", () => {
-    const db = preV40Db();
+    const db = preV41Db();
     expect(terminaliseLiveRequestsForAccount({ db, accountId: WAYNE, reason: "account_erased", now: NOW })).toEqual([]);
     expect(
       terminaliseLiveRequestsForMember({

@@ -33,10 +33,11 @@ export {
 } from "./controlTables/inviteRetention";
 export type { InviteSummary } from "./controlTables/inviteRetention";
 export {
-  OWNERSHIP_TRANSFER_REQUESTS_V40_SQL,
+  OWNERSHIP_TRANSFER_REQUESTS_V41_SQL,
   OWNERSHIP_TRANSFER_LIVE_INDEX,
   OWNERSHIP_TRANSFER_TARGET_INDEX,
   assertOwnershipTransfersCurrent,
+  runOwnershipTransfersV41,
 } from "./controlTables/ownershipTransfersSchema";
 export {
   nextOwnershipTransferRevision,
