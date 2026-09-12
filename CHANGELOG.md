@@ -17,9 +17,20 @@ new features and **patch** versions carry fixes.
   in validation while checking only browser-shipped sources in `pnpm run build`.
 
 - Keep schedule group headers above company closure shading (#766).
+- Warn how many active allocations an activity archive would pull out of the schedule, matching the
+  existing client and project archive copy (#805).
+- Show a notice instead of failing silently when a member view is started while another start is
+  already in flight, and show the generic persistence message instead of a raw internal error when a
+  resource save fails through batch reconciliation (#806).
+- Keep the archive confirmation on screen when the row stops being active while the dialog is open,
+  instead of losing the page to an error (#817).
 
 ### Changed
 
+- Ask for the password again only for high-impact administration — ownership transfer, resetting
+  another member's password, revoking another member's sessions, company deletion, import/purge and
+  SSO cutover/identity link and repair — and drop the re-prompt from invites, role and status changes,
+  member removal, the sign-in-tracking toggle, masquerade start and internal-client adoption (#807).
 - Default the sidebar to collapsed below 1024px viewport width so it no longer crowds the
   schedule on tablet-sized screens; a saved open/closed choice still wins (#792).
 - Make company creation actions responsive and spaced, use equal-width week-start choices, and
