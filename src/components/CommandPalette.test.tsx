@@ -114,6 +114,66 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Team & access")).toBeInTheDocument();
   });
 
+  it("lists every page exactly once, including Account, with disciplines on or off", () => {
+    const expectedWithDisciplines = [
+      "Overview",
+      "Schedule",
+      "Resources",
+      "Disciplines",
+      "Clients",
+      "Projects",
+      "Activities",
+      "Time off",
+      "Team & access",
+      "Settings",
+      "Account",
+    ];
+    const expectedWithoutDisciplines = [
+      "Overview",
+      "Schedule",
+      "Resources",
+      "Clients",
+      "Projects",
+      "Activities",
+      "Time off",
+      "Team & access",
+      "Settings",
+      "Account",
+    ];
+    const pageLabels = () =>
+      screen
+        .getAllByTestId("command-palette-option")
+        .slice(1)
+        .map((option) => option.firstElementChild?.textContent);
+
+    renderPalette();
+    expect(pageLabels()).toEqual(expectedWithDisciplines);
+    expect(screen.getAllByText("Account", { exact: true })).toHaveLength(1);
+
+    act(() => {
+      useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
+    });
+    expect(pageLabels()).toEqual(expectedWithoutDisciplines);
+    expect(screen.getAllByText("Account", { exact: true })).toHaveLength(1);
+  });
+
+  it("navigates to Account and closes the palette when its page item is selected", () => {
+    let closed = false;
+    renderPalette(() => {
+      closed = true;
+    });
+
+    const accountOption = screen
+      .getAllByTestId("command-palette-option")
+      .find((option) => option.textContent.includes("Account"));
+    if (!accountOption) throw new Error("Expected Account command palette option");
+
+    fireEvent.click(accountOption);
+
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/account");
+    expect(closed).toBe(true);
+  });
+
   it("has correct ARIA attributes for combobox pattern", async () => {
     renderPalette();
 

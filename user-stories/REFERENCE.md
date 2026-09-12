@@ -1264,7 +1264,7 @@ the palette does **not** open. A clean overlapping dialog (including the portrai
 hint) cannot clear that protection; it remains active until every dirty owner closes or saves.
 Closed by **Escape**, backdrop click, or selecting an item.
 
-**Sections shown (no query):** Actions ("Go to today"), Pages (all 9 routes; 8 — no Disciplines — when the company turns disciplines off).
+**Sections shown (no query):** Actions ("Go to today"), Pages (all 11 routes; 10 — no Disciplines — when the company turns disciplines off).
 **Sections shown (with query):** any of the above that match, plus People, Projects, Clients,
 Activities. Matching is case- and diacritic-insensitive, so an unaccented query such as `jose` or
 `muller` finds labels such as **José** or **Müller**. Palette visibility follows the result's

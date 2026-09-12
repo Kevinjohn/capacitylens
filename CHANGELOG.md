@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Include the Account page in the command palette's Pages results (#938).
 - Scale Overview capacity bars against the company working days in each column, so people with
   different working patterns remain visually comparable (#890).
 - Keep the Overview's ordered week-column headers compact across a year boundary, so the one
