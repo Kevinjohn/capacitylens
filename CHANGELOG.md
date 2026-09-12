@@ -125,6 +125,8 @@ new features and **patch** versions carry fixes.
 - Add a **Bar** / **Bar & number** / **Number** capacity display toggle to the Overview toolbar,
   filling each cell from the bottom with free (green) or overbooked (red) capacity proportioned
   against that week's own availability (#795).
+- Open a person's read-only schedule drawer from their avatar on Overview rows, using the same
+  hover/focus-to-eye trigger and 28-day drawer as the Schedule (#790).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is
   hidden and task details above Notes in schedule popovers and person drawers (#720).
 - Add optional inclusive **Start date** and **End date** fields for Studio and

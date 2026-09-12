@@ -19,8 +19,8 @@ import { useActiveScopedData } from "../../store/useScopedData";
 import { useStore } from "../../store/useStore";
 import { buildPersonSchedule } from "./personScheduleModel";
 import type { PersonScheduleResult } from "./personScheduleTypes";
-import { reportInvalidScheduleDateRangeOnce } from "./schedulerModelIndexing";
-import { useCalendarToday } from "./useCalendarToday";
+import { reportInvalidScheduleDateRangeOnce } from "../scheduler/schedulerModelIndexing";
+import { useCalendarToday } from "../scheduler/useCalendarToday";
 
 export interface UsePersonScheduleInput {
   accountId: ID | null;
