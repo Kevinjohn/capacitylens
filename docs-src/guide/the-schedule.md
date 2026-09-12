@@ -211,10 +211,11 @@ nothing to recalculate — what you see is always current.
 ## Jump to a page with the command palette
 
 Press **⌘K** on macOS or **Ctrl+K** on Windows and Linux to open the command palette from any
-screen, even while a text field is focused. With no query, the **Pages** section lists every
-sidebar destination, including **Account**; select one to navigate there and close the palette.
-Type a page name, person, project or date to narrow the results. Press **Escape** or click outside
-the palette to close it without navigating.
+screen, even while a text field is focused — unless a dialog has unsaved changes or another dialog
+is already open, in which case ⌘K/Ctrl+K is blocked until it's closed or saved. With no query, the
+**Pages** section lists the fixed application routes, including **Account**; select one to navigate
+there and close the palette. Type a page name, person, project or date to narrow the results. Press
+**Escape** or click outside the palette to close it without navigating.
 
 ## What's next
 
