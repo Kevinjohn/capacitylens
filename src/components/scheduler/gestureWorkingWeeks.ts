@@ -1,4 +1,5 @@
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
+import { weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import type { ID, ISODate, Weekday } from "@capacitylens/shared/types/entities";
 import { listAccountWorkingDays } from "../../store/selectors";
 import { useStore } from "../../store/useStore";
@@ -46,6 +47,19 @@ interface DropStartQuery {
   ignoreWeekends: boolean | undefined;
 }
 
+interface DropStartWorkingDaysQuery {
+  workingDays: Weekday[] | undefined;
+  date: ISODate;
+  ignoreWeekends: boolean | undefined;
+}
+
+interface PreviewDropQuery {
+  workingDays: Weekday[] | undefined;
+  result: { kind: "blocked" } | { kind: "unchanged" } | { kind: "ready"; dates: { startDate: ISODate } };
+  isReassignment: boolean;
+  ignoreWeekends: boolean | undefined;
+}
+
 /** Would a drop starting on `date` be refused because `resourceId` does not work that day? The one
  *  answer the live drag preview and the commit both ask, so the bar cannot draw a placement the
  *  release is about to reject. An absent resource is not blocked — its own gate rejects it. */
@@ -53,6 +67,21 @@ export function isDropStartBlocked({ resourceId, date, ignoreWeekends }: DropSta
   const { resource, accountWorkingDays } = readResource(resourceId);
   if (!resource) return false;
   return isAllocationMoveStartBlocked({ resource, date, accountWorkingDays, ignoreWorkingDays: ignoreWeekends });
+}
+
+/** The preview already resolved the destination's effective week for this gesture frame. Keep the
+ * gate on that snapshot rather than resolving the same resource and store state a second time. */
+export function isDropStartBlockedForWorkingDays({ workingDays, date, ignoreWeekends }: DropStartWorkingDaysQuery) {
+  if (ignoreWeekends || workingDays === undefined) return false;
+  return !workingDays.includes(weekdayOf(date));
+}
+
+/** Apply the destination start gate to the effective week already memoised for this preview. */
+export function isPreviewDropBlocked({ workingDays, result, isReassignment, ignoreWeekends }: PreviewDropQuery) {
+  if (!isReassignment || workingDays === undefined) return false;
+  if (result.kind === "blocked") return true;
+  if (result.kind !== "ready") return false;
+  return isDropStartBlockedForWorkingDays({ workingDays, date: result.dates.startDate, ignoreWeekends });
 }
 
 /** `readWorkingDays` memoised for the span of one gesture, keyed by resource. A working-week edit
