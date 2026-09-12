@@ -60,8 +60,6 @@ function TrailingSpacer({ renderedIndices, layout, heights }: Pick<Props, "rende
 
 export function SchedulerGridRows(props: Props) {
   const { items, renderedIndices, timelineStart, timelineEnd, visibleClosures, trackedGridHeight, geom } = props;
-  const firstResourceIndex = items.findIndex((item) => item.kind === "row");
-  const closureLabelTop = firstResourceIndex === -1 ? 0 : (props.layout.tops[firstResourceIndex] ?? 0);
   return (
     <>
       {items.length > 0 && (
@@ -81,7 +79,6 @@ export function SchedulerGridRows(props: Props) {
                 geom={geom}
                 leftOffset={LAYOUT.leftColWidth}
                 height={trackedGridHeight}
-                labelTop={closureLabelTop}
               />
             ))}
         </div>

@@ -1,8 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, afterEach } from "vitest";
+import { act, render, screen } from "@testing-library/react";
 import { DateHeader } from "./DateHeader";
 import { buildColumnGeometry } from "./columnGeometry";
 import type { WeeksZoom } from "../../lib/schedulerConfig";
+import { useStore } from "../../store/useStore";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 
 const DAYS = ["2026-06-01", "2026-06-02", "2026-06-06"];
 const DEFAULT_PROPS = { weekStartsOn: 1 as 0 | 1, today: "2026-06-01" };
@@ -52,6 +54,7 @@ describe("DateHeader", () => {
     renderHeader(48, 4);
     expect(screen.getByText("Jun 2026")).toHaveAttribute("data-month-placement", "sticky-start");
   });
+  registerDateStyleReactivityTests();
   registerZoomThresholdTests();
   registerDetailedRenderingTests();
   registerMinimisedWeekendTests();
@@ -205,6 +208,28 @@ function registerMinimisedWeekendTests() {
       const cells = container.querySelectorAll(".flex.flex-auto > div");
       // Fri(48), Sat(22), Sun(22), Mon(48) — widths come straight from the geometry.
       expect(Array.from(cells).map((c) => (c as HTMLElement).style.width)).toEqual(["48px", "22px", "22px", "48px"]);
+    });
+  });
+}
+
+function registerDateStyleReactivityTests() {
+  describe("company date format", () => {
+    // The store is module-global, so hand the rest of the file back its default reading.
+    afterEach(() => resetStoreWithAccount());
+
+    // Guards #820: the header's week/month groupings are memoised on `days`, and `days` does not
+    // change when the company's date format does. Without `dateStyle` in the memo dependencies the
+    // label below stays on the old reading until something else forces a recompute, so this test
+    // fails if that dependency (or the `useDateStyle` subscription that feeds it) is removed.
+    it("re-reads its labels when the format changes", () => {
+      resetStoreWithAccount();
+      renderHeader(17); // coarse zoom: week-start blocks, whose label is a day/month reading
+      expect(screen.getByText("1 Jun")).toBeInTheDocument();
+
+      act(() => useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { dateStyle: "month-day" }));
+
+      expect(screen.getByText("Jun 1")).toBeInTheDocument();
+      expect(screen.queryByText("1 Jun")).not.toBeInTheDocument();
     });
   });
 }

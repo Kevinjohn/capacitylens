@@ -183,6 +183,23 @@ it("hides archived resources and their retained time off", () => {
   expect(useStore.getState().data.timeOff).toHaveLength(1);
 });
 
+it("states the year in an action name when the time off crosses one", () => {
+  const resource = useStore.getState().addResource(resourceDraft);
+  useStore.getState().addTimeOff({
+    resourceId: resource.id,
+    startDate: "2026-12-28",
+    endDate: "2027-01-08",
+    type: "holiday",
+  });
+  render(<TimeOffList />);
+
+  // Without the years this reads "from Mon 28th Dec to Fri 8th Jan" — a range running backwards
+  // through the year rather than the twelve days it is.
+  expect(
+    screen.getByRole("button", { name: "Edit Alice time off from Mon 28th Dec 2026 to Fri 8th Jan 2027" }),
+  ).toBeInTheDocument();
+});
+
 it("gives same-person time-off actions distinct date-specific names", () => {
   const resource = useStore.getState().addResource(resourceDraft);
   useStore.getState().addTimeOff({

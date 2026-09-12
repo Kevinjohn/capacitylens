@@ -77,6 +77,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
   registerSqliteAccountAdminPortTest11();
   registerSqliteAccountAdminPortTest12();
   registerSqliteAccountAdminPortTest13();
+  registerStaleInvitationReplayTest();
 });
 
 function registerSqliteAccountAdminPortTest1(): void {
@@ -566,23 +567,23 @@ function registerSqliteAccountAdminPortTest12(): void {
 }
 
 function registerSqliteAccountAdminPortTest13(): void {
-  it("enforces fresh MFA-backed administration and emits normalized success and denial audits", async () => {
+  it("enforces MFA-backed administration, admits a stale-session invitation and emits normalized audits", async () => {
     db = openDb(":memory:");
     const { auditEvents, port } = seedMfaAuditFixture(db);
     const expiresAt = new Date(Date.now() + 60_000).toISOString();
     const staleActor = { ...actor, fresh: false };
     const passwordActor = { ...actor, assurance: "password" as const, mfaSatisfied: false };
 
-    await expect(
-      port.createInvitation({
-        actor: staleActor,
-        workspaceId: "workspace-1",
-        role: "editor",
-        preauthorizedEmail: "person@example.com",
-        expiresAt,
-        command: { commandId: "stale-command", idempotencyKey: "stale-idempotency" },
-      }),
-    ).rejects.toMatchObject({ failure: { code: "SESSION_NOT_FRESH" } });
+    // Creating an invitation is an ordinary administrative action: role and MFA still gate it, a
+    // recent sign-in does not. Only the high-impact actions keep the re-prompt.
+    await port.createInvitation({
+      actor: staleActor,
+      workspaceId: "workspace-1",
+      role: "editor",
+      preauthorizedEmail: "person@example.com",
+      expiresAt,
+      command: { commandId: "stale-command", idempotencyKey: "stale-idempotency" },
+    });
     await expect(
       port.createInvitation({
         actor: passwordActor,
@@ -603,7 +604,7 @@ function registerSqliteAccountAdminPortTest13(): void {
     });
 
     expect(auditEvents.map(({ action, outcome, commandId }) => ({ action, outcome, commandId }))).toEqual([
-      { action: "invitation.created", outcome: "denied", commandId: "stale-command" },
+      { action: "invitation.created", outcome: "success", commandId: "stale-command" },
       { action: "invitation.created", outcome: "denied", commandId: "mfa-command" },
       { action: "invitation.created", outcome: "success", commandId: "success-command" },
     ]);
@@ -614,5 +615,47 @@ function registerSqliteAccountAdminPortTest13(): void {
       actorPrincipalId: actor.principalId,
       changedFields: ["role", "preauthorizedEmail", "expiresAt"],
     });
+  });
+}
+
+function registerStaleInvitationReplayTest(): void {
+  it("replays a created invitation for a now-stale actor while still rechecking MFA and authority", async () => {
+    db = openDb(":memory:");
+    const { port } = seedMfaAuditFixture(db);
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    const command = { commandId: "replay-command", idempotencyKey: "replay-idempotency" };
+    const created = await port.createInvitation({
+      actor,
+      workspaceId: "workspace-1",
+      role: "editor",
+      preauthorizedEmail: "person@example.com",
+      expiresAt,
+      command,
+    });
+
+    // The replay guard re-evaluates authority before re-disclosing the write-once token. Freshness
+    // is no longer part of that check, so the same command replays from an aged-out session…
+    const replayed = await port.createInvitation({
+      actor: { ...actor, fresh: false },
+      workspaceId: "workspace-1",
+      role: "editor",
+      preauthorizedEmail: "person@example.com",
+      expiresAt,
+      command,
+    });
+    expect(replayed).toMatchObject({ id: created.id, token: created.token });
+
+    // …while the guard's other checks still decide it. (A replay from a different principal never
+    // reaches the guard: the command ledger rejects it as an idempotency conflict first.)
+    await expect(
+      port.createInvitation({
+        actor: { ...actor, assurance: "password" as const, mfaSatisfied: false },
+        workspaceId: "workspace-1",
+        role: "editor",
+        preauthorizedEmail: "person@example.com",
+        expiresAt,
+        command,
+      }),
+    ).rejects.toMatchObject({ failure: { code: "MFA_REQUIRED" } });
   });
 }
