@@ -1,3 +1,4 @@
+import { parseISOTimestamp } from "../lib/integrity";
 import type { OwnershipTransferAction } from "./ownershipTransfer";
 import type { Role } from "./types";
 
@@ -28,12 +29,13 @@ export const OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS = 365 * 24 * 60 * 60 * 1000
  *  instant strictly before `expiresAt`, so the deadline instant itself is already expired. Both
  *  values are server-generated ISO instants; a client clock never participates. */
 export function isOwnershipTransferExpired(expiresAt: string, now: number): boolean {
-  const deadline = Date.parse(expiresAt);
+  // Parsed by the repository's own ISO reader rather than `Date.parse`, which accepts shapes the
+  // rest of the codebase rejects; `inviteIsExpired` reads its deadline the same way.
+  const deadline = parseISOTimestamp(expiresAt);
   // An unparseable deadline is treated as passed. A row whose deadline cannot be read is not
   // evidence that the request is still live, and failing closed here costs at most one restart of
   // a rare ceremony, where failing open would leave a nomination open indefinitely.
-  if (!Number.isFinite(deadline)) return true;
-  return now >= deadline;
+  return deadline === null || now >= deadline;
 }
 
 export interface OwnershipTransferActorStanding {

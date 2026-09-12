@@ -112,7 +112,9 @@ describe("isOwnershipTransferExpired", () => {
   });
 
   it("treats an unreadable deadline as passed rather than as live", () => {
-    for (const value of ["", "not-a-date", "2026-13-45T99:99:99Z"]) {
+    // The last two are shapes `Date.parse` would happily accept: the deadline is read with the
+    // repository's strict ISO parser, so anything that is not a real ISO instant fails closed.
+    for (const value of ["", "not-a-date", "2026-13-45T99:99:99Z", "2026-09-18 12:00:00", "Sep 18 2026"]) {
       expect(isOwnershipTransferExpired(value, deadlineMs)).toBe(true);
     }
   });
