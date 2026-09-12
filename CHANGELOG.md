@@ -11,6 +11,10 @@ new features and **patch** versions carry fixes.
 
 - Highlight company closures the same way as personal time off when the schedule's draw mode is
   switched to Time off, instead of leaving the closure band unchanged (#787).
+- Keep an allocation bar's label inside the part of the bar on screen, so a booking that started
+  before the visible window is no longer unlabelled (#786).
+- Show a company closure's name in the standard text colour and keep it centred in the part of the
+  band on screen, so the closure stays named after scrolling a long list of people (#788).
 
 ## [0.64.0-alpha.1] - 2026-09-12
 

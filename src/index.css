@@ -91,6 +91,14 @@
   --z-index-popover: 60;
   --z-index-tooltip: 65;
   --z-index-skip-link: 70;
+
+  /* A grid-LOCAL tier, deliberately below the scale above: it orders layers inside the schedule,
+     not chrome floating over the application. The company-closure band's shading must stay under
+     the group-header rows (#766), but `z-0` on the band makes it a stacking context that would
+     bury its own name with it, so the name is lifted onto its own layer at this tier — above the
+     group-header rows (10), still below the sticky date header and frozen column (20/30) whose
+     edges the name is clamped to (#788). */
+  --z-index-scheduler-closure-label: 15;
 }
 
 :root {
@@ -543,6 +551,13 @@ input[type="radio"] {
   transition:
     background-color 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+/* The closure's NAME renders on its own layer, not inside the band, so that a group header cannot
+   bury it (#788) — which also puts it outside the reach of the band's inherited colour above. Take
+   only the ink: the vivid fill and glow stay on the band itself, one highlight per closure. */
+[data-draw-mode="timeoff"] .scheduler-closure-label-layer {
+  color: var(--color-timeoff-selected-ink);
 }
 
 /* Defensive net for the hover popover in time-off mode. The bars-layer `inert` already BLOCKS the
