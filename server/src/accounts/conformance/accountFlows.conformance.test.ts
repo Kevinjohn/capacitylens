@@ -183,7 +183,6 @@ type MembershipAdministrationMethods = Pick<
   | "changeMemberRole"
   | "changeMemberStatus"
   | "removeMember"
-  | "transferOwnership"
   | "readOwnershipTransfer"
   | "initiateOwnershipTransfer"
   | "acceptOwnershipTransfer"
@@ -261,10 +260,6 @@ function membershipAdministrationMethods(): MembershipAdministrationMethods {
       completedAt: "2026-01-01T00:00:00.000Z",
     })),
     ...ownershipTransferMethods(),
-    transferOwnership: vi.fn(async () => ({
-      previousOwner: member,
-      nextOwner: member,
-    })),
   };
 }
 

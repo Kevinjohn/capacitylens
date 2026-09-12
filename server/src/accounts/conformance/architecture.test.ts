@@ -354,22 +354,34 @@ describe("account-boundary architecture", () => {
       expect(importSpecifiers(resolve(serverRoot, file)).filter(isAuthVendor), file).toEqual([]);
     }
   });
+});
 
+/** Every account-administration path the HTTP adapter owns. The ceremony's six write paths are
+ *  listed individually: the guard asserts each one appears in the adapter and in NO app-boundary
+ *  file, so a route that drifted out of the adapter would otherwise stop being guarded silently. */
+const EXTRACTED_ACCOUNT_ROUTE_PATHS = [
+  "/api/invites",
+  "/api/invites/:token/preview",
+  "/api/invites/:token/accept",
+  "/api/invites/:token/signup",
+  "/api/accounts/:accountId/members",
+  "/api/accounts/:accountId/members/:userId",
+  "/api/accounts/:accountId/ownership-transfer",
+  "/api/accounts/:accountId/ownership-transfer/:requestId",
+  "/api/accounts/:accountId/ownership-transfer/:requestId/accept",
+  "/api/accounts/:accountId/ownership-transfer/:requestId/withdraw",
+  "/api/accounts/:accountId/ownership-transfer/:requestId/decline",
+  "/api/accounts/:accountId/ownership-transfer/:requestId/complete",
+  "/api/accounts/:accountId/members/:userId/reset-password",
+  "/api/accounts/:accountId/members/:userId/revoke-sessions",
+  "/api/accounts/:accountId/invites",
+  "/api/accounts/:accountId/invites/:id",
+];
+
+describe("account-boundary architecture", () => {
   it("keeps invitation and member administration in the account HTTP adapter", () => {
     const accountRoutes = read("accounts/accountRoutes.ts");
-    const extractedPaths = [
-      "/api/invites",
-      "/api/invites/:token/preview",
-      "/api/invites/:token/accept",
-      "/api/invites/:token/signup",
-      "/api/accounts/:accountId/members",
-      "/api/accounts/:accountId/members/:userId",
-      "/api/accounts/:accountId/transfer-ownership",
-      "/api/accounts/:accountId/members/:userId/reset-password",
-      "/api/accounts/:accountId/members/:userId/revoke-sessions",
-      "/api/accounts/:accountId/invites",
-      "/api/accounts/:accountId/invites/:id",
-    ];
+    const extractedPaths = EXTRACTED_ACCOUNT_ROUTE_PATHS;
     for (const path of extractedPaths) {
       // Match either quote style: the route string is the invariant, not how the formatter quotes it.
       const quoted = new RegExp(`['"]${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]`);
@@ -387,7 +399,9 @@ describe("account-boundary architecture", () => {
       expect(source, file).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE FROM)\b/);
     }
   });
+});
 
+describe("account-boundary architecture", () => {
   it("keeps invitation SQL out of the auth-vendor adapter", () => {
     for (const path of boundaryPaths(serverRoot, "authBuilders")) {
       const source = read(path);

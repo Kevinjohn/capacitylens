@@ -437,24 +437,44 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
 });
 
 describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)", () => {
-  it("the same burn happens on transfer-ownership (the promoted target's outstanding link dies)", async () => {
+  it("the same burn happens when the ceremony completes (the promoted nominee's outstanding link dies)", async () => {
     const { app, db } = await appWith(PASSWORD_ENV);
     seedAccount(db, "a1");
     const owner = await member({ app, db, accountId: "a1", email: "owner@capacitylens.dev", role: "owner" });
-    const editor = await member({ app, db, accountId: "a1", email: "editor@capacitylens.dev", role: "editor" });
+    const nominee = await member({ app, db, accountId: "a1", email: "admin@capacitylens.dev", role: "admin" });
 
     const token = (
-      (await mint({ app, accountId: "a1", userId: editor.userId, cookie: owner.cookie })).json() as {
+      (await mint({ app, accountId: "a1", userId: nominee.userId, cookie: owner.cookie })).json() as {
         token: string;
       }
     ).token;
-    const transfer = await call(app, {
+    const nominated = await call(app, {
       method: "POST",
-      url: "/api/accounts/a1/transfer-ownership",
+      url: "/api/accounts/a1/ownership-transfer",
       headers: { cookie: owner.cookie },
-      payload: { toUserId: editor.userId },
+      payload: { toUserId: nominee.userId },
     });
-    expect(transfer.statusCode).toBe(200);
+    expect(nominated.statusCode).toBe(201);
+    const requestId = (nominated.json() as { request: { id: string } }).request.id;
+    // Nomination and consent change no role, so the link is still live at this point — it is the
+    // completion, the membership write itself, that must burn it.
+    expect(
+      (
+        await call(app, {
+          method: "POST",
+          url: `/api/accounts/a1/ownership-transfer/${requestId}/accept`,
+          headers: { cookie: nominee.cookie },
+          payload: { expectedRevision: "0" },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const completed = await call(app, {
+      method: "POST",
+      url: `/api/accounts/a1/ownership-transfer/${requestId}/complete`,
+      headers: { cookie: owner.cookie },
+      payload: { expectedRevision: "1" },
+    });
+    expect(completed.statusCode).toBe(200);
     expect((await redeem(app, token, "attacker-owner-password")).statusCode).toBe(400);
   });
 });

@@ -30,7 +30,6 @@ type MembershipPort = Pick<
   | "changeMemberRole"
   | "changeMemberStatus"
   | "removeMember"
-  | "transferOwnership"
 >;
 
 function readRequiredMembership(db: Db, principalId: string, workspaceId: string): AccountMember {
@@ -282,55 +281,11 @@ export function exchangeOwnershipInTx({
   };
 }
 
-function createOwnershipTransfer({
-  db,
-  trustedLocal,
-  requireMfa,
-  runMutation,
-}: MembershipContext): Pick<MembershipPort, "transferOwnership"> {
-  return {
-    async transferOwnership({ actor, workspaceId, targetPrincipalId, command }): Promise<OwnershipTransfer> {
-      return runMutation({
-        operation: "transfer-ownership",
-        actorPrincipalId: actor.principalId,
-        targetPrincipalId,
-        workspaceId,
-        command,
-        payload: { workspaceId, targetPrincipalId },
-        lockKeys: [actor.principalId, targetPrincipalId, `workspace:${workspaceId}`],
-        audit: { action: "ownership.transferred", changedFields: ["role", "owner"] },
-        execute: () => {
-          assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
-          assertAccountAuthority({ db, actor, workspaceId, action: "transfer-ownership", trustedLocal });
-          if (actor.principalId === targetPrincipalId) {
-            throw createAccountFailure(
-              "VALIDATION_FAILED",
-              "The actor already owns this workspace.",
-              command.commandId,
-            );
-          }
-          if (!getActiveMemberRole(db, workspaceId, targetPrincipalId)) {
-            throw createAccountFailure("NOT_FOUND", "The next owner must already be a member.", command.commandId);
-          }
-          return exchangeOwnershipInTx({
-            db,
-            workspaceId,
-            previousOwnerId: actor.principalId,
-            nextOwnerId: targetPrincipalId,
-            now: new Date().toISOString(),
-          });
-        },
-      });
-    },
-  };
-}
-
 export function createMembership(context: MembershipContext): MembershipPort {
   return {
     ...createMembershipReads(context),
     ...createRoleChange(context),
     ...createStatusChange(context),
     ...createRemoval(context),
-    ...createOwnershipTransfer(context),
   };
 }

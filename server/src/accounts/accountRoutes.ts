@@ -15,8 +15,16 @@ import {
   listMembers,
   removeMember,
   setMemberSignInTracking,
-  transferOwnership,
 } from "./routes/handlers/memberAdmin";
+import {
+  acceptOwnershipTransfer,
+  cancelOwnershipTransfer,
+  completeOwnershipTransfer,
+  declineOwnershipTransfer,
+  initiateOwnershipTransfer,
+  readOwnershipTransfer,
+  withdrawOwnershipTransfer,
+} from "./routes/handlers/ownershipTransfer";
 import { reconcile } from "./routes/handlers/reconcile";
 import { listSessions, revokeSession, signOut } from "./routes/handlers/session";
 import { createReplyHelpers } from "./routes/createReplyHelpers";
@@ -110,14 +118,51 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // 204 on success.
   app.delete("/api/accounts/:accountId/members/:userId", async (req, reply) => removeMember(req, reply, context));
 
-  // TRANSFER ownership (P1.11): hand the account to another EXISTING member and step the caller down
-  // to admin, atomically. Gated 'transferOwnership' — the ONE action above admin in the matrix, so a
-  // mere admin is 403 (authorize resolves the caller's role for this account). Body { toUserId }. The
-  // target must already be an active member (404 else) and not the caller (400 — you're already owner).
-  // Demote-caller and promote-target commit in ONE tx, so no other request observes an ownerless
-  // account and the v10 unique index never permits co-owners. OFF mode has no owner model and
-  // reports that member management is unavailable.
-  app.post("/api/accounts/:accountId/transfer-ownership", async (req, reply) => transferOwnership(req, reply, context));
+  // OWNERSHIP TRANSFER (#780): the three-step consent ceremony that replaced the one-click
+  // hand-over. The Owner nominates, the nominated Admin consents, the same Owner gives final
+  // approval — so ownership never moves on one person's say-so, and the nominee is never made
+  // responsible for a company without agreeing to it.
+  //
+  // Seven explicit routes, not a generic state patch: each step has a different authorised caller.
+  // All seven gate on 'actOnOwnershipTransfer' at ADMIN tier, deliberately — the nominee acts at
+  // Admin tier, and a demoted former Owner must still be able to replay their own command. Owner
+  // authority and participant identity are asserted by the port INSIDE its transaction, where the
+  // membership facts are still true. Every command carries `expectedRevision`, so a command formed
+  // against an earlier acceptance cycle cannot apply to a later one.
+  app.get("/api/accounts/:accountId/ownership-transfer", async (req, reply) =>
+    readOwnershipTransfer(req, reply, context),
+  );
+
+  // NOMINATE, or replace an existing nomination atomically by naming it. Body
+  // { toUserId, expectedRequestId?, expectedRevision? }.
+  app.post("/api/accounts/:accountId/ownership-transfer", async (req, reply) =>
+    initiateOwnershipTransfer(req, reply, context),
+  );
+
+  // The nominee's own consent, and its withdrawal. Nobody else may perform these, at any tier:
+  // consent another Admin can give on the nominee's behalf is not consent.
+  app.post("/api/accounts/:accountId/ownership-transfer/:requestId/accept", async (req, reply) =>
+    acceptOwnershipTransfer(req, reply, context),
+  );
+
+  app.post("/api/accounts/:accountId/ownership-transfer/:requestId/withdraw", async (req, reply) =>
+    withdrawOwnershipTransfer(req, reply, context),
+  );
+
+  app.post("/api/accounts/:accountId/ownership-transfer/:requestId/decline", async (req, reply) =>
+    declineOwnershipTransfer(req, reply, context),
+  );
+
+  // FINAL APPROVAL by the same Owner who nominated. Demote-then-promote commit in one transaction
+  // with the workflow row, so no request ever observes an ownerless company.
+  app.post("/api/accounts/:accountId/ownership-transfer/:requestId/complete", async (req, reply) =>
+    completeOwnershipTransfer(req, reply, context),
+  );
+
+  // The nominating Owner withdrawing the whole nomination.
+  app.delete("/api/accounts/:accountId/ownership-transfer/:requestId", async (req, reply) =>
+    cancelOwnershipTransfer(req, reply, context),
+  );
 
   // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member — the app has
   // no email infrastructure (a standing non-goal), so the admin hands the link over out-of-band,
