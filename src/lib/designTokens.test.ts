@@ -198,6 +198,47 @@ describe("time-off draw-mode treatment", () => {
   });
 });
 
+describe("time-off draw-mode treatment of company closures (#787)", () => {
+  const rule = indexCss.match(/\[data-draw-mode="timeoff"\] \.scheduler-closure-band\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+
+  it("highlights the closure band with the same timeoff-selected tokens as personal time off, in work mode's own hook", () => {
+    expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
+    expect(rule).toMatch(/background-color:\s*var\(--color-timeoff-selected\) !important/);
+    expect(rule).toMatch(/0 0 6px 1px/);
+    // Work mode is unchanged: the rule is scoped under the timeoff draw-mode attribute only.
+    expect(indexCss).not.toMatch(/\[data-draw-mode="work"\]\s*\.scheduler-closure-band/);
+  });
+});
+
+describe("company closure label stacking (#788)", () => {
+  const zIndexToken = (name: string) => {
+    const value = indexCss.match(new RegExp(`--z-index-${name}:\\s*(\\d+);`))?.[1];
+    if (!value) throw new Error(`Missing --z-index-${name}`);
+    return Number(value);
+  };
+  // The grid's own layers are Tailwind classes, not tokens: SchedulerGridGroupHeader's row is
+  // `relative z-10` and SchedulerGridHeader's sticky date row is `z-20` (its frozen cell `z-30`).
+  // SchedulerGrid.test.tsx pins those classes on the rendered DOM; this pins the token between them.
+  const GROUP_HEADER_LAYER = 10;
+  const STICKY_HEADER_LAYER = 20;
+
+  it("lifts the closure name above the group-header rows without reaching the sticky chrome", () => {
+    const label = zIndexToken("scheduler-closure-label");
+    expect(label).toBeGreaterThan(GROUP_HEADER_LAYER);
+    expect(label).toBeLessThan(STICKY_HEADER_LAYER);
+    // And it stays a grid-local tier, never competing with the named chrome scale.
+    expect(label).toBeLessThan(zIndexToken("sticky"));
+  });
+
+  it("keeps #787's time-off ink on the name now that it no longer inherits from the band", () => {
+    const rule =
+      indexCss.match(/\[data-draw-mode="timeoff"\] \.scheduler-closure-label-layer\s*\{([\s\S]*?)\}/)?.[1] ?? "";
+    expect(rule).toMatch(/color:\s*var\(--color-timeoff-selected-ink\)/);
+    // Only the ink: the vivid fill and glow stay on the band, so one closure shows one highlight.
+    expect(rule).not.toMatch(/background-color|box-shadow/);
+  });
+});
+
 describe("action and identity token contrast", () => {
   it("keeps the light-theme blue readable on white and the green action fill readable with white ink", () => {
     expect(contrastRatio("#2563eb", "#ffffff")).toBeGreaterThanOrEqual(4.5);
