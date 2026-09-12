@@ -48,10 +48,15 @@ WORKDIR /app/server
 ENV NODE_ENV=production
 ENV CAPACITYLENS_HOST=0.0.0.0
 COPY --from=server-deploy /prod/server ./
+# Apply Debian security patches not yet present in the pinned base, then remove package metadata
+# from the runtime layer.
 # Package managers are build tools, not runtime requirements. The upstream Node image currently
 # bundles an otherwise-unreachable vulnerable undici under npm; remove all unused npm/Corepack/Yarn
 # tooling instead of shipping or suppressing it. Application dependencies live in ./node_modules.
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+RUN apt-get update \
+    && apt-get upgrade --yes \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
       /opt/yarn-v1.22.22 /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
       /usr/local/bin/yarn /usr/local/bin/yarnpkg \
     && mkdir -p /data /backups \
