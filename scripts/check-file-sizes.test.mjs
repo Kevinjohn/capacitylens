@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { countLines, evaluateFileSizes } from "./check-file-sizes.mjs";
 
-const config = { ceiling: 400, permanent: [], temporary: [] };
+const config = { ceiling: 400, testCeiling: 800, permanent: [], temporary: [] };
 const temporary = { ...config, temporary: [{ path: "src/large.ts", baseline: 450, reason: "backlog" }] };
 const files = (lines) => [{ path: "src/large.ts", content: "x\n".repeat(lines) }];
 
@@ -27,6 +27,11 @@ test("rejects an unlisted oversized file", () => {
   assert.match(evaluateFileSizes(files(401), config).errors.join("\n"), /src\/large.ts.*401.*400/);
 });
 
+test("uses the test ceiling for unlisted test files", () => {
+  const testFiles = [{ path: "src/large.test.ts", content: "x\n".repeat(801) }];
+  assert.match(evaluateFileSizes(testFiles, config).errors.join("\n"), /src\/large\.test\.ts.*801.*800/);
+});
+
 test("rejects a temporary file one line above its baseline", () => {
   assert.match(evaluateFileSizes(files(451), temporary).errors.join("\n"), /raised.*451.*450/);
 });
@@ -34,6 +39,27 @@ test("rejects a temporary file one line above its baseline", () => {
 test("rejects stale entries at or below the ceiling", () => {
   for (const lines of [400, 399, 0]) {
     assert.match(evaluateFileSizes(files(lines), temporary).errors.join("\n"), /stale, remove entry/);
+  }
+});
+
+test("uses the test ceiling for stale test exceptions", () => {
+  const testConfig = {
+    ...config,
+    temporary: [{ path: "src/large.test.ts", baseline: 801, reason: "backlog" }],
+  };
+  const result = evaluateFileSizes([{ path: "src/large.test.ts", content: "x\n".repeat(800) }], testConfig);
+  assert.match(result.errors.join("\n"), /stale, remove entry.*800.*800/);
+});
+
+test("rejects a missing or non-finite test ceiling when a test file is encountered", () => {
+  for (const invalidTestCeiling of [undefined, Number.NaN, Number.POSITIVE_INFINITY, "800"]) {
+    const invalidConfig = { ...config };
+    if (invalidTestCeiling === undefined) delete invalidConfig.testCeiling;
+    else invalidConfig.testCeiling = invalidTestCeiling;
+    assert.throws(
+      () => evaluateFileSizes([{ path: "src/large.test.ts", content: "x\n" }], invalidConfig),
+      /testCeiling must be a finite number/,
+    );
   }
 });
 
@@ -85,7 +111,7 @@ function fixture(t, entries, exceptions = config, untracked = {}) {
     spawnSync(process.execPath, [join(root, "scripts/check-file-sizes.mjs")], { cwd: tmpdir(), encoding: "utf8" });
 }
 
-test("CLI scans all source roots from an unrelated cwd and excludes tests and generated files", (t) => {
+test("CLI scans all source roots from an unrelated cwd and includes tests while excluding generated files", (t) => {
   const large = "x\n".repeat(401);
   const run = fixture(t, {
     "src/ok.ts": "x\n",
@@ -102,7 +128,18 @@ test("CLI scans all source roots from an unrelated cwd and excludes tests and ge
   });
   const result = run();
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /3 source files/);
+  assert.match(result.stdout, /5 source files/);
+});
+
+test("CLI reports oversized test files against the test ceiling", (t) => {
+  const result = fixture(
+    t,
+    Object.fromEntries(["src/a.test.ts", "server/src/a.spec.tsx"].map((path) => [path, "x\n".repeat(801)])),
+  )();
+  assert.equal(result.status, 1);
+  for (const path of ["src/a.test.ts", "server/src/a.spec.tsx"]) {
+    assert.ok(result.stderr.includes(`${path}: 801 lines exceeds ceiling 800`));
+  }
 });
 
 test("CLI reports every oversized source file and exits 1", (t) => {

@@ -591,14 +591,14 @@ rollback and recovery behavior. See [Database migrations](#database-migrations) 
 how to run it against a real installation copy.
 
 Run `pnpm run policy:file-sizes` to check file lengths. The checker,
-`scripts/check-file-sizes.mjs`, scans tracked production TS/TSX files under `src`,
-`server/src` and `shared/src`. It excludes tests, `.d.ts` files, `src/paraglide` and
-`e2e` directories.
+`scripts/check-file-sizes.mjs`, scans tracked production and `.test.`/`.spec.` TS/TSX files
+under `src`, `server/src` and `shared/src`. It excludes `.d.ts` files, `src/paraglide`,
+`node_modules` and `e2e` directories.
 
-The 400-line ceiling comes from `scripts/file-size-exceptions.json`. That file carries
-one permanent exception for the source-owned sidebar primitive and no temporary exceptions.
-A successful run prints `File-size check passed` with the source-file count, ceiling and
-temporary-exception count.
+The production ceiling is 400 lines and the test-file ceiling is 800 lines; both come from
+`scripts/file-size-exceptions.json`. That file carries permanent design exceptions and
+temporary ratchet baselines. A successful run prints `File-size check passed` with the
+source-file count, both ceilings and temporary-exception count.
 
 The checker also prints an unenforced `approximately N lines` diagnostic for long
 top-level functions. These approximate lengths help identify functions to review;
