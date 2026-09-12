@@ -13,6 +13,9 @@ interface BuildGesturePreviewDatesInput {
   /** The dragged bar's own week, passed only when the pointer is over a different lane. It sizes
    *  the previewed range so the preview matches what the commit will write. */
   sourceDays?: Weekday[] | undefined;
+  /** Whether the pointer is over a different resource lane. This remains true if the source
+   *  resource disappears and its working week can no longer be resolved. */
+  isReassignment: boolean;
 }
 
 type GesturePreviewResult = { kind: "blocked" } | { kind: "unchanged" } | { kind: "ready"; dates: DateRange };
@@ -23,6 +26,7 @@ export function buildGesturePreviewDates({
   deltaDays,
   previewDays,
   sourceDays,
+  isReassignment,
 }: BuildGesturePreviewDatesInput): GesturePreviewResult {
   // Snap ONCE per frame, against the lane the pointer is actually over — the drop-target gate
   // below and the bar's own preview pixels then read the same range instead of each deriving it.
@@ -33,7 +37,7 @@ export function buildGesturePreviewDates({
   // A zero-column gesture that is not also a reassignment commits nothing, so it must preview
   // nothing: re-deriving the range here would renormalise a bar whose stored dates predate a change
   // to its own resource's week, then snap it back on release.
-  if (deltaDays === 0 && (mode !== "move" || sourceDays === undefined)) return { kind: "unchanged" };
+  if (deltaDays === 0 && (mode !== "move" || !isReassignment)) return { kind: "unchanged" };
   return {
     kind: "ready",
     dates: applyGesture({

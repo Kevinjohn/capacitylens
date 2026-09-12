@@ -13,6 +13,7 @@ import {
   formatShortDate,
   formatShortDateEndpoint,
   formatShortDateRange,
+  formatWeekColumnRange,
   formatWeekdayScheduleDate,
 } from "./dateDisplay";
 import { setActiveDateStyle } from "./dateDisplay";
@@ -126,6 +127,23 @@ describe("formatDayMonthRange", () => {
 
   it("shows both months for a cross-month range under day-month order", () => {
     expect(formatDayMonthRange("2026-09-09", "2026-10-14")).toBe("9 Sep – 14 Oct");
+  });
+});
+
+describe("formatWeekColumnRange", () => {
+  it("omits years for a cross-year range in an ordered week-column run", () => {
+    expect(formatWeekColumnRange("2026-12-28", "2027-01-03")).toBe("28 Dec – 3 Jan");
+    expect(formatWeekColumnRange("2026-12-28", "2027-01-03")).not.toBe(formatDayMonthRange("2026-12-28", "2027-01-03"));
+  });
+
+  it.each([
+    ["day-month", "28 Dec – 3 Jan"],
+    ["day-ordinal-month", "28th Dec – 3rd Jan"],
+    ["month-day", "Dec 28 – Jan 3"],
+    ["month-day-ordinal", "Dec 28th – Jan 3rd"],
+  ] as const)("follows the %s active date style", (style, expected) => {
+    setActiveDateStyle(style);
+    expect(formatWeekColumnRange("2026-12-28", "2027-01-03")).toBe(expected);
   });
 });
 
