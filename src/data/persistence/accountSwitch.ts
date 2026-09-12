@@ -57,6 +57,9 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
             if (owner.current.inFlightSave) await owner.current.inFlightSave;
             if (owner.current.disposed || myToken !== owner.current.switchToken) return; // detached/newer owner owns effects
             cancelDebounce();
+            if (owner.current.failedAccountLoadRecovery !== null) {
+              owner.update({ failedAccountLoadRecovery: null, pending: null, unacknowledged: null });
+            }
             // A parked edit belongs to whichever slice replacement still holds the suspension.
             // A token bump supersedes an internal refresh's outcome, not its outstanding load or
             // suspension; that refresh rebases and saves the edit when it settles.

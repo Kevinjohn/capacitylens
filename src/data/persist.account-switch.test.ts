@@ -62,7 +62,75 @@ function recordingAccountSwitchAdapter() {
   return { adapter: new ServerSyncAdapter("http://api.test", fetchImpl as unknown as typeof fetch), wire };
 }
 
+async function attachFailedSwitchWithParkedEdit() {
+  const { aSlice } = accountSwitchSlices();
+  let rejectB!: (error: Error) => void;
+  const loadAll = vi
+    .fn<(accountId?: string) => Promise<AppData>>()
+    .mockResolvedValueOnce(aSlice)
+    .mockImplementationOnce(
+      () =>
+        new Promise<AppData>((_resolve, reject) => {
+          rejectB = reject;
+        }),
+    );
+  const saveAll = vi.fn().mockResolvedValue(undefined);
+  useStore.getState().replaceAll(emptyAppData());
+  useStore.getState().setActiveAccount(null);
+  useStore.getState().setAccountSummaries([
+    { id: "a1", name: "Alpha", role: "owner" },
+    { id: "b1", name: "Beta", role: "owner" },
+  ]);
+  const detach = attachPersistence({
+    store: useStore,
+    adapter: { loadAll, saveAll },
+    debounceMs: 0,
+    onError: vi.fn(),
+    serverMode: true,
+  });
+  await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+  const switching = switchAndAwaitHydration("b1");
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  useStore.getState().addClient({ name: "Parked for B", color: "#222222" });
+  rejectB(new Error("B unavailable"));
+  await expect(switching).resolves.toEqual({ kind: "failed" });
+  return { detach, saveAll };
+}
+
 describe("account-switch orchestrator (P1.13, server mode)", () => {
+  it("does not flush a failed-load edit when the document becomes hidden", async () => {
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    const { detach, saveAll } = await attachFailedSwitchWithParkedEdit();
+
+    document.dispatchEvent(new Event("visibilitychange"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(saveAll).not.toHaveBeenCalled();
+    visibility.mockRestore();
+    detach();
+  });
+
+  it("does not send a failed-load edit during page teardown", async () => {
+    const { detach, saveAll } = await attachFailedSwitchWithParkedEdit();
+
+    window.dispatchEvent(new Event("pagehide"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(saveAll).not.toHaveBeenCalled();
+    detach();
+  });
+
+  it("discards a failed-load edit instead of sending it when returning to the picker", async () => {
+    const { detach, saveAll } = await attachFailedSwitchWithParkedEdit();
+
+    await expect(switchAndAwaitHydration(null)).resolves.toEqual({ kind: "reloaded" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(useStore.getState().activeAccountId).toBeNull();
+    expect(saveAll).not.toHaveBeenCalled();
+    detach();
+  });
+
   it("keeps an edit parked when the selected account load rejects", async () => {
     vi.useFakeTimers();
     try {

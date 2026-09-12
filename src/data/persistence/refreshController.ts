@@ -55,16 +55,17 @@ function buildRunOptions(
   const { store, owner } = input;
   const markAccountLoadFailure = options.markAccountLoadFailure ?? false;
   if (markAccountLoadFailure && store.getState().activeAccountLoadFailed !== id) {
-    owner.update({ failedAccountLoadBase: null });
+    owner.update({ failedAccountLoadRecovery: null });
   }
-  const dataAtSequenceStart = owner.current.failedAccountLoadBase ?? store.getState().data;
+  const recovery = owner.current.failedAccountLoadRecovery;
+  const dataAtSequenceStart = recovery?.accountId === id ? recovery.base : store.getState().data;
   return {
     abortIfSaveFailed: options.abortIfSaveFailed ?? false,
     preserveParkedEdit: store.getState().activeAccountLoadFailed === id,
     dataAtSequenceStart,
     publishFailure: () => {
       if (!markAccountLoadFailure) return;
-      owner.update({ failedAccountLoadBase: owner.current.failedAccountLoadBase ?? dataAtSequenceStart });
+      owner.update({ failedAccountLoadRecovery: recovery ?? { accountId: id, base: dataAtSequenceStart } });
       store.setState({ activeAccountLoadFailed: id });
     },
   };
@@ -149,7 +150,7 @@ function installLoadedSlice(input: RefreshSequenceInput): void {
   }
   owner.installSlice(installed);
   store.setState({ activeAccountLoadFailed: null });
-  owner.update({ failedAccountLoadBase: null });
+  owner.update({ failedAccountLoadRecovery: null });
   if (!editedMidLoad) owner.update({ unacknowledged: null });
   owner.update({ authoritativeReloadRequiredFor: null });
   owner.update({ failedSinceSuccess: false });
