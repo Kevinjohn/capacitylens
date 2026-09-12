@@ -183,10 +183,13 @@ const SIDEBAR_STORAGE_KEY = `${STORAGE_KEY_PREFIX}sidebar`;
  *  `useIsMobile` hook (hooks/useIsMobile.ts). */
 export const PHONE_MAX_WIDTH_PX = 767;
 
-/** Small-screen query for the sidebar's first-run default. Phone-portrait widths
- *  OR phone-landscape heights count as small — a landscape phone is the app's
- *  recommended orientation and still shouldn't spend 192px on a menu. */
-const SMALL_VIEWPORT_QUERY = `(max-width: ${PHONE_MAX_WIDTH_PX}px), (max-height: 480px)`;
+/** Small-screen query for the sidebar's first-run default. Below Tailwind's default `lg`
+ *  breakpoint (1024px) the sidebar defaults collapsed to the icon rail — narrower than that and
+ *  the full-width sidebar competes too much with the schedule. Phone-landscape heights also count
+ *  as small regardless of width — a landscape phone is the app's recommended orientation and
+ *  still shouldn't spend 192px on a menu. This is a separate threshold from `PHONE_MAX_WIDTH_PX`
+ *  (used by `useIsMobile` for the mobile sheet cutover), not the same value repeated. */
+const SMALL_VIEWPORT_QUERY = `(max-width: 1023px), (max-height: 480px)`;
 
 /** The user's explicit sidebar choice, or null if they've never toggled it. */
 export function readStoredSidebarOpen(): boolean | null {

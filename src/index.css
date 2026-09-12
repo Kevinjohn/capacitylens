@@ -69,6 +69,12 @@
   --color-ok-strong: var(--c-ok-strong);
   --color-ok-strong-hover: var(--c-ok-strong-hover);
   --color-ok-strong-ink: var(--c-ok-strong-ink);
+  /* Green siblings of --color-danger-soft/-soft-ink and --color-danger-cell, for the Overview
+     capacity bar. -soft is a tinted ground WITH text on it (paired with -soft-ink, a step darker
+     so the pairing clears WCAG AA); -cell is a saturated fill with NO text on it (no AA bound). */
+  --color-ok-soft: var(--c-ok-soft);
+  --color-ok-soft-ink: var(--c-ok-soft-ink);
+  --color-ok-cell: var(--c-ok-cell);
 
   /* One deliberate micro-text size (11px) for the dense labels — replaces the
      scattered text-[10px]/text-[11px] near-duplicates. */
@@ -91,6 +97,14 @@
   --z-index-popover: 60;
   --z-index-tooltip: 65;
   --z-index-skip-link: 70;
+
+  /* A grid-LOCAL tier, deliberately below the scale above: it orders layers inside the schedule,
+     not chrome floating over the application. The company-closure band's shading must stay under
+     the group-header rows (#766), but `z-0` on the band makes it a stacking context that would
+     bury its own name with it, so the name is lifted onto its own layer at this tier — above the
+     group-header rows (10), still below the sticky date header and frozen column (20/30) whose
+     edges the name is clamped to (#788). */
+  --z-index-scheduler-closure-label: 15;
 }
 
 :root {
@@ -140,6 +154,13 @@
   --c-ok-strong: #047857;
   --c-ok-strong-hover: #065f46; /* darker, rather than translucent-over-surface: white stays AA */
   --c-ok-strong-ink: #ffffff;
+  --c-ok-soft: color-mix(in oklab, var(--c-ok) 13%, white);
+  --c-ok-soft-ink: #065f46; /* a step darker than --c-ok to clear AA on the soft fill */
+  --c-ok-cell: color-mix(
+    in oklab,
+    var(--c-ok) 50%,
+    white
+  ); /* clear sage-green → ~rgb(144,186,167); empty cell, no AA bound */
   /* Chrome depth, darkest → cleanest: sidebar, toolbar, filter bar, then the scheduler canvas.
      These neutral tokens stay separate from --c-base/--c-surface and shadcn's semantic family. */
   --chrome-sidebar: #222222;
@@ -234,6 +255,13 @@
   --c-ok-strong: #047857;
   --c-ok-strong-hover: #065f46;
   --c-ok-strong-ink: #ffffff;
+  --c-ok-soft: color-mix(in oklab, var(--c-ok) 22%, #0e1016);
+  --c-ok-soft-ink: #6ee7b7; /* a step lighter than --c-ok to clear AA on the soft fill */
+  --c-ok-cell: color-mix(
+    in oklab,
+    var(--c-ok) 60%,
+    #0e1016
+  ); /* unmistakable dark green → ~rgb(44,125,97); empty cell, no AA bound */
   --chrome-sidebar: #0d0d0d;
   --chrome-sidebar-border: #000000;
   --chrome-sidebar-ink: #f5f5f5;
@@ -526,6 +554,30 @@ input[type="radio"] {
   transition:
     background-color 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+[data-draw-mode="timeoff"] .scheduler-closure-band {
+  /* Company closures are time off for everyone, so time-off mode highlights the closure band
+     with the same tokens as a personal time-off block. A distinct closure style can come later —
+     this only reuses `timeoff-selected`. The band sets its hatch with an inline `background`
+     shorthand, same as `.scheduler-timeoff-block`; `!important` lets the vivid colour beat that
+     shorthand's transparent background-color without replacing its background-image, so the
+     existing hatch stays visible underneath the tint. */
+  color: var(--color-timeoff-selected-ink);
+  background-color: var(--color-timeoff-selected) !important;
+  box-shadow:
+    0 0 0 1px var(--color-timeoff-selected),
+    0 0 6px 1px color-mix(in oklab, var(--color-timeoff-selected) 45%, transparent);
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* The closure's NAME renders on its own layer, not inside the band, so that a group header cannot
+   bury it (#788) — which also puts it outside the reach of the band's inherited colour above. Take
+   only the ink: the vivid fill and glow stay on the band itself, one highlight per closure. */
+[data-draw-mode="timeoff"] .scheduler-closure-label-layer {
+  color: var(--color-timeoff-selected-ink);
 }
 
 /* Defensive net for the hover popover in time-off mode. The bars-layer `inert` already BLOCKS the

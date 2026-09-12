@@ -157,7 +157,7 @@ separate signals.
 `src/components/scheduler/schedulerModel.test.ts`; check `e2e/holiday-overallocation.spec.ts` when
 visible capacity or over-capacity presentation changes.
 
-#### Four-week Capacity Overview {#task-capacity-overview}
+#### Four-week Overview {#task-capacity-overview}
 
 **Start:** `src/components/capacity-overview/CapacityOverviewView.tsx` connects active scoped data,
 calendar settings and the two page controls to the table.
