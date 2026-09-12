@@ -1,7 +1,6 @@
 import type { Db } from "../../db";
 import { TENANT_ENTITY_INDEXES_V34_SQL, assertTenantEntityIndexesCurrent } from "../../tenantIndexes";
 import { assertSchemaV39, assertSchemaV40 } from "../../schema";
-import { OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, assertOwnershipTransfersCurrent } from "../../controlTables";
 import { tableHasColumns } from "../introspection";
 import { CLOSURE_TENANT_INTEGRITY_V34_SQL, assertTenantRelationshipIntegrityCurrent } from "../../tenantIntegrity";
 /**
@@ -141,16 +140,6 @@ export function runAccountDateStyleV40(db: Db): void {
   assertSchemaV40(db);
   assertTenantRelationshipIntegrityCurrent(db);
   assertTenantEntityIndexesCurrent(db);
-}
-
-/** The v41 runner, out of line for the same 400-line ceiling reason as the v40 runner above.
- *  A control-plane table, so no AppData schema moves and EXPORT_SCHEMA_VERSION stays put. Assert
- *  while this transaction still owns both the DDL and the ledger write, so a malformed
- *  pre-existing IF-NOT-EXISTS object rolls the step back rather than leaving the live slot
- *  unguarded. */
-export function runOwnershipTransfersV41(db: Db): void {
-  db.exec(OWNERSHIP_TRANSFER_REQUESTS_V41_SQL);
-  assertOwnershipTransfersCurrent(db);
 }
 
 // The one copy of the rebuild SQL: executed by the migration below and hashed into its ledger
