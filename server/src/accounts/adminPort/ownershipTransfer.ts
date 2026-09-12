@@ -54,6 +54,20 @@ const AUDIT_ACTIONS = {
 } as const satisfies Record<RowAction, StandardAccountAuditAction>;
 const CHANGED_FIELDS = ["state", "revision"] as const;
 
+/**
+ * A row whose deadline has passed is not a live ceremony: it is an expiry nobody has committed yet.
+ *
+ * The commit still belongs to the command path — the unique-live-slot guarantee is a partial index,
+ * and a read must not write. But handing the stored row back verbatim would show both participants
+ * an open ceremony with a deadline in the past and offer them controls that can only fail, so the
+ * projection says what is true and the next command makes it durable.
+ */
+function projectExpiry(request: OwnershipTransferRequest, now: number): OwnershipTransferRequest {
+  return isLiveOwnershipTransferState(request.state) && isOwnershipTransferExpired(request.expiresAt, now)
+    ? { ...request, state: "expired", terminalAt: request.expiresAt, terminalReason: "deadline_passed" }
+    : request;
+}
+
 function readRequiredRequest(context: TransferContext, input: OwnershipTransferCommandInput): OwnershipTransferRequest {
   const row = readRequestById(context.db, input.workspaceId, input.requestId);
   if (!row) throw createAccountFailure("NOT_FOUND", "Ownership transfer not found.", input.command.commandId);
@@ -126,6 +140,19 @@ function replaceLiveRequest(context: TransferContext, input: InitiateInput, now:
     );
   }
   const live = readLiveRequest(context.db, workspaceId);
+  // An expired row is nobody's nomination: commit the expiry and carry on, whatever the caller named.
+  // Otherwise a forgotten request holds the company's only live slot until someone runs a command
+  // against it purely to kill it.
+  if (live && isOwnershipTransferExpired(live.expiresAt, Date.parse(now))) {
+    applyRequestTransition(context, {
+      row: live,
+      state: "expired",
+      reason: "deadline_passed",
+      now,
+      commandId: command.commandId,
+    });
+    return false;
+  }
   if (live?.id !== (expectedRequestId ?? undefined) || live?.revision !== (expectedRevision ?? undefined)) {
     throw createAccountFailure("CONFLICT", "Ownership transfer changed.", command.commandId);
   }
@@ -249,6 +276,7 @@ function executeRowCommand(
   const row = assertCommandParticipant(context, input, action);
   const instant = Date.now();
   const now = new Date(instant).toISOString();
+  sweepExpiredHistory(db, instant);
   if (isLiveOwnershipTransferState(row.state) && isOwnershipTransferExpired(row.expiresAt, instant)) {
     return terminaliseRequest(context, {
       row,
@@ -321,18 +349,28 @@ function runRowCommand(
 export function createOwnershipTransferOperations(context: TransferContext): TransferPort {
   return {
     async readOwnershipTransfer({ actor, workspaceId }) {
-      assertAdministrativeAssurance({ actor, requireMfa: context.requireMfa, trustedLocal: context.trustedLocal });
-      const live = readLiveRequest(context.db, workspaceId);
+      // A READ, and freshness is a mutation threshold: the route waives it deliberately (every step
+      // still asserts it), because an Owner who signed in an hour ago must still be able to SEE the
+      // nomination they are being asked to approve.
+      assertAdministrativeAssurance({
+        actor,
+        requireMfa: context.requireMfa,
+        trustedLocal: context.trustedLocal,
+        requireFresh: false,
+      });
+      const stored = readLiveRequest(context.db, workspaceId);
+      const live =
+        stored &&
+        canReadOwnershipTransfer({
+          isInitiator: stored.initiatorUserId === actor.principalId,
+          isTarget: stored.targetUserId === actor.principalId,
+        })
+          ? projectExpiry(stored, Date.now())
+          : null;
+      const outcome = live && !isLiveOwnershipTransferState(live.state) ? live : null;
       return {
-        live:
-          live &&
-          canReadOwnershipTransfer({
-            isInitiator: live.initiatorUserId === actor.principalId,
-            isTarget: live.targetUserId === actor.principalId,
-          })
-            ? live
-            : null,
-        latestOutcome: readLatestTerminalForParticipant(context.db, workspaceId, actor.principalId),
+        live: outcome ? null : live,
+        latestOutcome: outcome ?? readLatestTerminalForParticipant(context.db, workspaceId, actor.principalId),
       };
     },
     initiateOwnershipTransfer: (input) => initiateOwnershipTransfer(context, input),

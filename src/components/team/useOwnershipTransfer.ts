@@ -7,6 +7,7 @@ import {
   type TeamAccessResult,
   type TeamMember,
 } from "../../account/teamAccessClient";
+import { resolveRejectionMessage } from "../../account/accessResult";
 import type { OwnershipTransferStep } from "../../account/accountClient";
 import { reprojectAccess } from "../../auth/reprojectAccess";
 
@@ -55,18 +56,28 @@ interface CeremonyRead {
   error: string | null;
 }
 
-/** Read both halves of what the card shows. A failed half answers `null`, which the caller merges
- *  by KEEPING what it already had: the last thing the server said is better evidence than nothing. */
+/**
+ * Read both halves of what the card shows.
+ *
+ * A failed half answers `null`, which the caller merges by KEEPING what it already had: the last
+ * thing the server said is better evidence than nothing. A rejected request — offline, a dropped
+ * connection, the request timeout aborting — is a failed read like any other and is reported, never
+ * thrown: an exception here would leave the card loading or busy forever with nothing said.
+ */
 async function readCeremony(accountId: string): Promise<CeremonyRead> {
-  const [projection, directory] = await Promise.all([
-    teamAccessClient.readOwnershipTransfer(accountId),
-    teamAccessClient.listMembers(accountId),
-  ]);
-  return {
-    projection: projection.kind === "ok" ? projection.value : null,
-    members: directory.kind === "ok" ? directory.value.members : null,
-    error: projection.kind === "ok" ? null : m.ownership_transfer_read_failed(),
-  };
+  try {
+    const [projection, directory] = await Promise.all([
+      teamAccessClient.readOwnershipTransfer(accountId),
+      teamAccessClient.listMembers(accountId),
+    ]);
+    return {
+      projection: projection.kind === "ok" ? projection.value : null,
+      members: directory.kind === "ok" ? directory.value.members : null,
+      error: projection.kind === "ok" ? null : m.ownership_transfer_read_failed(),
+    };
+  } catch {
+    return { projection: null, members: null, error: m.ownership_transfer_read_failed() };
+  }
 }
 
 function mergeCeremonyRead(previous: OwnershipTransferReadState, next: CeremonyRead): OwnershipTransferReadState {
@@ -79,21 +90,59 @@ function mergeCeremonyRead(previous: OwnershipTransferReadState, next: CeremonyR
 }
 
 /**
- * Keep the card's projection in step with the company it is showing.
+ * Which company the card is showing RIGHT NOW.
  *
- * The company can change under an open card, so a late answer is applied only while it is still the
- * CURRENT one: a generation counter, not the promise's own resolution order, decides that.
+ * Every answer this hook waits for — the first read, a command, the re-read that follows it — can
+ * outlive the company that asked for it. Applying a late answer would put one company's ceremony,
+ * and the two people it names, on another company's screen, so each answer is checked against the
+ * company still on screen before it is merged.
  */
-function useCeremonyRead(accountId: string | null, apply: Dispatch<SetStateAction<OwnershipTransferReadState>>): void {
-  const generation = useRef(0);
+function useShownAccount(accountId: string | null): (candidate: string) => boolean {
+  const shown = useRef(accountId);
+  useEffect(() => {
+    shown.current = accountId;
+  }, [accountId]);
+  return useCallback((candidate: string) => shown.current === candidate, []);
+}
+
+/** Keep the card's projection in step with the company it is showing. */
+function useCeremonyRead(
+  accountId: string | null,
+  isShown: (candidate: string) => boolean,
+  apply: Dispatch<SetStateAction<OwnershipTransferReadState>>,
+): void {
   useEffect(() => {
     if (!accountId) return;
-    const requested = ++generation.current;
     void (async () => {
       const next = await readCeremony(accountId);
-      if (generation.current === requested) apply((previous) => mergeCeremonyRead(previous, next));
+      if (isShown(accountId)) apply((previous) => mergeCeremonyRead(previous, next));
     })();
-  }, [accountId, apply]);
+  }, [accountId, isShown, apply]);
+}
+
+/**
+ * Send one command and turn its answer into the sentence to show, if any.
+ *
+ * A committed terminal outcome is a success with an explanation, not a failure. Only a
+ * SERVER-AUTHORED refusal may be shown verbatim ({@link resolveRejectionMessage}); "the response
+ * did not decode" and "the write may or may not have landed" describe our uncertainty, so the
+ * localised sentence is the better one. A rejected request never escapes: it would leave every
+ * control disabled behind a `busy` that nothing clears.
+ */
+async function submit(
+  perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>,
+  rememberTerminal: (outcome: OwnershipTransferOutcomeView) => void,
+): Promise<string | null> {
+  try {
+    const result = await perform();
+    if (result.kind === "ok") {
+      if (result.value.kind === "terminal") rememberTerminal(result.value);
+      return null;
+    }
+    return resolveRejectionMessage(result, m.ownership_transfer_command_failed());
+  } catch {
+    return m.ownership_transfer_command_failed();
+  }
 }
 
 export function useOwnershipTransfer(
@@ -108,7 +157,8 @@ export function useOwnershipTransfer(
   });
   const [lastTerminal, setLastTerminal] = useState<OwnershipTransferOutcomeView | null>(null);
 
-  useCeremonyRead(accountId, setState);
+  const isShown = useShownAccount(accountId);
+  useCeremonyRead(accountId, isShown, setState);
 
   /**
    * Run one command, then reconcile every projection the caller's own authority depends on.
@@ -123,15 +173,16 @@ export function useOwnershipTransfer(
       if (!accountId) return;
       setState((previous) => ({ ...previous, busy: true, error: null }));
       setLastTerminal(null);
-      const result = await perform();
-      if (result.kind === "ok" && result.value.kind === "terminal") setLastTerminal(result.value);
-      const failure = result.kind === "ok" ? null : (result.message ?? m.ownership_transfer_command_failed());
-      await refreshAuth();
-      await reprojectAccess(accountId);
+      const failure = await submit(perform, setLastTerminal);
+      // Completion changes the caller's own role, so reconcile before re-reading. A failure here is
+      // not the user's problem to solve — the command's own outcome is — so it only costs a re-read.
+      await refreshAuth().catch(() => undefined);
+      await reprojectAccess(accountId).catch(() => undefined);
       const next = await readCeremony(accountId);
+      if (!isShown(accountId)) return;
       setState((previous) => ({ ...mergeCeremonyRead(previous, next), busy: false, error: failure ?? next.error }));
     },
-    [accountId, refreshAuth],
+    [accountId, isShown, refreshAuth],
   );
 
   const nominate = useCallback(

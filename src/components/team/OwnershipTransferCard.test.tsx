@@ -238,6 +238,57 @@ describe("OwnershipTransferCard outcomes", () => {
     expect(await screen.findByText(m.ownership_transfer_outcome_expired())).toBeInTheDocument();
   });
 
+  it("keeps a rejected command from disabling every control with nothing said", async () => {
+    seed({ live: request(), latestOutcome: null });
+    client.commandOwnershipTransfer.mockRejectedValue(new Error("offline"));
+    renderAs(NOMINEE.userId);
+
+    fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
+
+    expect(await screen.findByText(m.ownership_transfer_command_failed())).toBeInTheDocument();
+    // A stuck `busy` would leave the ceremony unreachable until a full page reload.
+    await waitFor(() => {
+      expect(screen.getByTestId("ownership-transfer-accept")).toBeEnabled();
+    });
+  });
+
+  it("prefers its own sentence to a message that only describes our uncertainty", async () => {
+    seed({ live: request(), latestOutcome: null });
+    client.commandOwnershipTransfer.mockResolvedValue({
+      kind: "invalid",
+      status: 200,
+      message: "The server returned an invalid response.",
+    });
+    renderAs(NOMINEE.userId);
+
+    fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
+
+    expect(await screen.findByText(m.ownership_transfer_command_failed())).toBeInTheDocument();
+    expect(screen.queryByText("The server returned an invalid response.")).toBeNull();
+  });
+
+  it("shows a server-authored refusal as the server wrote it", async () => {
+    seed({ live: request(), latestOutcome: null });
+    client.commandOwnershipTransfer.mockResolvedValue({
+      kind: "rejected",
+      status: 409,
+      message: "Ownership transfer changed.",
+    });
+    renderAs(NOMINEE.userId);
+
+    fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
+
+    expect(await screen.findByText("Ownership transfer changed.")).toBeInTheDocument();
+  });
+
+  it("tells a nominee whose read failed, rather than showing them an empty page", async () => {
+    client.readOwnershipTransfer.mockRejectedValue(new Error("offline"));
+    client.listMembers.mockResolvedValue({ kind: "ok", status: 200, value: { members: [OWNER, NOMINEE] } });
+    renderAs(NOMINEE.userId);
+
+    expect(await screen.findByText(m.ownership_transfer_read_failed())).toBeInTheDocument();
+  });
+
   it("reports a failed read without blanking the card", async () => {
     client.readOwnershipTransfer.mockResolvedValue({ kind: "error", status: 500, message: "boom" });
     client.listMembers.mockResolvedValue({ kind: "ok", status: 200, value: { members: [OWNER, NOMINEE] } });
