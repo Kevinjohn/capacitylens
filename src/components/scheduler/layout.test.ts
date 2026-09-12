@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { LAYOUT, laneLayout, buildLaneLayout, buildSchedulerDensity, DENSITY_SCALE, LANE_GAP_SCALE } from "./layout";
+import {
+  LAYOUT,
+  laneLayout,
+  buildAllocationBarInset,
+  buildLaneLayout,
+  buildSchedulerDensity,
+  DENSITY_SCALE,
+  LANE_GAP_SCALE,
+} from "./layout";
 import { resolveRowHeightForLanes } from "../../lib/lanePacking";
 
 // laneLayout is the LaneLayout projection of LAYOUT handed to lanePacking (packLanes / laneTop /
@@ -13,6 +21,16 @@ describe("laneLayout", () => {
       laneGap: LAYOUT.laneGap,
       rowPadding: LAYOUT.rowPadding,
     });
+  });
+});
+
+describe("allocation bar inset geometry", () => {
+  it("keeps the bar's rendered position and width inside its raw column span", () => {
+    expect(buildAllocationBarInset(96, 336)).toEqual({ insetLeft: 101, insetWidth: 326 });
+  });
+
+  it("keeps narrow bars visible while limiting their inset to one third", () => {
+    expect(buildAllocationBarInset(24, 3)).toEqual({ insetLeft: 25, insetWidth: 1 });
   });
 });
 
