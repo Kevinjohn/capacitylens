@@ -28,13 +28,13 @@ import {
 /**
  * Not every handle that reaches the terminalisers HAS this table.
  *
- * Two callers arrive before v40 exists: the membership choke point, which application migrations
+ * Two callers arrive before v41 exists: the membership choke point, which application migrations
  * v12 and v14 drive on a handle where `ensureControlTables` has installed the membership tables but
  * not this one; and the stopped-server repair commands, which deliberately run against a database
  * whose migration 40 is still pending. A live request cannot exist in either case, so absence means
  * "nothing to end" — but the query would still throw. Guarding HERE, rather than at each call site,
  * is what keeps a repair path from failing with an opaque `no such table`. Absence is re-probed
- * every call, never cached, so the same handle starts terminalising the moment v40 runs on it.
+ * every call, never cached, so the same handle starts terminalising the moment v41 runs on it.
  */
 const ownershipTransfersTableExists = createTableExistenceProbe("account_ownership_transfers");
 
