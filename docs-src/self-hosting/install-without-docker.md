@@ -98,8 +98,9 @@ installed.
    `server/dist/index.mjs`, the same build Docker's image runs.
 
 5. Install a systemd unit so the API starts on boot and restarts if it exits. Create
-   `/etc/systemd/system/capacitylens.service`, adjusting the paths to where you cloned
-   the repo:
+   `/etc/systemd/system/capacitylens.service`. Adjust `WorkingDirectory` and
+   `EnvironmentFile` to where you cloned the repo, but keep `ExecStart` at the runtime
+   path installed in step 3:
 
    ```ini
    [Unit]
