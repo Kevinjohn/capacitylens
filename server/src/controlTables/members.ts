@@ -5,6 +5,7 @@ import { terminaliseLiveRequestsForAccount, terminaliseLiveRequestsForMember } f
 import { revokeResetTokensForUser } from "../auth";
 import { bumpSecurityRevision } from "../accounts/state";
 import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTracking";
+import { cachedStatement } from "./preparedStatement";
 import {
   isKnownRole,
   toAccountMember,
@@ -156,6 +157,16 @@ export function setMemberStatus({ db, accountId, userId, status }: SetMemberStat
   return { outcome: "changed", invalidatedTransferIds: terminaliseMemberTransfers(db, accountId, userId) };
 }
 
+const membershipRowStatement = cachedStatement(
+  `SELECT accountId, userId, role, status, createdAt FROM account_members
+        WHERE accountId = ? AND userId = ?`,
+);
+const memberRoleStatement = cachedStatement(`SELECT role FROM account_members WHERE accountId = ? AND userId = ?`);
+const activeMemberRoleStatement = cachedStatement(`
+    SELECT role FROM account_members
+     WHERE accountId = ? AND userId = ? AND status = 'active'
+  `);
+
 /**
  * Read ONE membership row, whatever its lifecycle status.
  *
@@ -172,37 +183,6 @@ export function setMemberStatus({ db, accountId, userId, status }: SetMemberStat
  * @throws Error  If the stored role is not a known {@link Role} — control-table corruption, which
  *   fails loud here exactly as it does in {@link listMembersForAccount}.
  */
-type PreparedStatement = ReturnType<Db["prepare"]>;
-
-/**
- * Factory for a per-handle prepared-statement cache, so a hot `account_members` read (reached via
- * {@link authorize} on most requests) is prepared at most ONCE per Db handle rather than on every
- * call. WeakMap keyed by the Db handle — mirrors {@link auth.ts}'s `cachedTableExists` idiom — so an
- * entry is collected with its handle and the many short-lived `:memory:` handles tests open never
- * leak. SQL text is unchanged; only the repeated `prepare()` call is elided.
- */
-function cachedStatement(sql: string): (db: Db) => PreparedStatement {
-  const cache = new WeakMap<Db, PreparedStatement>();
-  return (db: Db): PreparedStatement => {
-    let statement = cache.get(db);
-    if (!statement) {
-      statement = db.prepare(sql);
-      cache.set(db, statement);
-    }
-    return statement;
-  };
-}
-
-const membershipRowStatement = cachedStatement(
-  `SELECT accountId, userId, role, status, createdAt FROM account_members
-        WHERE accountId = ? AND userId = ?`,
-);
-const memberRoleStatement = cachedStatement(`SELECT role FROM account_members WHERE accountId = ? AND userId = ?`);
-const activeMemberRoleStatement = cachedStatement(`
-    SELECT role FROM account_members
-     WHERE accountId = ? AND userId = ? AND status = 'active'
-  `);
-
 export function getMembershipRow(db: Db, accountId: string, userId: string): AccountMember | null {
   const row = membershipRowStatement(db).get(accountId, userId) as AccountMemberRow | undefined;
   if (!row) return null;
