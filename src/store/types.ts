@@ -5,7 +5,6 @@ export * from "./filters";
 import type { WeeksZoom } from "../lib/schedulerConfig";
 import type { BarLabelPreferences, UtilizationPreferences } from "../lib/displayPrefs";
 import type { ThemePreference } from "../lib/theme";
-import type { DateStyle } from "../lib/dateStyle";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { MasqueradeState } from "@capacitylens/shared/domain/masquerade";
 import type {
@@ -166,11 +165,6 @@ export interface StoreState {
   /** Colour-scheme preference. Device-global, not part of account data: kept in the
    *  store only for reactivity, persisted to its own localStorage key by setTheme. */
   theme: ThemePreference;
-  /** Date-display style preference (day-month order and ordinal suffix). Device-global like
-   *  `theme`, persisted to its own localStorage key — not part of account data. Formatters read
-   *  the resolver directly (`readActiveDateStyle()`); this field exists only so the Settings
-   *  control can react to the current choice. */
-  dateStyle: DateStyle;
   /** Utilisation display toggles. Device-global like `theme`, persisted to their
    *  own localStorage key — not part of account data. */
   utilizationPrefs: UtilizationPreferences;
@@ -262,7 +256,6 @@ export interface StoreState {
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
   setTheme: (pref: ThemePreference) => void;
   /** Set the date-display style preference: persist it and update state. */
-  setDateStyle: (style: DateStyle) => void;
   /** Toggle a single utilisation display preference: persist and update state. */
   setUtilizationPref: (key: keyof UtilizationPreferences, value: boolean) => void;
   /** Toggle a single bar-label display preference: persist and update state. */

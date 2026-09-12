@@ -3,13 +3,13 @@ import { openApp } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-// Covers US-SET-17. The date-style preference (device-global, default "day-month") governs how
-// dates and ranges read across the app. This spec asserts the Settings control, its storage
-// round-trip and one representative surface — the Time off list, whose weekday form reorders
+// Covers US-SET-17. The date-style preference (account-wide, default "day-month") governs how
+// dates and ranges read across the app. This spec asserts the Settings control and one
+// representative surface — the Time off list, whose weekday form reorders
 // without losing its ordinal. Range collapsing itself is covered exhaustively in
 // src/lib/dateDisplay.test.ts, so it is not re-asserted here through the browser.
 test.describe("Settings — date style", () => {
-  test("defaults to '9 Sep', switching updates the control and the stored preference", async ({ page }) => {
+  test("defaults to '9 Sep' and switching updates the control", async ({ page }) => {
     await openApp(page, "Wayne Enterprises", "/settings");
     const dayMonth = page.getByRole("radio", { name: "9 Sep", exact: true });
     const monthDay = page.getByRole("radio", { name: "Sep 9", exact: true });
@@ -49,16 +49,5 @@ test.describe("Settings — date style", () => {
     // 2026-06-03, so a regression that rendered the window against the wrong month would show here.
     await expect(sheet.getByTestId("person-schedule-header")).toContainText(/Jun \d{1,2} – \d{1,2}/);
     await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/\d{1,2} – \d{1,2} Jun/);
-  });
-
-  test("the choice survives a reload (device-global pref)", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises", "/settings");
-    await page.getByRole("radio", { name: "Sep 9", exact: true }).click();
-
-    await page.reload();
-    // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
-    await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
-    await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await expect(page.getByRole("radio", { name: "Sep 9", exact: true })).toHaveAttribute("aria-checked", "true");
   });
 });

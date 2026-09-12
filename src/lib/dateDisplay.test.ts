@@ -15,7 +15,8 @@ import {
   formatShortDateRange,
   formatWeekdayScheduleDate,
 } from "./dateDisplay";
-import { writeStoredDateStyle, type DateStyle } from "./dateStyle";
+import { setActiveDateStyle } from "./dateDisplay";
+import type { DateStyle } from "@capacitylens/shared/types/entities";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
 const dateLocaleMocks = vi.hoisted(() => ({ readActiveDateLocale: vi.fn() }));
@@ -26,10 +27,10 @@ vi.mock("@/i18n", async (importOriginal) => ({
 
 beforeEach(() => {
   dateLocaleMocks.readActiveDateLocale.mockReturnValue(enGB);
-  localStorage.clear();
+  setActiveDateStyle("day-month");
 });
 afterEach(() => {
-  localStorage.clear();
+  setActiveDateStyle("day-month");
 });
 
 const invalidDate = "not-a-date" as ISODate;
@@ -54,7 +55,7 @@ describe("formatShortDate", () => {
   });
 
   it("always carries the ordinal, even under a non-ordinal style", () => {
-    writeStoredDateStyle("month-day");
+    setActiveDateStyle("month-day");
     expect(formatShortDate("2026-06-10")).toBe("Wed Jun 10th");
   });
 
@@ -78,12 +79,12 @@ describe("formatShortDateRange", () => {
   });
 
   it("collapses a same-month range under month-day order", () => {
-    writeStoredDateStyle("month-day");
+    setActiveDateStyle("month-day");
     expect(formatShortDateRange("2026-06-05", "2026-06-08")).toBe("Fri Jun 5th – Mon 8th");
   });
 
   it("shows the month at both ends for a cross-month range under month-day order", () => {
-    writeStoredDateStyle("month-day");
+    setActiveDateStyle("month-day");
     expect(formatShortDateRange("2026-06-05", "2026-07-08")).toBe("Fri Jun 5th – Wed Jul 8th");
   });
 
@@ -94,7 +95,7 @@ describe("formatShortDateRange", () => {
   });
 
   it("spells out both years for a cross-year range under month-day order", () => {
-    writeStoredDateStyle("month-day");
+    setActiveDateStyle("month-day");
     expect(formatShortDateRange("2026-06-05", "2027-06-08")).toBe("Fri Jun 5th, 2026 – Tue Jun 8th, 2027");
   });
 });
@@ -141,7 +142,7 @@ describe("range endpoints stated in full", () => {
   });
 
   it("follows the active style like every other helper", () => {
-    writeStoredDateStyle("month-day-ordinal");
+    setActiveDateStyle("month-day-ordinal");
     expect(formatDayMonthEndpoint("2026-12-28", "2027-01-08")).toBe("Dec 28th, 2026");
   });
 
@@ -153,7 +154,7 @@ describe("range endpoints stated in full", () => {
 
 describe("formatMonthYear", () => {
   it("renders month + year, unaffected by the active style", () => {
-    writeStoredDateStyle("month-day-ordinal");
+    setActiveDateStyle("month-day-ordinal");
     expect(formatMonthYear("2026-09-09")).toBe("Sep 2026");
   });
 });
@@ -164,12 +165,12 @@ describe("formatWeekdayScheduleDate", () => {
   });
 
   it("renders weekday + full date, with no ordinal, under month-day order", () => {
-    writeStoredDateStyle("month-day");
+    setActiveDateStyle("month-day");
     expect(formatWeekdayScheduleDate("2026-09-09")).toBe("Wed Sep 9, 2026");
   });
 
   it("does not gain an ordinal under an ordinal style", () => {
-    writeStoredDateStyle("day-ordinal-month");
+    setActiveDateStyle("day-ordinal-month");
     expect(formatWeekdayScheduleDate("2026-09-09")).toBe("Wed 9 Sep 2026");
   });
 });
@@ -285,7 +286,7 @@ const STYLE_TABLE: Record<
 };
 
 describe.each(Object.entries(STYLE_TABLE))("date style %s", (style, cells) => {
-  beforeEach(() => writeStoredDateStyle(style as DateStyle));
+  beforeEach(() => setActiveDateStyle(style as DateStyle));
 
   it("formats a single date with no year (formatDayMonth)", () => {
     expect(formatDayMonth("2026-09-09")).toBe(cells.single);

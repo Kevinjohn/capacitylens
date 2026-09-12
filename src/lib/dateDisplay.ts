@@ -1,8 +1,7 @@
 import { format } from "date-fns";
 import { daysInclusive, parseDate } from "@capacitylens/shared/lib/dateMath";
-import type { ISODate } from "@capacitylens/shared/types/entities";
 import { readActiveDateLocale, m } from "@/i18n";
-import { readActiveDateStyle, type DateStyle } from "./dateStyle";
+import { DEFAULT_DATE_STYLE, type DateStyle, type ISODate } from "@capacitylens/shared/types/entities";
 
 // Human-readable date presentation for at-a-glance lists (e.g. the Time-off list), where a
 // reader wants "which days, how long" — not a machine date. Pure display formatting only; the
@@ -12,8 +11,9 @@ import { readActiveDateStyle, type DateStyle } from "./dateStyle";
 // upstream-validation bug it is (see dateMath's module precondition) rather than wrap-and-swallow.
 //
 // DATE STYLE: this module is the only place that builds a month- or year-bearing (style-sensitive)
-// date-fns pattern; call sites never see a pattern, only these helpers. The active style — read
-// fresh on every call via `readActiveDateStyle()` (src/lib/dateStyle.ts), never cached — resolves
+// date-fns pattern; call sites never see a pattern, only these helpers. The active style is the
+// ACCOUNT's `dateStyle` — company data, not a device preference — mirrored into this module by the
+// store so a pure formatter can read it mid-render (see the mirror below). It resolves
 // to a `DateStyleDescriptor` below: `monthFirst` sets day/month order, `ordinal` sets whether the
 // day number carries a date-fns `do` suffix. The weekday form (`formatShortDate`/
 // `formatShortDateRange`) is the one exception: it always carries the ordinal regardless of style,
@@ -58,8 +58,28 @@ const DATE_STYLE_DESCRIPTORS: Record<DateStyle, DateStyleDescriptor> = {
   "month-day-ordinal": { monthFirst: true, ordinal: true },
 };
 
+/**
+ * The active style, mirrored out of the store so these pure formatters can read it synchronously
+ * mid-render without becoming hooks. The store pushes every change here inside its own `set`, before
+ * React is notified (see `src/store/useStore.ts`), so a render can never read a style the store has
+ * already moved past. Outside an account — sign-in, invite acceptance — it holds the default.
+ *
+ * This is NOT where a format change becomes visible: a component only re-renders because it
+ * subscribed to the account, and a `useMemo` that BAKES a formatted string needs the style in its
+ * dependencies (see `useDateStyle`). The mirror only guarantees the two agree.
+ */
+let activeDateStyle: DateStyle = DEFAULT_DATE_STYLE;
+
+export function setActiveDateStyle(style: DateStyle): void {
+  activeDateStyle = style;
+}
+
+export function readActiveDateStyle(): DateStyle {
+  return activeDateStyle;
+}
+
 function resolveDescriptor(): DateStyleDescriptor {
-  return DATE_STYLE_DESCRIPTORS[readActiveDateStyle()];
+  return DATE_STYLE_DESCRIPTORS[activeDateStyle];
 }
 
 /**

@@ -8,6 +8,7 @@ import {
   scopedTables,
   SCOPED_KEYS,
 } from "@capacitylens/shared/types/entities";
+import { DEFAULT_DATE_STYLE } from "@capacitylens/shared/types/entities";
 import type { Account, AppData, Discipline, ID, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import type { SchedulerUI } from "./useStore";
 import { DEFAULT_TIME_ZONE } from "../lib/timezones";
@@ -25,6 +26,12 @@ const createAccountFieldSelector =
   <K extends keyof Account>(key: K, fallback: NonNullable<Account[K]>) =>
   (data: AppData, activeAccountId: ID | null): NonNullable<Account[K]> =>
     data.accounts.find((account) => account.id === activeAccountId)?.[key] ?? fallback;
+
+/** The active company's date format. Absent on the account reads as 'day-month', the format the app
+ *  shipped with. Company data, not a device preference: everyone in the account reads one
+ *  convention. `useStore` mirrors this into `dateDisplay.ts` on every change so the pure formatters
+ *  can read it synchronously. */
+export const resolveDateStyle = createAccountFieldSelector("dateStyle", DEFAULT_DATE_STYLE);
 
 /** The active company's scheduling input mode. Absent on the account reads as the
  *  original 'hourly' behaviour. Single source so the modal and the bar can't drift. */

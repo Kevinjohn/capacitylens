@@ -4,6 +4,7 @@ import type { ID } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useCanEdit } from "../../auth/permissionContext";
 import { formatDayMonthEndpoint } from "../../lib/dateDisplay";
+import { useDateStyle } from "../../store/useDateStyle";
 import type { BarLabelPreferences } from "../../lib/displayPrefs";
 import { resolveAllocationStatusLabel } from "../../lib/metadata";
 import { useStore } from "../../store/useStore";
@@ -68,10 +69,19 @@ function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedul
 
 function useBarAriaLabel(input: AriaLabelInput) {
   const { bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel } = input;
-  // The name cannot change mid-gesture, so memoise it instead of rebuilding it on every pointermove render.
+  // The dates in this name are formatted INSIDE the memo, so the style has to be a dependency:
+  // without it the name keeps its old format until something else invalidates the memo. Today that
+  // happens by accident — changing the account rebuilds `state.data`, then the view-model, then
+  // `bar` — but the accident is not the guarantee, and a bar name is what a screen-reader user
+  // hears while dragging.
+  const dateStyle = useDateStyle();
+  // The name cannot change mid-gesture, so memoise it instead of rebuilding it on every pointermove
+  // render. The date formatters read the active style from a module-level mirror rather than an
+  // argument, so the linter cannot see that dependency.
   return useMemo(
     () => buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }),
-    [bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the style is a real input to the name
+    [bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel, dateStyle],
   );
 }
 
