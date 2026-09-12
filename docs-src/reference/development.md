@@ -461,10 +461,12 @@ the named capabilities. Browser and Node runtime globals and Node imports are re
 Both gates check the production compiler graph, including dynamically imported declarations, for
 Node types and accidental test imports. Colocated tests use `shared/tsconfig.test.json` with Node
 types and typed promise linting. `pnpm --filter @capacitylens/shared type-check` checks both projects.
-`pnpm run typecheck` compiles messages, runs that, then `tsc -b` for the application and Node
-projects, then the end-to-end project. It does not cover the server workspace, which
-`pnpm run gate:server` type-checks separately. The root `tsconfig.json` has no inputs of its own,
-so `pnpm run typecheck` is the command to reach for rather than `tsc` at the repository root.
+The root `tsconfig.json` references the shared production and test projects, the browser
+application, the end-to-end project, and Node tooling, each with its own compiler environment.
+`pnpm run typecheck` compiles messages and then runs the complete solution with `tsc -b`. It does
+not cover the server workspace, which `pnpm run gate:server` type-checks separately. The root
+`tsconfig.json` has no inputs of its own, so `pnpm run typecheck` is the command to reach for rather
+than `tsc` at the repository root.
 
 Both gates verify the effective lint configuration against the authored source inventory and
 representative new files. The JavaScript and TypeScript recommended rules cover scripts and

@@ -1,6 +1,9 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "types": ["node"] },
+  "compilerOptions": {
+    "types": ["node"],
+    "tsBuildInfoFile": "../node_modules/.tmp/tsconfig.shared.test.tsbuildinfo"
+  },
   "include": ["src/**/*.test.*", "src/**/*.spec.*", "src/**/__tests__/**/*"],
   "exclude": []
 }
