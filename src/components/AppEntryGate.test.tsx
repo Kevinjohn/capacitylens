@@ -18,7 +18,7 @@ const baseProps = {
   introSeen: true,
   onFakeSignIn: () => undefined,
   onIntroContinue: () => undefined,
-  onRetryActiveAccountLoad: () => undefined,
+  onRetryActiveAccountLoad: () => Promise.resolve(true),
   onChooseAnotherAccount: () => undefined,
   children: <div>application shell</div>,
 };
@@ -89,7 +89,7 @@ describe("AppEntryGate connection failures", () => {
 
   it("shows account recovery instead of children, including on the Account route", async () => {
     const user = userEvent.setup();
-    const retry = vi.fn();
+    const retry = vi.fn().mockResolvedValue(true);
     const chooseAnother = vi.fn();
     render(
       <AppEntryGate
@@ -107,6 +107,23 @@ describe("AppEntryGate connection failures", () => {
     await user.click(screen.getByRole("button", { name: "Choose another company" }));
     expect(retry).toHaveBeenCalledTimes(1);
     expect(chooseAnother).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an inline notice when a retry from account recovery fails", async () => {
+    const user = userEvent.setup();
+    const retry = vi.fn().mockResolvedValue(false);
+    render(
+      <AppEntryGate
+        {...baseProps}
+        allowWithoutActiveAccount
+        activeAccountLoadFailed="a-studio"
+        onRetryActiveAccountLoad={retry}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Retry failed");
   });
 
   it("does not show account recovery for a null or non-matching failure", () => {

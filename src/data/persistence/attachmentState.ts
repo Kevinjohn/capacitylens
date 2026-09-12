@@ -88,6 +88,11 @@ class AttachmentOwner {
   get current(): Readonly<AttachmentValues> {
     return this.values;
   }
+  /** A failed account-load recovery owns any parked edit until an explicit retry or a different
+   * selection resolves it; every write/retry/flush entry point stays closed until then. */
+  isBlockedByFailedAccountLoad(): boolean {
+    return this.values.failedAccountLoadRecovery !== null;
+  }
   update(patch: Partial<AttachmentValues>): void {
     Object.assign(this.values, patch);
   }
@@ -112,6 +117,7 @@ class AttachmentOwner {
   }
   discardFailedAccountLoadRecovery(): void {
     if (this.values.failedAccountLoadRecovery === null) return;
+    const hadUnsavedEdit = this.values.pending !== null || this.values.unacknowledged !== null;
     this.cancelDebounce();
     this.cancelRetry();
     this.update({
@@ -123,6 +129,12 @@ class AttachmentOwner {
       lastError: null,
       terminalBatchSnapshot: null,
     });
+    if (hadUnsavedEdit) {
+      this.discardEdit(
+        "capacitylens: an edit made during a failed company load was discarded",
+        "An edit made while this company failed to load could not be saved.",
+      );
+    }
   }
   discardEdit(warning: string, message: string): void {
     incrementPersistenceDiagnostic("editsDiscarded");
@@ -241,6 +253,7 @@ export function createAttachmentState(
     acknowledge: owner.acknowledge.bind(owner),
     installSlice: owner.installSlice.bind(owner),
     beginSuspension: owner.beginSuspension.bind(owner),
+    isBlockedByFailedAccountLoad: owner.isBlockedByFailedAccountLoad.bind(owner),
   };
 }
 export type AttachmentState = ReturnType<typeof createAttachmentState>;

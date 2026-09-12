@@ -48,7 +48,7 @@ interface AppEntryGateProps {
   introSeen: boolean;
   onFakeSignIn: () => void;
   onIntroContinue: () => void;
-  onRetryActiveAccountLoad: () => void;
+  onRetryActiveAccountLoad: () => Promise<boolean>;
   onChooseAnotherAccount: () => void;
   children: ReactNode;
 }

@@ -19,7 +19,6 @@ import { AppEntryGate } from "./AppEntryGate";
 import { useAppShellController } from "./useAppShellController";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
-import { transitionAccount } from "../auth/accountTransition";
 import { masqueradeController } from "../auth/masqueradeController";
 import { Button } from "./ui/button";
 import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
@@ -157,13 +156,15 @@ function GatedApp({
       allowWithoutActiveAccount={allowWithoutActiveAccount}
       activeAccountId={activeAccountId}
       activeAccountLoadFailed={activeAccountLoadFailed}
-      activeAccountName={activeAccount?.name ?? "Company"}
+      activeAccountName={activeAccount?.name ?? m.account_load_fallback_name()}
       introSeen={introSeen}
       onFakeSignIn={onFakeSignIn}
       onIntroContinue={onIntroContinue}
-      onRetryActiveAccountLoad={() => {
-        if (activeAccountId) void retryActiveAccountLoad(activeAccountId);
-      }}
+      onRetryActiveAccountLoad={() =>
+        activeAccountId
+          ? retryActiveAccountLoad(activeAccountId).then((outcome) => outcome.kind !== "failed")
+          : Promise.resolve(false)
+      }
       onChooseAnotherAccount={() => void chooseAnotherAccountAfterLoadFailure(allowWithoutActiveAccount, navigate)}
     >
       <PermissionProvider>
@@ -200,14 +201,6 @@ function GatedSidebar({
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
-  const switchAccount = async () => {
-    try {
-      const switched = await transitionAccount(null);
-      if (switched && accountRoute) void navigate("/");
-    } catch (error: unknown) {
-      console.error("Company switch failed", error);
-    }
-  };
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
@@ -229,7 +222,7 @@ function GatedSidebar({
         demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}
         onSignOut={signOutDemo}
-        onSwitchAccount={() => void switchAccount()}
+        onSwitchAccount={() => void chooseAnotherAccountAfterLoadFailure(accountRoute, navigate)}
         open={sidebarOpen}
       />
     </>

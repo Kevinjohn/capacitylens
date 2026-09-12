@@ -26,7 +26,7 @@ class WriteQueueOwner {
 
   save = (data: AppData): void => {
     const { owner, adapter } = this.input;
-    if (owner.current.disposed || owner.current.failedAccountLoadRecovery !== null) return;
+    if (owner.current.disposed || owner.isBlockedByFailedAccountLoad()) return;
     if (this.deferForAuthoritativeReload(data)) return;
     if (owner.current.pending === data) owner.update({ pending: null });
     const round = adapter.saveAll(data).then(
@@ -89,7 +89,7 @@ class WriteQueueOwner {
       owner.current.retryTimer ||
       owner.current.retryAttempts >= MAX_RETRY_ATTEMPTS ||
       owner.current.suspendDepth > 0 ||
-      owner.current.failedAccountLoadRecovery !== null
+      owner.isBlockedByFailedAccountLoad()
     )
       return;
     const delay = Math.min(1000 * 2 ** owner.current.retryAttempts, 30000);
@@ -101,14 +101,13 @@ class WriteQueueOwner {
   private runRetry(): void {
     const { owner, store } = this.input;
     owner.update({ retryTimer: null });
-    if (owner.current.disposed || owner.current.suspendDepth > 0 || owner.current.failedAccountLoadRecovery !== null)
-      return;
+    if (owner.current.disposed || owner.current.suspendDepth > 0 || owner.isBlockedByFailedAccountLoad()) return;
     this.save(owner.current.unacknowledged ?? store.getState().data);
   }
 
   flushOnUnload = (): void => {
     const { owner, adapter } = this.input;
-    if (owner.current.disposed || owner.current.failedAccountLoadRecovery !== null) return;
+    if (owner.current.disposed || owner.isBlockedByFailedAccountLoad()) return;
     if (owner.current.externalSuspendDepth > 0) {
       this.reportParkedTeardownEdit();
       return;
@@ -148,7 +147,7 @@ class WriteQueueOwner {
     if (
       owner.current.disposed ||
       owner.current.externalSuspendDepth > 0 ||
-      owner.current.failedAccountLoadRecovery !== null
+      owner.isBlockedByFailedAccountLoad()
     )
       return;
     owner.cancelDebounce();

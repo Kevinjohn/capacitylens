@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useStore } from "../store/useStore";
 
 const mocks = vi.hoisted(() => ({ transitionAccount: vi.fn() }));
 
@@ -9,6 +10,7 @@ import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActio
 describe("chooseAnotherAccountAfterLoadFailure", () => {
   beforeEach(() => {
     mocks.transitionAccount.mockReset();
+    useStore.getState().setNotice(null);
   });
 
   it("returns to the schedule after leaving a failed company from the Account route", async () => {
@@ -30,13 +32,14 @@ describe("chooseAnotherAccountAfterLoadFailure", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("does not navigate when leaving the company is refused", async () => {
+  it("does not navigate when leaving the company is refused, and surfaces a notice", async () => {
     const navigate = vi.fn();
     mocks.transitionAccount.mockResolvedValue(false);
 
     await chooseAnotherAccountAfterLoadFailure(true, navigate);
 
     expect(navigate).not.toHaveBeenCalled();
+    expect(useStore.getState().notice).toEqual({ message: "Could not switch company. Please try again.", tone: "error" });
   });
 
   it("surfaces a transition failure without rejecting the click handler", async () => {
@@ -46,6 +49,7 @@ describe("chooseAnotherAccountAfterLoadFailure", () => {
 
     await expect(chooseAnotherAccountAfterLoadFailure(true, vi.fn())).resolves.toBeUndefined();
     expect(log).toHaveBeenCalledWith("Company switch failed", error);
+    expect(useStore.getState().notice).toEqual({ message: "Could not switch company. Please try again.", tone: "error" });
     log.mockRestore();
   });
 });
