@@ -25,6 +25,8 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "inlineActivityCreateEnabled",
       "showTaskFieldInSchedule",
       "capacityOverviewAccess",
+      // A display preference: no personal data, nothing to anonymise.
+      "dateStyle",
     ],
     clients: [
       "id",

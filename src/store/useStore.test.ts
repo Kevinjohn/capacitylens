@@ -9,6 +9,8 @@ import {
   WORKDAYS,
 } from "../test/fixtures";
 import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { readActiveDateStyle, formatDayMonth } from "../lib/dateDisplay";
+import { resolveDateStyle } from "./selectors";
 import { serializeData } from "@capacitylens/shared/data/transfer";
 import { PAST_BUFFER_DAYS } from "../lib/schedulerConfig";
 import { diffOps } from "../data/syncOps";
@@ -318,27 +320,31 @@ function registerSchedulerUiPart3(): void {
     s().setSnapToWeekStart(true);
   });
 
-  it("setDateStyle persists to its own key, is OFF the undo stack, and is NOT in export", () => {
-    // Device-global pref (default 'day-month'). Picking another style writes the id string and
-    // updates the reactive store value.
-    s().setDateStyle("month-day");
-    expect(localStorage.getItem("capacitylens/dateStyle")).toBe("month-day");
-    expect(s().dateStyle).toBe("month-day");
+  it("the date format is account data: undoable, exported, and mirrored to the formatters", () => {
+    // The inverse of the device-preference contract this test used to assert. It is on the account
+    // now, so it takes the account's behaviour in full — including the parts a device pref refused.
+    const accountId = s().activeAccountId;
+    if (!accountId) throw new Error("Expected an active account.");
+    s().updateAccount(accountId, { dateStyle: "month-day" });
+    expect(resolveDateStyle(s().data, accountId)).toBe("month-day");
 
-    // It is a device pref, NOT a data mutation, so undo must not revert it (mirrors theme /
-    // snapToWeekStart — those never touch the undo/redo stack either).
-    s().addClient({ name: "Acme", color: "#1" }); // a real mutation to give undo something to pop
+    // The store pushes it into the formatters synchronously, so a pure formatter agrees with the
+    // account without reading React.
+    expect(readActiveDateStyle()).toBe("month-day");
+    expect(formatDayMonth("2026-09-09")).toBe("Sep 9");
+
+    // An account write, so undo reverts it — unlike the theme, which never touches the stack.
     s().undo();
-    expect(s().dateStyle).toBe("month-day"); // still month-day — the pref rode through the undo untouched
+    expect(resolveDateStyle(s().data, accountId)).toBe("day-month");
+    expect(readActiveDateStyle()).toBe("day-month");
 
-    // And it never leaks into exported AppData (it lives on the store, not in `data`).
-    const json = serializeData(s().data);
-    expect(json).not.toContain("dateStyle");
-    expect(s().data).not.toHaveProperty("dateStyle");
+    // And it travels with the company's data.
+    s().updateAccount(accountId, { dateStyle: "month-day" });
+    expect(serializeData(s().data)).toContain("dateStyle");
 
     // Restore the default — the store is a singleton, so leaving it changed would bleed into
-    // later specs that read the pref.
-    s().setDateStyle("day-month");
+    // later specs that format a date.
+    s().updateAccount(accountId, { dateStyle: "day-month" });
   });
 
   it("setDrawMode toggles between work and time off", () => {

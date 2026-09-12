@@ -157,7 +157,7 @@ separate signals.
 `src/components/scheduler/schedulerModel.test.ts`; check `e2e/holiday-overallocation.spec.ts` when
 visible capacity or over-capacity presentation changes.
 
-#### Four-week Capacity Overview {#task-capacity-overview}
+#### Four-week Overview {#task-capacity-overview}
 
 **Start:** `src/components/capacity-overview/CapacityOverviewView.tsx` connects active scoped data,
 calendar settings and the two page controls to the table.
@@ -181,7 +181,9 @@ and resizing, `src/components/scheduler/useSchedulerViewport.ts` for scrolling a
 and `src/components/scheduler/useSchedulerGridVirtualization.ts` with
 `src/components/scheduler/virtualWindow.ts` for rendered rows.
 
-**Tests:** Start with `src/components/scheduler/AllocationBar.interaction.test.tsx`,
+**Tests:** Start with the `src/components/scheduler/AllocationBar.*.interaction.test.tsx` suites
+(`AllocationBar.pointerDrag.interaction.test.tsx` for drag and reassignment;
+`AllocationBar.keyboard.interaction.test.tsx` for keyboard and popover),
 `src/components/scheduler/useSchedulerViewport.test.tsx` and
 `src/components/scheduler/virtualWindow.test.ts`; use `e2e/scheduler.spec.ts` and
 `e2e/snap-week.spec.ts` for browser-level gesture and viewport behaviour.
@@ -223,7 +225,7 @@ transactional batch diffs against the server.
 
 **Tests:** Start with the `src/data/persist.*.test.ts` suites (`persist.attach.test.ts` for writes,
 retries and page lifecycle; `persist.reconciliation.test.ts` for batch conflicts),
-`src/data/persist.overlap.test.ts` and `src/data/ServerSyncAdapter.test.ts`; use
+`src/data/persist.overlap.test.ts` and the `src/data/ServerSyncAdapter.*.test.ts` suites; use
 `e2e/persistence.db.spec.ts` and `e2e/resilience.db.spec.ts` for database-backed browser boundaries.
 
 #### Offline snapshots {#task-offline-snapshots}
@@ -236,8 +238,9 @@ and read-only account slices.
 `src/data/offline/crypto.ts` plus `src/data/offline/shell.ts` own the device boundary and cached app
 shell. The service worker lives at `public/offline-worker.js`.
 
-**Tests:** Start with `src/data/offlineCache.test.ts` and `src/data/offlineWorker.test.ts`; include
-the offline transport cases in `src/data/ServerSyncAdapter.test.ts` and
+**Tests:** Start with the `src/data/offlineCache.*.test.ts` suites and
+`src/data/offlineWorker.test.ts`; include the offline transport cases in
+`src/data/ServerSyncAdapter.diff.test.ts` and
 `e2e/clear-local-storage.spec.ts` when cleanup or browser storage boundaries change.
 
 Maintain an entry when its starting point or ownership changes. A task brief should link to the
