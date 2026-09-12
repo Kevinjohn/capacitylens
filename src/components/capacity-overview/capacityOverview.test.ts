@@ -189,7 +189,25 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(week(result, resource.id, 0)).toMatchObject({ availableHours: 32, freeDays: 4 });
+    expect(week(result, resource.id, 0)).toMatchObject({
+      companyWorkingHours: 40,
+      availableHours: 32,
+      freeDays: 4,
+    });
+  });
+
+  it("derives the bar baseline from company working days in each displayed range", () => {
+    const resource = person("person-1", { workingDays: [1, 2, 3] });
+    const result = buildCapacityOverviewModel({
+      data: data([resource]),
+      today: "2026-06-03",
+      accountWorkingDays: [1, 2, 3, 4],
+      weekStartsOn: 1,
+      disciplinesEnabled: false,
+    });
+
+    expect(week(result, resource.id, 0)).toMatchObject({ companyWorkingHours: 16, freeHours: 8 });
+    expect(week(result, resource.id, 1)).toMatchObject({ companyWorkingHours: 32, freeHours: 24 });
   });
 
   it("excludes tentative load when requested and recalculates capacity", () => {
