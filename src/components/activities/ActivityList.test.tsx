@@ -378,6 +378,28 @@ describe("ActivityList", () => {
     vi.unstubAllEnvs();
   });
 
+  it("shows the base archive message instead of throwing when the row is archived while the dialog is open", async () => {
+    vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
+    const user = userEvent.setup();
+    const activity = useStore.getState().addActivity({ name: "My Activity", kind: "internal" });
+    render(<ActivityList />);
+
+    await user.click(screen.getByRole("button", { name: "Archive My Activity" }));
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(/Archive activity\?/i);
+
+    // Simulate a teammate/sync archiving the row while the dialog is still open and pointed at it —
+    // `confirming` keeps holding the now-stale activity object. The dialog must re-render with the
+    // base message, not throw archiveImpact's "already_inactive" error into the component tree.
+    act(() => {
+      useStore.getState().archiveEntity("activities", activity.id);
+    });
+
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog).toHaveTextContent('Archive "My Activity"? This hides it from scheduling while keeping its history.');
+    expect(dialog).not.toHaveTextContent("also hides");
+    vi.unstubAllEnvs();
+  });
+
   it("surfaces an archive integrity failure without removing the activity", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
