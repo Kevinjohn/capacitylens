@@ -39,6 +39,20 @@ export function isLiveOwnershipTransferState(state: OwnershipTransferState): sta
   return (LIVE_OWNERSHIP_TRANSFER_STATES as readonly string[]).includes(state);
 }
 
+/** The wire shape of a committed terminal outcome: a 409 whose code identifies the ceremony as
+ *  DONE rather than rejected, carrying one of the non-live terminal states. Both HTTP clients that
+ *  decode this response (the ceremony reader and the generic unknown-outcome classifier) share this
+ *  predicate so they cannot drift — a malformed code or a live state must never match either. */
+export function isOwnershipTransferTerminalOutcomeBody(
+  body: Record<string, unknown>,
+): body is Record<string, unknown> & { code: "OWNERSHIP_TRANSFER_TERMINAL"; state: OwnershipTransferState } {
+  return (
+    body.code === "OWNERSHIP_TRANSFER_TERMINAL" &&
+    isOwnershipTransferState(body.state) &&
+    !isLiveOwnershipTransferState(body.state)
+  );
+}
+
 /**
  * The state-changing commands. These are explicit transitions rather than a generic
  * `PATCH {state}` on purpose: they are security-sensitive, each has a different authorised caller,

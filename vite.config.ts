@@ -57,9 +57,11 @@ function offlineShellManifest(): Plugin {
 /**
  * Emit real directory index documents for fixed client routes. The packaged nginx image still
  * provides the normal SPA fallback, while these aliases also survive a static outer proxy that
- * serves only paths which physically exist (the production failure mode this guards).
+ * serves only paths which physically exist (the production failure mode this guards). Keep the
+ * filesystem work in `writeBundle`: Rollup also runs `closeBundle` while unwinding failed builds,
+ * before Vite has emitted `index.html`.
  */
-function staticSpaRouteDocuments(): Plugin {
+export function staticSpaRouteDocuments(): Plugin {
   let outputDirectory = "";
   return {
     name: "capacitylens-static-spa-route-documents",
@@ -67,7 +69,7 @@ function staticSpaRouteDocuments(): Plugin {
     configResolved(config) {
       outputDirectory = resolve(config.root, config.build.outDir);
     },
-    async closeBundle() {
+    async writeBundle() {
       const shell = resolve(outputDirectory, "index.html");
       for (const route of STATIC_SPA_ROUTES) {
         const directory = resolve(outputDirectory, route);

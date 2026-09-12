@@ -37,7 +37,7 @@ export function remapIds({ db, table, idColumn, references }: RemapIdsInput): vo
   if (!hasTable(db, table) || !readColumnNames(db, table).has(idColumn)) return;
   const values = db
     .prepare(
-      `SELECT ${quoteIdentifier(idColumn)} AS id FROM ${quoteIdentifier(table)} ORDER BY ${quoteIdentifier(idColumn)}`,
+      `SELECT DISTINCT ${quoteIdentifier(idColumn)} AS id FROM ${quoteIdentifier(table)} ORDER BY ${quoteIdentifier(idColumn)}`,
     )
     .all() as Array<{ id: string | null }>;
   const existing = new Set(values.flatMap((row) => (row.id === null ? [] : [row.id])));
