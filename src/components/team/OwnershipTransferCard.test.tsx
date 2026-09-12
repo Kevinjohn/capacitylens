@@ -216,6 +216,25 @@ describe("OwnershipTransferCard outcomes", () => {
     );
   });
 
+  it("tells the Owner how the last request ended while still offering a new one", async () => {
+    seed({
+      live: null,
+      latestOutcome: request({
+        state: "declined",
+        terminalReason: "target_declined",
+        terminalAt: "2026-09-11T00:00:00.000Z",
+      }),
+    });
+    renderAs(OWNER.userId);
+
+    // The Owner can always start a transfer, so the explanation must sit BESIDE the nominate
+    // control: showing one instead of the other loses the only account of what happened.
+    const outcome = await screen.findByTestId("ownership-transfer-outcome");
+    expect(outcome).toHaveTextContent(m.ownership_transfer_outcome_declined());
+    expect(outcome).toHaveTextContent(new Date("2026-09-11T00:00:00.000Z").toLocaleDateString());
+    expect(screen.getByTestId("ownership-transfer-start")).toBeInTheDocument();
+  });
+
   it("renders nothing for someone with no ceremony and no standing to start one", async () => {
     seed({ live: null, latestOutcome: null });
     renderAs(NOMINEE.userId);

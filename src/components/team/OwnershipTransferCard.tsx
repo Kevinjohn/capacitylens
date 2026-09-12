@@ -226,7 +226,7 @@ function LiveRequest({ controller, request, isInitiator }: LiveRequestProps) {
         {status}
       </p>
       <p className="text-sm text-muted-foreground">
-        {m.ownership_transfer_deadline({ deadline: new Date(request.expiresAt).toLocaleDateString() })}
+        {m.ownership_transfer_deadline({ deadline: new Date(request.expiresAt).toLocaleString() })}
       </p>
       {isInitiator ? (
         <OwnerControls controller={controller} request={request} awaitingOwner={awaitingOwner} />
@@ -258,12 +258,30 @@ function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProp
   if (live !== null) {
     return <LiveRequest controller={controller} request={live} isInitiator={live.fromUserId === principalId} />;
   }
-  if (mayNominate) {
-    return <NominatePanel controller={controller} candidates={adminCandidates(controller.members)} replacing={false} />;
-  }
-  return outcome === null ? null : (
+  return (
+    <>
+      {/* Shown ALONGSIDE the nominate control, never instead of it. The Owner is the one person who
+          can always start a transfer, so an either/or would hand them a fresh panel and no word of
+          the decline, expiry or invalidation that ended the last one while they were away. */}
+      <LastOutcome outcome={outcome} />
+      {mayNominate && (
+        <NominatePanel controller={controller} candidates={adminCandidates(controller.members)} replacing={false} />
+      )}
+    </>
+  );
+}
+
+/** How the last ceremony this viewer took part in ended, dated. The row is retained for a year, so
+ *  an undated sentence would read as news every time the team page is opened. */
+function LastOutcome({ outcome }: { outcome: OwnershipTransferView | null }) {
+  if (outcome === null) return null;
+  const said = describeReason(outcome.terminalReason, outcome.state);
+  if (said === "") return null;
+  return (
     <p className="text-sm text-muted-foreground" data-testid="ownership-transfer-outcome">
-      {describeReason(outcome.terminalReason, outcome.state)}
+      {outcome.terminalAt === null
+        ? said
+        : m.ownership_transfer_outcome_on({ outcome: said, date: new Date(outcome.terminalAt).toLocaleDateString() })}
     </p>
   );
 }

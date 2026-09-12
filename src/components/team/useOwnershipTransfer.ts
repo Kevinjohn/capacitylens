@@ -220,10 +220,12 @@ export function useOwnershipTransfer(
       setState((previous) => ({ ...previous, busy: true, error: null }));
       setLastTerminal(null);
       const answer = await submit(perform);
-      await refreshAuth().catch(() => undefined);
-      // Only completion moves the roles, and reprojecting reloads the whole active slice. Doing it
-      // after a decline or a cancel discards a large company's schedule for a command that cannot
-      // have changed anyone's access. A failure here costs a re-read, not the user's attention.
+      // Only completion moves the roles, so only completion can have changed the caller's own
+      // authority: an accept, decline, withdraw or cancel has nothing for the session to re-read.
+      if (answer.completed) await refreshAuth().catch(() => undefined);
+      // Reprojecting reloads the whole active slice, so it is gated the same way: doing it after a
+      // decline or a cancel discards a large company's schedule for a command that cannot have
+      // changed anyone's access. A failure here costs a re-read, not the user's attention.
       if (answer.completed) await reprojectAccess(accountId).catch(() => undefined);
       const next = await readCeremony(accountId);
       // Nothing from a superseded command is applied — not the projection, not the outcome, not

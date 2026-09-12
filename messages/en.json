@@ -1351,6 +1351,7 @@
   "ownership_transfer_outcome_expired": "The last transfer expired before it was confirmed.",
   "ownership_transfer_outcome_invalidated": "The last transfer ended because who can take part in it changed.",
   "ownership_transfer_outcome_completed": "Ownership was transferred.",
+  "ownership_transfer_outcome_on": "{outcome} ({date})",
   "ownership_transfer_read_failed": "The transfer status could not be loaded.",
   "ownership_transfer_command_failed": "That step could not be completed."
 }
