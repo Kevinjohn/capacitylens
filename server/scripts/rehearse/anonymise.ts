@@ -62,18 +62,22 @@ function anonymiseSchedulingData(db: DatabaseSync): void {
 }
 
 function anonymiseOperationalData(db: DatabaseSync): void {
+  // `applicationId` names one logical value ("capacitylens") shared across this table,
+  // account_commands and capacitylens_sso_cutover_state, but each is remapped into its own
+  // per-table rehearsal namespace independently. Deliberate: nothing joins across these tables on
+  // applicationId today. If that ever changes, this per-table remap would need to become shared.
   remapIds({
     db,
     table: "account_federated_provider_bindings",
     idColumn: "applicationId",
     references: [],
   });
+  remapIds({ db, table: "account_commands", idColumn: "applicationId", references: [] });
   applyRedactions(db, [
     { table: "capacitylens_audit_outbox", column: "id", expression: `'rehearsal-audit-' || rowid` },
     { table: "capacitylens_audit_outbox", column: "payload", expression: `'{}'` },
     { table: "capacitylens_sync_row_provenance", column: "rowId", expression: `'rehearsal-sync-row-' || rowid` },
     { table: "capacitylens_sync_row_provenance", column: "rowHash", expression: `lower(hex(zeroblob(32)))` },
-    { table: "account_commands", column: "applicationId", expression: `'rehearsal-app'` },
     { table: "account_commands", column: "operation", expression: `'rehearsal-operation-' || rowid` },
     { table: "account_commands", column: "idempotencyKey", expression: `'rehearsal-key-' || rowid` },
     { table: "account_commands", column: "payloadHash", expression: `lower(hex(zeroblob(32)))` },
