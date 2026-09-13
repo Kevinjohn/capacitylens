@@ -83,6 +83,7 @@
     "policy:server-script-lint:test": "node --test scripts/check-server-script-lint.test.mjs",
     "policy:shared-environment:test": "node --test scripts/check-shared-environment.test.mjs",
     "policy:typecheck-graph:test": "node --test scripts/check-typecheck-graph.test.mjs",
+    "policy:build-tsconfig:test": "node --test scripts/check-build-tsconfig.test.mjs",
     "policy:script-environments:test": "node --test scripts/check-script-environments.test.mjs",
     "policy:lint-coverage:test": "node --test scripts/check-lint-coverage.test.mjs"
   },
