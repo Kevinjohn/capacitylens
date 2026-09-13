@@ -19,6 +19,19 @@ const COMMAND_IDENTITY_STORAGE_KEY = `${COMMAND_STORAGE_PREFIX}identity`;
 // reloads for the lifetime of the tab.
 const memoryCommands = new Map<string, BrowserAccountCommand>();
 let activeCommandIdentity: string | undefined;
+interface CommandCohort {
+  inFlight: number;
+  unknown: boolean;
+  generation: number;
+}
+
+export interface CommandCohortHandle {
+  key: string;
+  generation: number;
+}
+
+const commandCohorts = new Map<string, CommandCohort>();
+let commandCohortGeneration = 0;
 
 function buildCommandStorageKey(operationKey: string): string {
   // Cleanup is best-effort because sessionStorage can fail partway through an identity change.
@@ -27,10 +40,42 @@ function buildCommandStorageKey(operationKey: string): string {
   return `${COMMAND_STORAGE_PREFIX}${activeCommandIdentity ?? "unbound"}.${operationKey}`;
 }
 
+function invalidateCommandCohorts(): void {
+  commandCohortGeneration += 1;
+  commandCohorts.clear();
+}
+
+export function beginCommandCohort(operationKey: string): CommandCohortHandle {
+  const key = buildCommandStorageKey(operationKey);
+  const existing = commandCohorts.get(key);
+  if (existing) {
+    existing.inFlight += 1;
+    return { key, generation: existing.generation };
+  }
+  const cohort = { inFlight: 1, unknown: false, generation: commandCohortGeneration };
+  commandCohorts.set(key, cohort);
+  return { key, generation: cohort.generation };
+}
+
+export function markCommandCohortUnknown(handle: CommandCohortHandle): void {
+  const cohort = commandCohorts.get(handle.key);
+  if (cohort?.generation === handle.generation) cohort.unknown = true;
+}
+
+export function finishCommandCohort(handle: CommandCohortHandle): void {
+  const cohort = commandCohorts.get(handle.key);
+  if (!cohort || cohort.generation !== handle.generation) return;
+  cohort.inFlight -= 1;
+  if (cohort.inFlight > 0) return;
+  commandCohorts.delete(handle.key);
+  if (!cohort.unknown && handle.generation === commandCohortGeneration) clearStoredCommandByKey(handle.key);
+}
+
 /** End every implicit account-command ceremony owned by the identity leaving this browser tab.
  * sessionStorage survives a reload, so sign-out must explicitly remove these handles before a
  * different identity can use the same tab. Unrelated per-tab preferences remain intact. */
 export function clearStoredAccountCommands(): void {
+  invalidateCommandCohorts();
   memoryCommands.clear();
   activeCommandIdentity = undefined;
   let keys: string[];
@@ -99,7 +144,10 @@ export function readOrCreateStoredCommand(operationKey: string): BrowserAccountC
 }
 
 export function clearStoredCommand(operationKey: string): void {
-  const storageKey = buildCommandStorageKey(operationKey);
+  clearStoredCommandByKey(buildCommandStorageKey(operationKey));
+}
+
+function clearStoredCommandByKey(storageKey: string): void {
   memoryCommands.delete(storageKey);
   try {
     sessionStorage.removeItem(storageKey);
