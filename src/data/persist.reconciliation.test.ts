@@ -387,7 +387,7 @@ describe("batch reconciliation (authoritative reload)", () => {
     await new Promise((r) => setTimeout(r, 5));
 
     const names = useStore.getState().data.clients.map((c) => c.name);
-    expect(names).toEqual(["Beta Client", "Internal", "During reload"]);
+    expect(names).toEqual(["Stark Industries", "Internal", "During reload"]);
     expect(names).not.toContain("Conflicted");
     expect(onError.mock.calls.some(([e]) => e instanceof BatchConflictError)).toBe(true);
     const postReload = saveAll.mock.calls.slice(savesBeforeReloadSettled).map(([payload]) => payload as AppData);
