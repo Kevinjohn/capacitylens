@@ -46,12 +46,14 @@ export interface DiagnosticsReport {
   server: ServerDiagnostics;
 }
 
-const UNKNOWN_SERVER_DIAGNOSTICS: ServerDiagnostics = {
-  connectivity: "unavailable",
-  database: { status: "unavailable", schemaVersion: null },
-  persistence: "unknown",
-  backup: { status: "unavailable", lastSuccessAt: null },
-};
+function createUnknownServerDiagnostics(): ServerDiagnostics {
+  return {
+    connectivity: "unavailable",
+    database: { status: "unavailable", schemaVersion: null },
+    persistence: "unknown",
+    backup: { status: "unavailable", lastSuccessAt: null },
+  };
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -80,7 +82,7 @@ const isOneOf = <T extends string>(value: unknown, values: readonly T[]): value 
   typeof value === "string" && values.includes(value as T);
 
 function parseServerDiagnostics(value: unknown): ServerDiagnostics {
-  if (!isRecord(value)) return UNKNOWN_SERVER_DIAGNOSTICS;
+  if (!isRecord(value)) return createUnknownServerDiagnostics();
   const database = isRecord(value.database) ? value.database : null;
   const backup = isRecord(value.backup) ? value.backup : null;
   return {

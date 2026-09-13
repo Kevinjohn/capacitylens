@@ -6,5 +6,13 @@
   // Deployment builds only need to type-check code shipped in the browser bundle. The full
   // tsconfig.app.json and tsconfig.node.json projects continue to cover tests and build tooling
   // in the application gate and pull-request static analysis.
-  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "shared/src/**/*.test.ts"]
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/test/**",
+    "src/**/__tests__/**",
+    "src/**/*.testSupport.ts",
+    "src/**/*.testSupport.tsx",
+    "shared/src/**/*.test.ts"
+  ]
 }

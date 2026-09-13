@@ -174,15 +174,15 @@ function BarPopover({
       </div>
       {(Boolean(bar.project) || Boolean(bar.client)) && (
         <div className="mb-1 text-muted-foreground">
-          {bar.project}
-          {bar.project && bar.client ? " · " : ""}
-          {bar.client}
+          {bar.project && bar.client
+            ? m.scheduler_bar_pop_project_client({ project: bar.project, client: bar.client })
+            : (bar.project ?? bar.client)}
         </div>
       )}
       <div className="text-muted-foreground">
         {formatDayMonthRange(bar.allocation.startDate, bar.allocation.endDate)}
         {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) })}
-        {statusAnnotation && <> · {statusAnnotation}</>}
+        {statusAnnotation ? m.scheduler_bar_pop_status({ status: statusAnnotation }) : ""}
       </div>
       {bar.seriesEnd && (
         <div className="mt-1 text-muted-foreground">
