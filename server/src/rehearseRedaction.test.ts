@@ -275,9 +275,33 @@ interface SharedCommandRow {
 }
 
 const SHARED_COMMAND_ROWS: SharedCommandRow[] = [
-  { applicationId: "app-a", operation: "shared-operation", commandId: "command-a", timestamp: "2026-01-01", status: "pending", resultJson: null, failureCode: null },
-  { applicationId: "app-b", operation: "shared-operation", commandId: "command-b", timestamp: "2026-01-02", status: "completed", resultJson: '{"ok":true}', failureCode: null },
-  { applicationId: "app-a", operation: "other-operation", commandId: "command-c", timestamp: "2026-01-03", status: "compensated", resultJson: '{"partial":true}', failureCode: "rollback-failed" },
+  {
+    applicationId: "app-a",
+    operation: "shared-operation",
+    commandId: "command-a",
+    timestamp: "2026-01-01",
+    status: "pending",
+    resultJson: null,
+    failureCode: null,
+  },
+  {
+    applicationId: "app-b",
+    operation: "shared-operation",
+    commandId: "command-b",
+    timestamp: "2026-01-02",
+    status: "completed",
+    resultJson: '{"ok":true}',
+    failureCode: null,
+  },
+  {
+    applicationId: "app-a",
+    operation: "other-operation",
+    commandId: "command-c",
+    timestamp: "2026-01-03",
+    status: "compensated",
+    resultJson: '{"partial":true}',
+    failureCode: "rollback-failed",
+  },
 ];
 
 function anonymiseSharedCommandCoordinates(reverseOrder: boolean): string[] {
