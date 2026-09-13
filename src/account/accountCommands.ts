@@ -62,13 +62,16 @@ export function markCommandCohortUnknown(handle: CommandCohortHandle): void {
   if (cohort?.generation === handle.generation) cohort.unknown = true;
 }
 
+// The generation check rejects a stale sibling's completion: sign-out bumps the generation and
+// clears every cohort, so a handle from before sign-out must not decrement or clear a same-key
+// cohort a re-bound identity created afterward.
 export function finishCommandCohort(handle: CommandCohortHandle): void {
   const cohort = commandCohorts.get(handle.key);
   if (!cohort || cohort.generation !== handle.generation) return;
   cohort.inFlight -= 1;
   if (cohort.inFlight > 0) return;
   commandCohorts.delete(handle.key);
-  if (!cohort.unknown && handle.generation === commandCohortGeneration) clearStoredCommandByKey(handle.key);
+  if (!cohort.unknown) clearStoredCommandByKey(handle.key);
 }
 
 /** End every implicit account-command ceremony owned by the identity leaving this browser tab.
@@ -141,10 +144,6 @@ export function readOrCreateStoredCommand(operationKey: string): BrowserAccountC
     // The module-level fallback retains this implicit ceremony until a terminal outcome.
   }
   return created;
-}
-
-export function clearStoredCommand(operationKey: string): void {
-  clearStoredCommandByKey(buildCommandStorageKey(operationKey));
 }
 
 function clearStoredCommandByKey(storageKey: string): void {

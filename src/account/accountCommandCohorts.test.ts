@@ -135,6 +135,7 @@ describe("implicit account command cohorts", () => {
     mocks.apiFetch.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
 
     const firstCall = createWorkspace();
+    await waitForRequests(1);
     const secondCall = createWorkspace();
     await waitForRequests(2);
     const shared = commandHeadersAt(0);
@@ -161,6 +162,7 @@ describe("implicit account command cohorts", () => {
     mocks.apiFetch.mockImplementationOnce(() => success.promise).mockImplementationOnce(() => failure.promise);
 
     const successfulCall = createWorkspace();
+    await waitForRequests(1);
     const failedCall = createWorkspace();
     await waitForRequests(2);
     const shared = commandHeadersAt(0);
@@ -213,6 +215,34 @@ describe("implicit account command cohorts", () => {
     mocks.apiFetch.mockResolvedValueOnce(ok());
     await createWorkspace();
     expect(commandHeadersAt(1)).not.toEqual(commandHeadersAt(0));
+  });
+
+  it("does not let a pre-sign-out completion clear a same-identity cohort created afterward", async () => {
+    const stale = deferred<Response>();
+    mocks.apiFetch.mockImplementationOnce(() => stale.promise);
+    bindStoredAccountCommandsToIdentity("bruce-wayne");
+    const staleCall = createWorkspace();
+    await waitForRequests(1);
+
+    clearStoredAccountCommands();
+    bindStoredAccountCommandsToIdentity("bruce-wayne");
+
+    const fresh = deferred<Response>();
+    mocks.apiFetch.mockImplementationOnce(() => fresh.promise);
+    const freshCall = createWorkspace();
+    await waitForRequests(2);
+    const freshHeaders = commandHeadersAt(1);
+
+    stale.resolve(ok());
+    await staleCall;
+
+    mocks.apiFetch.mockResolvedValueOnce(ok());
+    const thirdCall = createWorkspace();
+    await waitForRequests(3);
+    expect(commandHeadersAt(2)).toEqual(freshHeaders);
+
+    fresh.resolve(ok());
+    await Promise.all([freshCall, thirdCall]);
   });
 
   it("retains a mixed-outcome cohort in the memory fallback", async () => {
