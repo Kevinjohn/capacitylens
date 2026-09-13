@@ -31,7 +31,7 @@ export function buildGesturePreviewDates({
   // Snap ONCE per frame, against the lane the pointer is actually over — the drop-target gate
   // below and the bar's own preview pixels then read the same range instead of each deriving it.
   // A zero-column resize moves nothing, so it keeps the view-model's placement (dates: null).
-  // An empty memoized week ([]) is the collapsed "none" state: the commit below refuses the
+  // An empty memoised week ([]) is the collapsed "none" state: the commit below refuses the
   // gesture, so the preview shows no movement rather than calendar-day math the save rejects.
   if (previewDays?.length === 0 && !allocation.ignoreWeekends) return { kind: "blocked" };
   // A zero-column gesture that is not also a reassignment commits nothing, so it must preview
