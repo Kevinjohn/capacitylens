@@ -42,7 +42,9 @@ checkout on the host, mounting the same named data volume, with the stack stoppe
 3. Inside that container, install dependencies once (`corepack enable && pnpm install
 --frozen-lockfile`) and run the documented command against `/data/capacitylens.db`,
    for example `pnpm --filter capacitylens-server recover:audit-outbox -- inspect
-/data/capacitylens.db`.
+/data/capacitylens.db`. A procedure that uses the `sqlite3` command-line tool directly
+   needs it installed in the same container first: `apt-get update && apt-get install -y
+sqlite3`.
 4. Exit the container and restart the stack with `docker compose up -d` once you've
    confirmed the fix.
    :::
@@ -130,6 +132,35 @@ session revocation — and never writes a credential directly.
 6. Restart the application and confirm the audit event reaches its configured
    destination. The Owner opens the link, sets a new password (this revokes every
    existing session) and signs in.
+
+## Membership changes fail with `nextOwnershipTransferRevision`
+
+**Symptom**: changing a role or status, removing a member, or acting on an ownership
+transfer fails. The server log (or, for the `assign-workspace-owner` repair command, its
+own console output) says that `nextOwnershipTransferRevision` cannot advance safely — only
+when the stored revision is exactly `9007199254740991` — or, for every other unusable
+value, that the stored revision is not a non-negative integer.
+
+**Cause**: a live ownership-transfer row has an unusable revision. A decimal string
+whose numeric value is from `0` through `9007199254740990` can advance normally and is
+not this incident. A value of `9007199254740991` is valid but exhausted. An empty value,
+non-decimal characters, a negative value, or a larger number is corruption. CapacityLens
+stops the whole membership transaction instead of guessing a successor and weakening
+stale-request protection.
+
+**Fix**: prefer restoring a verified snapshot when it contains the correct row and the
+later writes you would lose are understood. There is no in-app transition for an
+exhausted or corrupt live row. If restoring is not appropriate, follow [Recover a blocked
+ownership transfer](/self-hosting/ownership-transfer-recovery) to rehearse and run the
+guarded stopped-server command. It cancels only the exact request approved by the Owner;
+it does not change any membership or invent a replacement revision.
+
+If the company also has zero active Owners, this incident can be the *cause* of that one:
+the automatic ownerless-workspace repair itself cancels any live transfer as part of
+promoting a new Owner, and fails with the same error when that transfer's revision is
+unusable. See [A company has no Owner](#a-company-has-no-owner) — resolve the exhausted
+or corrupt revision in the focused recovery procedure first, then let that repair (or
+the `assign-workspace-owner` command) proceed.
 
 ## Malformed or corrupted audit outbox record
 
@@ -248,7 +279,10 @@ like this emits a structured security event so an operator can review it.
    documented under [Cutover repair
    commands](/company-login/move-to-single-sign-on#a-company-with-no-owner). It promotes
    one existing active member you name by exact company id and email, takes an exclusive
-   lock, and records an operator audit event with the change.
+   lock, and records an operator audit event with the change. This repair also cancels any
+   live ownership transfer for that company; if it fails with the error described in
+   [Membership changes fail with `nextOwnershipTransferRevision`](#membership-changes-fail-with-nextownershiptransferrevision),
+   resolve that transfer's revision first, then retry.
 
 ## Disk-full or a failed snapshot
 
