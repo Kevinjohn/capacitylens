@@ -39,7 +39,10 @@ describe("chooseAnotherAccountAfterLoadFailure", () => {
     await chooseAnotherAccountAfterLoadFailure(true, navigate);
 
     expect(navigate).not.toHaveBeenCalled();
-    expect(useStore.getState().notice).toEqual({ message: "Could not switch company. Please try again.", tone: "error" });
+    expect(useStore.getState().notice).toEqual({
+      message: "Could not switch company. Please try again.",
+      tone: "error",
+    });
   });
 
   it("surfaces a transition failure without rejecting the click handler", async () => {
@@ -49,7 +52,10 @@ describe("chooseAnotherAccountAfterLoadFailure", () => {
 
     await expect(chooseAnotherAccountAfterLoadFailure(true, vi.fn())).resolves.toBeUndefined();
     expect(log).toHaveBeenCalledWith("Company switch failed", error);
-    expect(useStore.getState().notice).toEqual({ message: "Could not switch company. Please try again.", tone: "error" });
+    expect(useStore.getState().notice).toEqual({
+      message: "Could not switch company. Please try again.",
+      tone: "error",
+    });
     log.mockRestore();
   });
 });
