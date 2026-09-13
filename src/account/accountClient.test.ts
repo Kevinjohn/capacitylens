@@ -615,4 +615,26 @@ function registerTerminalClassificationTests(): void {
       readUnknownAccountCommandOutcome(Response.json({ code: "FUTURE_CONFLICT_CODE" }, { status: 409 })),
     ).resolves.toBe(true);
   });
+
+  it.each(["expired", "invalidated", "completed"])(
+    "classifies an ownership-transfer terminal 409 in state %s as committed",
+    async (state) => {
+      await expect(
+        readUnknownAccountCommandOutcome(
+          Response.json({ code: "OWNERSHIP_TRANSFER_TERMINAL", state }, { status: 409 }),
+        ),
+      ).resolves.toBe(false);
+    },
+  );
+
+  it.each([undefined, null, "future_state", "awaiting_target", "awaiting_owner"])(
+    "keeps an ownership-transfer terminal 409 with state %s unknown",
+    async (state) => {
+      await expect(
+        readUnknownAccountCommandOutcome(
+          Response.json({ code: "OWNERSHIP_TRANSFER_TERMINAL", state }, { status: 409 }),
+        ),
+      ).resolves.toBe(true);
+    },
+  );
 }

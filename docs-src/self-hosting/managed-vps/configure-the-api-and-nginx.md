@@ -146,7 +146,7 @@ Wait for the process status to show **Running**, then run:
 curl -fsS http://127.0.0.1:8788/api/health
 ```
 
-With deep health enabled, the response should contain at least:
+With deep health enabled, an API that has just started can report the first backup as `pending`:
 
 ```json
 {
@@ -154,9 +154,15 @@ With deep health enabled, the response should contain at least:
   "db": true,
   "audit": "ok",
   "auditPending": 0,
-  "backup": { "status": "ok" }
+  "backup": { "status": "pending", "lastSuccessAt": null }
 }
 ```
+
+It may already report `"status":"ok"` if the first backup has finished — a snapshot takes seconds,
+so re-check after about a minute. Treat `degraded` as a failure, and investigate `pending` that
+lasts longer than one configured backup interval (60 minutes with the configuration on this page).
+[Monitoring and health checks](/self-hosting/monitoring#what-each-field-means-and-when-to-alert)
+defines the alert threshold.
 
 Stop here if the command fails. Read the background-process log and correct the first startup
 error before editing nginx.
