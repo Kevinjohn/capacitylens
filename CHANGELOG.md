@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
   corrupted stored revision, including during membership-driven invalidation (#906).
+- Replace manual ownership-transfer recovery SQL with a stopped-server command that checks the
+  exact request and revision, takes an exclusive lock and records the cancellation for delivery (#996).
 - Refresh personal time off and company closures when the company week rolls over, so newly
   historical rows no longer remain visible until an unrelated page update (#902, #903).
 - Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar
