@@ -51,7 +51,7 @@ function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedul
   const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status);
   const shared = {
     hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) }),
-    status: statusAnnotation ? `${statusAnnotation}, ` : "",
+    status: statusAnnotation ? m.scheduler_bar_aria_status({ status: statusAnnotation }) : "",
     start: formatDayMonthEndpoint(bar.allocation.startDate, bar.allocation.endDate),
     end: formatDayMonthEndpoint(bar.allocation.endDate, bar.allocation.startDate),
     series: bar.seriesEnd

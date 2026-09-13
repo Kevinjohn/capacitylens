@@ -391,6 +391,7 @@ function registerSuiteScenario10() {
     const pop = page.getByTestId("allocation-popover");
     await expect(pop).toBeVisible();
     await expect(pop).toContainText("Metropolis Rebrand"); // project name in the popover
+    await expect(pop).not.toContainText("Confirmed");
   });
 }
 
