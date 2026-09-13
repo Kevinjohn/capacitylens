@@ -33,6 +33,16 @@ describe("operator documentation", () => {
     expect(incidents).toContain("refuses to overwrite an existing evidence file");
   });
 
+  it("uses the guarded ownership-transfer recovery command instead of repair SQL", () => {
+    const incidents = page("self-hosting/incidents.md");
+    expect(incidents).toContain("recover:ownership-transfer -- inspect");
+    expect(incidents).toContain("recover:ownership-transfer -- cancel");
+    expect(incidents).toContain("exclusive database lock");
+    expect(incidents).toContain("revisionHex");
+    expect(incidents).toContain("both participants and revision still match");
+    expect(incidents).not.toContain("UPDATE account_ownership_transfers");
+  });
+
   it("documents the released over-maximum backup clamping contract", () => {
     const configuration = page("self-hosting/configuration.md");
     expect(configuration).toContain("over-maximum values clamp to 10,000 with a startup warning");

@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
   corrupted stored revision, including during membership-driven invalidation (#906).
+- Replace manual ownership-transfer recovery SQL with a stopped-server command that checks the
+  exact request and revision, takes an exclusive lock and records the cancellation for delivery (#996).
 - Preserve distinct application namespaces while anonymising command-ledger rows so migration
   rehearsal copies cannot fail when applications share operation coordinates (#958).
 - Refresh personal time off and company closures when the company week rolls over, so newly
