@@ -1,4 +1,3 @@
-import { startOfWeekISO, todayISO } from "@capacitylens/shared/lib/dateMath";
 import type { Closure, ID, ISODate, Resource, TimeOff } from "@capacitylens/shared/types/entities";
 import { compareDisplayNames } from "../../lib/displayOrder";
 import { resolveResourceDisplayName } from "../../lib/metadata";
@@ -15,11 +14,6 @@ interface BuildTimeOffGroupsInput {
 export type TimeOffGroup =
   | { kind: "resource"; resourceId: ID; name: string; entries: TimeOff[] }
   | { kind: "unknown"; name: string; entries: TimeOff[] };
-
-/** Resolve the active company's current week boundary from its own calendar settings. */
-export function readCurrentTimeOffWeekStart(timeZone: string, weekStartsOn: 0 | 1): ISODate {
-  return startOfWeekISO(todayISO(timeZone), weekStartsOn);
-}
 
 const compareEntries = (left: TimeOff, right: TimeOff): number =>
   left.startDate.localeCompare(right.startDate) ||

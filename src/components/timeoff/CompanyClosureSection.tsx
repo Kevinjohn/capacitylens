@@ -1,4 +1,5 @@
 import { Fragment, useMemo } from "react";
+import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import { CalendarOff } from "lucide-react";
 import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
@@ -11,7 +12,8 @@ import { useStore } from "../../store/useStore";
 import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState } from "../common/ui";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemSeparator, ItemTitle } from "../ui/item";
 import { ClosureForm } from "./ClosureForm";
-import { buildClosureList, readCurrentTimeOffWeekStart } from "./timeOffView";
+import { useCalendarToday } from "../scheduler/useCalendarToday";
+import { buildClosureList } from "./timeOffView";
 
 interface ClosureItemsProps {
   closures: Closure[];
@@ -55,7 +57,8 @@ export function CompanyClosureSection() {
   const deleteEntity = useStore((state) => state.deleteClosure);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Closure>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
-  const currentWeekStart = readCurrentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
+  const today = useCalendarToday(calendarTimeZone);
+  const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn);
   const closures = useMemo(() => buildClosureList(data.closures, currentWeekStart), [currentWeekStart, data.closures]);
 
   return (

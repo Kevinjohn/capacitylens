@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Refresh personal time off and company closures when the company week rolls over, so newly
+  historical rows no longer remain visible until an unrelated page update (#902, #903).
 - Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar
   names, while retaining explicit annotations for tentative and completed work (#851).
 - Keep the original retry identity when concurrent copies of the same account command include an
