@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, within, fireEvent } from "@testing-library/react";
+import { act, render, screen, within, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { TimeOffList } from "./TimeOffList";
 import { TimeOffForm } from "./TimeOffForm";
@@ -164,6 +164,27 @@ it("uses the active company's timezone and week-start setting for the visible bo
   useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
   rerender(<TimeOffList />);
   expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+});
+
+it("removes expired time off when the company week rolls over while mounted", async () => {
+  vi.useRealTimers();
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-06-07T23:59:59.000Z"));
+  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
+  const resource = useStore.getState().addResource({ ...resourceDraft, name: "Bruce Wayne" });
+  useStore.getState().addTimeOff({
+    resourceId: resource.id,
+    startDate: "2026-06-07",
+    endDate: "2026-06-07",
+    type: "holiday",
+  });
+
+  render(<TimeOffList />);
+  expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+
+  await act(() => vi.advanceTimersByTimeAsync(1_000));
+
+  expect(screen.queryByTestId("timeoff-row")).not.toBeInTheDocument();
 });
 
 it("hides archived resources and their retained time off", () => {

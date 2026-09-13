@@ -4,30 +4,30 @@
 
 ## Goal
 
-Hovering — or keyboard-focusing — an allocation bar shows a detail popover with the activity, project · client, date range, hours/day, status, any note and (for linked repeats) the last surviving series end; it hides again when you leave.
+Hovering — or keyboard-focusing — an allocation bar shows a detail popover with the activity, project · client, date range, hours/day, any non-default status annotation, note and (for linked repeats) the last surviving series end; confirmed is implicit when no annotation is shown, and the popover hides again when you leave.
 
 ## Why
 
-A bar can only show so much on its face, especially when narrow. The manager often just wants the facts of one booking — what is it, for whom, when, how heavy, is it confirmed — without opening the edit modal and risking a change. A lightweight popover gives that on hover, and offering it on keyboard focus too means the same detail is reachable without a mouse.
+A bar can only show so much on its face, especially when narrow. The manager often just wants the facts of one booking — what is it, for whom, when, how heavy, and whether it is tentative or completed — without opening the edit modal and risking a change. A missing status annotation means the booking is confirmed by default. A lightweight popover gives that on hover, and offering it on keyboard focus too means the same detail is reachable without a mouse.
 
 ## How (end-to-end)
 
 **Precondition:** Seeded app open at **Schedule** (`/`). Set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
 1. Hover the **Brand System** bar.
-2. A popover (`data-testid="allocation-popover"`) appears showing: the activity/label, **project · client** (e.g. _Metropolis Rebrand · LexCorp_), the **date range**, **Nh/day**, the **status**, and a note line if the allocation has one.
+2. A popover (`data-testid="allocation-popover"`) appears showing: the activity/label, **project · client** (e.g. _Metropolis Rebrand · LexCorp_), the **date range**, **Nh/day**, a **Tentative** or **Completed** annotation when applicable, and a note line if the allocation has one. A confirmed allocation omits the redundant **Confirmed** word.
 3. Move the pointer off the bar — the popover hides.
 4. Now use the keyboard: **Tab** to focus an allocation bar. The same popover appears on focus,
    including in Viewer read-only mode where the bar remains a non-editable image.
 5. The visible card contains allocation details only, without an instruction footer. Its assistive
    label retains drag/resize/reassign guidance for editors and says **Read-only allocation details**
    for a Viewer. Assistive technology receives the complete activity, project/client, dates, hours,
-   status and note text from the bar even when optional face-label parts are turned off.
+   applicable status annotation and note text from the bar even when optional face-label parts are turned off.
 
 ## Acceptance criteria
 
 - ✅ Hovering a bar shows the **allocation-popover** with the project/client and the date range.
-- ✅ The popover includes hours/day, status, and (when present) the note.
+- ✅ The popover includes hours/day, a **Tentative** or **Completed** annotation when applicable, and (when present) the note; confirmed work has no redundant status word.
 - ✅ A linked repeat says **Series through <date>** in the popover and accessible name; an unlinked
   allocation has no series claim.
 - ✅ Moving the pointer off the bar hides the popover.
