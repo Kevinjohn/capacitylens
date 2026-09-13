@@ -45,7 +45,7 @@ describe("CompanyClosureSection", () => {
     expect(screen.getByRole("button", { name: "Delete Summer shutdown closure, Sat 1st – Wed 5th Aug" })).toBeVisible();
   });
 
-  it("uses the active company's week-start setting for the visible boundary", () => {
+  it("uses the active company's timezone and week-start setting for the visible boundary", () => {
     vi.setSystemTime(new Date("2026-06-08T00:30:00.000Z"));
     useStore.getState().addClosure({
       name: "Wayne Enterprises shutdown",
@@ -56,6 +56,10 @@ describe("CompanyClosureSection", () => {
     useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
     const { rerender } = render(<CompanyClosureSection />);
     expect(screen.queryByTestId("company-closure-row")).not.toBeInTheDocument();
+
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
+    rerender(<CompanyClosureSection />);
+    expect(screen.getByTestId("company-closure-row")).toBeInTheDocument();
 
     useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 0 });
     rerender(<CompanyClosureSection />);
