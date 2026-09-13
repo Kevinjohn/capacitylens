@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { m } from "@/i18n";
 import {
   resolveAllocationStatusLabel,
+  resolveAllocationStatusAnnotation,
   buildAllocationStatusLabels,
   buildAllocationStatusOptions,
   buildResourceEngagementOptions,
@@ -64,6 +65,12 @@ describe("single-value label getters", () => {
     for (const [type, label] of Object.entries(buildTimeOffTypeLabels())) {
       expect(resolveTimeOffTypeLabel(type as "holiday" | "sick" | "unpaid" | "other")).toBe(label);
     }
+  });
+
+  it("omits the default status annotation while retaining exceptional status labels", () => {
+    expect(resolveAllocationStatusAnnotation("confirmed")).toBeNull();
+    expect(resolveAllocationStatusAnnotation("tentative")).toBe(m.enum_allocation_status_tentative());
+    expect(resolveAllocationStatusAnnotation("completed")).toBe(m.enum_allocation_status_completed());
   });
 
   it("returns a blank label for values outside the runtime unions", () => {
