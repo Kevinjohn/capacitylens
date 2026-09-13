@@ -68,12 +68,12 @@ function anonymiseOperationalData(db: DatabaseSync): void {
     idColumn: "applicationId",
     references: [],
   });
+  remapIds({ db, table: "account_commands", idColumn: "applicationId", references: [] });
   applyRedactions(db, [
     { table: "capacitylens_audit_outbox", column: "id", expression: `'rehearsal-audit-' || rowid` },
     { table: "capacitylens_audit_outbox", column: "payload", expression: `'{}'` },
     { table: "capacitylens_sync_row_provenance", column: "rowId", expression: `'rehearsal-sync-row-' || rowid` },
     { table: "capacitylens_sync_row_provenance", column: "rowHash", expression: `lower(hex(zeroblob(32)))` },
-    { table: "account_commands", column: "applicationId", expression: `'rehearsal-app'` },
     { table: "account_commands", column: "operation", expression: `'rehearsal-operation-' || rowid` },
     { table: "account_commands", column: "idempotencyKey", expression: `'rehearsal-key-' || rowid` },
     { table: "account_commands", column: "payloadHash", expression: `lower(hex(zeroblob(32)))` },

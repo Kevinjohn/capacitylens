@@ -240,6 +240,57 @@ function anonymiseSharedProviderBindings(reverseOrder: boolean): Record<string, 
   }
 }
 
+function anonymiseSharedCommandCoordinates(reverseOrder: boolean): string[] {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec(`
+      CREATE TABLE account_commands (
+        applicationId TEXT NOT NULL,
+        operation TEXT NOT NULL,
+        idempotencyKey TEXT NOT NULL,
+        commandId TEXT NOT NULL UNIQUE,
+        actorPrincipalId TEXT,
+        targetPrincipalId TEXT,
+        workspaceId TEXT,
+        payloadHash TEXT NOT NULL CHECK(length(payloadHash) = 64),
+        status TEXT NOT NULL CHECK(status IN ('pending', 'completed', 'compensated', 'reconciliation_required')),
+        resultJson TEXT CHECK(resultJson IS NULL OR json_valid(resultJson)),
+        failureCode TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL,
+        PRIMARY KEY (applicationId, operation, idempotencyKey)
+      ) STRICT
+    `);
+    const rows = [
+      ["app-a", "command-a", "2026-01-01"],
+      ["app-b", "command-b", "2026-01-02"],
+    ];
+    const insert = db.prepare(`
+      INSERT INTO account_commands (
+        applicationId, operation, idempotencyKey, commandId, payloadHash, status, createdAt, updatedAt
+      ) VALUES (?, 'shared-operation', 'shared-key', ?, ?, 'pending', ?, ?)
+    `);
+    for (const [applicationId, commandId, timestamp] of reverseOrder ? rows.toReversed() : rows) {
+      insert.run(applicationId, commandId, "0".repeat(64), timestamp, timestamp);
+    }
+
+    anonymise(db);
+
+    const commands = db
+      .prepare(`SELECT applicationId, commandId, createdAt FROM account_commands ORDER BY createdAt`)
+      .all() as Array<{ applicationId: string; commandId: string; createdAt: string }>;
+    expect(commands).toHaveLength(2);
+    expect(commands[0]?.applicationId).not.toBe(commands[1]?.applicationId);
+    expect(commands[0]?.commandId).not.toBe(commands[1]?.commandId);
+    expect(JSON.stringify(commands)).not.toMatch(/app-[ab]|command-[ab]/);
+    expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    return commands.map(({ applicationId }) => applicationId);
+  } finally {
+    db.close();
+  }
+}
+
 function createProviderBindingAbsenceStatement(
   db: DatabaseSync,
   {
@@ -343,6 +394,14 @@ function registerSharedProviderBindingsTest(): void {
   it("preserves application namespaces and shared provider joins under the real binding constraints", () => {
     const forward = anonymiseSharedProviderBindings(false);
     const reverse = anonymiseSharedProviderBindings(true);
+    expect(reverse).toEqual(forward);
+  });
+}
+
+function registerSharedCommandCoordinatesTest(): void {
+  it("preserves distinct command application namespaces when operation coordinates overlap", () => {
+    const forward = anonymiseSharedCommandCoordinates(false);
+    const reverse = anonymiseSharedCommandCoordinates(true);
     expect(reverse).toEqual(forward);
   });
 }
@@ -591,6 +650,7 @@ function registerRedactionRollbackTest(): void {
 describe("migration rehearsal redaction", () => {
   registerFederatedIdentityTest();
   registerSharedProviderBindingsTest();
+  registerSharedCommandCoordinatesTest();
   registerStaleObservationTest();
   registerProviderBindingAbsenceTests();
   registerMembershipConfirmationTest();
