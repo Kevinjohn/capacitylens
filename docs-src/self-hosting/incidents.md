@@ -131,6 +131,201 @@ session revocation — and never writes a credential directly.
    destination. The Owner opens the link, sets a new password (this revokes every
    existing session) and signs in.
 
+## Membership changes fail with `nextOwnershipTransferRevision`
+
+**Symptom**: changing a role or status, removing a member, or acting on an ownership
+transfer fails. The server log says that `nextOwnershipTransferRevision` cannot advance
+safely, or that its stored revision is not a non-negative integer.
+
+**Cause**: a live ownership-transfer row has an unusable revision. A decimal string
+whose numeric value is from `0` through `9007199254740990` can advance normally and is
+not this incident. A value of `9007199254740991` is valid but exhausted. An empty value,
+non-decimal characters, a negative value, or a larger number is corruption. CapacityLens
+stops the whole membership transaction instead of guessing a successor and weakening
+stale-request protection.
+
+**Fix**: prefer restoring a verified snapshot when it contains the correct row and the
+later writes you would lose are understood. There is no in-app transition for an
+exhausted or corrupt live row. If restoring is not appropriate, the narrow manual repair
+below records the Owner's decision to cancel that one request. It does not change any
+membership or invent a replacement revision.
+
+::: warning
+This procedure changes a production control record without producing an application
+audit event. Do not continue without the current Owner's approval, a verified rollback
+copy and an incident record.
+:::
+
+1. Ask the current Owner to confirm that the named transfer should be cancelled. If the
+   Owner cannot confirm it, preserve the evidence and restore a known-good snapshot or
+   escalate the incident. Do not assign ownership with SQL.
+2. Stop the API. Follow [What to back up](/self-hosting/backups-and-restore#what-to-back-up)
+   to copy the database with its `-wal` and `-shm` files into a protected incident
+   directory, then record checksums. Keep that file set pristine: it is evidence, not a
+   working copy. While the API remains stopped, also create a standalone SQLite rollback
+   backup and verify it:
+
+   ```bash
+   sqlite3 <database> ".backup '/secure/path/ownership-transfer-pre-repair.db'"
+   ```
+
+   ```bash
+   sqlite3 -readonly /secure/path/ownership-transfer-pre-repair.db "PRAGMA quick_check; PRAGMA foreign_key_check;"
+   ```
+
+   The verification must print `ok` and no foreign-key rows. Copy that standalone backup
+   to a separate rehearsal path. Do not open the pristine incident file set or use the
+   production database for rehearsal.
+3. Open the rehearsal copy read-only with the SQLite command-line tool:
+
+   ```bash
+   sqlite3 -readonly <database>
+   ```
+
+4. Turn on headers and list the live requests. Identifiers and revisions are emitted as
+   hexadecimal text so a damaged stored value is never pasted back into SQL. Match the
+   affected company to the exact company id in the structured server log or account audit
+   trail. Do not identify it by a person's name or email address.
+
+   ```sql
+   .headers on
+   .mode box
+   WITH live AS (
+     SELECT *,
+            CASE
+              WHEN revision = '' OR instr(revision, char(0)) > 0 OR revision GLOB '*[^0-9]*' THEN 'corrupt'
+              WHEN length(CASE WHEN ltrim(revision, '0') = '' THEN '0' ELSE ltrim(revision, '0') END) < 16
+                THEN 'advanceable'
+              WHEN length(CASE WHEN ltrim(revision, '0') = '' THEN '0' ELSE ltrim(revision, '0') END) > 16
+                THEN 'corrupt'
+              WHEN (CASE WHEN ltrim(revision, '0') = '' THEN '0' ELSE ltrim(revision, '0') END)
+                   <= '9007199254740990' THEN 'advanceable'
+              WHEN (CASE WHEN ltrim(revision, '0') = '' THEN '0' ELSE ltrim(revision, '0') END)
+                   = '9007199254740991' THEN 'exhausted'
+              ELSE 'corrupt'
+            END AS revisionStatus
+       FROM account_ownership_transfers
+      WHERE state IN ('awaiting_target', 'awaiting_owner')
+   )
+   SELECT hex(id) AS requestIdHex, accountId, hex(accountId) AS accountIdHex,
+          initiatorUserId, targetUserId, state, hex(revision) AS revisionHex,
+          revisionStatus, createdAt, expiresAt, targetAcceptedAt
+     FROM live
+    ORDER BY accountId, createdAt, id;
+
+   .parameter init
+   .parameter set :account_id_hex "'COPIED_ACCOUNT_ID_HEX'"
+
+   SELECT CASE
+            WHEN length(:account_id_hex) > 0
+             AND length(:account_id_hex) % 2 = 0
+             AND upper(:account_id_hex) NOT GLOB '*[^0-9A-F]*'
+              THEN 'hex-ok'
+            ELSE 'STOP-invalid-hex'
+          END AS accountParameter;
+
+   SELECT COUNT(*) AS liveRequests
+     FROM account_ownership_transfers
+    WHERE hex(accountId) = upper(:account_id_hex)
+      AND state IN ('awaiting_target', 'awaiting_owner');
+
+   SELECT COUNT(*) AS activeMembers,
+          SUM(CASE WHEN role = 'owner' THEN 1 ELSE 0 END) AS activeOwners
+     FROM account_members
+    WHERE hex(accountId) = upper(:account_id_hex) AND status = 'active';
+
+   PRAGMA quick_check;
+   PRAGMA foreign_key_check;
+   .quit
+   ```
+
+   Enter only the hex characters copied from the first query. Continue only when the
+   parameter reports `hex-ok`, there is exactly one live request, exactly one active
+   Owner, `quick_check` returns `ok`, and `foreign_key_check` returns no rows. Confirm that
+   the request participants and state agree with the Owner and the audit trail. If
+   `revisionStatus` is `advanceable`, close the read-only handle without changing anything
+   and investigate the original error.
+5. Close the read-only rehearsal handle, then reopen that rehearsal copy read-write. Set
+   three parameters from its inspection output. Each value must contain an even number of
+   hexadecimal characters and nothing outside `0-9` and `A-F`; only the revision hex may
+   be empty. Stop if any value fails that manual check or the query below reports anything
+   except `hex-ok` three times. For an empty revision hex, enter
+   `.parameter set :revision_hex "''"`.
+
+   ```sql
+   .bail on
+   .headers on
+   .mode box
+   .parameter init
+   .parameter set :request_id_hex "'COPIED_REQUEST_ID_HEX'"
+   .parameter set :account_id_hex "'COPIED_ACCOUNT_ID_HEX'"
+   .parameter set :revision_hex "'COPIED_REVISION_HEX'"
+
+   WITH parameters(name, value) AS (VALUES
+     ('request_id_hex', :request_id_hex),
+     ('account_id_hex', :account_id_hex),
+     ('revision_hex', :revision_hex)
+   )
+   SELECT name,
+          CASE
+            WHEN (name = 'revision_hex' OR length(value) > 0)
+             AND length(value) % 2 = 0
+             AND upper(value) NOT GLOB '*[^0-9A-F]*'
+              THEN 'hex-ok'
+            ELSE 'STOP-invalid-hex'
+          END AS status
+     FROM parameters;
+
+   BEGIN IMMEDIATE;
+
+   UPDATE account_ownership_transfers
+      SET state = 'cancelled',
+          terminalAt = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+          terminalReason = 'owner_cancelled'
+    WHERE hex(id) = upper(:request_id_hex)
+      AND hex(accountId) = upper(:account_id_hex)
+      AND hex(revision) = upper(:revision_hex)
+      AND state IN ('awaiting_target', 'awaiting_owner');
+
+   SELECT changes() AS changedRows;
+   SELECT hex(id) AS requestIdHex, hex(accountId) AS accountIdHex, state,
+          hex(revision) AS revisionHex, terminalAt, terminalReason
+     FROM account_ownership_transfers
+    WHERE hex(id) = upper(:request_id_hex)
+      AND hex(accountId) = upper(:account_id_hex);
+   PRAGMA quick_check;
+   PRAGMA foreign_key_check;
+   ```
+
+   On the rehearsal copy, type `ROLLBACK;` even when every check passes, then type `.quit`.
+   Reopen it read-only and repeat step 4. The live request must be back in its original
+   state and all integrity results must be unchanged. Replace the rehearsal copy from the
+   standalone backup if you need to try again.
+6. Only after the rehearsal succeeds, open the stopped production database read-write
+   with `sqlite3 <database>` and repeat the complete parameter, transaction, update and
+   verification block from step 5. Do not commit unless `changedRows` is exactly `1`, the
+   row is now `cancelled`, the revision hex is unchanged, `quick_check` returns `ok`, and
+   `foreign_key_check` returns no rows. Type `ROLLBACK;` and `.quit` if any check differs.
+   Otherwise type `COMMIT;`, then repeat the selected-company and integrity queries from
+   step 4. Expect `liveRequests` to be `0`, the active-member and active-Owner counts to be
+   unchanged, `quick_check` to return `ok`, and `foreign_key_check` to return no rows.
+   Type `.quit` to close the production handle.
+7. Record the request id, company id, before-and-after checksums, the Owner's approval and
+   the incident reference in your protected operations log. This direct repair does not
+   emit an application audit event, so do not omit that record.
+8. Restart the API. Confirm deep health, sign-in and Team & access work, then perform the
+   originally intended membership change through the application. If ownership still
+   needs to move, start a new transfer; it receives a new request id and begins at
+   revision `0`.
+
+Keep both the pristine incident file set and the verified standalone rollback backup
+until the Owner has checked the membership list and the audit destination is healthy. If
+you must roll back, stop the API, preserve the failed state separately, then use the
+standalone backup as the source database in the [general restore
+procedure](/self-hosting/backups-and-restore#general-procedure). Remove the production
+database's stale `-wal` and `-shm` files as that procedure requires; do not restore the
+pristine evidence sidecars over a different database generation.
+
 ## Malformed or corrupted audit outbox record
 
 **Symptom**: startup won't reach the listener, or logs point at a problem in the audit
