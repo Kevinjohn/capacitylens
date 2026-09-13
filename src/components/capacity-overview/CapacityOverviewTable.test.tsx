@@ -324,6 +324,9 @@ describe("CapacityOverviewTable interactions", () => {
     // Bar & number) — the number here is `sr-only`, so nothing needs to clear AA on this fill.
     expect(fill.style.background).toContain("var(--color-danger-cell)");
 
+    const table = screen.getByRole("table", { name: "Overview" });
+    expect(table).toHaveClass("border-separate", "border-spacing-x-1.5", "border-spacing-y-0");
+
     // A free (available) fill never carries the hatch — it needs no non-colour cue, since it
     // reads the same regardless of colour vision.
     const rowCells = within(person).getAllByRole("cell");

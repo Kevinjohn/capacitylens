@@ -50,10 +50,11 @@ patterns directly comparable: a fully free three-day person fills 60%, not the w
 first column uses only the company working days remaining between today and the week end.
 
 Green fill shows free capacity; red fill shows overbooking, capped at a full cell. A person with
-nothing to show, including someone fully booked or with no availability that week, keeps a plain
-grey cell. **Bar & number** shows the fill and the figures together. The underlying value stays
-available to assistive technology in every mode. Group header totals and unassigned-demand rows
-always show figures only; the bar never applies to them.
+nothing to show, including someone fully booked or with no availability that week, keeps a light
+neutral-grey cell. Week blocks have a visible gap so adjacent periods stay easy to distinguish.
+**Bar & number** shows the fill and the figures together. The underlying value stays available to
+assistive technology in every mode. Group header totals and unassigned-demand rows always show
+figures only; the bar never applies to them.
 
 Companies using Blocks mode see an explanation because Blocks do not measure capacity. Switch to
 Hours or Days in **Settings** to use the overview.

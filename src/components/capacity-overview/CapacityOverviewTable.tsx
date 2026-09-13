@@ -188,7 +188,7 @@ function CapacityBarFillLayer({ fill, context }: { fill: CapacityBarFill; contex
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0"
-        style={{ background: "var(--color-faint)" }}
+        style={{ background: "var(--color-line-soft)" }}
       />
       {fill.kind !== "none" && (
         <div
@@ -316,7 +316,10 @@ function CapacityTable({
     });
 
   return (
-    <Table aria-label={m.capacity_overview_title()} className="table-fixed">
+    <Table
+      aria-label={m.capacity_overview_title()}
+      className="table-fixed border-separate border-spacing-x-1.5 border-spacing-y-0"
+    >
       <colgroup>
         <col className="w-[32%]" />
         {model.weeks.map((week) => (
