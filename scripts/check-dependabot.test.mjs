@@ -113,14 +113,21 @@ test("the application gate owns configuration validation and its regressions in 
   assert.ok(!workflow.jobs["workflow-lint"].steps.some(({ run }) => run?.includes("ruby -e")));
 });
 
-const dependabotSummaryRun = parseDocument(
-  readFileSync(new URL("../.github/workflows/dependabot-summary.yml", import.meta.url), "utf8"),
-)
-  .toJS()
-  .jobs.summary.steps.find(({ run }) => typeof run === "string" && run.includes("set -euo pipefail"))?.run;
-assert.equal(typeof dependabotSummaryRun, "string");
+// The dependabot-summary workflow's shell step pipes through host `jq`, which is not
+// installed by default on every contributor machine (notably macOS). Skip with a clear
+// reason instead of failing on an unrelated missing-binary error.
+const hasJq = spawnSync("jq", ["--version"], { stdio: "ignore" }).status === 0;
+
+function loadDependabotSummaryRun() {
+  const run = parseDocument(readFileSync(new URL("../.github/workflows/dependabot-summary.yml", import.meta.url), "utf8"))
+    .toJS()
+    .jobs.summary.steps.find((step) => typeof step.run === "string" && step.run.includes("set -euo pipefail"))?.run;
+  assert.equal(typeof run, "string", "expected the dependabot-summary workflow's shell step");
+  return run;
+}
 
 const runDependabotSummary = (pages, t) => {
+  const dependabotSummaryRun = loadDependabotSummaryRun();
   const directory = mkdtempSync(join(tmpdir(), "dependabot-summary-"));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const fixture = join(directory, "commits.json");
@@ -132,7 +139,16 @@ const runDependabotSummary = (pages, t) => {
     `#!/bin/sh
 if [ "$1" = api ]; then
   case "$2" in
-    */commits) cat "$DEPENDABOT_COMMITS_FIXTURE" ;;
+    */commits)
+      # Real "gh api --paginate --slurp" wraps every page into one array; without
+      # --slurp, --paginate just prints each page's own JSON array back-to-back with
+      # no wrapper. Branching on the flag here is what makes this shim exercise the
+      # production script's actual "--slurp" pipeline rather than only its jq filter.
+      case " $* " in
+        *" --slurp "*) cat "$DEPENDABOT_COMMITS_FIXTURE" ;;
+        *) node -e "process.stdout.write(JSON.parse(require('fs').readFileSync(process.env.DEPENDABOT_COMMITS_FIXTURE, 'utf8')).map((page) => JSON.stringify(page)).join(''))" ;;
+      esac
+      ;;
     */comments) printf '\\n' ;;
   esac
   exit 0
@@ -162,7 +178,7 @@ exit 1
   return { comment: existsSync(comment) ? readFileSync(comment, "utf8") : "", result };
 };
 
-test("summarises only the newest Dependabot commit across paginated responses", (t) => {
+test("summarises only the newest Dependabot commit across paginated responses", { skip: !hasJq && "jq is not installed" }, (t) => {
   const { comment, result } = runDependabotSummary(
     [
       [
@@ -194,7 +210,7 @@ test("summarises only the newest Dependabot commit across paginated responses", 
   assert.doesNotMatch(comment, /old-name|0\.9\.0/);
 });
 
-test("exits without a summary when no paginated commit is authored by Dependabot", (t) => {
+test("exits without a summary when no paginated commit is authored by Dependabot", { skip: !hasJq && "jq is not installed" }, (t) => {
   const { comment, result } = runDependabotSummary(
     [
       [{ author: { login: "maintainer" }, commit: { message: "Merge branch main" } }],
