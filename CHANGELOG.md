@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep the command palette's Overview page result consistent with the sidebar and its role-based
+  company access setting (#1000).
 - Include the Account page in the command palette's Pages results (#938).
 - Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
   corrupted stored revision, including during membership-driven invalidation (#906).
