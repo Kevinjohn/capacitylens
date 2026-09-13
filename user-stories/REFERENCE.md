@@ -621,9 +621,16 @@ columns_ above.
 `Date format`, with four options shown as samples: **9 Sep** (default), **9th Sep**, **Sep 9**,
 **Sep 9th**. It is **account data** — stored on the account, present in export, changed by an editor
 or above and applied to every member; a viewer sees the control disabled. It sets day/month order and
-whether the day number carries an ordinal, on single dates and ranges alike, and takes effect without
-a reload. A range crossing a year carries the year at both ends. Weekday forms (`Mon 8th Jun` /
-`Mon Jun 8th`) always keep the ordinal, and machine dates (ISO inputs, exports, URLs) are unchanged.
+whether the day number carries an ordinal on planning dates, including single calendar dates and
+ranges, and takes effect without a reload. A range crossing a year carries the year at both ends.
+Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal.
+
+Server instants use the viewer's browser locale and local time zone instead. This includes session
+creation and expiry, password-reset expiry, invitation expiry, ownership-transfer deadlines and
+ownership outcome dates. The exception also covers instants displayed as a compact date without a
+time: the browser time zone selects the local day, while the browser locale selects its date order.
+Existing date-and-time and date-only shapes stay intact, and local conversion never slices an ISO
+timestamp. Machine dates in inputs, exports and URLs are unchanged.
 
 **Company-wide working days (account-level).** Settings → **Company-wide working days** exposes a two-row table:
 seven abbreviated weekday headings and seven checkboxes directly beneath them, in the account's

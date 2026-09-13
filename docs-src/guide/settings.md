@@ -53,6 +53,24 @@ Changing the selection recalculates capacity, utilisation and conflicts for exis
 Allocation dates never move, but work on newly non-working days no longer counts unless the
 allocation has Ignore working days enabled.
 
+## Date format
+
+**Date format** sets how planning dates read for everyone in the company: **9 Sep**,
+**9th Sep**, **Sep 9** or **Sep 9th**. It applies to single calendar dates and ranges,
+including dates on the Schedule and Time off pages. Editors and above can change it; a
+Viewer sees the control disabled. The choice is part of the company, so it is included in
+exports, can be undone and takes effect without a reload.
+Compact weekday dates on the Time off page always retain the ordinal: with **9 Sep** selected,
+a Wednesday appears as **Wed 9th Sep**.
+
+Dates attached to server events use your browser's locale and local time zone instead.
+These include session creation and expiry, password-reset expiry, invitation expiry,
+ownership-transfer deadlines and ownership outcome dates. Your time zone decides which
+local day or hour the instant falls on, while your browser locale decides the date order.
+An invitation expiry or ownership outcome may show only the date; it still follows this
+viewer-local rule. Existing date-and-time displays keep their time, and CapacityLens never
+takes the date by cutting it from the stored UTC timestamp.
+
 ## Schedule on this device
 
 The three switches under **Schedule** change how the grid is drawn in this browser. They
@@ -152,7 +170,7 @@ The rest of Settings, roughly top to bottom:
 | Section                       | What it controls                                                                                                                                                                                                                                                                                                                       |
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Scheduling                    | Whether allocations are entered as Hours, Days or Blocks. New companies start with Days; existing choices are preserved — see [Projects and allocations](/guide/projects-and-allocations).                                                                                                                                                                                                            |
-| Date format                   | How dates read across the app for everyone in the company: 9 Sep, 9th Sep, Sep 9 or Sep 9th. Editors and above can change it. |
+| Date format                   | How planning dates read for everyone in the company: 9 Sep, 9th Sep, Sep 9 or Sep 9th. Editors and above can change it. Server-event dates use the viewer's browser locale and local time zone; see [Date format](#date-format). |
 | Overview access               | Who can open the four-week Overview. Owners and Admins manage this setting; Owner and Admin is the default. See [Find capacity for the next four weeks](/guide/capacity-overview).                                                                                                                                              |
 | Company-wide working days    | The company's shared working week. A person's capacity covers the days ticked here and in their own pattern; new work must start on such a day, and at least one day must stay selected.                                                                                                                                                |
 | Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. Off for a newly created company. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |

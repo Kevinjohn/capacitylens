@@ -6,8 +6,8 @@
 
 ## Goal
 
-Let a company pick how dates read across the app — `9 Sep`, `9th Sep`, `Sep 9` or `Sep 9th` — so
-everyone reads the schedule in one convention instead of each browser choosing its own.
+Let a company pick how planning dates read — `9 Sep`, `9th Sep`, `Sep 9` or `Sep 9th` — so
+everyone reads the schedule in one convention.
 
 ## Why
 
@@ -41,8 +41,8 @@ seed window — see _Seed data_ in REFERENCE.md).
 - Each option is labelled with a sample of the format, and **9 Sep** is checked by default.
 - An **editor or above** may change it. A viewer sees the control, disabled — the same treatment
   every other account setting gives a role that cannot change it.
-- The choice sets day/month order and whether the day number carries an ordinal, on single dates and
-  on ranges, wherever the app shows a human-readable date, and takes effect **without a reload**.
+- The choice sets day/month order and whether the day number carries an ordinal on planning dates,
+  including single calendar dates and ranges, and takes effect **without a reload**.
 - A date range inside one month shows the month once (`9 – 14 Sep`, `Sep 9 – 14`); a range across two
   months shows both (`9 Sep – 14 Oct`, `Sep 9 – Oct 14`).
 - A standalone range that crosses a year collapses nothing: both ends carry the year
@@ -55,4 +55,11 @@ seed window — see _Seed data_ in REFERENCE.md).
 - The choice is **account data**: it is stored on the account, it appears in Export JSON, changing it
   is undoable, and every member of the company sees it. It is **not** a device preference and is not
   kept in browser storage.
+- Server instants use the viewer's browser locale and local time zone instead. This includes session
+  creation and expiry, password-reset expiry, invitation expiry, ownership-transfer deadlines and
+  ownership outcome dates. The exception still applies when an instant is shown as a date without a
+  time: the browser's time zone decides which local calendar day it falls on, and its locale decides
+  the date order.
+- Existing date-and-time displays keep their time, while existing compact date-only displays stay
+  date-only. Local conversion never slices the date from a raw UTC timestamp.
 - Machine dates — ISO inputs, exports and URLs — are unchanged.
