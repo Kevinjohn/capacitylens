@@ -119,7 +119,9 @@ test("the application gate owns configuration validation and its regressions in 
 const hasJq = spawnSync("jq", ["--version"], { stdio: "ignore" }).status === 0;
 
 function loadDependabotSummaryRun() {
-  const run = parseDocument(readFileSync(new URL("../.github/workflows/dependabot-summary.yml", import.meta.url), "utf8"))
+  const run = parseDocument(
+    readFileSync(new URL("../.github/workflows/dependabot-summary.yml", import.meta.url), "utf8"),
+  )
     .toJS()
     .jobs.summary.steps.find((step) => typeof step.run === "string" && step.run.includes("set -euo pipefail"))?.run;
   assert.equal(typeof run, "string", "expected the dependabot-summary workflow's shell step");
@@ -178,48 +180,56 @@ exit 1
   return { comment: existsSync(comment) ? readFileSync(comment, "utf8") : "", result };
 };
 
-test("summarises only the newest Dependabot commit across paginated responses", { skip: !hasJq && "jq is not installed" }, (t) => {
-  const { comment, result } = runDependabotSummary(
-    [
+test(
+  "summarises only the newest Dependabot commit across paginated responses",
+  { skip: !hasJq && "jq is not installed" },
+  (t) => {
+    const { comment, result } = runDependabotSummary(
       [
-        {
-          author: { login: "dependabot[bot]" },
-          commit: {
-            message:
-              "- dependency-name: old-name\n  dependency-version: 1.0.0\n  update-type: version-update:semver-patch\nBumps old-name from `0.9.0` to `1.0.0`.",
+        [
+          {
+            author: { login: "dependabot[bot]" },
+            commit: {
+              message:
+                "- dependency-name: old-name\n  dependency-version: 1.0.0\n  update-type: version-update:semver-patch\nBumps old-name from `0.9.0` to `1.0.0`.",
+            },
           },
-        },
-        { author: { login: "maintainer" }, commit: { message: "Merge branch main" } },
+          { author: { login: "maintainer" }, commit: { message: "Merge branch main" } },
+        ],
+        [
+          {
+            author: { login: "dependabot[bot]" },
+            commit: {
+              message:
+                "- dependency-name: new-name\n  dependency-version: 2.0.0\n  update-type: version-update:semver-minor\nBumps new-name from `1.0.0` to `2.0.0`.",
+            },
+          },
+        ],
       ],
+      t,
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(comment, /`new-name`/);
+    assert.match(comment, /moved from `1\.0\.0` to `2\.0\.0` \(a minor change\)/);
+    assert.doesNotMatch(comment, /old-name|0\.9\.0/);
+  },
+);
+
+test(
+  "exits without a summary when no paginated commit is authored by Dependabot",
+  { skip: !hasJq && "jq is not installed" },
+  (t) => {
+    const { comment, result } = runDependabotSummary(
       [
-        {
-          author: { login: "dependabot[bot]" },
-          commit: {
-            message:
-              "- dependency-name: new-name\n  dependency-version: 2.0.0\n  update-type: version-update:semver-minor\nBumps new-name from `1.0.0` to `2.0.0`.",
-          },
-        },
+        [{ author: { login: "maintainer" }, commit: { message: "Merge branch main" } }],
+        [{ author: { login: "release-bot" }, commit: { message: "Release" } }],
       ],
-    ],
-    t,
-  );
+      t,
+    );
 
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(comment, /`new-name`/);
-  assert.match(comment, /moved from `1\.0\.0` to `2\.0\.0` \(a minor change\)/);
-  assert.doesNotMatch(comment, /old-name|0\.9\.0/);
-});
-
-test("exits without a summary when no paginated commit is authored by Dependabot", { skip: !hasJq && "jq is not installed" }, (t) => {
-  const { comment, result } = runDependabotSummary(
-    [
-      [{ author: { login: "maintainer" }, commit: { message: "Merge branch main" } }],
-      [{ author: { login: "release-bot" }, commit: { message: "Release" } }],
-    ],
-    t,
-  );
-
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stderr, /No Dependabot commit found/);
-  assert.equal(comment, "");
-});
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /No Dependabot commit found/);
+    assert.equal(comment, "");
+  },
+);
