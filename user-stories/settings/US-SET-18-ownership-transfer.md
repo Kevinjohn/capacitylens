@@ -83,7 +83,9 @@ every sensitive action.
   participant who signed in hours ago can still read the nomination they are being asked to approve.
   Neither reading nor acting is available while viewing the company as somebody else (masquerade).
 - A step submitted against a request that has since moved is refused rather than applied: each
-  command carries the workflow revision it was authorised against.
+  command carries the workflow revision it was authorised against. Revisions increase strictly;
+  if a stored revision is corrupted or can no longer advance safely, the server refuses the whole
+  change without partially ending the request.
 - API routes: `GET /api/accounts/:accountId/ownership-transfer` (both participants; `{live,
 latestOutcome}`, each nullable), `POST …/ownership-transfer {toUserId, expectedRequestId?,
 expectedRevision?}` (**201**; naming the standing request is what makes replacement atomic — both

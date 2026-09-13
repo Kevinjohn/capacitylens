@@ -144,7 +144,7 @@ function useAccountSelectOptions() {
     );
     return [...prioritized, ...supported.filter((timeZone) => !prioritized.includes(timeZone))];
   }, []);
-  // Locale-sensitive labels are safe to memoize against this module-cached frozen list while the
+  // Locale-sensitive labels are safe to memoise against this module-cached frozen list while the
   // app ships one locale and this pre-account form unmounts before account-driven locale changes.
   const timeZoneSelectOptions = useMemo(
     () => timeZoneOptions.map((timeZone) => ({ value: timeZone, label: resolveTimeZoneOptionLabel(timeZone) })),
