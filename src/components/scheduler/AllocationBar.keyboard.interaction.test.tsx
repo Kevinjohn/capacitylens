@@ -12,7 +12,7 @@ import { barFor, getStoredAllocation, seedAllocation } from "./__tests__/allocat
 
 beforeEach(() => resetStoreWithAccount());
 
-function registerViewerPopoverTest() {
+function registerViewerAndAnnotationPopoverTests() {
   it("keeps Viewer details in the tab order without enabling allocation edits", async () => {
     const user = userEvent.setup();
     const allocation = seedAllocation({ note: "Call the client before kickoff" });
@@ -183,7 +183,7 @@ function registerEscapeRoutingTests() {
 }
 
 function registerEscapePopoverTests() {
-  registerViewerPopoverTest();
+  registerViewerAndAnnotationPopoverTests();
   registerFocusPopoverTests();
   registerEscapeRoutingTests();
 }

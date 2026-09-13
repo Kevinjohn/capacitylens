@@ -78,7 +78,8 @@ export function resolveAllocationStatusLabel(status: AllocationStatus): string {
 /** Resolve the status text shown on detail surfaces. Confirmed is the implicit default, so it
  * needs no annotation; exceptional statuses retain their translated labels. */
 export function resolveAllocationStatusAnnotation(status: AllocationStatus): string | null {
-  return status === "confirmed" ? null : resolveAllocationStatusLabel(status);
+  const label = resolveAllocationStatusLabel(status);
+  return status === "confirmed" || label === "" ? null : label;
 }
 
 /** Label for ONE time-off type, with the same blank fallback as {@link resolveAllocationStatusLabel}. */
