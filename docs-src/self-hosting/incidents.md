@@ -42,7 +42,9 @@ checkout on the host, mounting the same named data volume, with the stack stoppe
 3. Inside that container, install dependencies once (`corepack enable && pnpm install
 --frozen-lockfile`) and run the documented command against `/data/capacitylens.db`,
    for example `pnpm --filter capacitylens-server recover:audit-outbox -- inspect
-/data/capacitylens.db`.
+/data/capacitylens.db`. A procedure that uses the `sqlite3` command-line tool directly
+   needs it installed in the same container first: `apt-get update && apt-get install -y
+sqlite3`.
 4. Exit the container and restart the stack with `docker compose up -d` once you've
    confirmed the fix.
    :::
@@ -134,8 +136,10 @@ session revocation — and never writes a credential directly.
 ## Membership changes fail with `nextOwnershipTransferRevision`
 
 **Symptom**: changing a role or status, removing a member, or acting on an ownership
-transfer fails. The server log says that `nextOwnershipTransferRevision` cannot advance
-safely, or that its stored revision is not a non-negative integer.
+transfer fails. The server log (or, for the `assign-workspace-owner` repair command, its
+own console output) says that `nextOwnershipTransferRevision` cannot advance safely — only
+when the stored revision is exactly `9007199254740991` — or, for every other unusable
+value, that the stored revision is not a non-negative integer.
 
 **Cause**: a live ownership-transfer row has an unusable revision. A decimal string
 whose numeric value is from `0` through `9007199254740990` can advance normally and is
@@ -149,6 +153,13 @@ later writes you would lose are understood. There is no in-app transition for an
 exhausted or corrupt live row. If restoring is not appropriate, the narrow manual repair
 below records the Owner's decision to cancel that one request. It does not change any
 membership or invent a replacement revision.
+
+If the company also has zero active Owners, this incident can be the *cause* of that one:
+the automatic ownerless-workspace repair itself cancels any live transfer as part of
+promoting a new Owner, and fails with the same error when that transfer's revision is
+unusable. See [A company has no Owner](#a-company-has-no-owner) — resolve the exhausted
+or corrupt revision here first, then let that repair (or the `assign-workspace-owner`
+command) proceed.
 
 ::: warning
 This procedure changes a production control record without producing an application
@@ -174,12 +185,12 @@ copy and an incident record.
    ```
 
    The verification must print `ok` and no foreign-key rows. Copy that standalone backup
-   to a separate rehearsal path. Do not open the pristine incident file set or use the
-   production database for rehearsal.
+   to a separate rehearsal path, for example `/secure/path/ownership-transfer-rehearsal.db`.
+   Do not open the pristine incident file set or use the production database for rehearsal.
 3. Open the rehearsal copy read-only with the SQLite command-line tool:
 
    ```bash
-   sqlite3 -readonly <database>
+   sqlite3 -readonly /secure/path/ownership-transfer-rehearsal.db
    ```
 
 4. Turn on headers and list the live requests. Identifiers and revisions are emitted as
@@ -245,7 +256,8 @@ copy and an incident record.
    the request participants and state agree with the Owner and the audit trail. If
    `revisionStatus` is `advanceable`, close the read-only handle without changing anything
    and investigate the original error.
-5. Close the read-only rehearsal handle, then reopen that rehearsal copy read-write. Set
+5. Close the read-only rehearsal handle, then reopen
+   `/secure/path/ownership-transfer-rehearsal.db` read-write with `sqlite3`. Set
    three parameters from its inspection output. Each value must contain an even number of
    hexadecimal characters and nothing outside `0-9` and `A-F`; only the revision hex may
    be empty. Stop if any value fails that manual check or the query below reports anything
@@ -305,7 +317,9 @@ copy and an incident record.
    with `sqlite3 <database>` and repeat the complete parameter, transaction, update and
    verification block from step 5. Do not commit unless `changedRows` is exactly `1`, the
    row is now `cancelled`, the revision hex is unchanged, `quick_check` returns `ok`, and
-   `foreign_key_check` returns no rows. Type `ROLLBACK;` and `.quit` if any check differs.
+   `foreign_key_check` returns no rows. The bad revision deliberately survives unchanged on
+   the now-terminal row — it is inert there and safe to leave, since a terminal row is
+   never advanced or reused. Type `ROLLBACK;` and `.quit` if any check differs.
    Otherwise type `COMMIT;`, then repeat the selected-company and integrity queries from
    step 4. Expect `liveRequests` to be `0`, the active-member and active-Owner counts to be
    unchanged, `quick_check` to return `ok`, and `foreign_key_check` to return no rows.
@@ -443,7 +457,10 @@ like this emits a structured security event so an operator can review it.
    documented under [Cutover repair
    commands](/company-login/move-to-single-sign-on#a-company-with-no-owner). It promotes
    one existing active member you name by exact company id and email, takes an exclusive
-   lock, and records an operator audit event with the change.
+   lock, and records an operator audit event with the change. This repair also cancels any
+   live ownership transfer for that company; if it fails with the error described in
+   [Membership changes fail with `nextOwnershipTransferRevision`](#membership-changes-fail-with-nextownershiptransferrevision),
+   resolve that transfer's revision first, then retry.
 
 ## Disk-full or a failed snapshot
 

@@ -6,7 +6,7 @@ import { useCanEdit } from "../../auth/permissionContext";
 import { formatDayMonthEndpoint } from "../../lib/dateDisplay";
 import { useDateStyle } from "../../store/useDateStyle";
 import type { BarLabelPreferences } from "../../lib/displayPrefs";
-import { resolveAllocationStatusLabel } from "../../lib/metadata";
+import { resolveAllocationStatusAnnotation } from "../../lib/metadata";
 import { useStore } from "../../store/useStore";
 import { hasVisibleTaskFieldInSchedule } from "../../store/selectors";
 import { AllocationBarView } from "./AllocationBarView";
@@ -48,9 +48,10 @@ interface AriaLabelInput {
 }
 
 function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }: AriaLabelInput) {
+  const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status);
   const shared = {
     hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) }),
-    status: resolveAllocationStatusLabel(bar.allocation.status),
+    status: statusAnnotation ? `${statusAnnotation}, ` : "",
     start: formatDayMonthEndpoint(bar.allocation.startDate, bar.allocation.endDate),
     end: formatDayMonthEndpoint(bar.allocation.endDate, bar.allocation.startDate),
     series: bar.seriesEnd
