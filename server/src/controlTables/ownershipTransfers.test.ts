@@ -318,6 +318,17 @@ describe("account-wide invalidation", () => {
     expect(readRequestById(db, WAYNE, "ot-1")).toEqual(nomination({ revision: String(Number.MAX_SAFE_INTEGER) }));
     db.close();
   });
+
+  it("refuses to invalidate a request whose stored revision is not an integer", () => {
+    const db = freshDb();
+    insertRequest(db, nomination({ revision: "later" }));
+
+    expect(() =>
+      terminaliseLiveRequestsForAccount({ db, accountId: WAYNE, reason: "owner_repaired", now: NOW }),
+    ).toThrow(/revision/i);
+    expect(readRequestById(db, WAYNE, "ot-1")).toEqual(nomination({ revision: "later" }));
+    db.close();
+  });
 });
 
 describe("participant reads", () => {

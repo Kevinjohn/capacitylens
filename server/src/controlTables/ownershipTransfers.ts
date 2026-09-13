@@ -47,7 +47,7 @@ const ownershipTransfersTableExists = createTableExistenceProbe("account_ownersh
  * acceptance cycle, and continuing from a guess would defeat exactly that protection.
  */
 export function nextOwnershipTransferRevision(revision: string): string {
-  const current = Number(revision);
+  const current = /^\d+$/.test(revision) ? Number(revision) : NaN;
   if (!Number.isSafeInteger(current) || current < 0) {
     throw new Error(
       `nextOwnershipTransferRevision: stored revision ${JSON.stringify(revision)} is not a non-negative integer — control table corrupted.`,
@@ -311,6 +311,15 @@ function invalidateLive({ db, now, reason, scope, parameters }: InvalidateLiveIn
   const rows = scope.select(db).all(...parameters) as Array<{ id: string; revision: string }>;
   const [row] = rows;
   if (!row) return [];
+  // The partial unique index on live states (ownershipTransfersSchema.ts) guarantees at most one
+  // live row per account, so `row`'s revision is safe to write to every matched row. If that
+  // index's scope ever widened, writing one row's successor to a second, higher-revision row
+  // would silently move it backwards — fail loudly instead of doing that.
+  if (rows.length > 1) {
+    throw new Error(
+      `invalidateLive: expected at most one live ownership-transfer row, found ${rows.length} — control table corrupted.`,
+    );
+  }
   const nextRevision = nextOwnershipTransferRevision(row.revision);
   scope.update(db).run(now, reason, nextRevision, ...parameters);
   return rows.map(({ id }) => id);
