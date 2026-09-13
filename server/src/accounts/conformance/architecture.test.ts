@@ -295,6 +295,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "controlTables/invites.ts"),
       resolve(serverRoot, "controlTables/members.ts"),
       resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/ownershipTransferRecovery.ts"),
       resolve(serverRoot, "controlTables/ownershipTransfers.ts"),
       resolve(serverRoot, "controlTables/ownershipTransfersSchema.ts"),
       resolve(serverRoot, "controlTables/retentionV24.ts"),
@@ -320,6 +321,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/membership.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransfer.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransferRequests.ts"),
+      resolve(serverRoot, "ownershipTransferRecovery.ts"),
     ]);
 
     for (const file of sourceFiles(serverRoot)) {

@@ -3,21 +3,17 @@ import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import { DEFAULT_ACCOUNT_APPLICATION } from "./auth";
 import { assertAuditOutboxCurrent, enqueueAudit } from "./auditOutbox";
 import { assertOwnershipTransfersCurrent } from "./controlTables/ownershipTransfersSchema";
+import {
+  cancelOwnershipTransferRecoveryRow,
+  readOwnershipTransferRecoveryRow,
+  type OwnershipTransferRecoveryRow,
+} from "./controlTables/ownershipTransferRecovery";
 import { openDbConnection, planDatabaseMigrations, type Db } from "./db";
 import { acquireExclusiveDatabaseLock } from "./resetOwnerPassword";
 import { tx } from "./txn";
 
 type RevisionStatus = "advanceable" | "exhausted" | "corrupt";
 type LiveState = "awaiting_target" | "awaiting_owner";
-
-interface RecoveryRequestRow {
-  id: string;
-  accountId: string;
-  initiatorUserId: string;
-  targetUserId: string;
-  state: string;
-  revision: string;
-}
 
 export interface InspectOwnershipTransferRecoveryInput {
   databasePath: string;
@@ -113,19 +109,13 @@ function assertDatabaseIntegrity(db: Db): void {
   }
 }
 
-function readExactRequest(db: Db, accountId: string, requestId: string): RecoveryRequestRow {
-  const row = db
-    .prepare(
-      `SELECT id, accountId, initiatorUserId, targetUserId, state, revision
-         FROM account_ownership_transfers
-        WHERE id = ? AND accountId = ?`,
-    )
-    .get(requestId, accountId) as RecoveryRequestRow | undefined;
+function readExactRequest(db: Db, accountId: string, requestId: string): OwnershipTransferRecoveryRow {
+  const row = readOwnershipTransferRecoveryRow(db, accountId, requestId);
   if (!row) throw new Error("The ownership-transfer request does not exactly match that company id and request id.");
   return row;
 }
 
-function requireRecoverable(row: RecoveryRequestRow): OwnershipTransferRecoveryInspection {
+function requireRecoverable(row: OwnershipTransferRecoveryRow): OwnershipTransferRecoveryInspection {
   if (!LIVE_STATES.has(row.state)) {
     throw new Error("The exactly matched ownership-transfer request is not live; no recovery was performed.");
   }
@@ -208,23 +198,16 @@ function commitCancellation(
   inspection: OwnershipTransferRecoveryInspection,
 ): OwnershipTransferRecoveryResult {
   const terminalAt = (input.now ?? (() => new Date()))().toISOString();
-  const result = db
-    .prepare(
-      `UPDATE account_ownership_transfers
-          SET state = 'cancelled', terminalAt = ?, terminalReason = 'owner_cancelled'
-        WHERE id = ? AND accountId = ? AND state = ?
-          AND initiatorUserId = ? AND targetUserId = ? AND revision = ?`,
-    )
-    .run(
-      terminalAt,
-      input.requestId,
-      input.accountId,
-      input.expectedState,
-      input.expectedInitiatorUserId,
-      input.expectedTargetUserId,
-      decodeRevision(input.expectedRevisionHex),
-    );
-  if (result.changes !== 1) {
+  const changed = cancelOwnershipTransferRecoveryRow(db, {
+    terminalAt,
+    requestId: input.requestId,
+    accountId: input.accountId,
+    state: input.expectedState,
+    initiatorUserId: input.expectedInitiatorUserId,
+    targetUserId: input.expectedTargetUserId,
+    revision: decodeRevision(input.expectedRevisionHex),
+  });
+  if (!changed) {
     throw new Error("The ownership-transfer request changed before commit; no recovery was performed.");
   }
   const auditId = (input.auditId ?? (() => `ownership-transfer-recovery:${input.requestId}:${terminalAt}`))();
