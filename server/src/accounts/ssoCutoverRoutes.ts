@@ -2,6 +2,7 @@ import type { AuthorizeRouteInput } from "../routes/routeShared";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
+import { newId } from "@capacitylens/shared/lib/id";
 import type { SsoReadinessReason } from "@capacitylens/shared/account/ssoCutover";
 import type { Auth, AccountMode } from "../auth";
 import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
@@ -271,7 +272,7 @@ async function correctPrincipalEmail(
         expectedRevision: authority.revision,
       }),
     audit: {
-      id: `identity-email:${userId}:${occurredAt}:${crypto.randomUUID()}`,
+      id: `identity-email:${userId}:${occurredAt}:${newId()}`,
       occurredAt,
       applicationId,
       workspaceId: accountId,
