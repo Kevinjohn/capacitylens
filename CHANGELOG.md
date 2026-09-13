@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Replace the browser favicon's lightning mark with a magnifying glass (#966).
 - Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
   corrupted stored revision, including during membership-driven invalidation (#906).
 - Preserve distinct application namespaces while anonymising command-ledger rows so migration
