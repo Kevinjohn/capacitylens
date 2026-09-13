@@ -219,11 +219,11 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.map((c) => c.name)).toEqual([
-      "Beta Client",
+      "Stark Industries",
       "Internal",
       "Mid-import",
     ]);
-    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual(["Beta Client", "Internal", "Mid-import"]);
+    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual(["Stark Industries", "Internal", "Mid-import"]);
     expect(onError).not.toHaveBeenCalled();
     expect(onSuccess).toHaveBeenCalled();
     detach();
@@ -530,12 +530,12 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
     await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.map((c) => c.name)).toEqual([
-      "Beta Client",
+      "Stark Industries",
       "Internal",
       "Mid-reload",
     ]);
     expect(onError).not.toHaveBeenCalled();
-    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual(["Beta Client", "Internal", "Mid-reload"]);
+    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual(["Stark Industries", "Internal", "Mid-reload"]);
     detach();
   });
 });
