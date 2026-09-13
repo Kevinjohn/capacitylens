@@ -1,6 +1,15 @@
 # Issue #793: collapse repeated months in date ranges + date style preference
 
-Status: revision 3, reviewed, ready to implement. Base: `7392e51800d517ee5f9c59b71d50a43568f456e2` (origin/main, 2026-09-11).
+> **Historical plan — superseded.** This records the original implementation breakdown at
+> `7392e51800d517ee5f9c59b71d50a43568f456e2`; it is not ready for current implementation.
+> T1, T2, T3 and their validation instructions below are historical. The shipped setting is
+> company-wide account data, not the device-local preference proposed here. See the current
+> [data and tenancy decision](../DECISIONS.md#data-and-tenancy) and
+> [date-format story](../user-stories/settings/US-SET-17-date-style.md) for the authoritative
+> contract.
+
+Status: revision 3, reviewed and implemented through a later superseding design. Base:
+`7392e51800d517ee5f9c59b71d50a43568f456e2` (origin/main, 2026-09-11).
 Issue: https://github.com/Kevinjohn/capacitylens/issues/793 (body is the spec; this plan is the execution order).
 Task navigation: none in `docs-src/reference/development.md` covers date display; paths below are complete.
 Validation policy: AGENTS.md defaults (not the `tasks/plan.md` programme exception).
