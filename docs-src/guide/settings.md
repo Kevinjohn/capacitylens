@@ -60,6 +60,8 @@ allocation has Ignore working days enabled.
 including dates on the Schedule and Time off pages. Editors and above can change it; a
 Viewer sees the control disabled. The choice is part of the company, so it is included in
 exports, can be undone and takes effect without a reload.
+Weekday-inclusive forms always retain the ordinal: with **9 Sep** selected, a Wednesday appears
+as **Wed 9th Sep**.
 
 Dates attached to server events use your browser's locale and local time zone instead.
 These include session creation and expiry, password-reset expiry, invitation expiry,
