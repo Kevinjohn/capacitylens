@@ -9,7 +9,6 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
-- Replace the browser favicon's lightning mark with a magnifying glass (#966).
 - Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
   corrupted stored revision, including during membership-driven invalidation (#906).
 - Preserve distinct application namespaces while anonymising command-ledger rows so migration
@@ -42,6 +41,8 @@ new features and **patch** versions carry fixes.
   cross-year week does not make the header row taller than its neighbours (#861).
 
 ### Changed
+
+- Replace the browser favicon's lightning mark with a magnifying glass (#966).
 
 - Local development and test servers now take their ports from a lane claimed for the duration of
   each command, so several checkouts can run the suites at the same time without colliding on a
