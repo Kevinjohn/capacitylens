@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
+import { PermissionContext } from "../auth/permissionContext";
 import { useStore, buildEmptyFilters } from "../store/useStore";
 import {
   makeAppData,
@@ -19,6 +20,16 @@ function renderPalette(onClose = () => {}) {
       <CommandPalette onClose={onClose} />
       <LocationProbe />
     </MemoryRouter>,
+  );
+}
+
+function renderPaletteWithPermission(role: "owner" | "admin" | "editor" | "viewer", status: "pending" | "resolved") {
+  return render(
+    <PermissionContext.Provider value={{ role, status }}>
+      <MemoryRouter>
+        <CommandPalette onClose={() => {}} />
+      </MemoryRouter>
+    </PermissionContext.Provider>,
   );
 }
 
@@ -112,6 +123,12 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Schedule")).toBeInTheDocument();
     expect(screen.getByText("Resources")).toBeInTheDocument();
     expect(screen.getByText("Team & access")).toBeInTheDocument();
+  });
+
+  it("hides Overview when the resolved role cannot access it", () => {
+    renderPaletteWithPermission("viewer", "resolved");
+
+    expect(screen.queryByText("Overview", { exact: true })).not.toBeInTheDocument();
   });
 
   it("has correct ARIA attributes for combobox pattern", async () => {

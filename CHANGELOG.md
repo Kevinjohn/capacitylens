@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep the command palette's Overview page result consistent with the sidebar and its role-based
+  company access setting (#1000).
 - Refresh personal time off and company closures when the company week rolls over, so newly
   historical rows no longer remain visible until an unrelated page update (#902, #903).
 - Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar

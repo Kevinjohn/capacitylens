@@ -17,7 +17,10 @@ couple of keystrokes navigate faster than any menu when you already know what yo
 **Precondition:** Seeded app open at Schedule (`/`), Wayne Enterprises tenant active.
 
 1. Press **⌘K** (macOS) or **Ctrl+K** (Windows/Linux). The command palette opens centred near the top of the page. The search field is focused.
-2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (all 10 sidebar routes, including **Team & access** and **Account**, listed with their paths).
+2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (the fixed application
+   routes available to your role, including **Team & access** and **Account**, listed with their paths).
+   **Overview** appears only when the company's access setting allows your role to open it, matching
+   the sidebar; the route remains authorization-guarded if opened directly.
 3. Type `Wayne`. The palette shows a **People** section with _Bruce Wayne_ as the first result.
 4. Press **ArrowDown** once, then **Enter** (or just click _Bruce Wayne_). The palette closes.
 5. The scheduler scrolls so Bruce Wayne's row is visible. Scroll elsewhere, then make an ordinary
