@@ -1,7 +1,9 @@
 import {
   createBrowserAccountCommand,
   readOrCreateStoredCommand,
-  clearStoredCommand,
+  beginCommandCohort,
+  finishCommandCohort,
+  markCommandCohortUnknown,
   type BrowserAccountCommand,
 } from "./accountCommands";
 import { readUnknownAccountCommandOutcome, unknownCommandOutcomes } from "./commandOutcome";
@@ -21,18 +23,23 @@ export async function runCommand({
 }: RunCommandInput): Promise<Response> {
   const command =
     explicit ?? (operationKey === null ? createBrowserAccountCommand() : readOrCreateStoredCommand(operationKey));
-  const response = await request(command);
-  // A transport failure, HTTP 408, 5xx or ambiguous 409 has an unknown commit outcome, so retain
-  // the same command. A definitive success or decoded known caller/policy rejection closes it.
-  const outcomeUnknown = response.status === ambiguousStatus || (await readUnknownAccountCommandOutcome(response));
-  if (outcomeUnknown) unknownCommandOutcomes.add(response);
-  const terminalCallerFailure = response.status >= 400 && response.status < 500 && !outcomeUnknown;
-  // An explicit command is caller-owned and must never discard an older implicit ceremony for the
-  // same operation. Only the implicit command loaded from session storage may close that record.
-  if (explicit === undefined && operationKey !== null && (response.ok || terminalCallerFailure)) {
-    clearStoredCommand(operationKey);
+  const cohort = explicit === undefined && operationKey !== null ? beginCommandCohort(operationKey) : undefined;
+  try {
+    const response = await request(command);
+    // A transport failure, HTTP 408, 5xx or ambiguous 409 has an unknown commit outcome, so retain
+    // the same command. A definitive success or decoded known caller/policy rejection closes it.
+    const outcomeUnknown = response.status === ambiguousStatus || (await readUnknownAccountCommandOutcome(response));
+    if (outcomeUnknown) {
+      unknownCommandOutcomes.add(response);
+      if (cohort) markCommandCohortUnknown(cohort);
+    }
+    return response;
+  } catch (error) {
+    if (cohort) markCommandCohortUnknown(cohort);
+    throw error;
+  } finally {
+    if (cohort) finishCommandCohort(cohort);
   }
-  return response;
 }
 
 export function buildCommandRequestInit(

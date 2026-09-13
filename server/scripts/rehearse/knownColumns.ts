@@ -169,6 +169,9 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
     verification: ["id", "identifier", "value", "expiresAt", "createdAt", "updatedAt"],
     capacitylens_bootstrap_claim: ["id", "claimedAt", "claimToken"],
     account_security_revisions: ["principalId", "revision", "updatedAt"],
+    // Application and command ids are deterministically remapped as distinct namespaces;
+    // operation coordinates and result data are redacted, while workflow states and timestamps
+    // are retained so the rehearsal continues to exercise command-ledger behavior.
     account_commands: [
       "applicationId",
       "operation",
