@@ -19,10 +19,11 @@ import { AppEntryGate } from "./AppEntryGate";
 import { useAppShellController } from "./useAppShellController";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
-import { transitionAccount } from "../auth/accountTransition";
 import { masqueradeController } from "../auth/masqueradeController";
 import { Button } from "./ui/button";
 import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
+import { retryActiveAccountLoad } from "../data/persist";
+import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
 
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
@@ -96,6 +97,8 @@ type GatedAppProps = {
   fakeSignedIn: boolean;
   hasActiveAccount: boolean;
   allowWithoutActiveAccount: boolean;
+  activeAccountId: ReturnType<typeof useStore.getState>["activeAccountId"];
+  activeAccountLoadFailed: ReturnType<typeof useStore.getState>["activeAccountLoadFailed"];
   introSeen: boolean;
   onFakeSignIn: () => void;
   onIntroContinue: () => void;
@@ -124,6 +127,8 @@ function GatedApp({
   fakeSignedIn,
   hasActiveAccount,
   allowWithoutActiveAccount,
+  activeAccountId,
+  activeAccountLoadFailed,
   introSeen,
   onFakeSignIn,
   onIntroContinue,
@@ -149,9 +154,18 @@ function GatedApp({
       fakeSignedIn={fakeSignedIn}
       hasActiveAccount={hasActiveAccount}
       allowWithoutActiveAccount={allowWithoutActiveAccount}
+      activeAccountId={activeAccountId}
+      activeAccountLoadFailed={activeAccountLoadFailed}
+      activeAccountName={activeAccount?.name ?? m.account_load_fallback_name()}
       introSeen={introSeen}
       onFakeSignIn={onFakeSignIn}
       onIntroContinue={onIntroContinue}
+      onRetryActiveAccountLoad={() =>
+        activeAccountId
+          ? retryActiveAccountLoad(activeAccountId).then((outcome) => outcome.kind !== "failed")
+          : Promise.resolve(false)
+      }
+      onChooseAnotherAccount={() => void chooseAnotherAccountAfterLoadFailure(allowWithoutActiveAccount, navigate)}
     >
       <PermissionProvider>
         <SidebarProvider
@@ -187,14 +201,6 @@ function GatedSidebar({
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
-  const switchAccount = async () => {
-    try {
-      const switched = await transitionAccount(null);
-      if (switched && accountRoute) void navigate("/");
-    } catch (error: unknown) {
-      console.error("Company switch failed", error);
-    }
-  };
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
@@ -216,7 +222,7 @@ function GatedSidebar({
         demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}
         onSignOut={signOutDemo}
-        onSwitchAccount={() => void switchAccount()}
+        onSwitchAccount={() => void chooseAnotherAccountAfterLoadFailure(accountRoute, navigate)}
         open={sidebarOpen}
       />
     </>
@@ -326,6 +332,7 @@ export function AppShell() {
   const accounts = useStore((state) => state.data.accounts);
   const accountSummaries = useStore((state) => state.accountSummaries);
   const activeAccountId = useStore((state) => state.activeAccountId);
+  const activeAccountLoadFailed = useStore((state) => state.activeAccountLoadFailed);
   // EXISTENCE of the active account from `data.accounts` (after the slice loads, it holds exactly the
   // active account) OR `accountSummaries` (P1.13 — covers the pick→slice-load gap in server mode,
   // where `data` is empty for one frame until the switch orchestrator hydrates the slice). The summary
@@ -363,6 +370,8 @@ export function AppShell() {
         fakeSignedIn={fakeSignedIn}
         hasActiveAccount={activeAccount !== undefined}
         allowWithoutActiveAccount={accountRoute}
+        activeAccountId={activeAccountId}
+        activeAccountLoadFailed={activeAccountLoadFailed}
         introSeen={introSeen}
         onFakeSignIn={() => setFakeSignedIn(true)}
         onIntroContinue={() => setIntroSeen(true)}
