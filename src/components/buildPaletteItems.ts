@@ -4,7 +4,7 @@ import { isExternalResource, type Activity } from "@capacitylens/shared/types/en
 import type { useNavigate } from "react-router-dom";
 import { fuzzyFilter } from "../lib/fuzzy";
 import { resolveResourceDisplayName } from "../lib/metadata";
-import { ADMIN_LINKS, LINKS } from "../lib/navLinks";
+import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "../lib/navLinks";
 import type { useActiveScopedData } from "../store/useScopedData";
 import { buildEmptyFilters, type Filters } from "../store/useStore";
 
@@ -73,7 +73,7 @@ function buildActionItems({
 }
 
 function buildPageItems({ disciplinesEnabled, navigate, onClose }: BuildPaletteItemsInput): PaletteItem[] {
-  return [...LINKS, ...ADMIN_LINKS]
+  return [...LINKS, ...ADMIN_LINKS, ACCOUNT_LINK]
     .filter(({ to }) => disciplinesEnabled || to !== "/disciplines")
     .map(({ to, label }) => ({
       id: `page-${to === "/" ? "schedule" : to.slice(1)}`,

@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Include the Account page in the command palette's Pages results (#938).
 - Refresh personal time off and company closures when the company week rolls over, so newly
   historical rows no longer remain visible until an unrelated page update (#902, #903).
 - Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar

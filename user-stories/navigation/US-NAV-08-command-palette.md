@@ -2,6 +2,8 @@
 
 **Area:** Navigation · **Persona:** Studio manager · **Linked E2E:** `e2e/palette.spec.ts` → "fuzzy-finds a seeded resource and jumps to their lane"
 
+**Documentation:** [Jump to a page with the command palette](../../docs-src/guide/the-schedule.md#jump-to-a-page-with-the-command-palette)
+
 ## Goal
 
 Open a keyboard-driven command palette to jump instantly to any person, project, page or date
@@ -17,7 +19,7 @@ couple of keystrokes navigate faster than any menu when you already know what yo
 **Precondition:** Seeded app open at Schedule (`/`), Wayne Enterprises tenant active.
 
 1. Press **⌘K** (macOS) or **Ctrl+K** (Windows/Linux). The command palette opens centred near the top of the page. The search field is focused.
-2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (all 10 sidebar routes, including **Team & access** and **Account**, listed with their paths).
+2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (the 11 fixed application routes, including **Team & access** and **Account**, listed with their paths).
 3. Type `Wayne`. The palette shows a **People** section with _Bruce Wayne_ as the first result.
 4. Press **ArrowDown** once, then **Enter** (or just click _Bruce Wayne_). The palette closes.
 5. The scheduler scrolls so Bruce Wayne's row is visible. Scroll elsewhere, then make an ordinary

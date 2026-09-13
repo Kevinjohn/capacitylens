@@ -28,6 +28,7 @@ function registerSuiteScenario1() {
     // violations from other elements with the same text on the page below).
     const palette = page.getByTestId("command-palette");
     for (const label of [
+      "Overview",
       "Schedule",
       "Resources",
       "Team & access",
@@ -37,6 +38,7 @@ function registerSuiteScenario1() {
       "Activities",
       "Time off",
       "Settings",
+      "Account",
     ]) {
       await expect(palette.getByText(label, { exact: true }).last()).toBeVisible();
     }
