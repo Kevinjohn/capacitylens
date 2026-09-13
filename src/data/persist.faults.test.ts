@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { attachPersistence, flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from "./persist";
+import {
+  attachPersistence,
+  flushPendingWrites,
+  refreshActiveAccountSlice,
+  suspendServerWrites,
+  switchAndAwaitHydration,
+} from "./persist";
 import { BatchCommitUncertainError, BatchConflictError } from "./ServerSyncAdapter";
 import { useStore } from "../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -34,10 +40,10 @@ describe("persistence coordinator fault-injection branches", () => {
       serverMode: true,
     });
     useStore.getState().addClient({ name: "Pending", color: "#111111" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     useStore.getState().setActiveAccount(null);
     rejectSave(new BatchCommitUncertainError("uncertain"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
 
     expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(BatchCommitUncertainError);
     expect(loadAll).not.toHaveBeenCalled();
@@ -52,9 +58,14 @@ describe("persistence coordinator fault-injection branches", () => {
     };
     const a2 = a2Slice();
     let releaseA2!: () => void;
+    let resolveA2Started!: () => void;
+    const a2Started = new Promise<void>((resolve) => {
+      resolveA2Started = resolve;
+    });
     const loadAll = vi.fn((id?: string) =>
       id === "a2"
         ? new Promise<AppData>((resolve) => {
+            resolveA2Started();
             releaseA2 = () => resolve(a2);
           })
         : Promise.resolve(a1),
@@ -71,12 +82,12 @@ describe("persistence coordinator fault-injection branches", () => {
       debounceMs: 0,
       serverMode: true,
     });
-    useStore.getState().setActiveAccount("a2");
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    useStore.getState().setActiveAccount("a1");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    const switchingA2 = switchAndAwaitHydration("a2");
+    await a2Started;
+    const switchingA1 = switchAndAwaitHydration("a1");
+    await expect(switchingA1).resolves.toEqual({ kind: "reloaded" });
     releaseA2();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await expect(switchingA2).resolves.toEqual({ kind: "skipped" });
 
     expect(useStore.getState().activeAccountId).toBe("a1");
     expect(useStore.getState().data.accounts.map((row) => row.id)).toEqual(["a1"]);
@@ -90,19 +101,21 @@ describe("persistence coordinator fault-injection branches", () => {
       rejectFirst = reject;
     });
     const saveAll = vi.fn().mockReturnValueOnce(first).mockResolvedValue(undefined);
+    const onError = vi.fn();
     const detach = attachPersistence({
       store: useStore,
       adapter: { loadAll: async () => emptyAppData(), saveAll },
       debounceMs: 0,
+      onError,
     });
     useStore.getState().addClient({ name: "First", color: "#111111" });
     useStore.getState().addClient({ name: "Latest", color: "#222222" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(2));
     rejectFirst(new Error("older failure"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
 
     window.dispatchEvent(new Event("online"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(3));
     expect(saveAll).toHaveBeenCalledTimes(3);
     expect((saveAll.mock.calls[2]?.[0] as AppData).clients.map((row) => row.name)).toEqual(["First", "Latest"]);
     detach();
@@ -170,12 +183,12 @@ describe("persistence coordinator fault-injection branches", () => {
         onSuccess: onSuccess,
       });
       useStore.getState().addClient({ name: "Pending", color: "#111111" });
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
       window.dispatchEvent(new Event("pagehide"));
       expect(saveAll).toHaveBeenCalledTimes(2);
       detach();
       settleKeepalive();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await keepalive.catch(() => undefined);
 
       expect(onError).not.toHaveBeenCalled();
       expect(onSuccess).not.toHaveBeenCalled();
@@ -196,11 +209,10 @@ describe("persistence coordinator fault-injection branches", () => {
 
     resumeInner();
     resumeInner();
-    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(saveAll).not.toHaveBeenCalled();
 
     resumeOuter();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await expect(flushPendingWrites()).resolves.toEqual({ kind: "clean" });
     expect(saveAll).toHaveBeenCalledOnce();
     detach();
   });
@@ -223,7 +235,7 @@ describe("persistence coordinator fault-injection branches", () => {
       onError: onError,
     });
     const refreshing = refreshActiveAccountSlice("a2");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledTimes(2));
     detach();
     rejectRefresh(new Error("late load failure"));
 
@@ -248,10 +260,9 @@ describe("persistence coordinator fault-injection branches", () => {
 
     window.dispatchEvent(new Event("focus"));
     window.dispatchEvent(new Event("focus"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledTimes(2));
     expect(loadAll).toHaveBeenCalledTimes(2);
     releaseRefresh();
-    await new Promise((resolve) => setTimeout(resolve, 0));
     detach();
     now.mockRestore();
   });
@@ -269,10 +280,8 @@ describe("persistence coordinator fault-injection branches", () => {
       onError: vi.fn(),
       serverMode: true,
     });
-    useStore.getState().setActiveAccount("a2");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "failed" });
     window.dispatchEvent(new Event("focus"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
     detach();
     expect(loadAll).toHaveBeenCalledTimes(1);
@@ -294,7 +303,7 @@ describe("persistence coordinator fault-injection branches", () => {
       serverMode: true,
     });
     useStore.getState().addClient({ name: "In flight", color: "#111111" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     const flushing = flushPendingWrites();
     resolveSave();
     await expect(flushing).resolves.toEqual({ kind: "clean" });
@@ -310,7 +319,7 @@ describe("persistence coordinator fault-injection branches", () => {
     holdReload = true;
     saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
     useStore.getState().addClient({ name: "Uncertain", color: "#111111" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
 
     await expect(flushPendingWrites()).resolves.toEqual({ kind: "blocked" });
     detach();
@@ -358,12 +367,11 @@ describe("persistence coordinator fault-injection branches", () => {
     saveAll.mockClear();
     saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
     useStore.getState().addClient({ name: "Uncertain", color: "#111111" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(releaseReload).toBeTypeOf("function");
+    await vi.waitFor(() => expect(releaseReload).toBeTypeOf("function"));
 
     useStore.getState().setActiveAccount(null);
     releaseReload();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(loads).toBe(2));
     expect(saveAll).toHaveBeenCalledOnce();
     detach();
   });
