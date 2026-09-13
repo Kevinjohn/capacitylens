@@ -51,7 +51,8 @@ first column uses only the company working days remaining between today and the 
 
 Green fill shows free capacity; red fill shows overbooking, capped at a full cell. A person with
 nothing to show, including someone fully booked or with no availability that week, keeps a subtle
-neutral-grey cell. Week blocks have a visible gap so adjacent periods stay easy to distinguish.
+neutral-grey cell. Bar modes use 6px horizontal and vertical gaps between cells so adjacent periods
+and rows stay easy to distinguish.
 **Bar & number** shows the fill and the figures together. The underlying value stays available to
 assistive technology in every mode. Group header totals and unassigned-demand rows always show
 figures only; the bar never applies to them.
