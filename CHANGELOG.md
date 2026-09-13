@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Clarify that the company date format governs planning dates, while session, reset,
+  invitation and ownership timestamps use each viewer's browser locale and local time zone
+  (#927, #939).
 - Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
   corrupted stored revision, including during membership-driven invalidation (#906).
 - Replace manual ownership-transfer recovery SQL with a stopped-server command that checks the

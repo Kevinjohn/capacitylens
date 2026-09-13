@@ -148,7 +148,12 @@ This is the short, present-tense record of decisions that constrain future work.
   safe source for a whole-slice replacement of owner-confidential client/project identities.
 - Theme and per-device view preferences are device-global and outside account exports. The date
   format is deliberately NOT among them: a company reads one convention, so it is an account setting
-  (editor and up), present in export and undoable like any other account change.
+  (editor and up), present in export and undoable like any other account change. It governs planning
+  calendar dates and ranges. Server instants — session creation and expiry, password-reset expiry,
+  invitation expiry, ownership-transfer deadlines and ownership outcome dates — instead use the
+  viewer's browser locale and local time zone, including when an instant is displayed as a date only.
+  Existing date-and-time and compact date-only shapes remain distinct; never recover a local date by
+  slicing the stored UTC timestamp.
 - Client/project privacy is opt-in and owner-managed. Real names and raw code names remain stored;
   only account owners receive them. Every other role receives the quoted code name, and non-owner
   writes preserve the protected stored fields. The built-in Internal client is always public and
