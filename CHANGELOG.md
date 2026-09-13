@@ -11,6 +11,12 @@ new features and **patch** versions carry fixes.
 
 - Preserve distinct application namespaces while anonymising command-ledger rows so migration
   rehearsal copies cannot fail when applications share operation coordinates (#958).
+- Refresh personal time off and company closures when the company week rolls over, so newly
+  historical rows no longer remain visible until an unrelated page update (#902, #903).
+- Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar
+  names, while retaining explicit annotations for tentative and completed work (#851).
+- Keep the original retry identity when concurrent copies of the same account command include an
+  unknown outcome, preventing a later retry from submitting a second semantic mutation (#942).
 - Hide the previously open company's data when a newly selected company cannot load, and offer
   explicit retry or company-selection recovery actions (#945).
 - Prevent simultaneous identity-email repairs from sharing an audit event ID and rolling back an
