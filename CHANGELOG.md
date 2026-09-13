@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar
+  names, while retaining explicit annotations for tentative and completed work (#851).
 - Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
   one installation's process group, and describe the initial pending backup health state accurately
   (#921, #933, #936).
