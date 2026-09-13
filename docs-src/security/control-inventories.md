@@ -41,6 +41,10 @@ processing entry point.
 | Ownership transfer request | company, initiator and nominee ids, workflow state, deadline                       | SQLite over TLS                                                            | a live request expires seven days after it is made; a terminal request is retained for a year and is then swept the next time that company uses the ceremony (activity-driven, as invitation retention is); account erasure deletes them; no name or email is ever copied into the row |
 | Device preference        | theme, zoom and similar settings                                                    | localStorage                                                               | device-local, not account data/export; explicit device clear                                                                                   |
 
+Ownership-transfer revisions are strictly increasing concurrency guards. If a persisted revision is
+corrupted or has exhausted the safe range, transition and membership-invalidation writes fail closed
+without partially ending the request.
+
 Every `/api/*` response receives `Cache-Control: no-store` and `Pragma: no-cache`. The SPA contains no
 advertising, analytics or crash-reporting integration. The only default outbound application call is
 the HIBP password range lookup during credential creation/change/reset. Enabled identity providers

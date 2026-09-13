@@ -240,6 +240,115 @@ function anonymiseSharedProviderBindings(reverseOrder: boolean): Record<string, 
   }
 }
 
+const ACCOUNT_COMMANDS_DDL = `
+  CREATE TABLE account_commands (
+    applicationId TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    idempotencyKey TEXT NOT NULL,
+    commandId TEXT NOT NULL UNIQUE,
+    actorPrincipalId TEXT,
+    targetPrincipalId TEXT,
+    workspaceId TEXT,
+    payloadHash TEXT NOT NULL CHECK(length(payloadHash) = 64),
+    status TEXT NOT NULL CHECK(status IN ('pending', 'completed', 'compensated', 'reconciliation_required')),
+    resultJson TEXT CHECK(resultJson IS NULL OR json_valid(resultJson)),
+    failureCode TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    CHECK(
+      (status = 'pending' AND resultJson IS NULL AND failureCode IS NULL) OR
+      (status = 'completed' AND resultJson IS NOT NULL AND failureCode IS NULL) OR
+      (status IN ('compensated', 'reconciliation_required') AND failureCode IS NOT NULL)
+    ),
+    PRIMARY KEY (applicationId, operation, idempotencyKey)
+  ) STRICT
+`;
+
+interface SharedCommandRow {
+  applicationId: string;
+  operation: string;
+  commandId: string;
+  timestamp: string;
+  status: string;
+  resultJson: string | null;
+  failureCode: string | null;
+}
+
+const SHARED_COMMAND_ROWS: SharedCommandRow[] = [
+  {
+    applicationId: "app-a",
+    operation: "shared-operation",
+    commandId: "command-a",
+    timestamp: "2026-01-01",
+    status: "pending",
+    resultJson: null,
+    failureCode: null,
+  },
+  {
+    applicationId: "app-b",
+    operation: "shared-operation",
+    commandId: "command-b",
+    timestamp: "2026-01-02",
+    status: "completed",
+    resultJson: '{"ok":true}',
+    failureCode: null,
+  },
+  {
+    applicationId: "app-a",
+    operation: "other-operation",
+    commandId: "command-c",
+    timestamp: "2026-01-03",
+    status: "compensated",
+    resultJson: '{"partial":true}',
+    failureCode: "rollback-failed",
+  },
+];
+
+function anonymiseSharedCommandCoordinates(reverseOrder: boolean): string[] {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec(ACCOUNT_COMMANDS_DDL);
+    const insert = db.prepare(`
+      INSERT INTO account_commands (
+        applicationId, operation, idempotencyKey, commandId, payloadHash, status, resultJson, failureCode,
+        createdAt, updatedAt
+      ) VALUES (?, ?, 'shared-key', ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const row of reverseOrder ? SHARED_COMMAND_ROWS.toReversed() : SHARED_COMMAND_ROWS) {
+      insert.run(
+        row.applicationId,
+        row.operation,
+        row.commandId,
+        "0".repeat(64),
+        row.status,
+        row.resultJson,
+        row.failureCode,
+        row.timestamp,
+        row.timestamp,
+      );
+    }
+
+    anonymise(db);
+
+    const commands = db
+      .prepare(`SELECT applicationId, commandId, resultJson, createdAt FROM account_commands ORDER BY createdAt`)
+      .all() as Array<{ applicationId: string; commandId: string; resultJson: string | null; createdAt: string }>;
+    expect(commands).toHaveLength(3);
+    expect(commands[0]?.resultJson).toBeNull();
+    expect(commands[1]?.resultJson).toBe("{}");
+    expect(commands[2]?.resultJson).toBe('{"kind":"rehearsal-redacted"}');
+    expect(commands[0]?.applicationId).not.toBe(commands[1]?.applicationId);
+    expect(commands[0]?.applicationId).toBe(commands[2]?.applicationId);
+    expect(commands[0]?.commandId).not.toBe(commands[1]?.commandId);
+    expect(JSON.stringify(commands)).not.toMatch(/app-[ab]|command-[abc]/);
+    expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    return commands.map(({ applicationId }) => applicationId);
+  } finally {
+    db.close();
+  }
+}
+
 function createProviderBindingAbsenceStatement(
   db: DatabaseSync,
   {
@@ -343,6 +452,14 @@ function registerSharedProviderBindingsTest(): void {
   it("preserves application namespaces and shared provider joins under the real binding constraints", () => {
     const forward = anonymiseSharedProviderBindings(false);
     const reverse = anonymiseSharedProviderBindings(true);
+    expect(reverse).toEqual(forward);
+  });
+}
+
+function registerSharedCommandCoordinatesTest(): void {
+  it("preserves distinct command application namespaces when operation coordinates overlap", () => {
+    const forward = anonymiseSharedCommandCoordinates(false);
+    const reverse = anonymiseSharedCommandCoordinates(true);
     expect(reverse).toEqual(forward);
   });
 }
@@ -591,6 +708,7 @@ function registerRedactionRollbackTest(): void {
 describe("migration rehearsal redaction", () => {
   registerFederatedIdentityTest();
   registerSharedProviderBindingsTest();
+  registerSharedCommandCoordinatesTest();
   registerStaleObservationTest();
   registerProviderBindingAbsenceTests();
   registerMembershipConfirmationTest();

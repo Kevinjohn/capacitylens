@@ -54,8 +54,8 @@ jobs:
 
           # The update metadata lives in Dependabot's own commit. A branch brought up
           # to date with main carries later merge commits, so select by author.
-          message="$(gh api "repos/$REPO/pulls/$PR/commits" --paginate \
-            --jq '[.[] | select((.author.login // "") == "dependabot[bot]")] | last | .commit.message')"
+          message="$(gh api "repos/$REPO/pulls/$PR/commits" --paginate --slurp |
+            jq -r '[.[][] | select((.author.login // "") == "dependabot[bot]")] | last | .commit.message')"
           if [ -z "$message" ] || [ "$message" = "null" ]; then
             echo "No Dependabot commit found on this pull request; nothing to summarise." >&2
             exit 0

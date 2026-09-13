@@ -153,7 +153,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
   const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
   // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
-  // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
+  // internal filter, hence `shouldFilter={false}` below). Memoised so the fuzzy filter over ALL data
   // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
   // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
   const items: PaletteItem[] = usePaletteItems(query, onClose);
