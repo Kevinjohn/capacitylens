@@ -67,6 +67,7 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
   assert.equal(packageJson.scripts["format:check"], "prettier --check .");
   assert.ok(commands.includes("pnpm run lint"));
   assert.ok(commands.includes("pnpm run typecheck"));
+  assert.ok(commands.includes("pnpm run policy:lint-coverage:test"));
   // Pin the script's BODY, not only its name. Asserting the workflow calls `pnpm run typecheck`
   // proves nothing on its own: a `typecheck` reduced to a bare root `tsc --noEmit` reads no files
   // and exits 0, and every gate would stay green while nothing was type-checked at all.
