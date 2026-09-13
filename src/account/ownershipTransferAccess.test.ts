@@ -1,16 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  apiFetch: vi
+    .fn<(url: string, init?: RequestInit) => Promise<Response>>()
+    .mockResolvedValue(new Response(null, { status: 204 })),
   apiFetchReauth: vi
     .fn<(url: string, init?: RequestInit, timeout?: number) => Promise<Response>>()
     .mockResolvedValue(new Response(null, { status: 204 })),
+  requestSignal: vi.fn((signal?: AbortSignal) => signal),
 }));
 
 vi.mock("../data/apiConfig", () => ({ API_BASE: "https://app.example" }));
 vi.mock("../data/requestTimeout", () => ({
-  apiFetch: vi.fn(),
+  apiFetch: mocks.apiFetch,
   API_BULK_TIMEOUT_MS: 120_000,
-  createRequestSignal: vi.fn((signal?: AbortSignal) => signal),
+  createRequestSignal: mocks.requestSignal,
 }));
 vi.mock("../auth/apiFetchReauth", () => ({
   apiFetchReauth: mocks.apiFetchReauth,
@@ -43,12 +47,15 @@ function terminalOwnershipTransferResponse(state = "expired"): Response {
 describe("ownership transfer access", () => {
   beforeEach(() => {
     clearStoredAccountCommands();
-    mocks.apiFetchReauth.mockReset().mockResolvedValue(new Response(null, { status: 204 }));
+    mocks.apiFetch.mockReset().mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
+    mocks.apiFetchReauth.mockReset().mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })));
+    mocks.requestSignal.mockClear();
     sessionStorage.clear();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it.each(["awaiting_target", "awaiting_owner"])(

@@ -80,7 +80,7 @@ The first deployment is deliberately different from every later deployment. It a
 initial build without Supervisor commands. Create the background process from that active release,
 record its generated group name, then save the permanent script above. Run one rehearsal deployment
 of the same commit before relying on the workflow for an upgrade. The rehearsal must show the API
-stop, activation, restart and successful public health check in that order.
+stop, activation, start and successful public health check in that order.
 
 Vite may print a warning that `NODE_ENV=production` is not supported inside `.env`. CapacityLens
 still needs that value at API runtime, while Vite already makes a production build when `pnpm run
@@ -105,13 +105,14 @@ sudo -n /usr/bin/supervisorctl -c /etc/supervisor/supervisord.conf status
 
 `-n` means "never ask for a password". If you will keep `supervisorctl`, run `sudo -l`. Continue
 only if it lists exactly four commands — `status`, `stop`, `start` and `restart` — each pinned to
-this Supervisor group and configuration path, as granted below. A bare `/usr/bin/supervisorctl`
-entry is the old, broad grant and must be replaced first. If you replace both process-control calls
-with separate platform stop and start actions instead, continue after configuring and testing those
-actions. If the status command prints `sudo: a password is required`, choose one of the two fixes
-below.
+this Supervisor configuration path. Only the three process-changing commands — `stop`, `start` and
+`restart` — are additionally pinned to this Supervisor group; `status` intentionally lists all
+Supervisor processes. A bare `/usr/bin/supervisorctl` entry is the old, broad grant and must be
+replaced first. If you replace both process-control calls with separate platform stop and start
+actions instead, continue after configuring and testing those actions. If the status command
+prints `sudo: a password is required`, choose one of the two fixes below.
 
-### Use the platform's own restart action
+### Use the platform's separate stop and start actions
 
 Some platforms expose separate stop and start commands or API endpoints for a background process
 that do not need `sudo` at all. If yours does, use them in place of the two `supervisorctl` lines in
@@ -152,8 +153,11 @@ capacity-example ALL=(root) NOPASSWD: /usr/bin/supervisorctl -c /etc/supervisor/
 Save and exit. `visudo` checks the syntax before writing; if it reports an error, fix it there
 rather than saving a broken file, because a broken sudoers file can lock everyone out of `sudo`.
 
-The `status` command still lists all Supervisor processes, but it cannot change them; stop, start
-and restart are limited to this group.
+Sudoers matches the arguments as one string. The escaped colon and asterisk therefore match the
+literal group argument, while an extra process name is denied. The `status` command still lists all
+Supervisor processes, but it cannot change them; stop, start and restart are limited to this group.
+Other sudoers rules and a Supervisor socket readable by the site user remain outside this limited
+rule set.
 
 If you already installed the broad line, edit the same file with `visudo -f` and replace it with the
 four lines above. Run `sudo -l -U capacity-example` and confirm no unrestricted `supervisorctl`
