@@ -10,6 +10,23 @@ new features and **patch** versions carry fixes.
 ### Fixed
 
 - Include the Account page in the command palette's Pages results (#938).
+- Refresh personal time off and company closures when the company week rolls over, so newly
+  historical rows no longer remain visible until an unrelated page update (#902, #903).
+- Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar
+  names, while retaining explicit annotations for tentative and completed work (#851).
+- Keep the original retry identity when concurrent copies of the same account command include an
+  unknown outcome, preventing a later retry from submitting a second semantic mutation (#942).
+- Hide the previously open company's data when a newly selected company cannot load, and offer
+  explicit retry or company-selection recovery actions (#945).
+- Prevent simultaneous identity-email repairs from sharing an audit event ID and rolling back an
+  otherwise valid administrator correction (#905).
+- Emit a static Overview route document so direct links work on strict static deployments (#943).
+- Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
+  one installation's process group, and describe the initial pending backup health state accurately
+  (#921, #933, #936).
+- Release an ownership-transfer step's retry handle (accept, withdraw, decline, cancel or complete)
+  once the server reports that request already reached a terminal outcome, instead of letting a
+  retry with the same identity replay the earlier terminal receipt (#908).
 - Allow migration rehearsal copies to anonymise federated provider bindings when several
   applications use the same provider identifier (#904).
 - Make the bare-metal installation select Node from the repository's `.nvmrc`, then run the

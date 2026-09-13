@@ -1013,6 +1013,41 @@ it("corrects an identity email with ceremony invalidation, session revocation, a
   expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "email-audit-1" }]);
 });
 
+it("rolls back an email repair on an audit-id conflict and commits a retry with a distinct id", async () => {
+  const { port } = prepareEmailCorrectionScenario();
+  const correction = (email: string, auditId: string) =>
+    port.correctPrincipalEmail({
+      principalId: "principal-1",
+      email,
+      authorizeInTransaction: vi.fn(),
+      audit: repairAudit(auditId, "identity.email_corrected"),
+    });
+
+  await correction("bruce.one@example.com", "email-audit-shared");
+  const conflict: unknown = await correction("bruce.two@example.com", "email-audit-shared").catch(
+    (error: unknown) => error,
+  );
+  expect(conflict).toBeInstanceOf(Error);
+  expect((conflict as Error).message).toBe("Identity email correction failed.");
+  expect((conflict as Error).cause).toBeInstanceOf(Error);
+  expect(((conflict as Error).cause as Error).message).toMatch(/UNIQUE constraint failed.*capacitylens_audit_outbox/);
+  expect(db.prepare(`SELECT email FROM user WHERE id = ?`).get("principal-1")).toEqual({
+    email: "bruce.one@example.com",
+  });
+  expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox ORDER BY sequence`).all()).toEqual([
+    { id: "email-audit-shared" },
+  ]);
+
+  await correction("bruce.two@example.com", "email-audit-retry");
+  expect(db.prepare(`SELECT email FROM user WHERE id = ?`).get("principal-1")).toEqual({
+    email: "bruce.two@example.com",
+  });
+  expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox ORDER BY sequence`).all()).toEqual([
+    { id: "email-audit-shared" },
+    { id: "email-audit-retry" },
+  ]);
+});
+
 it("removes an incorrect provider link only after revoking sessions and commits its audit atomically", async () => {
   insertIdentityUser({ db, id: "principal-1", name: "One", email: "one@example.com" });
   insertIdentityAccount({ db, id: "link-1", providerId: "sso", accountId: "subject-1", userId: "principal-1" });

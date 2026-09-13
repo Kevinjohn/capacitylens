@@ -19,8 +19,10 @@ function createActiveSliceRefresh({ store, owner, refresh, serverMode }: AttachD
   const { refreshActive, startAuthoritativeReload } = refresh;
   return () => {
     if (owner.current.disposed || !serverMode) return;
-    const id = store.getState().activeAccountId;
+    const state = store.getState();
+    const id = state.activeAccountId;
     if (id === null) return;
+    if (state.activeAccountLoadFailed === id) return;
     if (owner.current.authoritativeReloadRequiredFor === id) {
       startAuthoritativeReload(id);
       return;
