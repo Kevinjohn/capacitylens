@@ -127,6 +127,10 @@ Open **Account** near **Switch company** and **Sign out** at the bottom of the s
 review your identity and the security controls available for your sign-in method. These are
 personal controls, separate from the company settings on this page.
 
+If a selected company cannot be loaded, a recovery screen hides the previously open company's
+data. **Retry** loads the selected company again without changing your selection, or you can choose
+another company.
+
 ![The Account page in demo mode showing Bruce Wayne’s fictional identity and Demo access](../screenshots/flows/account.jpg)
 
 In password mode, Account includes password changes, reported multi-factor authentication
