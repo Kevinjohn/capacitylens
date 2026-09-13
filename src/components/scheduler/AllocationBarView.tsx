@@ -8,7 +8,7 @@ import type {
 import { Repeat2 } from "lucide-react";
 import { m } from "@/i18n";
 import { formatDayMonthEndpoint, formatDayMonthRange } from "../../lib/dateDisplay";
-import { resolveAllocationStatusLabel } from "../../lib/metadata";
+import { resolveAllocationStatusAnnotation } from "../../lib/metadata";
 import { TooltipContent, TooltipRoot, TooltipTrigger } from "../ui/tooltip";
 import { LAYOUT } from "./layout";
 import type { BarLayout } from "./schedulerModel";
@@ -153,6 +153,7 @@ function BarPopover({
   popoverFooter,
   showTaskFieldInSchedule,
 }: Pick<AllocationBarViewProps, "background" | "bar" | "hideHours" | "popoverFooter" | "showTaskFieldInSchedule">) {
+  const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status);
   return (
     <TooltipContent
       side="bottom"
@@ -180,8 +181,8 @@ function BarPopover({
       )}
       <div className="text-muted-foreground">
         {formatDayMonthRange(bar.allocation.startDate, bar.allocation.endDate)}
-        {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) })} ·{" "}
-        {resolveAllocationStatusLabel(bar.allocation.status)}
+        {hideHours ? "" : m.scheduler_bar_pop_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) })}
+        {statusAnnotation && <> · {statusAnnotation}</>}
       </div>
       {bar.seriesEnd && (
         <div className="mt-1 text-muted-foreground">

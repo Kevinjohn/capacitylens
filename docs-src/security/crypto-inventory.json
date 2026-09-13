@@ -46,6 +46,10 @@
       "purpose": "Domain-separated unkeyed SHA-256 digests for canonical idempotency payload comparison without retaining bearer/password inputs"
     },
     {
+      "path": "server/src/accounts/ssoCutoverRoutes.ts",
+      "purpose": "Collision-resistant audit event identifiers for repeatable identity-email repairs"
+    },
+    {
       "path": "server/src/accounts/buildApplicationSessionHandle.ts",
       "purpose": "Domain-separated SHA-256 application-local handles that prevent session bearer tokens crossing the account boundary"
     },
