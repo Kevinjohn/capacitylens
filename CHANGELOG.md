@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Include the Account page in the command palette's Pages results (#938).
 - Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
   corrupted stored revision, including during membership-driven invalidation (#906).
 - Replace manual ownership-transfer recovery SQL with a stopped-server command that checks the
