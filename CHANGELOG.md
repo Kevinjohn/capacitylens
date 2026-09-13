@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Keep the original retry identity when concurrent copies of the same account command include an
   unknown outcome, preventing a later retry from submitting a second semantic mutation (#942).
+- Prevent simultaneous identity-email repairs from sharing an audit event ID and rolling back an
+  otherwise valid administrator correction (#905).
 - Emit a static Overview route document so direct links work on strict static deployments (#943).
 - Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
   one installation's process group, and describe the initial pending backup health state accurately
