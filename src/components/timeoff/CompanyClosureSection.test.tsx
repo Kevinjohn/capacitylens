@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PermissionContext } from "../../auth/permissionContext";
-import { resetStoreWithAccount } from "../../test/fixtures";
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from "../../test/fixtures";
 import { useStore } from "../../store/useStore";
 import { CompanyClosureSection } from "./CompanyClosureSection";
 
@@ -49,7 +49,7 @@ describe("CompanyClosureSection", () => {
     vi.useRealTimers();
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-07T23:59:59.000Z"));
-    useStore.getState().updateAccount("a-studio", { timezone: "Etc/GMT", weekStartsOn: 1 });
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 1 });
     useStore.getState().addClosure({
       name: "Wayne Enterprises shutdown",
       startDate: "2026-06-07",
