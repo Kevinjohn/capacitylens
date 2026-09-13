@@ -48,6 +48,9 @@ If the app changes, update this file first, then the affected stories.
    If a refresh or account switch returns a slice that no longer contains the selected company,
    CapacityLens installs no active workspace: it returns atomically to this picker, shows the
    company-not-found notification, and rejects scoped edits until a real company is selected.
+   If switching companies fails before a slice can be loaded, the previous company's data stays
+   hidden behind the recovery stage (`data-testid="account-load-recovery"`). **Retry** loads the
+   selected company again; **Choose another company** returns to the picker.
    A single-company reload attempt is consumed once, so a missing or deleted company cannot be
    repeatedly reactivated. An unavailable membership, empty company list, or invite handoff also
    remains at its safe entry boundary rather than being mistaken for a valid single company.
@@ -444,7 +447,9 @@ Viewers do not see the toggle, and placeholder rows never show one.
 The **Time off** page is a forward-looking capacity view with separate personal-time-off and
 **Company closures** sections. Personal entries whose end date falls on or after the start of the
 current company week remain grouped into one compact bordered list per resource, with the displayed
-resource name shown once as the section heading. Resource sections sort alphabetically, their rows
+resource name shown once as the section heading. When the company week rolls over, both sections
+refresh while the page remains open and hide entries and closures that have become historical.
+Resource sections sort alphabetically, their rows
 sort by start date, end date and id, and placeholder entries follow **Show placeholders**. An
 unexpected dangling resource stays visible in a final **(unknown)** section rather than crashing.
 The company section has one **Add closure** button beside its heading and an explanatory empty state.
@@ -1315,6 +1320,8 @@ stay silent — they give sighted feedback),
 `import-input`, `import-busy` (the server-mode "Importing data…" blocking dialog's status text —
 shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),
 `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
+`account-load-recovery` (failed selected-company hydration; replaces the application shell until
+Retry succeeds or another company is chosen),
 `intro-continue` (the post-login "What CapacityLens is" page's Continue button; shown once per device),
 `getting-started` (the schedule's first-run checklist card; only while the active account has an
 incomplete onboarding step and it hasn't been dismissed), `getting-started-tour` (its **Show me

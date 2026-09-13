@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { AccountPicker } from "./accounts/AccountPicker";
+import { AccountLoadRecovery } from "./accounts/AccountLoadRecovery";
 import { ConnectionError } from "./ConnectionError";
 import { FakeSignIn } from "./FakeSignIn";
 import { RotateHint } from "./RotateHint";
@@ -41,9 +42,14 @@ interface AppEntryGateProps {
   fakeSignedIn: boolean;
   hasActiveAccount: boolean;
   allowWithoutActiveAccount: boolean;
+  activeAccountId: string | null;
+  activeAccountLoadFailed: string | null;
+  activeAccountName: string;
   introSeen: boolean;
   onFakeSignIn: () => void;
   onIntroContinue: () => void;
+  onRetryActiveAccountLoad: () => Promise<boolean>;
+  onChooseAnotherAccount: () => void;
   children: ReactNode;
 }
 
@@ -56,9 +62,14 @@ export function AppEntryGate({
   fakeSignedIn,
   hasActiveAccount,
   allowWithoutActiveAccount,
+  activeAccountId,
+  activeAccountLoadFailed,
+  activeAccountName,
   introSeen,
   onFakeSignIn,
   onIntroContinue,
+  onRetryActiveAccountLoad,
+  onChooseAnotherAccount,
   children,
 }: AppEntryGateProps) {
   if (connectionError)
@@ -82,6 +93,18 @@ export function AppEntryGate({
       <FocusableStage>
         <FakeSignIn onSignIn={onFakeSignIn} />
         <RotateHint />
+      </FocusableStage>
+    );
+  }
+
+  if (activeAccountLoadFailed !== null && activeAccountLoadFailed === activeAccountId) {
+    return (
+      <FocusableStage>
+        <AccountLoadRecovery
+          accountName={activeAccountName}
+          onRetry={onRetryActiveAccountLoad}
+          onChooseAnother={onChooseAnotherAccount}
+        />
       </FocusableStage>
     );
   }

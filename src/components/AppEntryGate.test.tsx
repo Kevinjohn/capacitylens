@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AppEntryGate } from "./AppEntryGate";
@@ -11,9 +12,14 @@ const baseProps = {
   fakeSignedIn: true,
   hasActiveAccount: true,
   allowWithoutActiveAccount: false,
+  activeAccountId: "a-studio",
+  activeAccountLoadFailed: null,
+  activeAccountName: "Wayne Enterprises",
   introSeen: true,
   onFakeSignIn: () => undefined,
   onIntroContinue: () => undefined,
+  onRetryActiveAccountLoad: () => Promise.resolve(true),
+  onChooseAnotherAccount: () => undefined,
   children: <div>application shell</div>,
 };
 
@@ -79,5 +85,52 @@ describe("AppEntryGate connection failures", () => {
 
     expect(screen.getByText("application shell")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+  });
+
+  it("shows account recovery instead of children, including on the Account route", async () => {
+    const user = userEvent.setup();
+    const retry = vi.fn().mockResolvedValue(true);
+    const chooseAnother = vi.fn();
+    render(
+      <AppEntryGate
+        {...baseProps}
+        allowWithoutActiveAccount
+        activeAccountLoadFailed="a-studio"
+        onRetryActiveAccountLoad={retry}
+        onChooseAnotherAccount={chooseAnother}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Wayne Enterprises could not be opened" })).toBeInTheDocument();
+    expect(screen.queryByText("application shell")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await user.click(screen.getByRole("button", { name: "Choose another company" }));
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(chooseAnother).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows an inline notice when a retry from account recovery fails", async () => {
+    const user = userEvent.setup();
+    const retry = vi.fn().mockResolvedValue(false);
+    render(
+      <AppEntryGate
+        {...baseProps}
+        allowWithoutActiveAccount
+        activeAccountLoadFailed="a-studio"
+        onRetryActiveAccountLoad={retry}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Retry failed");
+  });
+
+  it("does not show account recovery for a null or non-matching failure", () => {
+    const view = render(<AppEntryGate {...baseProps} activeAccountLoadFailed={null} />);
+    expect(screen.getByText("application shell")).toBeInTheDocument();
+
+    view.rerender(<AppEntryGate {...baseProps} activeAccountLoadFailed="a-loft" />);
+    expect(screen.getByText("application shell")).toBeInTheDocument();
   });
 });

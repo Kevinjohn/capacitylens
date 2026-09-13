@@ -4,6 +4,7 @@ export interface PersistenceRegistration {
   flushPending?: () => Promise<FlushPendingWritesResult>;
   suspendWrites?: () => (options?: { dropParkedEdits?: boolean }) => void;
   switchAndAwaitHydration?: (id: string | null) => Promise<RefreshOutcome>;
+  retryActiveAccountLoad?: (id: string) => Promise<RefreshOutcome>;
   hasUnsavedWrites: () => boolean;
 }
 
@@ -42,6 +43,10 @@ class PersistenceCoordinator {
 
   async switchAndAwaitHydration(id: string | null): Promise<RefreshOutcome> {
     return this.registration?.switchAndAwaitHydration?.(id) ?? { kind: "unattached" };
+  }
+
+  async retryActiveAccountLoad(id: string): Promise<RefreshOutcome> {
+    return this.registration?.retryActiveAccountLoad?.(id) ?? { kind: "unattached" };
   }
 }
 

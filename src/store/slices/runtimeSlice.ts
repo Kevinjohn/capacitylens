@@ -28,6 +28,7 @@ type RuntimeSliceKeys =
   | "persistError"
   | "loadError"
   | "connectionError"
+  | "activeAccountLoadFailed"
   | "notice"
   | "srAnnouncement"
   | "dirtyForm"
@@ -102,6 +103,7 @@ function readRuntimeInitialState() {
     persistError: false,
     loadError: false,
     connectionError: false,
+    activeAccountLoadFailed: null,
     notice: null,
     srAnnouncement: null,
     dirtyForm: false,

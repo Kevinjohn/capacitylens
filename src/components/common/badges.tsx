@@ -17,7 +17,7 @@ export function ColorSwatch({ color }: { color: string }) {
 // src/lib/metadata.ts because this module is a React component boundary.
 export const PLACEHOLDER_AVATAR_SYMBOL = "?";
 
-// All props are primitives, so the default shallow prop compare is exact — memoized to skip
+// All props are primitives, so the default shallow prop compare is exact — memoised to skip
 // re-rendering every row's avatar when an unrelated sibling in a list (e.g. SchedulerGrid) updates.
 export const Avatar = memo(function Avatar({
   name,

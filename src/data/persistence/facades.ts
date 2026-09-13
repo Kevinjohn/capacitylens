@@ -88,3 +88,8 @@ export async function refreshActiveAccountSlice(id: string): Promise<RefreshOutc
 export async function switchAndAwaitHydration(id: string | null): Promise<RefreshOutcome> {
   return persistenceCoordinator.switchAndAwaitHydration(id);
 }
+
+/** Retry the selected account's failed switch hydration without changing the selection. */
+export async function retryActiveAccountLoad(id: string): Promise<RefreshOutcome> {
+  return persistenceCoordinator.retryActiveAccountLoad(id);
+}

@@ -52,7 +52,7 @@ export const a2Slice = (): AppData => ({
     {
       id: "c2",
       accountId: "a2",
-      name: "Beta Client",
+      name: "Stark Industries",
       color: "#1",
       createdAt: "t",
       updatedAt: "t",
@@ -69,7 +69,7 @@ export const accountSwitchSlices = () => ({
       {
         id: "ca",
         accountId: "a1",
-        name: "Alpha Client",
+        name: "Wayne Enterprises",
         color: "#1",
         createdAt: "t",
         updatedAt: "t",
@@ -83,7 +83,7 @@ export const accountSwitchSlices = () => ({
       {
         id: "cb",
         accountId: "b1",
-        name: "Beta Client",
+        name: "Stark Industries",
         color: "#1",
         createdAt: "t",
         updatedAt: "t",
