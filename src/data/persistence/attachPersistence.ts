@@ -136,6 +136,7 @@ function attachCoordinator(parts: PersistenceParts, accountSwitch: ReturnType<ty
     ...(registeredFlush ? { flushPending: registeredFlush } : {}),
     ...(registeredSuspend ? { suspendWrites: registeredSuspend } : {}),
     ...(accountSwitch.myRegisteredSwitch ? { switchAndAwaitHydration: accountSwitch.myRegisteredSwitch } : {}),
+    ...(accountSwitch.myRegisteredRetry ? { retryActiveAccountLoad: accountSwitch.myRegisteredRetry } : {}),
     hasUnsavedWrites: () => hasUnsavedWrites(owner),
   });
 }

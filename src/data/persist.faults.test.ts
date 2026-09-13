@@ -256,7 +256,7 @@ describe("persistence coordinator fault-injection branches", () => {
     now.mockRestore();
   });
 
-  it("does not consume the focus throttle when the account switch reload fails", async () => {
+  it("leaves a failed account switch for explicit recovery instead of focus refresh", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const loadAll = vi.fn().mockRejectedValueOnce(new Error("switch failed")).mockResolvedValueOnce(a2Slice());
     useStore.getState().replaceAll(emptyAppData());
@@ -274,8 +274,8 @@ describe("persistence coordinator fault-injection branches", () => {
     window.dispatchEvent(new Event("focus"));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(loadAll).toHaveBeenCalledTimes(2);
     detach();
+    expect(loadAll).toHaveBeenCalledTimes(1);
     now.mockRestore();
   });
 

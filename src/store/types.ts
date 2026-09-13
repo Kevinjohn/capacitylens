@@ -109,6 +109,8 @@ export interface StoreState {
   hydrated: boolean;
   /** The tenant currently in view. Null = no account chosen (show the picker). Never persisted. */
   activeAccountId: ID | null;
+  /** Account whose selected slice failed to hydrate. Transient and never persisted. */
+  activeAccountLoadFailed: ID | null;
   /** The account that was active before switching to the picker — lets the picker
    *  offer a "back" escape after an accidental "Switch company". Never persisted. */
   previousAccountId: ID | null;
