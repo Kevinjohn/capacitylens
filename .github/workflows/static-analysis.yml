@@ -21,6 +21,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+      - name: Check formatting
+        run: pnpm run format:check
       - name: Type-check shared and application projects
         run: pnpm run typecheck
       - name: Lint authored sources
