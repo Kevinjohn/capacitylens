@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep the original retry identity when concurrent copies of the same account command include an
+  unknown outcome, preventing a later retry from submitting a second semantic mutation (#942).
 - Hide the previously open company's data when a newly selected company cannot load, and offer
   explicit retry or company-selection recovery actions (#945).
 - Prevent simultaneous identity-email repairs from sharing an audit event ID and rolling back an
