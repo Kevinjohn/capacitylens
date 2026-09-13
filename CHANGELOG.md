@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Emit a static Overview route document so direct links work on strict static deployments (#943).
 - Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
   one installation's process group, and describe the initial pending backup health state accurately
   (#921, #933, #936).
