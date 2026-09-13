@@ -20,6 +20,10 @@ describe("i18n scaffolding (Paraglide)", () => {
     expect(m.form_cancel()).toBe("Cancel");
   });
 
+  it("owns the accessible allocation status separator in the message catalogue", () => {
+    expect(m.scheduler_bar_aria_status({ status: "Tentative" })).toBe("Tentative, ");
+  });
+
   it("injects the product name into every branded catalogue message", () => {
     const app = "Renamed Product";
     expect(m.settings_revoke_sessions_message({ member: "Avery", app })).toContain(app);
