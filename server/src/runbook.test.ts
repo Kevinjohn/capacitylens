@@ -38,6 +38,8 @@ describe("operator documentation", () => {
     expect(incidents).toContain("recover:ownership-transfer -- inspect");
     expect(incidents).toContain("recover:ownership-transfer -- cancel");
     expect(incidents).toContain("exclusive database lock");
+    expect(incidents).toContain("revisionHex");
+    expect(incidents).toContain("both participants and revision still match");
     expect(incidents).not.toContain("UPDATE account_ownership_transfers");
   });
 

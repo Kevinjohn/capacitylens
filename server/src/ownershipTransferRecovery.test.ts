@@ -15,6 +15,13 @@ const REQUEST_ID = "transfer-1";
 const EXHAUSTED = String(Number.MAX_SAFE_INTEGER);
 const tempDirs: string[] = [];
 
+const expectedCoordinates = (revision: string) => ({
+  expectedState: "awaiting_owner" as const,
+  expectedInitiatorUserId: "bruce-wayne",
+  expectedTargetUserId: "selina-kyle",
+  expectedRevisionHex: `hex:${Buffer.from(revision).toString("hex")}`,
+});
+
 afterEach(() => {
   for (const directory of tempDirs.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
@@ -64,7 +71,7 @@ describe("ownership-transfer stopped-server recovery", () => {
       accountId: ACCOUNT_ID,
       requestId: REQUEST_ID,
       state: "awaiting_owner",
-      revision: "not-a-revision",
+      revisionHex: "hex:6e6f742d612d7265766973696f6e",
       initiatorUserId: "bruce-wayne",
       targetUserId: "selina-kyle",
     });
@@ -72,6 +79,29 @@ describe("ownership-transfer stopped-server recovery", () => {
     const db = openDbConnection(databasePath);
     expect(readRequest(db)).toMatchObject({ state: "awaiting_owner", terminalAt: null, terminalReason: null });
     db.close();
+  });
+
+  it.each([
+    ["empty", "", "hex:"],
+    ["NUL", "\0", "hex:00"],
+    ["leading zeroes", "0009007199254740991", "hex:30303039303037313939323534373430393931"],
+    ["flag-like text", "--confirm-server-stopped", "hex:2d2d636f6e6669726d2d7365727665722d73746f70706564"],
+  ])("round-trips a %s corrupt or exhausted revision as bytes", (_label, revision, revisionHex) => {
+    const databasePath = seedDatabase(revision);
+    expect(
+      inspectBrokenOwnershipTransfer({ databasePath, accountId: ACCOUNT_ID, requestId: REQUEST_ID }),
+    ).toMatchObject({
+      revisionHex,
+    });
+    expect(() =>
+      cancelBrokenOwnershipTransfer({
+        databasePath,
+        accountId: ACCOUNT_ID,
+        requestId: REQUEST_ID,
+        ...expectedCoordinates(revision),
+        confirmServerStopped: true,
+      }),
+    ).not.toThrow();
   });
 });
 
@@ -83,7 +113,7 @@ describe("ownership-transfer recovery mutation", () => {
       databasePath,
       accountId: ACCOUNT_ID,
       requestId: REQUEST_ID,
-      expectedRevision: EXHAUSTED,
+      ...expectedCoordinates(EXHAUSTED),
       confirmServerStopped: true,
       now: () => new Date("2026-01-03T00:00:00.000Z"),
       auditId: () => "audit-recovery-1",
@@ -94,7 +124,7 @@ describe("ownership-transfer recovery mutation", () => {
       accountId: ACCOUNT_ID,
       requestId: REQUEST_ID,
       previousState: "awaiting_owner",
-      revision: EXHAUSTED,
+      revisionHex: "hex:39303037313939323534373430393931",
       terminalAt: "2026-01-03T00:00:00.000Z",
       auditId: "audit-recovery-1",
     });
@@ -137,7 +167,7 @@ describe("ownership-transfer recovery atomicity", () => {
         databasePath,
         accountId: ACCOUNT_ID,
         requestId: REQUEST_ID,
-        expectedRevision: EXHAUSTED,
+        ...expectedCoordinates(EXHAUSTED),
         confirmServerStopped: true,
         auditId: () => "duplicate-audit",
       }),
@@ -170,7 +200,7 @@ describe("ownership-transfer recovery environment guards", () => {
         databasePath,
         accountId: ACCOUNT_ID,
         requestId: REQUEST_ID,
-        expectedRevision: EXHAUSTED,
+        ...expectedCoordinates(EXHAUSTED),
         confirmServerStopped: false,
       }),
     ).toThrow(/--confirm-server-stopped/);
@@ -182,7 +212,7 @@ describe("ownership-transfer recovery environment guards", () => {
         databasePath,
         accountId: ACCOUNT_ID,
         requestId: REQUEST_ID,
-        expectedRevision: EXHAUSTED,
+        ...expectedCoordinates(EXHAUSTED),
         confirmServerStopped: true,
       }),
     ).toThrow(/Another process holds this database/);
@@ -199,7 +229,7 @@ describe("ownership-transfer recovery target guards", () => {
         databasePath,
         accountId: ACCOUNT_ID,
         requestId: REQUEST_ID,
-        expectedRevision: revision,
+        ...expectedCoordinates(revision),
         confirmServerStopped: true,
       }),
     ).toThrow(/advanceable/);
@@ -221,15 +251,15 @@ describe("ownership-transfer recovery exact-match guards", () => {
         databasePath,
         accountId: ACCOUNT_ID,
         requestId: REQUEST_ID,
-        expectedRevision: EXHAUSTED,
+        ...expectedCoordinates(EXHAUSTED),
         confirmServerStopped: true,
       }),
     ).toThrow(/not live/);
 
     for (const mismatch of [
-      { accountId: "a-loft", requestId: REQUEST_ID, expectedRevision: EXHAUSTED },
-      { accountId: ACCOUNT_ID, requestId: "transfer-other", expectedRevision: EXHAUSTED },
-      { accountId: ACCOUNT_ID, requestId: REQUEST_ID, expectedRevision: "different" },
+      { accountId: "a-loft", requestId: REQUEST_ID, ...expectedCoordinates(EXHAUSTED) },
+      { accountId: ACCOUNT_ID, requestId: "transfer-other", ...expectedCoordinates(EXHAUSTED) },
+      { accountId: ACCOUNT_ID, requestId: REQUEST_ID, ...expectedCoordinates("different") },
     ]) {
       expect(() =>
         cancelBrokenOwnershipTransfer({
@@ -246,7 +276,7 @@ describe("ownership-transfer recovery exact-match guards", () => {
     expect(
       inspectBrokenOwnershipTransfer({ databasePath, accountId: ACCOUNT_ID, requestId: REQUEST_ID }),
     ).toMatchObject({
-      revision: "corrupt-one",
+      revisionHex: "hex:636f72727570742d6f6e65",
     });
     const db = openDbConnection(databasePath);
     db.prepare(`UPDATE account_ownership_transfers SET revision = ? WHERE id = ?`).run("corrupt-two", REQUEST_ID);
@@ -257,7 +287,37 @@ describe("ownership-transfer recovery exact-match guards", () => {
         databasePath,
         accountId: ACCOUNT_ID,
         requestId: REQUEST_ID,
-        expectedRevision: "corrupt-one",
+        ...expectedCoordinates("corrupt-one"),
+        confirmServerStopped: true,
+      }),
+    ).toThrow(/does not exactly match/);
+  });
+});
+
+describe("ownership-transfer recovery inspected-coordinate guards", () => {
+  it.each([
+    ["state", "state = 'awaiting_target'"],
+    ["initiator", "initiatorUserId = 'diana-prince'"],
+    ["target", "targetUserId = 'barbara-gordon'"],
+  ])("refuses a concurrent %s change made after inspection", (_label, assignment) => {
+    const databasePath = seedDatabase("corrupt-one");
+    expect(
+      inspectBrokenOwnershipTransfer({ databasePath, accountId: ACCOUNT_ID, requestId: REQUEST_ID }),
+    ).toMatchObject({
+      state: "awaiting_owner",
+      initiatorUserId: "bruce-wayne",
+      targetUserId: "selina-kyle",
+    });
+    const db = openDbConnection(databasePath);
+    db.exec(`UPDATE account_ownership_transfers SET ${assignment} WHERE id = '${REQUEST_ID}'`);
+    db.close();
+
+    expect(() =>
+      cancelBrokenOwnershipTransfer({
+        databasePath,
+        accountId: ACCOUNT_ID,
+        requestId: REQUEST_ID,
+        ...expectedCoordinates("corrupt-one"),
         confirmServerStopped: true,
       }),
     ).toThrow(/does not exactly match/);

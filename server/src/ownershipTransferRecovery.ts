@@ -30,13 +30,16 @@ export interface OwnershipTransferRecoveryInspection {
   accountId: string;
   requestId: string;
   state: LiveState;
-  revision: string;
+  revisionHex: string;
   initiatorUserId: string;
   targetUserId: string;
 }
 
 export interface CancelOwnershipTransferRecoveryInput extends InspectOwnershipTransferRecoveryInput {
-  expectedRevision: string;
+  expectedState: LiveState;
+  expectedInitiatorUserId: string;
+  expectedTargetUserId: string;
+  expectedRevisionHex: string;
   confirmServerStopped: boolean;
   now?: () => Date;
   auditId?: () => string;
@@ -47,7 +50,7 @@ export interface OwnershipTransferRecoveryResult {
   accountId: string;
   requestId: string;
   previousState: LiveState;
-  revision: string;
+  revisionHex: string;
   terminalAt: string;
   auditId: string;
 }
@@ -62,6 +65,21 @@ function classifyRevision(revision: string): RevisionStatus {
   if (value <= MAX_ADVANCEABLE_REVISION) return "advanceable";
   if (value === MAX_SAFE_REVISION) return "exhausted";
   return "corrupt";
+}
+
+function encodeRevision(revision: string): string {
+  return `hex:${Buffer.from(revision, "utf8").toString("hex")}`;
+}
+
+function decodeRevision(encoded: string): string {
+  if (!/^hex:(?:[0-9a-f]{2})*$/.test(encoded)) {
+    throw new Error("The expected revision must use canonical lowercase hex: encoding from inspect output.");
+  }
+  const revision = Buffer.from(encoded.slice(4), "hex").toString("utf8");
+  if (encodeRevision(revision) !== encoded) {
+    throw new Error("The expected revision is not valid UTF-8 text from inspect output.");
+  }
+  return revision;
 }
 
 function validateTarget(input: InspectOwnershipTransferRecoveryInput): void {
@@ -120,7 +138,7 @@ function requireRecoverable(row: RecoveryRequestRow): OwnershipTransferRecoveryI
     accountId: row.accountId,
     requestId: row.id,
     state: row.state as LiveState,
-    revision: row.revision,
+    revisionHex: encodeRevision(row.revision),
     initiatorUserId: row.initiatorUserId,
     targetUserId: row.targetUserId,
   };
@@ -162,52 +180,75 @@ export function cancelBrokenOwnershipTransfer(
   const db = openDbConnection(input.databasePath);
   try {
     acquireExclusiveDatabaseLock(db);
-    const inspection = inspectOnHandle(db, input);
-    if (inspection.revision !== input.expectedRevision) {
-      throw new Error(
-        "The live request revision does not exactly match the expected revision; no recovery was performed.",
-      );
-    }
-    return tx(db, () => {
-      const terminalAt = (input.now ?? (() => new Date()))().toISOString();
-      const result = db
-        .prepare(
-          `UPDATE account_ownership_transfers
-              SET state = 'cancelled', terminalAt = ?, terminalReason = 'owner_cancelled'
-            WHERE id = ? AND accountId = ? AND state = ? AND revision = ?`,
-        )
-        .run(terminalAt, input.requestId, input.accountId, inspection.state, input.expectedRevision);
-      if (result.changes !== 1) {
-        throw new Error("The ownership-transfer request changed before commit; no recovery was performed.");
-      }
-      // One request can be recovered only once. Binding the event id to that immutable request and
-      // terminal instant makes retries diagnosable without introducing a secret or random key.
-      const auditId = (input.auditId ?? (() => `ownership-transfer-recovery:${input.requestId}:${terminalAt}`))();
-      const event: AccountAuditEvent = {
-        id: auditId,
-        occurredAt: terminalAt,
-        applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
-        workspaceId: input.accountId,
-        actorPrincipalId: null,
-        targetPrincipalId: null,
-        commandId: null,
-        action: "ownership_transfer.cancelled",
-        outcome: "success",
-        changedFields: ["state", "terminalAt", "terminalReason"],
-      };
-      enqueueAudit(db, event, auditId);
-      assertDatabaseIntegrity(db);
-      return {
-        status: "cancelled",
-        accountId: input.accountId,
-        requestId: input.requestId,
-        previousState: inspection.state,
-        revision: inspection.revision,
-        terminalAt,
-        auditId,
-      };
-    });
+    return cancelOnHandle(db, input);
   } finally {
     db.close();
   }
+}
+
+function cancelOnHandle(db: Db, input: CancelOwnershipTransferRecoveryInput): OwnershipTransferRecoveryResult {
+  const inspection = inspectOnHandle(db, input);
+  decodeRevision(input.expectedRevisionHex);
+  if (
+    inspection.state !== input.expectedState ||
+    inspection.initiatorUserId !== input.expectedInitiatorUserId ||
+    inspection.targetUserId !== input.expectedTargetUserId ||
+    inspection.revisionHex !== input.expectedRevisionHex
+  ) {
+    throw new Error(
+      "The live request does not exactly match the inspected state, participants and revision; no recovery was performed.",
+    );
+  }
+  return tx(db, () => commitCancellation(db, input, inspection));
+}
+
+function commitCancellation(
+  db: Db,
+  input: CancelOwnershipTransferRecoveryInput,
+  inspection: OwnershipTransferRecoveryInspection,
+): OwnershipTransferRecoveryResult {
+  const terminalAt = (input.now ?? (() => new Date()))().toISOString();
+  const result = db
+    .prepare(
+      `UPDATE account_ownership_transfers
+          SET state = 'cancelled', terminalAt = ?, terminalReason = 'owner_cancelled'
+        WHERE id = ? AND accountId = ? AND state = ?
+          AND initiatorUserId = ? AND targetUserId = ? AND revision = ?`,
+    )
+    .run(
+      terminalAt,
+      input.requestId,
+      input.accountId,
+      input.expectedState,
+      input.expectedInitiatorUserId,
+      input.expectedTargetUserId,
+      decodeRevision(input.expectedRevisionHex),
+    );
+  if (result.changes !== 1) {
+    throw new Error("The ownership-transfer request changed before commit; no recovery was performed.");
+  }
+  const auditId = (input.auditId ?? (() => `ownership-transfer-recovery:${input.requestId}:${terminalAt}`))();
+  const event: AccountAuditEvent = {
+    id: auditId,
+    occurredAt: terminalAt,
+    applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
+    workspaceId: input.accountId,
+    actorPrincipalId: null,
+    targetPrincipalId: null,
+    commandId: null,
+    action: "ownership_transfer.cancelled",
+    outcome: "success",
+    changedFields: ["state", "terminalAt", "terminalReason"],
+  };
+  enqueueAudit(db, event, auditId);
+  assertDatabaseIntegrity(db);
+  return {
+    status: "cancelled",
+    accountId: input.accountId,
+    requestId: input.requestId,
+    previousState: inspection.state,
+    revisionHex: inspection.revisionHex,
+    terminalAt,
+    auditId,
+  };
 }

@@ -196,21 +196,24 @@ that record does not replace your protected operations log.
    ```
 
    The single JSON line names the exact company, request, participants, live state,
-   stored revision and whether that revision is `corrupt` or `exhausted`. The command
+   stored revision as a byte-safe `revisionHex` value and whether that revision is
+   `corrupt` or `exhausted`. The command
    refuses an advanceable revision, a terminal or absent request, an old or unexpected
    schema, and a database that fails SQLite integrity checks. Confirm every field against
    the Owner's approval and the incident evidence.
-4. Rehearse the cancellation against the copied database. Paste the `revision` from the
-   inspection output exactly, including any leading zeroes or unusual characters.
+4. Rehearse the cancellation against the copied database. Paste `state`,
+   `initiatorUserId`, `targetUserId` and `revisionHex` from the inspection output
+   exactly. The `hex:` revision encoding safely carries an empty value, a NUL byte,
+   leading zeroes or text that resembles a command-line flag.
 
    ```bash
-   pnpm --filter capacitylens-server recover:ownership-transfer -- cancel /secure/path/ownership-transfer-rehearsal.db <company-id> <request-id> <expected-revision> --confirm-server-stopped
+   pnpm --filter capacitylens-server recover:ownership-transfer -- cancel /secure/path/ownership-transfer-rehearsal.db <company-id> <request-id> <expected-state> <expected-initiator-id> <expected-target-id> <expected-revision-hex> --confirm-server-stopped
    ```
 
    The command requires the stopped-server confirmation and an exclusive database lock.
-   It changes one row only when company id, request id, live state and revision still
-   match the inspection. It cancels the request and enqueues the audit event in one
-   transaction. Its JSON result includes the audit id. Replace the rehearsal database
+   It changes one row only when company id, request id, live state, both participants
+   and revision still match the inspection. It cancels the request and enqueues the audit
+   event in one transaction. Its JSON result includes the audit id. Replace the rehearsal database
    from the standalone backup after the rehearsal.
 5. Repeat steps 3 and 4 against the stopped production database. Do not reuse the
    rehearsal result: inspect production immediately before cancelling it. Any difference
