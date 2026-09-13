@@ -44,8 +44,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
-- Document a backup-first, transactional operator procedure for inspecting and cancelling an
-  ownership-transfer request whose revision is corrupt or exhausted (#990).
+- Document a backup-first, transactional operator procedure on its own runbook page for inspecting
+  and cancelling an ownership-transfer request whose revision is corrupt or exhausted (#990, #997).
 - Replace the browser favicon's lightning mark with a magnifying glass (#966).
 - Local development and test servers now take their ports from a lane claimed for the duration of
   each command, so several checkouts can run the suites at the same time without colliding on a

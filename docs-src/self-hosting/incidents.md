@@ -150,88 +150,17 @@ stale-request protection.
 
 **Fix**: prefer restoring a verified snapshot when it contains the correct row and the
 later writes you would lose are understood. There is no in-app transition for an
-exhausted or corrupt live row. If restoring is not appropriate, the narrow manual repair
-below records the Owner's decision to cancel that one request. It does not change any
-membership or invent a replacement revision.
+exhausted or corrupt live row. If restoring is not appropriate, follow [Recover a blocked
+ownership transfer](/self-hosting/ownership-transfer-recovery) to rehearse and run the
+guarded stopped-server command. It cancels only the exact request approved by the Owner;
+it does not change any membership or invent a replacement revision.
 
 If the company also has zero active Owners, this incident can be the *cause* of that one:
 the automatic ownerless-workspace repair itself cancels any live transfer as part of
 promoting a new Owner, and fails with the same error when that transfer's revision is
 unusable. See [A company has no Owner](#a-company-has-no-owner) — resolve the exhausted
-or corrupt revision here first, then let that repair (or the `assign-workspace-owner`
-command) proceed.
-
-::: warning
-Do not continue without the current Owner's approval, a verified rollback copy and an
-incident record. The command records the cancellation in the durable audit outbox, but
-that record does not replace your protected operations log.
-:::
-
-1. Ask the current Owner to confirm that the named transfer should be cancelled. If the
-   Owner cannot confirm it, preserve the evidence and restore a known-good snapshot or
-   escalate the incident. Do not assign ownership with SQL.
-2. Stop the API. Follow [What to back up](/self-hosting/backups-and-restore#what-to-back-up)
-   to copy the database with its `-wal` and `-shm` files into a protected incident
-   directory, then record checksums. Keep that file set pristine: it is evidence, not a
-   working copy. While the API remains stopped, also create a standalone SQLite rollback
-   backup and verify it:
-
-   ```bash
-   sqlite3 <database> ".backup '/secure/path/ownership-transfer-pre-repair.db'"
-   ```
-
-   ```bash
-   sqlite3 -readonly /secure/path/ownership-transfer-pre-repair.db "PRAGMA quick_check; PRAGMA foreign_key_check;"
-   ```
-
-   The verification must print `ok` and no foreign-key rows. Copy that standalone backup
-   to a separate rehearsal path, for example `/secure/path/ownership-transfer-rehearsal.db`.
-   Do not open the pristine incident file set or use the production database for rehearsal.
-3. Inspect the rehearsal copy with the recovery command. Use the exact company and
-   request ids from the structured server log or account audit trail. Do not identify a
-   company by a person's name or email address.
-
-   ```bash
-   pnpm --filter capacitylens-server recover:ownership-transfer -- inspect /secure/path/ownership-transfer-rehearsal.db <company-id> <request-id>
-   ```
-
-   The single JSON line names the exact company, request, participants, live state,
-   stored revision as a byte-safe `revisionHex` value and whether that revision is
-   `corrupt` or `exhausted`. The command
-   refuses an advanceable revision, a terminal or absent request, an old or unexpected
-   schema, and a database that fails SQLite integrity checks. Confirm every field against
-   the Owner's approval and the incident evidence.
-4. Rehearse the cancellation against the copied database. Paste `state`,
-   `initiatorUserId`, `targetUserId` and `revisionHex` from the inspection output
-   exactly. The `hex:` revision encoding safely carries an empty value, a NUL byte,
-   leading zeroes or text that resembles a command-line flag.
-
-   ```bash
-   pnpm --filter capacitylens-server recover:ownership-transfer -- cancel /secure/path/ownership-transfer-rehearsal.db <company-id> <request-id> <expected-state> <expected-initiator-id> <expected-target-id> <expected-revision-hex> --confirm-server-stopped
-   ```
-
-   The command requires the stopped-server confirmation and an exclusive database lock.
-   It changes one row only when company id, request id, live state, both participants
-   and revision still match the inspection. It cancels the request and enqueues the audit
-   event in one transaction. Its JSON result includes the audit id. Replace the rehearsal database
-   from the standalone backup after the rehearsal.
-5. Repeat steps 3 and 4 against the stopped production database. Do not reuse the
-   rehearsal result: inspect production immediately before cancelling it. Any difference
-   is a concurrent-change refusal; preserve the new evidence and investigate.
-6. Record the request id, company id, audit id, before-and-after checksums, the Owner's
-   approval and the incident reference in your protected operations log.
-7. Restart the API. Confirm deep health, sign-in, audit delivery and Team & access work, then perform the
-   originally intended membership change through the application. If ownership still
-   needs to move, start a new transfer; it receives a new request id and begins at
-   revision `0`.
-
-Keep both the pristine incident file set and the verified standalone rollback backup
-until the Owner has checked the membership list and the audit destination is healthy. If
-you must roll back, stop the API, preserve the failed state separately, then use the
-standalone backup as the source database in the [general restore
-procedure](/self-hosting/backups-and-restore#general-procedure). Remove the production
-database's stale `-wal` and `-shm` files as that procedure requires; do not restore the
-pristine evidence sidecars over a different database generation.
+or corrupt revision in the focused recovery procedure first, then let that repair (or
+the `assign-workspace-owner` command) proceed.
 
 ## Malformed or corrupted audit outbox record
 

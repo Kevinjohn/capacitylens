@@ -139,6 +139,7 @@ export default defineConfig({
           { text: "Backups and restore", link: "/self-hosting/backups-and-restore" },
           { text: "Upgrades", link: "/self-hosting/upgrades" },
           { text: "Monitoring and health checks", link: "/self-hosting/monitoring" },
+          { text: "Ownership-transfer recovery", link: "/self-hosting/ownership-transfer-recovery" },
           { text: "When something goes wrong", link: "/self-hosting/incidents" },
         ],
       },

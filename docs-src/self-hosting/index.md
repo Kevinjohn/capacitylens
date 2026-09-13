@@ -91,4 +91,5 @@ it.
   [Backups and restore](/self-hosting/backups-and-restore).
 - Moving to a new release: [Upgrades](/self-hosting/upgrades).
 - Watching a running instance: [Monitoring and health checks](/self-hosting/monitoring).
+- Recovering a blocked ownership transfer: [Ownership-transfer recovery](/self-hosting/ownership-transfer-recovery).
 - Something looks wrong right now: [When something goes wrong](/self-hosting/incidents).
