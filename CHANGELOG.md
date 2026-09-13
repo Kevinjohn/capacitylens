@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
+  corrupted stored revision, including during membership-driven invalidation (#906).
 - Emit a static Overview route document so direct links work on strict static deployments (#943).
 - Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
   one installation's process group, and describe the initial pending backup health state accurately

@@ -307,6 +307,17 @@ describe("account-wide invalidation", () => {
     expect(stateOf(db, "ot-2")).toBe("awaiting_target");
     db.close();
   });
+
+  it("refuses to invalidate a request whose revision cannot advance safely", () => {
+    const db = freshDb();
+    insertRequest(db, nomination({ revision: String(Number.MAX_SAFE_INTEGER) }));
+
+    expect(() =>
+      terminaliseLiveRequestsForAccount({ db, accountId: WAYNE, reason: "owner_repaired", now: NOW }),
+    ).toThrow(/revision/i);
+    expect(readRequestById(db, WAYNE, "ot-1")).toEqual(nomination({ revision: String(Number.MAX_SAFE_INTEGER) }));
+    db.close();
+  });
 });
 
 describe("participant reads", () => {
@@ -427,6 +438,8 @@ describe("nextOwnershipTransferRevision", () => {
   it("advances an integer string and refuses anything else", () => {
     expect(nextOwnershipTransferRevision("0")).toBe("1");
     expect(nextOwnershipTransferRevision("41")).toBe("42");
+    expect(nextOwnershipTransferRevision("9007199254740990")).toBe("9007199254740991");
+    expect(() => nextOwnershipTransferRevision("9007199254740991")).toThrow(/cannot advance safely/i);
     expect(() => nextOwnershipTransferRevision("later")).toThrow(/not a non-negative integer/i);
     expect(() => nextOwnershipTransferRevision("-1")).toThrow(/not a non-negative integer/i);
   });

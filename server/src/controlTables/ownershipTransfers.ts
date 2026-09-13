@@ -53,6 +53,11 @@ export function nextOwnershipTransferRevision(revision: string): string {
       `nextOwnershipTransferRevision: stored revision ${JSON.stringify(revision)} is not a non-negative integer — control table corrupted.`,
     );
   }
+  if (current >= Number.MAX_SAFE_INTEGER) {
+    throw new Error(
+      `nextOwnershipTransferRevision: stored revision ${JSON.stringify(revision)} cannot advance safely — control table corrupted.`,
+    );
+  }
   return String(current + 1);
 }
 
@@ -276,11 +281,11 @@ interface InvalidateScope {
 function invalidateScope(predicate: string): InvalidateScope {
   const where = `accountId = ? AND ${LIVE_STATES_PREDICATE}${predicate}`;
   return {
-    select: cachedStatement(`SELECT id FROM account_ownership_transfers WHERE ${where}`),
+    select: cachedStatement(`SELECT id, revision FROM account_ownership_transfers WHERE ${where}`),
     update: cachedStatement(
       `UPDATE account_ownership_transfers
           SET state = 'invalidated', terminalAt = ?, terminalReason = ?,
-              revision = CAST(CAST(revision AS INTEGER) + 1 AS TEXT)
+              revision = ?
         WHERE ${where}`,
     ),
   };
@@ -303,10 +308,12 @@ interface InvalidateLiveInput {
  *  row can appear or disappear between them. */
 function invalidateLive({ db, now, reason, scope, parameters }: InvalidateLiveInput): string[] {
   if (!ownershipTransfersTableExists(db)) return [];
-  const ids = (scope.select(db).all(...parameters) as Array<{ id: string }>).map(({ id }) => id);
-  if (ids.length === 0) return [];
-  scope.update(db).run(now, reason, ...parameters);
-  return ids;
+  const rows = scope.select(db).all(...parameters) as Array<{ id: string; revision: string }>;
+  const [row] = rows;
+  if (!row) return [];
+  const nextRevision = nextOwnershipTransferRevision(row.revision);
+  scope.update(db).run(now, reason, nextRevision, ...parameters);
+  return rows.map(({ id }) => id);
 }
 
 const deleteForAccountStatement = cachedStatement(`DELETE FROM account_ownership_transfers WHERE accountId = ?`);
