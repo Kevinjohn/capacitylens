@@ -11,8 +11,8 @@
     "src/**/*.test.tsx",
     "src/test/**",
     "src/**/__tests__/**",
-    "**/*.testSupport.ts",
-    "**/*.testSupport.tsx",
+    "src/**/*.testSupport.ts",
+    "src/**/*.testSupport.tsx",
     "shared/src/**/*.test.ts"
   ]
 }
