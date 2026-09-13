@@ -1024,7 +1024,13 @@ it("rolls back an email repair on an audit-id conflict and commits a retry with 
     });
 
   await correction("bruce.one@example.com", "email-audit-shared");
-  await expect(correction("bruce.two@example.com", "email-audit-shared")).rejects.toThrow();
+  const conflict: unknown = await correction("bruce.two@example.com", "email-audit-shared").catch(
+    (error: unknown) => error,
+  );
+  expect(conflict).toBeInstanceOf(Error);
+  expect((conflict as Error).message).toBe("Identity email correction failed.");
+  expect((conflict as Error).cause).toBeInstanceOf(Error);
+  expect(((conflict as Error).cause as Error).message).toMatch(/UNIQUE constraint failed.*capacitylens_audit_outbox/);
   expect(db.prepare(`SELECT email FROM user WHERE id = ?`).get("principal-1")).toEqual({
     email: "bruce.one@example.com",
   });
