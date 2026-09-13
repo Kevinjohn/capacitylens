@@ -261,7 +261,7 @@ function anonymiseSharedCommandCoordinates(reverseOrder: boolean): string[] {
         PRIMARY KEY (applicationId, operation, idempotencyKey)
       ) STRICT
     `);
-    const rows = [
+    const rows: Array<[applicationId: string, commandId: string, timestamp: string]> = [
       ["app-a", "command-a", "2026-01-01"],
       ["app-b", "command-b", "2026-01-02"],
     ];
