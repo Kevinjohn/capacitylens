@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { render, screen, within, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
 import { useStore, buildEmptyFilters } from "../store/useStore";
@@ -12,6 +12,7 @@ import {
   setPlaceholdersEnabled,
 } from "../test/fixtures";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
+import { m } from "@/i18n";
 
 function renderPalette(onClose = () => {}) {
   return render(
@@ -141,9 +142,8 @@ describe("CommandPalette", () => {
       "Account",
     ];
     const pageLabels = () =>
-      screen
+      within(screen.getByRole("group", { name: m.palette_section_pages() }))
         .getAllByTestId("command-palette-option")
-        .slice(1)
         .map((option) => option.firstElementChild?.textContent);
 
     renderPalette();
