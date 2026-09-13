@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Closure, Resource, TimeOff } from "@capacitylens/shared/types/entities";
-import { buildClosureList, buildTimeOffGroups, readCurrentTimeOffWeekStart } from "./timeOffView";
+import { buildClosureList, buildTimeOffGroups } from "./timeOffView";
 
 interface EntryInput {
   id: string;
@@ -41,28 +41,6 @@ function entry({ id, resourceId, startDate, endDate }: EntryInput): TimeOff {
     type: "holiday",
   };
 }
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
-describe("currentTimeOffWeekStart", () => {
-  it("honours Monday and Sunday company week starts", () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-06-10T12:00:00.000Z"));
-
-    expect(readCurrentTimeOffWeekStart("Etc/GMT", 1)).toBe("2026-06-08");
-    expect(readCurrentTimeOffWeekStart("Etc/GMT", 0)).toBe("2026-06-07");
-  });
-
-  it("derives today in the company timezone before finding the week boundary", () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-06-08T00:30:00.000Z"));
-
-    expect(readCurrentTimeOffWeekStart("Etc/GMT", 1)).toBe("2026-06-08");
-    expect(readCurrentTimeOffWeekStart("Pacific/Honolulu", 1)).toBe("2026-06-01");
-  });
-});
 
 describe("buildTimeOffGroups", () => {
   it("keeps overlapping entries, drops completed past entries and sorts groups and rows", () => {

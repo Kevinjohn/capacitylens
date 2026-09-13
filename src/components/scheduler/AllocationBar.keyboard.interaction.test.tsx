@@ -12,7 +12,7 @@ import { barFor, getStoredAllocation, seedAllocation } from "./__tests__/allocat
 
 beforeEach(() => resetStoreWithAccount());
 
-function registerViewerPopoverTest() {
+function registerViewerAndAnnotationPopoverTests() {
   it("keeps Viewer details in the tab order without enabling allocation edits", async () => {
     const user = userEvent.setup();
     const allocation = seedAllocation({ note: "Call the client before kickoff" });
@@ -47,8 +47,15 @@ function registerViewerPopoverTest() {
     expect(bar).toHaveAccessibleDescription("Read-only allocation details");
     expect(popover).not.toHaveTextContent(/drag|resize|reassign/i);
     expect(bar).toHaveAccessibleName(
-      /Wires, Project Watchtower · Acme, 8h per day, Confirmed, 1 Jun to 3 Jun, note: Call the client before kickoff\./,
+      /Wires, Project Watchtower · Acme, 8h per day, 1 Jun to 3 Jun, note: Call the client before kickoff\./,
     );
+    expect(bar).not.toHaveAccessibleName(/Confirmed/);
+    const details = [...popover.querySelectorAll("div.text-muted-foreground")].find((element) =>
+      element.textContent.includes("h/day"),
+    );
+    expect(details).toBeDefined();
+    expect(details).toHaveTextContent("1 – 3 Jun · 8h/day");
+    expect(details).not.toHaveTextContent("Confirmed");
 
     await user.keyboard("{Escape}");
     expect(screen.queryByTestId("allocation-popover")).toBeNull();
@@ -59,6 +66,42 @@ function registerViewerPopoverTest() {
     expect(useStore.getState().data.allocations.find((candidate) => candidate.id === allocation.id)).toEqual(
       allocation,
     );
+  });
+
+  it("omits the confirmed annotation cleanly when hours are hidden", () => {
+    const allocation = seedAllocation();
+    render(
+      <AllocationBar
+        bar={{ ...barFor(allocation), external: true }}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
+    const bar = screen.getByTestId("allocation-bar");
+
+    fireEvent.mouseEnter(bar);
+    const popover = screen.getByTestId("allocation-popover");
+    const details = popover.querySelector("div.text-muted-foreground");
+    expect(details).toHaveTextContent("1 – 3 Jun");
+    expect(details).not.toHaveTextContent(/Confirmed| ·/);
+    expect(bar).toHaveAccessibleName(/Wires, 1 Jun to 3 Jun\./);
+    expect(bar).not.toHaveAccessibleName(/Confirmed|, ,/);
+  });
+
+  it.each([
+    ["tentative", "Tentative"],
+    ["completed", "Completed"],
+  ] as const)("keeps the %s annotation in popover and accessible name", (status, label) => {
+    const allocation = seedAllocation({ status });
+    render(<AllocationBar bar={barFor(allocation)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
+    const bar = screen.getByTestId("allocation-bar");
+
+    fireEvent.mouseEnter(bar);
+    expect(screen.getByTestId("allocation-popover").querySelector("div.text-muted-foreground")).toHaveTextContent(
+      `1 – 3 Jun · 8h/day · ${label}`,
+    );
+    expect(bar).toHaveAccessibleName(new RegExp(`8h per day, ${label}, 1 Jun to 3 Jun\\.`));
   });
 }
 
@@ -140,7 +183,7 @@ function registerEscapeRoutingTests() {
 }
 
 function registerEscapePopoverTests() {
-  registerViewerPopoverTest();
+  registerViewerAndAnnotationPopoverTests();
   registerFocusPopoverTests();
   registerEscapeRoutingTests();
 }
