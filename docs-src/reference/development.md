@@ -733,9 +733,10 @@ thread-pool reuse or a larger outer timeout.
 ### When CI runs
 
 Static analysis and CodeQL analyze every pull request targeting `main`. The focused static-analysis
-workflow compiles translations, type-checks the shared and application projects, and lints all
-authored sources. The heavier workflows run when the merge reaches `main`, plus their own weekly or
-monthly schedules. To see those gates green before merging, dispatch them against the branch:
+workflow checks whole-repository formatting first, then compiles translations, type-checks the shared
+and application projects, and lints all authored sources. The heavier workflows run when the merge
+reaches `main`, plus their own weekly or monthly schedules. To see those gates green before merging,
+dispatch them against the branch:
 
 ```bash
 gh workflow run gate.yml --ref <branch>
@@ -743,9 +744,9 @@ gh workflow run e2e.yml --ref <branch>
 ```
 
 Opening a pull request and pushing to its branch previously fired `gate`, `e2e`, `docker` and
-`security` on every event — several full passes per change. Focused lint/type-check and CodeQL jobs
-now cover every proposed commit without repeating the full suites. Staged-file lint on commit and
-whole-repository lint on push provide the earliest feedback; `pnpm run gate`,
+`security` on every event — several full passes per change. Focused format/lint/type-check and CodeQL
+jobs now cover every proposed commit without repeating the full suites. Staged-file lint on commit,
+whole-repository lint on push and whole-repository formatting on pull requests provide early feedback; `pnpm run gate`,
 `pnpm run gate:server` and `pnpm run e2e` remain the complete local checks, and CI is the record.
 
 Two jobs used to depend on pull-request context and now read the pushed commit range

@@ -63,6 +63,8 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
   ).toJS();
   assert.deepEqual(workflow.on.pull_request.branches, ["main"]);
   const commands = workflow.jobs.application.steps.map(({ run }) => run).filter(Boolean);
+  assert.equal(commands[0], "pnpm run format:check");
+  assert.equal(packageJson.scripts["format:check"], "prettier --check .");
   assert.ok(commands.includes("pnpm run lint"));
   assert.ok(commands.includes("pnpm run typecheck"));
   // Pin the script's BODY, not only its name. Asserting the workflow calls `pnpm run typecheck`
