@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Preserve distinct application namespaces while anonymising command-ledger rows so migration
   rehearsal copies cannot fail when applications share operation coordinates (#958).
+- Prevent simultaneous identity-email repairs from sharing an audit event ID and rolling back an
+  otherwise valid administrator correction (#905).
 - Emit a static Overview route document so direct links work on strict static deployments (#943).
 - Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
   one installation's process group, and describe the initial pending backup health state accurately
