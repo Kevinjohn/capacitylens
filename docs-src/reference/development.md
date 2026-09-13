@@ -744,10 +744,11 @@ gh workflow run e2e.yml --ref <branch>
 ```
 
 Opening a pull request and pushing to its branch previously fired `gate`, `e2e`, `docker` and
-`security` on every event — several full passes per change. Focused format/lint/type-check and CodeQL
-jobs now cover every proposed commit without repeating the full suites. Staged-file lint on commit,
-whole-repository lint on push and whole-repository formatting on pull requests provide early feedback; `pnpm run gate`,
-`pnpm run gate:server` and `pnpm run e2e` remain the complete local checks, and CI is the record.
+`security` on every event — several full passes per change. Focused format/lint/type-check and
+CodeQL jobs now cover every proposed commit without repeating the full suites. Staged-file lint on
+commit, whole-repository lint on push and whole-repository formatting on pull requests provide
+early feedback; `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` remain the complete
+local checks, and CI is the record.
 
 Two jobs used to depend on pull-request context and now read the pushed commit range
 (`github.event.before`..`github.sha`) instead: DCO sign-off and dependency review. Both
