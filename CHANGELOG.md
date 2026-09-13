@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Preserve distinct application namespaces while anonymising command-ledger rows so migration
+  rehearsal copies cannot fail when applications share operation coordinates (#958).
 - Hide the previously open company's data when a newly selected company cannot load, and offer
   explicit retry or company-selection recovery actions (#945).
 - Prevent simultaneous identity-email repairs from sharing an audit event ID and rolling back an
