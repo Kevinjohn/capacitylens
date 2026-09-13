@@ -29,6 +29,9 @@ export function createGuards(get: StoreApi<StoreState>["getState"], set: StoreAp
     const state = get();
     const id = state.activeAccountId;
     if (!id) throw new Error("No active account — cannot mutate scoped data.");
+    if (state.activeAccountLoadFailed === id) {
+      throw new Error("The active account is not loaded — cannot mutate scoped data.");
+    }
     if (
       !state.data.accounts.some((account) => account.id === id) &&
       !state.accountSummaries.some((account) => account.id === id)

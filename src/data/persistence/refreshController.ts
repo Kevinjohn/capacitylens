@@ -35,6 +35,42 @@ interface InstallLoadedSliceInput extends RefreshSequenceInput {
   lostFailedEdits: boolean;
 }
 
+interface RunRefreshOptions {
+  abortIfSaveFailed: boolean;
+  preserveParkedEdit: boolean;
+  dataAtSequenceStart: AppData;
+  publishFailure: () => void;
+}
+
+interface RefreshActiveOptions {
+  abortIfSaveFailed?: boolean;
+  markAccountLoadFailure?: boolean;
+}
+
+function buildRunOptions(
+  input: Pick<CreateRefreshControllerInput, "store" | "owner">,
+  id: string,
+  options: RefreshActiveOptions,
+): RunRefreshOptions {
+  const { store, owner } = input;
+  const markAccountLoadFailure = options.markAccountLoadFailure ?? false;
+  if (markAccountLoadFailure && store.getState().activeAccountLoadFailed !== id) {
+    owner.update({ failedAccountLoadRecovery: null });
+  }
+  const recovery = owner.current.failedAccountLoadRecovery;
+  const dataAtSequenceStart = recovery?.accountId === id ? recovery.base : store.getState().data;
+  return {
+    abortIfSaveFailed: options.abortIfSaveFailed ?? false,
+    preserveParkedEdit: store.getState().activeAccountLoadFailed === id,
+    dataAtSequenceStart,
+    publishFailure: () => {
+      if (!markAccountLoadFailure) return;
+      owner.update({ failedAccountLoadRecovery: recovery ?? { accountId: id, base: dataAtSequenceStart } });
+      store.setState({ activeAccountLoadFailed: id });
+    },
+  };
+}
+
 async function awaitCurrentSave(owner: AttachmentState): Promise<void> {
   const currentSave = owner.current.inFlightSave;
   if (currentSave) await currentSave;
@@ -113,6 +149,8 @@ function installLoadedSlice(input: RefreshSequenceInput): void {
     );
   }
   owner.installSlice(installed);
+  store.setState({ activeAccountLoadFailed: null });
+  owner.update({ failedAccountLoadRecovery: null });
   if (!editedMidLoad) owner.update({ unacknowledged: null });
   owner.update({ authoritativeReloadRequiredFor: null });
   owner.update({ failedSinceSuccess: false });
@@ -121,7 +159,11 @@ function installLoadedSlice(input: RefreshSequenceInput): void {
   onSuccess?.();
 }
 
-async function flushBeforeLoad(input: CreateRefreshControllerInput, token: number): Promise<boolean> {
+async function flushBeforeLoad(
+  input: CreateRefreshControllerInput,
+  token: number,
+  preserveParkedEdit: boolean,
+): Promise<boolean> {
   const { owner, writes } = input;
   // First let the prior account's write settle. Then flush pending debounce data while store data
   // and adapter snapshot still describe the same account, before loadAll re-seeds the snapshot.
@@ -130,7 +172,7 @@ async function flushBeforeLoad(input: CreateRefreshControllerInput, token: numbe
   // A pending edit under an external suspension arrived during a server-side import. Flushing it
   // against the pre-import snapshot could recreate stale rows in the replacement, so it remains
   // parked for the operation-level rebase after loadAll.
-  if (owner.current.pending && owner.current.externalSuspendDepth === 0) {
+  if (owner.current.pending && owner.current.externalSuspendDepth === 0 && !preserveParkedEdit) {
     writes.save(owner.current.pending);
     await awaitCurrentSave(owner);
     if (owner.supersededBy(token)) return false;
@@ -150,9 +192,10 @@ async function handleInactiveRefresh(input: RefreshSequenceInput): Promise<boole
 async function runRefresh(
   input: CreateRefreshControllerInput,
   id: string,
-  abortIfSaveFailed: boolean,
+  options: RunRefreshOptions,
 ): Promise<Exclude<RefreshOutcome, { kind: "unattached" }>> {
   const { store, adapter, owner, writes, onError } = input;
+  const { abortIfSaveFailed, preserveParkedEdit, dataAtSequenceStart, publishFailure } = options;
   // Guard a stale out-of-band account id before bumping the token. Bumping first could invalidate
   // the real account switch, then install the stale account under the new active id and enable
   // cross-tenant display or writes.
@@ -162,12 +205,11 @@ async function runRefresh(
   // exception because its owner deliberately invokes this refresh to re-seed after replacement.
   if (abortIfSaveFailed && owner.current.suspendDepth > owner.current.externalSuspendDepth) return { kind: "skipped" };
   const myToken = owner.nextSwitchToken();
-  const dataAtSequenceStart = store.getState().data;
   // Suspend writes across every await, not only loadAll. Edits arriving during the initial save,
   // flush, or load are parked until they can be included before re-seed or rebased afterward.
   const resume = owner.beginSuspension({ external: false, writes });
   try {
-    if (!(await flushBeforeLoad(input, myToken))) return { kind: "skipped" };
+    if (!(await flushBeforeLoad(input, myToken, preserveParkedEdit))) return { kind: "skipped" };
     if (abortIfSaveFailed && owner.current.failedSinceSuccess) return { kind: "skipped" };
     // A pre-armed retry must not fire during load against the old snapshot and then have its
     // discarded save hidden by the successful reload bookkeeping.
@@ -190,9 +232,10 @@ async function runRefresh(
     return { kind: "reloaded" };
   } catch (error) {
     if (isRefreshInactive(owner, myToken)) return { kind: "skipped" };
-    // Keep the prior store data and adapter snapshot paired when loadAll fails. The suspension's
-    // finally-resume re-schedules any edit parked during the failed request, and the error remains
-    // visible through the persistence callback.
+    // Keep the prior store data and adapter snapshot paired when loadAll fails. A failed account
+    // switch retains recovery ownership of any parked edit until an explicit retry rebases it or a
+    // different selection deliberately discards it. The error remains visible through the callback.
+    publishFailure();
     onError?.(error);
     return { kind: "failed" };
   } finally {
@@ -250,7 +293,7 @@ export function createRefreshController({
 
   const refreshActive = (
     id: string,
-    options: { abortIfSaveFailed?: boolean } = {},
+    options: RefreshActiveOptions = {},
   ): Promise<Exclude<RefreshOutcome, { kind: "unattached" }>> =>
     runRefresh(
       {
@@ -262,7 +305,7 @@ export function createRefreshController({
         ...(onSuccess ? { onSuccess } : {}),
       },
       id,
-      options.abortIfSaveFailed ?? false,
+      buildRunOptions({ store, owner }, id, options),
     );
 
   // Resolve a stale/uncertain batch boundary exactly once at a time. A failed load deliberately

@@ -271,7 +271,7 @@ async function correctPrincipalEmail(
         expectedRevision: authority.revision,
       }),
     audit: {
-      id: `identity-email:${userId}:${occurredAt}`,
+      id: `identity-email:${userId}:${occurredAt}:${crypto.randomUUID()}`,
       occurredAt,
       applicationId,
       workspaceId: accountId,
