@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { parsePort } from "./scripts/port.mjs";
 import { ports, testShare } from "./scripts/ports.mjs";
 import { clientApiOrigin } from "./scripts/render-client-nginx.mjs";
+import { STATIC_SPA_ROUTES } from "./scripts/static-spa-routes.mjs";
 import { isAccountEmail } from "./shared/src/account/validation";
 
 // Lane-derived ports (scripts/ports.mjs): lane 0 is the historical 5173/8787/4173, and a run
@@ -23,19 +24,6 @@ if (!Object.hasOwn(lanePorts, viteService)) {
   throw new Error(`CAPACITYLENS_VITE_SERVICE must name a lane port; received ${JSON.stringify(viteService)}.`);
 }
 const servicePort = lanePorts[viteService as keyof typeof lanePorts];
-const STATIC_SPA_ROUTES = [
-  "resources",
-  "external",
-  "disciplines",
-  "clients",
-  "projects",
-  "activities",
-  "timeoff",
-  "team",
-  "settings",
-  "account",
-] as const;
-
 function offlineShellManifest(): Plugin {
   return {
     name: "capacitylens-offline-shell-manifest",

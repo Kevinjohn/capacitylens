@@ -6,6 +6,7 @@ import { CapacityOverviewRoute, RouteLoading, router } from "./router";
 import { PermissionContext } from "./auth/permissionContext";
 import { resetStoreWithAccount } from "./test/fixtures";
 import { useStore } from "./store/useStore";
+import { STATIC_SPA_ROUTES } from "../scripts/static-spa-routes.mjs";
 
 vi.mock("./components/AppShell", () => ({ AppShell: Outlet }));
 vi.mock("./components/activities/ActivityList", () => ({
@@ -102,5 +103,17 @@ describe("router not-found recovery", () => {
     expect(screen.getByText("That page does not exist or may have moved.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to schedule" })).toHaveAttribute("href", "/");
     expect(document.title).toBe("Page not found · CapacityLens");
+  });
+});
+
+describe("static SPA route manifest", () => {
+  it("includes every fixed AppShell child route", () => {
+    const appShellRoute = router.routes.find((route) => route.children);
+    const fixedChildRoutes = (appShellRoute?.children ?? [])
+      .filter((route) => !route.index && route.path && !route.path.includes(":"))
+      .map((route) => route.path as string)
+      .sort();
+
+    expect(fixedChildRoutes).toEqual([...STATIC_SPA_ROUTES].sort());
   });
 });
