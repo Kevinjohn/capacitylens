@@ -38,7 +38,7 @@ the schedule.
 - ✅ Group header totals are hidden by default; **Show totals** reveals them without changing the group name or collapse control.
 - ✅ Number is the default capacity display; Bar and Bar & number fill a person's cell from the
   bottom against the company working days in that column, green for free and red for overbooked,
-  capped at a full cell, and use a light neutral grey when there is nothing to show; each week
+  capped at a full cell, and use a subtle neutral grey when there is nothing to show; each week
   block remains visibly separated without changing the table's density or alignment.
 - ✅ The bar never applies to group header totals or unassigned-demand rows, and every mode keeps the underlying value available to assistive technology.
 - ✅ Blocks mode explains that the overview needs Hours or Days without showing capacity figures.

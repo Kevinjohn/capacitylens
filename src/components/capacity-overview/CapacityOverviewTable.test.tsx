@@ -292,6 +292,11 @@ describe("CapacityOverviewTable interactions", () => {
     expect(within(person).getByText("1.5d")).toBeInTheDocument();
     const firstWeekCell = within(person).getByText("1.5d").closest("td");
     expect(within(firstWeekCell as HTMLElement).queryByTestId("capacity-bar-fill")).not.toBeInTheDocument();
+
+    const table = screen.getByRole("table", { name: "Overview" });
+    expect(table).not.toHaveClass("border-separate");
+    expect(table).not.toHaveClass("border-spacing-x-1.5");
+    expect(table).not.toHaveClass("border-spacing-y-1.5");
   });
 
   it("renders Bar mode with a fill background and no visible number, keeping the value accessible", () => {
@@ -325,7 +330,7 @@ describe("CapacityOverviewTable interactions", () => {
     expect(fill.style.background).toContain("var(--color-danger-cell)");
 
     const table = screen.getByRole("table", { name: "Overview" });
-    expect(table).toHaveClass("border-separate", "border-spacing-x-1.5", "border-spacing-y-0");
+    expect(table).toHaveClass("border-separate", "border-spacing-x-1.5", "border-spacing-y-1.5");
 
     // A free (available) fill never carries the hatch — it needs no non-colour cue, since it
     // reads the same regardless of colour vision.

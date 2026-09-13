@@ -6,6 +6,7 @@ import type { RefObject } from "react";
 import { m } from "@/i18n";
 import { formatWeekColumnRange } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
+import { cn } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
@@ -318,7 +319,10 @@ function CapacityTable({
   return (
     <Table
       aria-label={m.capacity_overview_title()}
-      className="table-fixed border-separate border-spacing-x-1.5 border-spacing-y-0"
+      className={cn(
+        "table-fixed",
+        capacityDisplayMode !== "number" && "border-separate border-spacing-x-1.5 border-spacing-y-1.5",
+      )}
     >
       <colgroup>
         <col className="w-[32%]" />
