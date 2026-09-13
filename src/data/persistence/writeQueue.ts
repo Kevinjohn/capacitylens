@@ -144,11 +144,7 @@ class WriteQueueOwner {
 
   flushWhileAlive = (): void => {
     const { owner } = this.input;
-    if (
-      owner.current.disposed ||
-      owner.current.externalSuspendDepth > 0 ||
-      owner.isBlockedByFailedAccountLoad()
-    )
+    if (owner.current.disposed || owner.current.externalSuspendDepth > 0 || owner.isBlockedByFailedAccountLoad())
       return;
     owner.cancelDebounce();
     if (owner.current.unacknowledged) this.save(owner.current.unacknowledged);
