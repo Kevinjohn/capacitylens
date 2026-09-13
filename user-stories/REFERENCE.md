@@ -1269,10 +1269,10 @@ the palette does **not** open. A clean overlapping dialog (including the portrai
 hint) cannot clear that protection; it remains active until every dirty owner closes or saves.
 Closed by **Escape**, backdrop click, or selecting an item.
 
-**Sections shown (no query):** Actions ("Go to today"), Pages (the 11 fixed application routes available
-to the current role; 10 when the company turns Disciplines off). **Overview** follows the
-same company access setting as the sidebar: roles that cannot open it do not receive an Overview
-palette result, while the router continues to enforce the restriction for direct URLs.
+**Sections shown (no query):** Actions ("Go to today"), Pages (up to 11 fixed application routes).
+**Disciplines** is omitted when the company turns that feature off, and **Overview** follows the same
+company access setting as the sidebar: roles that cannot open it do not receive an Overview palette
+result, while the router continues to enforce the restriction for direct URLs.
 **Sections shown (with query):** any of the above that match, plus People, Projects, Clients,
 Activities. Matching is case- and diacritic-insensitive, so an unaccented query such as `jose` or
 `muller` finds labels such as **José** or **Müller**. Palette visibility follows the result's
