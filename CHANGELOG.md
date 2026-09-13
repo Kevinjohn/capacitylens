@@ -43,7 +43,6 @@ new features and **patch** versions carry fixes.
 ### Changed
 
 - Replace the browser favicon's lightning mark with a magnifying glass (#966).
-
 - Local development and test servers now take their ports from a lane claimed for the duration of
   each command, so several checkouts can run the suites at the same time without colliding on a
   port or inheriting a crashed run's orphaned server. Each run also reserves a share of the
