@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
+  corrupted stored revision, including during membership-driven invalidation (#906).
 - Hide the previously open company's data when a newly selected company cannot load, and offer
   explicit retry or company-selection recovery actions (#945).
 - Prevent simultaneous identity-email repairs from sharing an audit event ID and rolling back an
