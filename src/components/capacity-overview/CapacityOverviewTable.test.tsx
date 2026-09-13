@@ -293,9 +293,8 @@ describe("CapacityOverviewTable interactions", () => {
     const firstWeekCell = within(person).getByText("1.5d").closest("td");
     expect(within(firstWeekCell as HTMLElement).queryByTestId("capacity-bar-fill")).not.toBeInTheDocument();
 
-    const table = screen.getByRole("table", { name: "Overview" });
-    expect(table).not.toHaveClass("border-separate");
-    expect(table).not.toHaveClass("border-spacing-1.5");
+    // Number mode never renders a fill layer at all (asserted above), so there is no cell-gap
+    // wrapper to check for absence here — the fill wrapper only exists in Bar/Bar & number modes.
   });
 
   it("renders Bar mode with a fill background and no visible number, keeping the value accessible", () => {
@@ -328,8 +327,10 @@ describe("CapacityOverviewTable interactions", () => {
     // Bar & number) — the number here is `sr-only`, so nothing needs to clear AA on this fill.
     expect(fill.style.background).toContain("var(--color-danger-cell)");
 
-    const table = screen.getByRole("table", { name: "Overview" });
-    expect(table).toHaveClass("border-separate", "border-spacing-1.5");
+    // The fill wrapper is inset 3px from the cell on every side (6px between adjacent bars, both
+    // directions) rather than the table gaining `border-spacing` — see the comment on
+    // CapacityBarFillLayer for why cell-level insets, not a table-wide spacing gutter.
+    expect(fill.parentElement).toHaveClass("inset-[3px]");
 
     // A free (available) fill never carries the hatch — it needs no non-colour cue, since it
     // reads the same regardless of colour vision.
