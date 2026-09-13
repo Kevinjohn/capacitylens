@@ -2030,6 +2030,70 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
+function seedV35AllocationProjectGraph(db: Db): void {
+  db.exec(`
+    INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES
+      ('issue909-dc-account', 'Wayne Enterprises', '#3b82f6', '${TS}', '${TS}'),
+      ('issue909-marvel-account', 'Stark Industries', '#ef4444', '${TS}', '${TS}');
+    INSERT INTO clients (id, accountId, name, color, createdAt, updatedAt) VALUES
+      ('issue909-dc-client', 'issue909-dc-account', 'Daily Planet', '#3b82f6', '${TS}', '${TS}'),
+      ('issue909-marvel-client', 'issue909-marvel-account', 'Daily Bugle', '#ef4444', '${TS}', '${TS}');
+    INSERT INTO projects (id, accountId, name, clientId, color, createdAt, updatedAt) VALUES
+      ('issue909-dc-project', 'issue909-dc-account', 'Metropolis rollout', 'issue909-dc-client', '#3b82f6', '${TS}', '${TS}'),
+      ('issue909-marvel-project', 'issue909-marvel-account', 'Stark Expo', 'issue909-marvel-client', '#ef4444', '${TS}', '${TS}');
+    INSERT INTO resources (
+      id, accountId, kind, name, role, employmentType, engagement, workingHoursPerDay,
+      workingDays, color, createdAt, updatedAt
+    ) VALUES (
+      'issue909-dc-resource', 'issue909-dc-account', 'person', 'Clark Kent', 'Reporter',
+      'employee', 'studio', 8, '[1,2,3,4,5]', '#3b82f6', '${TS}', '${TS}'
+    );
+    INSERT INTO activities (id, accountId, name, kind, createdAt, updatedAt)
+      VALUES ('issue909-dc-activity', 'issue909-dc-account', 'Weekly planning', 'repeatable', '${TS}', '${TS}');
+  `);
+}
+
+function assertV35AllocationProjectWrites(db: Db): void {
+  seedV35AllocationProjectGraph(db);
+  const insertAllocation = db.prepare(`
+    INSERT INTO allocations (
+      id, accountId, resourceId, activityId, projectId, startDate, endDate, hoursPerDay, status,
+      createdAt, updatedAt
+    ) VALUES (?, 'issue909-dc-account', 'issue909-dc-resource', 'issue909-dc-activity', ?,
+              '2026-01-05', '2026-01-09', 8, 'confirmed', ?, ?)
+  `);
+  const readAllocation = (id: string): Record<string, unknown> | undefined =>
+    db.prepare("SELECT * FROM allocations WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+  const crossAccountError = "cross-account relationship: allocations.projectId -> projects.id";
+
+  insertAllocation.run("issue909-allocation-project", "issue909-dc-project", TS, TS);
+  expect(readAllocation("issue909-allocation-project")).toEqual(
+    expect.objectContaining({ accountId: "issue909-dc-account", projectId: "issue909-dc-project" }),
+  );
+  insertAllocation.run("issue909-allocation-null", null, TS, TS);
+  expect(readAllocation("issue909-allocation-null")).toEqual(
+    expect.objectContaining({ accountId: "issue909-dc-account", projectId: null }),
+  );
+
+  expect(() => insertAllocation.run("issue909-allocation-cross-account", "issue909-marvel-project", TS, TS)).toThrow(
+    crossAccountError,
+  );
+  expect(readAllocation("issue909-allocation-cross-account")).toBeUndefined();
+
+  const updateProject = db.prepare("UPDATE allocations SET projectId = ? WHERE id = ?");
+  const originalAllocation = readAllocation("issue909-allocation-project");
+  if (!originalAllocation) throw new Error("Expected the valid allocation to be persisted.");
+  expect(() => updateProject.run("issue909-marvel-project", "issue909-allocation-project")).toThrow(crossAccountError);
+  expect(readAllocation("issue909-allocation-project")).toEqual(originalAllocation);
+
+  updateProject.run(null, "issue909-allocation-project");
+  expect(readAllocation("issue909-allocation-project")).toEqual(expect.objectContaining({ projectId: null }));
+  updateProject.run("issue909-dc-project", "issue909-allocation-project");
+  expect(readAllocation("issue909-allocation-project")).toEqual(
+    expect.objectContaining({ projectId: "issue909-dc-project" }),
+  );
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("v20 rejects unknown bootstrap-claim drift and rolls its ledger step back", () => {
     const db = openDb(":memory:");
@@ -2839,38 +2903,43 @@ describe("schema migration of an existing on-disk DB", () => {
     const copied = copyFixture("v34-off.db");
     try {
       const db = openDbConnection(copied.path);
-      expect(planDatabaseMigrations(db).migrations).toEqual([
-        V35_MIGRATION,
-        V36_MIGRATION,
-        V37_MIGRATION,
-        V38_MIGRATION,
-        V39_MIGRATION,
-        V40_MIGRATION,
-        V41_MIGRATION,
-      ]);
-      initializeOpenDb(db, copied.path);
+      try {
+        expect(planDatabaseMigrations(db).migrations).toEqual([
+          V35_MIGRATION,
+          V36_MIGRATION,
+          V37_MIGRATION,
+          V38_MIGRATION,
+          V39_MIGRATION,
+          V40_MIGRATION,
+          V41_MIGRATION,
+        ]);
+        initializeOpenDb(db, copied.path);
 
-      expect(
-        (db.prepare("PRAGMA table_info(allocations)").all() as Array<{ name: string }>).some(
-          (column) => column.name === "projectId",
-        ),
-      ).toBe(true);
-      expect(db.prepare("PRAGMA foreign_key_list(allocations)").all()).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ from: "projectId", table: "projects", to: "id", on_delete: "SET NULL" }),
-        ]),
-      );
-      expect(db.prepare("PRAGMA index_list(allocations)").all()).toEqual(
-        expect.arrayContaining([expect.objectContaining({ name: "idx_allocations_projectId" })]),
-      );
-      expect(
-        db
-          .prepare(
-            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'capacitylens_tenant_allocations_projectId_%'",
-          )
-          .get(),
-      ).toEqual({ count: 2 });
-      db.close();
+        expect(
+          (db.prepare("PRAGMA table_info(allocations)").all() as Array<{ name: string }>).some(
+            (column) => column.name === "projectId",
+          ),
+        ).toBe(true);
+        expect(db.prepare("PRAGMA foreign_key_list(allocations)").all()).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ from: "projectId", table: "projects", to: "id", on_delete: "SET NULL" }),
+          ]),
+        );
+        expect(db.prepare("PRAGMA index_list(allocations)").all()).toEqual(
+          expect.arrayContaining([expect.objectContaining({ name: "idx_allocations_projectId" })]),
+        );
+        expect(
+          db
+            .prepare(
+              "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'capacitylens_tenant_allocations_projectId_%'",
+            )
+            .get(),
+        ).toEqual({ count: 2 });
+
+        assertV35AllocationProjectWrites(db);
+      } finally {
+        db.close();
+      }
     } finally {
       copied.cleanup();
     }
