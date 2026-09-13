@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, afterEach, beforeEach, vi } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { m } from "@/i18n";
 import { AllocationBar } from "./AllocationBar";
 import { PermissionContext } from "../../auth/permissionContext";
 import { useStore } from "../../store/useStore";
@@ -11,8 +12,30 @@ import { renderWithTooltip as render, GEOM, indexAtClientX } from "./__tests__/s
 import { barFor, getStoredAllocation, seedAllocation } from "./__tests__/allocationBarInteractionTestKit";
 
 beforeEach(() => resetStoreWithAccount());
+afterEach(() => vi.restoreAllMocks());
 
 function registerViewerAndAnnotationPopoverTests() {
+  it("gets visible popover separators from the message catalogue", () => {
+    const projectClientMessage = vi.spyOn(m, "scheduler_bar_pop_project_client");
+    const statusMessage = vi.spyOn(m, "scheduler_bar_pop_status");
+    const allocation = seedAllocation({ status: "tentative" });
+    render(
+      <AllocationBar
+        bar={{ ...barFor(allocation), project: "Project Watchtower", client: "Acme" }}
+        geom={GEOM}
+        indexAtClientX={indexAtClientX}
+        onEdit={vi.fn()}
+      />,
+    );
+
+    fireEvent.mouseEnter(screen.getByTestId("allocation-bar"));
+
+    expect(projectClientMessage).toHaveBeenCalledWith({ project: "Project Watchtower", client: "Acme" });
+    expect(statusMessage).toHaveBeenCalledWith({ status: "Tentative" });
+    expect(screen.getByTestId("allocation-popover")).toHaveTextContent("Project Watchtower · Acme");
+    expect(screen.getByTestId("allocation-popover")).toHaveTextContent("8h/day · Tentative");
+  });
+
   it("keeps Viewer details in the tab order without enabling allocation edits", async () => {
     const user = userEvent.setup();
     const allocation = seedAllocation({ note: "Call the client before kickoff" });

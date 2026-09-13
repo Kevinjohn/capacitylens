@@ -13,6 +13,8 @@ new features and **patch** versions carry fixes.
   corrupted stored revision, including during membership-driven invalidation (#906).
 - Replace manual ownership-transfer recovery SQL with a stopped-server command that checks the
   exact request and revision, takes an exclusive lock and records the cancellation for delivery (#996).
+- Preserve distinct application namespaces while anonymising command-ledger rows so migration
+  rehearsal copies cannot fail when applications share operation coordinates (#958).
 - Refresh personal time off and company closures when the company week rolls over, so newly
   historical rows no longer remain visible until an unrelated page update (#902, #903).
 - Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar
@@ -44,6 +46,7 @@ new features and **patch** versions carry fixes.
 
 - Document a backup-first, transactional operator procedure on its own runbook page for inspecting
   and cancelling an ownership-transfer request whose revision is corrupt or exhausted (#990, #997).
+- Replace the browser favicon's lightning mark with a magnifying glass (#966).
 - Local development and test servers now take their ports from a lane claimed for the duration of
   each command, so several checkouts can run the suites at the same time without colliding on a
   port or inheriting a crashed run's orphaned server. Each run also reserves a share of the

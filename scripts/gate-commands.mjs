@@ -6,6 +6,7 @@ const structuralChecks = [
   "policy:server-script-lint:test",
   "policy:shared-environment:test",
   "policy:typecheck-graph:test",
+  "policy:build-tsconfig:test",
   "policy:script-environments:test",
   "policy:sonner-csp:test",
   "policy:file-sizes",
