@@ -6,7 +6,10 @@ import {
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
   hasVisibleInternalProjects,
+  resolveCapacityOverviewAccess,
 } from "../store/selectors";
+import { usePermissionStatus, useRole } from "../auth/permissionContext";
+import { resolveCapacityOverviewAccessDecision } from "../auth/capacityOverviewAccess";
 import { useActiveScopedData } from "../store/useScopedData";
 import { m } from "@/i18n";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
@@ -53,12 +56,18 @@ function usePaletteItems(query: string, onClose: () => void) {
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
   const showInternalProjects = useStore((state) => hasVisibleInternalProjects(state.data, state.activeAccountId));
+  const role = useRole();
+  const permissionStatus = usePermissionStatus();
+  const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
+  const showCapacityOverview =
+    resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed";
   return useMemo(
     () =>
       buildPaletteItems({
         query,
         data,
         disciplinesEnabled,
+        showCapacityOverview,
         placeholdersEnabled,
         externalEnabled,
         showInternalProjects,
@@ -73,6 +82,7 @@ function usePaletteItems(query: string, onClose: () => void) {
       query,
       data,
       disciplinesEnabled,
+      showCapacityOverview,
       placeholdersEnabled,
       externalEnabled,
       showInternalProjects,
