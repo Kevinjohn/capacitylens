@@ -43,6 +43,8 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 8. On first entry, keep the picker visible. Open the only valid company, navigate to another route,
    then reload: confirm the same route resumes without another choice. Use **Switch company** and
    confirm that explicit action keeps the picker visible.
+9. If the selected company cannot be loaded, confirm its recovery screen hides the previous
+   company's data and offers **Retry** or **Choose another company**. See [Settings](../../docs-src/guide/settings.md#your-personal-account).
 
 ## Acceptance criteria
 
@@ -68,3 +70,5 @@ colour is automatic, so onboarding does not create an unnecessary design task.
   navigating away from the requested route.
 - ✅ First entry, explicit switching, multiple companies, no companies, unavailable membership and
   invite handoff continue through their existing safe picker/handoff boundaries.
+- ✅ A failed company load shows recovery instead of another company's data; Retry keeps the
+  selection, while Choose another company returns to the picker.
