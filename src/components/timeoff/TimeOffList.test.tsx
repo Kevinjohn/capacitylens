@@ -164,6 +164,10 @@ it("uses the active company's timezone and week-start setting for the visible bo
   useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Pacific/Honolulu", weekStartsOn: 1 });
   rerender(<TimeOffList />);
   expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
+
+  useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { timezone: "Etc/GMT", weekStartsOn: 0 });
+  rerender(<TimeOffList />);
+  expect(screen.getByTestId("timeoff-row")).toBeInTheDocument();
 });
 
 it("removes expired time off when the company week rolls over while mounted", async () => {

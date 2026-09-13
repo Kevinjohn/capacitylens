@@ -367,8 +367,8 @@ function registerSameMillisecondEmailRepairTest(): void {
         ),
       ]);
     } finally {
-      await app.close();
       vi.useRealTimers();
+      await app.close();
     }
   });
 }
