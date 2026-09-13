@@ -33,6 +33,11 @@ test("the account access setting gates viewer navigation and direct routes", asy
 
   await signIn(page, VIEWER, accountName);
   await expect(page.getByRole("link", { name: "Overview" })).toHaveCount(0);
+  await page.keyboard.press("ControlOrMeta+k");
+  const palette = page.getByTestId("command-palette");
+  await expect(palette).toBeVisible();
+  await expect(palette.getByText("Overview", { exact: true })).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await page.evaluate(() => {
     window.history.pushState({}, "", "/overview");
     window.dispatchEvent(new PopStateEvent("popstate"));

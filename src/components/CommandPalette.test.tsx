@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
+import { render, screen, within, fireEvent, act, waitFor } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { CommandPalette } from "./CommandPalette";
+import { PermissionContext } from "../auth/permissionContext";
 import { useStore, buildEmptyFilters } from "../store/useStore";
 import {
   makeAppData,
@@ -12,6 +13,7 @@ import {
   setPlaceholdersEnabled,
 } from "../test/fixtures";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
+import { m } from "@/i18n";
 
 function renderPalette(onClose = () => {}) {
   return render(
@@ -19,6 +21,16 @@ function renderPalette(onClose = () => {}) {
       <CommandPalette onClose={onClose} />
       <LocationProbe />
     </MemoryRouter>,
+  );
+}
+
+function renderPaletteWithPermission(role: "owner" | "admin" | "editor" | "viewer", status: "pending" | "resolved") {
+  return render(
+    <PermissionContext.Provider value={{ role, status }}>
+      <MemoryRouter>
+        <CommandPalette onClose={() => {}} />
+      </MemoryRouter>
+    </PermissionContext.Provider>,
   );
 }
 
@@ -112,6 +124,71 @@ describe("CommandPalette", () => {
     expect(screen.getByText("Schedule")).toBeInTheDocument();
     expect(screen.getByText("Resources")).toBeInTheDocument();
     expect(screen.getByText("Team & access")).toBeInTheDocument();
+  });
+
+  it("hides Overview when the resolved role cannot access it", () => {
+    renderPaletteWithPermission("viewer", "resolved");
+
+    expect(screen.queryByText("Overview", { exact: true })).not.toBeInTheDocument();
+  });
+
+  it("lists every page exactly once, including Account, with disciplines on or off", () => {
+    const expectedWithDisciplines = [
+      "Overview",
+      "Schedule",
+      "Resources",
+      "Disciplines",
+      "Clients",
+      "Projects",
+      "Activities",
+      "Time off",
+      "Team & access",
+      "Settings",
+      "Account",
+    ];
+    const expectedWithoutDisciplines = [
+      "Overview",
+      "Schedule",
+      "Resources",
+      "Clients",
+      "Projects",
+      "Activities",
+      "Time off",
+      "Team & access",
+      "Settings",
+      "Account",
+    ];
+    const pageLabels = () =>
+      within(screen.getByRole("group", { name: m.palette_section_pages() }))
+        .getAllByTestId("command-palette-option")
+        .map((option) => option.firstElementChild?.textContent);
+
+    renderPalette();
+    expect(pageLabels()).toEqual(expectedWithDisciplines);
+    expect(screen.getAllByText("Account", { exact: true })).toHaveLength(1);
+
+    act(() => {
+      useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { disciplinesEnabled: false });
+    });
+    expect(pageLabels()).toEqual(expectedWithoutDisciplines);
+    expect(screen.getAllByText("Account", { exact: true })).toHaveLength(1);
+  });
+
+  it("navigates to Account and closes the palette when its page item is selected", () => {
+    let closed = false;
+    renderPalette(() => {
+      closed = true;
+    });
+
+    const accountOption = screen
+      .getAllByTestId("command-palette-option")
+      .find((option) => option.textContent.includes("Account"));
+    if (!accountOption) throw new Error("Expected Account command palette option");
+
+    fireEvent.click(accountOption);
+
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/account");
+    expect(closed).toBe(true);
   });
 
   it("has correct ARIA attributes for combobox pattern", async () => {

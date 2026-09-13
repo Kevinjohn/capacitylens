@@ -4,7 +4,8 @@ import { isExternalResource, type Activity } from "@capacitylens/shared/types/en
 import type { useNavigate } from "react-router-dom";
 import { fuzzyFilter } from "../lib/fuzzy";
 import { resolveResourceDisplayName } from "../lib/metadata";
-import { ADMIN_LINKS, LINKS } from "../lib/navLinks";
+import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "../lib/navLinks";
+import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
 import type { useActiveScopedData } from "../store/useScopedData";
 import { buildEmptyFilters, type Filters } from "../store/useStore";
 
@@ -20,6 +21,7 @@ interface BuildPaletteItemsInput {
   query: string;
   data: ReturnType<typeof useActiveScopedData>;
   disciplinesEnabled: boolean;
+  showCapacityOverview: boolean;
   placeholdersEnabled: boolean;
   externalEnabled: boolean;
   showInternalProjects: boolean;
@@ -72,9 +74,15 @@ function buildActionItems({
   return actions;
 }
 
-function buildPageItems({ disciplinesEnabled, navigate, onClose }: BuildPaletteItemsInput): PaletteItem[] {
-  return [...LINKS, ...ADMIN_LINKS]
+function buildPageItems({
+  disciplinesEnabled,
+  showCapacityOverview,
+  navigate,
+  onClose,
+}: BuildPaletteItemsInput): PaletteItem[] {
+  return [...LINKS, ...ADMIN_LINKS, ACCOUNT_LINK]
     .filter(({ to }) => disciplinesEnabled || to !== "/disciplines")
+    .filter(({ to }) => showCapacityOverview || to !== ROUTE_CAPACITY_OVERVIEW)
     .map(({ to, label }) => ({
       id: `page-${to === "/" ? "schedule" : to.slice(1)}`,
       label: label(),
