@@ -41,5 +41,8 @@ test("the deployment compiler graph excludes test-only support files", () => {
   // alone would stay green even if the whole src/ tree vanished from the graph.
   const appFiles = files.filter((filePath) => filePath.startsWith("src/"));
   assert.ok(files.includes("src/main.tsx"), "expected src/main.tsx in the deployment compiler graph");
-  assert.ok(appFiles.length > 350, `expected over 350 src/ files in the deployment compiler graph, got ${appFiles.length}`);
+  assert.ok(
+    appFiles.length > 350,
+    `expected over 350 src/ files in the deployment compiler graph, got ${appFiles.length}`,
+  );
 });

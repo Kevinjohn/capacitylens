@@ -50,8 +50,11 @@ Let people sign in with the work identity they already use everywhere else.
 Run CapacityLens on your own server and keep it healthy.
 
 - [Before you start](/self-hosting/) — what you need and how the pieces fit.
-- [Install with Docker](/self-hosting/install-with-docker) · [Install without Docker](/self-hosting/install-without-docker) · [Configuration](/self-hosting/configuration) · [TLS and networking](/self-hosting/tls-and-networking)
-- [Backups and restore](/self-hosting/backups-and-restore) · [Upgrades](/self-hosting/upgrades) · [Monitoring](/self-hosting/monitoring) · [When something goes wrong](/self-hosting/incidents)
+- [Install with Docker](/self-hosting/install-with-docker) · [Install without Docker](/self-hosting/install-without-docker) ·
+  [Configuration](/self-hosting/configuration) · [TLS and networking](/self-hosting/tls-and-networking)
+- [Backups and restore](/self-hosting/backups-and-restore) · [Upgrades](/self-hosting/upgrades) ·
+  [Monitoring](/self-hosting/monitoring) · [Ownership-transfer recovery](/self-hosting/ownership-transfer-recovery) ·
+  [When something goes wrong](/self-hosting/incidents)
 
 ## Security and privacy
 

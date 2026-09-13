@@ -10,12 +10,33 @@ import * as invites from "../../controlTables/invites";
 import * as membersModel from "../../controlTables/members.model";
 import * as members from "../../controlTables/members";
 import * as ownershipMigrations from "../../controlTables/ownershipMigrations";
+import * as ownershipTransferRecovery from "../../controlTables/ownershipTransferRecovery";
 import * as ownershipTransfers from "../../controlTables/ownershipTransfers";
 import * as ownershipTransfersSchema from "../../controlTables/ownershipTransfersSchema";
 import * as preparedStatement from "../../controlTables/preparedStatement";
 import * as retentionV24 from "../../controlTables/retentionV24";
 import * as memberSignInTracking from "../memberSignInTracking";
 import type { AccountMember } from "../../controlTables/members.model";
+
+describe("control-table writes stay inside their account: transfer recovery", () => {
+  it("cannot cancel another company's request with a foreign request id", () => {
+    seedBothCompanies(db);
+
+    expect(
+      ownershipTransferRecovery.cancelOwnershipTransferRecoveryRow(db, {
+        accountId: WAYNE,
+        requestId: `ot-${STARK}`,
+        state: "awaiting_target",
+        initiatorUserId: SHARED,
+        targetUserId: "u-selina-kyle",
+        revision: "0",
+        terminalAt: LATER,
+      }),
+    ).toBe(false);
+    expect(transferStates(db, WAYNE)).toEqual([{ id: `ot-${WAYNE}`, state: "awaiting_target" }]);
+    expect(transferStates(db, STARK)).toEqual([{ id: `ot-${STARK}`, state: "awaiting_target" }]);
+  });
+});
 
 /**
  * Every account-scoped control-table write stays inside its own account.
@@ -380,6 +401,7 @@ const MODULES: Record<string, Record<string, unknown>> = {
   members,
   "members.model": membersModel,
   ownershipMigrations,
+  ownershipTransferRecovery,
   ownershipTransfers,
   ownershipTransfersSchema,
   preparedStatement,
@@ -409,6 +431,7 @@ const COVERED = new Set([
   "ownershipTransfers.terminaliseLiveRequestsForMember",
   "ownershipTransfers.deleteRequestsForAccount",
   "ownershipTransfers.sweepExpiredHistory",
+  "ownershipTransferRecovery.cancelOwnershipTransferRecoveryRow",
 ]);
 
 /** Why each remaining export cannot carry one company's rows out of its own account. */
@@ -434,6 +457,7 @@ const EXCLUDED = new Map<string, string>([
   ["ownershipTransfers.readRequestById", "read"],
   ["ownershipTransfers.readLatestTerminalForParticipant", "read"],
   ["ownershipTransfers.nextOwnershipTransferRevision", "pure helper"],
+  ["ownershipTransferRecovery.readOwnershipTransferRecoveryRow", "read"],
   ["ownershipTransfersSchema.toOwnershipTransferRequest", "row mapper"],
   ["ownershipTransfersSchema.assertOwnershipTransfersCurrent", "schema assertion"],
   ["ownershipTransfersSchema.runOwnershipTransfersV41", "schema installer"],
