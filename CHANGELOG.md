@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Preserve distinct application namespaces while anonymising command-ledger rows so migration
+  rehearsal copies cannot fail when applications share operation coordinates (#958).
 - Refresh personal time off and company closures when the company week rolls over, so newly
   historical rows no longer remain visible until an unrelated page update (#902, #903).
 - Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar
