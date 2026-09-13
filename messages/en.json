@@ -421,6 +421,7 @@
   "scheduler_empty_go_resources": "Go to Resources",
   "scheduler_empty_title": "No resources yet",
   "scheduler_bar_aria_hours": "{hours}h per day, ",
+  "scheduler_bar_aria_status": "{status}, ",
   "scheduler_bar_aria_has_note": ", has note",
   "scheduler_bar_aria_note": ", note: {note}",
   "scheduler_bar_aria_task": ", task: {task}",
