@@ -107,6 +107,26 @@ describe("diagnostics projection", () => {
     expect(readDiagnostics(null, "not-a-timestamp").observedAt).toBeNull();
     expect(formatDiagnostics(readDiagnostics())).toContain("Snapshot observed: Unknown");
   });
+
+  it("returns a fresh unavailable server projection for each read", async () => {
+    const { readDiagnostics } = await freshBuildInfo();
+    const first = readDiagnostics(null);
+    const second = readDiagnostics(null);
+
+    first.server.connectivity = "ok";
+    first.server.database.status = "ok";
+    first.server.database.schemaVersion = 37;
+    first.server.persistence = "degraded";
+    first.server.backup.status = "ok";
+    first.server.backup.lastSuccessAt = "2026-09-10T12:00:00.000Z";
+
+    expect(second.server).toEqual({
+      connectivity: "unavailable",
+      database: { status: "unavailable", schemaVersion: null },
+      persistence: "unknown",
+      backup: { status: "unavailable", lastSuccessAt: null },
+    });
+  });
 });
 
 describe("diagnostics projection privacy", () => {
