@@ -2,8 +2,48 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { SettingsSection } from "./SettingsSection";
+import { SettingsGroup } from "./SettingsGroup";
 
 describe("SettingsSection", () => {
+  it("uses compact rows only inside a labelled Settings group and retains independent disclosures", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <SettingsGroup title="Data and support" description="Tools for your data">
+          <SettingsSection
+            title="Device data"
+            help="Device help"
+            description="This device"
+            collapsible
+            defaultOpen={false}
+          >
+            <p>Device controls</p>
+          </SettingsSection>
+          <SettingsSection title="Import and export" help="Import help" collapsible defaultOpen={false}>
+            <p>Company controls</p>
+          </SettingsSection>
+        </SettingsGroup>
+        <SettingsSection title="Security" help="Security help">
+          <p>Account controls</p>
+        </SettingsSection>
+      </>,
+    );
+    const group = screen.getByRole("region", { name: "Data and support" });
+    expect(within(group).getByRole("heading", { level: 3, name: "Device data" })).toBeVisible();
+    expect(within(group).getByText("This device")).toBeVisible();
+    expect(group.querySelector('[data-slot="card"]')).toBeNull();
+    expect(screen.getByRole("heading", { level: 2, name: "Security" }).closest('[data-slot="card"]')).not.toBeNull();
+    const device = within(group).getByRole("button", { name: "Device data" });
+    await user.click(device);
+    expect(document.getElementById(device.getAttribute("aria-controls") ?? "")).toHaveTextContent("Device controls");
+    expect(within(group).getByRole("button", { name: "Import and export" })).toHaveAttribute("aria-expanded", "false");
+    await user.click(within(group).getByRole("button", { name: "About Device data" }));
+    const dialog = screen.getByRole("dialog", { name: "Device data" });
+    expect(within(dialog).getByText("Device help")).toBeVisible();
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("keeps fuller help out of the card and opens it from the labelled question-mark action", async () => {
     const user = userEvent.setup();
     render(
