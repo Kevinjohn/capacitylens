@@ -2,6 +2,8 @@
 
 **Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/crud.spec.ts`
 
+**Documentation:** [Settings — Import and export](../../docs-src/guide/settings.md#everything-else-on-the-page)
+
 ## Goal
 
 Download the current account as `capacitylens-data.json` for portability or inspection.
@@ -15,7 +17,7 @@ preparation without exporting identity or authentication records.
 
 **Precondition:** Seeded app open with **Wayne Enterprises** selected.
 
-1. Open **Settings**, scroll to **Import & export**, expand it and click **Export JSON**.
+1. Open **Settings**, find **Data and support → Import and export**, expand it and click **Export JSON**.
 2. Wait for `capacitylens-data.json` to download.
 3. Open the downloaded file and inspect its top-level shape and scoped tables.
 

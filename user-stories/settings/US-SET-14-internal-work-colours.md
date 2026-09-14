@@ -2,6 +2,8 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/internal-colours.spec.ts`
 
+**Documentation:** [Settings](../../docs-src/guide/settings.md)
+
 ## Goal
 
 Keep internal activities and Internal-owned projects neutral grey by default, with an explicit
@@ -15,7 +17,7 @@ available without making every team configure it.
 
 ## How (end-to-end)
 
-1. Open **Settings**. Under **Internal work colours**, confirm **Grey** is selected.
+1. Open **Settings**. In **Scheduling features → Internal work colours**, confirm **Grey** is selected.
 2. Open **Projects**, add `Quarterly planning`, and choose **Internal** as its Client.
 3. Confirm the existing **Colour** picker disappears and save the project.
 4. Confirm the project swatch is grey.
@@ -26,7 +28,8 @@ available without making every team configure it.
 ## Acceptance criteria
 
 - ✅ The per-account `internalColourMode` setting offers only `grey` and `palette`; absent defaults
-  to `grey`, and the value syncs, persists and exports.
+  to `grey`, and the value syncs and persists. Settings JSON exports omit company settings;
+  importing scheduling records preserves the destination company's choice.
 - ✅ Grey mode renders `internal` activity bars and Internal-owned project bars/swatches neutral
   grey. Unattributed All-projects activities remain distinct and keep their existing colours;
   attributed ones use their effective project's colour.
