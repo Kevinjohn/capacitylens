@@ -190,15 +190,16 @@ separate signals.
 `src/components/scheduler/schedulerModel.test.ts`; check `e2e/holiday-overallocation.spec.ts` when
 visible capacity or over-capacity presentation changes.
 
-#### Four-week Overview {#task-capacity-overview}
+#### Overview horizons {#task-capacity-overview}
 
 **Start:** `src/components/capacity-overview/CapacityOverviewView.tsx` connects active scoped data,
-calendar settings and the two page controls to the table.
+calendar settings and the Overview toolbar controls, including the selected horizon, to the table.
 
-**Follow through:** `capacityOverviewDates.ts` owns the fixed partial-plus-three-full-week window;
-`capacityOverviewModel.ts` owns eligibility, precise aggregation, display rounding, grouping and
-filtering. Access policy is shared in `shared/src/domain/access.ts`, while `src/auth/capacityOverviewAccess.ts`
-gates the sidebar and direct route.
+**Follow through:** `capacityOverviewDates.ts` owns the partial-plus-three-full-week tactical window
+and the optional strategic periods; `capacityOverviewModel.ts` owns eligibility, precise period
+aggregation, display rounding, grouping and filtering. Access policy is shared in
+`shared/src/domain/access.ts`, while `src/auth/capacityOverviewAccess.ts` gates the sidebar and
+direct route.
 
 **Tests:** Start with `src/components/capacity-overview/capacityOverview.test.ts`,
 `CapacityOverviewTable.test.tsx` and `src/auth/capacityOverviewAccess.test.ts`; use

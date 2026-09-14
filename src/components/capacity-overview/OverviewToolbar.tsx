@@ -2,12 +2,15 @@ import { m } from "@/i18n";
 import { SegmentedControl } from "../common/ui";
 import { useSchedulerDensity } from "../scheduler/layout";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
+import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
 
 export interface OverviewToolbarProps {
+  horizon: CapacityOverviewHorizon;
   includeTentative: boolean;
   hasAvailability: boolean;
   showTotals: boolean;
   capacityDisplayMode: CapacityDisplayMode;
+  onHorizonChange: (horizon: CapacityOverviewHorizon) => void;
   onIncludeTentativeChange: (checked: boolean) => void;
   onHasAvailabilityChange: (checked: boolean) => void;
   onShowTotalsChange: (checked: boolean) => void;
@@ -19,10 +22,22 @@ export function OverviewToolbar(props: OverviewToolbarProps) {
   return (
     <div
       data-chrome-band="toolbar"
+      data-testid="capacity-overview-toolbar"
       className="flex flex-wrap items-center gap-2 border-b border-chrome-toolbar-border bg-chrome-toolbar px-4"
       style={{ paddingBlock: density.toolbarPadY, rowGap: density.toolbarGapY }}
     >
       <h1 className="mr-auto text-xl font-semibold">{m.capacity_overview_title()}</h1>
+      <SegmentedControl
+        ariaLabel={m.capacity_overview_horizon_filter()}
+        value={props.horizon}
+        onChange={props.onHorizonChange}
+        options={[
+          { value: "4-weeks", label: m.capacity_overview_horizon_four_weeks() },
+          { value: "12-weeks", label: m.capacity_overview_horizon_twelve_weeks() },
+        ]}
+        geometry="connected"
+        size="md"
+      />
       <SegmentedControl
         ariaLabel={m.capacity_overview_tentative_filter()}
         value={props.includeTentative ? "show" : "hide"}

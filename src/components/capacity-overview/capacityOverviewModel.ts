@@ -30,7 +30,6 @@ export type {
   CapacityOverviewState,
   CapacityOverviewSummary,
   CapacityOverviewSummaryPeriod,
-  CapacityOverviewSummaryWeek,
   CapacityOverviewPeriodResult,
   CapacityOverviewWeekResult,
 } from "./capacityOverviewTypes";
@@ -138,7 +137,7 @@ function summarize(
 ): CapacityOverviewSummary {
   const people = rows.filter((row) => isCapacityTracked(row.resource) && !isPlaceholderResource(row.resource));
   const placeholders = rows.filter((row) => isPlaceholderResource(row.resource));
-  const periods = (rows[0]?.periods ?? rows[0]?.weeks ?? overviewPeriods).map((_period, index) => {
+  const periods = (rows[0]?.periods ?? overviewPeriods).map((_period, index) => {
     const availableHours = people.reduce((sum, row) => {
       const period = row.periods?.[index] ?? row.weeks[index];
       return sum + (period?.availableHours ?? 0);
