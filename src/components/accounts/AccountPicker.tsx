@@ -90,6 +90,7 @@ function EmptyAccountOptions({
   companySetupEligible: boolean;
   onCreate: () => void;
 }) {
+  if (companySetupEligible) return null;
   return (
     <div data-testid="company-empty-options" className="mt-4 flex flex-col gap-2">
       {canCreateAccount && (
@@ -102,13 +103,27 @@ function EmptyAccountOptions({
           </CardFooter>
         </Card>
       )}
-      {!companySetupEligible && (
-        <Alert>
-          <AlertDescription>{m.picker_empty_invite()}</AlertDescription>
-        </Alert>
-      )}
+      <Alert>
+        <AlertDescription>{m.picker_empty_invite()}</AlertDescription>
+      </Alert>
     </div>
   );
+}
+
+function AccountCreationPanel({
+  form,
+  companySetupEligible,
+  onSubmit,
+  onCancel,
+}: {
+  form: CreateAccountFormState & { creating: boolean };
+  companySetupEligible: boolean;
+  onSubmit: () => void;
+  onCancel: () => void;
+}) {
+  if (form.createUnresolved || (!form.creating && !companySetupEligible)) return null;
+  const props = buildCreateAccountPanelProps(form, onSubmit, companySetupEligible ? undefined : onCancel);
+  return <CreateAccountPanel {...props} />;
 }
 
 interface CreateAccountPanelProps {
@@ -126,10 +141,11 @@ interface CreateAccountPanelProps {
   onTimeZoneChange: (timezone: string) => void;
   onClearError: () => void;
   onSubmit: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
 }
 
 interface CreateAccountFormState {
+  createUnresolved: boolean;
   name: string;
   setName: (name: string) => void;
   weekStartsOn: 0 | 1;
@@ -148,7 +164,7 @@ interface CreateAccountFormState {
 function buildCreateAccountPanelProps(
   form: CreateAccountFormState,
   onSubmit: () => void,
-  onCancel: () => void,
+  onCancel?: () => void,
 ): CreateAccountPanelProps {
   return {
     name: form.name,
@@ -165,7 +181,7 @@ function buildCreateAccountPanelProps(
     onTimeZoneChange: form.setTimezone,
     onClearError: form.clear,
     onSubmit,
-    onCancel,
+    ...(onCancel ? { onCancel } : {}),
   };
 }
 
@@ -181,6 +197,7 @@ function AccountLanguageDisplay() {
 }
 
 function CreateAccountPanel(input: CreateAccountPanelProps) {
+  const fixedSettingsHelpId = useId();
   const changeName = (name: string) => {
     input.onNameChange(name);
     if (input.errorField === "name") input.onClearError();
@@ -199,6 +216,7 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
           <CardTitle>
             <h2>{m.picker_new()}</h2>
           </CardTitle>
+          <CardDescription id={fixedSettingsHelpId}>{m.picker_fixed_settings_help()}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <TextField
@@ -209,29 +227,34 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
             invalid={input.errorField === "name"}
             describedById={input.errorId}
           />
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
-            <SegmentedControl
-              ariaLabel={m.picker_week_start()}
-              value={input.weekStartsOn}
-              onChange={input.onWeekStartChange}
-              options={input.weekStartSelectOptions}
-              fullWidth
+          <fieldset aria-describedby={fixedSettingsHelpId} className="flex flex-col gap-3">
+            <legend className="sr-only">{m.picker_fixed_settings_group()}</legend>
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
+              <SegmentedControl
+                ariaLabel={m.picker_week_start()}
+                value={input.weekStartsOn}
+                onChange={input.onWeekStartChange}
+                options={input.weekStartSelectOptions}
+                fullWidth
+              />
+            </div>
+            <TimeZoneField
+              label={m.picker_timezone()}
+              value={input.timezone}
+              onChange={input.onTimeZoneChange}
+              options={input.timeZoneSelectOptions}
             />
-          </div>
-          <TimeZoneField
-            label={m.picker_timezone()}
-            value={input.timezone}
-            onChange={input.onTimeZoneChange}
-            options={input.timeZoneSelectOptions}
-          />
-          <AccountLanguageDisplay />
+            <AccountLanguageDisplay />
+          </fieldset>
           <FieldError id={input.errorId}>{input.error}</FieldError>
         </CardContent>
         <CardFooter className="flex-col gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">
-          <Button size="sm" type="button" variant="outline" onClick={input.onCancel}>
-            {m.picker_cancel()}
-          </Button>
+          {input.onCancel && (
+            <Button size="sm" type="button" variant="outline" onClick={input.onCancel}>
+              {m.picker_cancel()}
+            </Button>
+          )}
           <Button size="sm" type="submit" disabled={input.submitting}>
             {m.picker_create()}
           </Button>
@@ -296,7 +319,6 @@ export function AccountPicker() {
   const { form, submit, reset } = useCreateAccountForm({ refreshAuth });
   const accountDeletion = useDeleteAccount({ refreshAuth });
   const beginCreating = () => form.setCreating(true);
-  const createAccountPanelProps = buildCreateAccountPanelProps(form, submit, reset);
   const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
 
   return (
@@ -327,7 +349,12 @@ export function AccountPicker() {
           onConfirmDelete={accountDeletion.setConfirming}
         />
       )}
-      {form.creating && <CreateAccountPanel {...createAccountPanelProps} />}
+      <AccountCreationPanel
+        form={form}
+        companySetupEligible={companySetupEligible}
+        onSubmit={submit}
+        onCancel={reset}
+      />
       {!form.creating && accounts.length > 0 && canCreateAccount && (
         <CreateAccountAffordance onCreate={beginCreating} />
       )}
