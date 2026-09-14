@@ -20,10 +20,10 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 **Empty picker, caller may create:**
 
 1. Start from a clean device state and complete the demo sign-in if it appears.
-2. With no companies, confirm the heading is **Start planning** and the screen offers only two
-   next steps: **New company** and **Ask an admin for an invite**.
-3. Click **New company**. Confirm the form explains that its shared calendar choices are fixed,
-   then asks for **Company name**, week start, a searchable
+2. With no companies, confirm **Set up your company** and its mandatory create form appear
+   automatically. There is no preliminary choice or Cancel action.
+3. Confirm the form explains that its shared calendar choices are fixed, then asks for **Company
+   name**, week start, a searchable
    timezone combobox preselected to the browser's IANA zone, and the read-only English language
    value; it does **not** ask the user to choose a company colour.
 4. Create the company and confirm it becomes active and opens the schedule.
@@ -49,9 +49,8 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 
 ## Acceptance criteria
 
-- ✅ The empty, create-allowed state is headed **Start planning** and contains exactly the two
-  available next steps: **New company** and **Ask an admin for an invite**; the old **No companies
-  yet / Create your first one** mixed message is absent.
+- ✅ The empty, create-allowed state is headed **Set up your company** and shows the mandatory
+  company-create form immediately, with no preliminary **New company** choice and no Cancel action.
 - ✅ The empty, create-forbidden state shows only the invite step and says the user should ask an
   admin; it does not render a disabled or hidden-behind-copy create promise.
 - ✅ The populated state uses **“Choose a company to plan, or create another one.”** only when

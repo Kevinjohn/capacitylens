@@ -60,7 +60,7 @@ schedule. Allow about ten minutes after the server is running.
 
 6. **Add work to schedule.** Open **Activities** and add the work you need.
 
-   - For studio work such as planning, leave it **Internal**. You do not need a client or project.
+   - For studio work such as planning, select **Internal**. You do not need a client or project.
    - For client work, create the client and project first, then add a project activity.
 
 7. **Schedule the first piece of work.** Return to **Schedule**. Click an empty cell on the person's
