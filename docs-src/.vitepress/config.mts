@@ -124,7 +124,7 @@ export default defineConfig({
       {
         text: "Owner setup",
         items: [
-          { text: "First steps after installing", link: "/getting-started/first-steps" },
+          { text: "Make your first schedule useful", link: "/getting-started/first-steps" },
           { text: "Set up your company", link: "/getting-started/set-up-your-company" },
           { text: "Invite your team", link: "/getting-started/invite-your-team" },
           { text: "Roles and permissions", link: "/getting-started/roles-and-permissions" },

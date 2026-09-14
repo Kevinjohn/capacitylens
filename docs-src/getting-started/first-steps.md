@@ -1,87 +1,80 @@
 ---
-title: First steps after installing
-description: Claim the first Owner account, create your company and find your way around the schedule.
+title: Make your first schedule useful
+description: Create the first Owner and company, then add one person, one kind of work and one allocation.
 ---
 
-# First steps after installing
+# Make your first schedule useful
 
-Once you've finished either [installation route](/getting-started/install), this page
-covers the first few minutes inside the app: claiming the first [Owner](/reference/glossary)
-account, creating your company and getting oriented on the schedule.
+This guide takes the first [Owner](/reference/glossary) from a new installation to a useful
+schedule. Allow about ten minutes after the server is running.
 
-## Claim the Owner account
+## Prerequisites
 
-Open CapacityLens through the public URL you configured during installation. With an
-empty database, the sign-in page asks for your name, email, password and the setup token
-from your `.env` file. If you paste it with ordinary spaces around the value, CapacityLens
-removes those spaces before sending it; paste the token again if it contains invisible characters.
+- Finish one of the [installation routes](/getting-started/install).
+- In password mode, get the one-time Owner setup value from the person who installed CapacityLens.
 
-After you submit the form, self-registration closes. Nobody else can join the instance
-without an [invite](/reference/glossary), and every later visit shows the ordinary
-sign-in screen.
+## Steps
 
-::: warning
-Do not rely on `admin@admin.admin`. CapacityLens uses that bootstrap account only during
-local development and switches it off for a production install. There is no default
-production password: the Owner account you create here is the one that matters.
-:::
+1. **Set up the first Owner.** Open your CapacityLens address. Enter **Your name**, **Work email**,
+   **Create a password** and the **Owner setup token** supplied during installation. This creates
+   your personal sign-in and gives you the Owner role. You can invite other people later.
 
-## Create your company
+   CapacityLens closes public registration as soon as this succeeds. Later teammates join through
+   an [invite](/reference/glossary).
 
-Enter your company name when CapacityLens asks. This also creates its built-in
-"Internal" client and your Owner [membership](/reference/glossary).
+   ::: warning
+   Do not rely on `admin@admin.admin`. That development-only login is disabled in production.
+   The personal sign-in you create here is the first production Owner.
+   :::
 
-![Choose a company screen listing Wayne Enterprises with an Owner badge](../screenshots/flows/choose-company.jpg)
+2. **Create your company.** CapacityLens opens **Set up your company** automatically. Enter the
+   company name and check **Week starts on**, **Timezone** and **Language**.
 
-## Sign in
+   These three calendar choices are shared by everyone in the company and cannot be changed after
+   creation. Pick the convention your team will use. CapacityLens then opens the empty Schedule.
 
-Every visit after you've created the Owner account shows the plain sign-in screen: email
-and password.
+   ![The New company form explains that week start, timezone and language are shared fixed choices](../screenshots/flows/company_setup.jpg)
 
-![CapacityLens sign-in screen with email and password fields](../screenshots/flows/sign-in.jpg)
+3. **Understand what CapacityLens plans.** Read **How CapacityLens works** above the page. It
+   explains that people are rows, scheduled work spans their days, and clients, projects and
+   activities say what the work is for. CapacityLens plans capacity; it does not manage tasks,
+   tickets or deadlines.
 
-## The welcome message
+   This explanation does not block the application. Choose **Got it** when finished. You can reopen
+   it at any time from **How CapacityLens works** in the sidebar.
 
-Once per device, CapacityLens shows a short orientation explaining what it is — and what
-it isn't. It's worth reading once: it sets expectations that CapacityLens plans people,
-not paperwork, and it won't show again on that device.
+   ![The Schedule and navigation remain available beneath the How CapacityLens works orientation](../screenshots/flows/first_schedule_orientation.jpg)
 
-![Welcome to CapacityLens dialog explaining it is a resourcing tool, not a project management tool](../screenshots/flows/welcome.jpg)
+4. **Choose how to populate the company.** The **Getting started** panel offers two routes.
 
-## Finding your way around the schedule
+   - Choose **Import CapacityLens data** only when you have an export that should replace this
+     company's data. Opening Import does not count as progress; the imported records must provide
+     the outcomes below.
+   - Choose **Set up manually** to work through the three outcomes in the app.
 
-After the welcome message, you land on [the schedule](/guide/the-schedule) — the one
-screen the whole product is built around. On a fresh install it's empty, with a **Getting
-started** panel. Choose **Import existing data** if you already have a CapacityLens export;
-otherwise choose **Start from scratch**. Imported clients, projects, activities, people and
-allocations count as real progress, so you do not need to create temporary records.
+5. **Add someone to the schedule.** Follow that link to **Resources**, then add a person whose
+   capacity you want to plan. A [person](/reference/glossary) is a schedulable row. A
+   [member](/reference/glossary) is someone who can sign in. They are separate: you can schedule a
+   freelancer who never signs in, and inviting a teammate does not automatically add them to the
+   schedule.
 
-Starting from scratch, follow the links to add your first client, project, activity and person.
-Then return to Schedule and click or drag across the person's row to assign them. The last required
-step links to the relevant Settings area so you can review the company's scheduling mode, normal
-availability and focused optional features. The defaults are deliberately small; you can leave
-them alone unless your team works differently.
+6. **Add work to schedule.** Open **Activities** and add the work you need.
 
-The complete checklist stays on Schedule. While setup is incomplete, other pages show a compact
-progress link back to it. **Invite your team** is optional, and **Show me around** still gives a
-short tour of the main navigation without changing pages.
+   - For studio work such as planning, select **Internal**. You do not need a client or project.
+   - For client work, create the client and project first, then add a project activity.
 
-![The Schedule view with people grouped by discipline, allocation bars, utilisation and a holiday block](../screenshots/flows/schedule.jpg)
+7. **Schedule the first piece of work.** Return to **Schedule**. Click an empty cell on the person's
+   row, or drag across several days. Choose the activity and save the [allocation](/reference/glossary).
 
-A few things worth knowing before you start adding data:
+   The **Getting started** panel closes when all three outcomes exist: a person, coherent work and
+   an allocation connecting them. Imported data follows the same rule.
 
-- People are grouped by [discipline](/reference/glossary) down the left.
-- Allocation bars span the weeks a [person](/reference/glossary) is booked, and can be tentative, confirmed or
-  completed.
-- [Utilisation](/reference/glossary) percentages update live as you drag allocations around.
-- Time off — holiday, sick, unpaid — sits on the same canvas as work, so capacity is
-  always honest.
-
-See [The schedule](/guide/the-schedule) for the full walkthrough of the view, and [People
-and placeholders](/guide/people-and-placeholders) for adding your team.
+8. **Use the optional paths when they help.** **Review Settings** is useful when your company works
+   differently from the defaults. **Invite your team** opens Team & access for an Owner or Admin.
+   **Show me around** gives a five-stop tour without changing pages. None of these is required to
+   complete the first schedule.
 
 ## What's next
 
-[Invite your team](/getting-started/invite-your-team) so the rest of your studio can sign
-in too — or go straight to [The schedule](/guide/the-schedule) if you're setting things up
-solo first.
+See [The schedule](/guide/the-schedule) for day-to-day planning, or [Invite your
+team](/getting-started/invite-your-team) when other people need to sign in.

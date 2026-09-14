@@ -33,7 +33,8 @@ online membership-driven Viewer mode is reachable only on a server + auth-on dep
 `VITE_CAPACITYLENS_API` only when the API uses a different origin. Owner A has created a company and
 invited **Viewer V** and **Editor E** (both accepted).
 
-**As V (viewer):** sign in, pick the company, dismiss the intro.
+**As V (viewer):** sign in and pick the company. Dismiss the non-blocking product orientation if
+it is open.
 
 1. The sidebar footer shows a subtle pill-shaped **"View only"** badge
    (`data-testid="view-only"`) beside the company name.

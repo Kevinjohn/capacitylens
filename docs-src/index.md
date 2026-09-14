@@ -30,7 +30,8 @@ For the person putting CapacityLens on a server.
 
 For the person accountable for a new CapacityLens company.
 
-- [First steps after installing](/getting-started/first-steps) — claim the first Owner account.
+- [Make your first schedule useful](/getting-started/first-steps) — create the first Owner, company
+  and allocation.
 - [Set up your company as Owner](/getting-started/set-up-your-company) — move from a fresh install
   to an administered, ready-to-use company.
 - [Invite your team](/getting-started/invite-your-team) — create sign-ins and appoint Admins.
