@@ -90,6 +90,7 @@ function EmptyAccountOptions({
   companySetupEligible: boolean;
   onCreate: () => void;
 }) {
+  if (companySetupEligible) return null;
   return (
     <div data-testid="company-empty-options" className="mt-4 flex flex-col gap-2">
       {canCreateAccount && (
@@ -102,13 +103,27 @@ function EmptyAccountOptions({
           </CardFooter>
         </Card>
       )}
-      {!companySetupEligible && (
-        <Alert>
-          <AlertDescription>{m.picker_empty_invite()}</AlertDescription>
-        </Alert>
-      )}
+      <Alert>
+        <AlertDescription>{m.picker_empty_invite()}</AlertDescription>
+      </Alert>
     </div>
   );
+}
+
+function AccountCreationPanel({
+  form,
+  companySetupEligible,
+  onSubmit,
+  onCancel,
+}: {
+  form: CreateAccountFormState & { creating: boolean };
+  companySetupEligible: boolean;
+  onSubmit: () => void;
+  onCancel: () => void;
+}) {
+  if (!form.creating && !companySetupEligible) return null;
+  const props = buildCreateAccountPanelProps(form, onSubmit, companySetupEligible ? undefined : onCancel);
+  return <CreateAccountPanel {...props} />;
 }
 
 interface CreateAccountPanelProps {
@@ -126,7 +141,7 @@ interface CreateAccountPanelProps {
   onTimeZoneChange: (timezone: string) => void;
   onClearError: () => void;
   onSubmit: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
 }
 
 interface CreateAccountFormState {
@@ -148,7 +163,7 @@ interface CreateAccountFormState {
 function buildCreateAccountPanelProps(
   form: CreateAccountFormState,
   onSubmit: () => void,
-  onCancel: () => void,
+  onCancel?: () => void,
 ): CreateAccountPanelProps {
   return {
     name: form.name,
@@ -165,7 +180,7 @@ function buildCreateAccountPanelProps(
     onTimeZoneChange: form.setTimezone,
     onClearError: form.clear,
     onSubmit,
-    onCancel,
+    ...(onCancel ? { onCancel } : {}),
   };
 }
 
@@ -199,6 +214,7 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
           <CardTitle>
             <h2>{m.picker_new()}</h2>
           </CardTitle>
+          <CardDescription>{m.picker_fixed_settings_help()}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <TextField
@@ -229,9 +245,11 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
           <FieldError id={input.errorId}>{input.error}</FieldError>
         </CardContent>
         <CardFooter className="flex-col gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">
-          <Button size="sm" type="button" variant="outline" onClick={input.onCancel}>
-            {m.picker_cancel()}
-          </Button>
+          {input.onCancel && (
+            <Button size="sm" type="button" variant="outline" onClick={input.onCancel}>
+              {m.picker_cancel()}
+            </Button>
+          )}
           <Button size="sm" type="submit" disabled={input.submitting}>
             {m.picker_create()}
           </Button>
@@ -296,7 +314,6 @@ export function AccountPicker() {
   const { form, submit, reset } = useCreateAccountForm({ refreshAuth });
   const accountDeletion = useDeleteAccount({ refreshAuth });
   const beginCreating = () => form.setCreating(true);
-  const createAccountPanelProps = buildCreateAccountPanelProps(form, submit, reset);
   const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
 
   return (
@@ -327,7 +344,12 @@ export function AccountPicker() {
           onConfirmDelete={accountDeletion.setConfirming}
         />
       )}
-      {form.creating && <CreateAccountPanel {...createAccountPanelProps} />}
+      <AccountCreationPanel
+        form={form}
+        companySetupEligible={companySetupEligible}
+        onSubmit={submit}
+        onCancel={reset}
+      />
       {!form.creating && accounts.length > 0 && canCreateAccount && (
         <CreateAccountAffordance onCreate={beginCreating} />
       )}
