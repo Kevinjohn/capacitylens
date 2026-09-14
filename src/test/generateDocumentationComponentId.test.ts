@@ -1,21 +1,16 @@
 // @vitest-environment node
-
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { generateDocumentationComponentId } from "../../docs-src/.vitepress/generateDocumentationComponentId.mts";
 
 const identityHash = (value: string) => value;
-type VitePressConfig = {
-  vue?: { features?: { componentIdGenerator?: typeof generateDocumentationComponentId } };
-};
-const vitepressConfig = (
-  (await import(new URL("../../docs-src/.vitepress/config.mts", import.meta.url).href)) as {
-    default: VitePressConfig;
-  }
-).default;
 
 describe("documentation Vue component IDs", () => {
-  it("passes the exact generator callback to VitePress", () => {
-    expect(vitepressConfig.vue?.features?.componentIdGenerator).toBe(generateDocumentationComponentId);
+  it("passes the generator through the VitePress Vue feature config", async () => {
+    const { default: documentationConfig } = await vi.importActual<{
+      default: { vue?: { features?: { componentIdGenerator?: typeof generateDocumentationComponentId } } };
+    }>("../../docs-src/.vitepress/config.mts");
+
+    expect(documentationConfig.vue?.features?.componentIdGenerator).toBe(generateDocumentationComponentId);
   });
 
   it.each([
