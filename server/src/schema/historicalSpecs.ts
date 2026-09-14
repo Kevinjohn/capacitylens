@@ -51,6 +51,22 @@ function liveTableSpec(table: string): TableSpec {
 }
 
 const ACCOUNT_COLUMN_INTRODUCED_AT: Record<string, number> = {
+  id: 8,
+  name: 8,
+  color: 8,
+  schedulingMode: 8,
+  timezone: 8,
+  weekStartsOn: 8,
+  language: 8,
+  disciplinesEnabled: 8,
+  placeholdersEnabled: 8,
+  externalEnabled: 8,
+  createdAt: 8,
+  updatedAt: 8,
+  internalColourMode: 9,
+  showInternalProjects: 16,
+  showInternalActivities: 16,
+  inlineActivityCreateEnabled: 16,
   groupResourcesByEngagement: 30,
   workingDays: 31,
   showTaskFieldInSchedule: 37,
@@ -64,7 +80,10 @@ export function buildAccountsTableAtVersion(targetVersion: number): TableSpec {
     ...accounts,
     columns: accounts.columns.filter((column) => {
       const introducedAt = ACCOUNT_COLUMN_INTRODUCED_AT[column.name];
-      return introducedAt === undefined || introducedAt <= targetVersion;
+      if (introducedAt === undefined) {
+        throw new Error(`Missing ACCOUNT_COLUMN_INTRODUCED_AT entry for live accounts column "${column.name}".`);
+      }
+      return introducedAt <= targetVersion;
     }),
   };
 }
