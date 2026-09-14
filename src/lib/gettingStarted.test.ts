@@ -13,7 +13,10 @@ import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { FIXTURE_RESOURCE_EXTERNAL } from "@capacitylens/shared/data/fixtures";
 
 beforeEach(() => localStorage.clear());
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 const NOW = "2026-06-03T12:00:00.000Z";
 const entity = { accountId: "a1", createdAt: NOW, updatedAt: NOW };
@@ -65,6 +68,33 @@ const allocation = (over: Partial<Allocation> = {}): Allocation => ({
   ...over,
 });
 const dataWith = (slices: Partial<AppData>): AppData => ({ ...emptyAppData(), ...slices });
+
+function stubStorageMethod(method: "getItem" | "setItem", failure: Error): void {
+  const storage = globalThis.localStorage;
+  const clear = typeof storage.clear === "function" ? storage.clear.bind(storage) : () => {};
+  const getItem = typeof storage.getItem === "function" ? storage.getItem.bind(storage) : () => null;
+  const key = typeof storage.key === "function" ? storage.key.bind(storage) : () => null;
+  const removeItem = typeof storage.removeItem === "function" ? storage.removeItem.bind(storage) : () => {};
+  const setItem = typeof storage.setItem === "function" ? storage.setItem.bind(storage) : () => {};
+  vi.stubGlobal("localStorage", {
+    length: storage.length,
+    clear,
+    getItem:
+      method === "getItem"
+        ? () => {
+            throw failure;
+          }
+        : getItem,
+    key,
+    removeItem,
+    setItem:
+      method === "setItem"
+        ? () => {
+            throw failure;
+          }
+        : setItem,
+  } satisfies Storage);
+}
 
 describe("first-use outcome truth table", () => {
   it("starts with all three outcomes incomplete", () => {
@@ -239,20 +269,8 @@ describe("first-use outcome truth table", () => {
   it("requires all useful outcomes regardless of legacy markers", () => {
     const complete = { person: true, work: true, scheduled: true };
     expect(hasCompletedAllSteps(complete)).toBe(true);
-    expect(
-      isGettingStartedComplete(complete, {
-        started: true,
-        importChosen: true,
-        scratchChosen: true,
-        settingsReviewed: false,
-      }),
-    ).toBe(true);
-    expect(
-      isGettingStartedComplete(
-        { ...complete, scheduled: false },
-        { started: true, importChosen: true, scratchChosen: true, settingsReviewed: true },
-      ),
-    ).toBe(false);
+    expect(isGettingStartedComplete(complete)).toBe(true);
+    expect(isGettingStartedComplete({ ...complete, scheduled: false })).toBe(false);
   });
 
   it("treats partial meaningful data as existing setup data", () => {
@@ -280,7 +298,6 @@ describe("onboarding progress persistence", () => {
       started: true,
       importChosen: true,
       scratchChosen: true,
-      settingsReviewed: true,
     });
   });
 
@@ -291,28 +308,50 @@ describe("onboarding progress persistence", () => {
       started: false,
       importChosen: false,
       scratchChosen: false,
-      settingsReviewed: false,
     });
     expect(warning).toHaveBeenCalledWith("gettingStarted: saved progress could not be parsed; using empty progress");
   });
 
   it("does not throw when device storage rejects a read or write", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.spyOn(Storage.prototype, "getItem").mockImplementationOnce(() => {
-      throw new Error("private");
-    });
+    stubStorageMethod("getItem", new Error("private"));
     expect(readGettingStartedProgress("a1").started).toBe(false);
-    vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
-      throw new Error("private");
-    });
+    stubStorageMethod("setItem", new Error("private"));
     expect(() =>
       writeGettingStartedProgress("a1", {
         started: true,
         importChosen: false,
         scratchChosen: false,
-        settingsReviewed: false,
       }),
     ).not.toThrow();
     expect(warning).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps every persistence diagnostic static when storage exposes sensitive values", () => {
+    const accountId = "sensitive-account-id";
+    const payload = '{"started":true,"payload":"sensitive-payload"';
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.stubGlobal("localStorage", { ...globalThis.localStorage, getItem: () => payload } satisfies Storage);
+    readGettingStartedProgress(accountId);
+    stubStorageMethod("getItem", new Error(`sensitive read exception for ${accountId}`));
+    readGettingStartedProgress(accountId);
+    stubStorageMethod("setItem", new Error(`sensitive write exception for ${accountId}`));
+    writeGettingStartedProgress(accountId, {
+      started: true,
+      importChosen: true,
+      scratchChosen: false,
+    });
+
+    for (const args of warning.mock.calls) {
+      expect(args.every((argument) => !String(argument).includes(accountId))).toBe(true);
+      expect(args.every((argument) => !String(argument).includes(payload))).toBe(true);
+      expect(args.every((argument) => !String(argument).includes("sensitive read exception"))).toBe(true);
+      expect(args.every((argument) => !String(argument).includes("sensitive write exception"))).toBe(true);
+    }
+    expect(warning.mock.calls).toEqual([
+      ["gettingStarted: saved progress could not be parsed; using empty progress"],
+      ["gettingStarted: progress could not be read; using empty progress"],
+      ["gettingStarted: progress could not be saved; continuing in memory"],
+    ]);
   });
 });
