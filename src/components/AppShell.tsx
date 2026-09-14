@@ -1,4 +1,4 @@
-import { Suspense, useRef, useState, type CSSProperties } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { GettingStartedShortcut } from "./GettingStarted";
 import { Toaster } from "sonner";
@@ -25,13 +25,8 @@ import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
 import { retryActiveAccountLoad } from "../data/persist";
 import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
 import { useAuth } from "../auth/authContext";
-import {
-  dismissProductOrientation,
-  hasDismissedProductOrientation,
-  NO_ACTIVE_COMPANY_SEGMENT,
-  resolveProductOrientationSubject,
-} from "../lib/productOrientation";
 import { ProductOrientation } from "./ProductOrientation";
+import { useProductOrientation } from "./useProductOrientation";
 
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
@@ -125,27 +120,6 @@ type GatedAppProps = {
   navigate: ReturnType<typeof useNavigate>;
 };
 
-function useProductOrientationState(subjectId: string, accountId: string) {
-  const scope = `${subjectId}\u0000${accountId}`;
-  const [visibilityOverrides, setVisibilityOverrides] = useState<Record<string, boolean>>({});
-  const triggerRef = useRef<{ scope: string; element: HTMLButtonElement } | null>(null);
-  const visible = visibilityOverrides[scope] ?? !hasDismissedProductOrientation(subjectId, accountId);
-
-  const show = (trigger: HTMLButtonElement) => {
-    triggerRef.current = { scope, element: trigger };
-    setVisibilityOverrides((current) => ({ ...current, [scope]: true }));
-  };
-  const dismiss = () => {
-    dismissProductOrientation(subjectId, accountId);
-    setVisibilityOverrides((current) => ({ ...current, [scope]: false }));
-    const trigger = triggerRef.current?.scope === scope ? triggerRef.current.element : null;
-    triggerRef.current = null;
-    trigger?.focus();
-  };
-
-  return { dismiss, scope, show, visible };
-}
-
 function GatedApp({
   hydrated,
   connectionError,
@@ -171,9 +145,11 @@ function GatedApp({
   navigate,
 }: GatedAppProps) {
   const { user } = useAuth();
-  const orientationSubject = resolveProductOrientationSubject({ userId: user?.id ?? null, demo: demoAuthActive });
-  const orientationAccount = activeAccountId ?? NO_ACTIVE_COMPANY_SEGMENT;
-  const orientation = useProductOrientationState(orientationSubject, orientationAccount);
+  const orientation = useProductOrientation({
+    userId: user?.id ?? null,
+    demo: demoAuthActive,
+    accountId: activeAccountId,
+  });
 
   return (
     <AppEntryGate
@@ -262,7 +238,6 @@ function GatedSidebar({
   );
 }
 
-// Keep the main surface isolated so this shell remains an orchestration boundary.
 function GatedMain({
   hydrated,
   offline,
@@ -381,14 +356,10 @@ export function AppShell() {
   const activeAccount =
     accounts.find((account) => account.id === activeAccountId) ??
     accountSummaries.find((a) => a.id === activeAccountId);
-  // Cosmetic demo sign-in (see the gate below). `demoAuthActive` is true only when the real
-  // auth seam is OFF, so the demo gate and the real login wall never double-gate.
   const demoAuthActive = useDemoAuthActive();
   const fakeSignedIn = useStore((state) => state.fakeSignedIn);
   const setFakeSignedIn = useStore((state) => state.setFakeSignedIn);
   const signOutDemo = useStore((state) => state.signOutDemo);
-  // Drop the Disciplines destination from the nav when the active account doesn't use
-  // disciplines (the route itself is also guarded — see router.tsx).
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== "/disciplines");
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
