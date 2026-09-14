@@ -49,10 +49,12 @@ test("function length limits distinguish TypeScript, TSX, and test callbacks", a
 
 test("local hooks and pull requests run the intended static-analysis checks", () => {
   const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  const prePushChecks = "pnpm run format:check && pnpm run typecheck && pnpm run lint && pnpm run policy:file-sizes";
   assert.equal(packageJson.scripts.prepare, "simple-git-hooks");
   assert.equal(packageJson.scripts["lint:staged"], "pnpm run paraglide:compile && lint-staged");
+  assert.equal(packageJson.scripts["check:push"], prePushChecks);
   assert.equal(packageJson["simple-git-hooks"]["pre-commit"], "pnpm run lint:staged");
-  assert.equal(packageJson["simple-git-hooks"]["pre-push"], "pnpm run lint && pnpm run policy:file-sizes");
+  assert.equal(packageJson["simple-git-hooks"]["pre-push"], "pnpm run check:push");
   assert.equal(
     packageJson["lint-staged"]["*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
     "eslint --max-warnings 0 --no-warn-ignored",
@@ -63,11 +65,8 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
   ).toJS();
   assert.deepEqual(workflow.on.pull_request.branches, ["main"]);
   const commands = workflow.jobs.application.steps.map(({ run }) => run).filter(Boolean);
-  assert.equal(commands[0], "pnpm run format:check");
+  assert.equal(commands[0], "pnpm run check:push");
   assert.equal(packageJson.scripts["format:check"], "prettier --check .");
-  assert.ok(commands.includes("pnpm run lint"));
-  assert.ok(commands.includes("pnpm run policy:file-sizes"));
-  assert.ok(commands.includes("pnpm run typecheck"));
   assert.ok(commands.includes("pnpm run policy:lint-coverage:test"));
   // Pin the script's BODY, not only its name. Asserting the workflow calls `pnpm run typecheck`
   // proves nothing on its own: a `typecheck` reduced to a bare root `tsc --noEmit` reads no files
