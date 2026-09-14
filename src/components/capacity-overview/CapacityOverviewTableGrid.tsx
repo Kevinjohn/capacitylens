@@ -9,8 +9,9 @@ import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { useSchedulerDensity } from "../scheduler/layout";
 import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
-import { capacityBarFillStyle, computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
-import type { CapacityBarFill, CapacityBarFillContext, CapacityDisplayMode } from "./capacityOverviewBar";
+import { computeCapacityBarFill, formatWeekValueText } from "./capacityOverviewBar";
+import type { CapacityDisplayMode } from "./capacityOverviewBar";
+import { CapacityBarFillLayer } from "./CapacityBarFillLayer";
 import type {
   CapacityOverviewGroup,
   CapacityOverviewModel,
@@ -165,25 +166,6 @@ function PersonIdentity({
         <span className="block truncate text-sm font-medium">{resolveResourceDisplayName(resource)}</span>
         <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
       </div>
-    </div>
-  );
-}
-
-function CapacityBarFillLayer({ fill, context }: { fill: CapacityBarFill; context: CapacityBarFillContext }) {
-  return (
-    <div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-[3px]"
-      style={{ background: "var(--color-line-soft)" }}
-    >
-      {fill.kind !== "none" && (
-        <div
-          data-testid="capacity-bar-fill"
-          data-bar-kind={fill.kind}
-          className="absolute inset-x-0 bottom-0"
-          style={{ height: `${fill.fraction * 100}%`, ...capacityBarFillStyle(fill, context) }}
-        />
-      )}
     </div>
   );
 }

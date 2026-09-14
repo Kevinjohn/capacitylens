@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Organise Settings into Company setup, Scheduling features, My display, and Data and support,
+  with compact responsive rows, clearer labels and visible company/device scope (#965).
+
 ### Added
 
 - Add an optional **12 weeks** strategic horizon to Overview, while keeping the four-week tactical

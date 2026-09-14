@@ -88,7 +88,7 @@ async function manageAdminMembers(
   await expect(page.getByRole("heading", { name: "Welcome to CapacityLens" })).toBeVisible();
   await page.getByTestId("intro-continue").click();
   await expect(page.getByTestId("getting-started")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Invite your team" })).toHaveAttribute("href", "/team");
+  await expect(page.getByRole("link", { name: "Invite people to sign in" })).toHaveAttribute("href", "/team");
   await page.getByRole("link", { name: "Team & access" }).click();
   await expect(page.getByTestId("current-access")).toContainText("Admin");
   await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();

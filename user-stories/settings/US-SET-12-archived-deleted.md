@@ -2,11 +2,13 @@
 
 **Area:** Settings · **Persona:** Studio manager / admin · **Linked E2E:** `e2e/archived.spec.ts` → "archive a resource → it vanishes from the schedule + active list → inline restore → re-archive → delete → Settings tombstone (purge locked)"
 
+**Documentation:** [Settings](../../docs-src/guide/settings.md)
+
 ## Goal
 
 Give owners and administrators an expanded archive section at the bottom of each Resources, Clients,
 Projects and Activities list, where they can restore an accidental archive immediately or **delete**
-it to start the purge countdown. Keep soft-deleted items in **Settings → Deleted items** until they
+it to start the purge countdown. Keep soft-deleted items in **Settings → Data and support → Deleted items** until they
 become eligible for permanent deletion.
 
 ## Why
@@ -35,7 +37,7 @@ surfaces here.
    the Resources list.
 4. Re-archive Barry and on the archived row click **Delete Barry
    Allen** → confirm **Delete** in the _"Delete this item?"_ dialog.
-5. Open **Settings → Deleted items**. Barry appears under **Deleted** (`data-testid="deleted-row"`) with the obfuscated name
+5. Open **Settings → Data and support → Deleted items**. Barry appears under **Deleted** (`data-testid="deleted-row"`) with the obfuscated name
    **"Removed person #…"** (the original name is gone). Its **Delete permanently**
    (`data-testid="archived-purge"`) button is **disabled**, with the hint _"Can be permanently deleted
    30 days after deletion"_ (the tombstone is brand-new, < 30 days).
@@ -48,7 +50,7 @@ surfaces here.
 - ✅ Each list's archive section is expanded and visible only to owners/admins. Resources groups
   inactive rows as Archived Studio, Archived Supplementary, Archived External, then Archived placeholders
   when present. A non-admin/viewer never receives or sees inactive rows.
-- ✅ **Settings → Deleted items** is an independent disclosure, closed by default, and lists only
+- ✅ **Settings → Data and support → Deleted items** is an independent disclosure, closed by default, and lists only
   soft-deleted resources, clients, projects and activities.
 - ✅ **Restore** on an archived row returns it to active (reappears on the schedule + its list).
 - ✅ **Delete** on an archived row soft-deletes it (a confirm first): it moves to Deleted items,

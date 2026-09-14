@@ -2,6 +2,8 @@
 
 **Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "rejects a non-CapacityLens file with a notice and preserves existing data"
 
+**Documentation:** [Settings — Import and export](../../docs-src/guide/settings.md#everything-else-on-the-page)
+
 ## Goal
 
 Pick the wrong file and have CapacityLens refuse it with a clear notice, leaving the current data exactly as it was — never a silent wipe.
@@ -19,7 +21,7 @@ Import replaces everything, so feeding it a random JSON or a non-CapacityLens fi
   (Note: a file like `{ "resources": [] }` _would_ be accepted — the guard recognises any of `resources`, `disciplines`, `clients`, `projects`, `phases`, `activities`, `allocations`, `timeOff` as an array — so the test file must contain none of those keys as arrays.)
 
 1. Note the current data (e.g. Clients shows _Queen Consolidated_ and _LexCorp_; the Schedule has the seed bars).
-2. Open **Settings** → **Import & export**, expand it, click **Import JSON** and choose the
+2. Open **Settings** → **Import and export**, expand it, click **Import JSON** and choose the
    non-CapacityLens file.
 3. Observe the result — no confirmation dialog appears; instead a notice toast is shown.
 
