@@ -19,7 +19,8 @@ read the documentation from beginning to end.
 
 2. **Finish the first company setup.** The person responsible for the new installation should
    follow [Set up your company as Owner](/getting-started/set-up-your-company). It connects the
-   technical installation to the first useful schedule and explains when to involve an Admin.
+   technical installation to the first useful schedule through three clear outcomes, and explains
+   when to involve an Admin.
 
 3. **Learn only the screen you need.** Start with [The schedule](/guide/the-schedule), then use
    [People and placeholders](/guide/people-and-placeholders), [Projects and

@@ -50,5 +50,5 @@ checks.
 
 ## What's next
 
-After completing a route, follow [First steps after installing](/getting-started/first-steps)
-to claim the Owner account and find your way around the schedule.
+After completing a route, follow [Make your first schedule useful](/getting-started/first-steps)
+to create the first Owner, company and allocation.

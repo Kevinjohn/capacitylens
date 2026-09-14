@@ -99,21 +99,18 @@ If the app changes, update this file first, then the affected stories.
    reclassifying the response status.
    After a confirmed deletion completes, the picker announces that the named company was
    permanently deleted.
-5. Then a one-time **"What CapacityLens is" intro page** (heading `Welcome to CapacityLens`) — a minimal
-   post-login explainer that CapacityLens is a resourcing tool, not a project-management tool. Click
-   **Continue** (`data-testid="intro-continue"`) to enter the app. It shows once per device
-   (`capacitylens/introSeen`, default off, never in `AppData`/export) and is skipped thereafter. The
-   wording is **placeholder copy** (single-sourced under `intro_*` in `messages/en.json` and assembled
-   by `src/lib/introCopy.ts`), pending a human edit.
-6. On an account that still has an onboarding step to do, the schedule shows a floating **Getting
-   started** checklist card (`data-testid="getting-started"`) over the schedule without shifting
-   the toolbar or grid. It first asks the user to **Import existing data** or explicitly **Start
-   from scratch**, then tracks adding a client, project, activity and person, assigning that person
-   to the project, and reviewing the company's focused scheduling, availability and optional-feature
-   defaults in Settings. An entity step ticks itself off from
-   the account's actual data (the built-in Internal client does NOT count as "your first
-   client", and placeholder or external resources do NOT count as "your first person"); the card
-   self-hides once ALL steps are done, so the seeded companies never show it.
+5. The application opens with a non-blocking **How CapacityLens works** region
+   (`data-testid="product-orientation"`) above the page. It explains the week-by-week people and
+   work model and says CapacityLens does not manage tasks, tickets or deadlines. **Got it**
+   dismisses it for this person and company on this device. A permanent **How CapacityLens works**
+   sidebar action reopens it. The versioned preference is implemented by
+   `src/lib/productOrientation.ts`; it is never in `AppData` or an export.
+6. On a company that still has a first-use outcome to complete, the schedule shows a floating
+   **Getting started** card (`data-testid="getting-started"`) without shifting the toolbar or grid.
+   It offers **Import CapacityLens data** where permitted or **Set up manually**, then tracks three
+   real outcomes: a schedulable person, coherent work, and an allocation connecting them. Internal
+   work needs no client or project; project work needs active client and project ancestry. Following
+   the Import link alone completes nothing. The card self-hides once all three outcomes exist.
    **Show me around** (`data-testid="getting-started-tour"`) runs a loose five-stop driver.js
    spotlight tour (schedule grid → toolbar → People → Clients & projects → Settings; Next/Back/
    Done buttons, Escape bails, never navigates). The button is busy and cannot start a duplicate
@@ -124,10 +121,9 @@ If the app changes, update this file first, then the affected stories.
    (`capacitylens/gettingStartedDismissed`, default off, never in `AppData`/export). Hidden for a
    Viewer (every schedule-setup CTA is a write they can't do). In an authenticated company, Owner
    and Admin additionally see an optional **Invite your team** link to `/team`; it is deliberately
-   outside the completion steps, so a solo owner can finish setup without inviting anyone. New
-   setup keeps the Settings review pending even when the user begins by adding records directly;
-   established companies do not reopen onboarding. Import and Settings links scroll to and focus
-   their destination section. Away
+   outside the completion outcomes. Only Owner or open/demo access sees whole-company import.
+   **Review Settings** is also optional. Import and Settings links scroll to and focus their
+   destination section. Away
    from Schedule, a compact progress link returns to the full card without covering page content.
 7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
 8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
@@ -914,14 +910,14 @@ sign-in email, and its immutable subject must not belong to another principal. A
 shows **Connected to _provider_**. Raw provider link/unlink routes are unavailable. A federated
 session in mixed mode uses that same provider—not a password it may not have—for **Confirm it's you**.
 
-**First-run owner setup (password mode, zero users).** When the server reports `needsSetup: true`
+**First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
-bootstrap account and closes the moment it exists), the login wall shows a **Create the owner
-account** screen instead of sign-in: heading `Create the owner account`, fields `Name`
-(`data-testid="owner-setup-name"`), `Email` (`data-testid="owner-setup-email"`), `Password`
-(`data-testid="owner-setup-password"`), and `SMALLSASS_ACCOUNT_SETUP_TOKEN`
-(`data-testid="owner-setup-token"`) with guidance to use the value from the server `.env` file or
-installer, plus a `Create owner account` button
+bootstrap account and closes the moment it exists), the login wall shows **Set up the first Owner**
+instead of sign-in. It explains that this creates a personal sign-in with the Owner role and that
+other people can be invited later. Fields are **Your name**
+(`data-testid="owner-setup-name"`), **Work email** (`data-testid="owner-setup-email"`), **Create a
+password** (`data-testid="owner-setup-password"`) with its length requirement, and **Owner setup
+token** (`data-testid="owner-setup-token"`) with installer guidance, plus a **Create Owner** button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
 owner in and reloads into **Set up your company**, where the owner creates the first company before
 entering the app. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
@@ -1266,16 +1262,15 @@ and is cleared by **Sign out** (on the picker and the sidebar footer). It is mou
 `authMode === 'off'`, so it never collides with the real login wall above. The persona lives in
 `src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
 
-**Post-login intro page ("What CapacityLens is").** After a company is chosen — in **every** entry mode
-(real auth, the cosmetic demo sign-in, and the no-auth default all converge on a chosen account) —
-a minimal full-screen page (heading `Welcome to CapacityLens`) explains CapacityLens is a **resourcing tool**,
-not a project-management tool, before the app proper. It has a single **Continue** button
-(`data-testid="intro-continue"`). Shown **once per device** (`capacitylens/introSeen`, default off; never
-in `AppData`/export) and skipped thereafter — so it does not reappear on reload. The copy is
-**placeholder** (a human edits it later), single-sourced under `intro_*` in `messages/en.json` and
-assembled by `src/lib/introCopy.ts`; the component is `src/components/IntroPage.tsx`. Spec
-`e2e/fake-signin.spec.ts` (and `e2e/login.auth.spec.ts` for the
-real-auth path).
+**Product orientation.** The application shell can show a normal-flow region headed **How
+CapacityLens works** (`data-testid="product-orientation"`) for every role and for the no-company
+Account view. It does not hide navigation or page content. **Got it** dismisses it with a versioned,
+per-person and per-company device preference (`capacitylens/productOrientation/v1/...`); storage
+failure leaves it dismissed for the current mount. The permanent sidebar action with the same name
+reopens it and moves focus to the heading. Sources: `src/components/ProductOrientation.tsx`,
+`src/components/useProductOrientation.ts`, `src/lib/productOrientation.ts`; coverage:
+`src/components/AppShell.productOrientation.test.tsx`, `src/components/ProductOrientation.test.tsx`,
+`src/lib/productOrientation.test.ts`, and `e2e/fake-signin.spec.ts`.
 
 ## Command palette
 
@@ -1342,7 +1337,7 @@ shown for the few seconds of POST + re-hydrate; not dismissable, locks all editi
 `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
 `account-load-recovery` (failed selected-company hydration; replaces the application shell until
 Retry succeeds or another company is chosen),
-`intro-continue` (the post-login "What CapacityLens is" page's Continue button; shown once per device),
+`product-orientation` (the non-blocking **How CapacityLens works** region),
 `getting-started` (the schedule's first-run checklist card; only while the active account has an
 incomplete onboarding step and it hasn't been dismissed), `getting-started-tour` (its **Show me
 around** button — runs the driver.js orientation tour), `getting-started-dismiss` (its **Dismiss**
@@ -1678,8 +1673,8 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
 ### Reliability and recovery expectations
 
 - The application shows a loading state until the local store is hydrated; it never renders an
-  empty company as though loading had completed. Lazy public-auth, first-run introduction and
-  storage-recovery screens also retain a visible `Loading…` status while their code loads.
+  empty company as though loading had completed. Lazy public-auth and storage-recovery screens also
+  retain a visible `Loading…` status while their code loads.
 - Unreadable browser data opens a dedicated recovery screen rather than the server connection retry.
   It can request a raw-copy download before a confirmed reset; reset attempts clear both local
   CapacityLens keys and offline snapshots, report partial failures precisely, and only reload once

@@ -19,16 +19,21 @@ ownership if somebody else should hold it.
 
 ## 1. Claim the Owner account and create the company
 
-In password mode, follow [First steps after installing](/getting-started/first-steps) and enter the
-one-time setup token. With company login, sign in with the bootstrap-listed email and create the
-first company when prompted. Either route creates the only first Owner and reaches the empty
-schedule. Once that Owner exists, everybody else joins through an invitation.
+In password mode, follow [Make your first schedule useful](/getting-started/first-steps). **Set up
+the first Owner** creates a personal sign-in and explains that the person becomes Owner. With
+company login, sign in with the bootstrap-listed email. Either route opens **Set up your company**
+automatically when no company exists.
+
+Choose the company name, week start, timezone and language carefully. The three calendar choices
+are shared by everyone in the company and cannot be changed after creation. The first-company form
+has no Cancel action because creating the company is the only available next step. Once the Owner
+and company exist, everybody else joins through an invitation.
 
 ## 2. Prepare the schedule
 
-Use the **Getting started** panel on the Schedule. Import an existing CapacityLens export, or
-start from scratch and add a client, project, activity and person. Review the linked Settings
-options before dismissing the panel.
+Use the **Getting started** panel on the Schedule. Import an existing CapacityLens export, or set
+up manually and complete three outcomes: add someone to schedule, add work, then allocate that work.
+Internal work needs no client or project. Review Settings only when the defaults need changing.
 
 People on the schedule are not sign-in accounts. Add everyone whose capacity you plan, including
 people who will never sign in, by following [People and placeholders](/guide/people-and-placeholders).
