@@ -1,12 +1,26 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { createMarkdownRenderer } from "vitepress";
+import { beforeAll, describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd(), "..");
 const STORIES = resolve(ROOT, "user-stories");
 const STORY_FILE = /^US-[A-Z]+-\d+.*\.md$/;
 const SOURCE_PATH = /`((?:e2e|server|shared|src)\/[^`]+\.[cm]?[jt]sx?)`/g;
 const DOCUMENTATION_TARGET = /^\*\*Documentation:\*\*\s+\[[^\]]+\]\(([^)]+)\)/gm;
+type MarkdownRenderer = Awaited<ReturnType<typeof createMarkdownRenderer>>;
+type MarkdownToken = {
+  type: string;
+  content: string;
+  attrs?: [string, string][] | null;
+  children?: MarkdownToken[] | null;
+};
+
+let markdownRenderer: MarkdownRenderer;
+
+beforeAll(async () => {
+  markdownRenderer = await createMarkdownRenderer(ROOT, { headers: true, highlight: () => "" });
+});
 
 function decodeFragment(fragment: string): string {
   try {
@@ -15,35 +29,6 @@ function decodeFragment(fragment: string): string {
     return fragment;
   }
 }
-
-function headingId(text: string): string {
-  // Keep this in lockstep with VitePress 1.6.4's internal slugify implementation:
-  // NFKD accents, control/punctuation runs as one hyphen, and a leading numeric
-  // character receives an underscore. The slugger is not a public VitePress export.
-  const withoutMarkup = stripHtmlLikeTags(
-    text
-      .replace(/\s+\{#[^}]+\}\s*$/, "")
-      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-      .replace(/[`*_~]/g, "")
-      .replace(/\s+#+\s*$/, "")
-      .trim(),
-  );
-  return withoutMarkup
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036F]/g, "")
-    .replace(/\p{Cc}/gu, "")
-    .replace(/[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g, "-")
-    .replace(/-{2,}/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/^(\d)/, "_$1")
-    .toLowerCase();
-}
-
-function trailingHeadingFragmentId(headingText: string): string | undefined {
-  return headingText.match(/\s+\{#([^\s}]+)\}\s*$/)?.[1];
-}
-
-type Fence = { kind: "`" | "~"; length: number };
 
 function closingSequenceEnd(characters: string[], start: number, sequence: string): number {
   const end = characters.length - sequence.length;
@@ -101,127 +86,59 @@ function isValidHtmlTag(tag: string): boolean {
   return validHtmlTag.test(tag);
 }
 
-function stripNonAnchorHtml(text: string): string {
-  const output: string[] = [];
-  const characters = [...text];
+const attribute = /^\s+([a-zA-Z_:@][a-zA-Z0-9:._-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^"'=<>`\s]+)))?/;
 
+function rawIdFromAttributes(source: string): string | undefined {
+  let remainder = source;
+  while (remainder.trim()) {
+    const match = remainder.match(attribute);
+    if (!match) return undefined;
+    if (match[1]?.toLowerCase() === "id" || match[1]?.toLowerCase() === "name") {
+      return match[2] ?? match[3] ?? match[4];
+    }
+    remainder = remainder.slice(match[0].length);
+  }
+  return undefined;
+}
+
+function rawIdFromTag(tag: string): string | undefined {
+  if (!isValidHtmlTag(tag) || !/^<[A-Za-z]/.test(tag)) return undefined;
+  const openingTag = tag.match(/^<[A-Za-z][A-Za-z0-9-]*/)?.[0];
+  if (!openingTag) return undefined;
+  return rawIdFromAttributes(tag.slice(openingTag.length, -1).replace(/\/\s*$/, ""));
+}
+
+function rawIdsFromHtmlToken(content: string): string[] {
+  const ids: string[] = [];
+  const characters = [...content];
   for (let index = 0; index < characters.length;) {
-    const character = characters[index];
-    const next = characters[index + 1] ?? "";
-    if (character !== "<" || !/[!?]/.test(next)) {
-      output.push(character ?? "");
+    if (characters[index] !== "<") {
       index++;
       continue;
     }
     const end = completeHtmlTagEnd(characters, index + 1);
-    if (end === -1) {
-      output.push(...characters.slice(index));
-      break;
-    }
-    const tag = characters.slice(index, end + 1).join("");
-    if (isValidHtmlTag(tag)) {
-      index = end + 1;
-    } else {
-      output.push(character);
-      index++;
-    }
+    if (end === -1) break;
+    const id = rawIdFromTag(characters.slice(index, end + 1).join(""));
+    if (id) ids.push(id);
+    index = end + 1;
   }
-  return output.join("");
-}
-
-function stripHtmlLikeTags(text: string): string {
-  const output: string[] = [];
-  const characters = [...text];
-
-  for (let index = 0; index < characters.length;) {
-    const character = characters[index];
-    const next = characters[index + 1] ?? "";
-    if (character !== "<" || !/[A-Za-z/!?]/.test(next)) {
-      output.push(character ?? "");
-      index++;
-      continue;
-    }
-    const end = completeHtmlTagEnd(characters, index + 1);
-    if (end === -1) {
-      output.push(...characters.slice(index));
-      break;
-    }
-    const tag = characters.slice(index, end + 1).join("");
-    if (isValidHtmlTag(tag)) {
-      index = end + 1;
-    } else {
-      output.push(character);
-      index++;
-    }
-  }
-  return output.join("");
-}
-
-function nonFencedLines(source: string): string[] {
-  const lines: string[] = [];
-  let fence: Fence | undefined;
-
-  for (const line of source.split(/\r?\n/)) {
-    const marker = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
-    if (fence) {
-      if (
-        marker &&
-        marker[1]?.[0] === fence.kind &&
-        marker[1].length >= fence.length &&
-        /^\s*$/.test(marker[2] ?? "")
-      ) {
-        fence = undefined;
-      }
-      continue;
-    }
-    if (marker?.[1]) {
-      fence = { kind: marker[1][0] as Fence["kind"], length: marker[1].length };
-      continue;
-    }
-    lines.push(line);
-  }
-
-  return lines;
-}
-
-function markdownFragmentIds(source: string): string[] {
-  const ids = new Set<string>();
-
-  for (const line of nonFencedLines(source)) {
-    const heading = line.match(/^\s*#{1,6}\s+(.+?)\s*$/);
-    if (!heading?.[1]) continue;
-    const explicitId = trailingHeadingFragmentId(heading[1]);
-    if (explicitId) {
-      ids.add(explicitId);
-      continue;
-    }
-    const id = headingId(heading[1]);
-    if (!id) continue;
-    let uniqueId = id;
-    let suffix = 1;
-    while (ids.has(uniqueId)) uniqueId = `${id}-${suffix++}`;
-    ids.add(uniqueId);
-  }
-
-  return [...ids];
-}
-
-function htmlFragmentIds(source: string): string[] {
-  const ids = new Set<string>();
-  for (const line of nonFencedLines(source)) {
-    const anchorSource = stripNonAnchorHtml(line);
-    for (const match of anchorSource.matchAll(
-      /<[^>]+\b(?:id|name)\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))[^>]*>/giu,
-    )) {
-      const id = match[1] ?? match[2] ?? match[3];
-      if (id) ids.add(id);
-    }
-  }
-  return [...ids];
+  return ids;
 }
 
 function documentationFragmentIds(source: string): string[] {
-  return [...new Set([...markdownFragmentIds(source), ...htmlFragmentIds(source)])];
+  const ids = new Set<string>();
+  const visit = (token: MarkdownToken): void => {
+    if (token.type === "heading_open") {
+      const id = token.attrs?.find(([name]) => name === "id")?.[1];
+      if (id) ids.add(id);
+    }
+    if (token.type === "html_inline" || token.type === "html_block") {
+      for (const id of rawIdsFromHtmlToken(token.content)) ids.add(id);
+    }
+    for (const child of token.children ?? []) visit(child);
+  };
+  for (const token of markdownRenderer.parse(source, {})) visit(token as MarkdownToken);
+  return [...ids];
 }
 
 function documentationTargetIssues(storyFile: string, target: string): string[] {
@@ -379,6 +296,49 @@ describe("HTML fragment parity", () => {
     ["Safe </ broken> End", "safe-broken-end"],
   ])("keeps malformed HTML-like syntax in the slug: %s", (heading, expectedId) => {
     expect(documentationFragmentIds(`## ${heading}`)).toContain(expectedId);
+  });
+});
+
+describe("Markdown token fragment parity", () => {
+  it("uses code-span text for heading slugs without treating markup as HTML", () => {
+    const ids = documentationFragmentIds("## `reconciliation_required`\n## `<span>` element");
+
+    expect(ids).toContain("reconciliation-required");
+    expect(ids).toContain("span-element");
+    expect(ids).not.toContain("span");
+  });
+
+  it("ignores multiline comments, malformed inline HTML, and indented headings", () => {
+    const ids = documentationFragmentIds(
+      [
+        "<!--",
+        "## Ghost heading",
+        '<span id="ghost-comment"></span>',
+        "-->",
+        "## Malformed <span id=ghost-inline",
+        "    ## Indented code",
+      ].join("\n"),
+    );
+
+    expect(ids).not.toContain("ghost-heading");
+    expect(ids).not.toContain("ghost-comment");
+    expect(ids).not.toContain("ghost-inline");
+    expect(ids).not.toContain("indented-code");
+  });
+
+  it("extracts only actual raw id/name attributes, including multiline tags", () => {
+    const ids = documentationFragmentIds(
+      [
+        '<span data-id="wrong" title="id=wrong" id="right"></span>',
+        '<span title=">hello" id="quoted-anchor"></span>',
+        '<span\n id=multiline-anchor\n title="hello">\n</span>',
+      ].join("\n"),
+    );
+
+    expect(ids).toContain("right");
+    expect(ids).toContain("quoted-anchor");
+    expect(ids).toContain("multiline-anchor");
+    expect(ids).not.toContain("wrong");
   });
 });
 
