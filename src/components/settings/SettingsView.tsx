@@ -7,7 +7,12 @@ import { SettingsAccountOptions, SettingsBuildDetails, SettingsDiagnostics } fro
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
 import { SettingsDateFormatSection } from "./SettingsDateFormatSection";
 import { SettingsDataSection } from "./SettingsDataSection";
-import { SettingsSchedulingSection } from "./SettingsSchedulingSection";
+import {
+  ScheduleViewSection,
+  SettingsCompanySetupSections,
+  SchedulingFeatureSections,
+} from "./SettingsSchedulingSection";
+import { SettingsGroup } from "./SettingsGroup";
 import { SettingsSection } from "./SettingsSection";
 import { useSettingsViewController } from "./useSettingsViewController";
 
@@ -30,6 +35,7 @@ function SettingsImportSection() {
       id="getting-started-import"
       title={m.settings_data_heading()}
       help={m.settings_data_description()}
+      description={m.settings_company_data_scope()}
       collapsible
       defaultOpen={window.location.hash === "#getting-started-import"}
     >
@@ -68,43 +74,56 @@ export function SettingsView() {
   return (
     <ListPage title={m.settings_title()}>
       <div className="flex flex-col gap-6">
-        <SettingsSchedulingSection
+        <SettingsGroup
+          title={m.settings_company_setup_heading()}
+          description={m.settings_company_setup_description()}
           id="getting-started-settings"
-          canEdit={controller.canEdit}
-          canManageCapacityOverviewAccess={controller.canManageCapacityOverviewAccess}
-          {...scheduling}
-          workingDaysMinimumId={controller.workingDaysMinimumId}
-          updateSetting={controller.updateSetting}
-          minimiseWeekends={display.minimiseWeekends}
-          setMinimiseWeekends={display.setMinimiseWeekends}
-          snapToWeekStart={display.snapToWeekStart}
-          setSnapToWeekStart={display.setSnapToWeekStart}
-          compactView={display.compactView}
-          setCompactView={display.setCompactView}
-        />
-        <SettingsAppearanceSection
-          barLabelPrefs={display.barLabelPrefs}
-          setBarLabelPref={display.setBarLabelPref}
-          utilizationPrefs={display.utilizationPrefs}
-          setUtilizationPref={display.setUtilizationPref}
-          theme={display.theme}
-          setTheme={display.setTheme}
-          disciplinesEnabled={scheduling.disciplinesEnabled}
-        />
-        <SettingsDateFormatSection
-          canEdit={controller.canEdit}
-          dateStyle={scheduling.dateStyle}
-          onChange={(dateStyle) => controller.updateSetting({ dateStyle })}
-        />
-        <SettingsDataSection
-          serverMode={controller.serverMode}
-          authMode={auth.authMode}
-          user={auth.user}
-          offlineEnabled={controller.offlineEnabled}
-          offlineState={controller.offlineState}
-          {...localData}
-        />
-        <SettingsBottomSections controller={controller} />
+        >
+          <SettingsCompanySetupSections
+            canEdit={controller.canEdit}
+            canManageCapacityOverviewAccess={controller.canManageCapacityOverviewAccess}
+            {...scheduling}
+            workingDaysMinimumId={controller.workingDaysMinimumId}
+            updateSetting={controller.updateSetting}
+            dateFormat={
+              <SettingsDateFormatSection
+                canEdit={controller.canEdit}
+                dateStyle={scheduling.dateStyle}
+                onChange={(dateStyle) => controller.updateSetting({ dateStyle })}
+              />
+            }
+          />
+        </SettingsGroup>
+        <SettingsGroup title={m.settings_features_heading()} description={m.settings_features_description()}>
+          <SchedulingFeatureSections
+            canEdit={controller.canEdit}
+            {...scheduling}
+            updateSetting={controller.updateSetting}
+          />
+        </SettingsGroup>
+        <SettingsGroup title={m.settings_display_heading()} description={m.settings_display_description()}>
+          <ScheduleViewSection {...display} />
+          <SettingsAppearanceSection
+            barLabelPrefs={display.barLabelPrefs}
+            setBarLabelPref={display.setBarLabelPref}
+            utilizationPrefs={display.utilizationPrefs}
+            setUtilizationPref={display.setUtilizationPref}
+            theme={display.theme}
+            setTheme={display.setTheme}
+            disciplinesEnabled={scheduling.disciplinesEnabled}
+          />
+        </SettingsGroup>
+        <SettingsGroup title={m.settings_support_heading()} description={m.settings_support_description()}>
+          <SettingsDataSection
+            serverMode={controller.serverMode}
+            authMode={auth.authMode}
+            user={auth.user}
+            offlineEnabled={controller.offlineEnabled}
+            offlineState={controller.offlineState}
+            {...localData}
+          />
+          <SettingsBottomSections controller={controller} />
+        </SettingsGroup>
       </div>
     </ListPage>
   );
