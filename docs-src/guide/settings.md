@@ -64,12 +64,14 @@ Compact weekday dates on the Time off page always retain the ordinal: with **9 S
 a Wednesday appears as **Wed 9th Sep**.
 
 Dates attached to server events use your browser's locale and local time zone instead.
-These include session creation and expiry, password-reset expiry, invitation expiry,
-ownership-transfer deadlines and ownership outcome dates. Your time zone decides which
-local day or hour the instant falls on, while your browser locale decides the date order.
-An invitation expiry or ownership outcome may show only the date; it still follows this
-viewer-local rule. Existing date-and-time displays keep their time, and CapacityLens never
-takes the date by cutting it from the stored UTC timestamp.
+These include session creation and expiry, password-reset expiry, invitation expiry in the
+**Team & access** member panel and on the invitee's **Accept invite** page, ownership-transfer
+deadlines and ownership outcome dates. The offline read-only banner's last-updated timestamp also
+uses your browser's locale and local time zone. Your time zone decides which local day or hour the
+instant falls on, while your browser locale decides the date order. An invitation expiry or
+ownership outcome may show only the date; it still follows this viewer-local rule. Existing
+date-and-time displays keep their time, and CapacityLens never takes the date by cutting it from the
+stored UTC timestamp.
 
 ## Schedule on this device
 
