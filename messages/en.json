@@ -172,7 +172,7 @@
   "settings_clear_storage_button": "Clear device data",
   "settings_clear_storage_confirm_title": "Clear device data?",
   "settings_data_heading": "Import and export",
-  "settings_data_description": "Download this company's data as a JSON file, or replace it from a file you exported earlier. Importing replaces everything in this company — most people never need it.",
+  "settings_data_description": "Download this company's scheduling data as a JSON file, or restore it from a file you exported earlier. Importing replaces the scheduling data in this company but keeps its setup settings — most people never need it.",
   "account_title": "Account",
   "account_identity_title": "Your identity",
   "account_identity_help": "Shows how this browser identifies you. Personal sign-in and security belong here, independently of the active company.",
