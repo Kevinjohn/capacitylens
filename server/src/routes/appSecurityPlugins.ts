@@ -29,6 +29,7 @@ export function installSecurityPlugins(app: FastifyInstance, options: AppOptions
       directives: {
         "default-src": ["'self'"],
         "connect-src": ["'self'"],
+        "img-src": ["'self'", "data:", "https:"],
         "frame-ancestors": ["'none'"],
         "base-uri": ["'self'"],
         "object-src": ["'none'"],

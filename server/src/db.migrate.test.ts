@@ -140,6 +140,11 @@ const V41_MIGRATION = {
   name: "add-ownership-transfer-requests",
   checksum: "d9dc51a48af818e1ccefcbb0fa0d7a703258c9149545f8cc62eaef5c6a5015e7",
 } as const;
+const V42_MIGRATION = {
+  version: 42,
+  name: "add-resource-avatar-url",
+  checksum: "26e210bba4db97503645979b4abe44a38f118f9278b7b295423af97109b0661a",
+} as const;
 const RELEASED_MIGRATION_HISTORY = [
   {
     version: 8,
@@ -247,6 +252,7 @@ const RELEASED_MIGRATION_HISTORY = [
   V39_MIGRATION,
   V40_MIGRATION,
   V41_MIGRATION,
+  V42_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -270,11 +276,12 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V39_MIGRATION,
   V40_MIGRATION,
   V41_MIGRATION,
+  V42_MIGRATION,
 ] as const;
 /** The same list without its v25 head — what a database rolled back to v25 still has pending. */
 const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
-const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34] as const;
+const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34, 42] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
   `v${version}-off.db`,
   `v${version}-password.db`,
@@ -505,7 +512,9 @@ function dropAllocationTaskFields(db: DatabaseSync): void {
 }
 
 function dropResourceAvailabilityFields(db: DatabaseSync): void {
-  db.exec("ALTER TABLE resources DROP COLUMN firstAvailableDate; ALTER TABLE resources DROP COLUMN lastAvailableDate;");
+  db.exec(
+    "ALTER TABLE resources DROP COLUMN avatarUrl; ALTER TABLE resources DROP COLUMN firstAvailableDate; ALTER TABLE resources DROP COLUMN lastAvailableDate;",
+  );
   db.exec("ALTER TABLE accounts DROP COLUMN capacityOverviewAccess;");
   // Every fixture that winds a current database back below v38 winds past v40 on the way, so the
   // newest account column comes off here too — the same accumulation v39 made when it landed.
@@ -1763,7 +1772,7 @@ describe("schema migration of an existing on-disk DB", () => {
       }) as Db;
 
       expect(plannedBeforeWinner).toEqual([
-        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
       ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
@@ -1795,7 +1804,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
-      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
+      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -2107,7 +2116,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2121,6 +2130,7 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function
 describe("schema migration of an existing on-disk DB", () => {
   it("v21 adds every tenant-slice index through one explicit ledger step", () => {
     const db = openDb(":memory:");
@@ -2171,6 +2181,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V38_MIGRATION,
       ...NEWEST_ACCOUNT_MIGRATIONS,
       V41_MIGRATION,
+      V42_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2184,6 +2195,7 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function
 describe("schema migration of an existing on-disk DB", () => {
   it("v22 reactivates tombstoned built-in Internal clients and advances their revisions", () => {
     const db = openDb(":memory:");
@@ -2226,6 +2238,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V38_MIGRATION,
       ...NEWEST_ACCOUNT_MIGRATIONS,
       V41_MIGRATION,
+      V42_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2288,6 +2301,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V38_MIGRATION,
       ...NEWEST_ACCOUNT_MIGRATIONS,
       V41_MIGRATION,
+      V42_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2333,6 +2347,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V38_MIGRATION,
       ...NEWEST_ACCOUNT_MIGRATIONS,
       V41_MIGRATION,
+      V42_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2631,6 +2646,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V38_MIGRATION,
       ...NEWEST_ACCOUNT_MIGRATIONS,
       V41_MIGRATION,
+      V42_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2787,6 +2803,7 @@ function registerActivityLifecycleMigrationTest(): void {
       V38_MIGRATION,
       ...NEWEST_ACCOUNT_MIGRATIONS,
       V41_MIGRATION,
+      V42_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
@@ -2811,6 +2828,7 @@ function registerActivityLifecycleMigrationTest(): void {
 
 describe("schema migration of an existing on-disk DB", registerActivityLifecycleMigrationTest);
 
+// eslint-disable-next-line max-lines-per-function
 describe("schema migration of an existing on-disk DB", () => {
   it("v39 adds Capacity Overview access without changing existing account data", () => {
     const db = openDb(":memory:");
@@ -2819,12 +2837,13 @@ describe("schema migration of an existing on-disk DB", () => {
     db.exec(`
       ALTER TABLE accounts DROP COLUMN dateStyle;
       ALTER TABLE accounts DROP COLUMN capacityOverviewAccess;
+      ALTER TABLE resources DROP COLUMN avatarUrl;
       DROP TABLE account_ownership_transfers;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 39;
       PRAGMA user_version = 38;
     `);
 
-    expect(planDatabaseMigrations(db).migrations).toEqual([V39_MIGRATION, V40_MIGRATION, V41_MIGRATION]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([V39_MIGRATION, V40_MIGRATION, V41_MIGRATION, V42_MIGRATION]);
     initializeOpenDb(db, ":memory:");
 
     expect(db.prepare("PRAGMA table_info(accounts)").all()).toEqual(
@@ -2844,6 +2863,7 @@ describe("schema migration of an existing on-disk DB", () => {
   function rewindToV39(db: Db): void {
     db.exec(`
       ALTER TABLE accounts DROP COLUMN dateStyle;
+      ALTER TABLE resources DROP COLUMN avatarUrl;
       DROP TABLE IF EXISTS account_ownership_transfers;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 40;
       PRAGMA user_version = 39;
@@ -2857,7 +2877,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const before = readState(db).accounts;
     rewindToV39(db);
 
-    expect(planDatabaseMigrations(db).migrations).toEqual([V40_MIGRATION, V41_MIGRATION]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([V40_MIGRATION, V41_MIGRATION, V42_MIGRATION]);
     initializeOpenDb(db, ":memory:");
 
     expect(db.prepare("PRAGMA table_info(accounts)").all()).toEqual(
@@ -2900,6 +2920,7 @@ describe("schema migration of an existing on-disk DB", () => {
           V39_MIGRATION,
           V40_MIGRATION,
           V41_MIGRATION,
+          V42_MIGRATION,
         ]);
         initializeOpenDb(db, copied.path);
 

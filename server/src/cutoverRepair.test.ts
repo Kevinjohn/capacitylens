@@ -363,6 +363,45 @@ function createActiveMembershipRefusalTest(): void {
   });
 }
 
+function createMigrationCompatibilityTests(): void {
+  it("allows the exact pending v42 product-only migration", async () => {
+    const prepared = await database();
+    prepared.db.exec(`
+      ALTER TABLE resources DROP COLUMN avatarUrl;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 42;
+      PRAGMA user_version = 41;
+    `);
+    prepared.db.close();
+
+    await expect(
+      repairSsoCutover({
+        databasePath: prepared.path,
+        confirmServerStopped: true,
+        operation: { kind: "deprovision-credential-orphan", email: "missing@example.com" },
+        env,
+      }),
+    ).rejects.toThrow("No identity matches that address.");
+  });
+
+  it("still rejects a plan containing a migration outside the reviewed repair allowlist", async () => {
+    const prepared = await database();
+    prepared.db.exec(`
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 24;
+      PRAGMA user_version = 23;
+    `);
+    prepared.db.close();
+
+    await expect(
+      repairSsoCutover({
+        databasePath: prepared.path,
+        confirmServerStopped: true,
+        operation: { kind: "deprovision-credential-orphan", email: "missing@example.com" },
+        env,
+      }),
+    ).rejects.toThrow(/unrelated pending migrations/i);
+  });
+}
+
 describe("stopped-server SSO cutover repair", () => {
   createDuplicateSubjectRepairTest();
   createCredentialOrphanRepairTest();
@@ -371,6 +410,7 @@ describe("stopped-server SSO cutover repair", () => {
   createOwnerAssignmentRepairTest();
   createEmptyWorkspaceRepairTest();
   createActiveMembershipRefusalTest();
+  createMigrationCompatibilityTests();
 });
 
 describe("SSO cutover preflight prerequisites", () => {

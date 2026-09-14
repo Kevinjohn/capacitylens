@@ -32,6 +32,7 @@
     "./domain/mutations": "./src/domain/mutations.ts",
     "./domain/password": "./src/domain/password.ts",
     "./domain/privateNames": "./src/domain/privateNames.ts",
+    "./domain/resourceAvatarUrl": "./src/domain/resourceAvatarUrl.ts",
     "./domain/tenancy": "./src/domain/tenancy.ts",
     "./lib/color": "./src/lib/color.ts",
     "./lib/accountWorkingDays": "./src/lib/accountWorkingDays.ts",

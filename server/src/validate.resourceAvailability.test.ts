@@ -35,6 +35,23 @@ describe("resource availability write sanitisation", () => {
   registerIntersectionTests();
 });
 
+describe("resource avatar URL write sanitisation", () => {
+  it("normalises HTTPS URLs and rejects invalid or non-person values", () => {
+    expect(
+      sanitizeWrite({ table: "resources", row: { ...resource, avatarUrl: " https://images.example/b.png " } }),
+    ).toMatchObject({ avatarUrl: "https://images.example/b.png" });
+    expect(() =>
+      sanitizeWrite({ table: "resources", row: { ...resource, avatarUrl: "http://images.example/b.png" } }),
+    ).toThrow(/https url/i);
+    expect(() =>
+      sanitizeWrite({
+        table: "resources",
+        row: { ...resource, kind: "placeholder", avatarUrl: "https://images.example/b.png" },
+      }),
+    ).toThrow(/only a person/i);
+  });
+});
+
 function registerClearTests(): void {
   it("uses null independently in full-row PUTs and persists each clear across reload", () => {
     const db = openDb(":memory:");

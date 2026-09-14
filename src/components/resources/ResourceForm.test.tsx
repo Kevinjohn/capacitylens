@@ -54,6 +54,35 @@ describe("ResourceForm layout", () => {
 });
 
 describe("ResourceForm availability dates", () => {
+  it("saves, edits and clears a normalised person avatar URL", async () => {
+    const user = userEvent.setup();
+    const createView = render(<ResourceForm kind="person" onClose={vi.fn()} />);
+    await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
+    await user.type(screen.getByLabelText("Avatar URL"), "  https://images.example/barbara.png  ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    const saved = requireValue(useStore.getState().data.resources[0], "saved resource");
+    expect(saved.avatarUrl).toBe("https://images.example/barbara.png");
+
+    createView.unmount();
+    render(<ResourceForm resource={saved} onClose={vi.fn()} />);
+    await user.clear(screen.getByLabelText("Avatar URL"));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(useStore.getState().data.resources[0]).not.toHaveProperty("avatarUrl");
+  });
+
+  it("rejects an insecure avatar URL and omits the field for non-people", async () => {
+    const user = userEvent.setup();
+    const view = render(<ResourceForm kind="person" onClose={vi.fn()} />);
+    await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
+    await user.type(screen.getByLabelText("Avatar URL"), "http://images.example/barbara.png");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(screen.getByRole("alert")).toHaveTextContent(/https url/i);
+    expect(screen.getByLabelText("Avatar URL")).toHaveAttribute("aria-invalid", "true");
+    view.unmount();
+    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
+    expect(screen.queryByLabelText("Avatar URL")).not.toBeInTheDocument();
+  });
+
   it("saves equal inclusive boundaries", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

@@ -62,6 +62,7 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "kind",
       "name",
       "role",
+      "avatarUrl",
       "disciplineId",
       "employmentType",
       "engagement",

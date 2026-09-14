@@ -50,13 +50,17 @@ function resolveFormTitle(resource: Resource | undefined, isPlaceholder: boolean
   return isPlaceholder ? m.form_resource_add_placeholder_title() : m.form_resource_add_resource_title();
 }
 
-type ResourceFieldsState = Pick<ResourceFormState, "name" | "setName" | "role" | "setRole"> &
+type ResourceFieldsState = Pick<
+  ResourceFormState,
+  "name" | "setName" | "role" | "setRole" | "avatarUrl" | "setAvatarUrl"
+> &
   Pick<ResourceFormState, "disciplineId" | "setDisciplineId" | "engagement" | "setEngagement"> &
   Pick<ResourceFormState, "projectId" | "setProjectId">;
 
 type ResourceFieldsProps = {
   form: ResourceFieldsState;
   isPlaceholder: boolean;
+  isPerson: boolean;
   disabled: boolean;
   disciplinesEnabled: boolean;
   disciplines: Discipline[];
@@ -66,7 +70,17 @@ type ResourceFieldsProps = {
 };
 
 function ResourceFields(props: ResourceFieldsProps) {
-  const { form, isPlaceholder, disabled, disciplinesEnabled, disciplines, projectOptions, errorField, errorId } = props;
+  const {
+    form,
+    isPlaceholder,
+    isPerson,
+    disabled,
+    disciplinesEnabled,
+    disciplines,
+    projectOptions,
+    errorField,
+    errorId,
+  } = props;
   const disciplineOptions = disciplines.map((discipline) => ({ value: discipline.id, label: discipline.name }));
   return (
     <fieldset disabled={disabled} className="min-w-0">
@@ -89,6 +103,17 @@ function ResourceFields(props: ResourceFieldsProps) {
           describedById={errorId}
           layout="label-control"
         />
+        {isPerson && (
+          <TextField
+            label={m.form_resource_avatar_url_label()}
+            value={form.avatarUrl}
+            onChange={form.setAvatarUrl}
+            placeholder="https://"
+            invalid={errorField === "avatarUrl"}
+            describedById={errorId}
+            layout="label-control"
+          />
+        )}
         {disciplinesEnabled && disciplines.length > 0 && (
           <SelectField
             label={m.form_resource_discipline_label()}
@@ -157,6 +182,7 @@ function ResourceFormBody({
       <ResourceFields
         form={form}
         isPlaceholder={isPlaceholder}
+        isPerson={isPerson}
         disabled={disabled}
         disciplinesEnabled={disciplinesEnabled}
         disciplines={disciplines}
@@ -179,6 +205,7 @@ function buildResourceSubmitDraft(form: ResourceFormState): ResourceSubmitDraft 
   return {
     name: form.name,
     role: form.role,
+    avatarUrl: form.avatarUrl,
     disciplineId: form.disciplineId,
     engagement: form.engagement,
     workingDays: form.workingDays,

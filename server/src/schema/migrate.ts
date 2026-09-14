@@ -106,6 +106,7 @@ export function migrateSchema(db: Db): void {
       "resources.lastAvailableDate",
       "accounts.capacityOverviewAccess",
       "accounts.dateStyle",
+      "resources.avatarUrl",
     ]),
   );
 }

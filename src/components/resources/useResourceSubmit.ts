@@ -6,6 +6,7 @@ import { isStaleEdit } from "../../lib/isStaleEdit";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { validateText, validateWorkingDays } from "../../lib/validation";
 import type { StoreState } from "../../store/types";
+import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
 import { m } from "@/i18n";
 import {
   FULL_DAY_HOURS,
@@ -20,6 +21,7 @@ import {
 export type ResourceSubmitDraft = {
   name: string;
   role: string;
+  avatarUrl: string;
   disciplineId: string;
   engagement: ResourceEngagement;
   workingDays: Weekday[];
@@ -53,11 +55,14 @@ type SubmitInput = SubmitInputBase & {
   setSubmitting: (submitting: boolean) => void;
 };
 
-type ValidatedFields = { name: string; role: string };
+type ValidatedFields = { name: string; role: string; avatarUrl: string | undefined };
 
+// The validation branches mirror the independent fields in this single compact form boundary.
+// eslint-disable-next-line complexity
 function parseFormFields(input: {
   name: string;
   role: string;
+  avatarUrl: string;
   projectId: string;
   workingDays: Weekday[];
   firstAvailableDate: string;
@@ -65,7 +70,7 @@ function parseFormFields(input: {
   isPlaceholder: boolean;
   fail: Fail;
 }): ValidatedFields | null {
-  const { name: rawName, role: rawRole, projectId, workingDays, isPlaceholder, fail } = input;
+  const { name: rawName, role: rawRole, avatarUrl: rawAvatarUrl, projectId, workingDays, isPlaceholder, fail } = input;
   const name = validateText(rawName, fail, {
     field: "name",
     required: !isPlaceholder,
@@ -74,6 +79,11 @@ function parseFormFields(input: {
   if (name === null) return null;
   const role = validateText(rawRole, fail, { field: "role", required: false });
   if (role === null) return null;
+  const parsedAvatarUrl = parseResourceAvatarUrl(rawAvatarUrl);
+  if (!isPlaceholder && !parsedAvatarUrl.ok) {
+    fail("avatarUrl", m.form_resource_err_avatar_url());
+    return null;
+  }
   if (isPlaceholder && !projectId) {
     fail("projectId", m.form_resource_err_placeholder_project());
     return null;
@@ -88,7 +98,8 @@ function parseFormFields(input: {
     fail("lastAvailableDate", String(m.form_resource_err_availability_dates_order()));
     return null;
   }
-  return { name, role };
+  const avatarUrl = !isPlaceholder && parsedAvatarUrl.ok ? parsedAvatarUrl.value : undefined;
+  return { name, role, avatarUrl };
 }
 
 type ResourcePatch = Pick<
@@ -98,6 +109,7 @@ type ResourcePatch = Pick<
   name: string | undefined;
   disciplineId: string | undefined;
   projectId: string | undefined;
+  avatarUrl: string | undefined;
   firstAvailableDate?: string | undefined;
   lastAvailableDate?: string | undefined;
 };
@@ -119,6 +131,7 @@ function buildResourcePatch(input: {
   const basePatch = {
     name: fields.name || undefined,
     role: fields.role,
+    avatarUrl: kind === "person" ? fields.avatarUrl : undefined,
     disciplineId: input.disciplineId || undefined,
     employmentType: isPlaceholder ? ("permanent" as const) : (resource?.employmentType ?? "permanent"),
     engagement: isPlaceholder ? ("studio" as const) : input.engagement,
@@ -166,6 +179,7 @@ function saveResource(input: {
     kind: patch.kind,
     color: patch.color,
     ...(patch.name ? { name: patch.name } : {}),
+    ...(patch.avatarUrl ? { avatarUrl: patch.avatarUrl } : {}),
     ...(patch.disciplineId ? { disciplineId: patch.disciplineId } : {}),
     ...(patch.projectId ? { projectId: patch.projectId } : {}),
     ...(patch.firstAvailableDate ? { firstAvailableDate: patch.firstAvailableDate } : {}),

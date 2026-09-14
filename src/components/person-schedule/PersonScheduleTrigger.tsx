@@ -12,6 +12,7 @@ export interface PersonScheduleTriggerProps {
   avatarName: string;
   color: string;
   placeholder: boolean;
+  imageUrl?: string;
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 }
 
@@ -26,6 +27,7 @@ export function PersonScheduleTrigger({
   avatarName,
   color,
   placeholder,
+  imageUrl,
   onViewSchedule,
 }: PersonScheduleTriggerProps) {
   const triggerLabel = m.scheduler_person_schedule_trigger({ name: scheduleTitle });
@@ -44,7 +46,7 @@ export function PersonScheduleTrigger({
         data-testid="person-schedule-avatar"
         className="transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
       >
-        <Avatar name={avatarName} color={color} placeholder={placeholder} />
+        <Avatar name={avatarName} color={color} placeholder={placeholder} {...(imageUrl ? { imageUrl } : {})} />
       </span>
       <Eye
         aria-hidden

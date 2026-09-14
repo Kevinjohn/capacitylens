@@ -3,6 +3,7 @@ import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNam
 import { snapToPresetColor } from "@capacitylens/shared/lib/color";
 import { sanitizeAccount, sanitizeImportedRecord } from "@capacitylens/shared/lib/sanitizeImport";
 import { cleanText } from "@capacitylens/shared/lib/strings";
+import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
 import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
 import {
   CAPACITY_OVERVIEW_ACCESS_VALUES,
@@ -141,6 +142,8 @@ function assertScopedWriteFields(
   }
 }
 
+// This is the central preservation/normalisation boundary for every scoped table.
+// eslint-disable-next-line complexity
 function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedWriteInput): Record<string, unknown> {
   // Availability boundaries use an explicit-null clear in full-row PUTs. Capture presence before
   // the import sanitiser drops null/malformed values, otherwise the preservation pass below would
@@ -153,6 +156,19 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
           lastAvailableDate: Object.hasOwn(copy, "lastAvailableDate"),
         }
       : undefined;
+  if (table === "resources" && Object.hasOwn(copy, "avatarUrl") && copy.avatarUrl != null) {
+    const parsed = parseResourceAvatarUrl(copy.avatarUrl);
+    if (!parsed.ok) {
+      throw new ValidationError("Avatar URL must be an HTTPS URL without embedded credentials.", {
+        code: "resource_avatar_url_invalid",
+      });
+    }
+    const resourceKind = typeof copy.kind === "string" ? copy.kind : existing?.kind;
+    if (parsed.value && resourceKind !== "person") {
+      throw new ValidationError("Only a person can have an avatar URL.", { code: "resource_avatar_url_forbidden" });
+    }
+    copy.avatarUrl = parsed.value;
+  }
   assertScopedWriteFields(table, copy, options);
   const cleaned = sanitizeImportedRecord(table, copy);
   // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated

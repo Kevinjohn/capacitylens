@@ -118,6 +118,7 @@ export function readResourceSnapshot(source: Record<string, unknown>, binding: P
     source,
     [
       "accountId",
+      "avatarUrl",
       "color",
       "createdAt",
       "disciplineId",
@@ -139,6 +140,7 @@ export function readResourceSnapshot(source: Record<string, unknown>, binding: P
     "resource row",
   );
   const disciplineId = readOptionalString(source, "disciplineId", "resource row");
+  const avatarUrl = readOptionalString(source, "avatarUrl", "resource row");
   const employmentType = readOptionalString(source, "employmentType", "resource row");
   const isFavourite = readOptionalBoolean(source, "isFavourite", "resource row");
   const firstAvailableDate = readOptionalString(source, "firstAvailableDate", "resource row");
@@ -158,6 +160,7 @@ export function readResourceSnapshot(source: Record<string, unknown>, binding: P
     workingHoursPerDay: readRequiredNumber(source, "workingHoursPerDay", "resource row"),
   };
   if (disciplineId !== undefined) snapshot.disciplineId = disciplineId;
+  if (avatarUrl !== undefined) snapshot.avatarUrl = avatarUrl;
   if (employmentType !== undefined) snapshot.employmentType = employmentType;
   if (isFavourite !== undefined) snapshot.isFavourite = isFavourite;
   if (firstAvailableDate !== undefined) snapshot.firstAvailableDate = firstAvailableDate;

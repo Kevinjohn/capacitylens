@@ -6,6 +6,7 @@ export function useResourceFormState(resource?: Resource) {
   const capacity = buildInitialCapacityState(resource);
   const [name, setName] = useState(text.name);
   const [role, setRole] = useState(text.role);
+  const [avatarUrl, setAvatarUrl] = useState(text.avatarUrl);
   const [disciplineId, setDisciplineId] = useState(text.disciplineId);
   const [projectId, setProjectId] = useState(text.projectId);
   const [engagement, setEngagement] = useState<ResourceEngagement>(capacity.engagement);
@@ -18,6 +19,8 @@ export function useResourceFormState(resource?: Resource) {
     setName,
     role,
     setRole,
+    avatarUrl,
+    setAvatarUrl,
     disciplineId,
     setDisciplineId,
     engagement,
@@ -39,6 +42,7 @@ function buildInitialTextState(resource?: Resource) {
   return {
     name: resource?.name ?? "",
     role: resource?.role ?? "",
+    avatarUrl: resource?.avatarUrl ?? "",
     disciplineId: resource?.disciplineId ?? "",
     projectId: resource?.projectId ?? "",
   };

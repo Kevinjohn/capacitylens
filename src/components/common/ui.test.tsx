@@ -1420,8 +1420,7 @@ function registerAvatarImageTests() {
   });
 
   it("renders the photo <img> from imageUrl once it loads", () => {
-    // Radix mounts the <img> only after the image reports "loaded"; stub window.Image so the
-    // synchronous load-status probe returns "loaded" in jsdom (complete + non-zero naturalWidth).
+    // Stub Image as loaded (complete + non-zero naturalWidth) so Radix mounts the photo in jsdom.
     class LoadedImage {
       complete = true;
       naturalWidth = 1;
@@ -1438,6 +1437,7 @@ function registerAvatarImageTests() {
       expect(img).not.toBeNull();
       expect(img).toHaveAttribute("src", "https://cdn.example/a.png");
       expect(img).toHaveAttribute("alt", "");
+      expect(img).toHaveAttribute("referrerpolicy", "no-referrer");
       expect(img).toHaveClass("object-cover");
     } finally {
       vi.unstubAllGlobals();

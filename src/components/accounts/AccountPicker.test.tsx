@@ -12,9 +12,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
 import { resolveBrowserTimeZone } from "../../lib/timezones";
 
-// The picker now branches server-vs-demo (create → POST /api/orgs; delete → DELETE /api/accounts/:id
-// in server mode), so apiConfig is mocked with a MUTABLE flag — the ArchivedSection.test idiom: most
-// tests run as the demo build (local store paths), the server-mode describe flips it on per-test.
+// Mutable API configuration lets server-mode tests opt in while the rest exercise demo-store paths.
 const serverFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("../../data/apiConfig", () => ({
   API_BASE: "",
@@ -29,9 +27,7 @@ vi.mock("../../auth/accountTransition", () => ({
   }),
 }));
 
-/** Render `ui` inside an AuthContext fixed to `canCreateAccount` (single-company-per-instance
- *  policy) — mirrors permissionGating.test.tsx's `withRole`. The other fields are fixed to the
- *  same defaults the real context uses when the fact IS available (authMode off, no user). */
+/** Render with the single-company capability and the real context's remaining off-mode defaults. */
 function withCanCreateAccount(canCreateAccount: boolean, ui: ReactNode) {
   return render(
     <AuthContext.Provider
@@ -49,9 +45,7 @@ function withCanCreateAccount(canCreateAccount: boolean, ui: ReactNode) {
   );
 }
 
-/** Seed the picker's server-sourced list (P1.13) from the store's accounts — mirrors the demo build's
- *  derivation (useAccountSummaries), which these unit tests don't mount. The picker now lists from
- *  accountSummaries, NOT data.accounts, so any test that seeds accounts must seed summaries too. */
+/** Seed both account data and the server-sourced summaries the picker renders. */
 function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
   useStore.getState().replaceAll(makeAppData({ accounts }));
   useStore.getState().setAccountSummaries(accounts.map((a) => ({ id: a.id, name: a.name, role: "owner" as const })));
@@ -840,7 +834,6 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "/api/auth/me") {
         meCalls += 1;
-        // Single-company instance the other way round: creatable at zero accounts, capped after.
         return jsonRes(200, { authMode: "off", user: null, canCreateAccount: meCalls === 1, multiAccount: false });
       }
       if (url === "/api/orgs" && init?.method === "POST")

@@ -363,7 +363,7 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline` (when disciplines are
-enabled and at least one exists), `Engagement`, `Start date`, `End date` (for Studio and
+enabled and at least one exists), `Engagement`, `Avatar URL`, `Start date`, `End date` (for Studio and
 Supplementary people only), `Bound project`, `Working days` (for people only: a
 full-width Monday–Sunday radio grid aligned with the field label whose `Full day`, `Half day` and
 `Not working` column headings appear once; every cell's native radio is labelled by both its weekday

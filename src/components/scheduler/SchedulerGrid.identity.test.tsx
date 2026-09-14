@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
@@ -20,6 +20,32 @@ beforeEach(() => {
 });
 
 describe("SchedulerGrid component identity and row variants", () => {
+  it("threads a person's remote avatar into the schedule trigger", () => {
+    class LoadedImage {
+      complete = true;
+      naturalWidth = 1;
+      crossOrigin: string | null = null;
+      referrerPolicy = "";
+      src = "";
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    vi.stubGlobal("Image", LoadedImage);
+    const bruce = useStore.getState().data.resources.find(({ name }) => name === "Bruce");
+    if (!bruce) throw new Error("Expected Bruce in the scheduler fixture");
+    useStore.getState().updateResource(bruce.id, { avatarUrl: "https://images.example/bruce.png" });
+
+    try {
+      const { container } = render(<SchedulerGrid />, { wrapper: MemoryRouter });
+
+      const avatar = container.querySelector('button[aria-label="View Bruce\'s schedule"] img');
+      expect(avatar).toHaveAttribute("src", "https://images.example/bruce.png");
+      expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("retains the focused bar and group DOM nodes when the utilisation display changes", () => {
     render(<SchedulerGrid />, { wrapper: MemoryRouter });
     const bar = screen.getByTestId("allocation-bar");

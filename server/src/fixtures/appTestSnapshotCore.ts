@@ -33,6 +33,7 @@ export interface PhaseSnapshot {
 
 export interface ResourceSnapshot extends ProjectBinding {
   accountId: string;
+  avatarUrl?: string;
   color: string;
   createdAt: string;
   disciplineId?: string;
