@@ -42,6 +42,13 @@ describe("computeCapacityBarFill", () => {
       fraction: 0.5,
     });
   });
+
+  it("fills a strategic four-week period to 95% when 152 of 160 hours are free", () => {
+    expect(computeCapacityBarFill({ companyWorkingHours: 160, freeHours: 152, overHours: 0 })).toEqual({
+      kind: "free",
+      fraction: 0.95,
+    });
+  });
 });
 
 describe("capacityBarFillStyle", () => {
