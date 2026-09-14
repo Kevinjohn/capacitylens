@@ -52,7 +52,7 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
   assert.equal(packageJson.scripts.prepare, "simple-git-hooks");
   assert.equal(packageJson.scripts["lint:staged"], "pnpm run paraglide:compile && lint-staged");
   assert.equal(packageJson["simple-git-hooks"]["pre-commit"], "pnpm run lint:staged");
-  assert.equal(packageJson["simple-git-hooks"]["pre-push"], "pnpm run lint");
+  assert.equal(packageJson["simple-git-hooks"]["pre-push"], "pnpm run lint && pnpm run policy:file-sizes");
   assert.equal(
     packageJson["lint-staged"]["*.{js,jsx,mjs,cjs,ts,tsx,mts,cts}"],
     "eslint --max-warnings 0 --no-warn-ignored",
@@ -66,6 +66,7 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
   assert.equal(commands[0], "pnpm run format:check");
   assert.equal(packageJson.scripts["format:check"], "prettier --check .");
   assert.ok(commands.includes("pnpm run lint"));
+  assert.ok(commands.includes("pnpm run policy:file-sizes"));
   assert.ok(commands.includes("pnpm run typecheck"));
   assert.ok(commands.includes("pnpm run policy:lint-coverage:test"));
   // Pin the script's BODY, not only its name. Asserting the workflow calls `pnpm run typecheck`

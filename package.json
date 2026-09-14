@@ -94,7 +94,7 @@
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm run lint:staged",
-    "pre-push": "pnpm run lint"
+    "pre-push": "pnpm run lint && pnpm run policy:file-sizes"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
