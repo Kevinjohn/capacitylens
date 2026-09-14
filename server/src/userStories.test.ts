@@ -45,23 +45,39 @@ function trailingHeadingFragmentId(headingText: string): string | undefined {
 
 type Fence = { kind: "`" | "~"; length: number };
 
+function completeHtmlTagEnd(characters: string[], start: number): number {
+  let quote: "'" | '"' | undefined;
+  for (let index = start; index < characters.length; index++) {
+    const character = characters[index];
+    if (quote) {
+      if (character === quote) quote = undefined;
+    } else if (character === "'" || character === '"') {
+      quote = character;
+    } else if (character === ">") {
+      return index;
+    }
+  }
+  return -1;
+}
+
 function stripHtmlLikeTags(text: string): string {
   const output: string[] = [];
   const characters = [...text];
-  let inTag = false;
 
-  for (let index = 0; index < characters.length; index++) {
+  for (let index = 0; index < characters.length;) {
     const character = characters[index];
-    if (character === undefined) continue;
-    if (inTag) {
-      if (character === ">") inTag = false;
+    const next = characters[index + 1] ?? "";
+    if (character !== "<" || !/[A-Za-z/!?]/.test(next)) {
+      output.push(character ?? "");
+      index++;
       continue;
     }
-    if (character === "<" && /[A-Za-z/!?]/.test(characters[index + 1] ?? "")) {
-      inTag = true;
-      continue;
+    const end = completeHtmlTagEnd(characters, index + 1);
+    if (end === -1) {
+      output.push(...characters.slice(index));
+      break;
     }
-    output.push(character);
+    index = end + 1;
   }
   return output.join("");
 }
@@ -241,8 +257,12 @@ describe("documentation fragment validation", () => {
     expect(ids).toContain("discuss-ghost-syntax");
   });
 
-  it("does not leave an incomplete HTML-like tag in the automatic slug", () => {
-    expect(documentationFragmentIds("## Safe <script")).toContain("safe");
+  it("leaves an incomplete HTML-like tag for automatic slugging", () => {
+    expect(documentationFragmentIds("## Safe <script")).toContain("safe-script");
+  });
+
+  it("removes complete tags while respecting quoted greater-than signs", () => {
+    expect(documentationFragmentIds('## A <x title=">hello"> B')).toContain("a-b");
   });
 });
 
