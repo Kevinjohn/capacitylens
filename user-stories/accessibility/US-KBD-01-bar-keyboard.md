@@ -1,6 +1,6 @@
 # US-KBD-01 — Operate an allocation bar by keyboard
 
-**Area:** Keyboard & accessibility · **Persona:** Keyboard-only scheduler · **Linked E2E:** `e2e/accessibility.spec.ts` → "an allocation bar is focusable and Enter opens the editor", "arrow keys move a focused bar by a day"; resize/invert in `src/components/scheduler/AllocationBar.interaction.test.tsx` → "moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)"
+**Area:** Keyboard & accessibility · **Persona:** Keyboard-only scheduler · **Linked E2E:** `e2e/accessibility.spec.ts` → "an allocation bar is focusable and Enter opens the editor", "arrow keys move a focused bar by a day"; resize/invert in `src/components/scheduler/AllocationBar.keyboard.interaction.test.tsx` → "moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)"
 
 ## Goal
 

@@ -37,7 +37,7 @@ The server binds to localhost by default. Set the host explicitly to expose it o
 | `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE`  | An optional named policy: `self-hosted-password`, `self-hosted-mixed` or `self-hosted-sso-only`. Enforced at startup.                                                                           |
 | `SMALLSASS_ACCOUNT_SECRET`              | The session-signing secret. Required for `password` or `sso` mode. Generate with `openssl rand -base64 48` — anything 32 characters or longer is fine; the install guide's command produces 48. |
 | `SMALLSASS_ACCOUNT_PUBLIC_URL`          | The exact browser-facing origin, for example `https://capacity.example.com`. Required for `password` or `sso` mode.                                                                             |
-| `SMALLSASS_ACCOUNT_SETUP_TOKEN`         | The one-time secret the first owner enters to create the first account. Required unless open signup or the bootstrap-admin escape hatch is enabled.                                             |
+| `SMALLSASS_ACCOUNT_SETUP_TOKEN`         | The one-time secret the first owner enters on a fresh password-mode instance. For SSO, use `SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS` for the first identity or a pre-authorised invitation after that. |
 | `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP`   | Re-opens self-service sign-up. Closed by default — CapacityLens is invite-only unless you set this. Leave it unset in production.                                                               |
 | `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` | Deliberately allows the auth-off (`off`) posture under production. Off by default; without it, a production instance with no sign-in refuses to start.                                          |
 

@@ -65,10 +65,12 @@ the coordinator, never the identity adapter or control tables.
 
 The browser uses `src/account/accountClient.ts` for every account endpoint. That client owns request
 idempotency headers, reauthentication behavior and the longer timeout used for bulk erasure.
-Member and invitation directories contain identity and admission data, so listing either is an
-administrative operation and deliberately requires the same fresh-session assurance as its related
-mutations. The shared `membershipRevision` is identity-global: a membership change in one workspace
-invalidates every cached workspace authority summary for that principal.
+Member and invitation directories contain identity and admission data, so listing either requires
+an active membership with the Owner or Admin role and any applicable multi-factor sign-in policy.
+These reads do not require the fifteen-minute freshness check described in [Sessions and staying
+signed in](/company-login/#sessions-and-staying-signed-in); an expired or revoked session still
+cannot read them. The shared `membershipRevision` is identity-global: a membership change in one
+workspace invalidates every cached workspace authority summary for that principal.
 
 Invitation previews require possession of a valid bearer link. They expose only the workspace
 name, proposed role, expiry, an `emailBound` boolean and a masked recipient hint when addressed.

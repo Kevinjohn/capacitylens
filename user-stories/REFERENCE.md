@@ -622,15 +622,19 @@ columns_ above.
 **Sep 9th**. It is **account data** — stored on the account, present in export, changed by an editor
 or above and applied to every member; a viewer sees the control disabled. It sets day/month order and
 whether the day number carries an ordinal on planning dates, including single calendar dates and
-ranges, and takes effect without a reload. A range crossing a year carries the year at both ends.
+ranges, and takes effect without a reload. A standalone range crossing a year carries the year at
+both ends. The Overview's ordered week-column headers are the deliberate narrow exception:
+neighbouring columns supply the calendar context, so their one cross-year week may omit both years.
 Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal.
 
 Server instants use the viewer's browser locale and local time zone instead. This includes session
-creation and expiry, password-reset expiry, invitation expiry, ownership-transfer deadlines and
-ownership outcome dates. The exception also covers instants displayed as a compact date without a
-time: the browser time zone selects the local day, while the browser locale selects its date order.
-Existing date-and-time and date-only shapes stay intact, and local conversion never slices an ISO
-timestamp. Machine dates in inputs, exports and URLs are unchanged.
+creation and expiry, password-reset expiry, invitation expiry in the Team & access member panel and
+on the invitee's Accept invite page, ownership-transfer deadlines and ownership outcome dates. The
+offline read-only banner's last-updated timestamp also uses the viewer's browser locale and local
+time zone. The exception also covers instants displayed as a compact date without a time: the
+browser time zone selects the local day, while the browser locale selects its date order. Existing
+date-and-time and date-only shapes stay intact, and local conversion never slices an ISO timestamp.
+Machine dates in inputs, exports and URLs are unchanged.
 
 **Company-wide working days (account-level).** Settings → **Company-wide working days** exposes a two-row table:
 seven abbreviated weekday headings and seven checkboxes directly beneath them, in the account's

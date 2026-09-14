@@ -1,6 +1,6 @@
 # US-SCH-07 — Reassigning onto a mismatched placeholder is rejected
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `src/components/scheduler/AllocationBar.interaction.test.tsx` → "leaves assignee, dates and hours unchanged when a diagonal reassign is rejected"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked test:** `src/components/scheduler/AllocationBar.pointerDrag.interaction.test.tsx` → "leaves assignee, dates and hours unchanged when a diagonal reassign is rejected"
 
 ## Goal
 
