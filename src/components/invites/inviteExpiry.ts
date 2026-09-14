@@ -1,3 +1,5 @@
+import { formatInstantDate } from "@/lib/dateDisplay";
+
 /** Formats an invite instant in the viewer's locale without redundant seconds or current year. */
 export function formatInviteExpiry(expiresAt: string, now = new Date()) {
   const expiry = new Date(expiresAt);
@@ -9,4 +11,9 @@ export function formatInviteExpiry(expiresAt: string, now = new Date()) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(expiry);
+}
+
+/** Formats the date-only invite deadline used by the outstanding-invites list. */
+export function formatInviteExpiryDate(expiresAt: string): string {
+  return formatInstantDate(expiresAt);
 }
