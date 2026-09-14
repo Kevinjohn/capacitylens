@@ -1,4 +1,4 @@
-import type { CapacityOverviewWeekResult } from "./capacityOverviewTypes";
+import type { CapacityOverviewPeriodResult } from "./capacityOverviewTypes";
 
 /** The three ways a week cell can present a person's capacity. */
 export type CapacityDisplayMode = "bar" | "bar-number" | "number";
@@ -78,7 +78,7 @@ export function capacityBarFillStyle(fill: CapacityBarFill, context: CapacityBar
 
 /** Same text the Number mode prints for a week result, reused as the Bar-mode accessible label. */
 export function formatWeekValueText(
-  result: Pick<CapacityOverviewWeekResult, "state" | "freeDays" | "overDays">,
+  result: Pick<CapacityOverviewPeriodResult, "state" | "freeDays" | "overDays">,
   formatDays: (days: number, kind: "capacity" | "overbooked") => string,
   dash: string,
 ): string {

@@ -15,6 +15,7 @@ export function CapacityBarFillLayer({ fill, context }: { fill: CapacityBarFill;
   return (
     <div
       aria-hidden="true"
+      data-testid="capacity-bar-fill-layer"
       className="pointer-events-none absolute inset-[3px]"
       style={{ background: "var(--color-line-soft)" }}
     >
