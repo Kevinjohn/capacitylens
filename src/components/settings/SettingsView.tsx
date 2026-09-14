@@ -5,7 +5,6 @@ import { ImportExport } from "../ImportExport";
 import { ArchivedSection } from "./ArchivedSection";
 import { SettingsAccountOptions, SettingsBuildDetails, SettingsDiagnostics } from "./SettingsAccountSections";
 import { SettingsAppearanceSection } from "./SettingsAppearanceSection";
-import { SettingsDateFormatSection } from "./SettingsDateFormatSection";
 import { SettingsDataSection } from "./SettingsDataSection";
 import {
   ScheduleViewSection,
@@ -85,13 +84,6 @@ export function SettingsView() {
             {...scheduling}
             workingDaysMinimumId={controller.workingDaysMinimumId}
             updateSetting={controller.updateSetting}
-            dateFormat={
-              <SettingsDateFormatSection
-                canEdit={controller.canEdit}
-                dateStyle={scheduling.dateStyle}
-                onChange={(dateStyle) => controller.updateSetting({ dateStyle })}
-              />
-            }
           />
         </SettingsGroup>
         <SettingsGroup title={m.settings_features_heading()} description={m.settings_features_description()}>

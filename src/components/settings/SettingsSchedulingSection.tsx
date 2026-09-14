@@ -1,13 +1,19 @@
 import { m } from "@/i18n";
 import type { ReactNode } from "react";
 import { orderedWeekdays } from "@capacitylens/shared/lib/accountWorkingDays";
-import type { CapacityOverviewAccess, InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
+import type {
+  CapacityOverviewAccess,
+  DateStyle,
+  InternalColourMode,
+  SchedulingMode,
+} from "@capacitylens/shared/types/entities";
 import { externalExplainer } from "../../lib/externalCopy";
 import { buildLabels, buildLabelOptions } from "../../lib/metadata";
 import { listAccountWorkingDays } from "../../store/selectors";
 import type { StoreState } from "../../store/useStore";
 import { SegmentedControl, SwitchField } from "../common/ui";
 import { SettingsSection } from "./SettingsSection";
+import { SettingsDateFormatSection } from "./SettingsDateFormatSection";
 import { SettingsWorkingDaysSection } from "./SettingsWorkingDaysSection";
 import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, INTERNAL_COLOUR_MESSAGES, SCHEDULING_MESSAGES } from "./settingsLabels";
 
@@ -20,6 +26,7 @@ type SettingsSchedulingSectionProps = {
   workingDayOrder: ReturnType<typeof orderedWeekdays>;
   workingDays: ReturnType<typeof listAccountWorkingDays>;
   workingDaysMinimumId: string;
+  dateStyle: DateStyle;
   updateSetting: UpdateSetting;
   disciplinesEnabled: boolean;
   groupResourcesByEngagement: boolean;
@@ -320,14 +327,22 @@ function SchedulingFoundationSections(props: SchedulingFoundationSectionsProps) 
 type SettingsCompanySetupSectionsProps = SchedulingFoundationSectionsProps &
   Pick<
     SettingsSchedulingSectionProps,
-    "disciplinesEnabled" | "groupResourcesByEngagement" | "canManageCapacityOverviewAccess" | "capacityOverviewAccess"
-  > & { dateFormat: ReactNode };
+    | "disciplinesEnabled"
+    | "groupResourcesByEngagement"
+    | "canManageCapacityOverviewAccess"
+    | "capacityOverviewAccess"
+    | "dateStyle"
+  >;
 
 export function SettingsCompanySetupSections(props: SettingsCompanySetupSectionsProps) {
   return (
     <>
       <SchedulingFoundationSections {...props} />
-      {props.dateFormat}
+      <SettingsDateFormatSection
+        canEdit={props.canEdit}
+        dateStyle={props.dateStyle}
+        onChange={(dateStyle) => props.updateSetting({ dateStyle })}
+      />
       <AccountToggleSection
         title={m.settings_disciplines_heading()}
         help={m.settings_disciplines_intro()}
