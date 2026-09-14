@@ -115,18 +115,22 @@ describe("buildCapacityOverviewPeriods", () => {
 });
 
 describe("buildCapacityOverviewModel", () => {
-  it("aggregates exact strategic-period hours before quarter-day rounding and filtering", () => {
+  it("filters a person by exact strategic-period aggregation, not tactical availability", () => {
     const resource = person("strategic", { workingDays: [1] });
-    const result = buildCapacityOverviewModel({
-      data: data(
-        [resource],
-        [
-          allocation("week-5", resource.id, "2026-06-29", "2026-06-29", 7.5),
-          allocation("week-6", resource.id, "2026-07-06", "2026-07-06", 7.5),
-          allocation("week-7", resource.id, "2026-07-13", "2026-07-13", 7.5),
-          allocation("week-8", resource.id, "2026-07-20", "2026-07-20", 7.5),
-        ],
-      ),
+    const tacticalAllocations = [
+      allocation("tactical-1", resource.id, "2026-06-01", "2026-06-01", 8),
+      allocation("tactical-2", resource.id, "2026-06-08", "2026-06-08", 8),
+      allocation("tactical-3", resource.id, "2026-06-15", "2026-06-15", 8),
+      allocation("tactical-4", resource.id, "2026-06-22", "2026-06-22", 8),
+    ];
+    const strategicAllocations = [
+      allocation("week-5", resource.id, "2026-06-29", "2026-06-29", 7.5),
+      allocation("week-6", resource.id, "2026-07-06", "2026-07-06", 7.5),
+      allocation("week-7", resource.id, "2026-07-13", "2026-07-13", 7.5),
+      allocation("week-8", resource.id, "2026-07-20", "2026-07-20", 7.5),
+    ];
+    const twelveWeekResult = buildCapacityOverviewModel({
+      data: data([resource], [...tacticalAllocations, ...strategicAllocations]),
       today: "2026-06-01",
       weekStartsOn: 1,
       accountWorkingDays: [1],
@@ -134,13 +138,83 @@ describe("buildCapacityOverviewModel", () => {
       hasAvailability: true,
       disciplinesEnabled: false,
     });
+    const fourWeekResult = buildCapacityOverviewModel({
+      data: data([resource], [...tacticalAllocations, ...strategicAllocations]),
+      today: "2026-06-01",
+      weekStartsOn: 1,
+      accountWorkingDays: [1],
+      hasAvailability: true,
+      disciplinesEnabled: false,
+    });
 
-    const row = result.groups[0]?.rows[0];
+    const row = twelveWeekResult.groups[0]?.rows[0];
     expect(row?.periods).toHaveLength(6);
     expect(row?.periods?.[4]).toMatchObject({ freeHours: 2, freeDays: 0.25, state: "available" });
-    expect(result.groups.flatMap((group) => group.rows).map(({ resource: rowResource }) => rowResource.id)).toEqual([
-      resource.id,
+    expect(
+      twelveWeekResult.groups.flatMap((group) => group.rows).map(({ resource: rowResource }) => rowResource.id),
+    ).toEqual([resource.id]);
+    expect(fourWeekResult.groups).toHaveLength(0);
+  });
+
+  it("includes placeholder demand only in a displayed strategic period and excludes tentative demand", () => {
+    const confirmedSlot = placeholder("confirmed-slot");
+    const tentativeSlot = placeholder("tentative-slot");
+    const twelveWeekResult = buildCapacityOverviewModel({
+      data: data(
+        [confirmedSlot, tentativeSlot],
+        [
+          allocation("strategic-demand", confirmedSlot.id, "2026-06-29", "2026-06-29", 1),
+          allocation("tentative-strategic-demand", tentativeSlot.id, "2026-07-06", "2026-07-06", 1, {
+            status: "tentative",
+          }),
+        ],
+      ),
+      today: "2026-06-01",
+      weekStartsOn: 1,
+      accountWorkingDays: WEEKDAYS,
+      horizon: "12-weeks",
+      placeholdersEnabled: true,
+      hasAvailability: true,
+      disciplinesEnabled: false,
+    });
+    const fourWeekResult = buildCapacityOverviewModel({
+      data: data([confirmedSlot], [allocation("strategic-demand", confirmedSlot.id, "2026-06-29", "2026-06-29", 1)]),
+      today: "2026-06-01",
+      weekStartsOn: 1,
+      accountWorkingDays: WEEKDAYS,
+      placeholdersEnabled: true,
+      hasAvailability: true,
+      disciplinesEnabled: false,
+    });
+    const hiddenTentativeResult = buildCapacityOverviewModel({
+      data: data(
+        [tentativeSlot],
+        [
+          allocation("tentative-strategic-demand", tentativeSlot.id, "2026-07-06", "2026-07-06", 1, {
+            status: "tentative",
+          }),
+        ],
+      ),
+      today: "2026-06-01",
+      weekStartsOn: 1,
+      accountWorkingDays: WEEKDAYS,
+      horizon: "12-weeks",
+      includeTentative: false,
+      placeholdersEnabled: true,
+      hasAvailability: true,
+      disciplinesEnabled: false,
+    });
+
+    expect(twelveWeekResult.groups.flatMap((group) => group.rows).map(({ resource }) => resource.id)).toEqual([
+      confirmedSlot.id,
+      tentativeSlot.id,
     ]);
+    expect(twelveWeekResult.summary.periods?.[4]).toMatchObject({
+      unassignedDemandHours: 2,
+      unassignedDemandDays: 0.25,
+    });
+    expect(fourWeekResult.groups).toHaveLength(0);
+    expect(hiddenTentativeResult.groups).toHaveLength(0);
   });
 
   it("keeps the configured company-working-day denominator for complete strategic periods", () => {

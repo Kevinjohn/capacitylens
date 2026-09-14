@@ -12,6 +12,7 @@ import {
 import { useStore } from "@/store/useStore";
 import { useCalendarToday } from "../scheduler/useCalendarToday";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
+import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 import { buildCapacityOverviewModel } from "./capacityOverviewModel";
 
@@ -20,6 +21,7 @@ export function CapacityOverviewView() {
   const [hasAvailability, setHasAvailability] = useState(false);
   const [showTotals, setShowTotals] = useState(false);
   const [capacityDisplayMode, setCapacityDisplayMode] = useState<CapacityDisplayMode>("number");
+  const [horizon, setHorizon] = useState<CapacityOverviewHorizon>("4-weeks");
   const data = useStore((state) => state.data);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const scopedData = useActiveScopedData();
@@ -43,6 +45,7 @@ export function CapacityOverviewView() {
         data: scopedData,
         today,
         weekStartsOn,
+        horizon,
         accountWorkingDays,
         includeTentative,
         placeholdersEnabled,
@@ -55,6 +58,7 @@ export function CapacityOverviewView() {
       accountWorkingDays,
       disciplinesEnabled,
       groupResourcesByEngagement,
+      horizon,
       hasAvailability,
       includeTentative,
       placeholdersEnabled,
@@ -68,11 +72,13 @@ export function CapacityOverviewView() {
   return (
     <CapacityOverviewTable
       model={model}
+      horizon={horizon}
       includeTentative={includeTentative}
       hasAvailability={hasAvailability}
       showTotals={showTotals}
       capacityDisplayMode={capacityDisplayMode}
       onIncludeTentativeChange={setIncludeTentative}
+      onHorizonChange={setHorizon}
       onHasAvailabilityChange={setHasAvailability}
       onShowTotalsChange={setShowTotals}
       onCapacityDisplayModeChange={setCapacityDisplayMode}

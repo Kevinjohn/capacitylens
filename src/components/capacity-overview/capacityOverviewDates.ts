@@ -15,11 +15,6 @@ export interface CapacityOverviewPeriod {
   partial: boolean;
 }
 
-/** @deprecated Use CapacityOverviewPeriod. Kept while the table migrates from week terminology. */
-export type CapacityOverviewWeek = CapacityOverviewPeriod;
-/** @deprecated Use CapacityOverviewPeriodKey. */
-export type CapacityOverviewWeekKey = CapacityOverviewPeriodKey;
-
 export interface BuildCapacityOverviewPeriodsInput {
   today: ISODate;
   weekStartsOn?: 0 | 1;
@@ -67,6 +62,6 @@ export interface BuildCapacityOverviewWeeksInput {
 export function buildCapacityOverviewWeeks({
   today,
   weekStartsOn = 1,
-}: BuildCapacityOverviewWeeksInput): CapacityOverviewWeek[] {
+}: BuildCapacityOverviewWeeksInput): CapacityOverviewPeriod[] {
   return buildCapacityOverviewPeriods({ today, weekStartsOn });
 }

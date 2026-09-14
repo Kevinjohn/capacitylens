@@ -11,6 +11,11 @@ new features and **patch** versions carry fixes.
 
 - Organise Settings into Company setup, Scheduling features, My display, and Data and support,
   with compact responsive rows, clearer labels and visible company/device scope (#965).
+
+### Added
+
+- Add an optional **12 weeks** strategic horizon to Overview, while keeping the four-week tactical
+  view as the default and the person schedule drawer at 28 days (#968).
 - Add a current visual tour of every application page to the documentation.
 
 ### Fixed
