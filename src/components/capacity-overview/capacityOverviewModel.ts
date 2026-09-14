@@ -10,8 +10,8 @@ import {
 import { resolveResourceDisplayName } from "../../lib/metadata";
 import { buildDisciplineGroups } from "../../store/selectors";
 import { buildDayCapacity } from "../../lib/capacity";
-import type { CapacityOverviewWeek } from "./capacityOverviewDates";
-import { buildCapacityOverviewWeeks } from "./capacityOverviewDates";
+import type { CapacityOverviewPeriod } from "./capacityOverviewDates";
+import { buildCapacityOverviewPeriods } from "./capacityOverviewDates";
 import type {
   BuildCapacityOverviewModelInput,
   CapacityOverviewGroup,
@@ -19,8 +19,9 @@ import type {
   CapacityOverviewRow,
   CapacityOverviewState,
   CapacityOverviewSummary,
-  CapacityOverviewWeekResult,
+  CapacityOverviewPeriodResult,
 } from "./capacityOverviewTypes";
+export type { CapacityOverviewHorizon, CapacityOverviewPeriod } from "./capacityOverviewDates";
 export type {
   BuildCapacityOverviewModelInput,
   CapacityOverviewGroup,
@@ -28,7 +29,9 @@ export type {
   CapacityOverviewRow,
   CapacityOverviewState,
   CapacityOverviewSummary,
+  CapacityOverviewSummaryPeriod,
   CapacityOverviewSummaryWeek,
+  CapacityOverviewPeriodResult,
   CapacityOverviewWeekResult,
 } from "./capacityOverviewTypes";
 
@@ -44,9 +47,9 @@ interface GroupSeed {
   resources: Resource[];
 }
 
-interface CalculateWeekInput {
+interface CalculatePeriodInput {
   resource: Resource;
-  week: CapacityOverviewWeek;
+  period: CapacityOverviewPeriod;
   allocations: Allocation[];
   timeOff: TimeOff[];
   closures: Closure[];
@@ -78,22 +81,22 @@ function resolvePersonState(availableHours: number, freeDays: number): Exclude<C
   return freeDays >= 0.25 ? "available" : "fully-booked";
 }
 
-function calculateWeek({
+function calculatePeriod({
   resource,
-  week,
+  period,
   allocations,
   timeOff,
   closures,
   accountWorkingDays,
-}: CalculateWeekInput): CapacityOverviewWeekResult {
+}: CalculatePeriodInput): CapacityOverviewPeriodResult {
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
-  const companyWorkingHours = countWorkingDays(week.start, week.end, accountWorkingDays) * HOURS_PER_DISPLAY_DAY;
+  const companyWorkingHours = countWorkingDays(period.start, period.end, accountWorkingDays) * HOURS_PER_DISPLAY_DAY;
   let availableHours = 0;
   let allocatedHours = 0;
   let freeHours = 0;
   let overHours = 0;
   let unassignedDemandHours = 0;
-  for (const date of eachDayISO(week.start, week.end)) {
+  for (const date of eachDayISO(period.start, period.end)) {
     const day = buildDayCapacity({
       resource,
       date,
@@ -114,7 +117,8 @@ function calculateWeek({
   const freeDays = roundDownQuarterDays(freeHours);
   const overDays = roundUpQuarterDays(overHours);
   return {
-    week,
+    period,
+    week: period,
     companyWorkingHours,
     availableHours,
     allocatedHours,
@@ -128,17 +132,29 @@ function calculateWeek({
   };
 }
 
-function summarize(rows: CapacityOverviewRow[], overviewWeeks: CapacityOverviewWeek[] = []): CapacityOverviewSummary {
+function summarize(
+  rows: CapacityOverviewRow[],
+  overviewPeriods: CapacityOverviewPeriod[] = [],
+): CapacityOverviewSummary {
   const people = rows.filter((row) => isCapacityTracked(row.resource) && !isPlaceholderResource(row.resource));
   const placeholders = rows.filter((row) => isPlaceholderResource(row.resource));
-  const weeks = (rows[0]?.weeks ?? overviewWeeks).map((_week, index) => {
-    const availableHours = people.reduce((sum, row) => sum + (row.weeks[index]?.availableHours ?? 0), 0);
-    const freeHours = people.reduce((sum, row) => sum + (row.weeks[index]?.freeHours ?? 0), 0);
-    const overHours = people.reduce((sum, row) => sum + (row.weeks[index]?.overHours ?? 0), 0);
-    const unassignedDemandHours = placeholders.reduce(
-      (sum, row) => sum + (row.weeks[index]?.unassignedDemandHours ?? 0),
-      0,
-    );
+  const periods = (rows[0]?.periods ?? rows[0]?.weeks ?? overviewPeriods).map((_period, index) => {
+    const availableHours = people.reduce((sum, row) => {
+      const period = row.periods?.[index] ?? row.weeks[index];
+      return sum + (period?.availableHours ?? 0);
+    }, 0);
+    const freeHours = people.reduce((sum, row) => {
+      const period = row.periods?.[index] ?? row.weeks[index];
+      return sum + (period?.freeHours ?? 0);
+    }, 0);
+    const overHours = people.reduce((sum, row) => {
+      const period = row.periods?.[index] ?? row.weeks[index];
+      return sum + (period?.overHours ?? 0);
+    }, 0);
+    const unassignedDemandHours = placeholders.reduce((sum, row) => {
+      const period = row.periods?.[index] ?? row.weeks[index];
+      return sum + (period?.unassignedDemandHours ?? 0);
+    }, 0);
     return {
       availableHours,
       freeHours,
@@ -153,7 +169,8 @@ function summarize(rows: CapacityOverviewRow[], overviewWeeks: CapacityOverviewW
     scope: "all-eligible-people",
     peopleCount: people.length,
     placeholderCount: placeholders.length,
-    weeks,
+    periods,
+    weeks: periods,
   };
 }
 
@@ -274,14 +291,14 @@ function buildIndexes({
 
 function buildRows({
   seeds,
-  weeks,
+  periods,
   indexes,
   closures,
   accountWorkingDays,
   groupResourcesByEngagement,
 }: {
   seeds: GroupSeed[];
-  weeks: CapacityOverviewWeek[];
+  periods: CapacityOverviewPeriod[];
   indexes: OverviewIndexes;
   closures: Closure[];
   accountWorkingDays: Weekday[];
@@ -292,20 +309,20 @@ function buildRows({
     const rows = seed.resources
       .slice()
       .sort(compareResources)
-      .map((resource) => ({
-        resource,
-        weeks: weeks.map((week) =>
-          calculateWeek({
+      .map((resource) => {
+        const resourcePeriods = periods.map((period) =>
+          calculatePeriod({
             resource,
-            week,
+            period,
             allocations: indexes.allocationsByResource.get(resource.id) ?? [],
             timeOff: indexes.timeOffByResource.get(resource.id) ?? [],
             closures,
             accountWorkingDays,
           }),
-        ),
-      }));
-    return { ...seed, rows, summary: summarize(rows, weeks) };
+        );
+        return { resource, periods: resourcePeriods, weeks: resourcePeriods };
+      });
+    return { ...seed, rows, summary: summarize(rows, periods) };
   });
 }
 
@@ -316,17 +333,21 @@ function applyAvailabilityFilter(groups: CapacityOverviewGroup[], hasAvailabilit
       ...group,
       rows: group.rows.filter((row) =>
         isPlaceholderResource(row.resource)
-          ? row.weeks.some((week) => week.unassignedDemandDays > 0)
-          : row.weeks.some((week) => week.freeDays >= 0.25),
+          ? (row.periods ?? row.weeks).some((period) => period.unassignedDemandDays > 0)
+          : (row.periods ?? row.weeks).some((period) => period.freeDays >= 0.25),
       ),
     }))
     .filter((group) => group.rows.length > 0);
 }
 
+// The model keeps eligibility, grouping, filtering and blocks-mode orchestration together so
+// every displayed period follows the same scoped calculation path.
+// eslint-disable-next-line complexity
 export function buildCapacityOverviewModel({
   data,
   today,
   weekStartsOn = 1,
+  horizon = "4-weeks",
   accountWorkingDays = DEFAULT_ACCOUNT_WORKING_DAYS,
   includeTentative = true,
   placeholdersEnabled = false,
@@ -337,8 +358,11 @@ export function buildCapacityOverviewModel({
   timeOff = data.timeOff,
   closures = data.closures,
 }: BuildCapacityOverviewModelInput): CapacityOverviewModel {
-  const weeks = buildCapacityOverviewWeeks({ today, weekStartsOn });
-  if (blocksMode) return { measured: false, reason: "blocks-mode", weeks, groups: [], summary: summarize([], weeks) };
+  const periods = buildCapacityOverviewPeriods({ today, weekStartsOn, horizon });
+  if (blocksMode) {
+    const summary = summarize([], periods);
+    return { measured: false, reason: "blocks-mode", periods, weeks: periods, groups: [], summary };
+  }
 
   const eligible = new Set(
     data.resources
@@ -348,7 +372,7 @@ export function buildCapacityOverviewModel({
   const indexes = buildIndexes({ data, eligible, includeTentative, timeOff });
   const groups = buildRows({
     seeds: buildGroupSeeds({ data, eligible, disciplinesEnabled, groupResourcesByEngagement }),
-    weeks,
+    periods,
     indexes,
     closures,
     accountWorkingDays,
@@ -357,8 +381,9 @@ export function buildCapacityOverviewModel({
   const allRows = groups.flatMap((group) => group.rows);
   return {
     measured: true,
-    weeks,
+    periods,
+    weeks: periods,
     groups: applyAvailabilityFilter(groups, hasAvailability),
-    summary: summarize(allRows, weeks),
+    summary: summarize(allRows, periods),
   };
 }

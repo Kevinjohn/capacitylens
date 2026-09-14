@@ -2,9 +2,12 @@
 
 **Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "import shows a confirmation that replaces all data; Cancel keeps the data", "confirming an import replaces the dataset and ⌘Z restores it"
 
+**Documentation:** [Settings — Import and export](../../docs-src/guide/settings.md#everything-else-on-the-page)
+
 ## Goal
 
-Load a previously exported dataset back into CapacityLens, after a confirmation step that summarises what's in the file and warns that importing replaces everything currently in the app.
+Load previously exported scheduling records into the current company, after a confirmation step
+that summarises the file and warns that importing replaces that company's scheduling records.
 
 ## Why
 
@@ -14,7 +17,7 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
 
 **Precondition:** Seeded app open. You have a valid CapacityLens JSON file to import — produce one first via **Export JSON** (US-DAT-01), which downloads `capacitylens-data.json`. (To prove the replace is visible, you may add or rename one entity before exporting so the imported set differs from the live one.)
 
-1. Open **Settings**, scroll to **Import & export**, expand it and click **Import JSON**
+1. Open **Settings**, find **Data and support → Import and export**, expand it and click **Import JSON**
    (`data-testid="import-data"`). The OS file picker opens.
 2. Choose the `capacitylens-data.json` file. The **"Import data?"** confirmation dialog appears.
 3. Read the dialog: it names the file, states it **replaces this company's data**, lists the file's entity counts (e.g. "5 resources, 3 disciplines, 2 clients, …, 1 time-off entries"), and says "You can undo this with ⌘Z."
@@ -33,6 +36,8 @@ Import is a full replace, not a merge — restoring a backup or loading a shared
 - ✅ Clicking **Cancel** leaves the current dataset completely unchanged (nothing is imported).
 - ✅ Clicking **Replace data** swaps the live dataset for the file's contents and shows a success toast reading **"Imported N records. Press ⌘Z to undo."** (the toast reports how many records were imported — adding "(K invalid records skipped)" if any were dropped — and mentions ⌘Z).
 - ✅ After replacing, the lists/schedule reflect the imported data, not the prior live data.
+- ✅ The destination company's settings, including date format, and this browser's display
+  preferences remain unchanged. In signed-in server deployments, import is restricted to Owners.
 - ✅ A company change committed during server-side import preparation makes the import fail with a
   retryable conflict notice; the committed change remains stored and ordinary writes resume.
 - ✅ Server import preparation is concurrency- and queue-bounded; abandoned work is cancelled, and

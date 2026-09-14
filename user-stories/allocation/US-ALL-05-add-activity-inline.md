@@ -16,7 +16,7 @@ Agencies normally reuse activities created on the Activities page so names stay 
 
 **Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks** and click **Today** so the seed bars are in view.
 
-1. Open **Settings**. Under **Activity creation**, turn on **Inline activity creation** for the workspace.
+1. Open **Settings**. In **Scheduling features → Activity creation**, turn on **Inline activity creation** for the workspace.
 2. Return to **Schedule**, then click **+** on any row to open **New allocation** (or draw on a lane in Work mode).
 3. Choose **Project** = _Queen Consolidated / Project Watchtower_. The inline field's placeholder reads _…or add a new activity_.
 4. In that field (accessible name _New activity name_), type `Accessibility Audit`, then click **Add activity**.

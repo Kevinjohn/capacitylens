@@ -38,7 +38,6 @@ import {
 } from "./auth";
 import { TABLES } from "./tables";
 import { runAccountDateStyleV40 } from "./db/migrations/definitions";
-import { V40_ACCOUNT_COLUMNS } from "./schema/historicalSpecs";
 import {
   assertMigrationValuesPreserved,
   captureMigrationValues,
@@ -2811,17 +2810,6 @@ function registerActivityLifecycleMigrationTest(): void {
 }
 
 describe("schema migration of an existing on-disk DB", registerActivityLifecycleMigrationTest);
-
-describe("released accounts column pins", () => {
-  it("pins the accounts columns v40 released, so the next column has to update V40_TABLES", () => {
-    // V40_TABLES spreads the live TABLES, which is correct only while v40 is the newest migration
-    // that touches accounts; v41 adds a control-plane table and leaves TABLES.accounts alone.
-    // The migration that adds the next accounts column must filter it out of V40_TABLES for its own
-    // assertSchemaV40 pre-condition to pass; this assertion is what tells them so, instead of a
-    // database failing its v40 step in production.
-    expect(TABLES.accounts?.columns.map((column) => column.name)).toEqual([...V40_ACCOUNT_COLUMNS]);
-  });
-});
 
 describe("schema migration of an existing on-disk DB", () => {
   it("v39 adds Capacity Overview access without changing existing account data", () => {

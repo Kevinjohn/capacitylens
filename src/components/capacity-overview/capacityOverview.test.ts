@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { Allocation, AppData, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { buildCapacityOverviewWeeks } from "./capacityOverviewDates";
+import { buildCapacityOverviewPeriods, buildCapacityOverviewWeeks } from "./capacityOverviewDates";
 import { buildCapacityOverviewModel, type CapacityOverviewModel } from "./capacityOverviewModel";
 
 const ACCOUNT_ID = "account-1";
@@ -88,7 +88,83 @@ describe("buildCapacityOverviewWeeks", () => {
   });
 });
 
+describe("buildCapacityOverviewPeriods", () => {
+  it("adds two complete four-week strategic periods for the twelve-week horizon", () => {
+    expect(buildCapacityOverviewPeriods({ today: "2026-06-03", weekStartsOn: 1, horizon: "12-weeks" })).toEqual([
+      { index: 0, key: "this-week", start: "2026-06-03", end: "2026-06-07", partial: true },
+      { index: 1, key: "next-week", start: "2026-06-08", end: "2026-06-14", partial: false },
+      { index: 2, key: "week-3", start: "2026-06-15", end: "2026-06-21", partial: false },
+      { index: 3, key: "week-4", start: "2026-06-22", end: "2026-06-28", partial: false },
+      { index: 4, key: "weeks-5-8", start: "2026-06-29", end: "2026-07-26", partial: false },
+      { index: 5, key: "weeks-9-12", start: "2026-07-27", end: "2026-08-23", partial: false },
+    ]);
+  });
+
+  it("keeps strategic periods contiguous across Sunday-start and year boundaries", () => {
+    const periods = buildCapacityOverviewPeriods({ today: "2026-12-30", weekStartsOn: 0, horizon: "12-weeks" });
+
+    expect(periods.map(({ key, start, end }) => ({ key, start, end }))).toEqual([
+      { key: "this-week", start: "2026-12-30", end: "2027-01-02" },
+      { key: "next-week", start: "2027-01-03", end: "2027-01-09" },
+      { key: "week-3", start: "2027-01-10", end: "2027-01-16" },
+      { key: "week-4", start: "2027-01-17", end: "2027-01-23" },
+      { key: "weeks-5-8", start: "2027-01-24", end: "2027-02-20" },
+      { key: "weeks-9-12", start: "2027-02-21", end: "2027-03-20" },
+    ]);
+  });
+});
+
 describe("buildCapacityOverviewModel", () => {
+  it("aggregates exact strategic-period hours before quarter-day rounding and filtering", () => {
+    const resource = person("strategic", { workingDays: [1] });
+    const result = buildCapacityOverviewModel({
+      data: data(
+        [resource],
+        [
+          allocation("week-5", resource.id, "2026-06-29", "2026-06-29", 7.5),
+          allocation("week-6", resource.id, "2026-07-06", "2026-07-06", 7.5),
+          allocation("week-7", resource.id, "2026-07-13", "2026-07-13", 7.5),
+          allocation("week-8", resource.id, "2026-07-20", "2026-07-20", 7.5),
+        ],
+      ),
+      today: "2026-06-01",
+      weekStartsOn: 1,
+      accountWorkingDays: [1],
+      horizon: "12-weeks",
+      hasAvailability: true,
+      disciplinesEnabled: false,
+    });
+
+    const row = result.groups[0]?.rows[0];
+    expect(row?.periods).toHaveLength(6);
+    expect(row?.periods?.[4]).toMatchObject({ freeHours: 2, freeDays: 0.25, state: "available" });
+    expect(result.groups.flatMap((group) => group.rows).map(({ resource: rowResource }) => rowResource.id)).toEqual([
+      resource.id,
+    ]);
+  });
+
+  it("keeps the configured company-working-day denominator for complete strategic periods", () => {
+    const resource = person("strategic");
+    const result = buildCapacityOverviewModel({
+      data: data([resource]),
+      today: "2026-06-01",
+      accountWorkingDays: WEEKDAYS,
+      horizon: "12-weeks",
+      closures: [
+        {
+          ...BASE,
+          id: "closure",
+          name: "Founders Day",
+          startDate: "2026-06-29",
+          endDate: "2026-06-29",
+        },
+      ],
+      disciplinesEnabled: false,
+    });
+
+    expect(week(result, resource.id, 4)).toMatchObject({ companyWorkingHours: 160, freeHours: 152, freeDays: 19 });
+  });
+
   it("keeps daily spare and overload separate before quarter-day rounding", () => {
     const resource = person("person-1");
     const result = buildCapacityOverviewModel({
