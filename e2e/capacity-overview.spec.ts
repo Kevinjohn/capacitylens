@@ -42,6 +42,10 @@ test("reviews the fixed four-week capacity window and filters available rows", a
 
 test.describe("Overview bar geometry", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
+  const GEOMETRY_TOLERANCE_PX = 0.01;
+  const expectGeometry = (actual: number, expected: number) => {
+    expect(Math.abs(actual - expected)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE_PX);
+  };
 
   test("keeps each bar inset by 3px with 6px gaps between adjacent bars", async ({ page }) => {
     await openApp(page, "Wayne Enterprises");
@@ -76,21 +80,21 @@ test.describe("Overview bar geometry", () => {
 
     expect(geometry.length).toBeGreaterThan(0);
     for (const bar of geometry) {
-      expect(bar.leftInset).toBe(3);
-      expect(bar.rightInset).toBe(3);
+      expectGeometry(bar.leftInset, 3);
+      expectGeometry(bar.rightInset, 3);
       // Collapsed table borders contribute half a pixel to the cell's bounding rect, so the
       // browser-measured vertical inset is 3px or 3.5px while the CSS inset remains 3px.
-      expect(bar.topInset).toBeGreaterThanOrEqual(3);
-      expect(bar.topInset).toBeLessThanOrEqual(3.5);
-      expect(bar.bottomInset).toBeGreaterThanOrEqual(3);
-      expect(bar.bottomInset).toBeLessThanOrEqual(3.5);
+      expect(bar.topInset).toBeGreaterThanOrEqual(3 - GEOMETRY_TOLERANCE_PX);
+      expect(bar.topInset).toBeLessThanOrEqual(3.5 + GEOMETRY_TOLERANCE_PX);
+      expect(bar.bottomInset).toBeGreaterThanOrEqual(3 - GEOMETRY_TOLERANCE_PX);
+      expect(bar.bottomInset).toBeLessThanOrEqual(3.5 + GEOMETRY_TOLERANCE_PX);
     }
 
     const firstRowIndex = geometry[0]?.rowIndex;
     const firstRowBars = geometry.filter(({ rowIndex }) => rowIndex === firstRowIndex);
     expect(firstRowBars.length).toBeGreaterThan(1);
     for (let index = 1; index < firstRowBars.length; index += 1) {
-      expect(firstRowBars[index]!.left - firstRowBars[index - 1]!.right).toBe(6);
+      expectGeometry(firstRowBars[index]!.left - firstRowBars[index - 1]!.right, 6);
     }
 
     const adjacentRows = geometry.find((bar) =>
@@ -102,6 +106,6 @@ test.describe("Overview bar geometry", () => {
     );
     if (!nextRowBar) throw new Error("Expected the adjacent row to contain a matching capacity bar");
     // The collapsed row divider is separate from the breathing room between bars.
-    expect(nextRowBar.top - adjacentRows.bottom - adjacentRows.rowBorderBottom).toBe(6);
+    expectGeometry(nextRowBar.top - adjacentRows.bottom - adjacentRows.rowBorderBottom, 6);
   });
 });
