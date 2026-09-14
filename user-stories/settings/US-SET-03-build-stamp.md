@@ -12,7 +12,7 @@
 ## Goal
 
 Tell the team exactly which build and persistence mode a bug report is about, by reading
-the one-line stamp at the bottom of Settings.
+the one-line stamp in Settings → **Data and support → Build details**.
 
 ## Why
 
@@ -27,10 +27,10 @@ smoke test checks it first.
 **Precondition (hosted demo):** open the deployed site, sign in past Basic Auth, pick a
 company; click **Settings** in the sidebar.
 
-1. Scroll to the bottom of Settings, in **Data and support**.
-2. Read the muted footer line: `build <sha> · server` (`data-testid="build-stamp"`).
+1. Scroll to **Data and support → Build details**.
+2. Read the muted build line: `build <sha> · server` (`data-testid="build-stamp"`).
 3. Include that exact line in any feedback or bug report.
-4. If the problem concerns saving or reloading, open **Persistence diagnostics** and include its
+4. If the problem concerns saving or reloading, open **Persistence diagnostics** in the same row and include its
    counts and suspended state. These are device-session counters and contain no scheduling values.
 
 **Precondition (default local build):** run `pnpm run dev`, open Settings.

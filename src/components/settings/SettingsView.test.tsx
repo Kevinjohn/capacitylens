@@ -347,9 +347,10 @@ describe("SettingsView — build stamp", () => {
     expect(screen.getByTestId("persistence-diagnostics")).toHaveTextContent("Failed saves: 0");
   });
 
-  it("renders the muted footer when the build is stamped", () => {
+  it("renders the named build details row when the build is stamped", () => {
     vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
     render(<SettingsView />);
+    expect(screen.getByTestId("settings-build-details")).toBeVisible();
     expect(screen.getByTestId("build-stamp")).toHaveTextContent("build a1b2c3d · server");
   });
 
@@ -381,6 +382,7 @@ describe("SettingsView — diagnostics", () => {
     expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Build revision");
     expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("demo");
     expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Databaseunavailable");
+    expect(screen.getByTestId("settings-build-details")).toBeVisible();
     expect(fetchMock.fetch).not.toHaveBeenCalled();
   });
 
@@ -500,7 +502,7 @@ describe("SettingsView — Import and export disclosure (issue #169)", () => {
     expect(screen.getByTestId("import-input")).toHaveAttribute("type", "file");
 
     const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-    expect(headings.slice(-2)).toEqual(["Company details", "Diagnostics"]);
+    expect(headings.slice(-3)).toEqual(["Company details", "Build details", "Diagnostics"]);
   });
 });
 
