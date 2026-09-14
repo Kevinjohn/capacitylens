@@ -1,9 +1,10 @@
 # Password → SSO cutover
 
 > **IMPLEMENTED.** The consensus design in §§5–10 shipped as the supported self-hosted cutover path.
-> Operate from the concise procedures in [authentication.md](authentication.md),
-> [self-hosting.md](self-hosting.md), and [runbook.md](runbook.md); this document remains the detailed
-> threat model, evidence record, and rejected-alternative history.
+> Operate from [Move from passwords to single sign-on](company-login/move-to-single-sign-on.md),
+> [self-hosted configuration](self-hosting/configuration.md), and the
+> [development reference](reference/development.md); this document remains the detailed threat model,
+> evidence record, and rejected-alternative history.
 
 **Design record for CapacityLens self-hosted deployments**
 Status: implemented revision 4 · Date: 2026-08-07
@@ -174,7 +175,8 @@ mixed mode a user sees both on one screen.
 (`server/src/auth.ts`); `experimental` marks named social providers as distinct from the
 first-class strict-OIDC path (`server/src/auth.ts`).
 
-This dual-render is documented behaviour, not an accident: `docs/authentication.md` states
+This dual-render is documented behaviour, not an accident: the
+[company-login guide](company-login/set-up-company-login.md) states
 that on a fresh `self-hosted-mixed` deployment the first-run wall shows both the setup-token password
 form and every configured external provider, so an allow-listed first owner can bootstrap through
 OIDC directly without an interim password owner. That is the same property the migration relies on —
@@ -226,11 +228,10 @@ Key structural facts:
   **The assertion only inspects accounts that have active member rows** (`:822-831` is a `GROUP BY
 accountId` over `account_members`), so an `accounts` row with zero memberships escapes the
   invariant entirely — see §8.9.
-- **`MembershipStatus = "active"` is the entire union** (`server/src/controlTables.ts`, future
-  widenings named in the comment at `:21-28`). There is no deactivation; there is only removal. Note
-  the union is **duplicated** in `shared/src/account/types.ts` with a _contradicting_ rationale
-  (`:45-46` says inactive rows must deliberately not flow through the contract), so widening it is a
-  two-file change with a design question attached.
+- **Historical at the design baseline:** `MembershipStatus = "active"` was the entire union and
+  removal was the only way to take someone out of active service. The shipped contract now supports
+  `active`, `disabled` and `archived`; current definitions live in `shared/src/account/types.ts` and
+  `server/src/controlTables.ts`.
 - Session assurance is `'password' | 'mfa' | 'federated'` in storage
   (`server/src/accounts/state.ts` CHECK, TS union `:220`), but the **actor-facing** union has a
   fourth value, `trusted-local` (`server/src/accounts/localAccountFlows.ts`), which bypasses both
@@ -322,7 +323,14 @@ this interpretation explicitly, because the distinction is easy to lose.
 
 ---
 
-## 4. Why the naive flip is unsafe
+## 4. Why the naive flip was unsafe at the design baseline
+
+> **Historical baseline.** The gaps in §4 describe `main` at `2280f59`, before the consensus design
+> shipped. The current tree provides the account-linking surface, readiness view, preflight command,
+> and cutover interlocks. See `src/components/settings/SsoReadinessPanel.tsx`,
+> `server/src/accounts/ssoCutoverRoutes.ts`, `server/src/cutoverPreflight.ts`, and
+> `server/src/accounts/ssoCutoverRoutes.test.ts` for current implementation and test evidence. Follow
+> the [current cutover procedure](company-login/move-to-single-sign-on.md) operationally.
 
 The mechanism exists but nothing drives it, and the surrounding controls are shaped for a _fresh_ SSO
 deployment rather than a _migrating_ one.
@@ -790,7 +798,8 @@ match the Workspace directory exactly.
 
 **Recommendation: fix the local email, not the rule.** Setting `allowDifferentEmails: true` would let
 any IdP identity attach to any local account whose owner is signed in — a much bigger surface for a
-much smaller convenience — and it would undercut the property stated in `docs/authentication.md`
+much smaller convenience — and it would undercut the property stated in the
+[company-login guide](company-login/set-up-company-login.md)
 (_"Email is an admission attribute only. Once the provider link is stored, equal or changed emails
 never merge two identities."_).
 
@@ -800,8 +809,15 @@ never merge two identities."_).
 unverified, confirmation-to-old-address, or verification-to-new-address) and enumeration hardening at
 `:431-435`. CapacityLens configures none of it, and configures no verification email delivery.
 
-**What CapacityLens still has to build.** The protocol mechanics are largely supplied; the security
-and product policy are not:
+> **Current status.** CapacityLens now provides the reviewed email-correction, wrong-link removal
+> and orphan-principal repair paths. The implementation lives in
+> `server/src/accounts/ssoCutoverRoutes.ts`, `server/src/federatedLinkLifecycle.ts` and
+> `server/src/cutoverRepair.ts`, with the operator sequence in
+> [Move from passwords to single sign-on](company-login/move-to-single-sign-on.md). The remainder of
+> §§8.1–8.4 records the risks and missing capabilities at the design baseline.
+
+**What CapacityLens still had to build at the design baseline.** The protocol mechanics were largely
+supplied; the security and product policy were not:
 
 - enabling and configuring the route, plus delivery/verification or an approved alternative ceremony;
 - **fresh step-up** — the route uses `sensitiveSessionMiddleware` (`:381`), which re-reads
@@ -821,8 +837,8 @@ and product policy are not:
   must abandon and restart any in-progress link after a correction, and the correction should revoke
   sessions so the next link initiates under the corrected address.
 
-**Sizing: L/XL on policy, small on protocol.** It is on the critical path for every real migration,
-not an edge case.
+**Historical sizing: L/XL on policy, small on protocol.** It was on the critical path for every real
+migration, not an edge case.
 
 ### 8.2 Subject already claimed
 
@@ -900,13 +916,25 @@ way (`password.mjs` declares no middleware; the plugin's `hooks.after` matcher a
 
 **Named social providers remain a sign-in door in `sso` mode** (§2.1). A "Workspace SSO cutover" can
 still expose Google/Microsoft/GitHub buttons, and the social link route is distinct from
-`/oauth2/link` so shadowing the latter does not control it. Decision required — §11.9.
+`/oauth2/link` so shadowing the latter does not control it. At the design baseline this required the
+decision recorded in §11.9; that option was later superseded. Current self-hosted behaviour permits
+configured social providers for existing people, while new identities and invitation acceptance
+still require the company provider. Operators who need company login as the only door remove the
+social-provider configuration as described in the
+[current cutover FAQ](company-login/move-to-single-sign-on.md#what-about-the-continue-with-google-microsoft-github-style-buttons).
 
 Finally, check `SMALLSASS_ACCOUNT_REQUIRE_MFA`. Under genuine `sso` mode the pre-handler gate at
 `app.ts` does not fire, which is correct — but set `CAPACITYLENS_SSO_MFA_ENFORCED=1` or
 `productionGuard.ts` will warn.
 
 ### 8.7 Subject uniqueness is not concurrency-safe
+
+> **Current status.** CapacityLens-owned unique indexes now prevent duplicate provider subjects,
+> preflight reports duplicates before cutover, and the stopped-server repair command provides the
+> reviewed recovery path. See `server/src/authConfig/federatedIdentitySchema.ts`,
+> `server/src/accounts/ssoCutover.ts` and `server/src/cutoverRepair.ts`. Sections 8.7–8.9 retain the
+> pre-implementation reasoning that led to those controls; current readiness also reports
+> ownerless and memberless workspaces.
 
 "An IdP subject bound elsewhere is refused, not stolen" is true only for **serial** requests. The
 callback does find-then-create with no lock (`routes.mjs`), `findAccountByProviderId` is an
@@ -953,7 +981,17 @@ because no principal has authority over an ownerless account through the existin
 
 ### 8.10 Invitations under SSO
 
-Post-cutover onboarding works, but only in one shape, and nothing currently enforces it.
+> **Current status.** Admission now enforces the intended scope. A new external principal in SSO
+> mode needs a verified email and either a live email-preauthorised invitation or the operator
+> bootstrap allow-list; `server/src/accounts/externalIdentityAdmission.ts` and
+> `server/src/auth.test.ts` cover that gate. A bearer-only invitation remains valid for an already
+> signed-in principal and therefore remains optional at invitation creation. The operator procedure
+> is in [Set up company login](company-login/set-up-company-login.md).
+
+The remainder of this subsection records the pre-implementation state and the rationale for that
+shipped distinction.
+
+At the design baseline, post-cutover onboarding worked only in one shape and did not yet enforce it.
 
 `externalIdentityAdmission` (`server/src/accounts/externalIdentityAdmission.ts`) requires a verified
 email (`:19`), then either the operator bootstrap allow-list when no principal exists yet (`:28`) or a
@@ -974,7 +1012,8 @@ it admits the principal, but role binding still requires `/accept` with that spe
 
 Restated because it is the one truly irreversible choice: `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID` and
 `SMALLSASS_ACCOUNT_OIDC_ISSUER` become an immutable pair (`state.ts`). Changing either later
-is an identity migration with a reviewed mapping, per `docs/authentication.md`.
+is an identity migration with a reviewed mapping, per the
+[company-login guide](company-login/set-up-company-login.md).
 
 ---
 
@@ -1046,7 +1085,16 @@ row stores only a SHA-256 `ceremonyId`, never the token (`:133-136`, `:150-151`)
 
 ---
 
-## 10. Work breakdown
+## 10. Historical work breakdown
+
+> **Landed.** This table is the implementation sequence retained as design history, not an active
+> task list. The shipped surfaces include `server/src/accounts/ssoCutoverRoutes.ts`,
+> `server/src/cutoverPreflight.ts`, `server/src/federatedLinkLifecycle.ts`, and
+> `src/components/settings/SsoReadinessPanel.tsx`; focused evidence lives in
+> `server/src/accounts/ssoCutoverRoutes.test.ts`, `server/src/cutoverPreflight.test.ts`, and
+> `src/components/settings/MembersSection.sso.test.tsx`. Use the
+> [current cutover procedure](company-login/move-to-single-sign-on.md) rather than executing this
+> historical breakdown.
 
 Ordered so that blockers land first.
 
@@ -1081,7 +1129,9 @@ Ordered so that blockers land first.
 - Account contract/conformance version review — `shared/src/account/conformance.ts`.
 - Operator runbooks: IdP outage, wrong-subject repair, email correction, unlink restrictions, cutover
   rollback, duplicate-subject reconciliation.
-- `docs/authentication.md`, `docs/self-hosting.md`, and `docs/development.md` for the preflight CLI.
+- The [company-login](company-login/move-to-single-sign-on.md),
+  [self-hosting](self-hosting/configuration.md), and [development](reference/development.md) guides
+  for the preflight CLI.
 - Configuration examples and error-message copy.
 
 ### Test surfaces to extend

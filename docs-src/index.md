@@ -8,25 +8,44 @@ description: Learn how to try, install, use and operate CapacityLens, the self-h
 CapacityLens gives a small agency a helicopter view of who is busy, free, or
 overworked, week by week. It is self-hosted, deliberately small, and open source.
 
-New here? [Try the demo](/getting-started/try-the-demo) — it runs in one command
-and takes about two minutes.
+Start with [Get started quickly](/getting-started/quick-start) if you are not sure which
+section you need. The documentation is organised by the job you are doing, not by the
+order the product was built.
 
-Here to put it on a server? Skip straight to
-[Self-hosting: before you start](/self-hosting/).
+## Quick start
 
-## Getting started
+- [What is CapacityLens?](/getting-started/what-is-capacitylens) — check whether it fits your team.
+- [Try the demo](/getting-started/try-the-demo) — take a two-minute look with sample data.
+- [Get started quickly](/getting-started/quick-start) — choose the shortest route for your situation.
 
-Learn what CapacityLens is and get your own copy running.
+## Technical installation
 
-- [What is CapacityLens?](/getting-started/what-is-capacitylens) — what it does, and what it deliberately doesn't.
-- [Try the demo](/getting-started/try-the-demo) — a two-minute look with sample data.
-- [Choose how to install](/getting-started/install) — Docker Compose and direct Node
-  installation are separate, supported routes.
-- [First steps after installing](/getting-started/first-steps) — sign in and find your way around.
-- [Invite your team](/getting-started/invite-your-team) — get everyone else in.
-- [Roles and permissions](/getting-started/roles-and-permissions) — who can see and change what.
+For the person putting CapacityLens on a server.
 
-## Using CapacityLens
+- [Choose how to install](/getting-started/install) — compare Docker, direct Node and managed VPS routes.
+- [Before you self-host](/self-hosting/) — understand the components and prerequisites.
+- [Configuration](/self-hosting/configuration) — choose sign-in, storage and operational settings.
+
+## Owner setup
+
+For the person accountable for a new CapacityLens company.
+
+- [First steps after installing](/getting-started/first-steps) — claim the first Owner account.
+- [Set up your company as Owner](/getting-started/set-up-your-company) — move from a fresh install
+  to an administered, ready-to-use company.
+- [Invite your team](/getting-started/invite-your-team) — create sign-ins and appoint Admins.
+- [Roles and permissions](/getting-started/roles-and-permissions) — choose access and transfer ownership.
+
+## Admin and settings
+
+For Owners and Admins maintaining how the company works.
+
+- [Settings](/guide/settings) — scheduling defaults, optional features and device preferences.
+- [How sign-in works](/company-login/) — understand password and company-login choices.
+- [Set up your company login](/company-login/set-up-company-login) — connect a provider.
+- [Move from passwords to single sign-on](/company-login/move-to-single-sign-on) — guide an existing team through the change.
+
+## Day-to-day usage
 
 How the everyday screens work.
 
@@ -34,24 +53,12 @@ How the everyday screens work.
 - [People and placeholders](/guide/people-and-placeholders) — who appears on the schedule.
 - [Projects and allocations](/guide/projects-and-allocations) — putting work on the calendar.
 - [Time off](/guide/time-off) — holidays, sickness and other absence.
-- [Settings](/guide/settings) — the toggles that shape what your team sees.
 - [Offline access](/guide/offline-access) — what works without a connection.
 
-## Company login (SSO)
-
-Let people sign in with the work identity they already use everywhere else.
-
-- [How sign-in works](/company-login/) — passwords, social sign-in and company login, in plain language.
-- [Set up your company login](/company-login/set-up-company-login) — connect CapacityLens to your provider.
-- [Move from passwords to single sign-on](/company-login/move-to-single-sign-on) — the guided cutover for existing teams.
-
-## Self-hosting
+## Self-hosting operations
 
 Run CapacityLens on your own server and keep it healthy.
 
-- [Before you start](/self-hosting/) — what you need and how the pieces fit.
-- [Install with Docker](/self-hosting/install-with-docker) · [Install without Docker](/self-hosting/install-without-docker) ·
-  [Configuration](/self-hosting/configuration) · [TLS and networking](/self-hosting/tls-and-networking)
 - [Backups and restore](/self-hosting/backups-and-restore) · [Upgrades](/self-hosting/upgrades) ·
   [Monitoring](/self-hosting/monitoring) · [Ownership-transfer recovery](/self-hosting/ownership-transfer-recovery) ·
   [When something goes wrong](/self-hosting/incidents)

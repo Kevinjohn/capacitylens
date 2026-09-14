@@ -1,10 +1,11 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(process.cwd(), "..");
 const STORIES = resolve(ROOT, "user-stories");
 const STORY_FILE = /^US-[A-Z]+-\d+.*\.md$/;
+const SOURCE_PATH = /`((?:e2e|server|shared|src)\/[^`]+\.[cm]?[jt]sx?)`/g;
 
 function storyFiles(directory = STORIES): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -39,5 +40,16 @@ describe("user-story catalogue", () => {
     expect(story).toMatch(/^1\. /m);
     expect(story).toMatch(/^## Acceptance criteria$/m);
     expect(story).toMatch(/^- (?:✅ )?\S/m);
+  });
+
+  it.each(storyFiles())("keeps source references in %s resolvable", (file) => {
+    const story = readFileSync(file, "utf8");
+    const metadata = story.split(/^## Goal$/m, 1)[0] ?? "";
+    const references = [...metadata.matchAll(SOURCE_PATH)].map((match) => match[1]);
+
+    for (const reference of references) {
+      if (!reference) throw new Error("Expected a source path from story metadata.");
+      expect(existsSync(resolve(ROOT, reference)), `Missing story source reference: ${reference}`).toBe(true);
+    }
   });
 });

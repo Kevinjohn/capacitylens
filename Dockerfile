@@ -90,6 +90,7 @@ EXPOSE 8080
 FROM web-runtime AS web-client
 COPY --from=web-client-build /tmp/nginx.client.conf /etc/nginx/conf.d/default.conf
 
-# Keep the local-API image as the Dockerfile's final/default target for existing direct builds.
+# Keep the web image as the Dockerfile's final/default target. Direct API builds must select the
+# `api` target explicitly.
 FROM web-runtime AS web
 COPY nginx.conf /etc/nginx/conf.d/default.conf

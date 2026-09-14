@@ -182,7 +182,6 @@ function PersonIdentity({
 // z-10` wrapper) rather than as a single `background` on the <td>, so the overbooked hatch can be
 // confined to exactly the filled sub-region (its own div, sized to `fraction * 100%`) without
 // distorting the pattern or bleeding into the grey portion above it.
-//
 // The outer wrapper is inset 3px from the cell edge (not 0) so adjacent bars read as separate
 // cards with a 6px gap between them, both directions. This is done here, per-fill, rather than
 // via `border-spacing` on the table: that spacing model paints a table-owned gutter between

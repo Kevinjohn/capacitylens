@@ -1,6 +1,6 @@
 # US-TOF-06 — Record a company-wide closure for Everyone
 
-**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/company-timeoff.spec.ts` → company-wide closure journey
+**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/company-closures.auth.spec.ts` → "an editor creates, sees, edits and deletes a literal company closure band"
 
 ## Goal
 

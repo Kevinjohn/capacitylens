@@ -61,7 +61,7 @@ function registerSuiteScenario1() {
 }
 
 function registerSuiteScenario2() {
-  test("signing in reveals the app; signing out from Settings returns to the login screen", async ({
+  test("signing in reveals the app; signing out from Account via the sidebar returns to the login screen", async ({
     page,
     request,
   }) => {

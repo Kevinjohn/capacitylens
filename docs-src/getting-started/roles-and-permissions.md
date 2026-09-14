@@ -6,11 +6,13 @@ description: What each of CapacityLens's four roles can see and do, and how sign
 # Roles and permissions
 
 CapacityLens has four roles, strictly nested: **Viewer < Editor < [Admin](/reference/glossary)
-< [Owner](/reference/glossary)**. Every [member](/reference/glossary) gets the same
-navigation — a role changes what's editable and visible inside each page, and that's
-enforced on the server, not just hidden in the interface. This page explains what each
-role can do and clears up a common point of confusion: the difference between having a
-sign-in, being a member of a company, and being on the schedule.
+< [Owner](/reference/glossary)**. A role changes what's editable and visible inside each page,
+and that's enforced on the server, not just hidden in the interface. Navigation can also depend on
+company settings: for example, [Overview access](/guide/capacity-overview#control-access) defaults
+to Owners and Admins and can include Editors or everyone. People without access do not see its
+sidebar link and cannot open its route directly. This page explains what each role can do and clears
+up a common point of confusion: the difference between having a sign-in, being a member of a
+company, and being on the schedule.
 
 ## The three kinds of "person"
 

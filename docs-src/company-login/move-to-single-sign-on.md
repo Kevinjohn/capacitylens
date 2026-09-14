@@ -624,7 +624,11 @@ Those are separate, experimental, named social providers. After cutover they can
 existing person sign in, but they can't create anyone new, and invitations always
 require the company provider. If you enable one, check its two-factor and
 account-recovery settings as carefully as your main login's — it's a door into the same
-building.
+building. The hosted company-login-only profile refuses these providers altogether. To
+make company login the sole sign-in method on a self-hosted installation, remove every
+named social provider's client-id and client-secret pair described in
+[Configuration](/self-hosting/configuration#company-login), restart CapacityLens and check
+that the social buttons are gone.
 
 ### Are passwords deleted at cutover?
 
