@@ -37,8 +37,8 @@ function headingId(text: string): string {
     .toLowerCase();
 }
 
-function explicitFragmentIds(line: string): string[] {
-  return [...line.matchAll(/\{#([^\s}]+)\}/g)].map((match) => match[1]).filter((id): id is string => id !== undefined);
+function trailingHeadingFragmentId(headingText: string): string | undefined {
+  return headingText.match(/\s+\{#([^\s}]+)\}\s*$/)?.[1];
 }
 
 function markdownFragmentIds(source: string): string[] {
@@ -52,14 +52,13 @@ function markdownFragmentIds(source: string): string[] {
     }
     if (inFence) continue;
 
-    const explicitIds = explicitFragmentIds(line);
-    for (const id of explicitIds) {
-      ids.add(id);
-    }
-
     const heading = line.match(/^\s*#{1,6}\s+(.+?)\s*$/);
     if (!heading?.[1]) continue;
-    if (explicitIds.length > 0) continue;
+    const explicitId = trailingHeadingFragmentId(heading[1]);
+    if (explicitId) {
+      ids.add(explicitId);
+      continue;
+    }
     const id = headingId(heading[1]);
     if (!id) continue;
     let uniqueId = id;
@@ -73,8 +72,8 @@ function markdownFragmentIds(source: string): string[] {
 
 function htmlFragmentIds(source: string): string[] {
   const ids = new Set<string>();
-  for (const match of source.matchAll(/<[^>]+\b(?:id|name)=["']([^"']+)["'][^>]*>/giu)) {
-    const id = match[1];
+  for (const match of source.matchAll(/<[^>]+\b(?:id|name)\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))[^>]*>/giu)) {
+    const id = match[1] ?? match[2] ?? match[3];
     if (id) ids.add(id);
   }
   return [...ids];
@@ -178,10 +177,20 @@ describe("documentation fragment validation", () => {
   });
 
   it("keeps explicit heading IDs and raw HTML anchors", () => {
-    const ids = documentationFragmentIds('## Company details {#calendar}\n<span id="raw-anchor"></span>');
+    const ids = documentationFragmentIds(
+      '## Company details {#calendar}\n<span id="raw-anchor"></span>\n<span id=unquoted-anchor></span>',
+    );
 
     expect(ids).toContain("calendar");
     expect(ids).not.toContain("company-details");
     expect(ids).toContain("raw-anchor");
+    expect(ids).toContain("unquoted-anchor");
+  });
+
+  it("only accepts explicit IDs as trailing heading attributes", () => {
+    const ids = documentationFragmentIds("Paragraph {#ghost}\n## Discuss {#ghost} syntax");
+
+    expect(ids).not.toContain("ghost");
+    expect(ids).toContain("discuss-ghost-syntax");
   });
 });
