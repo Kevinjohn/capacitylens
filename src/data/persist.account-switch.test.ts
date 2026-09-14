@@ -575,32 +575,41 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
   });
 
   it("a genuine edit AFTER a switch still saves (the guard only suppresses the slice load)", async () => {
-    const a2Slice = {
-      ...emptyAppData(),
-      accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
-    };
-    const loadAll = vi.fn(async () => a2Slice);
-    const saveAll = vi.fn().mockResolvedValue(undefined);
-    const adapter: PersistenceAdapter = { loadAll, saveAll };
+    vi.useFakeTimers();
+    let detach: (() => void) | undefined;
+    try {
+      const a2Slice = {
+        ...emptyAppData(),
+        accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+      };
+      const loadAll = vi.fn(async () => a2Slice);
+      const saveAll = vi.fn().mockResolvedValue(undefined);
+      const adapter: PersistenceAdapter = { loadAll, saveAll };
 
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
-    const detach = attachPersistence({
-      store: useStore,
-      adapter: adapter,
-      debounceMs: 0,
-      serverMode: true,
-    });
+      useStore.getState().replaceAll(emptyAppData());
+      useStore.getState().setActiveAccount(null);
+      useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+      detach = attachPersistence({
+        store: useStore,
+        adapter: adapter,
+        debounceMs: 300,
+        serverMode: true,
+      });
 
-    await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" });
-    expect(saveAll).not.toHaveBeenCalled(); // the load itself didn't save
+      await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" });
+      expect(saveAll).not.toHaveBeenCalled(); // the load itself didn't save
 
-    // A real edit in the now-active account DOES save.
-    useStore.getState().addClient({ name: "New Client", color: "#222222" });
-    await expect(flushPendingWrites()).resolves.toEqual({ kind: "clean" });
-    expect(saveAll).toHaveBeenCalledTimes(1);
-    detach();
+      // A real edit in the now-active account is debounced, then saved at the exact boundary.
+      useStore.getState().addClient({ name: "New Client", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(299);
+      expect(saveAll).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(flushPendingWrites()).resolves.toEqual({ kind: "clean" });
+      expect(saveAll).toHaveBeenCalledTimes(1);
+    } finally {
+      detach?.();
+      vi.useRealTimers();
+    }
   });
 
   it("FLUSHES (does not drop) account A's pending debounced edits before loading B's slice", async () => {
@@ -655,7 +664,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
   });
 
   it("rebases an edit landing while a switch load is in flight onto the newly active account", async () => {
-    vi.useFakeTimers();
+    let detach: (() => void) | undefined;
     try {
       const { aSlice, bSlice } = accountSwitchSlices();
       let releaseB: (() => void) | null = null;
@@ -682,7 +691,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
         { id: "a1", name: "Alpha", role: "owner" },
         { id: "b1", name: "Beta", role: "owner" },
       ]);
-      const detach = attachPersistence({
+      detach = attachPersistence({
         store: useStore,
         adapter: adapter,
         debounceMs: 300,
@@ -704,14 +713,12 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
       expect(useStore.getState().data.clients.find((c) => c.id === edit.id)?.accountId).toBe("b1");
       expect(onError).not.toHaveBeenCalled();
-      await vi.advanceTimersByTimeAsync(300);
       expect(saveAll).toHaveBeenCalledTimes(1);
       const saved = saveAll.mock.calls[0]?.[0] as AppData;
       expect(saved.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
       expect(saved.clients.every((c) => c.accountId === "b1")).toBe(true);
-      detach();
     } finally {
-      vi.useRealTimers();
+      detach?.();
     }
   });
 

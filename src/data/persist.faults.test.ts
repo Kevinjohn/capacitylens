@@ -354,13 +354,15 @@ describe("persistence coordinator fault-injection branches", () => {
   it("skips the post-reconciliation acknowledgement when the active account changes mid-reload", async () => {
     const slice = a2Slice();
     let releaseReload!: () => void;
+    let reloadResult!: Promise<AppData>;
     let loads = 0;
     const loadAll = vi.fn(() => {
       loads += 1;
       if (loads === 1) return Promise.resolve(slice);
-      return new Promise<AppData>((resolve) => {
+      reloadResult = new Promise<AppData>((resolve) => {
         releaseReload = () => resolve(slice);
       });
+      return reloadResult;
     });
     const saveAll = vi.fn().mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
     const detach = await attachActiveA2({ adapter: { loadAll, saveAll } });
@@ -371,7 +373,7 @@ describe("persistence coordinator fault-injection branches", () => {
 
     useStore.getState().setActiveAccount(null);
     releaseReload();
-    await vi.waitFor(() => expect(loads).toBe(2));
+    await expect(reloadResult).resolves.toBe(slice);
     expect(saveAll).toHaveBeenCalledOnce();
     detach();
   });
