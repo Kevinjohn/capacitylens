@@ -24,14 +24,13 @@ test.describe("fake sign-in (cosmetic demo gate)", () => {
     await expect(page.getByRole("heading", { name: "Choose a company" })).toBeVisible();
     await expect(page.getByText("Signed in as Bruce Wayne")).toBeVisible();
 
-    // Pick a company → the post-login "What CapacityLens is" intro page (once per device).
+    // Pick a company → the schedule and its non-blocking first-use orientation.
     await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Welcome to CapacityLens" })).toBeVisible();
-    // The intro is a resourcing-vs-PM explainer; one h1, no company picker, no app nav behind it.
+    await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-    await expect(page.getByRole("link", { name: "Schedule" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Schedule" })).toBeVisible();
 
-    // a11y oracle while the intro is up (one h1, focusable Continue).
+    // Accessibility oracle while the orientation and ordinary app remain available together.
     const introResults = await new AxeBuilder({ page }).analyze();
     const introBlocking = introResults.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(
@@ -43,9 +42,11 @@ test.describe("fake sign-in (cosmetic demo gate)", () => {
       ),
     ).toEqual([]);
 
-    // Continue dismisses the intro → the app.
-    await page.getByTestId("intro-continue").click();
-    await expect(page.getByRole("link", { name: "Schedule" })).toBeVisible();
+    // Dismissal removes the orientation itself; the surrounding app was already usable behind it,
+    // so the schedule link is not evidence of the dismissal.
+    await page.getByRole("button", { name: "Got it" }).click();
+    await expect(page.getByTestId("product-orientation")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toHaveCount(0);
   });
 
   test("staying signed in persists across reload; Sign out returns to the demo sign-in", async ({ page }) => {

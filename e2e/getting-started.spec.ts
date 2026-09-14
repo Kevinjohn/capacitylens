@@ -8,7 +8,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // state-driven: it shows only while the ACTIVE company lacks a useful first-use outcome, so the
 // seeded companies (full data) never show it — these specs create a FRESH empty company (same
 // picker flow as onboarding.spec.ts, via helpers.ts's `openNewCompany`) to see it. Dismissal is
-// the device-global `capacitylens/gettingStartedDismissed` pref, mirroring the intro page's flag.
+// the device-global `capacitylens/gettingStartedDismissed` preference.
 
 function registerSuiteScenario1() {
   test("a seeded (fully set up) company never shows the card", async ({ page }) => {

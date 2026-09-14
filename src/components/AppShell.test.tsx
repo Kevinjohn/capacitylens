@@ -30,11 +30,9 @@ afterEach(() => {
 
 beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
-  // Sign through the cosmetic demo gate, dismiss the post-login intro page, AND seed an active
-  // account so the shell (not the demo sign-in, not the account picker, not the intro) renders —
-  // these tests exercise the nav/hydration gate, which sits *after* all of those gates.
+  // Sign through the cosmetic demo gate and seed an active account so these tests exercise the shell.
   useStore.getState().setFakeSignedIn(true);
-  useStore.getState().setIntroSeen(true);
+  localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().clearFilters();

@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures";
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { dismissIntroIfPresent } from "./helpers";
+import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -31,7 +31,7 @@ test.describe("member masquerade", () => {
     await page.getByLabel("Password").fill(AUTH_PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
     await page.getByRole("button", { name: COMPANY, exact: true }).click();
-    await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
+    await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
 
     await page.getByRole("link", { name: "Team & access" }).click();
     const viewerRow = page.getByTestId("member-row").filter({ hasText: VIEWER_EMAIL });

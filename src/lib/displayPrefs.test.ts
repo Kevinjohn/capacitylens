@@ -17,8 +17,6 @@ import {
   readStoredBarLabelPrefs,
   writeStoredBarLabelPrefs,
   DEFAULT_BAR_LABEL_PREFS,
-  readStoredIntroSeen,
-  writeStoredIntroSeen,
   readStoredGettingStartedDismissed,
   writeStoredGettingStartedDismissed,
 } from "./displayPrefs";
@@ -359,28 +357,6 @@ describe("sidebar default (viewport-derived)", () => {
       throw new Error("blocked");
     }) as unknown as typeof window.matchMedia;
     expect(readDefaultSidebarOpen()).toBe(true);
-  });
-});
-
-describe("intro-seen preference", () => {
-  beforeEach(() => {
-    localStorage.removeItem("capacitylens/introSeen");
-  });
-
-  it("defaults to FALSE (not yet seen) when never chosen", () => {
-    expect(readStoredIntroSeen()).toBe(false);
-  });
-
-  it("round-trips an explicit on/off choice", () => {
-    writeStoredIntroSeen(true);
-    expect(readStoredIntroSeen()).toBe(true);
-    writeStoredIntroSeen(false);
-    expect(readStoredIntroSeen()).toBe(false);
-  });
-
-  it("persists under the documented storage key", () => {
-    writeStoredIntroSeen(true);
-    expect(localStorage.getItem("capacitylens/introSeen")).toBe("on");
   });
 });
 

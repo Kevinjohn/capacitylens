@@ -24,6 +24,9 @@ import { Button } from "./ui/button";
 import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
 import { retryActiveAccountLoad } from "../data/persist";
 import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
+import { useAuth } from "../auth/authContext";
+import { ProductOrientation } from "./ProductOrientation";
+import { useProductOrientation } from "./useProductOrientation";
 import { formatInstant } from "@/lib/dateDisplay";
 
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
@@ -100,9 +103,7 @@ type GatedAppProps = {
   allowWithoutActiveAccount: boolean;
   activeAccountId: ReturnType<typeof useStore.getState>["activeAccountId"];
   activeAccountLoadFailed: ReturnType<typeof useStore.getState>["activeAccountLoadFailed"];
-  introSeen: boolean;
   onFakeSignIn: () => void;
-  onIntroContinue: () => void;
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
   activeAccount:
@@ -130,9 +131,7 @@ function GatedApp({
   allowWithoutActiveAccount,
   activeAccountId,
   activeAccountLoadFailed,
-  introSeen,
   onFakeSignIn,
-  onIntroContinue,
   sidebarOpen,
   setSidebarOpen,
   activeAccount,
@@ -146,6 +145,13 @@ function GatedApp({
   masqueradeBanner,
   navigate,
 }: GatedAppProps) {
+  const { user } = useAuth();
+  const orientation = useProductOrientation({
+    userId: user?.id ?? null,
+    demo: demoAuthActive,
+    accountId: activeAccountId,
+  });
+
   return (
     <AppEntryGate
       hydrated={hydrated}
@@ -158,9 +164,7 @@ function GatedApp({
       activeAccountId={activeAccountId}
       activeAccountLoadFailed={activeAccountLoadFailed}
       activeAccountName={activeAccount?.name ?? m.account_load_fallback_name()}
-      introSeen={introSeen}
       onFakeSignIn={onFakeSignIn}
-      onIntroContinue={onIntroContinue}
       onRetryActiveAccountLoad={() =>
         activeAccountId
           ? retryActiveAccountLoad(activeAccountId).then((outcome) => outcome.kind !== "failed")
@@ -181,9 +185,10 @@ function GatedApp({
             demoAuthActive={demoAuthActive}
             signOutDemo={signOutDemo}
             sidebarOpen={sidebarOpen}
+            onShowOrientation={orientation.show}
           />
           {/* prettier-ignore */}
-          <GatedMain hydrated={hydrated} offline={offline} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} />
+          <GatedMain hydrated={hydrated} offline={offline} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} orientation={orientation} />
           {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
           <RotateHint />
         </SidebarProvider>
@@ -198,7 +203,10 @@ function GatedSidebar({
   demoAuthActive,
   signOutDemo,
   sidebarOpen,
-}: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "signOutDemo" | "sidebarOpen">) {
+  onShowOrientation,
+}: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "signOutDemo" | "sidebarOpen"> & {
+  onShowOrientation: (trigger: HTMLButtonElement, delayMs?: number) => void;
+}) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
@@ -225,19 +233,22 @@ function GatedSidebar({
         onSignOut={signOutDemo}
         onSwitchAccount={() => void chooseAnotherAccountAfterLoadFailure(accountRoute, navigate)}
         open={sidebarOpen}
+        onShowOrientation={onShowOrientation}
       />
     </>
   );
 }
 
-// Keep the main surface isolated so this shell remains an orchestration boundary.
 function GatedMain({
   hydrated,
   offline,
   persistError,
   masqueradeBanner,
   navigate,
-}: Pick<GatedAppProps, "hydrated" | "offline" | "persistError" | "masqueradeBanner" | "navigate">) {
+  orientation,
+}: Pick<GatedAppProps, "hydrated" | "offline" | "persistError" | "masqueradeBanner" | "navigate"> & {
+  orientation: ReturnType<typeof useProductOrientation>;
+}) {
   const loader = <AppShellLoader />;
   return (
     <main id="main" tabIndex={-1} className="min-w-0 flex-1 overflow-auto">
@@ -258,6 +269,13 @@ function GatedMain({
         <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
           <AlertDescription>{m.app_persist_error()}</AlertDescription>
         </Alert>
+      )}
+      {orientation.visible && (
+        <ProductOrientation
+          key={orientation.scope}
+          focusRequest={orientation.focusRequest}
+          onDismiss={orientation.dismiss}
+        />
       )}
       <GettingStartedShortcut />
       {hydrated ? (
@@ -323,10 +341,8 @@ export function AppShell() {
   const masquerade = useStore((state) => state.masquerade);
   const masqueradeBanner = buildMasqueradeBannerContent(masquerade);
   const offline = useOfflineState();
-  // Drives Sonner's theme (see the <Toaster> below). An explicit light|dark pref is passed
-  // through as the concrete scheme; a 'system' pref is delegated to Sonner ('system'), which
-  // subscribes to prefers-color-scheme itself and so stays live when the OS flips (this shell
-  // wouldn't re-render on that, which is why we don't resolve 'system' here).
+  // Delegate the system preference to Sonner so it follows live OS changes without a shell rerender;
+  // explicit light and dark preferences pass through as concrete schemes.
   const themePreference = useStore((state) => state.theme);
   const accounts = useStore((state) => state.data.accounts);
   const accountSummaries = useStore((state) => state.accountSummaries);
@@ -339,17 +355,10 @@ export function AppShell() {
   const activeAccount =
     accounts.find((account) => account.id === activeAccountId) ??
     accountSummaries.find((a) => a.id === activeAccountId);
-  // Cosmetic demo sign-in (see the gate below). `demoAuthActive` is true only when the real
-  // auth seam is OFF, so the demo gate and the real login wall never double-gate.
   const demoAuthActive = useDemoAuthActive();
   const fakeSignedIn = useStore((state) => state.fakeSignedIn);
   const setFakeSignedIn = useStore((state) => state.setFakeSignedIn);
   const signOutDemo = useStore((state) => state.signOutDemo);
-  // Post-login intro gate (see below). Device-global, once-per-device flag.
-  const introSeen = useStore((state) => state.introSeen);
-  const setIntroSeen = useStore((state) => state.setIntroSeen);
-  // Drop the Disciplines destination from the nav when the active account doesn't use
-  // disciplines (the route itself is also guarded — see router.tsx).
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== "/disciplines");
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
@@ -371,9 +380,7 @@ export function AppShell() {
         allowWithoutActiveAccount={accountRoute}
         activeAccountId={activeAccountId}
         activeAccountLoadFailed={activeAccountLoadFailed}
-        introSeen={introSeen}
         onFakeSignIn={() => setFakeSignedIn(true)}
-        onIntroContinue={() => setIntroSeen(true)}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         activeAccount={activeAccount}

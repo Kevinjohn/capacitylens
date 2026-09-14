@@ -1,6 +1,6 @@
 import { test, expect, type APIRequestContext } from "./fixtures";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser as signUp } from "./auth-helpers";
-import { dismissIntroIfPresent } from "./helpers";
+import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -18,9 +18,7 @@ const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;
 const EDITOR = `v-editor-${STAMP}@capacitylens.dev`;
 
-/** Sign in through the browser login wall and pick the org, dismissing the intro IF it shows. The
- *  intro is once-per-device (localStorage `capacitylens/introSeen`), so on the SECOND sign-in in the
- *  same browser context (viewer → editor) it won't reappear — handle it conditionally. */
+/** Sign in through the browser login wall and pick the company, then wait for the app shell. */
 async function signInAndOpen(page: import("@playwright/test").Page, email: string, org: string) {
   await page.goto("/");
   await page.getByRole("heading", { name: "Sign in" }).waitFor();
@@ -30,7 +28,7 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
   await page.getByRole("button", { name: org, exact: true }).click();
   // The intro is once-per-device; on the second sign-in it won't reappear. Wait for EITHER the intro
   // OR the app (Schedule heading) to settle the race, then dismiss the intro if present.
-  await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
+  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }
 

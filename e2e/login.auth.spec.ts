@@ -77,13 +77,11 @@ function registerSuiteScenario2() {
     await page.getByRole("button", { name: "Sign in" }).click();
 
     // The boot flow resumes: the picker lists ONLY this login's memberships (P1.13) → pick our org →
-    // the active account hydrates its slice via GET /api/state?accountId= → the post-login intro → app.
+    // the active account hydrates its slice via GET /api/state?accountId= → app.
     // exact: true — a bare name would also match a "Delete <name>" control.
     await page.getByRole("button", { name: ORG_NAME, exact: true }).click();
-    // The "What CapacityLens is" intro gate fires after the company pick in every entry mode (incl. real
-    // auth — they all converge on a chosen account); dismiss it to reach the app.
-    await expect(page.getByRole("heading", { name: "Welcome to CapacityLens" })).toBeVisible();
-    await page.getByTestId("intro-continue").click();
+    await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
+    await page.getByRole("button", { name: "Got it" }).click();
     await expect(page.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
 
     // Personal identity lives on Account; the sidebar carries the one sign-out action.

@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import {
-  dismissIntroIfPresent,
+  waitForAppLanding,
   nudgeScheduler as nudge,
   openApp,
   probeSchedulerGeometry as probe,
@@ -86,7 +86,7 @@ test.describe("Snap to week start", () => {
     await page.getByRole("radio", { name: "Sunday" }).click(); // capture the Sunday week-start
     await page.getByRole("button", { name: "Create company" }).click();
     // A post-create intro may precede the app; click through if it's up.
-    await dismissIntroIfPresent(page, page.locator("#main"));
+    await waitForAppLanding(page, page.locator("#main"));
 
     // Turn "Minimise weekends" OFF (device pref): with it on, a week-start Sunday is a (collapsed)
     // weekend labelled "S", indistinguishable from a Saturday, making the column-width probe
