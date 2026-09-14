@@ -165,6 +165,10 @@ function registerCreateAndActivateTests() {
     expect(
       screen.getByText("Week start, time zone, and language apply to everyone and cannot be changed later."),
     ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Company planning settings" })).toHaveAccessibleDescription(
+      "Week start, time zone, and language apply to everyone and cannot be changed later.",
+    );
+    expect(screen.getByLabelText("Company name")).not.toHaveAttribute("aria-describedby");
     // The three frozen-after-creation fields render with concrete defaults.
     expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = screen.getByLabelText("Timezone");
@@ -400,6 +404,7 @@ function registerServerListEmptyStateTests() {
     expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
     expect(screen.getByText("Ask an admin for an invite to join a company.")).toBeInTheDocument();
     expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
     expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
     expect(screen.getByTestId("company-empty-options").children).toHaveLength(1);
     expect(screen.queryByText(/Create a company to start planning/)).not.toBeInTheDocument();
@@ -567,6 +572,8 @@ function registerServerCreateUnknownResponseTest() {
         "The create request had an unknown outcome. The company list was refreshed; check it before trying again.",
       ),
     );
+    expect(screen.getByLabelText("Company name")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create company" })).toBeEnabled();
   });
 }
 
@@ -588,6 +595,27 @@ function registerServerCreateTransportFailureTest() {
         "The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again. create transport failed",
       ),
     );
+    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
+  });
+
+  it("locks creation when a successful response cannot be reconciled", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) };
+      throw new Error("directory refresh failed");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Unresolved Co");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    await waitFor(() => expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
   });
 }
 

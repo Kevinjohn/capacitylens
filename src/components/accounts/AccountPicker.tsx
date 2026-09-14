@@ -121,7 +121,7 @@ function AccountCreationPanel({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
-  if (!form.creating && !companySetupEligible) return null;
+  if (form.createUnresolved || (!form.creating && !companySetupEligible)) return null;
   const props = buildCreateAccountPanelProps(form, onSubmit, companySetupEligible ? undefined : onCancel);
   return <CreateAccountPanel {...props} />;
 }
@@ -145,6 +145,7 @@ interface CreateAccountPanelProps {
 }
 
 interface CreateAccountFormState {
+  createUnresolved: boolean;
   name: string;
   setName: (name: string) => void;
   weekStartsOn: 0 | 1;
@@ -196,6 +197,7 @@ function AccountLanguageDisplay() {
 }
 
 function CreateAccountPanel(input: CreateAccountPanelProps) {
+  const fixedSettingsHelpId = useId();
   const changeName = (name: string) => {
     input.onNameChange(name);
     if (input.errorField === "name") input.onClearError();
@@ -214,7 +216,7 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
           <CardTitle>
             <h2>{m.picker_new()}</h2>
           </CardTitle>
-          <CardDescription>{m.picker_fixed_settings_help()}</CardDescription>
+          <CardDescription id={fixedSettingsHelpId}>{m.picker_fixed_settings_help()}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <TextField
@@ -225,23 +227,26 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
             invalid={input.errorField === "name"}
             describedById={input.errorId}
           />
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
-            <SegmentedControl
-              ariaLabel={m.picker_week_start()}
-              value={input.weekStartsOn}
-              onChange={input.onWeekStartChange}
-              options={input.weekStartSelectOptions}
-              fullWidth
+          <fieldset aria-describedby={fixedSettingsHelpId} className="flex flex-col gap-3">
+            <legend className="sr-only">{m.picker_fixed_settings_group()}</legend>
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
+              <SegmentedControl
+                ariaLabel={m.picker_week_start()}
+                value={input.weekStartsOn}
+                onChange={input.onWeekStartChange}
+                options={input.weekStartSelectOptions}
+                fullWidth
+              />
+            </div>
+            <TimeZoneField
+              label={m.picker_timezone()}
+              value={input.timezone}
+              onChange={input.onTimeZoneChange}
+              options={input.timeZoneSelectOptions}
             />
-          </div>
-          <TimeZoneField
-            label={m.picker_timezone()}
-            value={input.timezone}
-            onChange={input.onTimeZoneChange}
-            options={input.timeZoneSelectOptions}
-          />
-          <AccountLanguageDisplay />
+            <AccountLanguageDisplay />
+          </fieldset>
           <FieldError id={input.errorId}>{input.error}</FieldError>
         </CardContent>
         <CardFooter className="flex-col gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">

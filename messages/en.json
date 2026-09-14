@@ -1079,6 +1079,7 @@
   "picker_language": "Language",
   "picker_language_english": "English",
   "picker_fixed_settings_help": "Week start, time zone, and language apply to everyone and cannot be changed later.",
+  "picker_fixed_settings_group": "Company planning settings",
   "picker_cancel": "Cancel",
   "picker_create": "Create company",
   "picker_new": "New company",
