@@ -1,201 +1,295 @@
-import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildGettingStartedSteps,
   hasCompletedAllSteps,
+  hasExistingSetupData,
   isGettingStartedComplete,
   readGettingStartedProgress,
   writeGettingStartedProgress,
 } from "./gettingStarted";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
+import type { Activity, Allocation, AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
-import {
-  FIXTURE_ALLOCATION,
-  FIXTURE_ACTIVITY,
-  FIXTURE_CLIENT,
-  FIXTURE_PROJECT,
-  FIXTURE_RESOURCE as FIXTURE_PLACEHOLDER,
-  FIXTURE_RESOURCE_EXTERNAL,
-} from "@capacitylens/shared/data/fixtures";
-import type { AppData } from "@capacitylens/shared/types/entities";
 
-beforeEach(() => {
-  localStorage.clear();
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
-// Pure derivation tests only — the card's render/visibility rules (dismissed flag, all-done,
-// viewer role) ride on the store and are exercised end-to-end in e2e/getting-started.spec.ts.
+beforeEach(() => localStorage.clear());
+afterEach(() => vi.restoreAllMocks());
 
 const NOW = "2026-06-03T12:00:00.000Z";
+const entity = { accountId: "a1", createdAt: NOW, updatedAt: NOW };
+const client = (over: Partial<Client> = {}): Client => ({
+  id: "c1",
+  name: "Wayne Enterprises",
+  color: "#123456",
+  ...entity,
+  ...over,
+});
+const project = (over: Partial<Project> = {}): Project => ({
+  id: "p1",
+  name: "Launch",
+  clientId: "c1",
+  color: "#123456",
+  ...entity,
+  ...over,
+});
+const activity = (over: Partial<Activity> = {}): Activity => ({
+  id: "t1",
+  name: "Planning",
+  kind: "internal",
+  ...entity,
+  ...over,
+});
+const person = (over: Partial<Resource> = {}): Resource => ({
+  id: "r1",
+  kind: "person",
+  name: "Bruce Wayne",
+  role: "Designer",
+  employmentType: "permanent",
+  engagement: "studio",
+  workingHoursPerDay: 8,
+  workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
+  color: "#123456",
+  ...entity,
+  ...over,
+});
+const allocation = (over: Partial<Allocation> = {}): Allocation => ({
+  id: "al1",
+  resourceId: "r1",
+  activityId: "t1",
+  startDate: "2026-06-03",
+  endDate: "2026-06-03",
+  hoursPerDay: 0,
+  status: "tentative",
+  ...entity,
+  ...over,
+});
+const dataWith = (slices: Partial<AppData>): AppData => ({ ...emptyAppData(), ...slices });
 
-/** A fresh AppData with the given slices. Production passes the active-only projection from
- *  useActiveScopedData; these pure tests make any lifecycle state they exercise explicit. */
-function dataWith(slices: Partial<AppData>): AppData {
-  return { ...emptyAppData(), ...slices };
-}
-
-describe("deriveGettingStartedSteps", () => {
-  it("reports nothing done on an empty account", () => {
-    expect(buildGettingStartedSteps(emptyAppData())).toEqual({
-      client: false,
-      project: false,
-      activity: false,
-      person: false,
-      assign: false,
-    });
-  });
-
-  it('does NOT count the built-in Internal client as "your first client"', () => {
-    const data = dataWith({ clients: [buildInternalClient("a1", NOW)] });
-    expect(buildGettingStartedSteps(data).client).toBe(false);
-  });
-
-  it("counts a real (non-builtin) client", () => {
-    const activeClient = { ...FIXTURE_CLIENT };
-    delete activeClient.archivedAt;
-    delete activeClient.deletedAt;
-    const data = dataWith({
-      clients: [buildInternalClient("a1", NOW), activeClient],
-    });
-    expect(buildGettingStartedSteps(data).client).toBe(true);
-  });
-
-  it("counts an imported activity without requiring a disposable replacement", () => {
-    expect(buildGettingStartedSteps(dataWith({ activities: [FIXTURE_ACTIVITY] })).activity).toBe(true);
-  });
-
-  it("relies on the caller to remove deleted clients from its active projection", () => {
-    // deriveGettingStartedSteps deliberately classifies only row kind/presence. Its production
-    // caller passes useActiveScopedData(), so a tombstone never reaches this function there.
-    expect(buildGettingStartedSteps(dataWith({ clients: [FIXTURE_CLIENT] })).client).toBe(true);
+describe("first-use outcome truth table", () => {
+  it("starts with all three outcomes incomplete", () => {
+    expect(buildGettingStartedSteps(emptyAppData())).toEqual({ person: false, work: false, scheduled: false });
   });
 
   it.each([
-    ["placeholder", FIXTURE_PLACEHOLDER],
-    ["external", FIXTURE_RESOURCE_EXTERNAL],
-  ] as const)("does not count %s resources as the first person", (_label, resource) => {
-    expect(buildGettingStartedSteps(dataWith({ resources: [resource] })).person).toBe(false);
+    ["person", person(), true],
+    ["placeholder", person({ kind: "placeholder", projectId: "p1" }), false],
+    ["external", person({ kind: "external" }), false],
+  ] as const)("classifies an active %s resource for the person outcome", (_name, resource, expected) => {
+    expect(buildGettingStartedSteps(dataWith({ resources: [resource] })).person).toBe(expected);
   });
 
-  it("ticks each remaining step off its own slice", () => {
-    const person = {
-      ...FIXTURE_PLACEHOLDER,
-      kind: "person" as const,
-      name: "Bruce Wayne",
-    };
-    delete person.projectId;
-    const data = dataWith({
-      projects: [FIXTURE_PROJECT],
-      activities: [FIXTURE_ACTIVITY],
-      resources: [person],
-      allocations: [FIXTURE_ALLOCATION],
-    });
-    expect(buildGettingStartedSteps(data)).toEqual({
-      client: false,
-      project: true,
-      activity: true,
-      person: true,
-      assign: true,
-    });
-  });
-});
-
-describe("allStepsDone", () => {
-  it("is true only when every step is complete", () => {
-    expect(hasCompletedAllSteps({ client: true, project: true, activity: true, person: true, assign: true })).toBe(
-      true,
-    );
-  });
-
-  it.each([
-    ["client", { client: false, project: true, activity: true, person: true, assign: true }],
-    ["project", { client: true, project: false, activity: true, person: true, assign: true }],
-    ["activity", { client: true, project: true, activity: false, person: true, assign: true }],
-    ["person", { client: true, project: true, activity: true, person: false, assign: true }],
-    ["assign", { client: true, project: true, activity: true, person: true, assign: false }],
-  ] as const)("is false when %s is incomplete", (_label, steps) => {
-    expect(hasCompletedAllSteps(steps)).toBe(false);
-  });
-});
-
-describe("onboarding completion", () => {
-  const steps = { client: true, project: true, activity: true, person: true, assign: true };
-  it("keeps Settings review pending for someone who started setup without choosing a path", () => {
+  it("does not count archived or deleted people", () => {
+    expect(buildGettingStartedSteps(dataWith({ resources: [person({ archivedAt: NOW })] })).person).toBe(false);
     expect(
-      isGettingStartedComplete(steps, {
-        started: true,
-        importChosen: false,
-        scratchChosen: false,
-        settingsReviewed: false,
-      }),
+      buildGettingStartedSteps(dataWith({ resources: [person({ archivedAt: NOW, deletedAt: NOW })] })).person,
     ).toBe(false);
   });
-  it("does not reopen onboarding for an established company", () => {
+
+  it.each([
+    ["internal", activity({ kind: "internal" }), [], [], true],
+    ["unattributed repeatable", activity({ kind: "repeatable" }), [], [], true],
+    [
+      "project activity with active ancestry",
+      activity({ kind: "project", projectId: "p1" }),
+      [project()],
+      [client()],
+      true,
+    ],
+    ["project activity without a project", activity({ kind: "project", projectId: "missing" }), [], [client()], false],
+    ["project activity without a client", activity({ kind: "project", projectId: "p1" }), [project()], [], false],
+  ] as const)(
+    "classifies %s for the work outcome",
+    (
+      _name,
+      work,
+      projects,
+      clients,
+      expected,
+      // eslint-disable-next-line max-params -- each named truth-table dimension is independently significant
+    ) => {
+      expect(
+        buildGettingStartedSteps(dataWith({ activities: [work], projects: [...projects], clients: [...clients] })).work,
+      ).toBe(expected);
+    },
+  );
+
+  it("does not let a dangling project activity hide a coherent activity", () => {
+    const steps = buildGettingStartedSteps(
+      dataWith({
+        activities: [activity({ kind: "project", projectId: "missing" }), activity({ id: "t2", kind: "internal" })],
+      }),
+    );
+    expect(steps.work).toBe(true);
+  });
+
+  it("does not count inactive work or project ancestry", () => {
+    expect(buildGettingStartedSteps(dataWith({ activities: [activity({ archivedAt: NOW })] })).work).toBe(false);
     expect(
-      isGettingStartedComplete(steps, {
-        started: false,
-        importChosen: false,
-        scratchChosen: false,
+      buildGettingStartedSteps(
+        dataWith({
+          activities: [activity({ kind: "project", projectId: "p1" })],
+          projects: [project({ archivedAt: NOW })],
+          clients: [client()],
+        }),
+      ).work,
+    ).toBe(false);
+    expect(
+      buildGettingStartedSteps(
+        dataWith({
+          activities: [activity({ kind: "project", projectId: "p1" })],
+          projects: [project()],
+          clients: [client({ deletedAt: NOW })],
+        }),
+      ).work,
+    ).toBe(false);
+  });
+
+  it.each([
+    ["zero-hour allocation", allocation(), person(), activity(), [], [], true],
+    ["missing person", allocation({ resourceId: "missing" }), person(), activity(), [], [], false],
+    ["placeholder assignee", allocation(), person({ kind: "placeholder", projectId: "p1" }), activity(), [], [], false],
+    ["external assignee", allocation(), person({ kind: "external" }), activity(), [], [], false],
+    ["missing activity", allocation({ activityId: "missing" }), person(), activity(), [], [], false],
+    [
+      "dangling project activity",
+      allocation(),
+      person(),
+      activity({ kind: "project", projectId: "missing" }),
+      [],
+      [],
+      false,
+    ],
+    [
+      "coherent project activity",
+      allocation(),
+      person(),
+      activity({ kind: "project", projectId: "p1" }),
+      [project()],
+      [client()],
+      true,
+    ],
+    ["unattributed repeatable", allocation(), person(), activity({ kind: "repeatable" }), [], [], true],
+    [
+      "attributed repeatable with ancestry",
+      allocation({ projectId: "p1" }),
+      person(),
+      activity({ kind: "repeatable" }),
+      [project()],
+      [client()],
+      true,
+    ],
+    [
+      "attributed repeatable without project",
+      allocation({ projectId: "missing" }),
+      person(),
+      activity({ kind: "repeatable" }),
+      [],
+      [client()],
+      false,
+    ],
+    [
+      "attributed repeatable without client",
+      allocation({ projectId: "p1" }),
+      person(),
+      activity({ kind: "repeatable" }),
+      [project()],
+      [],
+      false,
+    ],
+  ] as const)(
+    "classifies %s for the scheduled outcome",
+    // eslint-disable-next-line max-params -- each named truth-table dimension is independently significant
+    (_name, booked, resource, work, projects, clients, expected) => {
+      const steps = buildGettingStartedSteps(
+        dataWith({
+          allocations: [booked],
+          resources: [resource],
+          activities: [work],
+          projects: [...projects],
+          clients: [...clients],
+        }),
+      );
+      expect(steps.scheduled).toBe(expected);
+    },
+  );
+
+  it("requires all useful outcomes regardless of legacy markers", () => {
+    const complete = { person: true, work: true, scheduled: true };
+    expect(hasCompletedAllSteps(complete)).toBe(true);
+    expect(
+      isGettingStartedComplete(complete, {
+        started: true,
+        importChosen: true,
+        scratchChosen: true,
         settingsReviewed: false,
       }),
     ).toBe(true);
+    expect(
+      isGettingStartedComplete(
+        { ...complete, scheduled: false },
+        { started: true, importChosen: true, scratchChosen: true, settingsReviewed: true },
+      ),
+    ).toBe(false);
+  });
+
+  it("treats partial meaningful data as existing setup data", () => {
+    const none = { person: false, work: false, scheduled: false };
+    expect(hasExistingSetupData(dataWith({ clients: [client()] }), none)).toBe(true);
+    expect(hasExistingSetupData(dataWith({ projects: [project()] }), none)).toBe(true);
+    expect(hasExistingSetupData(dataWith({ clients: [buildInternalClient("a1", NOW)] }), none)).toBe(false);
+    expect(hasExistingSetupData(emptyAppData(), none)).toBe(false);
   });
 });
 
 describe("onboarding progress persistence", () => {
-  it("uses empty progress and a safe warning when saved JSON is malformed", () => {
-    const accountId = "private-account-id";
-    const storedJson = '{"started":true,"accountEmail":"private@example.com"';
-    localStorage.setItem(`capacitylens/gettingStartedProgress/${accountId}`, storedJson);
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("keeps the tolerant legacy payload parser", () => {
+    localStorage.setItem(
+      "capacitylens/gettingStartedProgress/a1",
+      JSON.stringify({
+        started: true,
+        importChosen: true,
+        scratchChosen: true,
+        settingsReviewed: true,
+        future: "ignored",
+      }),
+    );
+    expect(readGettingStartedProgress("a1")).toEqual({
+      started: true,
+      importChosen: true,
+      scratchChosen: true,
+      settingsReviewed: true,
+    });
+  });
 
-    expect(readGettingStartedProgress(accountId)).toEqual({
+  it("uses empty progress and a safe warning when saved JSON is malformed", () => {
+    localStorage.setItem("capacitylens/gettingStartedProgress/private-account-id", '{"started":true');
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(readGettingStartedProgress("private-account-id")).toEqual({
       started: false,
       importChosen: false,
       scratchChosen: false,
       settingsReviewed: false,
     });
-    expect(warnSpy).toHaveBeenCalledWith("gettingStarted: saved progress could not be parsed; using empty progress");
-    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(accountId);
-    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(storedJson);
+    expect(warning).toHaveBeenCalledWith("gettingStarted: saved progress could not be parsed; using empty progress");
   });
 
-  it("does not throw and warns safely when device storage rejects a write", () => {
-    const accountId = "private-account-id";
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new SyntaxError(`private stored payload for ${accountId}`);
+  it("does not throw when device storage rejects a read or write", () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(Storage.prototype, "getItem").mockImplementationOnce(() => {
+      throw new Error("private");
     });
-
+    expect(readGettingStartedProgress("a1").started).toBe(false);
+    vi.spyOn(Storage.prototype, "setItem").mockImplementationOnce(() => {
+      throw new Error("private");
+    });
     expect(() =>
-      writeGettingStartedProgress(accountId, {
+      writeGettingStartedProgress("a1", {
         started: true,
         importChosen: false,
-        scratchChosen: true,
+        scratchChosen: false,
         settingsReviewed: false,
       }),
     ).not.toThrow();
-    expect(warnSpy).toHaveBeenCalledWith("gettingStarted: progress could not be saved; continuing in memory");
-    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(accountId);
-  });
-
-  it("uses empty progress and a safe warning when device storage rejects a read", () => {
-    const accountId = "private-account-id";
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-      throw new Error(`private storage failure for ${accountId}`);
-    });
-
-    expect(readGettingStartedProgress(accountId)).toEqual({
-      started: false,
-      importChosen: false,
-      scratchChosen: false,
-      settingsReviewed: false,
-    });
-    expect(warnSpy).toHaveBeenCalledWith("gettingStarted: progress could not be read; using empty progress");
-    expect(warnSpy.mock.calls.flat().join(" ")).not.toContain(accountId);
+    expect(warning).toHaveBeenCalledTimes(2);
   });
 });

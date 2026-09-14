@@ -1,45 +1,79 @@
-import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
+import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 
 // Pure derivation for the first-run "Getting started" checklist (components/GettingStarted.tsx):
-// which onboarding steps the active account has completed, read straight off its scoped data.
+// which useful first-use outcomes the active account has completed, read straight off scoped data.
 // Kept out of the component file so it's a plain testable function (and mutation-tested with the
 // other src/lib helpers).
 
 /** Which onboarding steps the active account has completed. */
 export interface GettingStartedSteps {
-  client: boolean;
-  project: boolean;
-  activity: boolean;
   person: boolean;
-  assign: boolean;
+  work: boolean;
+  scheduled: boolean;
 }
 
 /**
  * Derive checklist completion from an account's active-only scoped {@link AppData}.
  *
- * Callers must pass the projection returned by `useActiveScopedData`; this deliberately simple
- * presence classifier does not repeat lifecycle filtering, so raw archived or soft-deleted rows
- * would otherwise tick a step. The built-in Internal client does not count because every account
- * has it and it is not “your first client”.
+ * Production callers pass the active projection, while lifecycle checks here keep the pure
+ * contract safe for imported or independently constructed data. Activity ancestry and every
+ * allocation reference are verified rather than inferred from row presence.
  */
 export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
+  const people = new Set(
+    data.resources
+      .filter((resource) => !resource.archivedAt && !resource.deletedAt && resource.kind === "person")
+      .map(({ id }) => id),
+  );
+  const clients = new Set(data.clients.filter((client) => !client.archivedAt && !client.deletedAt).map(({ id }) => id));
+  const projects = new Map(
+    data.projects
+      .filter((project) => !project.archivedAt && !project.deletedAt)
+      .map((project) => [project.id, project]),
+  );
+  const coherentProject = (projectId: string | undefined): boolean => {
+    if (!projectId) return false;
+    const project = projects.get(projectId);
+    return project !== undefined && clients.has(project.clientId);
+  };
+  const activities = new Map(
+    data.activities
+      .filter((activity) => !activity.archivedAt && !activity.deletedAt)
+      .map((activity) => [activity.id, activity]),
+  );
+  const coherentActivities = new Map(
+    [...activities.values()].map((activity) => [
+      activity.id,
+      activity.kind !== "project" || coherentProject(activity.projectId),
+    ]),
+  );
+  const scheduled = data.allocations.some((allocation) => {
+    if (!people.has(allocation.resourceId) || coherentActivities.get(allocation.activityId) !== true) return false;
+    const activity = activities.get(allocation.activityId);
+    return (
+      activity?.kind !== "repeatable" || allocation.projectId === undefined || coherentProject(allocation.projectId)
+    );
+  });
   return {
-    client: data.clients.some((client) => !isBuiltinClient(client)),
-    project: data.projects.length > 0,
-    activity: data.activities.length > 0,
-    person: data.resources.some((resource) => resource.kind === "person"),
-    assign: data.allocations.length > 0,
+    person: people.size > 0,
+    work: [...coherentActivities.values()].some(Boolean),
+    scheduled,
   };
 }
 
-/** Return whether an account has any completed domain setup step. */
-export function hasExistingSetupData(steps: GettingStartedSteps): boolean {
-  return Object.values(steps).some(Boolean);
+/** Return whether an account has any meaningful active setup data. Client/project rows reveal the
+ * milestones even though they are supporting data rather than completion requirements. */
+export function hasExistingSetupData(data: AppData, steps: GettingStartedSteps): boolean {
+  return (
+    Object.values(steps).some(Boolean) ||
+    data.clients.some((client) => !client.archivedAt && !client.deletedAt && !isBuiltinClient(client)) ||
+    data.projects.some((project) => !project.archivedAt && !project.deletedAt)
+  );
 }
 
-/** Device-local markers for the setup path chosen by a new company and its Settings review. */
+/** Legacy-compatible device-local markers that reveal the first-use milestones. */
 export interface GettingStartedProgress {
   started: boolean;
   importChosen: boolean;
@@ -104,16 +138,12 @@ export function writeGettingStartedProgress(accountId: string, progress: Getting
 }
 
 /**
- * Decide whether the checklist can hide for the current account.
- *
- * An established company whose domain steps are already complete has no recorded setup path and
- * completes immediately. A new setup, identified by started/import/scratch progress, keeps the
- * checklist until the user reviews Settings. Progress persistence is best effort; callers pass the
- * current in-memory markers explicitly when storage is unavailable.
+ * Decide whether the first-use guidance can hide for the current account. Only the three durable
+ * domain outcomes count; legacy device markers are accepted for API compatibility but never count.
  */
 export function isGettingStartedComplete(steps: GettingStartedSteps, progress: GettingStartedProgress): boolean {
-  if (!hasCompletedAllSteps(steps)) return false;
-  return (!progress.started && !progress.importChosen && !progress.scratchChosen) || progress.settingsReviewed;
+  void progress;
+  return hasCompletedAllSteps(steps);
 }
 
 /** Whether every step is complete (the card hides once true). `Object.values(...).every(Boolean)`
