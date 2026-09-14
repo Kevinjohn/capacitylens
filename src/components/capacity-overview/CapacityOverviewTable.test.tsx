@@ -6,7 +6,7 @@ import type { AppData, Resource } from "@capacitylens/shared/types/entities";
 import {
   buildCapacityOverviewModel,
   type CapacityOverviewModel,
-  type CapacityOverviewWeekResult,
+  type CapacityOverviewPeriodResult,
 } from "./capacityOverviewModel";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 
@@ -27,18 +27,18 @@ const resource = (id: string, kind: Resource["kind"] = "person"): Resource => ({
   isFavourite: false,
 });
 
-const weeks = [
+const periods = [
   { index: 0, key: "this-week", start: "2026-09-10", end: "2026-09-13", partial: true },
   { index: 1, key: "next-week", start: "2026-09-14", end: "2026-09-20", partial: false },
   { index: 2, key: "week-3", start: "2026-09-21", end: "2026-09-27", partial: false },
   { index: 3, key: "week-4", start: "2026-09-28", end: "2026-10-04", partial: false },
 ] as const;
 
-function week(index: number, values: Partial<CapacityOverviewWeekResult>): CapacityOverviewWeekResult {
-  const overviewWeek = weeks[index];
-  if (!overviewWeek) throw new Error(`Missing test week ${index}`);
+function period(index: number, values: Partial<CapacityOverviewPeriodResult>): CapacityOverviewPeriodResult {
+  const overviewPeriod = periods[index];
+  if (!overviewPeriod) throw new Error(`Missing test period ${index}`);
   return {
-    week: overviewWeek,
+    period: overviewPeriod,
     companyWorkingHours: 40,
     availableHours: 40,
     allocatedHours: 0,
@@ -62,7 +62,7 @@ const data: AppData = { ...emptyAppData(), resources: [clarkKent, placeholderSlo
 
 const model: CapacityOverviewModel = {
   measured: true,
-  weeks: [...weeks],
+  periods: [...periods],
   groups: [
     {
       key: "design",
@@ -70,22 +70,22 @@ const model: CapacityOverviewModel = {
       rows: [
         {
           resource: clarkKent,
-          weeks: [
+          periods: [
             // Hours are set (not just the rounded display days) so the bar-fill kind computed from
             // them matches what "over" days imply: overHours > 0 always wins the fill kind.
-            week(0, { freeHours: 12, freeDays: 1.5, overHours: 2, overDays: 0.25 }),
-            week(1, { state: "fully-booked", freeHours: 0, freeDays: 0 }),
-            week(2, { state: "unavailable", availableHours: 0, freeHours: 0, freeDays: 0 }),
-            week(3, { availableHours: 32, freeHours: 32, freeDays: 4 }),
+            period(0, { freeHours: 12, freeDays: 1.5, overHours: 2, overDays: 0.25 }),
+            period(1, { state: "fully-booked", freeHours: 0, freeDays: 0 }),
+            period(2, { state: "unavailable", availableHours: 0, freeHours: 0, freeDays: 0 }),
+            period(3, { availableHours: 32, freeHours: 32, freeDays: 4 }),
           ],
         },
         {
           resource: placeholderSlot,
-          weeks: [
-            week(0, { state: "unassigned", freeDays: 0, unassignedDemandDays: 2 }),
-            week(1, { state: "unassigned", freeDays: 0 }),
-            week(2, { state: "unassigned", freeDays: 0 }),
-            week(3, { state: "unassigned", freeDays: 0 }),
+          periods: [
+            period(0, { state: "unassigned", freeDays: 0, unassignedDemandDays: 2 }),
+            period(1, { state: "unassigned", freeDays: 0 }),
+            period(2, { state: "unassigned", freeDays: 0 }),
+            period(3, { state: "unassigned", freeDays: 0 }),
           ],
         },
       ],
@@ -93,7 +93,7 @@ const model: CapacityOverviewModel = {
         scope: "all-eligible-people",
         peopleCount: 1,
         placeholderCount: 1,
-        weeks: weeks.map((_item, index) => ({
+        periods: periods.map((_item, index) => ({
           availableHours: 40,
           freeHours: index ? 40 : 12,
           overHours: index ? 0 : 2,
@@ -109,7 +109,7 @@ const model: CapacityOverviewModel = {
     scope: "all-eligible-people",
     peopleCount: 1,
     placeholderCount: 1,
-    weeks: weeks.map((_item, index) => ({
+    periods: periods.map((_item, index) => ({
       availableHours: 40,
       freeHours: index ? 40 : 12,
       overHours: index ? 0 : 2,
@@ -408,6 +408,7 @@ describe("CapacityOverviewTable interactions", () => {
     // The fill wrapper is inset 3px from the cell on every side (6px between adjacent bars, both
     // directions) rather than the table gaining `border-spacing` — see the comment on
     // CapacityBarFillLayer for why cell-level insets, not a table-wide spacing gutter.
+    expect(fill.parentElement).toHaveAttribute("data-testid", "capacity-bar-fill-layer");
     expect(fill.parentElement).toHaveClass("inset-[3px]");
 
     // A free (available) fill never carries the hatch — it needs no non-colour cue, since it

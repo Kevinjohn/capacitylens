@@ -86,7 +86,7 @@ async function createServerAccount({
     if (created === null) {
       resetForm();
       const reconciled = await reconcileUnknownCreate({ refreshAuth, setCreateUnresolved });
-      if (!reconciled) setNotice(m.picker_create_unknown_stale(), "warning");
+      setNotice(reconciled ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale(), "warning");
       return;
     }
     const summaries = useStore.getState().accountSummaries;

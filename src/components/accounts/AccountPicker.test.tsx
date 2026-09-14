@@ -453,6 +453,13 @@ function registerServerCreateUnusableBodyTest() {
 
     // The company appears via the refetch (the picker list), the form is gone, and no error shows.
     expect(await screen.findByText("Stark Industries")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(useStore.getState().notice).toMatchObject({
+        message:
+          "The create request had an unknown outcome. The company list was refreshed; check it before trying again.",
+        tone: "warning",
+      }),
+    );
     expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.map((c) => c[0] as unknown as string)).toContain("/api/accounts");
@@ -563,6 +570,13 @@ function registerServerCreateTransportFailureTest() {
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
     await waitFor(() => expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(useStore.getState().notice).toMatchObject({
+        message:
+          "The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again.",
+        tone: "warning",
+      }),
+    );
     expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
   });

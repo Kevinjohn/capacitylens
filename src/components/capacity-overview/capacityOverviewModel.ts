@@ -31,7 +31,6 @@ export type {
   CapacityOverviewSummary,
   CapacityOverviewSummaryPeriod,
   CapacityOverviewPeriodResult,
-  CapacityOverviewWeekResult,
 } from "./capacityOverviewTypes";
 
 const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
@@ -117,7 +116,6 @@ function calculatePeriod({
   const overDays = roundUpQuarterDays(overHours);
   return {
     period,
-    week: period,
     companyWorkingHours,
     availableHours,
     allocatedHours,
@@ -139,19 +137,19 @@ function summarize(
   const placeholders = rows.filter((row) => isPlaceholderResource(row.resource));
   const periods = (rows[0]?.periods ?? overviewPeriods).map((_period, index) => {
     const availableHours = people.reduce((sum, row) => {
-      const period = row.periods?.[index] ?? row.weeks[index];
+      const period = row.periods[index];
       return sum + (period?.availableHours ?? 0);
     }, 0);
     const freeHours = people.reduce((sum, row) => {
-      const period = row.periods?.[index] ?? row.weeks[index];
+      const period = row.periods[index];
       return sum + (period?.freeHours ?? 0);
     }, 0);
     const overHours = people.reduce((sum, row) => {
-      const period = row.periods?.[index] ?? row.weeks[index];
+      const period = row.periods[index];
       return sum + (period?.overHours ?? 0);
     }, 0);
     const unassignedDemandHours = placeholders.reduce((sum, row) => {
-      const period = row.periods?.[index] ?? row.weeks[index];
+      const period = row.periods[index];
       return sum + (period?.unassignedDemandHours ?? 0);
     }, 0);
     return {
@@ -169,7 +167,6 @@ function summarize(
     peopleCount: people.length,
     placeholderCount: placeholders.length,
     periods,
-    weeks: periods,
   };
 }
 
@@ -319,7 +316,7 @@ function buildRows({
             accountWorkingDays,
           }),
         );
-        return { resource, periods: resourcePeriods, weeks: resourcePeriods };
+        return { resource, periods: resourcePeriods };
       });
     return { ...seed, rows, summary: summarize(rows, periods) };
   });
@@ -332,8 +329,8 @@ function applyAvailabilityFilter(groups: CapacityOverviewGroup[], hasAvailabilit
       ...group,
       rows: group.rows.filter((row) =>
         isPlaceholderResource(row.resource)
-          ? (row.periods ?? row.weeks).some((period) => period.unassignedDemandDays > 0)
-          : (row.periods ?? row.weeks).some((period) => period.freeDays >= 0.25),
+          ? row.periods.some((period) => period.unassignedDemandDays > 0)
+          : row.periods.some((period) => period.freeDays >= 0.25),
       ),
     }))
     .filter((group) => group.rows.length > 0);
@@ -360,7 +357,7 @@ export function buildCapacityOverviewModel({
   const periods = buildCapacityOverviewPeriods({ today, weekStartsOn, horizon });
   if (blocksMode) {
     const summary = summarize([], periods);
-    return { measured: false, reason: "blocks-mode", periods, weeks: periods, groups: [], summary };
+    return { measured: false, reason: "blocks-mode", periods, groups: [], summary };
   }
 
   const eligible = new Set(
@@ -381,7 +378,6 @@ export function buildCapacityOverviewModel({
   return {
     measured: true,
     periods,
-    weeks: periods,
     groups: applyAvailabilityFilter(groups, hasAvailability),
     summary: summarize(allRows, periods),
   };
