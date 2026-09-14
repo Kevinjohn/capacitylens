@@ -53,7 +53,7 @@ function period(index: number, values: Partial<CapacityOverviewPeriodResult>): C
   };
 }
 
-const clarkKent = resource("Clark Kent");
+const clarkKent = { ...resource("Clark Kent"), avatarUrl: "https://images.example/clark.png" };
 const placeholderSlot = resource("slot", "placeholder");
 
 // Real (if minimal) AppData, matched by id to the model's rows above, so the person schedule
@@ -181,37 +181,54 @@ describe("CapacityOverviewTable content", () => {
   });
 
   it("renders weekly capacity, overbooking, states, demand, and all-eligible summaries", () => {
-    render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals
-        capacityDisplayMode="number"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+    class LoadedImage {
+      complete = true;
+      naturalWidth = 1;
+      crossOrigin: string | null = null;
+      referrerPolicy = "";
+      src = "";
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    vi.stubGlobal("Image", LoadedImage);
+    try {
+      const { container } = render(
+        <CapacityOverviewTable
+          model={model}
+          horizon="4-weeks"
+          onHorizonChange={vi.fn()}
+          data={data}
+          includeTentative
+          hasAvailability={false}
+          showTotals
+          capacityDisplayMode="number"
+          onIncludeTentativeChange={vi.fn()}
+          onHasAvailabilityChange={vi.fn()}
+          onShowTotalsChange={vi.fn()}
+          onCapacityDisplayModeChange={vi.fn()}
+        />,
+      );
 
-    expect(screen.getByRole("columnheader", { name: "10 – 13 Sep" })).not.toHaveTextContent("2026");
-    expect(screen.getByRole("columnheader", { name: "28 Sep – 4 Oct" })).toBeInTheDocument();
-    expect(screen.queryByText(/This week|Next week|Week 3|Week 4/)).not.toBeInTheDocument();
-    const person = screen.getByRole("row", { name: /Clark Kent/ });
-    expect(within(person).getByText("1.5d")).toBeInTheDocument();
-    expect(within(person).getByText("0.25d overbooked")).toBeInTheDocument();
-    const emptyCapacity = within(person).getAllByText("—");
-    expect(emptyCapacity).toHaveLength(2);
-    expect(emptyCapacity.every((value) => value.classList.contains("text-muted-foreground"))).toBe(true);
-    expect(within(person).queryByText("Fully booked")).not.toBeInTheDocument();
-    expect(within(person).queryByText("Unavailable")).not.toBeInTheDocument();
-    const placeholder = screen.getByRole("row", { name: /Placeholder.*Designer/ });
-    expect(within(placeholder).getByText("2d unassigned")).toBeInTheDocument();
-    expect(screen.queryByRole("row", { name: /All eligible people/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("columnheader", { name: "10 – 13 Sep" })).not.toHaveTextContent("2026");
+      expect(screen.getByRole("columnheader", { name: "28 Sep – 4 Oct" })).toBeInTheDocument();
+      expect(screen.queryByText(/This week|Next week|Week 3|Week 4/)).not.toBeInTheDocument();
+      const person = screen.getByRole("row", { name: /Clark Kent/ });
+      const avatar = container.querySelector('button[aria-label="View Clark Kent\'s schedule"] img');
+      expect(avatar).toHaveAttribute("src", "https://images.example/clark.png");
+      expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
+      expect(within(person).getByText("1.5d")).toBeInTheDocument();
+      expect(within(person).getByText("0.25d overbooked")).toBeInTheDocument();
+      const emptyCapacity = within(person).getAllByText("—");
+      expect(emptyCapacity).toHaveLength(2);
+      expect(emptyCapacity.every((value) => value.classList.contains("text-muted-foreground"))).toBe(true);
+      expect(within(person).queryByText("Fully booked")).not.toBeInTheDocument();
+      expect(within(person).queryByText("Unavailable")).not.toBeInTheDocument();
+      const placeholder = screen.getByRole("row", { name: /Placeholder.*Designer/ });
+      expect(within(placeholder).getByText("2d unassigned")).toBeInTheDocument();
+      expect(screen.queryByRole("row", { name: /All eligible people/ })).not.toBeInTheDocument();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("names a placeholder's trigger from its role, not the generic placeholder fallback", () => {

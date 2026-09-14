@@ -7,6 +7,19 @@ import { softDelete } from "../domain/lifecycle";
 type LifecycleKey = "resources" | "clients" | "projects" | "activities";
 
 describe("sanitizeImportedRecord", () => {
+  it("keeps only valid person avatar URLs", () => {
+    expect(
+      sanitizeImportedRecord("resources", { kind: "person", avatarUrl: " https://images.example/a.png " }),
+    ).toMatchObject({
+      avatarUrl: "https://images.example/a.png",
+    });
+    expect(
+      sanitizeImportedRecord("resources", { kind: "person", avatarUrl: "http://images.example/a.png" }),
+    ).not.toHaveProperty("avatarUrl");
+    expect(
+      sanitizeImportedRecord("resources", { kind: "placeholder", avatarUrl: "https://images.example/a.png" }),
+    ).not.toHaveProperty("avatarUrl");
+  });
   it("sanitizes an optional allocation task as single-line text", () => {
     expect(sanitizeImportedRecord("allocations", { task: "  Fix   launch\ncheck  " }).task).toBe("Fix launch check");
   });

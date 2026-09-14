@@ -3,6 +3,7 @@ import { isExternalResource } from "../../types/entities";
 import type { Activity, Allocation, AppData, ID, Resource, ScopedEntity, ScopedEntityKey } from "../../types/entities";
 import { belongsToAccount } from "../tenancy";
 import { domainError } from "../errors";
+import { parseResourceAvatarUrl } from "../resourceAvatarUrl";
 import {
   resolveValidationRow,
   resolveOwnedRow,
@@ -152,6 +153,8 @@ function assertActivityRefs(context: ScopedRefsContext): void {
   assertActivityPhase(context);
 }
 
+// Resource reference policy intentionally combines kind-dependent project and avatar invariants.
+// eslint-disable-next-line complexity
 function assertResourceRefs(context: ScopedRefsContext): void {
   const { record, previous, supplied, need } = context;
   const mergedKind = supplied("kind") ? record.kind : previous?.kind;
@@ -159,6 +162,14 @@ function assertResourceRefs(context: ScopedRefsContext): void {
   const projectBindingChanged = supplied("kind") || supplied("projectId");
   const hasProject = mergedProjectId !== undefined && mergedProjectId !== null;
   const hasKind = mergedKind !== undefined && mergedKind !== null;
+  const mergedAvatarUrl = supplied("avatarUrl") ? record.avatarUrl : previous?.avatarUrl;
+  if (mergedAvatarUrl !== undefined) {
+    if (mergedKind !== "person") domainError("resource_avatar_url_forbidden", "Only a person can have an avatar URL.");
+    const avatarUrl = parseResourceAvatarUrl(mergedAvatarUrl);
+    if (!avatarUrl.ok || avatarUrl.value !== mergedAvatarUrl) {
+      domainError("resource_avatar_url_invalid", "Avatar URL must be a normalised HTTPS URL without credentials.");
+    }
+  }
   if (projectBindingChanged && hasProject && hasKind && mergedKind !== "placeholder") {
     domainError("resource_project_forbidden", "Only a placeholder can be assigned to a project.");
   }

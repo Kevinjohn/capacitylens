@@ -132,6 +132,7 @@ export const FIXTURE_RESOURCE_PERSON: Resource = {
   kind: "person",
   name: "Bruce Wayne",
   role: "Fixture Person Role",
+  avatarUrl: "https://images.example/bruce-wayne.png",
   disciplineId: "fix-d1",
   employmentType: "freelancer",
   engagement: "supplementary",

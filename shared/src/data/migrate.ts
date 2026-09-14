@@ -70,6 +70,7 @@ const POST_REPAIR_BASE_STEPS: readonly MigrationStep[] = [
   { version: 20, apply: (data) => data }, // optional allocation task text and account visibility preference
   { version: 21, apply: (data) => data }, // optional resource availability dates and account capacityOverviewAccess
   { version: 22, apply: (data) => data }, // optional account dateStyle; sanitisation owns the value
+  { version: 23, apply: (data) => data }, // optional person avatarUrl; sanitisation owns the value
 ];
 
 // Guards against a migration step being added without bumping EXPORT_SCHEMA_VERSION to match (or

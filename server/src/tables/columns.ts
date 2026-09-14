@@ -129,6 +129,7 @@ const resourcesColumns = [
   { name: "kind" },
   { name: "name", optional: true },
   { name: "role" },
+  { name: "avatarUrl", optional: true },
   { name: "disciplineId", optional: true },
   { name: "employmentType" },
   { name: "engagement" },

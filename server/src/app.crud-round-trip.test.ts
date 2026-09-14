@@ -114,7 +114,52 @@ function createCrudMutationTests(): void {
   });
 }
 
+// Kept as one registration group so all resource mutation round-trips remain discoverable together.
+// eslint-disable-next-line max-lines-per-function
 function createCrudResourceMutationTests(): void {
+  it("persists and clears a person's avatar URL through resource PATCH", async () => {
+    const { app, db } = freshApp();
+    await scaffold(app);
+
+    const saved = await patch({
+      app,
+      entity: "resources",
+      id: "r1",
+      payload: { avatarUrl: "https://images.example/bruce.png" },
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(readFirstResource((await readValidatedState(app)).resources).avatarUrl).toBe(
+      "https://images.example/bruce.png",
+    );
+    expect(getRow(db, "resources", "r1")?.avatarUrl).toBe("https://images.example/bruce.png");
+
+    const cleared = await patch({ app, entity: "resources", id: "r1", payload: { avatarUrl: null } });
+    expect(cleared.statusCode).toBe(200);
+    expect(readFirstResource((await readValidatedState(app)).resources)).not.toHaveProperty("avatarUrl");
+    expect(getRow(db, "resources", "r1")?.avatarUrl).toBeUndefined();
+  });
+
+  it("persists and clears a person's avatar URL through atomic batches", async () => {
+    const { app, db } = freshApp();
+    await post(app, "accounts", account("a1"));
+    const resource = { ...person("r1", "a1"), avatarUrl: "https://images.example/bruce.png" };
+
+    expect((await batch(app, [{ method: "PUT", table: "resources", id: resource.id, row: resource }])).statusCode).toBe(
+      200,
+    );
+    expect(readFirstResource((await readValidatedState(app)).resources).avatarUrl).toBe(resource.avatarUrl);
+
+    expect(
+      (
+        await batch(app, [
+          { method: "PUT", table: "resources", id: resource.id, row: { ...resource, avatarUrl: null } },
+        ])
+      ).statusCode,
+    ).toBe(200);
+    expect(readFirstResource((await readValidatedState(app)).resources)).not.toHaveProperty("avatarUrl");
+    expect(getRow(db, "resources", "r1")?.avatarUrl).toBeUndefined();
+  });
+
   it("batch persists a person whose optional role is blank", async () => {
     const { app } = freshApp();
     await post(app, "accounts", account("a1"));

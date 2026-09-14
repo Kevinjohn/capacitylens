@@ -30,6 +30,9 @@ vertically on a narrow screen, while the **Working days** grid remains full widt
 
 - **Name** — required.
 - **Role** — a free-text label, for example "Senior Designer". Optional.
+- **Avatar URL** — an optional absolute HTTPS address for an existing profile image. CapacityLens
+  loads it directly in each viewer's browser and keeps initials visible while it loads or if it fails.
+  The image host can therefore observe the viewer's IP address, although CapacityLens sends no referrer.
 - **Discipline** — which group this person shows under on the schedule, and where their
   colour comes from. Only shown if your company uses
   [disciplines](/reference/glossary), which is the default. Disciplines themselves are
@@ -74,6 +77,10 @@ utilisation figure you see after saving reflects their new working pattern.
 
 Existing working patterns are preserved after upgrading: a day that was selected remains
 a full day, and a day that was unselected remains not working.
+
+You can replace or clear **Avatar URL** at any time. CapacityLens does not upload, inspect, resize,
+proxy or cache the image, and saving does not check whether the remote host is reachable. Only people
+have avatars; placeholders and external parties keep their existing presentation.
 
 ## Set availability dates
 

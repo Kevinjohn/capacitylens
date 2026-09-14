@@ -17,6 +17,7 @@ const STAMP = Date.now();
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;
 const EDITOR = `v-editor-${STAMP}@capacitylens.dev`;
+const VIEWER_AVATAR_URL = "https://images.example/viewer-person.png";
 
 /** Sign in through the browser login wall and pick the company, then wait for the app shell. */
 async function signInAndOpen(page: import("@playwright/test").Page, email: string, org: string) {
@@ -75,6 +76,7 @@ async function seedViewerScenario(request: APIRequestContext) {
       accountId,
       kind: "person",
       name: "Viewer-visible person",
+      avatarUrl: VIEWER_AVATAR_URL,
       role: "Designer",
       employmentType: "permanent",
       engagement: "studio" as const,
@@ -103,12 +105,23 @@ async function seedViewerScenario(request: APIRequestContext) {
   return { resourceId };
 }
 
+// This end-to-end permission contrast intentionally keeps both roles in one session.
+/* eslint-disable max-lines-per-function -- one journey contrasts viewer and editor permissions. */
 test("a viewer sees no edit affordances; an editor does; a direct viewer write is 403", async ({
   page,
   request,
   context,
 }) => {
   const { resourceId } = await seedViewerScenario(request);
+  await page.route(VIEWER_AVATAR_URL, (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    }),
+  );
 
   // ── Browser as VIEWER: the read-only UI. ───────────────────────────────────────────────────────
   await signInAndOpen(page, VIEWER, `Viewer Studio ${STAMP}`);
@@ -137,8 +150,16 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(viewerClientRow).toBeVisible();
   await expect(viewerClientRow.getByRole("button")).toHaveCount(0);
 
+  await page.getByRole("link", { name: "Resources" }).click();
+  const viewerResourceRow = page.getByTestId("resource-row").filter({ hasText: "Viewer-visible person" });
+  await expect(viewerResourceRow).toBeVisible();
+  await expect(viewerResourceRow.getByRole("button", { name: "Edit Viewer-visible person" })).toHaveCount(0);
+
   // Scheduler: the draw-mode toggle + Undo/Redo are hidden.
   await page.getByRole("link", { name: "Schedule" }).click();
+  const viewerScheduleTrigger = page.getByRole("button", { name: "View Viewer-visible person's schedule" });
+  await expect(viewerScheduleTrigger.locator("img")).toHaveAttribute("src", VIEWER_AVATAR_URL);
+  await expect(viewerScheduleTrigger.locator("img")).toHaveAttribute("referrerpolicy", "no-referrer");
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
   await page.getByRole("button", { name: "Show filters" }).click();
   await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toHaveCount(0);
@@ -181,3 +202,4 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toBeVisible();
   await expect(page.getByTestId("undo-button")).toBeVisible();
 });
+/* eslint-enable max-lines-per-function */

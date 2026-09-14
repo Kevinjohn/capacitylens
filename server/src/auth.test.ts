@@ -22,6 +22,7 @@ import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPor
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
 import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
+import { RESOURCE_AVATAR_URL_V42_PIN as AVATAR_MIGRATION } from "./db/migrations/resourceAvatarUrlV42";
 
 const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
@@ -418,7 +419,7 @@ const registerStartupControlTests = () => {
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
 
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(OWNERSHIP_TRANSFER_MIGRATION));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(AVATAR_MIGRATION));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -607,9 +608,7 @@ const OWNERSHIP_TRANSFER_MIGRATION = {
   name: "add-ownership-transfer-requests",
   checksum: "d9dc51a48af818e1ccefcbb0fa0d7a703258c9149545f8cc62eaef5c6a5015e7",
 };
-
-/** The tail of the pending list whose checksums are pinned, newest last. Held as one list rather
- *  than inline literals so appending a migration is one entry, not another repeated block. */
+/** Pending migrations with pinned checksums, newest last, shared by the plan assertions. */
 const CHECKSUM_PINNED_MIGRATIONS = [
   {
     version: 35,
@@ -630,6 +629,7 @@ const CHECKSUM_PINNED_MIGRATIONS = [
   CAPACITY_OVERVIEW_MIGRATION,
   DATE_STYLE_MIGRATION,
   OWNERSHIP_TRANSFER_MIGRATION,
+  AVATAR_MIGRATION,
 ];
 
 const registerStartupMigrationPlanningTest = () => {

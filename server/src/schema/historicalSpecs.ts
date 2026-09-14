@@ -50,6 +50,14 @@ function liveTableSpec(table: string): TableSpec {
   return spec;
 }
 
+const PRE_V42_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  resources: {
+    ...liveTableSpec("resources"),
+    columns: liveTableSpec("resources").columns.filter((column) => column.name !== "avatarUrl"),
+  },
+};
+
 const ACCOUNT_COLUMN_INTRODUCED_AT: Record<string, number> = {
   id: 8,
   name: 8,
@@ -123,7 +131,7 @@ const V32_TIME_OFF: TableSpec = {
   ),
 };
 const PRE_V37_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V42_TABLES,
   accounts: buildAccountsTableAtVersion(36),
   allocations: {
     ...liveTableSpec("allocations"),
@@ -132,7 +140,8 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
   resources: {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
-      (column) => column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+      (column) =>
+        column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate" && column.name !== "avatarUrl",
     ),
   },
 };
@@ -140,23 +149,24 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
 // that are absent from this historical contract; keep the v37 fields present so the v38
 // precondition proves the exact released shape before adding its two columns.
 export const V37_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V42_TABLES,
   accounts: buildAccountsTableAtVersion(37),
   resources: {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
-      (column) => column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+      (column) =>
+        column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate" && column.name !== "avatarUrl",
     ),
   },
 };
 /** Released v38 shape before the Capacity Overview access preference is added. */
 export const V38_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V42_TABLES,
   accounts: buildAccountsTableAtVersion(38),
 };
 /** Released v39 shape before the account-wide date format is added. */
 export const V39_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V42_TABLES,
   accounts: buildAccountsTableAtVersion(39),
 };
 /**
@@ -164,7 +174,7 @@ export const V39_TABLES: Record<string, TableSpec> = {
  * migration only needs to add its column and introduction version to the map above.
  */
 export const V40_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V42_TABLES,
   accounts: buildAccountsTableAtVersion(40),
 };
 
@@ -184,6 +194,7 @@ export const V27_TABLES: Record<string, TableSpec> = {
       (column) =>
         column.name !== "halfDays" &&
         column.name !== "engagement" &&
+        column.name !== "avatarUrl" &&
         column.name !== "firstAvailableDate" &&
         column.name !== "lastAvailableDate",
     ),
@@ -198,7 +209,10 @@ export const V28_TABLES: Record<string, TableSpec> = {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
       (column) =>
-        column.name !== "engagement" && column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+        column.name !== "engagement" &&
+        column.name !== "avatarUrl" &&
+        column.name !== "firstAvailableDate" &&
+        column.name !== "lastAvailableDate",
     ),
   },
 };

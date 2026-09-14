@@ -3,7 +3,7 @@ import { dismissLandscapeHint, goToSeedWeek, openApp, selectShadOption, setZoom,
 
 async function expectWorkingDaysGeometry(dialog: Locator) {
   const compactFields = dialog.locator('[data-product-layout="label-control"]');
-  await expect(compactFields).toHaveCount(6);
+  await expect(compactFields).toHaveCount(7);
   const fieldGroupBox = await dialog.locator('[data-slot="field-group"]').boundingBox();
   const workingDays = dialog.getByRole("group", { name: "Working days" });
   await expect(workingDays.getByRole("radio")).toHaveCount(21);
@@ -47,7 +47,7 @@ test("keeps resource details compact and the working-days table aligned without 
   const workingDaysTable = workingDays.getByRole("table");
   await expectWorkingDaysGeometry(dialog);
 
-  for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+  for (const label of ["Name", "Role", "Avatar URL", "Discipline", "Engagement"]) {
     const control = dialog.getByLabel(label, { exact: true });
     const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
     const fieldBox = await field.boundingBox();
@@ -64,7 +64,7 @@ test("keeps resource details compact and the working-days table aligned without 
 
   await dismissLandscapeHint(page);
   await expect(dialog).toBeVisible();
-  for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
+  for (const label of ["Name", "Role", "Avatar URL", "Discipline", "Engagement"]) {
     const control = dialog.getByLabel(label, { exact: true });
     const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
     const labelBox = await field.locator(":scope > :first-child").boundingBox();

@@ -54,6 +54,7 @@ function ResourceIdentity({
         avatarName={resource.name ?? resource.role}
         color={group.color ?? resource.color}
         placeholder={resource.kind === "placeholder"}
+        {...(resource.kind === "person" && resource.avatarUrl ? { imageUrl: resource.avatarUrl } : {})}
         onViewSchedule={onViewSchedule}
       />
       <div className="ms-1.5 min-w-0 flex-1">

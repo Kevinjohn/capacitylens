@@ -31,6 +31,7 @@ export async function serverState(request: APIRequestContext): Promise<
       seriesId?: string;
       engagement?: "studio" | "supplementary";
       halfDays?: number[];
+      avatarUrl?: string;
     }>
   >
 > {

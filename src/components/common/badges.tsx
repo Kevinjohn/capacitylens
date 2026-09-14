@@ -30,8 +30,8 @@ export const Avatar = memo(function Avatar({
   color: string;
   size?: number;
   placeholder?: boolean;
-  /** The signed-in user's own avatar (SSO `picture`). When set, the photo renders over the
-   *  initials; the Radix primitive keeps the initials as the fallback while it loads and on error. */
+  /** An already-validated account or scheduled-person avatar URL. When set, the photo renders over
+   *  the initials; the Radix primitive keeps the initials as the fallback while loading/on error. */
   imageUrl?: string;
 }) {
   const initials = placeholder
@@ -51,7 +51,7 @@ export const Avatar = memo(function Avatar({
       style={{ width: size, height: size, backgroundColor: background, color: ink }}
       className="ring-2 ring-surface"
     >
-      {imageUrl && <AvatarImage src={imageUrl} alt="" />}
+      {imageUrl && <AvatarImage src={imageUrl} alt="" referrerPolicy="no-referrer" />}
       <AvatarFallback className="bg-transparent text-2xs font-semibold text-inherit">{initials}</AvatarFallback>
     </ShadAvatar>
   );

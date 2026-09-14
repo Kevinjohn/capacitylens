@@ -148,6 +148,8 @@ export interface Resource extends ScopedEntity {
   /** e.g. "Senior Designer" — the label used for nameless placeholders; an `external`'s
    *  optional descriptor (e.g. "Print", "Overflow dev"). */
   role: string;
+  /** Optional externally hosted avatar for people. Must be an absolute HTTPS URL without credentials. */
+  avatarUrl?: string;
   disciplineId?: ID;
   employmentType: EmploymentType;
   engagement: ResourceEngagement;
@@ -332,8 +334,9 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
  *  adds optional per-allocation project attribution for repeatable activities; v19 adds optional
  *  Activity lifecycle tombstones archivedAt/deletedAt; v20 adds optional allocation task text and
  *  account-wide schedule visibility for it; v21 adds optional person availability boundaries; v22
- *  adds the optional account-wide dateStyle, whose absence means 'day-month'.) */
-export const EXPORT_SCHEMA_VERSION = 22;
+ *  adds the optional account-wide dateStyle, whose absence means 'day-month'; v23 adds optional
+ *  Resource.avatarUrl for externally hosted scheduled-person avatars.) */
+export const EXPORT_SCHEMA_VERSION = 23;
 
 export interface PersistedState {
   schemaVersion: number;

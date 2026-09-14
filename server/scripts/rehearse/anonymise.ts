@@ -53,6 +53,7 @@ function anonymiseSchedulingData(db: DatabaseSync): void {
       expression: `CASE WHEN name IS NULL THEN NULL ELSE 'Rehearsal Resource ' || rowid END`,
     },
     { table: "resources", column: "role", expression: `'Rehearsal Role ' || rowid` },
+    { table: "resources", column: "avatarUrl", expression: "NULL" },
     { table: activityTable, column: "name", expression: `'Rehearsal Activity ' || rowid` },
     { table: "allocations", column: "note", expression: "NULL" },
     { table: "allocations", column: "task", expression: "NULL" },
