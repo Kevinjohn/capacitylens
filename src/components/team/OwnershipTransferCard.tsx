@@ -7,6 +7,7 @@ import type {
 import type { OwnershipTransferView, TeamMember } from "../../account/teamAccessClient";
 import { useAuth } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
+import { formatInstant } from "@/lib/dateDisplay";
 import { SelectField } from "../common/fields/SelectField";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
@@ -226,7 +227,7 @@ function LiveRequest({ controller, request, isInitiator }: LiveRequestProps) {
         {status}
       </p>
       <p className="text-sm text-muted-foreground">
-        {m.ownership_transfer_deadline({ deadline: new Date(request.expiresAt).toLocaleString() })}
+        {m.ownership_transfer_deadline({ deadline: formatInstant(request.expiresAt) })}
       </p>
       {isInitiator ? (
         <OwnerControls controller={controller} request={request} awaitingOwner={awaitingOwner} />
