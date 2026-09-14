@@ -123,6 +123,9 @@ describe("OwnershipTransferCard as the Owner", () => {
     renderAs(OWNER.userId);
 
     expect(await screen.findByTestId("ownership-transfer-state")).toHaveTextContent(NOMINEE.name ?? "");
+    expect(screen.getByTestId("ownership-transfer-state").nextElementSibling).toHaveTextContent(
+      new Date(request().expiresAt).toLocaleString(),
+    );
     expect(screen.queryByTestId("ownership-transfer-complete")).toBeNull();
     expect(screen.getByTestId("ownership-transfer-cancel")).toBeInTheDocument();
   });
