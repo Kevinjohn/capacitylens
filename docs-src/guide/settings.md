@@ -12,7 +12,7 @@ Each section has a question-mark button labelled **About &lt;section&gt;**: hove
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
-![The top of Settings with Scheduling, the compact two-row Company-wide working days table, Disciplines and Engagement grouping, each with an About button](../screenshots/flows/settings_overview.jpg)
+![The top of Settings with Company setup, allocation units, company-wide working days, date format, disciplines, engagement grouping and Overview access](../screenshots/flows/settings_overview.jpg)
 
 ## Diagnostics
 
@@ -90,7 +90,7 @@ travel with an export:
 - **Compact view** reduces the vertical spacing so more people fit on screen. It changes
   no allocations or capacity.
 
-![The Schedule section in Settings with Minimise weekends and Snap to week start on, Compact view off, and the surrounding company settings](../screenshots/flows/settings_schedule_device.jpg)
+![The My display group in Settings with Minimise weekends and Snap to week start on, Compact view off, allocation labels, utilisation figures and appearance](../screenshots/flows/settings_schedule_device.jpg)
 
 ## Additional resourcing options
 
@@ -202,7 +202,7 @@ The Diagnostics card records the **Snapshot observed** time when the server resp
 when its failure is observed. **Copy diagnostics** copies that same snapshot and does not request a
 fresh report, so the support note describes one clear observation rather than a live stream.
 
-![The bottom of Settings with Appearance, closed Device data, Deleted items and Import disclosures, the account options summary, and Diagnostics](../screenshots/flows/settings_account_disclosures.jpg)
+![The bottom of Settings with Appearance, closed Device data, Deleted items and Import and export disclosures, Company details, and Diagnostics](../screenshots/flows/settings_account_disclosures.jpg)
 
 ::: tip
 Sections marked "this device" only affect your own browser. Everything else is shared

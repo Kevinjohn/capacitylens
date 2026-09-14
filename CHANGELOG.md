@@ -7,8 +7,6 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-- Refresh the documentation screenshot baseline and add a current visual tour of every application page.
-
 ### Fixed
 
 - Refresh every documentation screenshot against the current interface, correct the Settings and
