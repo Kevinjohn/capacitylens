@@ -10,6 +10,7 @@ import {
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Activity, Allocation, AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
+import { FIXTURE_RESOURCE_EXTERNAL } from "@capacitylens/shared/data/fixtures";
 
 beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
@@ -73,7 +74,7 @@ describe("first-use outcome truth table", () => {
   it.each([
     ["person", person(), true],
     ["placeholder", person({ kind: "placeholder", projectId: "p1" }), false],
-    ["external", person({ kind: "external" }), false],
+    ["external", FIXTURE_RESOURCE_EXTERNAL, false],
   ] as const)("classifies an active %s resource for the person outcome", (_name, resource, expected) => {
     expect(buildGettingStartedSteps(dataWith({ resources: [resource] })).person).toBe(expected);
   });
