@@ -4,6 +4,8 @@
 `src/data/buildInfo.test.ts` + `src/components/settings/SettingsView.test.tsx` +
 `server/src/app.health.test.ts`
 
+**Documentation:** [Settings](../../docs-src/guide/settings.md)
+
 ## Goal
 
 Copy enough build and health context for support to identify a problem without copying company
@@ -20,7 +22,7 @@ credentials, identifiers or implementation details.
 **Precondition:** Sign in to a server-mode company and open **Settings**. For a demo-mode check,
 open Settings in a build with `VITE_CAPACITYLENS_DEMO=1`.
 
-1. Scroll to the **Diagnostics** card at the bottom of Settings.
+1. Scroll to the **Diagnostics** row in **Data and support**.
 2. Review the **Snapshot observed** ISO timestamp, followed by the app version, build revision,
    deployment mode and export schema, and then the server connectivity, database, persistence and
    backup values that are available. This is a point-in-time snapshot, not a live monitor.
@@ -30,7 +32,7 @@ open Settings in a build with `VITE_CAPACITYLENS_DEMO=1`.
 
 ## Acceptance criteria
 
-- Settings shows a Diagnostics card at the bottom in server and demo modes with a `Copy diagnostics` action.
+- Settings shows a Diagnostics row in Data and support in server and demo modes with a `Copy diagnostics` action.
 - The projection includes the client **Snapshot observed** ISO timestamp and only app version,
   validated build revision when available, deployment mode, export schema, server connectivity,
   database schema, persistence status and backup status/last success where observable.
