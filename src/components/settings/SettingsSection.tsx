@@ -1,8 +1,10 @@
-import { useId, useState, type ReactNode } from "react";
+import { useContext, useId, useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SectionHelp } from "../common/ui";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { SettingsGroupContext } from "./settingsGroupContext";
+import { SettingsRow } from "./SettingsRow";
 
 function SettingsSectionTitle({
   title,
@@ -43,6 +45,7 @@ export function SettingsSection({
   testId,
   contentClassName,
   id,
+  description,
 }: {
   title: string;
   help: ReactNode;
@@ -53,10 +56,31 @@ export function SettingsSection({
   testId?: string;
   contentClassName?: string;
   id?: string;
+  description?: string;
 }) {
+  const grouped = useContext(SettingsGroupContext);
   const contentId = useId();
   const [open, setOpen] = useState(defaultOpen);
   const expanded = !collapsible || open;
+
+  if (grouped) {
+    return (
+      <SettingsRow
+        {...{ title, help, description, danger, collapsible, expanded, contentId, contentClassName, id, testId }}
+        titleContent={
+          <SettingsSectionTitle
+            title={title}
+            collapsible={collapsible}
+            open={open}
+            contentId={contentId}
+            toggleOpen={() => setOpen((current) => !current)}
+          />
+        }
+      >
+        {children}
+      </SettingsRow>
+    );
+  }
 
   return (
     <Card

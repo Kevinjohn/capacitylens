@@ -139,19 +139,19 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label    | Route          | Screen                                                                                                                                                                          |
-| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overview      | `/overview`    | Four-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting                                                             |
-| Schedule      | `/`            | Timeline scheduler                                                                                                                                                              |
-| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                                     |
-| Disciplines   | `/disciplines` | Discipline list                                                                                                                                                                 |
-| Clients       | `/clients`     | Client list                                                                                                                                                                     |
-| Projects      | `/projects`    | Project list                                                                                                                                                                    |
-| Activities    | `/activities`  | Activity list                                                                                                                                                                   |
-| Time off      | `/timeoff`     | Time-off list                                                                                                                                                                   |
-| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                                               |
-| Settings      | `/settings`    | Settings (scheduling, date format, company-wide working days, disciplines, schedule, work visibility, allocation bars, utilisation, appearance, local data and account options) |
-| Account       | `/account`     | Signed-in identity and personal security controls                                                                                                                               |
+| Link label    | Route          | Screen                                                                                                              |
+| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Overview      | `/overview`    | Four-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting |
+| Schedule      | `/`            | Timeline scheduler                                                                                                  |
+| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                         |
+| Disciplines   | `/disciplines` | Discipline list                                                                                                     |
+| Clients       | `/clients`     | Client list                                                                                                         |
+| Projects      | `/projects`    | Project list                                                                                                        |
+| Activities    | `/activities`  | Activity list                                                                                                       |
+| Time off      | `/timeoff`     | Time-off list                                                                                                       |
+| Team & access | `/team`        | Current role, capability summary and app-member access management                                                   |
+| Settings      | `/settings`    | Settings (Company setup, Scheduling features, My display, Data and support)                                         |
+| Account       | `/account`     | Signed-in identity and personal security controls                                                                   |
 
 **Team & access** and **Settings** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
@@ -181,8 +181,14 @@ other directory shows the picker. Choosing from the picker keeps the requested U
 that section. Unknown extensionless URLs still reach the in-app
 **Page not found** screen; missing asset and API paths remain real HTTP errors.
 
-The **Import & export** card (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
-near the bottom of Settings, below **Deleted items** and above the compact account-options
+Settings is one page with four groups in order: **Company setup**, **Scheduling features**,
+**My display**, and **Data and support**. Compact rows stack their labels and controls on narrow
+screens. Group descriptions distinguish company-wide settings from preferences saved in this browser.
+Editors and above can change ordinary company settings; Owners and Admins manage Overview access.
+Everyone can adjust their device preferences. See [Settings](../docs-src/guide/settings.md).
+
+The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
+in **Data and support**, below **Deleted items** and above the compact company-details
 summary. It used to be a "Data" section in the sidebar; it moved because a full-slice export or
 replacement is a rare administrative act that does not warrant permanent navigation real estate.
 In an authenticated
@@ -305,11 +311,11 @@ success for the rebase never hides the independent loss.
   - _Barry Allen_ — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
   - _Senior Designer_ — a **placeholder** (no name), Design, **bound to Project Watchtower**. Shown
     as the literal name **"Placeholder"** with a **"?"** avatar. **Hidden by default** — placeholders
-    are behind the per-account **Show placeholders** pref (Settings → Additional resourcing options, default **off**);
+    are behind the per-account **Show placeholders** pref (Settings → Placeholders and external resources, default **off**);
     enable it to see this row in the schedule, the Resources list, and the assignee picker.
   - _Kord Industries_ — an **external / 3rd party** (`r-ext-northstar`): a company, no discipline/
     capacity, booked on Visual Design (Project Watchtower) as a span only. **Hidden by default** —
-    externals are behind the per-account **Show external resources** pref (Settings → Additional resourcing options,
+    externals are behind the per-account **Show external resources** pref (Settings → Placeholders and external resources,
     default **off**); enable it to see this row in the schedule's bottom band, the **External** section
     of the Resources tab, and the assignee picker.
 - **Clients:** Queen Consolidated, LexCorp. (**Internal** is the built-in, one per account — it is **HIDDEN
@@ -346,7 +352,7 @@ unchanged. An allocation with **Ignore working days** enabled deliberately bypas
 calendars during a move. Time off remains a visible capacity conflict rather than silently moving
 the allocation to another date.
 
-**Weekend columns.** By default the **Minimise weekends** display pref (Settings → Schedule,
+**Weekend columns.** By default the **Minimise weekends** display pref (Settings → My display → Schedule on this device,
 on by default) shrinks the Saturday and Sunday columns to a sliver — just wide enough for the
 date number — and their weekday label reads a single **"S"** (both Sat and Sun), so the working
 week dominates the helicopter view. Weekends are not removed: people can still work weekends,
@@ -610,7 +616,7 @@ right-hand group; disabled and visually quiet with no active filters, then red w
 active). Project options visually mute the client and slash while preserving the complete
 `Client / Project` accessible label and ordinary keyboard selection.
 
-**Schedule display (minimise weekends).** Settings → **Schedule** has a switch
+**Schedule display (minimise weekends).** Settings → My display → **Schedule on this device** has a switch
 **Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.
 It's a **device-global** display pref (own `localStorage` key `capacitylens/minimiseWeekends`, NOT on the
 account and NOT in export) — like the theme and bar-label toggles. On → narrow Sat/Sun columns
@@ -619,7 +625,7 @@ columns_ above.
 
 **Date format (account-level).** Settings → **Date format** has a control labelled
 `Date format`, with four options shown as samples: **9 Sep** (default), **9th Sep**, **Sep 9**,
-**Sep 9th**. It is **account data** — stored on the account, present in export, changed by an editor
+**Sep 9th**. It is **account data** — stored on the account, omitted from Settings JSON exports, changed by an editor
 or above and applied to every member; a viewer sees the control disabled. It sets day/month order and
 whether the day number carries an ordinal on planning dates, including single calendar dates and
 ranges, and takes effect without a reload. A standalone range crossing a year carries the year at
@@ -678,7 +684,7 @@ stored dates never move, but capacity, utilisation and conflicts are recalculate
 non-working days no longer counts unless the allocation has Ignore working days enabled. Time off
 remains a separate mechanism and a visible conflict rather than a calendar rule.
 
-**Schedule display (snap to week start).** The same Settings → **Schedule** section has a second
+**Schedule display (snap to week start).** The same Settings → My display → **Schedule on this device** section has a second
 switch **Snap to week start** (`role="switch"`, accessible name `Snap to week start`), **on** by
 default — sibling to _Minimise weekends_. It's also a **device-global** display pref (own
 `localStorage` key `capacitylens/snapToWeekStart`, NOT on the account and NOT in export). On → after a
@@ -689,8 +695,8 @@ via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the
 governs **free scroll only** — the always-on **navigation** snap (Weeks visible / Prev-Next / Today,
 see _Scheduler toolbar_ above) re-anchors to the week start regardless of this switch.
 
-**Account options selected at creation (per-account, FROZEN after creation — P1.14).** Near the
-bottom of Settings, this compact, read-only four-row table appears before the Diagnostics card:
+**Company details (per-account, FROZEN after creation — P1.14).** In **Data and support**,
+this compact, read-only four-row table appears before Diagnostics:
 **Company name**, **Week starts on**,
 **Time zone** (including its numeric UTC offset) and **Language** (`data-testid="settings-language"`,
 **English**). It replaces the editable Company card and the disabled Calendar controls. These values
@@ -702,10 +708,10 @@ use the normal Editor-and-up write tier. Identity, membership, privacy, lifecycl
 operations retain their stricter Admin/Owner gates. (English-only until Paraglide; the value persists
 as `'en'` on the Account.)
 
-**Settings help and disclosures.** Every Settings card has an icon-only question-mark action whose
+**Settings help and disclosures.** Every Settings row has an icon-only question-mark action whose
 accessible name and native hover title are `About <section>`. Activating it opens a labelled modal
-with the fuller explanation that used to sit permanently in the card. **Device data**, **Archived &
-deleted** and **Import & export** are separate disclosures, each closed by default and independently
+with a fuller explanation. **Device data**, **Deleted items** and **Import and export** are
+separate disclosures, each closed by default and independently
 expandable; opening one never closes another. Safety consequences remain in destructive confirmation
 dialogs rather than depending on hidden help copy.
 
@@ -716,7 +722,7 @@ dialogs rather than depending on hidden help copy.
 > server-vs-local clear-storage / "Signed in as …" / status-suffixed error toasts) is deferred to the
 > later toasts/errors i18n area; its visible text is likewise unchanged.
 
-**Additional resourcing options (per-account, default OFF).** Settings → **Additional resourcing options**
+**Placeholders and external resources (per-account, default OFF).** Settings → **Placeholders and external resources**
 contains two independently configurable switches: **Show placeholders** and **Show external resources**.
 A placeholder is an unfilled role or tentative person used to plan future capacity before someone
 is assigned. An External resource is a third party such as a partner agency, freelancer, supplier or
@@ -739,7 +745,7 @@ selectable in the picker even while the pref is off, so editing never silently r
 
 **Allocation bars.** A bar's label reads `Client · Project · Activity · Nh` (hours hidden in
 blocks mode; a `✓ ` prefix when completed, a trailing ` •` when it has a note). The client
-and project parts are device-global toggles in Settings → **Allocation bars** — switches
+and project parts are device-global toggles in Settings → My display → **Allocation labels on this device** — switches
 `Show client name` and `Show project name`, both **on** by default; a bar whose activity has no
 project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
 activity-first layout regardless of these toggles. Its visible card contains allocation details
@@ -797,7 +803,7 @@ It's stored on the account
 (`disciplinesEnabled`, syncs but is omitted from the scoped planning-data export), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
 
-**Engagement grouping (account-level).** Settings → **Engagement grouping** has a single switch
+**Group people by engagement (account-level).** Settings → **Group people by engagement** has a single switch
 **Group resources by engagement**, on by default. When on, Resources renders people in separate
 **Studio** and **Supplementary** sections; each section puts favourites first and then sorts by
 display name. On the schedule, assigned resources stay in canonical discipline order and unassigned
@@ -1342,7 +1348,7 @@ incomplete onboarding step and it hasn't been dismissed), `getting-started-tour`
 around** button — runs the driver.js orientation tour), `getting-started-dismiss` (its **Dismiss**
 button; sets `capacitylens/gettingStartedDismissed`),
 `create-language` (company-create form's read-only Language row — **English**), `settings-language`
-(Settings → Account Options Selected at Creation's read-only Language cell — **English**; both
+(Settings → the Company details read-only Language cell — **English**; both
 frozen, P1.14),
 `new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
 whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
@@ -1449,7 +1455,7 @@ multiple).
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus
   All-projects activities attributed to that project**. Legacy unattributed All-projects bookings
   reopen unchanged until explicitly attributed. They are **hidden by default** behind the
-  per-account **Show placeholders** pref (Settings → Additional resourcing options, `placeholdersEnabled` on the
+  per-account **Show placeholders** pref (Settings → Placeholders and external resources, `placeholdersEnabled` on the
   Account, default off); when shown they display as the literal name **"Placeholder"** with a **"?"** avatar.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
   descriptor), assignable to **any** activity with **no hours**, shown in a **neutral band at the bottom
@@ -1458,7 +1464,7 @@ multiple).
   is hidden and every date counts as a plain calendar day); they're excluded from the Time-off picker, and the
   write boundary rejects time off OR a non-zero load for an external on _any_ path (a direct/crafted
   write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
-  **hidden by default** behind the per-account **Show external resources** pref (Settings → Additional resourcing options,
+  **hidden by default** behind the per-account **Show external resources** pref (Settings → Placeholders and external resources,
   `externalEnabled` on the Account, default off); when on, an **External** section appears under the **Resources**
   tab (with a labelled question-mark explainer modal + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
