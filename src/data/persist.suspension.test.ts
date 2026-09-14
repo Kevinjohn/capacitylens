@@ -250,7 +250,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     // depth 0; the timer fired mid-load, its save was silently eaten by the seedGen guard, and the
     // (c) check couldn't see it — a silent loss. The suspension now covers the WHOLE sequence.
     vi.useFakeTimers();
-    let releaseSave: (() => void) | null = null;
+    let releaseSave: () => void = () => undefined;
     let detach: (() => void) | null = null;
     try {
       const saveStarted = deferredSignal();
@@ -281,7 +281,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
       expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "During flush")).toBe(true);
       expect(onError).not.toHaveBeenCalled();
     } finally {
-      releaseSave?.();
+      releaseSave();
       detach?.();
       vi.useRealTimers();
     }
