@@ -62,6 +62,9 @@ function specialHtmlTagEnd(characters: string[], start: number): number | undefi
   if (characters[start] === "?") {
     return closingSequenceEnd(characters, start + 1, "?>");
   }
+  if (characters[start] === "!" && /[A-Z]/.test(characters[start + 1] ?? "")) {
+    return characters.indexOf(">", start);
+  }
   if (
     characters[start] === "!" &&
     characters[start + 1] === "[" &&
@@ -96,6 +99,34 @@ const validHtmlTag = new RegExp(
 
 function isValidHtmlTag(tag: string): boolean {
   return validHtmlTag.test(tag);
+}
+
+function stripNonAnchorHtml(text: string): string {
+  const output: string[] = [];
+  const characters = [...text];
+
+  for (let index = 0; index < characters.length;) {
+    const character = characters[index];
+    const next = characters[index + 1] ?? "";
+    if (character !== "<" || !/[!?]/.test(next)) {
+      output.push(character ?? "");
+      index++;
+      continue;
+    }
+    const end = completeHtmlTagEnd(characters, index + 1);
+    if (end === -1) {
+      output.push(...characters.slice(index));
+      break;
+    }
+    const tag = characters.slice(index, end + 1).join("");
+    if (isValidHtmlTag(tag)) {
+      index = end + 1;
+    } else {
+      output.push(character);
+      index++;
+    }
+  }
+  return output.join("");
 }
 
 function stripHtmlLikeTags(text: string): string {
@@ -178,7 +209,10 @@ function markdownFragmentIds(source: string): string[] {
 function htmlFragmentIds(source: string): string[] {
   const ids = new Set<string>();
   for (const line of nonFencedLines(source)) {
-    for (const match of line.matchAll(/<[^>]+\b(?:id|name)\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))[^>]*>/giu)) {
+    const anchorSource = stripNonAnchorHtml(line);
+    for (const match of anchorSource.matchAll(
+      /<[^>]+\b(?:id|name)\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))[^>]*>/giu,
+    )) {
       const id = match[1] ?? match[2] ?? match[3];
       if (id) ids.add(id);
     }
@@ -300,7 +334,9 @@ describe("documentation fragment validation", () => {
     expect(ids).not.toContain("ghost");
     expect(ids).toContain("discuss-ghost-syntax");
   });
+});
 
+describe("HTML fragment parity", () => {
   it("leaves an incomplete HTML-like tag for automatic slugging", () => {
     expect(documentationFragmentIds("## Safe <script")).toContain("safe-script");
   });
@@ -313,6 +349,26 @@ describe("documentation fragment validation", () => {
     expect(documentationFragmentIds("## A <!-- > --> B")).toContain("a-b");
     expect(documentationFragmentIds("## A <? > ?> B")).toContain("a-b");
     expect(documentationFragmentIds("## A <![CDATA[ > ]]> B")).toContain("a-b");
+  });
+
+  it("does not treat anchors inside non-rendered HTML constructs as live", () => {
+    const ids = documentationFragmentIds(
+      [
+        '<!-- <span id="comment-anchor"></span> -->',
+        '<?xml <span id="processing-anchor"></span> ?>',
+        '<![CDATA[ <span id="cdata-anchor"></span> ]]>',
+        '<span id="live-anchor"></span>',
+      ].join("\n"),
+    );
+
+    expect(ids).not.toContain("comment-anchor");
+    expect(ids).not.toContain("processing-anchor");
+    expect(ids).not.toContain("cdata-anchor");
+    expect(ids).toContain("live-anchor");
+  });
+
+  it("ends declarations at the first greater-than sign", () => {
+    expect(documentationFragmentIds('## A <!DOCTYPE ">"> B')).toContain("a-b");
   });
 
   it.each([
