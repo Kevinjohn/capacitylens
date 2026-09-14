@@ -293,27 +293,27 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
 // First-run owner setup: needsSetup (server-reported: password mode + zero users) swaps the
 // sign-in form for a create-the-owner-account form; success proceeds exactly like a sign-in.
 function fillOwnerSetup({ name = "Owner", password = "a-strong-password" }: { name?: string; password?: string } = {}) {
-  fireEvent.change(screen.getByLabelText("Name"), { target: { value: name } });
-  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
-  fireEvent.change(screen.getByLabelText("Password"), { target: { value: password } });
+  fireEvent.change(screen.getByLabelText("Your name"), { target: { value: name } });
+  fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+  fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: password } });
 }
 
 function registerOwnerSetupDisplayTests() {
   it("renders the owner-setup form instead of sign-in when needsSetup", () => {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
-    expect(screen.getByRole("heading", { name: "Create the owner account" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    expect(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN")).toHaveAttribute(
-      "placeholder",
-      "Paste SMALLSASS_ACCOUNT_SETUP_TOKEN",
-    );
-    expect(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN")).toHaveAccessibleDescription(
-      "Use the value from the server .env file or installer.",
+    expect(screen.getByRole("heading", { name: "Set up the first Owner" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Create your personal sign-in. You’ll become the Owner and can invite other people later."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Your name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Work email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Create a password")).toHaveAccessibleDescription("Use 15–128 characters.");
+    expect(screen.getByLabelText("Owner setup token")).toHaveAttribute("placeholder", "Paste the setup token");
+    expect(screen.getByLabelText("Owner setup token")).toHaveAccessibleDescription(
+      "Paste the one-time value supplied during installation (SMALLSASS_ACCOUNT_SETUP_TOKEN).",
     );
     expect(screen.queryByText(/server has no users/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
     // The ordinary sign-in affordances are replaced, not stacked.
     expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
   });
@@ -328,14 +328,14 @@ function registerOwnerSetupDisplayTests() {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
   });
 
   it("renders the ordinary sign-in form when needsSetup is absent (fail-closed default)", () => {
     render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
   });
 }
 
@@ -344,13 +344,13 @@ function registerOwnerSetupSubmissionTests() {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
-    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), {
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
+    fireEvent.change(screen.getByLabelText("Owner setup token"), {
       target: { value: "operator-secret" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
     await waitFor(() => expect(onSignedIn).toHaveBeenCalled());
     expect(signUpEmail).toHaveBeenCalledWith({
       email: "owner@x.test",
@@ -364,7 +364,7 @@ function registerOwnerSetupSubmissionTests() {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup({ name: "   " });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.identity_err_name());
     expect(signUpEmail).not.toHaveBeenCalled();
@@ -374,7 +374,7 @@ function registerOwnerSetupSubmissionTests() {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup({ password: "short" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.identity_err_password({ min: 15, max: 128 }));
     expect(signUpEmail).not.toHaveBeenCalled();
@@ -386,11 +386,11 @@ function registerOwnerSetupTokenTests() {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
-    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), {
+    fireEvent.change(screen.getByLabelText("Owner setup token"), {
       target: { value: "  operator-secret  " },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     await waitFor(() => expect(signUpEmail).toHaveBeenCalled());
     expect(signUpEmail).toHaveBeenCalledWith(
@@ -408,26 +408,26 @@ function registerOwnerSetupTokenTests() {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
     fillOwnerSetup();
     const token = `operator-secret${suffix}`;
-    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), { target: { value: token } });
+    fireEvent.change(screen.getByLabelText("Owner setup token"), { target: { value: token } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_setup_token_invalid());
     expect(signUpEmail).not.toHaveBeenCalled();
     expect(onSignedIn).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN")).toHaveValue(token);
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
+    expect(screen.getByLabelText("Owner setup token")).toHaveValue(token);
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
   });
 
   it("trims Unicode edge whitespace from a pasted setup token", async () => {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
-    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), {
+    fireEvent.change(screen.getByLabelText("Owner setup token"), {
       target: { value: "\uFEFF operator-secret\u00A0" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     await waitFor(() => expect(signUpEmail).toHaveBeenCalled());
     expect(signUpEmail).toHaveBeenCalledWith(
@@ -450,12 +450,12 @@ function registerOwnerSetupErrorTests() {
     signUpEmail.mockRejectedValue(new TypeError(`offline while sending ${token}`));
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
-    fireEvent.change(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN"), { target: { value: token } });
+    fireEvent.change(screen.getByLabelText("Owner setup token"), { target: { value: token } });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
     expect(logError).toHaveBeenCalledWith("LoginScreen: owner-setup sign-up request failed");
     const loggedValues = vi
       .mocked(logError)
@@ -470,10 +470,10 @@ function registerOwnerSetupErrorTests() {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_setup_failed());
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
   });
 }
 
@@ -484,10 +484,10 @@ function registerOwnerSetupValidationTests() {
     // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a​🙂@example.com" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "a​🙂@example.com" } });
+    fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(m.identity_err_email());
     expect(signUpEmail).not.toHaveBeenCalled();
@@ -498,24 +498,22 @@ function registerOwnerSetupValidationTests() {
     signUpEmail.mockResolvedValue({ error: { message: "Password too short" } });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Password too short");
     expect(onSignedIn).not.toHaveBeenCalled();
     const errorId = alert.getAttribute("id");
     await waitFor(() => {
-      expect(screen.getByLabelText("Name")).toHaveAttribute("aria-describedby", errorId);
-      expect(screen.getByLabelText("Email")).toHaveAttribute("aria-describedby", errorId);
-      expect(screen.getByLabelText("Password")).toHaveAttribute("aria-describedby", errorId);
-      expect(screen.getByLabelText("SMALLSASS_ACCOUNT_SETUP_TOKEN").getAttribute("aria-describedby")).toContain(
-        errorId,
-      );
+      expect(screen.getByLabelText("Your name")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("Work email")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("Create a password").getAttribute("aria-describedby")).toContain(errorId);
+      expect(screen.getByLabelText("Owner setup token").getAttribute("aria-describedby")).toContain(errorId);
     });
     // The button recovers (busy reset) so the user can retry after fixing the input.
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
   });
 }
 
@@ -528,10 +526,10 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
     });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     // The dead end is fixed: the screen switches to the ordinary sign-in form...
     const alert = await screen.findByRole("alert");
@@ -540,7 +538,7 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
       expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     });
     // ...the create-owner fields are gone, replaced by the sign-in ones...
-    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
