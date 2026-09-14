@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { dismissIntroIfPresent } from "./helpers";
+import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -96,7 +96,7 @@ function registerSuiteScenario1() {
     // Wait for the root navigation before checking the intro. The company name is no longer a safe
     // pre-navigation sentinel because the invite preview deliberately shows it too.
     await expect(page).toHaveURL(/\/$/);
-    await dismissIntroIfPresent(page, page.locator("#main"));
+    await waitForAppLanding(page, page.locator("#main"));
     // In the app, in the joined company — the shell shows its name, and no picker heading.
     await expect(page.getByTitle(`Invite Studio ${STAMP}`, { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
@@ -136,7 +136,7 @@ function registerSuiteScenario2() {
     await page.getByRole("button", { name: "Create account and accept" }).click();
 
     await expect(page).toHaveURL(/\/$/);
-    await dismissIntroIfPresent(page, page.locator("#main"));
+    await waitForAppLanding(page, page.locator("#main"));
     await expect(page.getByTitle(`Signup Invite Studio ${STAMP}`, { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
     await expect(page.getByTestId("active-role")).toContainText("Viewer");

@@ -1,6 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "./fixtures";
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { dismissIntroIfPresent, freezeBrowserDate, goToSeedWeek, setZoom } from "./helpers";
+import { waitForAppLanding, freezeBrowserDate, goToSeedWeek, setZoom } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -119,7 +119,7 @@ async function signIn(page: Page, email: string) {
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("button", { name: ACCOUNT, exact: true }).click();
-  await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
+  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }
 

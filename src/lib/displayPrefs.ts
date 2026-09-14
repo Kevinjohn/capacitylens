@@ -265,16 +265,6 @@ export const [readStoredFakeSignedIn, writeStoredFakeSignedIn] = createBooleanPr
   fallback: false,
 });
 
-// "Intro seen": whether the post-login "What CapacityLens is" intermediary page has been dismissed on
-// this device. Device-global like the prefs above (own key, on/off string, NOT account data) and
-// DEFAULTS OFF so the intro shows on first contact, then stays dismissed. Frequency is
-// once per device by design (see DECISIONS.md). See
-// `src/components/IntroPage.tsx`.
-export const [readStoredIntroSeen, writeStoredIntroSeen] = createBooleanPreference({
-  key: "introSeen",
-  fallback: false,
-});
-
 // "Getting started dismissed": whether the schedule's first-run "Getting started" checklist card
 // has been dismissed on this device. Device-global like the prefs above (own key, on/off string,
 // NOT account data) and DEFAULTS OFF so the card shows on first contact. The card ALSO self-hides

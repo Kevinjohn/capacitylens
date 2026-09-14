@@ -1,4 +1,4 @@
-import { EyeIcon } from "lucide-react";
+import { CircleHelpIcon, EyeIcon } from "lucide-react";
 import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/authContext";
 import { usePermissionStatus, useRole } from "../auth/permissionContext";
@@ -41,6 +41,7 @@ interface AppSidebarProps {
   navLinks: NavigationLinkDefinition[];
   onSignOut: () => void;
   onSwitchAccount: () => void;
+  onShowOrientation: (trigger: HTMLButtonElement) => void;
   open: boolean;
 }
 
@@ -52,6 +53,7 @@ export function AppSidebar({
   navLinks,
   onSignOut,
   onSwitchAccount,
+  onShowOrientation,
   open,
 }: AppSidebarProps) {
   const { pathname } = useLocation();
@@ -95,6 +97,7 @@ export function AppSidebar({
         onSwitchAccount={onSwitchAccount}
         onNavigate={closeOnMobile}
         pathname={pathname}
+        onShowOrientation={onShowOrientation}
       />
 
       <SidebarRail aria-hidden="true" />
@@ -165,6 +168,7 @@ function SidebarAccountFooter({
   onSwitchAccount,
   onNavigate,
   pathname,
+  onShowOrientation,
 }: {
   activeAccount: AppSidebarProps["activeAccount"];
   demoAuthActive: boolean;
@@ -172,9 +176,24 @@ function SidebarAccountFooter({
   onSwitchAccount: () => void;
   onNavigate: () => void;
   pathname: string;
+  onShowOrientation: (trigger: HTMLButtonElement) => void;
 }) {
   return (
     <SidebarFooter>
+      <SidebarMenu>
+        <SidebarMenuItem>
+          <SidebarMenuButton
+            tooltip={m.product_orientation_heading({ app: APP_NAME })}
+            onClick={(event) => {
+              onNavigate();
+              onShowOrientation(event.currentTarget);
+            }}
+          >
+            <CircleHelpIcon aria-hidden="true" focusable="false" />
+            <span>{m.product_orientation_heading({ app: APP_NAME })}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      </SidebarMenu>
       {activeAccount && (
         <div className="group-data-[collapsible=icon]:hidden">
           <SidebarSeparator className="mx-0" />

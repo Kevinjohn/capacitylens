@@ -190,23 +190,9 @@ export async function resetSchedulerScroll(page: Page): Promise<void> {
   });
 }
 
-/** Click through the once-per-device "What CapacityLens is" intro page if this load shows it
- *  (`capacitylens/introSeen` — skipped once dismissed). Waits for the intro's Continue button OR
- *  `landedOn`, whichever renders first, and clicks Continue only when the intro is up, so neither
- *  case hangs.
- *
- *  PITFALL (found by invite.auth.spec): `landedOn` must be a locator UNIQUE to the DESTINATION
- *  screen. A generic `role=main` / `<main>` locator also matches interstitial pages (the invite
- *  page renders its own main), so a main-based wait resolves BEFORE the navigation lands and the
- *  intro check races. In-app callers use the AppShell's `#main` landmark (the only id="main" in
- *  the tree and present on every route regardless of whether the Sidebar is expanded, in icon mode,
- *  or rendered as the mobile Sheet);
- *  flows that start OUTSIDE the shell first wait for destination navigation, then pass `#main`;
- *  invite previews can already contain the joined company's name before navigation. */
-export async function dismissIntroIfPresent(page: Page, landedOn: Locator): Promise<void> {
-  const introContinue = page.getByTestId("intro-continue");
-  await introContinue.or(landedOn).first().waitFor();
-  if (await introContinue.isVisible()) await introContinue.click();
+/** Wait for a destination inside the application shell after an authentication or company handoff. */
+export async function waitForAppLanding(_page: Page, landedOn: Locator): Promise<void> {
+  await landedOn.waitFor();
 }
 
 // The seeded demo is multi-company, so it shows the full-screen account picker on every load. A
@@ -231,8 +217,8 @@ export async function openApp(page: Page, company = "Wayne Enterprises", path = 
   await companyButton.click();
   // A post-login "What CapacityLens is" intro page now follows the company pick; click through it
   // if it's up. The "already in the app" sentinel is the AppShell's `#main` landmark (see
-  // dismissIntroIfPresent's doc comment for why #main and not role=main or the nav link).
-  await dismissIntroIfPresent(page, page.locator("#main"));
+  // waitForAppLanding's doc comment for why #main and not role=main or the nav link).
+  await waitForAppLanding(page, page.locator("#main"));
 }
 
 // A few specs (getting-started, onboarding) need a FRESH, empty company rather than one of the
@@ -260,7 +246,7 @@ export async function createCompany(page: Page, name: string): Promise<void> {
   await page.getByLabel("Company name").fill(name);
   await page.getByRole("button", { name: "Create company" }).click();
   const appMain = page.locator("#main");
-  await dismissIntroIfPresent(page, appMain);
+  await waitForAppLanding(page, appMain);
   await expect(appMain).toBeVisible();
 }
 

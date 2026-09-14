@@ -196,11 +196,6 @@ export interface StoreState {
    *  NOT real auth — the real seam is `src/auth/`; the gate is active only when that auth is
    *  off. See `src/components/FakeSignIn.tsx`. */
   fakeSignedIn: boolean;
-  /** Whether the post-login "What CapacityLens is" intro page has been dismissed on this device.
-   *  Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults OFF so
-   *  the intro shows once on first contact (after a company is chosen), then stays dismissed.
-   *  Frequency is once per device by design (DECISIONS.md). See `src/components/IntroPage.tsx`. */
-  introSeen: boolean;
   /** Whether the schedule's first-run "Getting started" checklist card has been dismissed on this
    *  device. Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults OFF
    *  so the checklist shows on first contact. The card also self-hides once every step is complete
@@ -271,7 +266,6 @@ export interface StoreState {
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void;
   /** Mark the post-login intro page as seen on this device: persist and update state. */
-  setIntroSeen: (value: boolean) => void;
   /** Mark the "Getting started" checklist as dismissed on this device: persist and update state. */
   setGettingStartedDismissed: (value: boolean) => void;
   /** Set the active account's resolved role (P1.12) — called by PermissionProvider whenever it

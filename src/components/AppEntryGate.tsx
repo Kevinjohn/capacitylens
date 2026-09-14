@@ -6,10 +6,6 @@ import { FakeSignIn } from "./FakeSignIn";
 import { RotateHint } from "./RotateHint";
 import { m } from "@/i18n";
 
-const IntroPage = lazy(async () => ({
-  default: (await import("./IntroPage")).IntroPage,
-}));
-
 const StorageRecovery = lazy(async () => ({
   default: (await import("./StorageRecovery")).StorageRecovery,
 }));
@@ -45,9 +41,7 @@ interface AppEntryGateProps {
   activeAccountId: string | null;
   activeAccountLoadFailed: string | null;
   activeAccountName: string;
-  introSeen: boolean;
   onFakeSignIn: () => void;
-  onIntroContinue: () => void;
   onRetryActiveAccountLoad: () => Promise<boolean>;
   onChooseAnotherAccount: () => void;
   children: ReactNode;
@@ -65,9 +59,7 @@ export function AppEntryGate({
   activeAccountId,
   activeAccountLoadFailed,
   activeAccountName,
-  introSeen,
   onFakeSignIn,
-  onIntroContinue,
   onRetryActiveAccountLoad,
   onChooseAnotherAccount,
   children,
@@ -115,17 +107,6 @@ export function AppEntryGate({
         <AccountPicker />
         <RotateHint />
       </FocusableStage>
-    );
-  }
-
-  if (!introSeen) {
-    return (
-      <Suspense fallback={<LoadingBoundary />}>
-        <FocusableStage>
-          <IntroPage onContinue={onIntroContinue} />
-          <RotateHint />
-        </FocusableStage>
-      </Suspense>
     );
   }
 
