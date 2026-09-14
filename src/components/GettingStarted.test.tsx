@@ -117,6 +117,19 @@ describe("GettingStarted first-use outcomes", () => {
     expect(screen.getByRole("link", { name: "Getting started: 0 of 3 complete" })).toBeVisible();
   });
 
+  it("does not offer a shortcut when no company is active", () => {
+    useStore.getState().setActiveAccount(null);
+    renderChecklist("owner", "/clients");
+    expect(screen.queryByTestId("getting-started-shortcut")).not.toBeInTheDocument();
+  });
+
+  it("uses the PermissionContext role even when the store role is stale", () => {
+    useStore.getState().setActiveRole("viewer", "resolved");
+    renderChecklist("owner");
+    expect(screen.getByTestId("getting-started")).toBeVisible();
+    expect(screen.getByRole("link", { name: "Import CapacityLens data" })).toBeVisible();
+  });
+
   it("tracks progress from zero through three and hides once all useful outcomes exist", () => {
     const view = renderChecklist("editor", "/clients");
     expect(screen.getByRole("link", { name: "Getting started: 0 of 3 complete" })).toBeVisible();
@@ -215,6 +228,23 @@ describe("GettingStarted supporting behavior", () => {
     expect(action).toBeDisabled();
     finish();
     await vi.waitFor(() => expect(action).toBeEnabled());
+  });
+
+  it("clears tour busy state, records a persistent notice and logs no failure details", async () => {
+    const failure = new Error("sensitive tour failure details");
+    tourMock.startTour.mockRejectedValueOnce(failure);
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = userEvent.setup();
+    renderChecklist("editor");
+    const action = screen.getByRole("button", { name: "Show me around" });
+
+    await user.click(action);
+
+    await vi.waitFor(() => expect(action).toBeEnabled());
+    expect(action).not.toHaveAttribute("aria-busy");
+    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(error).toHaveBeenCalledWith("GettingStarted: tour failed to start");
+    expect(error.mock.calls.flat().join(" ")).not.toContain("sensitive tour failure details");
   });
 
   it("dismisses the card with the existing device-global preference", async () => {

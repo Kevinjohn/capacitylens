@@ -3,6 +3,7 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { Link, useLocation } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useRole } from "../auth/permissionContext";
+import { canSeePrivateNames } from "@capacitylens/shared/domain/access";
 import {
   buildGettingStartedSteps,
   hasCompletedAllSteps,
@@ -97,13 +98,13 @@ function GettingStartedCard({ accountId }: { accountId: string | null }) {
 
   const showMilestones =
     progress.started || progress.importChosen || progress.scratchChosen || hasExistingSetupData(data, steps);
-  const canImport = activeRole === null || activeRole === "owner";
+  const canImport = activeRole === null || canSeePrivateNames(activeRole);
   const { milestoneFocusRef, requestMilestoneFocus } = useManualMilestoneFocus(showMilestones);
   const chooseManual = () => {
     requestMilestoneFocus();
     choosePath({ scratchChosen: true });
   };
-  if (isGettingStartedComplete(steps, progress)) return null;
+  if (isGettingStartedComplete(steps)) return null;
 
   return (
     <Card aria-label={m.gs_title()} data-testid="getting-started" className="getting-started-popover gap-4 py-4">
@@ -287,8 +288,8 @@ function useTourAction(setNotice: (message: string, tone: "error") => void) {
     setTourBusy(true);
     try {
       await startTour();
-    } catch (error) {
-      console.error("GettingStarted: tour failed to start", error);
+    } catch {
+      console.error("GettingStarted: tour failed to start");
       setNotice(m.gs_tour_failed(), "error");
     } finally {
       tourInFlight.current = false;
@@ -307,13 +308,12 @@ export function GettingStartedShortcut() {
   const steps = buildGettingStartedSteps(data);
   const progress = readGettingStartedProgress(accountId);
   const setupIncomplete = !hasCompletedAllSteps(steps);
-  const { started, importChosen, scratchChosen, settingsReviewed } = progress;
+  const { started, importChosen, scratchChosen } = progress;
   useEffect(() => {
     if (accountId && setupIncomplete && !started)
-      writeGettingStartedProgress(accountId, { started: true, importChosen, scratchChosen, settingsReviewed });
-  }, [accountId, importChosen, scratchChosen, settingsReviewed, setupIncomplete, started]);
-  if (!accountId || pathname === "/" || dismissed || role === "viewer" || isGettingStartedComplete(steps, progress))
-    return null;
+      writeGettingStartedProgress(accountId, { started: true, importChosen, scratchChosen });
+  }, [accountId, importChosen, scratchChosen, setupIncomplete, started]);
+  if (!accountId || pathname === "/" || dismissed || role === "viewer" || isGettingStartedComplete(steps)) return null;
   const done = Object.values(steps).filter(Boolean).length;
   return (
     <div className="border-b border-line bg-surface px-4 py-2 text-sm" data-testid="getting-started-shortcut">
