@@ -7,7 +7,7 @@ import {
   signUpUser as signUp,
   signUpUserWithId,
 } from "./auth-helpers";
-import { dismissIntroIfPresent, selectShadOption } from "./helpers";
+import { waitForAppLanding, selectShadOption } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -85,8 +85,9 @@ async function manageAdminMembers(
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Welcome to CapacityLens" })).toBeVisible();
-  await page.getByTestId("intro-continue").click();
+  await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
+  await page.getByRole("button", { name: "Got it" }).click();
   await expect(page.getByTestId("getting-started")).toBeVisible();
   await expect(page.getByRole("link", { name: "Invite people to sign in" })).toHaveAttribute("href", "/team");
   await page.getByRole("link", { name: "Team & access" }).click();
@@ -163,7 +164,7 @@ async function manageOwnerMembers(
   await ownerPage.getByLabel("Password").fill(PASSWORD);
   await ownerPage.getByRole("button", { name: "Sign in" }).click();
   await ownerPage.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true }).click();
-  await dismissIntroIfPresent(ownerPage, ownerPage.locator("#main"));
+  await waitForAppLanding(ownerPage, ownerPage.locator("#main"));
   await ownerPage.getByRole("link", { name: "Team & access" }).click();
   await expect(ownerPage.getByTestId("current-access")).toContainText("Owner");
   const ownerTarget = ownerPage.getByTestId("member-row").filter({ hasText: EDITOR });

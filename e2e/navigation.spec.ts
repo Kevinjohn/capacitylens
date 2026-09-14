@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { dismissIntroIfPresent, freezeBrowserDate, openApp, setTheme } from "./helpers";
+import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from "./helpers";
 
 // Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error
 // boundary are covered by unit tests / manual scripts — impractical to trigger reliably in E2E.)
@@ -31,7 +31,7 @@ function registerSuiteScenario1() {
       if (path === "/account") {
         await signIn.waitFor();
         await signIn.click();
-        await dismissIntroIfPresent(page, destinationHeading);
+        await waitForAppLanding(page, destinationHeading);
         await expect(destinationHeading).toBeVisible();
         const reloadResponse = await page.reload();
         expect([200, 304]).toContain(reloadResponse?.status());
@@ -43,7 +43,7 @@ function registerSuiteScenario1() {
       if (await signIn.isVisible()) await signIn.click();
       await company.click();
 
-      await dismissIntroIfPresent(page, destinationHeading);
+      await waitForAppLanding(page, destinationHeading);
       await expect(destinationHeading).toBeVisible();
 
       const reloadResponse = await page.reload();

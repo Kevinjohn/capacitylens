@@ -14,7 +14,7 @@ import { m } from "@/i18n";
 // i18n: the copy resolves through Paraglide (`@/i18n`), and every validator below calls `m.*()`
 // INSIDE the function — never at module scope. That is load-bearing: a const captured at module
 // load would freeze the import-time language, and the locale can switch without a reload.
-// Mirrors metadata.ts / introCopy.ts.
+// Mirrors metadata.ts.
 
 type Fail = (field: string, message: string) => void;
 

@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import { API, resetServer } from "./db-helpers";
-import { dismissIntroIfPresent } from "./helpers";
+import { waitForAppLanding } from "./helpers";
 
 test.describe("single-company reload entry", () => {
   test.beforeEach(async ({ request }) => {
@@ -19,7 +19,7 @@ test.describe("single-company reload entry", () => {
     const picker = page.getByRole("heading", { name: "Choose a company" });
     await expect(picker).toBeVisible();
     await page.getByRole("button", { name: company.name, exact: true }).click();
-    await dismissIntroIfPresent(page, page.locator("#main"));
+    await waitForAppLanding(page, page.locator("#main"));
     await expect(page.getByRole("heading", { name: "Clients", exact: true })).toBeVisible();
 
     const reload = await page.reload();

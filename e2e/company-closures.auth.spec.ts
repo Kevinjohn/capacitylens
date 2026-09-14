@@ -3,7 +3,7 @@ import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helper
 import {
   computedStyles,
   disableCssMotion,
-  dismissIntroIfPresent,
+  waitForAppLanding,
   freezeBrowserDate,
   goToSeedWeek,
   setZoom,
@@ -43,7 +43,7 @@ async function signInAsEditor(page: Page) {
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("button", { name: ORG, exact: true }).click();
-  await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
+  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
 }
 
 async function seedClosureAccount(request: APIRequestContext) {

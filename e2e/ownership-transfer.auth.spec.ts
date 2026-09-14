@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext, type Page } from "./fixtures";
 import type { BrowserContext } from "@playwright/test";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUserWithId } from "./auth-helpers";
-import { dismissIntroIfPresent } from "./helpers";
+import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -64,7 +64,7 @@ async function openTeamAccess(context: BrowserContext, email: string): Promise<P
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("button", { name: COMPANY, exact: true }).click();
-  await dismissIntroIfPresent(page, page.locator("#main"));
+  await waitForAppLanding(page, page.locator("#main"));
   await page.getByRole("link", { name: "Team & access" }).click();
   return page;
 }
