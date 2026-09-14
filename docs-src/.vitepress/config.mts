@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "vitepress";
 import { imageLightbox } from "./lightbox.mts";
 import { BASE } from "./base.mjs";
+import { generateDocumentationComponentId } from "./generateDocumentationComponentId.mts";
 import { ports } from "../../scripts/ports.mjs";
 
 // The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
@@ -27,6 +28,11 @@ const escapeClosesLightbox = readFileSync(new URL("../../scripts/docs-lightbox.j
 const lanePorts = ports();
 
 export default defineConfig({
+  vue: {
+    features: {
+      componentIdGenerator: generateDocumentationComponentId,
+    },
+  },
   vite: {
     server: { port: lanePorts.docsDev, strictPort: true },
     preview: { port: lanePorts.docsPreview, strictPort: true },

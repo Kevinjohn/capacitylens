@@ -127,8 +127,7 @@ describe("bootstrap", () => {
 
     // Persistence IS attached: a later edit still saves.
     useStore.getState().addClient({ name: "Later", color: "#222222" });
-    await new Promise((r) => setTimeout(r, 5));
-    expect(saveAll).toHaveBeenCalled();
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalled());
     detach();
   });
   it("flags connectionError (not loadError) and attaches no persistence when a remote load is unavailable", async () => {
@@ -155,7 +154,6 @@ describe("bootstrap", () => {
     // No autosave attached: an edit must not be pushed as a destructive diff to a
     // server that merely returned once.
     useStore.getState().addAccount({ name: "New", color: "#111111" });
-    await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).not.toHaveBeenCalled();
 
     useStore.getState().setConnectionError(false);
@@ -178,7 +176,6 @@ describe("bootstrap", () => {
     expect(useStore.getState().loadError).toBe(true);
     expect(useStore.getState().connectionError).toBe(false);
     useStore.getState().addAccount({ name: "Unsaved", color: "#111111" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(saveAll).not.toHaveBeenCalled();
     useStore.getState().setLoadError(false);
     detach();
