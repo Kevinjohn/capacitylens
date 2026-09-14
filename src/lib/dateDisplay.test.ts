@@ -355,6 +355,10 @@ describe("formatInstant / formatInstantDate", () => {
     expect(formatInstantDate(instant)).toBe(new Date(instant).toLocaleDateString());
   });
 
+  it("renders a numeric epoch exactly like the equivalent timestamp string", () => {
+    expect(formatInstant(Date.parse(instant))).toBe(formatInstant(instant));
+  });
+
   it("keeps the hour, which the 24h reset link and session rows depend on", () => {
     expect(formatInstant(instant)).toContain(":");
     expect(formatInstant(instant)).toContain("45");
