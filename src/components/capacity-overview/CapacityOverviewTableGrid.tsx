@@ -315,6 +315,11 @@ export function CapacityTable({
       role="region"
       aria-label={m.capacity_overview_table_region()}
       tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        event.currentTarget.scrollBy({ left: event.key === "ArrowRight" ? 80 : -80 });
+      }}
       className="min-w-0 flex-1 overflow-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&>[data-slot=table-container]]:overflow-visible"
     >
       <Table

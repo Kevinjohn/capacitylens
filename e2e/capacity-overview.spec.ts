@@ -43,8 +43,7 @@ test("reviews the fixed four-week capacity window and filters available rows", a
 test("shows strategic periods in a focusable table region without toolbar overflow", async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem("capacitylens/rotateHintDismissed", "1"));
   await page.setViewportSize({ width: 320, height: 640 });
-  await openApp(page, "Wayne Enterprises");
-  await page.getByRole("link", { name: "Overview" }).click();
+  await openApp(page, "Wayne Enterprises", "/overview");
   await page.getByRole("radio", { name: "12 weeks" }).click();
 
   const toolbar = page.getByTestId("capacity-overview-toolbar");
@@ -70,8 +69,7 @@ test("shows strategic periods in a focusable table region without toolbar overfl
 
   const initialScrollLeft = await region.evaluate((element) => element.scrollLeft);
   await region.press("ArrowRight");
-  const afterArrowScrollLeft = await region.evaluate((element) => element.scrollLeft);
-  expect(afterArrowScrollLeft).toBeGreaterThan(initialScrollLeft);
+  await expect.poll(() => region.evaluate((element) => element.scrollLeft)).toBeGreaterThan(initialScrollLeft);
 
   for (let press = 0; press < 20; press += 1) await region.press("ArrowRight");
   const finalColumn = region.getByRole("columnheader", { name: "Weeks 9–12, 27 Jul – 23 Aug" });
