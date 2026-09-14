@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { isServerConfigured } from "../../data/apiConfig";
 import { fetchInactiveSlice, InactiveSliceHttpError, InactiveSliceShapeError } from "../../data/fetchInactiveSlice";
 import { useStore, type LifecycleEntity } from "../../store/useStore";
@@ -16,6 +16,7 @@ import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
 import type { Activity, AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { SettingsSection } from "./SettingsSection";
+import { SettingsGroupContext } from "./settingsGroupContext";
 interface Row {
   entity: LifecycleEntity;
   id: string;
@@ -165,10 +166,12 @@ function LifecycleGroup({
   rowTestId: string;
   rowActions: (row: Row) => ReactNode;
 }) {
+  const grouped = useContext(SettingsGroupContext);
+  const Heading = grouped ? "h4" : "h3";
   if (rows.length === 0) return null;
   return (
     <div className="flex flex-col gap-1">
-      <h3 className="mb-1 text-xs font-semibold text-ink">{heading}</h3>
+      <Heading className="mb-1 text-xs font-semibold text-ink">{heading}</Heading>
       <ItemGroup>
         {rows.map((row, index) => (
           <Fragment key={`${row.entity}-${row.id}`}>
@@ -284,6 +287,7 @@ export function ArchivedSection({ collapsible = false, defaultOpen = true }: Arc
     <>
       <SettingsSection
         title={m.settings_deleted_heading()}
+        description={m.settings_company_data_scope()}
         help={m.settings_deleted_intro()}
         testId="archived-section"
         collapsible={collapsible}

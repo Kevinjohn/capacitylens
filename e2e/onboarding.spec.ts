@@ -48,8 +48,8 @@ test.describe("onboarding: capture-then-freeze language / week-start / time zone
     // active account and bounce back to the picker). Settings shows the captured values read-only.
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     const accountOptions = page
-      .getByRole("heading", { name: "Account Options Selected at Creation" })
-      .locator('xpath=ancestor::*[@data-slot="card"]');
+      .getByRole("heading", { name: "Company details" })
+      .locator('xpath=ancestor::*[@data-slot="settings-row"]');
     await expect(accountOptions.getByRole("row", { name: "Company name Queen Industries" })).toBeVisible();
     await expect(accountOptions.getByRole("row", { name: "Week starts on Sunday" })).toBeVisible();
     await expect(
