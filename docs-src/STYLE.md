@@ -48,6 +48,10 @@ other page uses the standard numbered-list-under-`## Steps` pattern.
 - **Screenshots are real.** Every screenshot is captured from the running app (the
   access lab: `pnpm run dev:access`), lives in `docs-src/screenshots/`, and has alt text
   describing what it shows. Never mock up a screenshot. If the UI changes, recapture.
+- **Bearer-bearing screens are publication reviewed.** Redact hosts and secret values before
+  capture. Sensitive screenshots listed in `screenshots/publication-review.json` are SHA-256
+  pinned; after changing one, inspect it at full size for usable credentials before updating its
+  reviewed digest.
 - **Screenshots are click-to-enlarge, so capture them large.** A plain `![alt](path)` is
   automatically wrapped in a lightbox and shown at its natural size when clicked, so
   capture at least ~1400px wide and don't downscale before committing — the text column
