@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { Allocation, AppData, Resource, Weekday } from "@capacitylens/shared/types/entities";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
-import { buildCapacityOverviewPeriods, buildCapacityOverviewWeeks } from "./capacityOverviewDates";
+import { buildCapacityOverviewPeriods } from "./capacityOverviewDates";
 import { buildCapacityOverviewModel, type CapacityOverviewModel } from "./capacityOverviewModel";
 
 const ACCOUNT_ID = "account-1";
@@ -55,17 +55,17 @@ function data(resources: Resource[], allocations: Allocation[] = []): AppData {
   return { ...emptyAppData(), resources, allocations };
 }
 
-function week(model: CapacityOverviewModel, rowId: string, index: number) {
+function period(model: CapacityOverviewModel, rowId: string, index: number) {
   const row = model.groups.flatMap((group) => group.rows).find((candidate) => candidate.resource.id === rowId);
   if (!row) throw new Error(`Missing overview row ${rowId}`);
-  const result = row.weeks[index];
-  if (!result) throw new Error(`Missing overview week ${index}`);
+  const result = row.periods[index];
+  if (!result) throw new Error(`Missing overview period ${index}`);
   return result;
 }
 
-describe("buildCapacityOverviewWeeks", () => {
-  it("builds the remaining current week followed by three full workspace weeks", () => {
-    expect(buildCapacityOverviewWeeks({ today: "2026-06-03", weekStartsOn: 1 })).toEqual([
+describe("buildCapacityOverviewPeriods", () => {
+  it("builds the remaining current period followed by three full workspace periods", () => {
+    expect(buildCapacityOverviewPeriods({ today: "2026-06-03", weekStartsOn: 1 })).toEqual([
       { index: 0, key: "this-week", start: "2026-06-03", end: "2026-06-07", partial: true },
       { index: 1, key: "next-week", start: "2026-06-08", end: "2026-06-14", partial: false },
       { index: 2, key: "week-3", start: "2026-06-15", end: "2026-06-21", partial: false },
@@ -74,21 +74,19 @@ describe("buildCapacityOverviewWeeks", () => {
   });
 
   it("respects a Sunday workspace week start", () => {
-    expect(buildCapacityOverviewWeeks({ today: "2026-06-06", weekStartsOn: 0 })[0]).toEqual({
+    expect(buildCapacityOverviewPeriods({ today: "2026-06-06", weekStartsOn: 0 })[0]).toEqual({
       index: 0,
       key: "this-week",
       start: "2026-06-06",
       end: "2026-06-06",
       partial: true,
     });
-    expect(buildCapacityOverviewWeeks({ today: "2026-06-06", weekStartsOn: 0 })[1]).toMatchObject({
+    expect(buildCapacityOverviewPeriods({ today: "2026-06-06", weekStartsOn: 0 })[1]).toMatchObject({
       start: "2026-06-07",
       end: "2026-06-13",
     });
   });
-});
 
-describe("buildCapacityOverviewPeriods", () => {
   it("adds two complete four-week strategic periods for the twelve-week horizon", () => {
     expect(buildCapacityOverviewPeriods({ today: "2026-06-03", weekStartsOn: 1, horizon: "12-weeks" })).toEqual([
       { index: 0, key: "this-week", start: "2026-06-03", end: "2026-06-07", partial: true },
@@ -149,7 +147,7 @@ describe("buildCapacityOverviewModel", () => {
 
     const row = twelveWeekResult.groups[0]?.rows[0];
     expect(row?.periods).toHaveLength(6);
-    expect(row?.periods?.[4]).toMatchObject({ freeHours: 2, freeDays: 0.25, state: "available" });
+    expect(row?.periods[4]).toMatchObject({ freeHours: 2, freeDays: 0.25, state: "available" });
     expect(
       twelveWeekResult.groups.flatMap((group) => group.rows).map(({ resource: rowResource }) => rowResource.id),
     ).toEqual([resource.id]);
@@ -209,7 +207,7 @@ describe("buildCapacityOverviewModel", () => {
       confirmedSlot.id,
       tentativeSlot.id,
     ]);
-    expect(twelveWeekResult.summary.periods?.[4]).toMatchObject({
+    expect(twelveWeekResult.summary.periods[4]).toMatchObject({
       unassignedDemandHours: 2,
       unassignedDemandDays: 0.25,
     });
@@ -236,7 +234,7 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(week(result, resource.id, 4)).toMatchObject({ companyWorkingHours: 160, freeHours: 152, freeDays: 19 });
+    expect(period(result, resource.id, 4)).toMatchObject({ companyWorkingHours: 160, freeHours: 152, freeDays: 19 });
   });
 
   it("keeps daily spare and overload separate before quarter-day rounding", () => {
@@ -255,7 +253,7 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(week(result, resource.id, 0)).toMatchObject({
+    expect(period(result, resource.id, 0)).toMatchObject({
       availableHours: 40,
       freeHours: 31,
       overHours: 2,
@@ -274,7 +272,7 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(week(result, resource.id, 0)).toMatchObject({
+    expect(period(result, resource.id, 0)).toMatchObject({
       freeHours: 26,
       overHours: 0,
       freeDays: 3.25,
@@ -301,8 +299,8 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(week(result, working.id, 0).state).toBe("fully-booked");
-    expect(week(result, away.id, 0).state).toBe("unavailable");
+    expect(period(result, working.id, 0).state).toBe("fully-booked");
+    expect(period(result, away.id, 0).state).toBe("unavailable");
   });
 
   it("treats less than a quarter-day of precise spare time as fully booked", () => {
@@ -314,11 +312,11 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    const resultWeek = week(result, resource.id, 0);
-    expect(resultWeek.availableHours).toBe(40);
-    expect(resultWeek.freeHours).toBeCloseTo(1);
-    expect(resultWeek.freeDays).toBe(0);
-    expect(resultWeek.state).toBe("fully-booked");
+    const resultPeriod = period(result, resource.id, 0);
+    expect(resultPeriod.availableHours).toBe(40);
+    expect(resultPeriod.freeHours).toBeCloseTo(1);
+    expect(resultPeriod.freeDays).toBe(0);
+    expect(resultPeriod.state).toBe("fully-booked");
   });
 
   it("removes company closures from working capacity", () => {
@@ -339,7 +337,7 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(week(result, resource.id, 0)).toMatchObject({
+    expect(period(result, resource.id, 0)).toMatchObject({
       companyWorkingHours: 40,
       availableHours: 32,
       freeDays: 4,
@@ -356,8 +354,8 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(week(result, resource.id, 0)).toMatchObject({ companyWorkingHours: 16, freeHours: 8 });
-    expect(week(result, resource.id, 1)).toMatchObject({ companyWorkingHours: 32, freeHours: 24 });
+    expect(period(result, resource.id, 0)).toMatchObject({ companyWorkingHours: 16, freeHours: 8 });
+    expect(period(result, resource.id, 1)).toMatchObject({ companyWorkingHours: 32, freeHours: 24 });
   });
 
   it("excludes tentative load when requested and recalculates capacity", () => {
@@ -377,8 +375,8 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(week(included, resource.id, 0).freeDays).toBe(0);
-    expect(week(excluded, resource.id, 0).freeDays).toBe(5);
+    expect(period(included, resource.id, 0).freeDays).toBe(0);
+    expect(period(excluded, resource.id, 0).freeDays).toBe(5);
   });
 
   it("excludes tentative placeholder demand when requested", () => {
@@ -400,8 +398,8 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(week(included, slot.id, 0).unassignedDemandDays).toBe(1);
-    expect(week(excluded, slot.id, 0).unassignedDemandDays).toBe(0);
+    expect(period(included, slot.id, 0).unassignedDemandDays).toBe(1);
+    expect(period(excluded, slot.id, 0).unassignedDemandDays).toBe(0);
   });
 
   it("shows placeholder demand separately, without free capacity or people totals", () => {
@@ -414,12 +412,12 @@ describe("buildCapacityOverviewModel", () => {
       placeholdersEnabled: true,
       disciplinesEnabled: false,
     });
-    const slotWeek = week(result, slot.id, 0);
+    const slotPeriod = period(result, slot.id, 0);
     const summary = result.summary;
 
-    expect(slotWeek).toMatchObject({ freeDays: 0, overDays: 0, unassignedDemandHours: 16, unassignedDemandDays: 2 });
+    expect(slotPeriod).toMatchObject({ freeDays: 0, overDays: 0, unassignedDemandHours: 16, unassignedDemandDays: 2 });
     expect(summary).toMatchObject({ peopleCount: 1 });
-    expect(summary.weeks[0]).toMatchObject({ freeDays: 5, unassignedDemandDays: 2 });
+    expect(summary.periods[0]).toMatchObject({ freeDays: 5, unassignedDemandDays: 2 });
   });
 
   it("keeps disabled-discipline fallback groups and placeholder demand visibly separate", () => {
@@ -538,10 +536,10 @@ describe("buildCapacityOverviewModel", () => {
     });
 
     const summary = result.summary;
-    expect(week(result, first.id, 0).freeDays).toBe(4);
-    expect(week(result, second.id, 0).freeDays).toBe(4);
+    expect(period(result, first.id, 0).freeDays).toBe(4);
+    expect(period(result, second.id, 0).freeDays).toBe(4);
     expect(summary).toMatchObject({ peopleCount: 2 });
-    expect(summary.weeks[0]).toMatchObject({ freeHours: 66, freeDays: 8.25 });
+    expect(summary.periods[0]).toMatchObject({ freeHours: 66, freeDays: 8.25 });
   });
 
   it("returns a measured-capacity explanation in Blocks mode", () => {
@@ -554,9 +552,9 @@ describe("buildCapacityOverviewModel", () => {
     expect(result).toMatchObject({ measured: false, reason: "blocks-mode", groups: [] });
   });
 
-  it("keeps four summary week slots when no eligible rows remain", () => {
+  it("keeps four summary period slots when no eligible rows remain", () => {
     const result = buildCapacityOverviewModel({ data: data([]), today: "2026-06-01" });
 
-    expect(result.summary.weeks).toHaveLength(4);
+    expect(result.summary.periods).toHaveLength(4);
   });
 });
