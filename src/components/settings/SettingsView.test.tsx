@@ -335,41 +335,6 @@ describe("SettingsView — date style", () => {
   });
 });
 
-describe("SettingsView — build stamp", () => {
-  // buildStamp() reads the env at render time, so stubbing before render is enough here
-  // (the server/demo suffix is exercised in buildInfo.test.ts, where modules are reset).
-  // Server is the default mode now (no demo flag), so the stamp reads `· server`.
-  afterEach(() => vi.unstubAllEnvs());
-
-  it("renders nothing when VITE_CAPACITYLENS_BUILD_SHA is unset (today's Settings)", () => {
-    render(<SettingsView />);
-    expect(screen.queryByTestId("build-stamp")).not.toBeInTheDocument();
-    expect(screen.getByTestId("persistence-diagnostics")).toHaveTextContent("Failed saves: 0");
-  });
-
-  it("renders the muted footer when the build is stamped", () => {
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
-    render(<SettingsView />);
-    expect(screen.getByTestId("build-stamp")).toHaveTextContent("build a1b2c3d · server");
-  });
-
-  it("renders no Send feedback link by default, and a stamped mailto when configured", () => {
-    const { unmount } = render(<SettingsView />);
-    expect(screen.queryByTestId("send-feedback")).not.toBeInTheDocument();
-    unmount();
-
-    vi.stubEnv("VITE_CAPACITYLENS_FEEDBACK_MAILTO", "owner@example.com");
-    vi.stubEnv("VITE_CAPACITYLENS_BUILD_SHA", "a1b2c3d");
-    render(<SettingsView />);
-    const link = screen.getByTestId("send-feedback");
-    expect(link).toHaveTextContent("Send feedback");
-    expect(link).toHaveAttribute(
-      "href",
-      `mailto:owner@example.com?subject=${encodeURIComponent("CapacityLens feedback — build a1b2c3d · server")}`,
-    );
-  });
-});
-
 describe("SettingsView — diagnostics", () => {
   afterEach(() => vi.unstubAllEnvs());
 
@@ -381,6 +346,7 @@ describe("SettingsView — diagnostics", () => {
     expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Build revision");
     expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("demo");
     expect(screen.getByTestId("settings-diagnostics")).toHaveTextContent("Databaseunavailable");
+    expect(screen.getByTestId("settings-build-details")).toBeVisible();
     expect(fetchMock.fetch).not.toHaveBeenCalled();
   });
 
@@ -500,7 +466,7 @@ describe("SettingsView — Import and export disclosure (issue #169)", () => {
     expect(screen.getByTestId("import-input")).toHaveAttribute("type", "file");
 
     const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
-    expect(headings.slice(-2)).toEqual(["Company details", "Diagnostics"]);
+    expect(headings.slice(-3)).toEqual(["Company details", "Build details", "Diagnostics"]);
   });
 });
 

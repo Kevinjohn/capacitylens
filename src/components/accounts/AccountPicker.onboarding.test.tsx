@@ -41,7 +41,7 @@ describe("AccountPicker first-company onboarding", () => {
 
     expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
     expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "New company" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "New company" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Company name")).toHaveFocus();
     expect(screen.queryByText("Ask an admin for an invite to join an existing company.")).not.toBeInTheDocument();
     expect(screen.queryByTestId("company-empty-options")).not.toBeInTheDocument();

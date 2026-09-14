@@ -143,7 +143,7 @@ function registerCreateAndActivateTests() {
     const user = userEvent.setup();
     render(<AccountPicker />);
 
-    expect(screen.getByRole("heading", { name: "New company" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "New company" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
     const nameInput = screen.getByLabelText("Company name");
     await user.type(nameInput, "Stark Industries");
@@ -155,21 +155,44 @@ function registerCreateAndActivateTests() {
     expect(useStore.getState().activeAccountId).toBe(created.id);
   });
 
+  it("keeps the New company heading when creating an additional company", async () => {
+    const user = userEvent.setup();
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "New company" }));
+    expect(screen.getByRole("heading", { name: "New company" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
   it("captures week-start, timezone and language at creation and passes them to addAccount (P1.14)", async () => {
     const user = userEvent.setup();
     render(<AccountPicker />);
 
     expect(
-      screen.getByText("Week start, time zone, and language apply to everyone and cannot be changed later."),
+      screen.getByText(
+        "Week start, timezone, and language apply to everyone and are fixed after creation. The company name is separate and can be changed later.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Company planning settings" })).toHaveAccessibleDescription(
-      "Week start, time zone, and language apply to everyone and cannot be changed later.",
+      "Week start, timezone, and language apply to everyone and are fixed after creation. The company name is separate and can be changed later.",
     );
-    expect(screen.getByLabelText("Company name")).not.toHaveAttribute("aria-describedby");
+    expect(screen.getByLabelText("Company name")).toHaveAccessibleDescription(
+      "You can change the company name later; the calendar choices below are fixed after creation.",
+    );
     // The three frozen-after-creation fields render with concrete defaults.
     expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = screen.getByLabelText("Timezone");
     expect(tz).toHaveTextContent(/(?:GMT|UTC|London)/);
+    expect(tz).toHaveAccessibleDescription(
+      "Sets the company-wide calendar boundary used for “today” and date-based scheduling.",
+    );
+    expect(screen.getByRole("radio", { name: "Monday" }).parentElement).toHaveAccessibleDescription(
+      "Controls which day starts each calendar week and the order of days in the schedule for everyone.",
+    );
+    expect(screen.getByRole("group", { name: "Language" })).toHaveAccessibleDescription(
+      "Sets the display language for everyone in this company. English is currently available.",
+    );
     expect(screen.getByTestId("create-language")).toHaveTextContent("English");
 
     // Change the two editable-at-creation ones, then create.

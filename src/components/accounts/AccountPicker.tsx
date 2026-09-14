@@ -127,6 +127,7 @@ function AccountCreationPanel({
 }
 
 interface CreateAccountPanelProps {
+  showHeading: boolean;
   name: string;
   weekStartsOn: 0 | 1;
   timezone: string;
@@ -167,6 +168,7 @@ function buildCreateAccountPanelProps(
   onCancel?: () => void,
 ): CreateAccountPanelProps {
   return {
+    showHeading: onCancel !== undefined,
     name: form.name,
     weekStartsOn: form.weekStartsOn,
     timezone: form.timezone,
@@ -186,11 +188,18 @@ function buildCreateAccountPanelProps(
 }
 
 function AccountLanguageDisplay() {
+  const labelId = useId();
+  const descriptionId = useId();
   return (
-    <div>
-      <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_language()}</p>
+    <div role="group" aria-labelledby={labelId} aria-describedby={descriptionId}>
+      <p id={labelId} className="mb-1.5 text-xs font-medium text-ink">
+        {m.picker_language()}
+      </p>
       <p className="text-sm text-muted-foreground" data-testid="create-language">
         {m.picker_language_english()}
+      </p>
+      <p id={descriptionId} className="mt-1 text-xs text-muted-foreground">
+        {m.picker_language_help()}
       </p>
     </div>
   );
@@ -198,6 +207,7 @@ function AccountLanguageDisplay() {
 
 function CreateAccountPanel(input: CreateAccountPanelProps) {
   const fixedSettingsHelpId = useId();
+  const weekStartHelpId = useId();
   const changeName = (name: string) => {
     input.onNameChange(name);
     if (input.errorField === "name") input.onClearError();
@@ -213,9 +223,11 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
     >
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2>{m.picker_new()}</h2>
-          </CardTitle>
+          {input.showHeading && (
+            <CardTitle>
+              <h2>{m.picker_new()}</h2>
+            </CardTitle>
+          )}
           <CardDescription id={fixedSettingsHelpId}>{m.picker_fixed_settings_help()}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -223,6 +235,7 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
             label={m.picker_company_name()}
             value={input.name}
             onChange={changeName}
+            description={m.picker_company_name_help()}
             autoFocus
             invalid={input.errorField === "name"}
             describedById={input.errorId}
@@ -233,17 +246,22 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
               <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
               <SegmentedControl
                 ariaLabel={m.picker_week_start()}
+                ariaDescribedby={weekStartHelpId}
                 value={input.weekStartsOn}
                 onChange={input.onWeekStartChange}
                 options={input.weekStartSelectOptions}
                 fullWidth
               />
+              <p id={weekStartHelpId} className="mt-1 text-xs text-muted-foreground">
+                {m.picker_week_start_help()}
+              </p>
             </div>
             <TimeZoneField
               label={m.picker_timezone()}
               value={input.timezone}
               onChange={input.onTimeZoneChange}
               options={input.timeZoneSelectOptions}
+              description={m.picker_timezone_help()}
             />
             <AccountLanguageDisplay />
           </fieldset>

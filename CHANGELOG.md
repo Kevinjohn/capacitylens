@@ -14,6 +14,8 @@ new features and **patch** versions carry fixes.
   always be reopened from the sidebar (#837).
 - Organise Settings into Company setup, Scheduling features, My display, and Data and support,
   with compact responsive rows, clearer labels and visible company/device scope (#965).
+- Name the Settings build and persistence row so build stamps, feedback and diagnostic breadcrumbs
+  have a clear support context, and keep the personal Account controls outside Data and support (#1042).
 
 ### Added
 
@@ -33,6 +35,9 @@ new features and **patch** versions carry fixes.
 - Clarify that the company date format governs planning dates, while session, reset,
   invitation and ownership timestamps use each viewer's browser locale and local time zone
   (#927, #939).
+- Clarify first-owner and company-login onboarding recovery, company calendar choices and
+  All-projects setup guidance, and repair the first-steps orientation link (#1023, #1024, #1025,
+  #1060, #1061, #1062, #1063).
 - Keep the command palette's Overview page result consistent with the sidebar and its role-based
   company access setting (#1000).
 - Include the Account page in the command palette's Pages results (#938).

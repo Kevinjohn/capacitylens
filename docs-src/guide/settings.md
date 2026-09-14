@@ -111,6 +111,7 @@ access**. The setting controls both the sidebar link and direct access to the pa
 These company-wide options control which scheduling features are available. Editors and above
 can change them.
 
+<!-- Compatibility anchor for existing links to resourcing options. -->
 <span id="additional-resourcing-options"></span>
 
 ### Placeholders and external resources
@@ -217,6 +218,7 @@ Permanently delete items after their 30-day retention period. Archived items are
 deleted from the bottom of their Resources, Clients, Projects or Activities page.
 See [People and placeholders](/guide/people-and-placeholders).
 
+<!-- Compatibility anchor for existing links to import and export. -->
 <span id="everything-else-on-the-page"></span>
 
 ### Import and export
@@ -239,9 +241,16 @@ Both choices are frozen after the company is created. Settings shows them in the
 read-only **Data and support → Company details** summary so everyone can check the
 company-wide values, but nobody can change them there.
 
+### Build details
+
+The **Build details** row provides support context without exposing company data. A stamped
+deployment shows its build revision and, when configured, a **Send feedback** link. Server mode
+also includes the collapsed **Persistence diagnostics** disclosure with process-local save and
+reload counters. These counters reset when a new persistence lifecycle starts.
+
 ### Diagnostics
 
-At the bottom of Settings, **Diagnostics** provides a **Copy diagnostics** action for a support
+At the bottom of this group, **Diagnostics** provides a **Copy diagnostics** action for a support
 report in both server and demo builds. The copied projection includes the app version, validated
 build revision when available, deployment mode and export schema. Server connectivity, database
 schema, persistence and backup health are listed separately; demo builds and unavailable server
@@ -254,7 +263,10 @@ fresh report, so the support note describes one clear observation rather than a 
 
 ![Data and support with closed Device data, Deleted items and Import and export disclosures, read-only Company details, and Diagnostics](../screenshots/flows/settings_account_disclosures.jpg)
 
-### Your personal account
+## Your personal account
+
+Your personal account is outside the **Data and support** group. It is reached through the
+sidebar's **Account**, **Switch company** and **Sign out** controls.
 
 Open **Account** near **Switch company** and **Sign out** at the bottom of the sidebar to
 review your identity and the security controls available for your sign-in method. These are
