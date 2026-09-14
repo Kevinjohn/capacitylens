@@ -3,13 +3,31 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import { Button } from "./ui/button";
 
-export function ProductOrientation({ onDismiss }: { onDismiss: () => void }) {
+export function ProductOrientation({
+  focusRequest,
+  onDismiss,
+}: {
+  focusRequest: { sequence: number; delayMs: number };
+  onDismiss: () => void;
+}) {
   const headingId = useId();
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
+    const focusHeading = () => {
+      const heading = headingRef.current;
+      if (!heading) return;
+      const scrollIntoView = heading.scrollIntoView as typeof heading.scrollIntoView | undefined;
+      scrollIntoView?.call(heading, { block: "nearest" });
+      heading.focus();
+    };
+    if (focusRequest.delayMs === 0) {
+      focusHeading();
+      return;
+    }
+    const timeout = window.setTimeout(focusHeading, focusRequest.delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [focusRequest.delayMs, focusRequest.sequence]);
 
   return (
     <section

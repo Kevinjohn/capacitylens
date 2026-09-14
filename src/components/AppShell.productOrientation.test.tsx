@@ -59,6 +59,19 @@ describe("AppShell product orientation", () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
+  it("refocuses and scrolls the heading when the visible orientation is explicitly activated", async () => {
+    localStorage.removeItem("capacitylens/productOrientation/v1/demo/acct-test");
+    const user = userEvent.setup();
+    renderShell();
+    const heading = screen.getByRole("heading", { name: "How CapacityLens works" });
+    const trigger = screen.getByRole("button", { name: "How CapacityLens works" });
+    trigger.focus();
+
+    await user.click(trigger);
+
+    expect(heading).toHaveFocus();
+  });
+
   it("keeps a failed storage dismissal suppressed for the current mount", async () => {
     localStorage.removeItem("capacitylens/productOrientation/v1/demo/acct-test");
     vi.spyOn(Storage.prototype, "setItem").mockImplementation((key) => {
@@ -116,6 +129,10 @@ describe("AppShell product orientation", () => {
     await user.click(screen.getByRole("button", { name: "How CapacityLens works" }));
 
     expect(topTrigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: "How CapacityLens works" });
+    expect(heading).not.toHaveFocus();
+    await waitFor(() => expect(heading).toHaveFocus());
+    await user.click(screen.getByRole("button", { name: "Got it" }));
+    expect(topTrigger).toHaveFocus();
   });
 });

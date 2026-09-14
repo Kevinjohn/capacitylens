@@ -187,7 +187,7 @@ function GatedApp({
             onShowOrientation={orientation.show}
           />
           {/* prettier-ignore */}
-          <GatedMain hydrated={hydrated} offline={offline} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} orientationVisible={orientation.visible} onDismissOrientation={orientation.dismiss} orientationScope={orientation.scope} />
+          <GatedMain hydrated={hydrated} offline={offline} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} orientation={orientation} />
           {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
           <RotateHint />
         </SidebarProvider>
@@ -204,7 +204,7 @@ function GatedSidebar({
   sidebarOpen,
   onShowOrientation,
 }: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "signOutDemo" | "sidebarOpen"> & {
-  onShowOrientation: (trigger: HTMLButtonElement) => void;
+  onShowOrientation: (trigger: HTMLButtonElement, delayMs?: number) => void;
 }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -244,13 +244,9 @@ function GatedMain({
   persistError,
   masqueradeBanner,
   navigate,
-  orientationVisible,
-  onDismissOrientation,
-  orientationScope,
+  orientation,
 }: Pick<GatedAppProps, "hydrated" | "offline" | "persistError" | "masqueradeBanner" | "navigate"> & {
-  orientationVisible: boolean;
-  onDismissOrientation: () => void;
-  orientationScope: string;
+  orientation: ReturnType<typeof useProductOrientation>;
 }) {
   const loader = <AppShellLoader />;
   return (
@@ -275,7 +271,13 @@ function GatedMain({
           <AlertDescription>{m.app_persist_error()}</AlertDescription>
         </Alert>
       )}
-      {orientationVisible && <ProductOrientation key={orientationScope} onDismiss={onDismissOrientation} />}
+      {orientation.visible && (
+        <ProductOrientation
+          key={orientation.scope}
+          focusRequest={orientation.focusRequest}
+          onDismiss={orientation.dismiss}
+        />
+      )}
       <GettingStartedShortcut />
       {hydrated ? (
         <Suspense fallback={loader}>
@@ -340,10 +342,8 @@ export function AppShell() {
   const masquerade = useStore((state) => state.masquerade);
   const masqueradeBanner = buildMasqueradeBannerContent(masquerade);
   const offline = useOfflineState();
-  // Drives Sonner's theme (see the <Toaster> below). An explicit light|dark pref is passed
-  // through as the concrete scheme; a 'system' pref is delegated to Sonner ('system'), which
-  // subscribes to prefers-color-scheme itself and so stays live when the OS flips (this shell
-  // wouldn't re-render on that, which is why we don't resolve 'system' here).
+  // Delegate the system preference to Sonner so it follows live OS changes without a shell rerender;
+  // explicit light and dark preferences pass through as concrete schemes.
   const themePreference = useStore((state) => state.theme);
   const accounts = useStore((state) => state.data.accounts);
   const accountSummaries = useStore((state) => state.accountSummaries);

@@ -41,7 +41,7 @@ interface AppSidebarProps {
   navLinks: NavigationLinkDefinition[];
   onSignOut: () => void;
   onSwitchAccount: () => void;
-  onShowOrientation: (trigger: HTMLButtonElement) => void;
+  onShowOrientation: (trigger: HTMLButtonElement, delayMs?: number) => void;
   open: boolean;
 }
 
@@ -98,6 +98,7 @@ export function AppSidebar({
         onNavigate={closeOnMobile}
         pathname={pathname}
         onShowOrientation={onShowOrientation}
+        isMobile={isMobile}
       />
 
       <SidebarRail aria-hidden="true" />
@@ -169,6 +170,7 @@ function SidebarAccountFooter({
   onNavigate,
   pathname,
   onShowOrientation,
+  isMobile,
 }: {
   activeAccount: AppSidebarProps["activeAccount"];
   demoAuthActive: boolean;
@@ -176,7 +178,8 @@ function SidebarAccountFooter({
   onSwitchAccount: () => void;
   onNavigate: () => void;
   pathname: string;
-  onShowOrientation: (trigger: HTMLButtonElement) => void;
+  isMobile: boolean;
+  onShowOrientation: (trigger: HTMLButtonElement, delayMs?: number) => void;
 }) {
   return (
     <SidebarFooter>
@@ -186,7 +189,10 @@ function SidebarAccountFooter({
             tooltip={m.product_orientation_heading({ app: APP_NAME })}
             onClick={(event) => {
               onNavigate();
-              onShowOrientation(event.currentTarget);
+              const returnTarget = isMobile
+                ? document.querySelector<HTMLButtonElement>('main [data-sidebar="trigger"]')
+                : event.currentTarget;
+              onShowOrientation(returnTarget ?? event.currentTarget, isMobile ? 300 : 0);
             }}
           >
             <CircleHelpIcon aria-hidden="true" focusable="false" />

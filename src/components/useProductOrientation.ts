@@ -11,12 +11,14 @@ export function useProductOrientation(input: { userId: string | null; demo: bool
   const accountId = input.accountId ?? NO_ACTIVE_COMPANY_SEGMENT;
   const scope = `${subjectId}\u0000${accountId}`;
   const [visibilityOverrides, setVisibilityOverrides] = useState<Record<string, boolean>>({});
+  const [focusRequest, setFocusRequest] = useState({ sequence: 0, delayMs: 0 });
   const triggerRef = useRef<{ scope: string; element: HTMLButtonElement } | null>(null);
   const visible = visibilityOverrides[scope] ?? !hasDismissedProductOrientation(subjectId, accountId);
 
-  const show = (trigger: HTMLButtonElement) => {
+  const show = (trigger: HTMLButtonElement, delayMs = 0) => {
     triggerRef.current = { scope, element: trigger };
     setVisibilityOverrides((current) => ({ ...current, [scope]: true }));
+    setFocusRequest((current) => ({ sequence: current.sequence + 1, delayMs }));
   };
   const dismiss = () => {
     dismissProductOrientation(subjectId, accountId);
@@ -26,5 +28,5 @@ export function useProductOrientation(input: { userId: string | null; demo: bool
     trigger?.focus();
   };
 
-  return { dismiss, scope, show, visible };
+  return { dismiss, focusRequest, scope, show, visible };
 }
