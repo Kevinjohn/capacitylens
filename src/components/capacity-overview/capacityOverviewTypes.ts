@@ -33,9 +33,6 @@ export interface CapacityOverviewSummaryPeriod {
   unassignedDemandDays: number;
 }
 
-/** @deprecated Use CapacityOverviewSummaryPeriod. */
-export type CapacityOverviewSummaryWeek = CapacityOverviewSummaryPeriod;
-
 export interface CapacityOverviewSummary {
   /** Summary values include every eligible person, even when rows are filtered from the table. */
   scope: "all-eligible-people";
@@ -43,7 +40,7 @@ export interface CapacityOverviewSummary {
   placeholderCount: number;
   periods?: CapacityOverviewSummaryPeriod[];
   /** @deprecated Use periods. Kept while the table migrates from week terminology. */
-  weeks: CapacityOverviewSummaryWeek[];
+  weeks: CapacityOverviewSummaryPeriod[];
 }
 
 export interface CapacityOverviewRow {
