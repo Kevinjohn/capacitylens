@@ -40,7 +40,7 @@ Choose **12 weeks** to keep those four tactical columns and add two complete str
 The **12 weeks** label is shorthand for the remainder of the current company week plus eleven
 complete company weeks. It does not mean twelve full weeks from today. Both horizons follow the
 company's Monday or Sunday week start. Strategic headings show the period label and its actual
-localized date range, including the year when needed at a month or year boundary.
+localized date range, including the year when the range crosses a calendar year.
 
 The choice resets to **4 weeks** when you reopen Overview or reload the page. It is temporary page
 state, not a company or device preference. Switching it keeps your tentative-work, availability,
