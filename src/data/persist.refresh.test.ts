@@ -4,6 +4,7 @@ import { useStore } from "../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
+import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import { resetStoreWithAccount } from "../test/fixtures";
 import {
   requireCallback,
@@ -41,7 +42,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     // exercising the ordinary focus re-hydration path.
     now.mockReturnValue(131_000);
     window.dispatchEvent(new Event("focus"));
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledTimes(loadsAfterPick + 1));
 
     expect(loadAll).toHaveBeenCalledWith("a2"); // re-hydrated the active account
     expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1);
@@ -61,11 +62,11 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const detach = await attachActiveA2({ adapter: { loadAll, saveAll } });
 
     useStore.getState().addClient({ name: "Undo me", color: "#222222" });
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     expect(useStore.getState().past).toHaveLength(1);
 
     window.dispatchEvent(new Event("focus"));
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledTimes(2));
 
     expect(useStore.getState().past).toHaveLength(1);
     useStore.getState().undo();
@@ -79,8 +80,6 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     const loadsAfterPick = loadAll.mock.calls.length;
 
     window.dispatchEvent(new Event("focus"));
-    await new Promise((resolve) => setTimeout(resolve, 5));
-
     expect(loadAll.mock.calls.length).toBe(loadsAfterPick);
     detach();
   });
@@ -94,18 +93,15 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
 
       now.mockReturnValue(129_999);
       window.dispatchEvent(new Event("focus"));
-      await new Promise((resolve) => setTimeout(resolve, 0));
       expect(loadAll.mock.calls.length).toBe(before);
 
       now.mockReturnValue(130_000);
       window.dispatchEvent(new Event("focus"));
-      await new Promise((resolve) => setTimeout(resolve, 0));
       expect(loadAll.mock.calls.length).toBe(before);
 
       now.mockReturnValue(130_001);
       window.dispatchEvent(new Event("focus"));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(loadAll.mock.calls.length).toBe(before + 1);
+      await vi.waitFor(() => expect(loadAll.mock.calls.length).toBe(before + 1));
       detach();
     } finally {
       now.mockRestore();
@@ -130,11 +126,9 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     hold = true;
     now.mockReturnValue(131_000);
     window.dispatchEvent(new Event("focus"));
-    await new Promise((resolve) => setTimeout(resolve, 5));
-    expect(release).toBeTypeOf("function");
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
     detach();
     release();
-    await new Promise((resolve) => setTimeout(resolve, 5));
 
     expect(
       useStore
@@ -206,8 +200,6 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     loadAll.mockClear();
 
     window.dispatchEvent(new Event("focus"));
-    await new Promise((r) => setTimeout(r, 5));
-
     expect(loadAll).not.toHaveBeenCalled(); // nothing to refresh
     detach();
   });
@@ -231,7 +223,7 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     expect(saveAll).not.toHaveBeenCalled();
 
     window.dispatchEvent(new Event("focus"));
-    await new Promise((r) => setTimeout(r, 20)); // < 300ms: a dropped edit's timer would NOT fire
+    await vi.waitFor(() => expect(order).toContain("loadAll"));
 
     // The edit's save flushed BEFORE the refresh loadAll (no cross-account / lost-edit window).
     expect(order[0]).toBe("saveAll");
@@ -253,7 +245,6 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     loadAll.mockClear();
 
     window.dispatchEvent(new Event("focus"));
-    await new Promise((r) => setTimeout(r, 5));
 
     expect(loadAll).not.toHaveBeenCalled(); // local holds every account — no refetch
     detach();
@@ -266,15 +257,18 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
     // forever. The refresh must abort instead: the retry machinery still holds the edit, and the
     // persist banner (onError) already tells the user they're unsynced.
     const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice());
-    const detach = await attachActiveA2({ adapter: adapter }); // debounceMs 0 — saves fire immediately
+    const onError = vi.fn();
+    const detach = await attachActiveA2({ adapter: adapter, onError: onError }); // debounceMs 0 — saves fire immediately
     const loadsAfterPick = loadAll.mock.calls.length;
     saveAll.mockRejectedValue(new Error("write unavailable")); // every save now fails
 
     useStore.getState().addClient({ name: "Unsynced", color: "#222222" });
-    await new Promise((r) => setTimeout(r, 5)); // let the immediate save fail (failedSinceSuccess set)
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce()); // await rejected-save handling
 
     window.dispatchEvent(new Event("focus"));
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(readPersistenceDiagnosticsSnapshot().suspended).toBe(true));
+    await vi.waitFor(() => expect(readPersistenceDiagnosticsSnapshot().suspended).toBe(false));
 
     expect(loadAll.mock.calls.length).toBe(loadsAfterPick); // NO reload — the refresh aborted
     // The optimistic edit is still in the store, available to the retry/stranded-write machinery.
@@ -350,21 +344,19 @@ describe("refresh-on-focus (P1.16, server mode)", () => {
       serverMode: true,
     });
     useStore.getState().setActiveAccount("a1");
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledWith("a1"));
 
     rejectSaves = true;
     useStore.getState().addClient({ name: "Unsynced in A", color: "#222222" });
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     useStore.getState().setActiveAccount("b1");
-    await new Promise((resolve) => setTimeout(resolve, 5));
-    expect(releaseB).not.toBeNull();
+    await vi.waitFor(() => expect(releaseB).not.toBeNull());
 
     // The focus refresh sees B active but must not supersede B's already-running load merely to
     // abort on A's failed-save flag. Otherwise the adapter snapshot becomes B while data stays A.
     window.dispatchEvent(new Event("focus"));
-    await new Promise((resolve) => setTimeout(resolve, 5));
     requireCallback(releaseB, "account B load release")();
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await vi.waitFor(() => expect(useStore.getState().data.accounts.map((account) => account.id)).toEqual(["b1"]));
 
     expect(useStore.getState().activeAccountId).toBe("b1");
     expect(useStore.getState().data.accounts.map((account) => account.id)).toEqual(["b1"]);
@@ -395,7 +387,12 @@ async function attachHeldAccountSwitch() {
     serverMode: true,
   });
   useStore.getState().setActiveAccount("a1");
-  await new Promise((resolve) => setTimeout(resolve, 5));
+  try {
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledWith("a1"));
+  } catch (error) {
+    detach();
+    throw error;
+  }
   const readReleaseB = () => release;
   return { detach, loadAll, readReleaseB };
 }
@@ -455,7 +452,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["ca"]);
 
     useStore.getState().setActiveAccount("b1"); // switch — B's load is now held open
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledWith("b1"));
     const releaseB = readReleaseB();
     expect(releaseB).not.toBeNull(); // B's loadAll dispatched, unresolved
     const aLoadsBefore = loadAll.mock.calls.filter((c) => c[0] === "a1").length;
@@ -466,7 +463,7 @@ describe("refreshActiveAccountSlice (the lifecycle hook reload seam)", () => {
 
     // B's in-flight load was NOT cancelled: when it resolves, B's slice still lands.
     requireCallback(releaseB, "account B load release")();
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb"]));
     expect(useStore.getState().activeAccountId).toBe("b1");
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb"]); // B's slice, never A's
     detach();

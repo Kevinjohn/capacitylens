@@ -1,7 +1,7 @@
 // Shared helpers for the persist.*.test.ts suites in src/data/.
 // Extracted from the former single-file persist.test.ts; bodies unchanged.
 
-import { vi } from "vitest";
+import { expect, vi } from "vitest";
 import { attachPersistence, switchAndAwaitHydration } from "../persist";
 import type { PersistenceAdapter } from "../PersistenceAdapter";
 import { useStore } from "../../store/useStore";
@@ -21,6 +21,14 @@ export const internalClient = (accountId: string) => ({
 export function requireCallback(value: (() => void) | null, context: string): () => void {
   if (value === null) throw new Error(`Expected ${context}`);
   return value;
+}
+
+export function deferredSignal() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 export function makeLocalTwoAccounts() {
@@ -112,6 +120,11 @@ export async function attachActiveA2({ adapter, debounceMs = 0, onError, onSucce
     ...(onSuccess ? { onSuccess } : {}),
     serverMode: true,
   });
-  await switchAndAwaitHydration("a2"); // hydrates a2, seeds snapshot := a2
-  return detach;
+  try {
+    await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" }); // hydrates a2, seeds snapshot := a2
+    return detach;
+  } catch (error) {
+    detach();
+    throw error;
+  }
 }
