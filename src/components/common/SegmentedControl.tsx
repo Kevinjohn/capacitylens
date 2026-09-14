@@ -17,6 +17,8 @@ interface SegmentedControlProps<T> {
   ariaLabel?: string;
   /** Id of an existing visible label, as an alternative to `ariaLabel`. */
   ariaLabelledby?: string;
+  /** Id of visible help text that describes the group. */
+  ariaDescribedby?: string;
   /** Optional layout classes for the group container. */
   className?: string;
   /** Visual relationship between items. `gapped` leaves 2px channels; `connected` uses inset rules. */
@@ -93,6 +95,7 @@ export function SegmentedControl<T extends string | number>({
   options,
   ariaLabel,
   ariaLabelledby,
+  ariaDescribedby,
   className,
   geometry = "gapped",
   fullWidth = false,
@@ -111,6 +114,7 @@ export function SegmentedControl<T extends string | number>({
       data-size={size}
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
+      aria-describedby={ariaDescribedby}
       className={cn(
         "h-auto rounded-[calc(var(--segment-radius)+2px)] border border-input bg-background p-[2px] shadow-xs",
         sizeClasses[size].radius,

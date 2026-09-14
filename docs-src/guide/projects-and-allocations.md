@@ -108,8 +108,8 @@ unattributed. Real projects follow after a divider in client-and-project order. 
 activity picker shows the shared **All projects** group first, followed by that project's
 **Project-specific** group. Each group is alphabetical.
 
-Choosing an All-projects activity under a real project makes that booking count towards
-the project. The schedule uses the chosen project for the bar's client and project label,
+Choosing an All-projects activity under an active project whose client is also active makes that
+booking count towards the project. The schedule uses the chosen project for the bar's client and project label,
 colour and filters. The activity itself remains shared, so another booking can count
 towards a different project. When you edit the booking, choosing **No specific project**
 clears that attribution. Existing unattributed bookings stay unattributed until you make
