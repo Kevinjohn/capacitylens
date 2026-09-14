@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData, Resource } from "@capacitylens/shared/types/entities";
-import type { CapacityOverviewModel, CapacityOverviewWeekResult } from "./capacityOverviewModel";
+import {
+  buildCapacityOverviewModel,
+  type CapacityOverviewModel,
+  type CapacityOverviewWeekResult,
+} from "./capacityOverviewModel";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 
 const resource = (id: string, kind: Resource["kind"] = "person"): Resource => ({
@@ -118,10 +122,70 @@ const model: CapacityOverviewModel = {
 };
 
 describe("CapacityOverviewTable content", () => {
+  it("renders six aligned periods with labelled strategic headings and a keyboard scroll region", () => {
+    const twelveWeekModel = buildCapacityOverviewModel({
+      data,
+      today: "2026-06-03",
+      horizon: "12-weeks",
+      disciplinesEnabled: false,
+    });
+
+    render(
+      <CapacityOverviewTable
+        model={twelveWeekModel}
+        horizon="12-weeks"
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
+        onHorizonChange={vi.fn()}
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    const table = screen.getByRole("table", { name: "Overview" });
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(7);
+    expect(within(table).getByRole("columnheader", { name: "Weeks 5–8, 29 Jun – 26 Jul" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "Weeks 9–12, 27 Jul – 23 Aug" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Overview table" })).toHaveAttribute("tabindex", "0");
+  });
+
+  it("derives an empty strategic table span from the displayed period count", () => {
+    const twelveWeekModel = buildCapacityOverviewModel({
+      data: { ...emptyAppData(), resources: [] },
+      today: "2026-06-03",
+      horizon: "12-weeks",
+    });
+    render(
+      <CapacityOverviewTable
+        model={twelveWeekModel}
+        horizon="12-weeks"
+        data={data}
+        includeTentative
+        hasAvailability={false}
+        showTotals={false}
+        capacityDisplayMode="number"
+        onHorizonChange={vi.fn()}
+        onIncludeTentativeChange={vi.fn()}
+        onHasAvailabilityChange={vi.fn()}
+        onShowTotalsChange={vi.fn()}
+        onCapacityDisplayModeChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("No people match this view.")).toHaveAttribute("colspan", "7");
+  });
+
   it("renders weekly capacity, overbooking, states, demand, and all-eligible summaries", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -154,6 +218,8 @@ describe("CapacityOverviewTable content", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -182,6 +248,8 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -206,6 +274,8 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -230,6 +300,8 @@ describe("CapacityOverviewTable interactions", () => {
     const { rerender } = render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -254,6 +326,8 @@ describe("CapacityOverviewTable interactions", () => {
     rerender(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -276,6 +350,8 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -301,6 +377,8 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -346,6 +424,8 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -384,6 +464,8 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -407,6 +489,8 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={model}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}
@@ -432,6 +516,8 @@ describe("CapacityOverviewTable interactions", () => {
     render(
       <CapacityOverviewTable
         model={{ ...model, measured: false, reason: "blocks-mode", groups: [] }}
+        horizon="4-weeks"
+        onHorizonChange={vi.fn()}
         data={data}
         includeTentative
         hasAvailability={false}

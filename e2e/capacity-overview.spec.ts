@@ -39,3 +39,32 @@ test("reviews the fixed four-week capacity window and filters available rows", a
   await expect(page.getByRole("dialog", { name: "Bruce Wayne's schedule" })).toBeVisible();
   await expect(page.getByTestId("person-schedule-sheet")).toHaveCount(1);
 });
+
+test("shows strategic periods in a focusable table region without toolbar overflow", async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem("capacitylens/rotateHintDismissed", "1"));
+  await page.setViewportSize({ width: 320, height: 640 });
+  await openApp(page, "Wayne Enterprises");
+  await page.getByRole("link", { name: "Overview" }).click();
+  await page.getByRole("radio", { name: "12 weeks" }).click();
+
+  const toolbar = page.getByTestId("capacity-overview-toolbar");
+  const toolbarOverflow = await toolbar.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(toolbarOverflow.scrollWidth).toBeLessThanOrEqual(toolbarOverflow.clientWidth + 1);
+
+  const region = page.getByTestId("capacity-overview-table-region");
+  await expect(region).toHaveAttribute("tabindex", "0");
+  await expect(region.getByRole("columnheader")).toHaveCount(7);
+  await expect(region.getByRole("columnheader", { name: "Weeks 5–8, 29 Jun – 26 Jul" })).toBeVisible();
+  await expect(region.getByRole("columnheader", { name: "Weeks 9–12, 27 Jul – 23 Aug" })).toBeVisible();
+
+  const regionOverflow = await region.evaluate((element) => ({
+    clientWidth: element.clientWidth,
+    scrollWidth: element.scrollWidth,
+  }));
+  expect(regionOverflow.scrollWidth).toBeGreaterThan(regionOverflow.clientWidth);
+  await region.focus();
+  await expect(region).toBeFocused();
+});
