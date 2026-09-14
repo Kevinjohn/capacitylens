@@ -11,7 +11,8 @@ schedule. Allow about ten minutes after the server is running.
 ## Prerequisites
 
 - Finish one of the [installation routes](/getting-started/install).
-- In password mode, get the one-time Owner setup value from the person who installed CapacityLens.
+- In [password mode](/reference/glossary#password-mode), get the one-time Owner setup value from
+  the person who installed CapacityLens.
 - In [company login](/reference/glossary#company-login) mode, ask the operator to add your verified
   email to the first-owner bootstrap list and configure the provider before you begin.
 
@@ -48,7 +49,7 @@ schedule. Allow about ten minutes after the server is running.
    display language (English is currently available). Pick the team's conventions before creating
    the company. CapacityLens then opens the empty Schedule.
 
-   ![The New company form explains that week start, timezone and language are shared fixed choices](../screenshots/flows/company_setup.jpg)
+   ![The first company form explains that week start, timezone and language are shared fixed choices](../screenshots/flows/company_setup.jpg)
 
 3. <span id="understand-what-capacitylens-plans"></span>**Understand what CapacityLens plans.** Read **How CapacityLens works** above the page. It
    explains that people are rows, scheduled work spans their days, and clients, projects and
@@ -79,10 +80,10 @@ schedule. Allow about ten minutes after the server is running.
 6. **Add work to schedule.** Open **Activities** and add the work you need.
 
    - For studio work such as planning, select **Internal**. You do not need a client or project.
-   - For shared work, add an **All projects** activity. When you allocate it, choose **No specific
-     project** to leave the booking unattributed, or choose an active project whose client is also
-     active to attribute that booking. An All-projects booking cannot be attributed to an inactive
-     project or client.
+   - For shared work, add an **[All projects](/reference/glossary#all-projects)** activity. When you
+     allocate it, choose **No specific project** to leave the booking unattributed, or choose an
+     active project whose client is also active to attribute that booking. An All-projects booking
+     cannot be attributed to an inactive project or client.
    - For project-specific client work, create the active client and project first, then add a
      project activity.
 

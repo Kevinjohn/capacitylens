@@ -190,6 +190,9 @@ function registerCreateAndActivateTests() {
     expect(screen.getByRole("radio", { name: "Monday" }).parentElement).toHaveAccessibleDescription(
       "Controls which day starts each calendar week and the order of days in the schedule for everyone.",
     );
+    expect(screen.getByRole("group", { name: "Language" })).toHaveAccessibleDescription(
+      "Sets the display language for everyone in this company. English is currently available.",
+    );
     expect(screen.getByTestId("create-language")).toHaveTextContent("English");
 
     // Change the two editable-at-creation ones, then create.
