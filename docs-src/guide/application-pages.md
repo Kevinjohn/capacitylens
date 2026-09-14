@@ -10,7 +10,8 @@ to recognise the page you need before you start planning work.
 
 ## Overview
 
-**Overview** compares each person's remaining capacity across four company weeks.
+**Overview** compares each person's remaining capacity across four tactical company weeks, with
+an optional twelve-week horizon that adds two strategic four-week totals.
 
 ![The Overview page showing four weeks of remaining capacity for the Wayne Enterprises team](../screenshots/flows/capacity_overview.jpg)
 

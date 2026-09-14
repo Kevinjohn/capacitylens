@@ -63,9 +63,10 @@ exports, can be undone and takes effect without a reload.
 Compact weekday dates on the Time off page always retain the ordinal: with **9 Sep** selected,
 a Wednesday appears as **Wed 9th Sep**.
 
-A range crossing a year normally shows the year at both ends. The narrow week headings on
-Overview are the deliberate exception: neighbouring columns provide the year context, so those
-headings omit it.
+A range crossing a year normally shows the year at both ends. Overview's narrow tactical week
+headings are the deliberate exception: neighbouring columns provide the year context, so those
+headings may omit it. Strategic Overview headings show their period label and actual localized
+date range, including the year when the range crosses a calendar year.
 
 Dates attached to server events use your browser's locale and local time zone instead.
 These include session creation and expiry, password-reset expiry, invitation expiry in the
@@ -167,7 +168,7 @@ sign-in off have no credential controls. **Sign out** remains in the sidebar.
 Overview is limited to Owners and Admins by default. An Owner or Admin can choose
 **Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Overview
 access**. The setting controls both the sidebar link and direct access to the page. See
-[Find capacity for the next four weeks](/guide/capacity-overview).
+[Find capacity across four or twelve weeks](/guide/capacity-overview).
 
 ## Everything else on the page
 
@@ -177,7 +178,7 @@ The rest of Settings, roughly top to bottom:
 | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Scheduling                    | Whether allocations are entered as Hours, Days or Blocks. New companies start with Days; existing choices are preserved — see [Projects and allocations](/guide/projects-and-allocations).                                                                                                                                                                                                            |
 | Date format                   | How planning dates read for everyone in the company: 9 Sep, 9th Sep, Sep 9 or Sep 9th. Editors and above can change it. Server-event dates use the viewer's browser locale and local time zone; see [Date format](#date-format). |
-| Overview access               | Who can open the four-week Overview. Owners and Admins manage this setting; Owner and Admin is the default. See [Find capacity for the next four weeks](/guide/capacity-overview).                                                                                                                                              |
+| Overview access               | Who can open the four- or twelve-week Overview. Owners and Admins manage this setting; Owner and Admin is the default. See [Find capacity across four or twelve weeks](/guide/capacity-overview).                                                                                                                                       |
 | Company-wide working days    | The company's shared working week. A person's capacity covers the days ticked here and in their own pattern; new work must start on such a day, and at least one day must stay selected.                                                                                                                                                |
 | Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. Off for a newly created company. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |
 | Engagement grouping           | Whether Resources separates Studio and Supplementary people. On the schedule, those bands hold people outside a discipline and become the main groups when disciplines are off. On by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).                                                                                         |

@@ -141,7 +141,7 @@ The sidebar links, in order, route to:
 
 | Link label    | Route          | Screen                                                                                                                                                                          |
 | ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overview      | `/overview`    | Four-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting                                                             |
+| Overview      | `/overview`    | Four- or twelve-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting                                                  |
 | Schedule      | `/`            | Timeline scheduler                                                                                                                                                              |
 | Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                                     |
 | Disciplines   | `/disciplines` | Discipline list                                                                                                                                                                 |
@@ -169,6 +169,16 @@ carries a small decorative icon (`aria-hidden`; the accessible name stays the la
 **Overview** is immediately above **Schedule**, while Schedule remains the landing page.
 It defaults to Owner and Admin access. Those roles can extend access in Settings to Editors or
 Everyone; members outside the chosen level do not see the link and a direct URL redirects to Schedule.
+
+**Overview horizon.** The Overview toolbar includes an **Overview horizon** segmented control with
+**4 weeks** selected by default. **12 weeks** keeps the four tactical columns — the remainder of
+the current company week followed by the next three complete company weeks — and adds the complete
+strategic periods **Weeks 5–8** and **Weeks 9–12**. The twelve-week label is shorthand for that
+remainder plus eleven complete company weeks, not twelve full weeks from today. The choice is
+component state: it resets when Overview is reopened or the page reloads, is not a company or device
+preference, and does not reset the other Overview controls or collapsed groups. Strategic headings
+show their period label and actual localized date range; the person schedule drawer remains a fixed
+28-day view.
 
 An otherwise unmatched or stale URL renders the branded **Page not found** screen with a
 **Go to schedule** link instead of the generic reload-only 404 recovery. Public reset/invitation
@@ -623,8 +633,10 @@ columns_ above.
 or above and applied to every member; a viewer sees the control disabled. It sets day/month order and
 whether the day number carries an ordinal on planning dates, including single calendar dates and
 ranges, and takes effect without a reload. A standalone range crossing a year carries the year at
-both ends. The Overview's ordered week-column headers are the deliberate narrow exception:
+both ends. Overview's tactical one-week column headings are the deliberate narrow exception:
 neighbouring columns supply the calendar context, so their one cross-year week may omit both years.
+Strategic headings show their period label and actual localized date range, including the year when
+the range crosses a calendar year.
 Weekday forms (`Mon 8th Jun` / `Mon Jun 8th`) always keep the ordinal.
 
 Server instants use the viewer's browser locale and local time zone instead. This includes session
