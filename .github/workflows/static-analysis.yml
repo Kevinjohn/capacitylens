@@ -21,13 +21,7 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
-      - name: Check formatting
-        run: pnpm run format:check
-      - name: Type-check shared and application projects
-        run: pnpm run typecheck
-      - name: Lint authored sources
-        run: pnpm run lint
-      - name: Check source file sizes
-        run: pnpm run policy:file-sizes
+      - name: Run pre-push checks
+        run: pnpm run check:push
       - name: Check CI policy
         run: pnpm run policy:lint-coverage:test
