@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+- Add a current visual tour of every application page to the documentation.
+
 ### Fixed
 
 - Bring the published guides, contributor guidance, historical implementation records and
