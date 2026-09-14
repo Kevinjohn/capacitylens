@@ -50,6 +50,7 @@ describe("store slice composition", () => {
   it("keeps every StoreState action in the composed store", () => {
     const functionKeys = Object.values(useStore.getState()).filter((value) => typeof value === "function");
 
-    expect(functionKeys).toHaveLength(77);
+    // Product-orientation dismissal is component-owned; the retired intro gate no longer adds a store action.
+    expect(functionKeys).toHaveLength(76);
   });
 });
