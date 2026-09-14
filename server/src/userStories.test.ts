@@ -20,13 +20,15 @@ function headingId(text: string): string {
   // Keep this in lockstep with VitePress 1.6.4's internal slugify implementation:
   // NFKD accents, control/punctuation runs as one hyphen, and a leading numeric
   // character receives an underscore. The slugger is not a public VitePress export.
-  return text
-    .replace(/\s+\{#[^}]+\}\s*$/, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-    .replace(/[`*_~]/g, "")
-    .replace(/\s+#+\s*$/, "")
-    .trim()
+  const withoutMarkup = stripHtmlLikeTags(
+    text
+      .replace(/\s+\{#[^}]+\}\s*$/, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/[`*_~]/g, "")
+      .replace(/\s+#+\s*$/, "")
+      .trim(),
+  );
+  return withoutMarkup
     .normalize("NFKD")
     .replace(/[\u0300-\u036F]/g, "")
     .replace(/\p{Cc}/gu, "")
@@ -42,6 +44,27 @@ function trailingHeadingFragmentId(headingText: string): string | undefined {
 }
 
 type Fence = { kind: "`" | "~"; length: number };
+
+function stripHtmlLikeTags(text: string): string {
+  const output: string[] = [];
+  const characters = [...text];
+  let inTag = false;
+
+  for (let index = 0; index < characters.length; index++) {
+    const character = characters[index];
+    if (character === undefined) continue;
+    if (inTag) {
+      if (character === ">") inTag = false;
+      continue;
+    }
+    if (character === "<" && /[A-Za-z/!?]/.test(characters[index + 1] ?? "")) {
+      inTag = true;
+      continue;
+    }
+    output.push(character);
+  }
+  return output.join("");
+}
 
 function nonFencedLines(source: string): string[] {
   const lines: string[] = [];
@@ -216,6 +239,10 @@ describe("documentation fragment validation", () => {
 
     expect(ids).not.toContain("ghost");
     expect(ids).toContain("discuss-ghost-syntax");
+  });
+
+  it("does not leave an incomplete HTML-like tag in the automatic slug", () => {
+    expect(documentationFragmentIds("## Safe <script")).toContain("safe");
   });
 });
 
