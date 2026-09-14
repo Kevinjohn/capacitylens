@@ -122,7 +122,7 @@ If the app changes, update this file first, then the affected stories.
    Viewer (every schedule-setup CTA is a write they can't do). In an authenticated company, Owner
    and Admin additionally see an optional **Invite your team** link to `/team`; it is deliberately
    outside the completion outcomes. Only Owner or open/demo access sees whole-company import.
-   **Review Settings** is also optional. Import and Settings links scroll to and focus their
+   **Adjust company settings** is also optional. Import and Settings links scroll to and focus their
    destination section. Away
    from Schedule, a compact progress link returns to the full card without covering page content.
 7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
@@ -917,7 +917,7 @@ instead of sign-in. It explains that this creates a personal sign-in with the Ow
 other people can be invited later. Fields are **Your name**
 (`data-testid="owner-setup-name"`), **Work email** (`data-testid="owner-setup-email"`), **Create a
 password** (`data-testid="owner-setup-password"`) with its length requirement, and **Owner setup
-token** (`data-testid="owner-setup-token"`) with installer guidance, plus a **Create Owner** button
+token** (`data-testid="owner-setup-token"`) with installer guidance, plus a **Create my sign-in** button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
 owner in and reloads into **Set up your company**, where the owner creates the first company before
 entering the app. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
