@@ -77,14 +77,12 @@ export interface GettingStartedProgress {
   started: boolean;
   importChosen: boolean;
   scratchChosen: boolean;
-  settingsReviewed: boolean;
 }
 
 const emptyProgress: GettingStartedProgress = {
   started: false,
   importChosen: false,
   scratchChosen: false,
-  settingsReviewed: false,
 };
 
 function progressKey(accountId: string): string {
@@ -113,7 +111,6 @@ export function readGettingStartedProgress(accountId: string | null): GettingSta
       started: parsed?.started === true,
       importChosen: parsed?.importChosen === true,
       scratchChosen: parsed?.scratchChosen === true,
-      settingsReviewed: parsed?.settingsReviewed === true,
     };
   } catch {
     console.warn("gettingStarted: saved progress could not be parsed; using empty progress");
@@ -138,10 +135,9 @@ export function writeGettingStartedProgress(accountId: string, progress: Getting
 
 /**
  * Decide whether the first-use guidance can hide for the current account. Only the three durable
- * domain outcomes count; legacy device markers are accepted for API compatibility but never count.
+ * domain outcomes count; device-local setup markers never affect completion.
  */
-export function isGettingStartedComplete(steps: GettingStartedSteps, progress: GettingStartedProgress): boolean {
-  void progress;
+export function isGettingStartedComplete(steps: GettingStartedSteps): boolean {
   return hasCompletedAllSteps(steps);
 }
 
