@@ -1,10 +1,12 @@
 import type { AppData, Closure, ISODate, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
-import type { CapacityOverviewWeek } from "./capacityOverviewDates";
+import type { CapacityOverviewHorizon, CapacityOverviewPeriod } from "./capacityOverviewDates";
 
 export type CapacityOverviewState = "available" | "fully-booked" | "unavailable" | "unassigned";
 
-export interface CapacityOverviewWeekResult {
-  week: CapacityOverviewWeek;
+export interface CapacityOverviewPeriodResult {
+  period?: CapacityOverviewPeriod;
+  /** @deprecated Use period. Kept while the table migrates from week terminology. */
+  week: CapacityOverviewPeriod;
   /** Eight hours for each company working day in this column's date range. */
   companyWorkingHours: number;
   availableHours: number;
@@ -18,7 +20,10 @@ export interface CapacityOverviewWeekResult {
   state: CapacityOverviewState;
 }
 
-export interface CapacityOverviewSummaryWeek {
+/** @deprecated Use CapacityOverviewPeriodResult. */
+export type CapacityOverviewWeekResult = CapacityOverviewPeriodResult;
+
+export interface CapacityOverviewSummaryPeriod {
   availableHours: number;
   freeHours: number;
   overHours: number;
@@ -28,16 +33,23 @@ export interface CapacityOverviewSummaryWeek {
   unassignedDemandDays: number;
 }
 
+/** @deprecated Use CapacityOverviewSummaryPeriod. */
+export type CapacityOverviewSummaryWeek = CapacityOverviewSummaryPeriod;
+
 export interface CapacityOverviewSummary {
   /** Summary values include every eligible person, even when rows are filtered from the table. */
   scope: "all-eligible-people";
   peopleCount: number;
   placeholderCount: number;
+  periods?: CapacityOverviewSummaryPeriod[];
+  /** @deprecated Use periods. Kept while the table migrates from week terminology. */
   weeks: CapacityOverviewSummaryWeek[];
 }
 
 export interface CapacityOverviewRow {
   resource: Resource;
+  periods?: CapacityOverviewPeriodResult[];
+  /** @deprecated Use periods. Kept while the table migrates from week terminology. */
   weeks: CapacityOverviewWeekResult[];
 }
 
@@ -52,7 +64,9 @@ export interface CapacityOverviewGroup {
 export interface CapacityOverviewModel {
   measured: boolean;
   reason?: "blocks-mode";
-  weeks: CapacityOverviewWeek[];
+  periods?: CapacityOverviewPeriod[];
+  /** @deprecated Use periods. Kept while the table migrates from week terminology. */
+  weeks: CapacityOverviewPeriod[];
   groups: CapacityOverviewGroup[];
   summary: CapacityOverviewSummary;
 }
@@ -61,6 +75,7 @@ export interface BuildCapacityOverviewModelInput {
   data: AppData;
   today: ISODate;
   weekStartsOn?: 0 | 1;
+  horizon?: CapacityOverviewHorizon;
   accountWorkingDays?: Weekday[];
   includeTentative?: boolean;
   placeholdersEnabled?: boolean;

@@ -139,22 +139,22 @@ describe("SettingsView — section help", () => {
     render(<SettingsView />);
 
     for (const section of [
-      "Scheduling",
+      "Allocation units",
       "Overview access",
       "Company-wide working days",
       "Disciplines",
-      "Engagement grouping",
-      "Schedule",
+      "Group people by engagement",
+      "Schedule on this device",
       "Internal work colours",
-      "Additional resourcing options",
+      "Placeholders and external resources",
       "Internal work",
       "Activity creation",
-      "Allocation bars",
-      "Utilisation",
-      "Appearance",
+      "Allocation labels on this device",
+      "Utilisation figures on this device",
+      "Appearance on this device",
       "Device data",
-      "Import & export",
-      "Account Options Selected at Creation",
+      "Import and export",
+      "Company details",
     ]) {
       expect(screen.getByRole("button", { name: `About ${section}` })).toHaveAttribute("title", `About ${section}`);
     }
@@ -484,13 +484,13 @@ describe("SettingsView — diagnostics clipboard", () => {
   });
 });
 
-describe("SettingsView — Import & export card (issue #169)", () => {
+describe("SettingsView — Import and export disclosure (issue #169)", () => {
   it("keeps import/export closed by default and account options before final diagnostics", async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
 
-    expect(screen.getByRole("heading", { name: "Import & export" })).toBeInTheDocument();
-    const disclosure = screen.getByRole("button", { name: "Import & export" });
+    expect(screen.getByRole("heading", { name: "Import and export" })).toBeInTheDocument();
+    const disclosure = screen.getByRole("button", { name: "Import and export" });
     expect(disclosure).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByTestId("export-data")).not.toBeInTheDocument();
 
@@ -499,8 +499,8 @@ describe("SettingsView — Import & export card (issue #169)", () => {
     expect(screen.getByTestId("import-data")).toHaveTextContent("Import JSON");
     expect(screen.getByTestId("import-input")).toHaveAttribute("type", "file");
 
-    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
-    expect(headings.slice(-2)).toEqual(["Account Options Selected at Creation", "Diagnostics"]);
+    const headings = screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+    expect(headings.slice(-2)).toEqual(["Company details", "Diagnostics"]);
   });
 });
 
@@ -617,8 +617,8 @@ describe("SettingsView — account toggle wiring", () => {
     render(<SettingsView />);
 
     const section = screen
-      .getByRole("heading", { name: "Additional resourcing options" })
-      .closest('[data-slot="card"]');
+      .getByRole("heading", { name: "Placeholders and external resources" })
+      .closest('[data-slot="settings-row"]');
     expect(section).not.toBeNull();
     expect(within(section as HTMLElement).getByRole("switch", { name: "Show placeholders" })).toHaveAttribute(
       "aria-checked",
@@ -633,8 +633,8 @@ describe("SettingsView — account toggle wiring", () => {
     expect(useStore.getState().data.accounts[0]?.placeholdersEnabled).toBe(true);
     expect(useStore.getState().data.accounts[0]?.externalEnabled).toBeUndefined();
 
-    await user.click(screen.getByRole("button", { name: "About Additional resourcing options" }));
-    const dialog = screen.getByRole("dialog", { name: "Additional resourcing options" });
+    await user.click(screen.getByRole("button", { name: "About Placeholders and external resources" }));
+    const dialog = screen.getByRole("dialog", { name: "Placeholders and external resources" });
     expect(within(dialog).getAllByText(/unfilled roles or tentative people/i)).not.toHaveLength(0);
     expect(within(dialog).getAllByText(/partner agencies, freelancers, suppliers or subcontractors/i)).not.toHaveLength(
       0,
@@ -793,8 +793,8 @@ describe("SettingsView — account options selected at creation", () => {
   it("shows the four frozen values in a compact read-only table at the bottom", () => {
     render(<SettingsView />);
 
-    const heading = screen.getByRole("heading", { name: "Account Options Selected at Creation" });
-    const card = heading.closest('[data-slot="card"]');
+    const heading = screen.getByRole("heading", { name: "Company details" });
+    const card = heading.closest('[data-slot="settings-row"]');
     expect(card).not.toBeNull();
     const table = within(card as HTMLElement).getByRole("table");
     expect(within(table).getAllByRole("row")).toHaveLength(4);
@@ -816,8 +816,8 @@ describe("SettingsView — account options selected at creation", () => {
     render(<SettingsView />);
 
     expect(screen.queryByText(/cannot be changed here/i)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "About Account Options Selected at Creation" }));
-    const dialog = screen.getByRole("dialog", { name: "Account Options Selected at Creation" });
+    await user.click(screen.getByRole("button", { name: "About Company details" }));
+    const dialog = screen.getByRole("dialog", { name: "Company details" });
     expect(within(dialog).getByText(/cannot be changed here/i)).toBeInTheDocument();
     expect(within(dialog).getByText(/set which day starts the week/i)).toBeInTheDocument();
   });

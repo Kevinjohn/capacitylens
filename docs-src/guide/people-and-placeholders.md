@@ -119,7 +119,7 @@ be favourited.
 A [placeholder](/reference/glossary) is a slot on the schedule for a role you know is
 coming but haven't hired or assigned yet — "a Design Lead" instead of a named person.
 Placeholders are off by default; an Owner or Admin turns them on for the company in
-[Settings → Additional resourcing options](/guide/settings#additional-resourcing-options).
+[Settings → Placeholders and external resources](/guide/settings#placeholders-and-external-resources).
 
 Once turned on, the Resources page shows a separate **Placeholders** section with its
 own **Add placeholder** button. A placeholder's name is optional — you can leave it
@@ -148,7 +148,7 @@ someone on your own team's capacity, even if you haven't hired or named them yet
 An external party's bookings use their literal start and end dates.
 
 External parties are off by default; an Owner or Admin turns them on for the company in
-[Settings → Additional resourcing options](/guide/settings#additional-resourcing-options).
+[Settings → Placeholders and external resources](/guide/settings#placeholders-and-external-resources).
 
 1. Open **Resources**.
 2. Under **External**, click **Add external party**.
