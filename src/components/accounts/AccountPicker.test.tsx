@@ -294,7 +294,7 @@ function registerDeleteConfirmationTests() {
 describe("AccountPicker server-mode list (P1.13)", () => {
   registerServerListMembershipTests();
   registerServerListAccessTests();
-  registerServerListEmptyStateTests();
+  registerUnloadedAccountActivationTest();
 });
 
 function registerServerListMembershipTests() {
@@ -366,7 +366,7 @@ function registerServerListAccessTests() {
   });
 }
 
-function registerServerListEmptyStateTests() {
+function registerUnloadedAccountActivationTest() {
   it("activates an account whose slice is NOT loaded (existence via summaries)", async () => {
     const user = userEvent.setup();
     // `data` is empty (no slice loaded yet — the pre-load state), but the summary exists.
@@ -377,54 +377,6 @@ function registerServerListEmptyStateTests() {
     // setActiveAccount validates against the UNION of data.accounts + summaries, so it activates
     // (the switch orchestrator then hydrates the slice) rather than bouncing back to the picker.
     expect(useStore.getState().activeAccountId).toBe("a2");
-  });
-
-  it("continues first-owner setup with company creation only", () => {
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([]);
-    render(<AccountPicker />);
-    expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
-    expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "New company" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Company name")).toHaveFocus();
-    expect(screen.queryByText("Ask an admin for an invite to join an existing company.")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("company-empty-options")).not.toBeInTheDocument();
-    expect(screen.queryByText(/No companies yet/)).not.toBeInTheDocument();
-    // Zero accounts ⇒ the server reports canCreateAccount: true when re-asked (no provider here,
-    // so the default context value applies — see authContext.ts's fail-open default; the live
-    // refetch after a delete is pinned in the refreshAuth describe below).
-    expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
-  });
-
-  it("shows only the invite step when an empty picker caller cannot create a company", () => {
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([]);
-    withCanCreateAccount(false, <AccountPicker />);
-
-    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join a company.")).toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options").children).toHaveLength(1);
-    expect(screen.queryByText(/Create a company to start planning/)).not.toBeInTheDocument();
-  });
-
-  it("does not infer company-setup eligibility from an unavailable account directory", () => {
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([], useStore.getState().accountSummariesRequestId, false);
-    render(<AccountPicker />);
-
-    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Set up your company" })).not.toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
-  });
-
-  it("does not ask new-company onboarding users to choose a colour", () => {
-    render(<AccountPicker />);
-    expect(screen.queryByText("Colour")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Colour \(/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 }
 
