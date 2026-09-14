@@ -20,7 +20,11 @@ function OfflineDataSection({
   toggleOffline: ReturnType<typeof useLocalDataActions>["toggleOffline"];
 }) {
   return (
-    <SettingsSection title={m.settings_offline_heading()} help={m.settings_offline_description()}>
+    <SettingsSection
+      title={m.settings_offline_heading()}
+      help={m.settings_offline_description()}
+      description={m.settings_device_scope()}
+    >
       <SwitchField
         label={m.settings_offline_toggle()}
         checked={offlineEnabled}
@@ -45,6 +49,7 @@ function DeviceDataSection({
   return (
     <SettingsSection
       title={m.settings_device_data_heading()}
+      description={m.settings_device_scope()}
       help={m.settings_clear_desc_server({ app: APP_NAME })}
       danger
       collapsible

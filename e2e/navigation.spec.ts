@@ -92,10 +92,7 @@ function registerSuiteScenario3() {
       ["Time off", async () => void (await expect(page.getByRole("button", { name: "Add time off" })).toBeVisible())],
       [
         "Settings",
-        async () =>
-          void (await expect(
-            page.getByRole("heading", { name: "Account Options Selected at Creation" }),
-          ).toBeVisible()),
+        async () => void (await expect(page.getByRole("heading", { name: "Company details" })).toBeVisible()),
       ],
       ["Account", async () => void (await expect(page.getByRole("heading", { name: "Your identity" })).toBeVisible())],
     ];
@@ -136,8 +133,8 @@ function registerSuiteScenario4() {
     // Import/export is gone from the sidebar and lives on Settings instead (#169).
     await expect(page.getByTestId("export-data")).toHaveCount(0);
     await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Import & export" })).toBeVisible();
-    await page.getByRole("button", { name: "Import & export", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Import and export" })).toBeVisible();
+    await page.getByRole("button", { name: "Import and export", exact: true }).click();
     await expect(page.getByTestId("export-data")).toBeVisible();
     await expect(page.getByTestId("import-data")).toBeVisible();
   });

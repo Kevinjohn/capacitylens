@@ -13,7 +13,6 @@ import { CAPACITY_OVERVIEW_ACCESS_MESSAGES, INTERNAL_COLOUR_MESSAGES, SCHEDULING
 
 type UpdateSetting = (patch: Parameters<StoreState["updateAccount"]>[1]) => void;
 type SettingsSchedulingSectionProps = {
-  id?: string;
   canEdit: boolean;
   canManageCapacityOverviewAccess: boolean;
   capacityOverviewAccess: CapacityOverviewAccess;
@@ -31,12 +30,6 @@ type SettingsSchedulingSectionProps = {
   inlineActivityCreateEnabled: boolean;
   showTaskFieldInSchedule: boolean;
   internalColourMode: InternalColourMode;
-  minimiseWeekends: StoreState["minimiseWeekends"];
-  setMinimiseWeekends: StoreState["setMinimiseWeekends"];
-  snapToWeekStart: StoreState["snapToWeekStart"];
-  setSnapToWeekStart: StoreState["setSnapToWeekStart"];
-  compactView: StoreState["compactView"];
-  setCompactView: StoreState["setCompactView"];
 };
 
 function CapacityOverviewAccessSection({
@@ -126,9 +119,9 @@ function AccountToggleSection({
   );
 }
 
-function ScheduleViewSection(
+export function ScheduleViewSection(
   props: Pick<
-    SettingsSchedulingSectionProps,
+    StoreState,
     | "minimiseWeekends"
     | "setMinimiseWeekends"
     | "snapToWeekStart"
@@ -210,6 +203,7 @@ function InternalVisibilitySection({
 type SchedulingFeatureSectionProps = Pick<
   SettingsSchedulingSectionProps,
   | "canEdit"
+  | "internalColourMode"
   | "placeholdersEnabled"
   | "externalEnabled"
   | "showInternalProjects"
@@ -253,7 +247,7 @@ function AdditionalResourcingSection({
   );
 }
 
-function SchedulingFeatureSections({
+export function SchedulingFeatureSections({
   canEdit,
   placeholdersEnabled,
   externalEnabled,
@@ -262,6 +256,7 @@ function SchedulingFeatureSections({
   inlineActivityCreateEnabled,
   showTaskFieldInSchedule,
   updateSetting,
+  internalColourMode,
 }: SchedulingFeatureSectionProps) {
   return (
     <>
@@ -271,6 +266,7 @@ function SchedulingFeatureSections({
         externalEnabled={externalEnabled}
         updateSetting={updateSetting}
       />
+      <InternalColourSection canEdit={canEdit} internalColourMode={internalColourMode} updateSetting={updateSetting} />
       <InternalVisibilitySection
         canEdit={canEdit}
         showInternalProjects={showInternalProjects}
@@ -297,17 +293,17 @@ function SchedulingFeatureSections({
   );
 }
 
-function SchedulingFoundationSections(props: SettingsSchedulingSectionProps) {
+type SchedulingFoundationSectionsProps = Pick<
+  SettingsSchedulingSectionProps,
+  "canEdit" | "schedulingMode" | "workingDayOrder" | "workingDays" | "workingDaysMinimumId" | "updateSetting"
+>;
+
+function SchedulingFoundationSections(props: SchedulingFoundationSectionsProps) {
   return (
     <>
       <SchedulingModeSection
         canEdit={props.canEdit}
         schedulingMode={props.schedulingMode}
-        updateSetting={props.updateSetting}
-      />
-      <CapacityOverviewAccessSection
-        canManageCapacityOverviewAccess={props.canManageCapacityOverviewAccess}
-        capacityOverviewAccess={props.capacityOverviewAccess}
         updateSetting={props.updateSetting}
       />
       <SettingsWorkingDaysSection
@@ -321,10 +317,17 @@ function SchedulingFoundationSections(props: SettingsSchedulingSectionProps) {
   );
 }
 
-export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps) {
+type SettingsCompanySetupSectionsProps = SchedulingFoundationSectionsProps &
+  Pick<
+    SettingsSchedulingSectionProps,
+    "disciplinesEnabled" | "groupResourcesByEngagement" | "canManageCapacityOverviewAccess" | "capacityOverviewAccess"
+  > & { dateFormat: ReactNode };
+
+export function SettingsCompanySetupSections(props: SettingsCompanySetupSectionsProps) {
   return (
-    <div id={props.id} tabIndex={props.id ? -1 : undefined} className="flex scroll-mt-4 flex-col gap-6">
+    <>
       <SchedulingFoundationSections {...props} />
+      {props.dateFormat}
       <AccountToggleSection
         title={m.settings_disciplines_heading()}
         help={m.settings_disciplines_intro()}
@@ -341,29 +344,11 @@ export function SettingsSchedulingSection(props: SettingsSchedulingSectionProps)
         canEdit={props.canEdit}
         onChange={(next) => props.updateSetting({ groupResourcesByEngagement: next })}
       />
-      <ScheduleViewSection
-        minimiseWeekends={props.minimiseWeekends}
-        setMinimiseWeekends={props.setMinimiseWeekends}
-        snapToWeekStart={props.snapToWeekStart}
-        setSnapToWeekStart={props.setSnapToWeekStart}
-        compactView={props.compactView}
-        setCompactView={props.setCompactView}
-      />
-      <InternalColourSection
-        canEdit={props.canEdit}
-        internalColourMode={props.internalColourMode}
+      <CapacityOverviewAccessSection
+        canManageCapacityOverviewAccess={props.canManageCapacityOverviewAccess}
+        capacityOverviewAccess={props.capacityOverviewAccess}
         updateSetting={props.updateSetting}
       />
-      <SchedulingFeatureSections
-        canEdit={props.canEdit}
-        placeholdersEnabled={props.placeholdersEnabled}
-        externalEnabled={props.externalEnabled}
-        showInternalProjects={props.showInternalProjects}
-        showInternalActivities={props.showInternalActivities}
-        inlineActivityCreateEnabled={props.inlineActivityCreateEnabled}
-        showTaskFieldInSchedule={props.showTaskFieldInSchedule}
-        updateSetting={props.updateSetting}
-      />
-    </div>
+    </>
   );
 }
