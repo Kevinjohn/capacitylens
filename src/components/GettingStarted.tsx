@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { APP_NAME } from "@capacitylens/shared/brand";
 import { Link, useLocation } from "react-router-dom";
 import { Check } from "lucide-react";
 import { useRole } from "../auth/permissionContext";
@@ -226,9 +227,9 @@ function SetupChoices({
             onClick={onImport}
             className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
           >
-            {m.gs_import_data()}
+            {m.gs_import_data({ appName: APP_NAME })}
           </Link>
-          <p className="text-xs text-muted-foreground">{m.gs_import_help()}</p>
+          <p className="text-xs text-muted-foreground">{m.gs_import_help({ appName: APP_NAME })}</p>
         </div>
       )}
       <Button type="button" size="sm" variant="outline" className="self-start" onClick={onManual}>
@@ -254,9 +255,9 @@ function SupportingActions({
             onClick={importAction}
             className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
           >
-            {m.gs_import_data()}
+            {m.gs_import_data({ appName: APP_NAME })}
           </Link>
-          <p className="text-xs text-muted-foreground">{m.gs_import_help()}</p>
+          <p className="text-xs text-muted-foreground">{m.gs_import_help({ appName: APP_NAME })}</p>
         </div>
       )}
       <Link
@@ -270,7 +271,7 @@ function SupportingActions({
           <Link to="/team" className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline">
             {m.gs_invite_team()}
           </Link>
-          <p className="text-xs text-muted-foreground">{m.gs_invite_team_help()}</p>
+          <p className="text-xs text-muted-foreground">{m.gs_invite_team_help({ appName: APP_NAME })}</p>
         </div>
       )}
     </div>
