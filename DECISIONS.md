@@ -150,10 +150,12 @@ This is the short, present-tense record of decisions that constrain future work.
   format is deliberately NOT among them: a company reads one convention, so it is an account setting
   (editor and up), present in export and undoable like any other account change. It governs planning
   calendar dates and ranges. Server instants — session creation and expiry, password-reset expiry,
-  invitation expiry, ownership-transfer deadlines and ownership outcome dates — instead use the
-  viewer's browser locale and local time zone, including when an instant is displayed as a date only.
-  Existing date-and-time and compact date-only shapes remain distinct; never recover a local date by
-  slicing the stored UTC timestamp.
+  invitation expiry in the Team & access member panel and on the invitee's Accept invite page,
+  ownership-transfer deadlines and ownership outcome dates — instead use the viewer's browser locale
+  and local time zone, including when an instant is displayed as a date only. The offline read-only
+  banner's last-updated timestamp also uses the viewer's browser locale and local time zone. Existing
+  date-and-time and compact date-only shapes remain distinct; never recover a local date by slicing
+  the stored UTC timestamp.
 - Client/project privacy is opt-in and owner-managed. Real names and raw code names remain stored;
   only account owners receive them. Every other role receives the quoted code name, and non-owner
   writes preserve the protected stored fields. The built-in Internal client is always public and

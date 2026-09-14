@@ -11,7 +11,7 @@ parts fit together, and which page to read next for the job in front of you.
 
 ## Choose an installation route
 
-CapacityLens supports two ways to install. Choose the route that matches how you manage
+CapacityLens supports three ways to install. Choose the route that matches how you manage
 your host:
 
 - [Install with Docker](/self-hosting/install-with-docker) requires Docker and Docker

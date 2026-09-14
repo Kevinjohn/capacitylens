@@ -1,6 +1,6 @@
 # US-NAV-10 — Sign in before using the app (auth-gated deploy)
 
-**Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Settings returns to the login screen", "the --create-owner-admin-admin bootstrap credential signs in through the real form"
+**Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Account via the sidebar returns to the login screen", "the --create-owner-admin-admin bootstrap credential signs in through the real form"
 
 > **Flag-gated; not reachable in the default deploy.** The login screen only exists when
 > the optional server runs with `CAPACITYLENS_AUTH=password` (or `sso`) — the controlled-demo
@@ -43,7 +43,8 @@ self-registration closes automatically and only the Sign in form below is reacha
 - Unauthenticated: the Sign in screen replaces the whole app — no company picker, no nav,
   no data; direct API reads (e.g. `GET /api/state`) return 401.
 - The form submits with Enter; a failed sign-in shows an inline alert and no navigation.
-- A successful sign-in lands in the normal app flow (company picker with seeded companies).
+- A successful sign-in resumes the normal company flow: the picker lists the user's memberships;
+  when none are available, the documented first-company or invitation path is shown instead.
 - Account shows the signed-in identity and personal security controls only while signed in on an
   auth-enabled deploy; it never exposes credential controls with auth off or in local mode.
 - First-owner signup keeps the **Create the owner account** heading, names the exact setup-token

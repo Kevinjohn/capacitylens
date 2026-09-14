@@ -752,12 +752,12 @@ local checks, and CI is the record.
 
 Two jobs used to depend on pull-request context and now read the pushed commit range
 (`github.event.before`..`github.sha`) instead: DCO sign-off and dependency review. Both
-skip when that range doesn't exist — branch creation and force pushes. Because a squash
-merge lands a single commit, its `Signed-off-by` trailer has to survive into the squash
-body:
+skip when that range doesn't exist — branch creation and force pushes. Feature commits
+carry their own `Signed-off-by` trailers. Merge validated pull requests with a normal
+merge commit and delete the remote feature branch:
 
 ```bash
-gh pr merge <number> --squash --delete-branch --body "$(git log -1 --format=%b)"
+gh pr merge <number> --merge --delete-branch
 ```
 
 ### CI jobs
