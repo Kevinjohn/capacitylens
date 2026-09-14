@@ -5,7 +5,7 @@ import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import type { TeamInvitation } from "../../account/teamAccessClient";
-import { formatInstantDate } from "../../lib/dateDisplay";
+import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
 import { resolveRoleSummary } from "../../lib/accessCopy";
 import { SelectField, TextField } from "../common/ui";
 import { Button } from "../ui/button";
@@ -251,7 +251,7 @@ function resolveInvitationStatus(invitation: TeamInvitation, expired: boolean): 
   if (expired) return m.settings_invite_suffix_expired();
   // Invite validity spans several days, so keep this compact row date-only while rendering the
   // date on the viewer's local calendar rather than slicing UTC.
-  return m.settings_invite_suffix_expires({ date: formatInstantDate(invitation.expiresAt) });
+  return m.settings_invite_suffix_expires({ date: formatInviteExpiryDate(invitation.expiresAt) });
 }
 
 function OutstandingInvites({ invites, renderedAt, busy, revokeInvite }: OutstandingInvitesProps) {
