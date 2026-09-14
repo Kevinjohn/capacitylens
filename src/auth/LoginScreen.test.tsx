@@ -303,14 +303,16 @@ function registerOwnerSetupDisplayTests() {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "Set up the first Owner" })).toBeInTheDocument();
     expect(
-      screen.getByText("Create your personal sign-in. You’ll become the Owner and can invite other people later."),
+      screen.getByText(
+        "Create your personal sign-in for this new installation. You’ll become its first Owner, then create the first company.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Your name")).toBeInTheDocument();
     expect(screen.getByLabelText("Work email")).toBeInTheDocument();
     expect(screen.getByLabelText("Create a password")).toHaveAccessibleDescription("Use 15–128 characters.");
     expect(screen.getByLabelText("Owner setup token")).toHaveAttribute("placeholder", "Paste the setup token");
     expect(screen.getByLabelText("Owner setup token")).toHaveAccessibleDescription(
-      "Paste the one-time value supplied during installation (SMALLSASS_ACCOUNT_SETUP_TOKEN).",
+      "Paste the one-time value supplied during installation (SMALLSASS_ACCOUNT_SETUP_TOKEN). It authorises first-owner setup for this installation; it does not create the company.",
     );
     expect(screen.queryByText(/server has no users/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
@@ -330,6 +332,11 @@ function registerOwnerSetupDisplayTests() {
 
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renders the ordinary sign-in form when needsSetup is absent (fail-closed default)", () => {
@@ -533,7 +540,9 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
 
     // The dead end is fixed: the screen switches to the ordinary sign-in form...
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Someone has already set this workspace up — sign in below.");
+    expect(alert).toHaveTextContent(
+      "First-owner setup for this installation is already complete — use the ordinary sign-in form below.",
+    );
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     });
@@ -543,7 +552,9 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     // ...and the explanatory message is still visible so the user understands why.
-    expect(screen.getByRole("alert")).toHaveTextContent("Someone has already set this workspace up — sign in below.");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "First-owner setup for this installation is already complete — use the ordinary sign-in form below.",
+    );
     expect(onSignedIn).not.toHaveBeenCalled();
   });
 }

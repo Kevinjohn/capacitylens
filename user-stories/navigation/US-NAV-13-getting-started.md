@@ -23,9 +23,10 @@ Settings, invitations or the tour mandatory for a solo team or internal work.
    non-blocking **How CapacityLens works** region may also appear above the page (US-NAV-12).
 2. Choose **Set up manually**. Focus moves to **Add someone to the schedule**. Follow it to
    **Resources**, add a person, then return to Schedule: the first outcome is marked done.
-3. Add an **Internal** activity. Return to Schedule: **Add work to schedule** is marked done. A
-   client and project are not required for internal work; project work must belong to a valid
-   client and project.
+3. Add an **Internal** or **All projects** activity. Return to Schedule: **Add work to schedule**
+   is marked done. Internal work needs no client or project. An All-projects booking may be left
+   unattributed or attributed only to an active project with an active client. Project-specific
+   work must belong to a valid active client and project.
 4. Click or drag on the person's schedule row and save the allocation. The third outcome completes
    and the card closes automatically.
 5. In another empty Owner company, choose **Import CapacityLens data**. Settings opens at Import,
@@ -39,8 +40,9 @@ Settings, invitations or the tour mandatory for a solo team or internal work.
 - The card (`data-testid="getting-started"`) appears over Schedule only while at least one outcome
   is incomplete and it has not been dismissed on this device. It does not move the toolbar or grid.
 - Outcomes derive from active, coherent company data. A person must be schedulable; work may be an
-  internal activity or a project activity with its active client and project; an allocation must
-  join an active person and coherent activity. A zero-hour allocation still counts.
+  internal activity, an All-projects activity, or a project activity with its active client and
+  project; an allocation must join an active person and coherent activity. A zero-hour allocation
+  still counts.
 - **Set up manually** reveals the outcomes and moves focus to the first incomplete one. Background
   data changes do not steal focus.
 - Choosing import opens the Import section but does not itself count as progress. Imported data

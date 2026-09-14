@@ -22,8 +22,8 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 1. Start from a clean device state and complete the demo sign-in if it appears.
 2. With no companies, confirm **Set up your company** and its mandatory create form appear
    automatically. There is no preliminary choice or Cancel action.
-3. Confirm the form explains that its shared calendar choices are fixed, then asks for **Company
-   name**, week start, a searchable
+3. Confirm the form explains that its shared calendar choices are fixed while the company name can
+   change later, then asks for **Company name**, week start, a searchable
    timezone combobox preselected to the browser's IANA zone, and the read-only English language
    value; it does **not** ask the user to choose a company colour.
 4. Create the company and confirm it becomes active and opens the schedule.
@@ -60,10 +60,15 @@ colour is automatic, so onboarding does not create an unnecessary design task.
   membership role only in authenticated mode, **Demo access** in the in-memory demo, or **Open
   access** on an auth-off persisted server.
 - ✅ The create form captures Company name, Week starts on, Timezone and read-only Language
-  (English), explains that these are shared company calendar choices which cannot be changed later,
-  then activates the created company and lands on Schedule.
-- ✅ When first-company creation is the caller's only next step, the form appears immediately and
-  has no Cancel action. Creating another company still begins from **New company** and can be cancelled.
+  (English). Help is associated with each control: the company name is separate from the fixed
+  calendar choices; week start controls displayed week order; timezone controls the company-wide
+  date boundary used for Today and date-based scheduling; and language is shared company-wide.
+  The three calendar choices cannot be changed later, then the form activates the created company
+  and lands on Schedule.
+- ✅ When first-company creation is the caller's only next step, the form appears immediately, has
+  no **New company** subheading or Cancel action, and keeps the outer **Set up your company** heading
+  as the valid hierarchy. Creating another company still begins from **New company**, keeps that
+  card heading, and can be cancelled.
 - ✅ The timezone combobox is keyboard accessible, searchable by IANA identifier or friendly name,
   keeps the detected local and common zones first, and returns focus to its trigger after selection.
 - ✅ The create form has no company-colour control; the account receives the default preset
