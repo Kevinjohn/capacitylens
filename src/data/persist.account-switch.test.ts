@@ -736,7 +736,8 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       serverMode: false,
     }); // demo build
 
-    await switchAndAwaitHydration("a2");
+    useStore.getState().setActiveAccount("a2");
+    expect(useStore.getState().activeAccountId).toBe("a2");
     // Demo build: data already holds all accounts, so the orchestrator never fetches a slice.
     expect(loadAll).not.toHaveBeenCalled();
     detach();

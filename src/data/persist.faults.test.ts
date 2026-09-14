@@ -355,6 +355,7 @@ describe("persistence coordinator fault-injection branches", () => {
     const slice = a2Slice();
     let releaseReload!: () => void;
     let reloadResult!: Promise<AppData>;
+    let changeActiveAccountOnReloadSuccess = false;
     let loads = 0;
     const loadAll = vi.fn(() => {
       loads += 1;
@@ -365,15 +366,24 @@ describe("persistence coordinator fault-injection branches", () => {
       return reloadResult;
     });
     const saveAll = vi.fn().mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
-    const detach = await attachActiveA2({ adapter: { loadAll, saveAll } });
+    const detach = await attachActiveA2({
+      adapter: { loadAll, saveAll },
+      onSuccess: () => {
+        if (changeActiveAccountOnReloadSuccess) useStore.getState().setActiveAccount(null);
+      },
+    });
     saveAll.mockClear();
+    const reconciliationsResolvedBefore = readPersistenceDiagnosticsSnapshot().reconciliationsResolved;
+    changeActiveAccountOnReloadSuccess = true;
     saveAll.mockRejectedValueOnce(new BatchCommitUncertainError("uncertain"));
     useStore.getState().addClient({ name: "Uncertain", color: "#111111" });
     await vi.waitFor(() => expect(releaseReload).toBeTypeOf("function"));
 
-    useStore.getState().setActiveAccount(null);
     releaseReload();
     await expect(reloadResult).resolves.toBe(slice);
+    await vi.waitFor(() =>
+      expect(readPersistenceDiagnosticsSnapshot().reconciliationsResolved).toBe(reconciliationsResolvedBefore + 1),
+    );
     expect(saveAll).toHaveBeenCalledOnce();
     detach();
   });
