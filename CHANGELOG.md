@@ -7,12 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
-- Add a current visual tour of every application page to the documentation.
-
 ### Changed
 
 - Organise Settings into Company setup, Scheduling features, My display, and Data and support,
   with compact responsive rows, clearer labels and visible company/device scope (#965).
+- Add a current visual tour of every application page to the documentation.
 
 ### Fixed
 
