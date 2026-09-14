@@ -136,6 +136,7 @@ export default defineConfig({
       {
         text: "Day-to-day usage",
         items: [
+          { text: "Application page tour", link: "/guide/application-pages" },
           { text: "The schedule", link: "/guide/the-schedule" },
           { text: "Overview", link: "/guide/capacity-overview" },
           { text: "People and placeholders", link: "/guide/people-and-placeholders" },
