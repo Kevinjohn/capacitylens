@@ -12,7 +12,7 @@ import type { AppData } from "@capacitylens/shared/types/entities";
 import { resetStoreWithAccount, requireValue } from "../test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
-import { requireCallback, recordingAdapter, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
+import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
 beforeEach(() => {
   localStorage.clear();
@@ -67,7 +67,7 @@ describe("flushPendingWrites (the import seam)", () => {
 
     useStore.getState().addClient({ name: "First", color: "#222222" }); // parked in the debounce
     const flush = flushPendingWrites(); // consumes it → round-trip A, held open
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
     expect(saveAll).toHaveBeenCalledTimes(1);
 
     useStore.getState().addClient({ name: "Mid-flush", color: "#333333" }); // lands during A's await
@@ -191,13 +191,12 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     const resume = suspendServerWrites();
     useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
-    await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).not.toHaveBeenCalled(); // parked, not sent
 
     // The suspending operation FAILED before any reload (e.g. the POST was refused): the slice is
     // unchanged, so the parked edit saves on resume — losing it would be a silent drop, no notice.
     resume();
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-import")).toBe(true);
     detach();
@@ -215,7 +214,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
     expect(await refreshActiveAccountSlice("a2")).toEqual({ kind: "reloaded" }); // the post-import re-hydrate
     resume();
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
 
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.map((c) => c.name)).toEqual([
@@ -241,8 +240,6 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     const resume = suspendServerWrites();
     useStore.getState().addClient({ name: "Mid-import", color: "#222222" });
     resume({ dropParkedEdits: true });
-    await new Promise((r) => setTimeout(r, 5));
-
     expect(saveAll).not.toHaveBeenCalled(); // never re-scheduled
     expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true); // surfaced, not silent
     detach();
@@ -252,34 +249,42 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
     // Pre-fix, an edit arriving while the entry flush was awaited re-armed a debounce timer at
     // depth 0; the timer fired mid-load, its save was silently eaten by the seedGen guard, and the
     // (c) check couldn't see it — a silent loss. The suspension now covers the WHOLE sequence.
-    let releaseSave: (() => void) | null = null;
-    const slice = a2Slice();
-    const loadAll = vi.fn(async () => slice);
-    const saveAll = vi.fn((data: AppData) => {
-      void data;
-      return new Promise<void>((resolve) => {
-        releaseSave = () => resolve();
+    vi.useFakeTimers();
+    let releaseSave: () => void = () => undefined;
+    let detach: (() => void) | null = null;
+    try {
+      const saveStarted = deferredSignal();
+      const slice = a2Slice();
+      const loadAll = vi.fn(async () => slice);
+      const saveAll = vi.fn((data: AppData) => {
+        void data;
+        saveStarted.resolve();
+        return new Promise<void>((resolve) => {
+          releaseSave = () => resolve();
+        });
       });
-    });
-    const onError = vi.fn();
-    const detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300, onError: onError }); // genuinely debounced
+      const onError = vi.fn();
+      detach = await attachActiveA2({ adapter: { loadAll, saveAll }, debounceMs: 300, onError: onError }); // genuinely debounced
 
-    useStore.getState().addClient({ name: "Pre-reload", color: "#222222" }); // pending, debounced
-    const refresh = refreshActiveAccountSlice("a2"); // (a′) flushes it → saveAll held open
-    await new Promise((r) => setTimeout(r, 5));
-    expect(saveAll).toHaveBeenCalledTimes(1); // the flush is on the wire
+      useStore.getState().addClient({ name: "Pre-reload", color: "#222222" }); // pending, debounced
+      const refresh = refreshActiveAccountSlice("a2"); // (a′) flushes it → saveAll held open
+      await saveStarted.promise; // the flush is on the wire
 
-    useStore.getState().addClient({ name: "During flush", color: "#333333" }); // arrives mid-flush-await
-    await new Promise((r) => setTimeout(r, 350)); // longer than the debounce — a re-armed timer WOULD have fired
-    expect(saveAll).toHaveBeenCalledTimes(1); // parked instead
+      useStore.getState().addClient({ name: "During flush", color: "#333333" }); // arrives mid-flush-await
+      await vi.advanceTimersByTimeAsync(300); // a re-armed timer WOULD have fired
+      expect(saveAll).toHaveBeenCalledTimes(1); // parked instead
 
-    requireCallback(releaseSave, "pending save release")();
-    expect(await refresh).toEqual({ kind: "reloaded" });
-    await new Promise((r) => setTimeout(r, 350));
-    expect(saveAll).toHaveBeenCalledTimes(2);
-    expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "During flush")).toBe(true);
-    expect(onError).not.toHaveBeenCalled();
-    detach();
+      requireCallback(releaseSave, "pending save release")();
+      expect(await refresh).toEqual({ kind: "reloaded" });
+      await vi.advanceTimersByTimeAsync(300);
+      expect(saveAll).toHaveBeenCalledTimes(2);
+      expect((saveAll.mock.calls[1]?.[0] as AppData).clients.some((c) => c.name === "During flush")).toBe(true);
+      expect(onError).not.toHaveBeenCalled();
+    } finally {
+      releaseSave();
+      detach?.();
+      vi.useRealTimers();
+    }
   });
 
   it("a FAILED load re-schedules an edit parked during it — nothing strands unsaved until the next reload", async () => {
@@ -303,11 +308,11 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
     useStore.getState().addClient({ name: "Mid-failed-reload", color: "#222222" }); // parked
     requireCallback(release, "failed reload release")();
     expect(await refresh).toEqual({ kind: "failed" });
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
 
     expect(saveAll).toHaveBeenCalledTimes(1); // re-scheduled on resume
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.some((c) => c.name === "Mid-failed-reload")).toBe(true);
@@ -336,7 +341,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
     useStore.getState().addClient({ name: "Mid-reload", color: "#222222" }); // parked
     window.dispatchEvent(new Event("pagehide"));
     expect(saveAll).toHaveBeenCalledTimes(1); // keepalive-flushed, not dropped
@@ -377,7 +382,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(releaseLoad).toBeTypeOf("function"));
     useStore.getState().addClient({ name: "Hidden-tab edit", color: "#222222" }); // parked
     window.dispatchEvent(new Event("pagehide")); // keepalive dispatched — and REJECTS
 
@@ -413,9 +418,8 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     hold = true;
     const refresh = refreshActiveAccountSlice("a2"); // load held open
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
     useStore.getState().setActiveAccount(null); // sign-out — token bump, loads nothing
-    await new Promise((r) => setTimeout(r, 5));
     // A data write lands while the superseded load is still on the wire (e.g. a mutation that was
     // already dispatched at sign-out) — parked under the refresh's still-held suspension.
     useStore.getState().replaceAll({
@@ -435,7 +439,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     requireCallback(release, "refresh release")();
     expect(await refresh).toEqual({ kind: "skipped" });
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.map((c) => c.id)).toEqual(["c2", "internal:a2", "stale-c"]);
     expect(useStore.getState().activeAccountId).toBeNull();
@@ -463,7 +467,7 @@ describe("suspendServerWrites (the import write-suspension seam)", () => {
 
     hold = true;
     const refresh = refreshActiveAccountSlice("a2");
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
     useStore.getState().setActiveAccount(null);
     requireCallback(release, "refresh release")();
 
@@ -520,14 +524,13 @@ describe("mid-reload edits are rebased onto the fresh server slice", () => {
 
     hold = true;
     const refresh = refreshActiveAccountSlice("a2"); // e.g. a focus refresh, held open on the wire
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
     useStore.getState().addClient({ name: "Mid-reload", color: "#222222" }); // immediate-save mode…
-    await new Promise((r) => setTimeout(r, 5));
     expect(saveAll).not.toHaveBeenCalled(); // …yet nothing was sent: writes are suspended during the load
 
     requireCallback(release, "refresh release")();
     expect(await refresh).toEqual({ kind: "reloaded" });
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledTimes(1));
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect((saveAll.mock.calls[0]?.[0] as AppData).clients.map((c) => c.name)).toEqual([
       "Stark Industries",

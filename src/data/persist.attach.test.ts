@@ -439,7 +439,9 @@ it("attachPersistence keeps a lifecycle-only pagehide deletion dirty until its a
     clients: useStore.getState().data.clients.filter((client) => client.id !== "c2"),
   });
   window.dispatchEvent(new Event("pagehide"));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await vi.waitFor(() =>
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "lifecycle keepalive dropped" })),
+  );
 
   expect(archiveRequests).toEqual([{ keepalive: true }]);
   expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: "lifecycle keepalive dropped" }));
@@ -450,7 +452,7 @@ it("attachPersistence keeps a lifecycle-only pagehide deletion dirty until its a
   failKeepalive = false;
   const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
   document.dispatchEvent(new Event("visibilitychange"));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await vi.waitFor(() => expect(archiveRequests).toHaveLength(2));
 
   expect(archiveRequests).toEqual([{ keepalive: true }, { keepalive: undefined }]);
   expect(hasUnsavedPersistenceWrites()).toBe(false);
@@ -480,13 +482,11 @@ it("attachPersistence reports a failed write via onError, then a recovered write
   });
 
   useStore.getState().addClient({ name: "A", color: "#111111" });
-  await new Promise((r) => setTimeout(r, 5));
-  expect(onError).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(onError).toHaveBeenCalledTimes(1));
   expect(onSuccess).not.toHaveBeenCalled();
 
   useStore.getState().addClient({ name: "B", color: "#222222" });
-  await new Promise((r) => setTimeout(r, 5));
-  expect(onSuccess).toHaveBeenCalled();
+  await vi.waitFor(() => expect(onSuccess).toHaveBeenCalled());
   detach();
 });
 
@@ -573,11 +573,10 @@ it("attachPersistence does NOT re-write on an online event when nothing is stran
   const saveAll = vi.spyOn(adapter, "saveAll");
   const detach = attachPersistence({ store: useStore, adapter: adapter, debounceMs: 0 });
   useStore.getState().addClient({ name: "Synced", color: "#555555" });
-  await new Promise((r) => setTimeout(r, 5));
+  await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
   const callsAfterSync = saveAll.mock.calls.length;
   // No prior failure → an online event is a no-op (gated on failedSinceSuccess).
   window.dispatchEvent(new Event("online"));
-  await new Promise((r) => setTimeout(r, 5));
   expect(saveAll.mock.calls.length).toBe(callsAfterSync);
   detach();
 });
