@@ -6,11 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
 import { useStore } from "../store/useStore";
 import { AppShell } from "./AppShell";
+import { AuthContext, type AuthContextValue } from "../auth/authContext";
+import { buildProductOrientationKey } from "../lib/productOrientation";
 
+const serverFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("../data/apiConfig", () => ({
   API_BASE: "",
-  isDemoMode: () => true,
-  isServerConfigured: () => false,
+  isDemoMode: () => !serverFlag.on,
+  isServerConfigured: () => serverFlag.on,
 }));
 
 afterEach(() => {
@@ -19,6 +22,7 @@ afterEach(() => {
 });
 
 beforeEach(() => {
+  serverFlag.on = false;
   useStore.getState().setFakeSignedIn(true);
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
@@ -26,12 +30,28 @@ beforeEach(() => {
   localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
 });
 
-function renderShell(path = "/") {
-  return render(
+function authenticatedAuth(userId: string): AuthContextValue {
+  return {
+    authMode: "password",
+    user: { id: userId, name: userId },
+    canCreateAccount: true,
+    multiAccount: true,
+    refreshAuth: async () => {},
+    signOut: async () => {},
+  };
+}
+
+function shellTree(path: string, auth?: AuthContextValue) {
+  const shell = (
     <MemoryRouter initialEntries={[path]}>
       <AppShell />
-    </MemoryRouter>,
+    </MemoryRouter>
   );
+  return auth ? <AuthContext.Provider value={auth}>{shell}</AuthContext.Provider> : shell;
+}
+
+function renderShell(path = "/", auth?: AuthContextValue) {
+  return render(shellTree(path, auth));
 }
 
 describe("AppShell product orientation", () => {
@@ -134,5 +154,94 @@ describe("AppShell product orientation", () => {
     await waitFor(() => expect(heading).toHaveFocus());
     await user.click(screen.getByRole("button", { name: "Got it" }));
     expect(topTrigger).toHaveFocus();
+  });
+
+  it("scopes guidance to the authenticated subject when the signed-in user changes", async () => {
+    const firstSubject = authenticatedAuth("user-a");
+    const secondSubject = authenticatedAuth("user-b");
+    localStorage.removeItem(buildProductOrientationKey("user-a", DEFAULT_ACCOUNT_ID));
+    localStorage.removeItem(buildProductOrientationKey("user-b", DEFAULT_ACCOUNT_ID));
+    const user = userEvent.setup();
+    const view = renderShell("/", firstSubject);
+
+    await user.click(screen.getByRole("button", { name: "Got it" }));
+    expect(screen.queryByRole("region", { name: "How CapacityLens works" })).not.toBeInTheDocument();
+
+    view.rerender(shellTree("/", secondSubject));
+    expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Got it" }));
+
+    view.rerender(shellTree("/", firstSubject));
+    expect(screen.queryByRole("region", { name: "How CapacityLens works" })).not.toBeInTheDocument();
+  });
+
+  it("follows company A to B to A without leaking dismissal between companies", async () => {
+    const accountA = makeAccount({ id: "acct-a", name: "Company A" });
+    const accountB = makeAccount({ id: "acct-b", name: "Company B" });
+    useStore.getState().replaceAll(makeAppData({ accounts: [accountA, accountB] }));
+    useStore.getState().setAccountSummaries([
+      { id: accountA.id, name: accountA.name, role: "owner" },
+      { id: accountB.id, name: accountB.name, role: "owner" },
+    ]);
+    useStore.getState().setActiveAccount(accountA.id);
+    localStorage.removeItem(buildProductOrientationKey("user-a", accountA.id));
+    localStorage.removeItem(buildProductOrientationKey("user-a", accountB.id));
+    const user = userEvent.setup();
+    renderShell("/", authenticatedAuth("user-a"));
+
+    await user.click(screen.getByRole("button", { name: "Got it" }));
+    expect(screen.queryByRole("region", { name: "How CapacityLens works" })).not.toBeInTheDocument();
+
+    act(() => useStore.getState().setActiveAccount(accountB.id));
+    await waitFor(() => expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument());
+    await user.click(screen.getByRole("button", { name: "Got it" }));
+
+    act(() => useStore.getState().setActiveAccount(accountA.id));
+    await waitFor(() =>
+      expect(screen.queryByRole("region", { name: "How CapacityLens works" })).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the orientation action available to an authenticated Viewer", async () => {
+    serverFlag.on = true;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/api/accounts")) {
+          return Promise.resolve(
+            new Response(JSON.stringify([{ id: DEFAULT_ACCOUNT_ID, name: "Test Co", role: "viewer" }]), {
+              status: 200,
+              headers: { "Content-Type": "application/json" },
+            }),
+          );
+        }
+        return Promise.resolve(
+          new Response(JSON.stringify({ active: false }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }),
+    );
+    localStorage.removeItem(buildProductOrientationKey("viewer-user", DEFAULT_ACCOUNT_ID));
+
+    renderShell("/", authenticatedAuth("viewer-user"));
+
+    expect(await screen.findByTestId("active-role")).toHaveTextContent("Viewer");
+    expect(screen.getByRole("button", { name: "How CapacityLens works" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument();
+  });
+
+  it("preserves focus on an unrelated control across an ordinary shell rerender", () => {
+    const auth = authenticatedAuth("user-a");
+    localStorage.setItem(buildProductOrientationKey("user-a", DEFAULT_ACCOUNT_ID), "dismissed");
+    const view = renderShell("/", auth);
+    const unrelatedControl = screen.getByRole("link", { name: "Schedule" });
+    unrelatedControl.focus();
+
+    view.rerender(shellTree("/", auth));
+
+    expect(unrelatedControl).toHaveFocus();
   });
 });
