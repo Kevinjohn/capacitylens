@@ -146,7 +146,8 @@ function registerCreateAndActivateTests() {
     const user = userEvent.setup();
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
+    expect(screen.getByRole("heading", { name: "New company" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
     const nameInput = screen.getByLabelText("Company name");
     await user.type(nameInput, "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
@@ -161,7 +162,13 @@ function registerCreateAndActivateTests() {
     const user = userEvent.setup();
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
+    expect(
+      screen.getByText("Week start, time zone, and language apply to everyone and cannot be changed later."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Company planning settings" })).toHaveAccessibleDescription(
+      "Week start, time zone, and language apply to everyone and cannot be changed later.",
+    );
+    expect(screen.getByLabelText("Company name")).not.toHaveAttribute("aria-describedby");
     // The three frozen-after-creation fields render with concrete defaults.
     expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = screen.getByLabelText("Timezone");
@@ -192,7 +199,6 @@ function registerCreateAndActivateTests() {
     } as Intl.ResolvedDateTimeFormatOptions);
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     const timezone = screen.getByRole("combobox", { name: "Timezone" });
     expect(timezone).toHaveTextContent("London");
     await user.click(timezone);
@@ -215,7 +221,6 @@ function registerCreateFormValidationTests() {
   it("validates a blank name", async () => {
     const user = userEvent.setup();
     render(<AccountPicker />);
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.click(screen.getByRole("button", { name: "Create company" }));
     expect(screen.getByText("Name is required.")).toBeInTheDocument();
     expect(useStore.getState().data.accounts).toHaveLength(0);
@@ -223,6 +228,7 @@ function registerCreateFormValidationTests() {
 
   it("reopens the create form without the previous attempt's validation error", async () => {
     const user = userEvent.setup();
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "New company" }));
@@ -252,7 +258,6 @@ function registerOpenAndEnterTests() {
     const user = userEvent.setup();
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Enter Co");
     await user.keyboard("{Enter}");
 
@@ -289,7 +294,7 @@ function registerDeleteConfirmationTests() {
 describe("AccountPicker server-mode list (P1.13)", () => {
   registerServerListMembershipTests();
   registerServerListAccessTests();
-  registerServerListEmptyStateTests();
+  registerUnloadedAccountActivationTest();
 });
 
 function registerServerListMembershipTests() {
@@ -361,7 +366,7 @@ function registerServerListAccessTests() {
   });
 }
 
-function registerServerListEmptyStateTests() {
+function registerUnloadedAccountActivationTest() {
   it("activates an account whose slice is NOT loaded (existence via summaries)", async () => {
     const user = userEvent.setup();
     // `data` is empty (no slice loaded yet — the pre-load state), but the summary exists.
@@ -372,55 +377,6 @@ function registerServerListEmptyStateTests() {
     // setActiveAccount validates against the UNION of data.accounts + summaries, so it activates
     // (the switch orchestrator then hydrates the slice) rather than bouncing back to the picker.
     expect(useStore.getState().activeAccountId).toBe("a2");
-  });
-
-  it("continues first-owner setup with company creation only", () => {
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([]);
-    render(<AccountPicker />);
-    expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
-    expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options")).toBeInTheDocument();
-    expect(screen.getByText("Set up a new company and start planning right away.")).toBeInTheDocument();
-    expect(screen.queryByText("Ask an admin for an invite to join an existing company.")).not.toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options").children).toHaveLength(1);
-    expect(screen.queryByText(/No companies yet/)).not.toBeInTheDocument();
-    // Zero accounts ⇒ the server reports canCreateAccount: true when re-asked (no provider here,
-    // so the default context value applies — see authContext.ts's fail-open default; the live
-    // refetch after a delete is pinned in the refreshAuth describe below).
-    expect(screen.getByTestId("new-company-button")).toBeInTheDocument();
-  });
-
-  it("shows only the invite step when an empty picker caller cannot create a company", () => {
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([]);
-    withCanCreateAccount(false, <AccountPicker />);
-
-    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join a company.")).toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
-    expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options").children).toHaveLength(1);
-    expect(screen.queryByText(/Create a company to start planning/)).not.toBeInTheDocument();
-  });
-
-  it("does not infer company-setup eligibility from an unavailable account directory", () => {
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([], useStore.getState().accountSummariesRequestId, false);
-    render(<AccountPicker />);
-
-    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Set up your company" })).not.toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
-  });
-
-  it("does not ask new-company onboarding users to choose a colour", async () => {
-    const user = userEvent.setup();
-    render(<AccountPicker />);
-    await user.click(screen.getByRole("button", { name: "New company" }));
-    expect(screen.queryByText("Colour")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Colour \(/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 }
 
@@ -457,7 +413,6 @@ function registerServerCreateRequestTest() {
     const fetchMock = stubFetch({ ok: true, status: 201, body: { id: "org-1", name: "Stark Industries" } });
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -496,7 +451,6 @@ function registerServerCreateUnusableBodyTest() {
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -525,7 +479,6 @@ function registerServerCreateWhitespaceBodyTest() {
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -542,7 +495,6 @@ function registerServerCreateRefusalTest() {
     stubFetch({ ok: false, status: 403, body: { error: "This instance allows a single company." } });
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Second Co");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -564,7 +516,6 @@ function registerServerCreateUnknownResponseTest() {
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Uncertain Co");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -573,6 +524,8 @@ function registerServerCreateUnknownResponseTest() {
         "The create request had an unknown outcome. The company list was refreshed; check it before trying again.",
       ),
     );
+    expect(screen.getByLabelText("Company name")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create company" })).toBeEnabled();
   });
 }
 
@@ -586,7 +539,6 @@ function registerServerCreateTransportFailureTest() {
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Uncertain Co");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -595,6 +547,27 @@ function registerServerCreateTransportFailureTest() {
         "The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again. create transport failed",
       ),
     );
+    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
+  });
+
+  it("locks creation when a successful response cannot be reconciled", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) };
+      throw new Error("directory refresh failed");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Unresolved Co");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    await waitFor(() => expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
   });
 }
 
@@ -821,8 +794,8 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
 
     // The refetched /me flips canCreateAccount → the button (and the empty two-choice state)
     // come back WITHOUT a manual reload — the dead end this pins against.
-    expect(await screen.findByTestId("new-company-button")).toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Company name")).toBeInTheDocument();
+    expect(screen.queryByTestId("company-empty-options")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
   });
 
@@ -847,7 +820,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
       </AuthProvider>,
     );
 
-    await user.click(await screen.findByTestId("new-company-button"));
+    await screen.findByLabelText("Company name");
     await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
