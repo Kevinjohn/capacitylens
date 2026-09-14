@@ -120,7 +120,7 @@ async function createAttributedDesign(page: Page, repeatUntil?: string) {
 
 async function openImportedData(page: Page, body: object) {
   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("button", { name: "Import & export", exact: true }).click();
+  await page.getByRole("button", { name: "Import and export", exact: true }).click();
   await page.getByTestId("import-input").setInputFiles({
     name: "all-projects-attribution.json",
     mimeType: "application/json",
