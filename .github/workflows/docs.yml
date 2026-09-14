@@ -1,12 +1,22 @@
 name: docs
 
 on:
+  pull_request:
+    paths:
+      - "docs-src/**"
+      - "docs/**"
+      - "scripts/docs-standalone.mjs"
+      - "scripts/docs-lightbox.js"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/docs.yml"
   push:
     branches: [main]
     paths:
       - "docs-src/**"
       - "docs/**"
       - "scripts/docs-standalone.mjs"
+      - "scripts/docs-lightbox.js"
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/docs.yml"
