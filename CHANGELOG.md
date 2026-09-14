@@ -20,6 +20,9 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Refresh every documentation screenshot against the current interface, correct the Settings and
+  navigation captures, and pin sensitive invitation imagery for bearer-value publication review
+  (#923, #924, #925).
 - Bring the published guides, contributor guidance, historical implementation records and
   user-story test references back into line with the shipped product, including installation,
   sign-in, permissions, date formatting and ownership-transfer details (#913, #914, #915, #916,
