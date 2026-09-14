@@ -22,6 +22,10 @@
       "purpose": "Unkeyed SHA-256 source-integrity digests for deliberate review of source-owned UI primitive changes"
     },
     {
+      "path": "scripts/check-screenshot-publication.mjs",
+      "purpose": "Unkeyed SHA-256 source-integrity digest for deliberate bearer-value review of sensitive documentation screenshots"
+    },
+    {
       "path": "server/scripts/rehearse/rehearsalChecks.ts",
       "purpose": "Unkeyed SHA-256 database-state digests for temporary anonymised migration rollback rehearsals"
     },

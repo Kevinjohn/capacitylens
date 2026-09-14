@@ -14,10 +14,18 @@ new features and **patch** versions carry fixes.
   always be reopened from the sidebar (#837).
 - Organise Settings into Company setup, Scheduling features, My display, and Data and support,
   with compact responsive rows, clearer labels and visible company/device scope (#965).
+
+### Added
+
+- Add an optional **12 weeks** strategic horizon to Overview, while keeping the four-week tactical
+  view as the default and the person schedule drawer at 28 days (#968).
 - Add a current visual tour of every application page to the documentation.
 
 ### Fixed
 
+- Refresh every documentation screenshot against the current interface, correct the Settings and
+  navigation captures, and pin sensitive invitation imagery for bearer-value publication review
+  (#923, #924, #925).
 - Bring the published guides, contributor guidance, historical implementation records and
   user-story test references back into line with the shipped product, including installation,
   sign-in, permissions, date formatting and ownership-transfer details (#913, #914, #915, #916,

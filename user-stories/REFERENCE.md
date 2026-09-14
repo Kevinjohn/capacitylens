@@ -135,19 +135,19 @@ If the app changes, update this file first, then the affected stories.
 
 The sidebar links, in order, route to:
 
-| Link label    | Route          | Screen                                                                                                              |
-| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Overview      | `/overview`    | Four-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting |
-| Schedule      | `/`            | Timeline scheduler                                                                                                  |
-| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                         |
-| Disciplines   | `/disciplines` | Discipline list                                                                                                     |
-| Clients       | `/clients`     | Client list                                                                                                         |
-| Projects      | `/projects`    | Project list                                                                                                        |
-| Activities    | `/activities`  | Activity list                                                                                                       |
-| Time off      | `/timeoff`     | Time-off list                                                                                                       |
-| Team & access | `/team`        | Current role, capability summary and app-member access management                                                   |
-| Settings      | `/settings`    | Settings (Company setup, Scheduling features, My display, Data and support)                                         |
-| Account       | `/account`     | Signed-in identity and personal security controls                                                                   |
+| Link label    | Route          | Screen                                                                                                                         |
+| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Overview      | `/overview`    | Four- or twelve-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting |
+| Schedule      | `/`            | Timeline scheduler                                                                                                             |
+| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                    |
+| Disciplines   | `/disciplines` | Discipline list                                                                                                                |
+| Clients       | `/clients`     | Client list                                                                                                                    |
+| Projects      | `/projects`    | Project list                                                                                                                   |
+| Activities    | `/activities`  | Activity list                                                                                                                  |
+| Time off      | `/timeoff`     | Time-off list                                                                                                                  |
+| Team & access | `/team`        | Current role, capability summary and app-member access management                                                              |
+| Settings      | `/settings`    | Settings (Company setup, Scheduling features, My display, Data and support)                                                    |
+| Account       | `/account`     | Signed-in identity and personal security controls                                                                              |
 
 **Team & access** and **Settings** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations

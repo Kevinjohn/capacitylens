@@ -36,6 +36,8 @@
     "bundle:check": "node scripts/check-bundle-budget.mjs && node scripts/check-offline-shell.mjs && node scripts/check-spa-route-documents.mjs",
     "security:crypto-inventory": "node scripts/check-crypto-inventory.mjs",
     "security:gitleaks-config": "node scripts/check-gitleaks-config.mjs",
+    "security:screenshot-publication": "node scripts/check-screenshot-publication.mjs",
+    "security:screenshot-publication:test": "node --test scripts/check-screenshot-publication.test.mjs",
     "policy:file-sizes": "node scripts/check-file-sizes.mjs",
     "policy:ports": "node scripts/check-ports.mjs",
     "policy:ports:test": "node --test scripts/check-ports.test.mjs scripts/ports.test.mjs scripts/lane-claim.test.mjs",

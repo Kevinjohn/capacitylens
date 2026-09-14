@@ -104,7 +104,7 @@ by default; favourites stay first inside each engagement group. See [People and 
 Overview is limited to Owners and Admins by default. An Owner or Admin can choose
 **Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Overview
 access**. The setting controls both the sidebar link and direct access to the page. See
-[Find capacity for the next four weeks](/guide/capacity-overview).
+[Find capacity across four or twelve weeks](/guide/capacity-overview).
 
 ## Scheduling features
 

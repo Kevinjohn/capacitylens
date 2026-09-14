@@ -99,7 +99,7 @@ There are two ways to book a person's time on the schedule:
    with the visible week.
 2. Draw it directly: click and drag across the days you want on that person's row.
 
-![The New allocation form for Clark Kent with the Hours per day select showing Half day (4h), Weekly repeat details and the remaining controls aligned beneath](../screenshots/flows/allocation-form.jpg)
+![The New allocation form for Clark Kent with Hours / day set to 4 h - half day, Weekly repeat details and the remaining controls aligned beneath](../screenshots/flows/allocation-form.jpg)
 
 Either way, choose **Internal**, **No specific project**, or a real project. Internal
 shows only internal activities. No specific project shows only
