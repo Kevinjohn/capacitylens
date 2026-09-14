@@ -11,7 +11,7 @@ import { isDemoMode } from "../data/apiConfig";
 /** The persona shown on the demo sign-in card and the picker's "Signed in as" line. */
 export const FAKE_USER = {
   name: "Bruce Wayne",
-  email: "jordan.avery@example.com",
+  email: "bruce.wayne@wayne.example",
 } as const;
 
 /** Whether the cosmetic demo sign-in chrome is active — i.e. the real auth seam is OFF
