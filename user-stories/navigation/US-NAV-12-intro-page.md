@@ -2,8 +2,10 @@
 
 **Area:** Navigation & shell · **Persona:** New viewer landing in CapacityLens for the first time · **Linked E2E:** `e2e/fake-signin.spec.ts` → "precedes the company picker; signing in reveals it, then the app" (asserts the intro shows after the company pick, axe-clean, and Continue reveals the app); `e2e/login.auth.spec.ts` → "signing in reveals the app…" (the same intro fires on the real-auth path)
 
+**Sources:** `src/components/ProductOrientation.tsx`, `src/components/ProductOrientation.test.tsx`, `src/components/AppShell.tsx`, `src/components/AppShell.productOrientation.test.tsx`, `src/components/AppSidebar.tsx`
+
 > **Placeholder copy.** The wording on this page is **placeholder**, pending a human edit — it is
-> single-sourced in `src/lib/introCopy.ts` and rendered verbatim. Don't treat the exact sentences as
+> single-sourced in the message catalogue and rendered verbatim. Don't treat the exact sentences as
 > final product positioning; the _behaviour_ (a once-per-device explainer between picking a company
 > and the app) is what this story pins.
 
