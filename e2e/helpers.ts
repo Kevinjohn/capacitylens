@@ -190,9 +190,13 @@ export async function resetSchedulerScroll(page: Page): Promise<void> {
   });
 }
 
-/** Wait for a destination inside the application shell after an authentication or company handoff. */
-export async function waitForAppLanding(_page: Page, landedOn: Locator): Promise<void> {
+/** Wait for a destination inside the application shell and clear first-use guidance when present. */
+export async function waitForAppLanding(page: Page, landedOn: Locator): Promise<void> {
   await landedOn.waitFor();
+  const orientation = page.getByTestId("product-orientation");
+  if (await orientation.isVisible().catch(() => false)) {
+    await orientation.getByRole("button", { name: "Got it" }).click();
+  }
 }
 
 // The seeded demo is multi-company, so it shows the full-screen account picker on every load. A
