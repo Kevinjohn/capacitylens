@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+- Add a current visual tour of every application page to the documentation.
+
 ### Changed
 
 - Organise Settings into Company setup, Scheduling features, My display, and Data and support,

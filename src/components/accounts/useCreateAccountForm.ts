@@ -33,9 +33,19 @@ interface CreateServerAccountInput {
   refreshAuth: ReturnType<typeof useAuth>["refreshAuth"];
   resetForm: () => void;
   setSubmitting: Dispatch<SetStateAction<boolean>>;
+  setCreateUnresolved: Dispatch<SetStateAction<boolean>>;
   setNotice: StoreState["setNotice"];
   setAccountSummaries: StoreState["setAccountSummaries"];
   fail: ReturnType<typeof useFieldError>["fail"];
+}
+
+async function reconcileUnknownCreate(
+  input: Pick<CreateServerAccountInput, "refreshAuth" | "setCreateUnresolved">,
+): Promise<boolean> {
+  const list = await refreshAccountSummaries({ allowCachedFallback: false });
+  input.setCreateUnresolved(list === null);
+  await input.refreshAuth();
+  return list !== null;
 }
 
 async function createServerAccount({
@@ -45,6 +55,7 @@ async function createServerAccount({
   refreshAuth,
   resetForm,
   setSubmitting,
+  setCreateUnresolved,
   setNotice,
   setAccountSummaries,
   fail,
@@ -63,10 +74,9 @@ async function createServerAccount({
     });
     if (!response.ok) {
       if (hasUnknownAccountCommandOutcome(response)) {
-        const list = await refreshAccountSummaries({ allowCachedFallback: false });
-        await refreshAuth();
+        const reconciled = await reconcileUnknownCreate({ refreshAuth, setCreateUnresolved });
         resetForm();
-        setNotice(list !== null ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale(), "warning");
+        setNotice(reconciled ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale(), "warning");
         return;
       }
       fail(null, (await readApiError(response)) ?? m.picker_err_create({ status: response.status }));
@@ -75,8 +85,8 @@ async function createServerAccount({
     const created = parseCreatedAccount(await response.json().catch(() => null));
     if (created === null) {
       resetForm();
-      await refreshAccountSummaries();
-      void refreshAuth();
+      const reconciled = await reconcileUnknownCreate({ refreshAuth, setCreateUnresolved });
+      if (!reconciled) setNotice(m.picker_create_unknown_stale(), "warning");
       return;
     }
     const summaries = useStore.getState().accountSummaries;
@@ -87,10 +97,9 @@ async function createServerAccount({
     await transitionAccount(created.id);
     void refreshAuth();
   } catch (cause) {
-    const list = await refreshAccountSummaries({ allowCachedFallback: false });
-    await refreshAuth();
+    const reconciled = await reconcileUnknownCreate({ refreshAuth, setCreateUnresolved });
     resetForm();
-    const message = list !== null ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale();
+    const message = reconciled ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale();
     setNotice(`${message} ${resolveErrorMessage(cause)}`, "warning");
   } finally {
     setSubmitting(false);
@@ -100,6 +109,7 @@ async function createServerAccount({
 interface CreateAccountSubmitInput extends Omit<CreateServerAccountInput, "trimmedName"> {
   name: string;
   submitting: boolean;
+  createUnresolved: boolean;
   clear: () => void;
   addAccount: StoreState["addAccount"];
   setActiveAccount: StoreState["setActiveAccount"];
@@ -107,7 +117,7 @@ interface CreateAccountSubmitInput extends Omit<CreateServerAccountInput, "trimm
 
 function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
   return () => {
-    if (input.submitting) return;
+    if (input.submitting || input.createUnresolved) return;
     input.clear();
     const trimmedName = validateName(input.name, input.fail);
     if (!trimmedName) return;
@@ -166,6 +176,9 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
   // round-trip would otherwise allow (two companies from one form). Demo-mode create is synchronous.
   const [submitting, setSubmitting] = useState(false);
+  // Failed authoritative reconciliation after an indeterminate create blocks another POST.
+  // Reloading reconstructs this hook after the server directory has been checked again.
+  const [createUnresolved, setCreateUnresolved] = useState(false);
   const [name, setName] = useState("");
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON);
@@ -183,6 +196,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   const submit = createAccountSubmit({
     name,
     submitting,
+    createUnresolved,
     clear,
     addAccount,
     setActiveAccount,
@@ -191,6 +205,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
     refreshAuth,
     resetForm,
     setSubmitting,
+    setCreateUnresolved,
     setNotice,
     setAccountSummaries,
     fail,
@@ -201,6 +216,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       creating,
       setCreating,
       submitting,
+      createUnresolved,
       name,
       setName,
       weekStartsOn,
