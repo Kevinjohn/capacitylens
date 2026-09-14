@@ -3,9 +3,8 @@
 **Area:** Settings · **Persona:** Tester on the hosted demo · **Linked E2E:** `e2e/settings-build-stamp.spec.ts` → "no build stamp in the default dev build"
 
 > **Flag-gated:** the stamp only exists in builds made with `VITE_CAPACITYLENS_BUILD_SHA` set
-> (the deploy script does this). The default dev/local build renders nothing — so the
-> only part of this story runnable against `pnpm run dev` is the _absence_ check, which
-> is what the linked E2E asserts.
+> (the deploy script does this). An unstamped server build still shows the named **Build details**
+> row for **Persistence diagnostics**; a demo build with no stamp or feedback link omits that row.
 
 **Documentation:** [Settings](../../docs-src/guide/settings.md)
 
@@ -40,12 +39,13 @@ company; click **Settings** in the sidebar.
 
 ## Acceptance criteria
 
-- On a build with `VITE_CAPACITYLENS_BUILD_SHA=<sha>`, Settings shows a muted one-line footer
+- On a build with `VITE_CAPACITYLENS_BUILD_SHA=<sha>`, **Data and support → Build details** shows a muted one-line stamp
   `build <sha> · server` by default (same-origin server or a different origin configured with
   `VITE_CAPACITYLENS_API`), or `build <sha> · demo` when `VITE_CAPACITYLENS_DEMO=1` selects the
   in-memory build.
-- On a build without the variable (dev server, plain `pnpm run build`), the footer is
-  absent — today's Settings, unchanged.
+- On a build without the variable, server mode keeps the **Build details** row for its collapsed
+  **Persistence diagnostics** disclosure. A demo build without the variable and without a feedback
+  link omits the row.
 - The stamp is plain text (no control, no link) and does not affect the axe audit.
 - Server mode exposes a collapsed, keyboard-operable persistence diagnostics disclosure whose
   process-local counters reset with a fresh persistence attachment and contain no tenant values.

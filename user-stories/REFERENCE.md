@@ -837,7 +837,7 @@ address; invalid build configuration is rejected, and the address is safely enco
 The default dev/local build leaves both variables unset; the row still exposes server-mode persistence
 diagnostics, while a demo build with no stamp or feedback leaves the row absent.
 
-**Persistence diagnostics (Settings → **Data and support → Build details**, server mode).** A collapsed **Persistence diagnostics**
+**Persistence diagnostics (Settings → Data and support → Build details, server mode).** A collapsed **Persistence diagnostics**
 disclosure (`data-testid="persistence-diagnostics"`) reports process-local, privacy-safe counts for
 failed saves, armed retries, completed reconciliations, superseded reloads, rebased edits and
 discarded edits, plus whether writes are currently suspended. It contains counts and state only—no
