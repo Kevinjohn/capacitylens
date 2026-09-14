@@ -52,10 +52,11 @@ function documentationTargetIssues(storyFile: string, target: string): string[] 
   const separator = target.indexOf("#");
   const pageTarget = separator === -1 ? target : target.slice(0, separator);
   const fragmentTarget = separator === -1 ? undefined : decodeFragment(target.slice(separator + 1));
+  const sourcePage = resolve(dirname(storyFile), pageTarget);
   const page = documentationHtmlPage(storyFile, pageTarget);
   const issues: string[] = [];
 
-  if (!pageTarget || !page || !existsSync(page)) {
+  if (!pageTarget || !existsSync(sourcePage) || !page || !existsSync(page)) {
     issues.push(`missing documentation page ${pageTarget || "<empty>"}`);
     return issues;
   }
