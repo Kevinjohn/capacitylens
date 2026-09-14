@@ -24,6 +24,7 @@ afterEach(() => {
 
 beforeEach(() => {
   useStore.getState().setFakeSignedIn(true);
+  localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
   resetStoreWithAccount();
   useStore.getState().clearFilters();
   useStore.getState().setNotice(null);
