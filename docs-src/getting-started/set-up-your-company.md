@@ -20,14 +20,19 @@ ownership if somebody else should hold it.
 ## 1. Claim the Owner account and create the company
 
 In password mode, follow [Make your first schedule useful](/getting-started/first-steps). **Set up
-the first Owner** creates a personal sign-in and explains that the person becomes Owner. With
-company login, sign in with the bootstrap-listed email. Either route opens **Set up your company**
-automatically when no company exists.
+the first Owner** creates a personal sign-in for the installation and explains that the person
+becomes Owner; the setup token authorises that claim and does not create the company. With company
+login, choose the configured provider with the verified bootstrap-listed email instead. That route
+creates or signs in the first Owner through the provider and does not use a CapacityLens password or
+the password-mode setup token. Either route opens **Set up your company** automatically when no
+company exists.
 
-Choose the company name, week start, timezone and language carefully. The three calendar choices
-are shared by everyone in the company and cannot be changed after creation. The first-company form
-has no Cancel action because creating the company is the only available next step. Once the Owner
-and company exist, everybody else joins through an invitation.
+Choose the company name, week start, timezone and language carefully. The company name can be
+changed later. The three calendar choices are shared by everyone in the company and cannot be
+changed after creation: week start controls the order of schedule days, timezone sets the
+company-wide **Today** and date-based scheduling boundary, and language controls the shared display
+language. The first-company form has no Cancel action because creating the company is the only
+available next step. Once the Owner and company exist, everybody else joins through an invitation.
 
 ## 2. Prepare the schedule
 

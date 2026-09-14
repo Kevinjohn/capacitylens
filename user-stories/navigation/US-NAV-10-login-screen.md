@@ -24,10 +24,12 @@ session must restore exactly the normal flow.
 ## How (end-to-end, password mode)
 
 **Precondition:** a deploy with `CAPACITYLENS_AUTH=password`, and a user account created.
-On a **fresh instance with zero users** the login wall instead shows the one sign-up form
+On a **fresh password-mode instance with zero users** the login wall instead shows the one sign-up form
 that exists — **Set up the first Owner** (see REFERENCE.md “First-run owner setup”). It explains
-that this creates a personal sign-in with the Owner role. The Owner enters the one-time setup
-value supplied during installation; success continues to **Set up your company**. Once any user exists,
+that this creates a personal sign-in for the installation with the Owner role; the one-time setup
+value authorises first-owner setup but does not create a company. Success continues to **Set up your
+company**. A company-login installation uses its configured provider and bootstrap-listed verified
+email instead of this password form. Once any user exists,
 self-registration closes automatically and only the Sign in form below is reachable. See
 [Configuration](/self-hosting/configuration#sign-in-mode) for the secure token handoff and removal.
 
@@ -47,7 +49,9 @@ self-registration closes automatically and only the Sign in form below is reacha
   when none are available, the documented first-company or invitation path is shown instead.
 - Account shows the signed-in identity and personal security controls only while signed in on an
   auth-enabled deploy; it never exposes credential controls with auth off or in local mode.
-- First-Owner signup uses **Your name**, **Work email**, **Create a password** and **Owner setup
-  token**, shows the password length requirement, and explains that teammates can be invited later.
+- Password-mode first-Owner signup uses **Your name**, **Work email**, **Create a password** and
+  **Owner setup token**, shows the password length requirement, and explains that teammates can be
+  invited later. It distinguishes the personal sign-in and installation setup from the company
+  created afterward; a company-login installation uses its provider route instead.
 - Sign out invalidates the session (subsequent loads show Sign in again).
 - The Sign in screen passes an axe accessibility audit (no serious/critical violations).

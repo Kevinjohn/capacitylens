@@ -35,6 +35,9 @@ new features and **patch** versions carry fixes.
 - Clarify that the company date format governs planning dates, while session, reset,
   invitation and ownership timestamps use each viewer's browser locale and local time zone
   (#927, #939).
+- Clarify first-owner and company-login onboarding recovery, company calendar choices and
+  All-projects setup guidance, and repair the first-steps orientation link (#1023, #1024, #1025,
+  #1060, #1061, #1062, #1063).
 - Keep the command palette's Overview page result consistent with the sidebar and its role-based
   company access setting (#1000).
 - Include the Account page in the command palette's Pages results (#938).
