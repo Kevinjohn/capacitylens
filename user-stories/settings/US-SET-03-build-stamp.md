@@ -7,6 +7,8 @@
 > only part of this story runnable against `pnpm run dev` is the _absence_ check, which
 > is what the linked E2E asserts.
 
+**Documentation:** [Settings](../../docs-src/guide/settings.md)
+
 ## Goal
 
 Tell the team exactly which build and persistence mode a bug report is about, by reading
@@ -25,7 +27,7 @@ smoke test checks it first.
 **Precondition (hosted demo):** open the deployed site, sign in past Basic Auth, pick a
 company; click **Settings** in the sidebar.
 
-1. Scroll to the bottom of Settings, below **Appearance**.
+1. Scroll to the bottom of Settings, in **Data and support**.
 2. Read the muted footer line: `build <sha> · server` (`data-testid="build-stamp"`).
 3. Include that exact line in any feedback or bug report.
 4. If the problem concerns saving or reloading, open **Persistence diagnostics** and include its

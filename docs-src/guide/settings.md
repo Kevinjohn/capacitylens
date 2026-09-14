@@ -5,25 +5,34 @@ description: The company-wide switches that control what's visible on the schedu
 
 # Settings
 
-Settings is one scrollable page of plain-language switches — no tabs, no separate admin
-console. Most settings apply to the whole company; a few apply only to your own device.
-This page covers the controls worth understanding early, plus a map of everything else.
-Each section has a question-mark button labelled **About &lt;section&gt;**: hover it
+Open **Settings** to find company rules, scheduling features and display preferences on one
+scrollable page. The four groups explain who a change affects:
+
+| Group | Scope and access |
+| --- | --- |
+| Company setup | Allocation units, working days, date format, disciplines, engagement grouping and Overview access. Editors and above can change these company settings; only Owners and Admins manage Overview access. |
+| Scheduling features | Company-wide visibility and behaviour options. Editors and above can change them. |
+| My display | Preferences saved in this browser. Everyone can adjust them without changing a teammate's display. |
+| Data and support | Device data, company data, read-only company details and support information. Each row states its scope; available actions depend on your access. |
+
+Labels and controls sit beside each other on wide screens and stack on narrow screens.
+Each row has a question-mark button labelled **About &lt;section&gt;**: hover it
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
-![The top of Settings with Company setup, allocation units, company-wide working days, date format, disciplines, engagement grouping and Overview access](../screenshots/flows/settings_overview.jpg)
+![Settings with the Company setup group, compact rows and company-wide scope explanation](../screenshots/flows/settings_overview.jpg)
 
-## Diagnostics
+## Company setup
 
-At the bottom of Settings, **Diagnostics** provides a **Copy diagnostics** action for a support
-report in both server and demo builds. The copied projection includes the app version, validated
-build revision when available, deployment mode and export schema. Server connectivity, database
-schema, persistence and backup health are listed separately; demo builds and unavailable server
-values show **Unknown** or **Unavailable**. It contains no company or member data, identifiers,
-paths, hostnames, secrets, invite or session values, raw errors or other server response fields.
+These settings affect everyone in the company. Editors and above can change them, except
+**Overview access**, which is managed by Owners and Admins.
 
-## Company-wide working days
+### Allocation units
+
+Choose whether allocations are entered as **Hours**, **Days** or **Blocks**. New companies
+start with Days; existing choices are preserved. See [Projects and allocations](/guide/projects-and-allocations).
+
+### Company-wide working days
 
 **Company-wide working days** is the company's shared working week. Seven abbreviated
 weekday headings sit in one row with their checkboxes directly underneath, beginning with the first
@@ -53,13 +62,14 @@ Changing the selection recalculates capacity, utilisation and conflicts for exis
 Allocation dates never move, but work on newly non-working days no longer counts unless the
 allocation has Ignore working days enabled.
 
-## Date format
+### Date format
 
 **Date format** sets how planning dates read for everyone in the company: **9 Sep**,
 **9th Sep**, **Sep 9** or **Sep 9th**. It applies to single calendar dates and ranges,
 including dates on the Schedule and Time off pages. Editors and above can change it; a
-Viewer sees the control disabled. The choice is part of the company, so it is included in
-exports, can be undone and takes effect without a reload.
+Viewer sees the control disabled. The choice can be undone and takes effect without a reload.
+It belongs to the company, but is not included in the JSON downloaded from **Import and export**.
+Importing scheduling data preserves the destination company's settings, including its date format.
 Compact weekday dates on the Time off page always retain the ordinal: with **9 Sep** selected,
 a Wednesday appears as **Wed 9th Sep**.
 
@@ -77,31 +87,47 @@ viewer-local rule. Existing date-and-time displays, including invite acceptance 
 last-updated, keep their time. CapacityLens never takes the date by cutting it from the stored UTC
 timestamp.
 
-## Schedule on this device
+### Disciplines
 
-The three switches under **Schedule** change how the grid is drawn in this browser. They
-are device preferences, not company data, so they do not change a teammate's schedule or
-travel with an export:
+**Use disciplines** groups people by [discipline](/reference/glossary), such as Design or Development,
+across the app. It is off for a newly created company. Create discipline names and colours on the
+standalone **Disciplines** page in the main navigation. See [People and placeholders](/guide/people-and-placeholders).
 
-- **Minimise weekends** narrows Saturday and Sunday so the working week gets more room.
-  Weekend work still appears in those columns.
-- **Snap to week start** returns the left edge to the company's first day of the week
-  after free horizontal scrolling settles.
-- **Compact view** reduces the vertical spacing so more people fit on screen. It changes
-  no allocations or capacity.
+### Group people by engagement
 
-![The My display group in Settings with Minimise weekends and Snap to week start on, Compact view off, allocation labels, utilisation figures and appearance](../screenshots/flows/settings_schedule_device.jpg)
+Choose whether Resources separates Studio and Supplementary people. On the schedule, those bands
+hold people outside a discipline and become the main groups when disciplines are off. This is on
+by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).
 
-## Additional resourcing options
+### Overview access
 
-**Additional resourcing options** are company settings with two independent switches. A
+Overview is limited to Owners and Admins by default. An Owner or Admin can choose
+**Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Overview
+access**. The setting controls both the sidebar link and direct access to the page. See
+[Find capacity for the next four weeks](/guide/capacity-overview).
+
+## Scheduling features
+
+These company-wide options control which scheduling features are available. Editors and above
+can change them.
+
+<span id="additional-resourcing-options"></span>
+
+### Placeholders and external resources
+
+**Placeholders and external resources** are company settings with two independent switches. A
 **Placeholder** is an unfilled role or tentative person you can use to plan future capacity
 before someone is assigned. An **External resource** is a third party — such as a partner agency,
 freelancer, supplier or subcontractor — that represents work leaving your team and carries no
 capacity. Each option is off by default, and turning one off hides its existing data without
 deleting it.
 
-## Internal work visibility
+### Internal work colours
+
+Choose whether internal work uses **Grey** bars (the default) or **Use colour palette**, which
+shows its saved palette colours.
+
+### Internal work visibility
 
 Two switches under **Internal work**, both on by default, control whether internal and
 non-billable work shows up on the schedule at all:
@@ -115,7 +141,7 @@ still counts toward a person's [utilisation](/reference/glossary), so someone wh
 fully booked with internal work still shows as fully booked. Nothing is deleted, and the
 bars come back the moment you turn the switch back on.
 
-## Inline activity creation
+### Inline activity creation
 
 New activities normally start on the **Activities** page, where your team can agree and
 reuse consistent names. The allocation form still lets everyone pick an existing
@@ -127,14 +153,82 @@ default. Turning it on adds the inline **Add activity** controls for everyone wh
 edit allocations; turning it off again hides only those controls and does not remove
 activities or allocations.
 
-## Allocation task field
+### Allocation task field
 
 Turn on **Show task field in schedule** to add an optional single-line **Task** description to the
 allocation editor. It is off by default. Enabled task text appears above Notes in schedule details
 and the person's schedule drawer. Turning the setting off hides the field and text without deleting
 it, so re-enabling the setting restores existing tasks.
 
-## Calendar
+## My display
+
+Everyone can adjust these preferences. They are saved in this browser and do not change a
+teammate's display.
+
+### Schedule on this device
+
+The three switches under **My display → Schedule on this device** change how the grid is drawn in this browser. They
+are device preferences, not company data, so they do not change a teammate's schedule or
+travel with an export:
+
+- **Minimise weekends** narrows Saturday and Sunday so the working week gets more room.
+  Weekend work still appears in those columns.
+- **Snap to week start** returns the left edge to the company's first day of the week
+  after free horizontal scrolling settles.
+- **Compact view** reduces the vertical spacing so more people fit on screen. It changes
+  no allocations or capacity.
+
+![The My display group with Schedule on this device, allocation labels, utilisation figures and appearance preferences](../screenshots/flows/settings_schedule_device.jpg)
+
+### Allocation labels on this device
+
+Choose whether allocation bars show the client name and project name ahead of the activity name.
+
+### Utilisation figures on this device
+
+Choose which utilisation figures appear on this browser's schedule: total, per-discipline and personal.
+
+### Appearance on this device
+
+Choose **Light**, **Dark** or **Match system** for this browser's colour scheme.
+
+## Data and support
+
+This group combines device maintenance, company data, read-only company details and support
+information. Each row states its scope, and available actions depend on your access.
+
+**Device data**, **Deleted items** and **Import and export** are independent disclosures and start
+closed. Opening one does not close another. Destructive actions explain their consequences in the
+confirmation dialog.
+
+### Offline access
+
+Keep the last company you opened available on this device for seven days, read only.
+See [Offline access](/guide/offline-access).
+
+### Device data
+
+Clear CapacityLens preferences and opt-in offline snapshots from this browser, leaving company
+data on the server unchanged.
+
+### Deleted items
+
+Permanently delete items after their 30-day retention period. Archived items are restored or
+deleted from the bottom of their Resources, Clients, Projects or Activities page.
+See [People and placeholders](/guide/people-and-placeholders).
+
+<span id="everything-else-on-the-page"></span>
+
+### Import and export
+
+**Export JSON** downloads scheduling records for the current company. **Import JSON** replaces
+those records after confirmation; in signed-in server deployments, only an Owner can import.
+The destination company's settings, including date format, stay unchanged. Browser preferences
+are not part of this file.
+
+### Company details {#calendar}
+
+This read-only summary shows the company name, week start, time zone and language.
 
 The company's week start and time zone apply to the whole team. Week start controls the
 order of days and where each week begins. Time zone is selected during company creation from a
@@ -142,10 +236,25 @@ searchable list of supported IANA zones, with the browser's local zone preselect
 which calendar date counts as "today".
 
 Both choices are frozen after the company is created. Settings shows them in the
-read-only **Account Options Selected at Creation** summary so everyone can check the
+read-only **Data and support → Company details** summary so everyone can check the
 company-wide values, but nobody can change them there.
 
-## Your personal account
+### Diagnostics
+
+At the bottom of Settings, **Diagnostics** provides a **Copy diagnostics** action for a support
+report in both server and demo builds. The copied projection includes the app version, validated
+build revision when available, deployment mode and export schema. Server connectivity, database
+schema, persistence and backup health are listed separately; demo builds and unavailable server
+values show **Unknown** or **Unavailable**. It contains no company or member data, identifiers,
+paths, hostnames, secrets, invite or session values, raw errors or other server response fields.
+
+The Diagnostics row records the **Snapshot observed** time when the server response arrives, or
+when its failure is observed. **Copy diagnostics** copies that same snapshot and does not request a
+fresh report, so the support note describes one clear observation rather than a live stream.
+
+![Data and support with closed Device data, Deleted items and Import and export disclosures, read-only Company details, and Diagnostics](../screenshots/flows/settings_account_disclosures.jpg)
+
+### Your personal account
 
 Open **Account** near **Switch company** and **Sign out** at the bottom of the sidebar to
 review your identity and the security controls available for your sign-in method. These are
@@ -161,54 +270,6 @@ In password mode, Account includes password changes, reported multi-factor authe
 status and active sessions. Company single sign-on shows its connection and session controls
 without a local password form. Demo mode identifies the fictional persona; installations with
 sign-in off have no credential controls. **Sign out** remains in the sidebar.
-
-## Overview access
-
-Overview is limited to Owners and Admins by default. An Owner or Admin can choose
-**Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Overview
-access**. The setting controls both the sidebar link and direct access to the page. See
-[Find capacity for the next four weeks](/guide/capacity-overview).
-
-## Everything else on the page
-
-The rest of Settings, roughly top to bottom:
-
-| Section                       | What it controls                                                                                                                                                                                                                                                                                                                       |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Scheduling                    | Whether allocations are entered as Hours, Days or Blocks. New companies start with Days; existing choices are preserved — see [Projects and allocations](/guide/projects-and-allocations).                                                                                                                                                                                                            |
-| Date format                   | How planning dates read for everyone in the company: 9 Sep, 9th Sep, Sep 9 or Sep 9th. Editors and above can change it. Server-event dates use the viewer's browser locale and local time zone; see [Date format](#date-format). |
-| Overview access               | Who can open the four-week Overview. Owners and Admins manage this setting; Owner and Admin is the default. See [Find capacity for the next four weeks](/guide/capacity-overview).                                                                                                                                              |
-| Company-wide working days    | The company's shared working week. A person's capacity covers the days ticked here and in their own pattern; new work must start on such a day, and at least one day must stay selected.                                                                                                                                                |
-| Disciplines                   | Whether people are grouped by [discipline](/reference/glossary) (Design, Development, and so on) across the app. Off for a newly created company. Disciplines themselves — their names and colours — are created on the standalone **Disciplines** page in the main navigation, not here; see [People and placeholders](/guide/people-and-placeholders). |
-| Engagement grouping           | Whether Resources separates Studio and Supplementary people. On the schedule, those bands hold people outside a discipline and become the main groups when disciplines are off. On by default; favourites stay first inside each engagement group. See [People and placeholders](/guide/people-and-placeholders).                                                                                         |
-| Schedule (this device)        | Three browser-only display preferences described in [Schedule on this device](#schedule-on-this-device).                                                                                                                                                                                                                               |
-| Internal work colours         | Whether internal work uses grey bars (default) or the same colour palette as everything else.                                                                                                                                                                                                                                          |
-| Additional resourcing options | Whether unfilled [placeholder](/reference/glossary) roles and [external parties](/reference/glossary) — partner agencies, freelancers, suppliers or subcontractors — are available. Each switch is independent and off by default. See [People and placeholders](/guide/people-and-placeholders). |
-| Allocation bars (this device) | Whether bars show the client name and project name ahead of the activity name.                                                                                                                                                                                                                                                         |
-| Utilisation                   | Which utilisation figures appear on the schedule: total, per-discipline and personal.                                                                                                                                                                                                                                                  |
-| Appearance (this device)      | Light, dark, or match your system theme.                                                                                                                                                                                                                               |
-| Offline access                | Keep the last company you opened available on this device for seven days, read only. See [Offline access](/guide/offline-access).                                                                                                                                                                                                      |
-| Device data                   | Clear everything CapacityLens has stored on this device.                                                                                                                                                                                                                                                                               |
-| Deleted items                 | A closed-by-default disclosure for permanently deleting items after their 30-day retention period. Archived items are restored or deleted from the bottom of their Resources, Clients, Projects or Activities page. See [People and placeholders](/guide/people-and-placeholders).                                                                                                                     |
-| Import & export               | A closed-by-default disclosure for downloading this company's data as JSON or replacing it from an earlier export. Importing asks you to confirm first.                                                                                                                                                                                |
-| Account Options Selected at Creation | A compact, read-only summary of the company name, week start, time zone and language. Week start and time zone affect the whole team but are frozen after company creation; see [Calendar](#calendar).                                                                                                                             |
-| Diagnostics                   | Review and copy a privacy-safe, point-in-time snapshot of app and observable server status for support reports. It is not a live monitor.                                                                                                                                                                                           |
-
-**Device data**, **Deleted items** and **Import & export** are independent
-disclosures and start closed. Opening one does not close another. Destructive actions
-still explain their consequences in the confirmation dialog.
-
-The Diagnostics card records the **Snapshot observed** time when the server response arrives, or
-when its failure is observed. **Copy diagnostics** copies that same snapshot and does not request a
-fresh report, so the support note describes one clear observation rather than a live stream.
-
-![The bottom of Settings with Appearance, closed Device data, Deleted items and Import and export disclosures, Company details, and Diagnostics](../screenshots/flows/settings_account_disclosures.jpg)
-
-::: tip
-Sections marked "this device" only affect your own browser. Everything else is shared
-by the whole company. Editable company settings need Editor access or above; the calendar
-summary is read only because those choices are frozen after company creation.
-:::
 
 ## What's next
 
