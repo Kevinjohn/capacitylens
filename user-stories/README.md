@@ -128,27 +128,27 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Scheduler timeline — `scheduler/`
 
-| Story                                                           | Title                                      | Automated coverage                                                    |
-| --------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
-| [US-SCH-01](scheduler/US-SCH-01-grouped-capacity-cues.md)       | Grouped rows + capacity cues               | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-02](scheduler/US-SCH-02-draw-allocation.md)             | Draw a new allocation                      | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off on a lane                    | `e2e/features.spec.ts`                                                |
-| [US-SCH-04](scheduler/US-SCH-04-move-drag.md)                   | Move an allocation by dragging             | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-05](scheduler/US-SCH-05-resize.md)                      | Resize an allocation                       | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign by dragging between rows          | `e2e/features.spec.ts`                                                |
-| [US-SCH-07](scheduler/US-SCH-07-placeholder-reassign-reject.md) | Placeholder reassign rejected              | unit (`AllocationBar.interaction.test.tsx`) + manual                  |
-| [US-SCH-08](scheduler/US-SCH-08-lane-stacking.md)               | Overlapping allocations stack              | `e2e/scheduler.spec.ts` + unit (`lanePacking.test.ts`)                |
-| [US-SCH-09](scheduler/US-SCH-09-over-allocation.md)             | Over-allocated days flagged                | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-10](scheduler/US-SCH-10-unavailable-days.md)            | Unavailable days greyed                    | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-11](scheduler/US-SCH-11-time-off-block.md)              | Time off as a labelled block               | `e2e/features.spec.ts` + `e2e/timeoff.spec.ts`                        |
-| [US-SCH-12](scheduler/US-SCH-12-today-line.md)                  | Today line                                 | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-13](scheduler/US-SCH-13-utilisation-flag.md)            | Per-resource utilisation %, red when over  | `e2e/scheduler.spec.ts` + unit (`schedulerModel.test.ts`)             |
-| [US-SCH-14](scheduler/US-SCH-14-utilisation-summary.md)         | Overall + per-discipline summary           | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-15](scheduler/US-SCH-15-bar-popover.md)                 | Bar detail popover                         | `e2e/scheduler.spec.ts` + unit (`AllocationBar.interaction.test.tsx`) |
-| [US-SCH-16](scheduler/US-SCH-16-collapse-group.md)              | Collapse/expand a discipline group         | `e2e/features.spec.ts`                                                |
-| [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md)            | Row "+" quick-create                       | `e2e/allocation.spec.ts`                                              |
-| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to visible window    | manual                                                                |
-| [US-SCH-19](scheduler/US-SCH-19-status-and-note-distinct.md)    | Status & note visually distinct on the bar | `e2e/scheduler.spec.ts`                                               |
+| Story                                                           | Title                                      | Automated coverage                                               |
+| --------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------- |
+| [US-SCH-01](scheduler/US-SCH-01-grouped-capacity-cues.md)       | Grouped rows + capacity cues               | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-02](scheduler/US-SCH-02-draw-allocation.md)             | Draw a new allocation                      | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off on a lane                    | `e2e/features.spec.ts`                                           |
+| [US-SCH-04](scheduler/US-SCH-04-move-drag.md)                   | Move an allocation by dragging             | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-05](scheduler/US-SCH-05-resize.md)                      | Resize an allocation                       | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign by dragging between rows          | `e2e/features.spec.ts`                                           |
+| [US-SCH-07](scheduler/US-SCH-07-placeholder-reassign-reject.md) | Placeholder reassign rejected              | unit (`AllocationBar.pointerDrag.interaction.test.tsx`) + manual |
+| [US-SCH-08](scheduler/US-SCH-08-lane-stacking.md)               | Overlapping allocations stack              | `e2e/scheduler.spec.ts` + unit (`lanePacking.test.ts`)           |
+| [US-SCH-09](scheduler/US-SCH-09-over-allocation.md)             | Over-allocated days flagged                | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-10](scheduler/US-SCH-10-unavailable-days.md)            | Unavailable days greyed                    | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-11](scheduler/US-SCH-11-time-off-block.md)              | Time off as a labelled block               | `e2e/features.spec.ts` + `e2e/timeoff.spec.ts`                   |
+| [US-SCH-12](scheduler/US-SCH-12-today-line.md)                  | Today line                                 | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-13](scheduler/US-SCH-13-utilisation-flag.md)            | Per-resource utilisation %, red when over  | `e2e/scheduler.spec.ts` + unit (`schedulerModel.test.ts`)        |
+| [US-SCH-14](scheduler/US-SCH-14-utilisation-summary.md)         | Overall + per-discipline summary           | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-15](scheduler/US-SCH-15-bar-popover.md)                 | Bar detail popover                         | `e2e/scheduler.spec.ts` + unit (`AllocationBar.test.tsx`)        |
+| [US-SCH-16](scheduler/US-SCH-16-collapse-group.md)              | Collapse/expand a discipline group         | `e2e/features.spec.ts`                                           |
+| [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md)            | Row "+" quick-create                       | `e2e/allocation.spec.ts`                                         |
+| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to visible window    | manual                                                           |
+| [US-SCH-19](scheduler/US-SCH-19-status-and-note-distinct.md)    | Status & note visually distinct on the bar | `e2e/scheduler.spec.ts`                                          |
 
 ## Allocation editor — `allocation/`
 

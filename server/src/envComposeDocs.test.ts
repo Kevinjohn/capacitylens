@@ -51,6 +51,13 @@ describe("Compose exceptions in the environment register", () => {
     expect(dockerfile).not.toContain("exec node_modules/.bin/tsx");
   });
 
+  it("documents the web image as the default Dockerfile target", () => {
+    const stages = [...dockerfile.matchAll(/^FROM\s+\S+(?:\s+AS\s+(\S+))?$/gim)];
+    expect(stages.at(-1)?.[1]).toBe("web");
+    expect(dockerfile).toMatch(/web image as the Dockerfile's final\/default target/i);
+    expect(dockerfile).toMatch(/select the\s+#?\s*`api` target explicitly/i);
+  });
+
   it("suppresses the nginx access log for exactly the invite bearers the app redacts", () => {
     // The invite token rides in the request path (preview, accept, signup). Its capability must be
     // kept out of logs at every hop, so nginx's `access_log off` location and the app's log-redaction

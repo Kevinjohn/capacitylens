@@ -9,6 +9,10 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Bring the published guides, contributor guidance, historical implementation records and
+  user-story test references back into line with the shipped product, including installation,
+  sign-in, permissions, date formatting and ownership-transfer details (#913, #914, #915, #916,
+  #917, #918, #919, #920, #926, #928, #930, #934, #935, #937, #940, #941, #944, #1010).
 - Clarify that the company date format governs planning dates, while session, reset,
   invitation and ownership timestamps use each viewer's browser locale and local time zone
   (#927, #939).
@@ -52,6 +56,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Reorganise the documentation around quick start, technical installation, Owner setup,
+  administration and day-to-day work, with a guided path from a fresh installation through team
+  setup and ownership transfer (#841, #850).
 - Document a backup-first, transactional operator procedure on its own runbook page for inspecting
   and cancelling an ownership-transfer request whose revision is corrupt or exhausted (#990, #997).
 - Replace the browser favicon's lightning mark with a magnifying glass (#966).

@@ -5,10 +5,10 @@ description: The three ways to sign in to CapacityLens, how they stay linked to 
 
 # How sign-in works
 
-CapacityLens supports three ways for someone to sign in: a password, a social sign-in
-button, or your company's own login system (single sign-on). Every installation
-supports at least one of these; most self-hosted installations start on passwords and
-move to company login later. This page explains what each mode is, how a person stays
+An auth-enabled CapacityLens installation supports one or more of three ways to sign in:
+a password, a social sign-in button, or your company's own login system (single sign-on).
+The demo and trusted-local mode deliberately have no sign-in; most self-hosted installations
+start on passwords and move to company login later. This page explains what each mode is, how a person stays
 "the same person" no matter which one they use, and how sessions and two-factor codes
 work. If you're ready to set company login up, skip to [Set up your company
 login](/company-login/set-up-company-login); if you're moving an existing team off
@@ -23,9 +23,13 @@ for a new installation.
 
 **Social sign-in.** A "Continue with Google" or "Continue with Microsoft" style button.
 These are marked **experimental** in CapacityLens: they work, but they're a lighter-weight
-option than company login and aren't accepted on installations that require company login.
-Treat them as a convenience for people who already have one of those accounts, not as your
-main door.
+option than company login. A self-hosted company-login-only installation may keep configured
+social buttons as sign-in doors for existing people, but they cannot create a new identity or
+accept an invitation. The hosted company-login-only profile refuses social-provider settings.
+Treat social buttons as a convenience, not as your main door. To make company login the only door,
+remove every named social provider's client-id and client-secret pair, restart CapacityLens, and
+check that the buttons are gone. See the [cutover FAQ](/company-login/move-to-single-sign-on#what-about-the-continue-with-google-microsoft-github-style-buttons)
+and [Configuration](/self-hosting/configuration#company-login) for the exact settings.
 
 **Company login.** Also called single sign-on, or SSO. The person clicks "Continue with
 [your company]" and is sent to the [identity provider](/reference/glossary) your
@@ -72,13 +76,14 @@ doesn't renew itself just because they're active — after twelve hours, they si
 again regardless. Separately, thirty minutes with no activity also signs someone out.
 
 A handful of sensitive actions — resetting someone else's password, signing someone out of
-every session, transferring company ownership, deleting a company, and importing or purging
-company data — need a session that's "fresh": if it's been more than fifteen minutes since
-the person last proved who they are, CapacityLens asks them to confirm again (their password,
-or a two-factor code) before letting the action through. This doesn't sign them out or lose
-their place; it's a quick check in place. Other administrative actions — inviting or removing
-a member, changing a role or status, and similar day-to-day admin work — only need the right
-role and, where required, two-factor sign-in; they don't ask for this extra confirmation.
+every session, connecting, correcting or removing a company-login identity, transferring company
+ownership, deleting a company, and importing or purging company data — need a session that's
+"fresh": if it's been more than fifteen minutes since the person last proved who they are,
+CapacityLens asks them to confirm again with their password, a local two-factor code, or the company
+login provider before letting the action through. This doesn't sign them out or lose their place;
+it's a quick check in place. Other administrative actions — inviting or removing a member, changing
+a role or status, and similar day-to-day admin work — only need the right role and, where required,
+two-factor sign-in; they don't ask for this extra confirmation.
 
 ## Extra security: two-factor sign-in
 

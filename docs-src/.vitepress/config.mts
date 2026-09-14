@@ -79,7 +79,8 @@ export default defineConfig({
     search: { provider: "local" },
 
     nav: [
-      { text: "Getting started", link: "/getting-started/what-is-capacitylens" },
+      { text: "Quick start", link: "/getting-started/quick-start" },
+      { text: "Owner setup", link: "/getting-started/set-up-your-company" },
       { text: "Using CapacityLens", link: "/guide/the-schedule" },
       { text: "Self-hosting", link: "/self-hosting/" },
       { text: "GitHub", link: "https://github.com/Kevinjohn/capacitylens" },
@@ -87,53 +88,65 @@ export default defineConfig({
 
     sidebar: [
       {
-        text: "Getting started",
+        text: "Quick start",
         items: [
           { text: "What is CapacityLens?", link: "/getting-started/what-is-capacitylens" },
           { text: "Try the demo", link: "/getting-started/try-the-demo" },
+          { text: "Get started quickly", link: "/getting-started/quick-start" },
+        ],
+      },
+      {
+        text: "Technical installation",
+        items: [
           { text: "Choose how to install", link: "/getting-started/install" },
+          { text: "Before you self-host", link: "/self-hosting/" },
+          { text: "Install with Docker", link: "/self-hosting/install-with-docker" },
+          { text: "Install without Docker", link: "/self-hosting/install-without-docker" },
+          {
+            text: "Deploy on a managed VPS",
+            link: "/self-hosting/managed-vps/",
+            items: [
+              { text: "Choose the release source", link: "/self-hosting/managed-vps/choose-the-release-source" },
+              { text: "Create and build the site", link: "/self-hosting/managed-vps/create-and-build-the-site" },
+              { text: "Configure the API and nginx", link: "/self-hosting/managed-vps/configure-the-api-and-nginx" },
+              { text: "Deploy and upgrade safely", link: "/self-hosting/managed-vps/deploy-and-upgrade-safely" },
+              { text: "Finish and operate the install", link: "/self-hosting/managed-vps/finish-and-operate-the-installation" },
+            ],
+          },
+        ],
+      },
+      {
+        text: "Owner setup",
+        items: [
           { text: "First steps after installing", link: "/getting-started/first-steps" },
+          { text: "Set up your company", link: "/getting-started/set-up-your-company" },
           { text: "Invite your team", link: "/getting-started/invite-your-team" },
           { text: "Roles and permissions", link: "/getting-started/roles-and-permissions" },
         ],
       },
       {
-        text: "Using CapacityLens",
+        text: "Admin and settings",
+        items: [
+          { text: "Settings", link: "/guide/settings" },
+          { text: "How sign-in works", link: "/company-login/" },
+          { text: "Set up company login", link: "/company-login/set-up-company-login" },
+          { text: "Move to single sign-on", link: "/company-login/move-to-single-sign-on" },
+        ],
+      },
+      {
+        text: "Day-to-day usage",
         items: [
           { text: "The schedule", link: "/guide/the-schedule" },
           { text: "Overview", link: "/guide/capacity-overview" },
           { text: "People and placeholders", link: "/guide/people-and-placeholders" },
           { text: "Projects and allocations", link: "/guide/projects-and-allocations" },
           { text: "Time off", link: "/guide/time-off" },
-          { text: "Settings", link: "/guide/settings" },
           { text: "Offline access", link: "/guide/offline-access" },
         ],
       },
       {
-        text: "Company login (SSO)",
+        text: "Self-hosting operations",
         items: [
-          { text: "How sign-in works", link: "/company-login/" },
-          { text: "Set up your company login", link: "/company-login/set-up-company-login" },
-          { text: "Move from passwords to single sign-on", link: "/company-login/move-to-single-sign-on" },
-        ],
-      },
-      {
-        text: "Self-hosting",
-        items: [
-          { text: "Before you start", link: "/self-hosting/" },
-          { text: "Install with Docker", link: "/self-hosting/install-with-docker" },
-          { text: "Install without Docker", link: "/self-hosting/install-without-docker" },
-          {
-            text: "Deploy on a managed VPS platform",
-            link: "/self-hosting/managed-vps/",
-            items: [
-              { text: "Choose the release source", link: "/self-hosting/managed-vps/choose-the-release-source" },
-              { text: "Create and build the managed site", link: "/self-hosting/managed-vps/create-and-build-the-site" },
-              { text: "Configure the API and nginx", link: "/self-hosting/managed-vps/configure-the-api-and-nginx" },
-              { text: "Deploy and upgrade safely", link: "/self-hosting/managed-vps/deploy-and-upgrade-safely" },
-              { text: "Finish and operate the managed installation", link: "/self-hosting/managed-vps/finish-and-operate-the-installation" },
-            ],
-          },
           { text: "Configuration", link: "/self-hosting/configuration" },
           { text: "TLS and networking", link: "/self-hosting/tls-and-networking" },
           { text: "Backups and restore", link: "/self-hosting/backups-and-restore" },

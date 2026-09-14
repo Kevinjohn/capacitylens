@@ -192,11 +192,14 @@ An allocation is a date range plus how much of the day it takes — there's no
 hour-by-hour calendar and nothing resembling a timesheet to fill in. How you enter that
 effort depends on your company's scheduling mode, set in [Settings](/guide/settings):
 
-- **Hours** (the default) — set a start date, an end date and hours per day directly.
-- **Days** — say how many days of work you need and how many days to spread them over;
-  CapacityLens works out the hours per day for you.
+- **Hours** — set a start date, an end date and hours per day directly.
+- **Days** (the default for a new company) — say how many days of work you need and how
+  many days to spread them over; CapacityLens works out the hours per day for you.
 - **Blocks** — book someone for a span of days with no hours at all, for work that
   shouldn't count toward the utilisation figures.
+
+Changing the mode does not rewrite existing allocations, and an existing company's saved choice is
+preserved.
 
 Whichever mode you use, CapacityLens is planning capacity, not logging time worked —
 there's nothing to submit at the end of the week.

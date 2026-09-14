@@ -63,13 +63,19 @@ exports, can be undone and takes effect without a reload.
 Compact weekday dates on the Time off page always retain the ordinal: with **9 Sep** selected,
 a Wednesday appears as **Wed 9th Sep**.
 
+A range crossing a year normally shows the year at both ends. The narrow week headings on
+Overview are the deliberate exception: neighbouring columns provide the year context, so those
+headings omit it.
+
 Dates attached to server events use your browser's locale and local time zone instead.
-These include session creation and expiry, password-reset expiry, invitation expiry,
-ownership-transfer deadlines and ownership outcome dates. Your time zone decides which
-local day or hour the instant falls on, while your browser locale decides the date order.
-An invitation expiry or ownership outcome may show only the date; it still follows this
-viewer-local rule. Existing date-and-time displays keep their time, and CapacityLens never
-takes the date by cutting it from the stored UTC timestamp.
+These include session creation and expiry, password-reset expiry, invitation expiry in the
+administration list and on the invite acceptance page, ownership-transfer deadlines, ownership
+outcome dates and the offline banner's last-updated time. Your time zone decides which local day
+or hour the instant falls on, while your browser locale decides the date order. The administration
+list's invitation expiry or an ownership outcome may show only the date; it still follows this
+viewer-local rule. Existing date-and-time displays, including invite acceptance and offline
+last-updated, keep their time. CapacityLens never takes the date by cutting it from the stored UTC
+timestamp.
 
 ## Schedule on this device
 

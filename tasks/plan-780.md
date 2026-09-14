@@ -1,7 +1,10 @@
 # Issue #780: three-step ownership transfer consent ceremony
 
-Status: revision 3, reviewed adversarially twice (7 P0 / 11 P1 found, verified against the tree, and
-reconciled below). Base: `ba1bb056` (origin/main, 2026-09-11).
+Status: **landed and retained as a historical implementation plan**. Revision 3 was reviewed
+adversarially twice (7 P0 / 11 P1 found, verified against the tree, and reconciled below). Base:
+`ba1bb056` (origin/main, 2026-09-11). The six implementation PRs (#826, #852, #863, #871, #872 and
+#873) have merged; current source and tests, rather than the imperative task wording below, define
+the shipped behaviour.
 Issue: https://github.com/Kevinjohn/capacitylens/issues/780 — a design proposal that closed with
 "not implementation-ready; reconcile against six repository seams first". This plan is that
 reconciliation plus the execution order. Covers #179 (placement) and #185 (consent).
@@ -88,8 +91,8 @@ Two constraints:
 
 - `controlTables/ownershipMigrations.ts:125,189,208` writes memberships with raw SQL, deliberately
   bypassing `upsertMember`. Its sole callers are migrations v10–v14 (`db/migrations/index.ts`),
-  reached only from `db/open.ts`. The transfer table is created at v40, so no live request can exist
-  when they run. Pinned by a test.
+  reached only from `db/open.ts`. The transfer table is created at v41, after the v40 account
+  date-style migration, so no live request can exist when they run. Pinned by a test.
 - `accounts/memberSignInTracking.ts:106-148` UPDATEs `account_members` outside `members.ts`, but only
   the non-authority `signInConfirmed` column. It does not affect consent. The repo's "single
   membership-write choke point" comment (`members.ts:47-48`) is an overclaim; this plan does not
@@ -146,8 +149,9 @@ cascade to rely on — see the table shape below.
 - **`ACCOUNT_FLOW_OPERATIONS`** (`shared/src/account/ports.ts:242-248`) stays frozen; the ceremony is
   not reachable through `POST /api/account-commands/reconcile` in v1.
 - **Reauth.** The existing single `ReauthAction "transfer-ownership"`
-  (`src/auth/reauthCoordinator.ts:22`, label `src/auth/ReauthDialog.tsx:331`) is reused for all seven
-  operations. No new action, no new message key, no `paraglide:compile` for reauth.
+  (`src/auth/reauthCoordinator.ts:22`, label `src/auth/ReauthDialog.tsx:331`) is reused for the six
+  mutations. The read does not open reauthentication. No new action, no new message key, no
+  `paraglide:compile` for reauth.
 
 ## Authorisation matrix
 
@@ -163,8 +167,13 @@ which throws and mutates nothing.
 | complete                    | `actOnOwnershipTransfer`         | owner-only + `actor.principalId === row.initiatorUserId` + state `awaiting_owner`                |
 | accept / withdraw / decline | `actOnOwnershipTransfer`         | `actor.principalId === row.targetUserId` + current active role is exactly `admin`                |
 
-All seven also call `assertAdministrativeAssurance` (fresh session, 15 minutes via
-`ACCOUNT_SESSION_FRESH_AGE_SECONDS`, plus configured MFA) as the first statement of `execute`.
+All six mutations call `assertAdministrativeAssurance` with the default fresh-session requirement
+(15 minutes via `ACCOUNT_SESSION_FRESH_AGE_SECONDS`) and configured MFA as the first statement of
+`execute`. `GET` deliberately calls it with `requireFresh: false`: an aged authenticated participant
+may read the ceremony, while role, participant visibility, configured MFA and masquerade protections
+still apply. The route mirrors that distinction with `requireFreshSession: false`; see
+`server/src/accounts/routes/handlers/ownershipTransfer.ts` and the aged-read regression in
+`server/src/accounts/adminPort/ownershipTransfer.test.ts`.
 `replayGuard` (`sqliteAccountAdminPort.ts:160`) re-asserts participant identity — not role — before
 re-disclosing a receipt, mirroring `adminPort/invitations.ts:206-209`.
 
@@ -178,8 +187,9 @@ Answering the issue's ten open decisions:
    predecessor is `CONFLICT` and cancels nothing.
 3. **Withdrawal** is permitted: `awaiting_owner` → `awaiting_target`, clearing `targetAcceptedAt`.
 4. **Visibility** is participants only, enforced server-side in the read.
-5. **Assurance** on all seven operations as above. Trusted-local keeps its documented bypass; OFF
-   mode persists nothing and every ceremony route returns the established 400.
+5. **Assurance** as above: freshness on all six mutations, but not on `GET`; configured MFA remains
+   required for the read. Trusted-local keeps its documented bypass; OFF mode persists nothing and
+   every ceremony route returns the established 400.
 6. **Sessions** are not blanket-revoked. Completion runs the choke point for both principals, which
    bumps both security revisions and burns both reset links.
 7. **Notification** in-app only.
@@ -217,7 +227,9 @@ genuinely the same intent, so replaying a terminal receipt forever is correct.
 
 ## Data contract
 
-Table `account_ownership_transfers`, `STRICT`, installed by migration 40:
+Table `account_ownership_transfers`, `STRICT`, installed by migration 41. The originally allocated
+v40 was superseded before landing: released v40 is `add-account-date-style`, and released v41 is
+`add-ownership-transfer-requests` (`server/src/db/migrations/index.ts`):
 
 | column                                             | notes                                                                        |
 | -------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -239,8 +251,9 @@ one-live-request guarantee atomically rather than by read-then-insert; index on
 
 ## Tasks
 
-Six stacked branches under milestone 5, each based on its predecessor, landing in order as one unit.
-Per the goal, none is merged.
+The six stacked branches under milestone 5 were based on their predecessors and landed in order as
+one unit. The task descriptions below are preserved as the execution record; they are complete, not
+instructions to recreate branches or rerun the original delivery sequence.
 
 ### T1 — shared contract and policy (`feature/780-t1`, base `origin/main`)
 
@@ -267,18 +280,17 @@ vocabulary is shared.)
 Source: `server/src/controlTables/ownershipTransfers.ts` (DDL const,
 `assertOwnershipTransfersCurrent`, row type and mapper, storage functions),
 `server/src/controlTables.ts` (barrel), `server/src/db/migrations/definitions.ts` + `index.ts`
-(migration 40 `add-ownership-transfer-requests`), `server/src/db/constants.ts`
-(`DB_SCHEMA_VERSION = 40`), `server/src/controlTables/assert.ts:120-171`
+(migration 41 `add-ownership-transfer-requests`; migration 40 is `add-account-date-style`),
+`server/src/db/constants.ts` (`DB_SCHEMA_VERSION = 41`), `server/src/controlTables/assert.ts:120-171`
 (`assertControlTablesCurrent` `expectedColumns` and `expectedIndexes` — it covers only
 `account_members` and `invites` today), `server/src/db/lifecycle.ts:48-53` (`wipe()` — omitting it
 leaves orphaned rows after a trusted-local reset; a silent defect, not a test failure).
 
-**Version pins that assert v39 is the last migration — each a hard failure on v40:**
-`server/src/cutoverRepair.ts:55` `REPAIR_COMPATIBLE_MIGRATIONS = new Set([25…39])` — **production
-behaviour**: without `40` the `cutover:repair` CLI refuses to run on any database carrying the new
-migration; `server/src/auth.test.ts:420-426` (pins version, name and checksum of the last migration)
-and `:595-599` (`CAPACITY_OVERVIEW_MIGRATION` terminates a pinned pending list);
-`server/src/db.migrate.test.ts` (V40 pin in four places); `server/src/backup.test.ts` (append 40).
+**Version pins updated when this landed:** `server/src/cutoverRepair.ts`
+`REPAIR_COMPATIBLE_MIGRATIONS` includes both 40 and 41; `server/src/auth.test.ts` pins the names and
+checksums for `add-account-date-style` at v40 and `add-ownership-transfer-requests` at v41;
+`server/src/db.migrate.test.ts` retains both migration identities; and `server/src/backup.test.ts`
+tracks the current `DB_SCHEMA_VERSION`. Released migration definitions and checksums are immutable.
 
 **Rehearsal coverage fails closed:** `server/scripts/rehearse/anonymise.ts:17-26`
 (`assertAnonymisationCoverage` throws `anonymiser does not cover table(s): …`),
