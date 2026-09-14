@@ -45,12 +45,12 @@ describe("computeCapacityBarFill", () => {
 });
 
 describe("capacityBarFillStyle", () => {
-  it("uses the plain faint token for no fill, regardless of context", () => {
+  it("uses the light empty-capacity token for no fill, regardless of context", () => {
     expect(capacityBarFillStyle({ kind: "none", fraction: 0 }, "bar")).toEqual({
-      background: "var(--color-faint)",
+      background: "var(--color-line-soft)",
     });
     expect(capacityBarFillStyle({ kind: "none", fraction: 0 }, "bar-number")).toEqual({
-      background: "var(--color-faint)",
+      background: "var(--color-line-soft)",
     });
   });
 

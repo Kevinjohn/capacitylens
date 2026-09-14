@@ -69,7 +69,7 @@ const OVERBOOKED_HATCH = `repeating-linear-gradient(45deg, color-mix(in oklab, v
  * must also switch the overbooked label to `text-danger-soft-ink` in that context).
  */
 export function capacityBarFillStyle(fill: CapacityBarFill, context: CapacityBarFillContext): { background: string } {
-  if (fill.kind === "none") return { background: "var(--color-faint)" };
+  if (fill.kind === "none") return { background: "var(--color-line-soft)" };
   const tokenSuffix = context === "bar" ? "cell" : "soft";
   const fillColor = fill.kind === "free" ? `var(--color-ok-${tokenSuffix})` : `var(--color-danger-${tokenSuffix})`;
   if (fill.kind === "over" && context === "bar") return { background: `${OVERBOOKED_HATCH}, ${fillColor}` };
