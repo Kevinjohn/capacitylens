@@ -53,6 +53,7 @@ function registerImportRouteGroup(input: RegisterRouteGroupInput): void {
     authMode: config.authMode,
     allowReset: options.allowReset === true,
     accountAdminPort: runtime.accountAdminPort,
+    memberResources: runtime.memberResources,
     accountLock: runtime.accountLock,
     authorize: authorization.authorizeAllowed,
     executeImportWorker: config.executeImportWorker,
@@ -124,6 +125,7 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
   const { authorizeAllowed, fieldVisibilityFor, memberReadProjection, redactWriteEcho, resolveEffectiveRole } =
     authorization;
   registerAccountRoutes(app, {
+    memberResources: runtime.memberResources,
     authMode,
     authenticationConfigured: auth !== null,
     requiredSsoProviderId: authMode === "sso" ? (auth?.strictProvider?.id ?? null) : null,

@@ -4,6 +4,14 @@ import { createApp } from "./app";
 import { openDb } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { call, PASSWORD_ENV } from "./testHelpers";
+import {
+  createInvite,
+  listResourceAvatarProjection,
+  setAccountMemberResourceLink,
+  upsertMember,
+} from "./controlTables";
+import { mapExternalAvatar } from "./authConfig/betterAuthProfileCompatibility";
+import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
@@ -122,14 +130,136 @@ function registerSsoRedirectTests(): void {
   });
 }
 
+// The suite owns one contiguous configured strict-OIDC lifecycle in addition to the small route checks.
+// eslint-disable-next-line max-lines-per-function
 describe("CAPACITYLENS_AUTH sso", () => {
   registerSsoClosedRouteTests();
   registerSsoRedirectTests();
+
+  // One stateful runtime sequence proves the configured generic OAuth plugin actually invokes
+  // strict discovery, token and userinfo validation and persists the adapter's null clears.
+  // eslint-disable-next-line max-lines-per-function
+  it("persists strict-OIDC avatar updates and clears through the configured callback", async () => {
+    const pair = await generateKeyPair("RS256");
+    const publicJwk = { ...(await exportJWK(pair.publicKey)), kid: "strict-key", use: "sig", alg: "RS256" };
+    let picture: unknown = "https://images.example/strict-a.png";
+    const token = () =>
+      new SignJWT({ email: "bruce@wayne.test", email_verified: true })
+        .setProtectedHeader({ alg: "RS256", kid: "strict-key" })
+        .setIssuer(SSO_ENV.CAPACITYLENS_SSO_ISSUER)
+        .setAudience(SSO_ENV.CAPACITYLENS_SSO_CLIENT_ID)
+        .setSubject("strict-subject")
+        .setIssuedAt()
+        .setExpirationTime("5m")
+        .sign(pair.privateKey);
+    vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0]) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url === SSO_ENV.CAPACITYLENS_SSO_DISCOVERY_URL)
+        return Response.json({
+          issuer: SSO_ENV.CAPACITYLENS_SSO_ISSUER,
+          authorization_endpoint: "https://idp.test/authorize",
+          token_endpoint: "https://idp.test/token",
+          userinfo_endpoint: "https://idp.test/userinfo",
+          jwks_uri: "https://idp.test/jwks",
+          response_types_supported: ["code"],
+          subject_types_supported: ["public"],
+          id_token_signing_alg_values_supported: ["RS256"],
+          code_challenge_methods_supported: ["S256"],
+        });
+      if (url === "https://idp.test/token")
+        return Response.json({ access_token: "strict-access", token_type: "Bearer", id_token: await token() });
+      if (url === "https://idp.test/jwks") return Response.json({ keys: [publicJwk] });
+      if (url === "https://idp.test/userinfo")
+        return Response.json({
+          sub: "strict-subject",
+          email: "bruce@wayne.test",
+          email_verified: true,
+          name: "Bruce Wayne",
+          ...(picture === undefined ? {} : { picture }),
+        });
+      throw new Error(`Unexpected strict OIDC fetch: ${url}`);
+    });
+    const db = openDb(":memory:");
+    const configured = createAuthFromEnvironment(db, SSO_ENV, { externalIdentityAdmission: async () => true });
+    const auth = parseConfiguredAuth(configured.auth);
+    await runAuthMigrations(auth);
+    db.prepare(
+      `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a1', 'Wayne Enterprises', '#6366f1', ?, ?)`,
+    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
+    db.prepare(
+      `INSERT INTO resources (id, accountId, kind, name, role, color, employmentType, engagement, workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
+       VALUES ('bruce', 'a1', 'person', 'Bruce Wayne', 'Director', '#6366f1', 'employee', 'studio', 8, '[1,2,3,4,5]', '[]', ?, ?)`,
+    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
+    const app = createApp(db, { authMode: configured.mode, auth });
+    const signIn = async () => {
+      const start = await call(app, {
+        method: "POST",
+        url: "/api/auth/sign-in/oauth2",
+        payload: { providerId: "sso", callbackURL: "/" },
+      });
+      const proxy = new URL((start.json() as { url: string }).url);
+      const startCookie = String(start.headers["set-cookie"] ?? "").split(";", 1)[0];
+      const authorize = await call(app, {
+        method: "GET",
+        url: proxy.pathname + proxy.search,
+        headers: { cookie: startCookie },
+      });
+      const provider = new URL(String(authorize.headers.location));
+      const callbackCookie = [startCookie, String(authorize.headers["set-cookie"] ?? "").split(";", 1)[0]].join("; ");
+      return call(app, {
+        method: "GET",
+        url: `/api/auth/oauth2/callback/sso?code=code&state=${encodeURIComponent(provider.searchParams.get("state") ?? "")}`,
+        headers: { cookie: callbackCookie },
+      });
+    };
+    let linked = false;
+    for (const [claim, expected] of [
+      ["https://images.example/strict-a.png", "https://images.example/strict-a.png"],
+      ["https://images.example/strict-b.png", "https://images.example/strict-b.png"],
+      [undefined, null],
+      [null, null],
+      ["https://images.example/strict-a.png", "https://images.example/strict-a.png"],
+      ["javascript:alert(1)", null],
+    ] as const) {
+      picture = claim;
+      expect((await signIn()).statusCode).toBe(302);
+      expect(
+        (db.prepare(`SELECT image FROM user WHERE email = 'bruce@wayne.test'`).get() as { image: string | null }).image,
+      ).toBe(expected);
+      if (!linked) {
+        const principal = db.prepare(`SELECT id FROM user WHERE email = 'bruce@wayne.test'`).get() as { id: string };
+        upsertMember(db, {
+          accountId: "a1",
+          userId: principal.id,
+          role: "viewer",
+          status: "active",
+          createdAt: "2026-09-14T10:00:00.000Z",
+        });
+        setAccountMemberResourceLink({
+          db,
+          accountId: "a1",
+          userId: principal.id,
+          resourceId: "bruce",
+          expectedRevision: null,
+          now: "2026-09-14T10:00:00.000Z",
+        });
+        linked = true;
+      }
+      expect(listResourceAvatarProjection(db, "a1")).toEqual(
+        expected === null ? [] : [{ resourceId: "bruce", imageUrl: expected }],
+      );
+    }
+    await app.close();
+    db.close();
+  });
 });
 
 // P1.7 — native social providers wired from env. Assert against the resolved betterAuth
 // options (auth.options is the exact object we passed; see better-auth createBetterAuth),
 // which is the robust introspection point in this version (1.6.23).
+// Keep the provider configuration and its real callback acceptance sequence together so the
+// runtime overrides exercised below cannot drift from the configuration assertions.
+// eslint-disable-next-line max-lines-per-function
 describe("social providers (P1.7)", () => {
   const SOCIAL_ENV = {
     ...PASSWORD_ENV,
@@ -183,6 +313,111 @@ describe("social providers (P1.7)", () => {
   it("is empty (no providers) when no social env is set", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), PASSWORD_ENV);
     expect(Object.keys(parseConfiguredAuth(auth).options.socialProviders ?? {})).toEqual([]);
+  });
+
+  // This intentionally follows one persisted subject through the complete sequential callback
+  // lifecycle; splitting the sequence would replace the stateful integration guarantee with mocks.
+  // eslint-disable-next-line max-lines-per-function
+  it("persists repeated provider picture updates and explicit clears for the same subject", async () => {
+    const db = openDb(":memory:");
+    const { mode, auth } = createAuthFromEnvironment(
+      db,
+      { ...SOCIAL_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1" },
+      { externalIdentityAdmission: async () => true },
+    );
+    const configured = parseConfiguredAuth(auth);
+    const google = configured.options.socialProviders?.google;
+    if (!google || typeof google === "function") throw new Error("Expected resolved Google provider options.");
+    let picture: string | null | undefined = "https://images.example/a.png";
+    google.verifyIdToken = async () => true;
+    google.getUserInfo = async () => ({
+      user: {
+        id: "google-subject-1",
+        name: "Bruce Wayne",
+        email: "bruce@wayne.test",
+        emailVerified: true,
+        ...mapExternalAvatar(picture),
+      },
+      data: {},
+    });
+    await runAuthMigrations(configured);
+    db.prepare(
+      `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a1', 'Wayne Enterprises', '#6366f1', ?, ?)`,
+    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
+    createInvite(db, {
+      token: "provider-invite-token",
+      id: "provider-invite",
+      accountId: "a1",
+      role: "viewer",
+      preauthEmail: "bruce@wayne.test",
+      expiresAt: "2099-01-01T00:00:00.000Z",
+      usedAt: null,
+      createdAt: "2026-09-14T10:00:00.000Z",
+    });
+    const app = createApp(db, { authMode: mode, auth: configured });
+    const originalFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0]) => {
+      if (String(input) === "https://oauth2.googleapis.com/token")
+        return new Response(JSON.stringify({ access_token: "access", id_token: "header.payload.signature" }), {
+          headers: { "content-type": "application/json" },
+        });
+      return originalFetch(input);
+    });
+    const signIn = async () => {
+      const start = await call(app, {
+        method: "POST",
+        url: "/api/auth/sign-in/social",
+        payload: { provider: "google", callbackURL: "/" },
+      });
+      const startBody = start.json() as { url: string };
+      const authorization = new URL(startBody.url);
+      const cookie = String(start.headers["set-cookie"] ?? "")
+        .split(",")
+        .map((value) => value.split(";", 1)[0])
+        .join("; ");
+      return call(app, {
+        method: "GET",
+        url: `/api/auth/callback/google?code=code&state=${encodeURIComponent(authorization.searchParams.get("state") ?? "")}`,
+        headers: { cookie },
+      });
+    };
+    for (const [claim, expected] of [
+      ["https://images.example/a.png", "https://images.example/a.png"],
+      ["https://images.example/b.png", "https://images.example/b.png"],
+      [undefined, null],
+      [null, null],
+      ["https://images.example/a.png", "https://images.example/a.png"],
+      ["javascript:alert(1)", null],
+    ] as const) {
+      picture = claim;
+      expect((await signIn()).statusCode).toBe(302);
+      expect(
+        (db.prepare(`SELECT image FROM user WHERE email = 'bruce@wayne.test'`).get() as { image: string | null }).image,
+      ).toBe(expected);
+    }
+    const principal = db.prepare(`SELECT id FROM user WHERE email = 'bruce@wayne.test'`).get() as { id: string };
+    upsertMember(db, {
+      accountId: "a1",
+      userId: principal.id,
+      role: "viewer",
+      status: "active",
+      createdAt: "2026-09-14T10:00:00.000Z",
+    });
+    db.prepare(
+      `INSERT INTO resources (id, accountId, kind, name, role, color, employmentType, engagement, workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt) VALUES ('bruce', 'a1', 'person', 'Bruce Wayne', 'Director', '#6366f1', 'employee', 'studio', 8, '[1,2,3,4,5]', '[]', ?, ?)`,
+    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
+    setAccountMemberResourceLink({
+      db,
+      accountId: "a1",
+      userId: principal.id,
+      resourceId: "bruce",
+      expectedRevision: null,
+      now: "2026-09-14T10:00:00.000Z",
+    });
+    expect(listResourceAvatarProjection(db, "a1")).toEqual([]);
+    await app.close();
+    db.close();
+    vi.stubGlobal("fetch", originalFetch);
   });
 });
 

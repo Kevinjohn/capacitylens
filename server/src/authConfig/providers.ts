@@ -1,15 +1,15 @@
 import type { AsyncLocalStorage } from "node:async_hooks";
 import { APIError } from "better-auth/api";
-import type { SocialProviders } from "better-auth/social-providers";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import type { Db } from "../db";
 import { resolveAccountConfigKey } from "../accountConfig";
 import { createStrictOidcClient, isLoopbackHostname, StrictOidcVerificationError } from "../strictOidc";
 import type { AuthConfigError, AuthProviderInfo } from "../auth";
+import { adaptStrictOidcProfileForBetterAuth } from "./betterAuthProfileCompatibility";
+import { parseSocialProvidersFromEnvironment } from "./socialProviders";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
-
 function resolveNonEmptyValue(value: string | undefined, fallback: string): string {
   if (value) return value;
   return fallback;
@@ -67,50 +67,6 @@ function parseSecureProviderUrl(
   // identity namespace and reject otherwise matching discovery metadata. Validate through URL,
   // but preserve the operator's trimmed value verbatim for protocol comparison.
   return raw;
-}
-
-/** Native social providers assembled from env. Unset pairs are absent; a partial pair refuses
- * startup. New external identities require verified email and remain invite-gated in the database hook. */
-function parseSocialProvidersFromEnvironment(
-  environment: Env,
-  AuthConfigError: AuthConfigErrorConstructor,
-): SocialProviders {
-  const providers: SocialProviders = {};
-  const parseConfiguredPair = (idKey: string, secretKey: string, label: string) =>
-    parseOptionalCredentialPair({ environment, idKey, secretKey, label, E: AuthConfigError });
-  const google = parseConfiguredPair(
-    "CAPACITYLENS_GOOGLE_CLIENT_ID",
-    "CAPACITYLENS_GOOGLE_CLIENT_SECRET",
-    "Google sign-in",
-  );
-  if (google) {
-    const [clientId, clientSecret] = google;
-    providers.google = { clientId, clientSecret };
-  }
-  const microsoft = parseConfiguredPair(
-    "CAPACITYLENS_MICROSOFT_CLIENT_ID",
-    "CAPACITYLENS_MICROSOFT_CLIENT_SECRET",
-    "Microsoft sign-in",
-  );
-  if (microsoft) {
-    const [clientId, clientSecret] = microsoft;
-    // tenantId defaults to 'common' (multi-tenant) when not pinned to a single Entra tenant.
-    providers.microsoft = {
-      clientId,
-      clientSecret,
-      tenantId: resolveNonEmptyValue(environment.CAPACITYLENS_MICROSOFT_TENANT_ID, "common"),
-    };
-  }
-  const github = parseConfiguredPair(
-    "CAPACITYLENS_GITHUB_CLIENT_ID",
-    "CAPACITYLENS_GITHUB_CLIENT_SECRET",
-    "GitHub sign-in",
-  );
-  if (github) {
-    const [clientId, clientSecret] = github;
-    providers.github = { clientId, clientSecret };
-  }
-  return providers;
 }
 
 // Provider ids are persisted as part of an external identity's namespace. Generic OIDC must not
@@ -279,7 +235,6 @@ function captureStrictOidcVerificationError(
   }
   return null;
 }
-
 function createGenericOidcPlugin(
   configuration: GenericOidcConfiguration,
   input: Pick<PrepareProvidersInput, "db" | "publicUrl" | "authHandlerErrorCapture" | "assertStrictOidcEmailAdmission">,
@@ -300,6 +255,7 @@ function createGenericOidcPlugin(
         issuer,
         // Dex may omit RFC 9207 `iss`; the strict client still enforces ID-token issuer and audience.
         requireIssuerValidation: false,
+        overrideUserInfo: true,
         pkce: true,
         getToken: ({ code, redirectURI, codeVerifier }) =>
           strictOidcClient.exchangeCode({
@@ -314,7 +270,7 @@ function createGenericOidcPlugin(
               ...(tokens.idToken === undefined ? {} : { idToken: tokens.idToken }),
             });
             input.assertStrictOidcEmailAdmission(input.db, providerId, profile);
-            return profile;
+            return adaptStrictOidcProfileForBetterAuth(profile);
           } catch (error) {
             return captureStrictOidcVerificationError(error, input.authHandlerErrorCapture);
           }

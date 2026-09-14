@@ -30,6 +30,7 @@ import {
   looksLikeEmail,
   inviteTokenHash,
   type AccountMember,
+  ensureAccountMemberResources,
 } from "./controlTables";
 import { ensureAccountBoundaryState } from "./accounts/state";
 import type { Db } from "./db";
@@ -44,6 +45,7 @@ const TS = "2026-01-01T00:00:00.000Z";
 const freshDb = (): Db => {
   const db = new DatabaseSync(":memory:");
   ensureControlTables(db);
+  ensureAccountMemberResources(db);
   ensureAccountBoundaryState(db);
   return db;
 };

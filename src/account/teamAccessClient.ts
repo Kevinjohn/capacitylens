@@ -33,6 +33,7 @@ export interface TeamMember {
   isSelf: boolean;
   mayResetPassword: boolean;
   mayRevokeSessions: boolean;
+  resourceLink?: { resourceId: string; revision: string } | null;
 }
 
 export interface TeamDirectory {
@@ -89,6 +90,8 @@ function parseMember(row: unknown): TeamMember | null {
   if (!hasValidMemberIdentity(row)) return null;
   if (!hasValidMemberAccess(row)) return null;
   if (!isNullableString(row.name) || !isNullableString(row.email)) return null;
+  const resourceLink = parseMemberResourceLink(row.resourceLink);
+  if (resourceLink === undefined) return null;
   return {
     userId: row.userId,
     role: row.role,
@@ -100,7 +103,15 @@ function parseMember(row: unknown): TeamMember | null {
     isSelf: row.isSelf,
     mayResetPassword: row.mayResetPassword === true,
     mayRevokeSessions: row.mayRevokeSessions === true,
+    resourceLink,
   };
+}
+
+function parseMemberResourceLink(value: unknown): TeamMember["resourceLink"] | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isRecord(value) || typeof value.resourceId !== "string" || value.resourceId.length === 0) return undefined;
+  if (typeof value.revision !== "string" || value.revision.length === 0) return undefined;
+  return { resourceId: value.resourceId, revision: value.revision };
 }
 
 function parseMembers(value: unknown): TeamDirectory | null {
@@ -241,6 +252,27 @@ export const teamAccessClient = {
 
   async removeMember(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
     return readCommandResult(await accountClient.removeMember(workspaceId, principalId), noContent);
+  },
+
+  async setMemberResourceLink(input: {
+    workspaceId: string;
+    principalId: string;
+    resourceId: string;
+    expectedRevision: string | null;
+  }) {
+    return readResult(await accountClient.setMemberResourceLink(input), (body) =>
+      isRecord(body) && typeof body.resourceId === "string" && typeof body.revision === "string"
+        ? { resourceId: body.resourceId, revision: body.revision }
+        : null,
+    );
+  },
+
+  async clearMemberResourceLink(workspaceId: string, principalId: string, expectedRevision: string) {
+    return readCommandResult(
+      await accountClient.clearMemberResourceLink(workspaceId, principalId, expectedRevision),
+      noContent,
+      204,
+    );
   },
 
   async issuePasswordReset(workspaceId: string, principalId: string): Promise<TeamAccessResult<OneTimeToken>> {

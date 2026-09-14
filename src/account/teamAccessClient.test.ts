@@ -108,6 +108,39 @@ describe("teamAccessClient directory validation", () => {
   });
 });
 
+describe("teamAccessClient member resource links", () => {
+  it.each([
+    [null, "created-revision"],
+    ["prior-revision", "changed-revision"],
+  ])("decodes create/change success with expected revision %s", async (expectedRevision, revision) => {
+    vi.spyOn(accountClient, "setMemberResourceLink").mockResolvedValue(json({ resourceId: "r1", revision }));
+    await expect(
+      teamAccessClient.setMemberResourceLink({
+        workspaceId: "a1",
+        principalId: "u1",
+        resourceId: "r1",
+        expectedRevision,
+      }),
+    ).resolves.toEqual({ kind: "ok", status: 200, value: { resourceId: "r1", revision } });
+  });
+
+  it("preserves a structured conflict and contains an uncertain success body", async () => {
+    vi.spyOn(accountClient, "setMemberResourceLink")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "The member link changed." }), { status: 409 }))
+      .mockResolvedValueOnce(new Response("", { status: 200 }));
+    const input = { workspaceId: "a1", principalId: "u1", resourceId: "r1", expectedRevision: null };
+    await expect(teamAccessClient.setMemberResourceLink(input)).resolves.toEqual({
+      kind: "rejected",
+      status: 409,
+      message: "The member link changed.",
+    });
+    await expect(teamAccessClient.setMemberResourceLink(input)).resolves.toMatchObject({
+      kind: "invalid",
+      status: 200,
+    });
+  });
+});
+
 describe("teamAccessClient invitation defaults", () => {
   it("defaults an absent invitation preauthorization email and preserves valid peers", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});

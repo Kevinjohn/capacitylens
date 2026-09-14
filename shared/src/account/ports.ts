@@ -243,6 +243,38 @@ export interface MemberDirectoryEntry {
   principal: PrincipalSummary | null;
 }
 
+/** App-owned association metadata exposed only to the privileged member directory. */
+export interface MemberResourceLink {
+  resourceId: string;
+  revision: string;
+}
+
+/** Minimum identity-derived projection required to render a scheduled person's avatar. */
+export interface ResourceAvatarEntry {
+  resourceId: string;
+  imageUrl: string;
+}
+
+/** Account-scoped storage seam for association administration and its privacy-preserving read model. */
+export interface AccountMemberResourcePort {
+  listLinks(workspaceId: WorkspaceId): Promise<ReadonlyMap<PrincipalId, MemberResourceLink>>;
+  listAvatarProjection(workspaceId: WorkspaceId): Promise<readonly ResourceAvatarEntry[]>;
+  setLink(input: {
+    workspaceId: WorkspaceId;
+    principalId: PrincipalId;
+    resourceId: string;
+    expectedRevision: string | null;
+    now: IsoInstant;
+  }): Promise<MemberResourceLink>;
+  clearLink(input: { workspaceId: WorkspaceId; principalId: PrincipalId; expectedRevision: string }): Promise<void>;
+  reconcileImportedLinks(input: {
+    workspaceId: WorkspaceId;
+    resourceIdMap: ReadonlyMap<string, string>;
+    updatedAt: IsoInstant;
+  }): void;
+  removeResourceLink(workspaceId: WorkspaceId, resourceId: string): void;
+}
+
 export interface InviteSignupResult {
   principalId: PrincipalId;
   membership: Membership;

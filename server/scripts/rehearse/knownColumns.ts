@@ -113,6 +113,8 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
     timeOff: ["id", "accountId", "resourceId", "startDate", "endDate", "type", "note", "createdAt", "updatedAt"],
     // Membership flags and scheduling settings/dates are deliberately retained.
     account_members: ["accountId", "userId", "role", "status", "createdAt", "signInConfirmed"],
+    // Opaque revisions and timestamps carry no source identity; all three coordinates are remapped.
+    account_member_resources: ["accountId", "userId", "resourceId", "revision", "createdAt", "updatedAt"],
     // `terminalReason` is a bounded enum of workflow outcomes (never free text, never an
     // identifier), so it is RETAINED rather than scrubbed: a rehearsal that lost it could not
     // exercise the retention sweep or the participant projection it feeds.

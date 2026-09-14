@@ -4,6 +4,7 @@ import type { OwnershipTransferRequest } from "@capacitylens/shared/account/owne
 import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/account/ownershipTransferPolicy";
 import { openDb, type Db } from "../../db";
 import * as assertions from "../../controlTables/assert";
+import * as accountMemberResources from "../../controlTables/accountMemberResources";
 import * as inviteRetention from "../../controlTables/inviteRetention";
 import * as inviteTokens from "../../controlTables/inviteTokens";
 import * as invites from "../../controlTables/invites";
@@ -117,6 +118,36 @@ function seedBothCompanies(db: Db): void {
     invites.createInvite(db, invite(accountId, `inv-${accountId}`, `token-${accountId}`));
     ownershipTransfers.insertRequest(db, request(accountId));
   }
+}
+
+function seedAssociationResources(): void {
+  for (const [accountId, resourceId] of [
+    [WAYNE, "r-wayne"],
+    [STARK, "r-stark"],
+  ] as const) {
+    db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, '#6366f1', ?, ?)`).run(
+      accountId,
+      accountId === WAYNE ? "Wayne Enterprises" : "Stark Industries",
+      NOW,
+      NOW,
+    );
+    db.prepare(
+      `INSERT INTO resources (id, accountId, kind, name, role, color, employmentType, engagement,
+       workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
+       VALUES (?, ?, 'person', ?, 'Engineer', '#6366f1', 'permanent', 'studio', 8, '[1,2,3,4,5]', '[]', ?, ?)`,
+    ).run(resourceId, accountId, accountId === WAYNE ? "Bruce Wayne" : "Tony Stark", NOW, NOW);
+  }
+}
+
+function seedAssociation(accountId: string, resourceId: string, revision: string): void {
+  db.prepare(
+    `INSERT INTO account_member_resources (accountId, userId, resourceId, revision, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(accountId, SHARED, resourceId, revision, NOW, NOW);
+}
+
+function starkAssociation(): unknown {
+  return db.prepare(`SELECT resourceId, revision FROM account_member_resources WHERE accountId = ?`).get(STARK);
 }
 
 function membershipOf(db: Db, accountId: string) {
@@ -386,6 +417,50 @@ describe("control-table writes stay inside their account: ending and bounding tr
   });
 });
 
+describe("account member/resource writes stay inside their account", () => {
+  beforeEach(() => {
+    seedBothCompanies(db);
+    seedAssociationResources();
+    seedAssociation(STARK, "r-stark", "stark-revision");
+  });
+
+  it("sets and clears only the named account association", () => {
+    const link = accountMemberResources.setAccountMemberResourceLink({
+      db,
+      accountId: WAYNE,
+      userId: SHARED,
+      resourceId: "r-wayne",
+      expectedRevision: null,
+      now: NOW,
+    });
+    expect(starkAssociation()).toEqual({ resourceId: "r-stark", revision: "stark-revision" });
+    accountMemberResources.clearAccountMemberResourceLink({
+      db,
+      accountId: WAYNE,
+      userId: SHARED,
+      expectedRevision: link.revision,
+    });
+    expect(starkAssociation()).toEqual({ resourceId: "r-stark", revision: "stark-revision" });
+  });
+
+  it("reconciles only the named account association", () => {
+    seedAssociation(WAYNE, "r-wayne", "wayne-revision");
+    db.prepare(`UPDATE resources SET kind = 'placeholder' WHERE accountId = ?`).run(WAYNE);
+    accountMemberResources.reconcileAccountMemberResources({ db, accountId: WAYNE });
+    expect(starkAssociation()).toEqual({ resourceId: "r-stark", revision: "stark-revision" });
+  });
+
+  it("scopes member, resource and account cleanup independently", () => {
+    seedAssociation(WAYNE, "r-wayne", "wayne-member");
+    accountMemberResources.removeAccountMemberResourceForMember(db, WAYNE, SHARED);
+    seedAssociation(WAYNE, "r-wayne", "wayne-resource");
+    accountMemberResources.removeAccountMemberResourceForResource(db, WAYNE, "r-wayne");
+    seedAssociation(WAYNE, "r-wayne", "wayne-account");
+    accountMemberResources.removeAccountMemberResourcesForAccount(db, WAYNE);
+    expect(starkAssociation()).toEqual({ resourceId: "r-stark", revision: "stark-revision" });
+  });
+});
+
 /**
  * The inventory: every export of every control-table module is classified, and every classification
  * that claims coverage is backed by a case above that still calls it.
@@ -394,6 +469,7 @@ describe("control-table writes stay inside their account: ending and bounding tr
  * and one module's decision must never silently classify another module's function.
  */
 const MODULES: Record<string, Record<string, unknown>> = {
+  accountMemberResources,
   assert: assertions,
   inviteRetention,
   inviteTokens,
@@ -416,6 +492,12 @@ const MODULES: Record<string, Record<string, unknown>> = {
 const CONTROL_TABLE_MODULES = Object.keys(MODULES).filter((name) => name !== "memberSignInTracking");
 
 const COVERED = new Set([
+  "accountMemberResources.setAccountMemberResourceLink",
+  "accountMemberResources.clearAccountMemberResourceLink",
+  "accountMemberResources.reconcileAccountMemberResources",
+  "accountMemberResources.removeAccountMemberResourceForMember",
+  "accountMemberResources.removeAccountMemberResourceForResource",
+  "accountMemberResources.removeAccountMemberResourcesForAccount",
   "members.upsertMember",
   "members.setMemberStatus",
   "members.removeMember",
@@ -436,6 +518,10 @@ const COVERED = new Set([
 
 /** Why each remaining export cannot carry one company's rows out of its own account. */
 const EXCLUDED = new Map<string, string>([
+  ["accountMemberResources.ACCOUNT_MEMBER_RESOURCES_SQL", "schema definition"],
+  ["accountMemberResources.ensureAccountMemberResources", "schema installer"],
+  ["accountMemberResources.listAccountMemberResourceLinks", "account-scoped read"],
+  ["accountMemberResources.listResourceAvatarProjection", "account-scoped privacy projection"],
   ["members.getMembershipRow", "read"],
   ["members.getMemberRole", "read"],
   ["members.getActiveMemberRole", "read"],
