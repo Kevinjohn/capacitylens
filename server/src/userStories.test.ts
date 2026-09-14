@@ -45,7 +45,36 @@ function trailingHeadingFragmentId(headingText: string): string | undefined {
 
 type Fence = { kind: "`" | "~"; length: number };
 
+function closingSequenceEnd(characters: string[], start: number, sequence: string): number {
+  const end = characters.length - sequence.length;
+  for (let index = start; index <= end; index++) {
+    if (characters.slice(index, index + sequence.length).join("") === sequence) {
+      return index + sequence.length - 1;
+    }
+  }
+  return -1;
+}
+
+function specialHtmlTagEnd(characters: string[], start: number): number | undefined {
+  if (characters[start] === "!" && characters[start + 1] === "-" && characters[start + 2] === "-") {
+    return closingSequenceEnd(characters, start + 3, "-->");
+  }
+  if (characters[start] === "?") {
+    return closingSequenceEnd(characters, start + 1, "?>");
+  }
+  if (
+    characters[start] === "!" &&
+    characters[start + 1] === "[" &&
+    characters.slice(start + 1, start + 8).join("") === "[CDATA["
+  ) {
+    return closingSequenceEnd(characters, start + 8, "]]>");
+  }
+  return undefined;
+}
+
 function completeHtmlTagEnd(characters: string[], start: number): number {
+  const specialEnd = specialHtmlTagEnd(characters, start);
+  if (specialEnd !== undefined) return specialEnd;
   let quote: "'" | '"' | undefined;
   for (let index = start; index < characters.length; index++) {
     const character = characters[index];
@@ -58,6 +87,15 @@ function completeHtmlTagEnd(characters: string[], start: number): number {
     }
   }
   return -1;
+}
+
+const htmlAttribute = String.raw`(?:\s+[a-zA-Z_:@][a-zA-Z0-9:._-]*(?:\s*=\s*(?:[^"'=<>\`\x00-\x20]+|'[^']*'|"[^"]*"))?)`;
+const validHtmlTag = new RegExp(
+  String.raw`^(?:<[A-Za-z][A-Za-z0-9-]*${htmlAttribute}*\s*/?>|<\/[A-Za-z][A-Za-z0-9-]*\s*>|<!---->|<!--(?:-?[^>-])(?:-?[^-])*-->|<[?][\s\S]*?[?]>|<![A-Z]+\s+[^>]*>|<!\[CDATA\[[\s\S]*?\]\]>)$`,
+);
+
+function isValidHtmlTag(tag: string): boolean {
+  return validHtmlTag.test(tag);
 }
 
 function stripHtmlLikeTags(text: string): string {
@@ -77,7 +115,13 @@ function stripHtmlLikeTags(text: string): string {
       output.push(...characters.slice(index));
       break;
     }
-    index = end + 1;
+    const tag = characters.slice(index, end + 1).join("");
+    if (isValidHtmlTag(tag)) {
+      index = end + 1;
+    } else {
+      output.push(character);
+      index++;
+    }
   }
   return output.join("");
 }
@@ -263,6 +307,22 @@ describe("documentation fragment validation", () => {
 
   it("removes complete tags while respecting quoted greater-than signs", () => {
     expect(documentationFragmentIds('## A <x title=">hello"> B')).toContain("a-b");
+  });
+
+  it("removes valid HTML constructs with greater-than signs in their content", () => {
+    expect(documentationFragmentIds("## A <!-- > --> B")).toContain("a-b");
+    expect(documentationFragmentIds("## A <? > ?> B")).toContain("a-b");
+    expect(documentationFragmentIds("## A <![CDATA[ > ]]> B")).toContain("a-b");
+  });
+
+  it.each([
+    ["Safe <not a tag?> End", "safe-not-a-tag-end"],
+    ["Safe <foo =bad> End", "safe-foo-bad-end"],
+    ["Safe <!broken> End", "safe-broken-end"],
+    ["Safe <?broken> End", "safe-broken-end"],
+    ["Safe </ broken> End", "safe-broken-end"],
+  ])("keeps malformed HTML-like syntax in the slug: %s", (heading, expectedId) => {
+    expect(documentationFragmentIds(`## ${heading}`)).toContain(expectedId);
   });
 });
 
