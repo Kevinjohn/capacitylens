@@ -17,6 +17,9 @@ function decodeFragment(fragment: string): string {
 }
 
 function headingId(text: string): string {
+  // Keep this in lockstep with VitePress 1.6.4's internal slugify implementation:
+  // NFKD accents, control/punctuation runs as one hyphen, and a leading numeric
+  // character receives an underscore. The slugger is not a public VitePress export.
   return text
     .replace(/\s+\{#[^}]+\}\s*$/, "")
     .replace(/<[^>]+>/g, "")
@@ -24,14 +27,22 @@ function headingId(text: string): string {
     .replace(/[`*_~]/g, "")
     .replace(/\s+#+\s*$/, "")
     .trim()
-    .toLocaleLowerCase("en-GB")
-    .replace(/[^\p{Letter}\p{Number}\s-]/gu, "")
-    .replace(/\s+/g, "-");
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036F]/g, "")
+    .replace(/\p{Cc}/gu, "")
+    .replace(/[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/^(\d)/, "_$1")
+    .toLowerCase();
+}
+
+function explicitFragmentIds(line: string): string[] {
+  return [...line.matchAll(/\{#([^\s}]+)\}/g)].map((match) => match[1]).filter((id): id is string => id !== undefined);
 }
 
 function markdownFragmentIds(source: string): string[] {
   const ids = new Set<string>();
-  const headings = new Map<string, number>();
   let inFence = false;
 
   for (const line of source.split(/\r?\n/)) {
@@ -41,18 +52,20 @@ function markdownFragmentIds(source: string): string[] {
     }
     if (inFence) continue;
 
-    for (const match of line.matchAll(/\{#([^\s}]+)\}/g)) {
-      const id = match[1];
-      if (id) ids.add(id);
+    const explicitIds = explicitFragmentIds(line);
+    for (const id of explicitIds) {
+      ids.add(id);
     }
 
     const heading = line.match(/^\s*#{1,6}\s+(.+?)\s*$/);
     if (!heading?.[1]) continue;
+    if (explicitIds.length > 0) continue;
     const id = headingId(heading[1]);
     if (!id) continue;
-    const count = headings.get(id) ?? 0;
-    headings.set(id, count + 1);
-    ids.add(count === 0 ? id : `${id}-${count}`);
+    let uniqueId = id;
+    let suffix = 1;
+    while (ids.has(uniqueId)) uniqueId = `${id}-${suffix++}`;
+    ids.add(uniqueId);
   }
 
   return [...ids];
@@ -143,10 +156,32 @@ describe("user-story catalogue", () => {
       expect(issues, `${file}: documentation target ${JSON.stringify(target)} is invalid`).toEqual([]);
     }
   });
+});
 
+describe("documentation fragment validation", () => {
   it("rejects the original #1060 numbered-list target shape", () => {
     const source = "## Steps\n\n3. **Understand what CapacityLens plans.** Read the guide.\n";
 
     expect(documentationFragmentIds(source)).not.toContain("understand-what-capacitylens-plans");
+  });
+
+  it.each([
+    ["Café", "cafe"],
+    ["A & B", "a-b"],
+    ["123 things", "_123-things"],
+  ])("matches VitePress heading slugging for %s", (heading, expectedId) => {
+    expect(documentationFragmentIds(`# ${heading}`)).toContain(expectedId);
+  });
+
+  it("adds numeric suffixes to duplicate heading slugs", () => {
+    expect(documentationFragmentIds("# Repeat\n## Repeat\n### Repeat")).toEqual(["repeat", "repeat-1", "repeat-2"]);
+  });
+
+  it("keeps explicit heading IDs and raw HTML anchors", () => {
+    const ids = documentationFragmentIds('## Company details {#calendar}\n<span id="raw-anchor"></span>');
+
+    expect(ids).toContain("calendar");
+    expect(ids).not.toContain("company-details");
+    expect(ids).toContain("raw-anchor");
   });
 });
