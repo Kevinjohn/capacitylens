@@ -48,6 +48,7 @@
     "policy:workflow-report:test": "node --test scripts/report-workflow-outcome.test.mjs",
     "ui:check": "node scripts/check-ui-primitives.mjs",
     "ui:registry": "pnpm dlx shadcn@4.16.0",
+    "check:push": "pnpm run format:check && pnpm run typecheck && pnpm run lint && pnpm run policy:file-sizes",
     "lint": "pnpm run paraglide:compile && eslint . --max-warnings 0",
     "lint:staged": "pnpm run paraglide:compile && lint-staged",
     "typecheck": "pnpm run paraglide:compile && tsc -b",
@@ -94,7 +95,7 @@
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm run lint:staged",
-    "pre-push": "pnpm run lint"
+    "pre-push": "pnpm run check:push"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
