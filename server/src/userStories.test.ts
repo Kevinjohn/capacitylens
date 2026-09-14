@@ -41,17 +41,39 @@ function trailingHeadingFragmentId(headingText: string): string | undefined {
   return headingText.match(/\s+\{#([^\s}]+)\}\s*$/)?.[1];
 }
 
-function markdownFragmentIds(source: string): string[] {
-  const ids = new Set<string>();
-  let inFence = false;
+type Fence = { kind: "`" | "~"; length: number };
+
+function nonFencedLines(source: string): string[] {
+  const lines: string[] = [];
+  let fence: Fence | undefined;
 
   for (const line of source.split(/\r?\n/)) {
-    if (/^\s*(```|~~~)/.test(line)) {
-      inFence = !inFence;
+    const marker = line.match(/^\s{0,3}(`{3,}|~{3,})(.*)$/);
+    if (fence) {
+      if (
+        marker &&
+        marker[1]?.[0] === fence.kind &&
+        marker[1].length >= fence.length &&
+        /^\s*$/.test(marker[2] ?? "")
+      ) {
+        fence = undefined;
+      }
       continue;
     }
-    if (inFence) continue;
+    if (marker?.[1]) {
+      fence = { kind: marker[1][0] as Fence["kind"], length: marker[1].length };
+      continue;
+    }
+    lines.push(line);
+  }
 
+  return lines;
+}
+
+function markdownFragmentIds(source: string): string[] {
+  const ids = new Set<string>();
+
+  for (const line of nonFencedLines(source)) {
     const heading = line.match(/^\s*#{1,6}\s+(.+?)\s*$/);
     if (!heading?.[1]) continue;
     const explicitId = trailingHeadingFragmentId(heading[1]);
@@ -72,9 +94,11 @@ function markdownFragmentIds(source: string): string[] {
 
 function htmlFragmentIds(source: string): string[] {
   const ids = new Set<string>();
-  for (const match of source.matchAll(/<[^>]+\b(?:id|name)\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))[^>]*>/giu)) {
-    const id = match[1] ?? match[2] ?? match[3];
-    if (id) ids.add(id);
+  for (const line of nonFencedLines(source)) {
+    for (const match of line.matchAll(/<[^>]+\b(?:id|name)\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s"'=<>`]+))[^>]*>/giu)) {
+      const id = match[1] ?? match[2] ?? match[3];
+      if (id) ids.add(id);
+    }
   }
   return [...ids];
 }
@@ -192,5 +216,51 @@ describe("documentation fragment validation", () => {
 
     expect(ids).not.toContain("ghost");
     expect(ids).toContain("discuss-ghost-syntax");
+  });
+});
+
+describe("Markdown fence filtering", () => {
+  it("ignores raw anchors inside fences and resumes after a legitimate close", () => {
+    const ids = documentationFragmentIds(
+      [
+        "```html",
+        "## Inside heading",
+        '<span id="inside-fence"></span>',
+        "```",
+        "## Outside heading",
+        '<span id="outside-fence"></span>',
+      ].join("\n"),
+    );
+
+    expect(ids).not.toContain("inside-fence");
+    expect(ids).not.toContain("inside-heading");
+    expect(ids).toContain("outside-fence");
+    expect(ids).toContain("outside-heading");
+  });
+
+  it("does not let a mismatched tilde sequence close a backtick fence", () => {
+    const ids = documentationFragmentIds(
+      ["```md", "~~~", '<span id="still-inside"></span>', "```", '<span id="outside-fence"></span>'].join("\n"),
+    );
+
+    expect(ids).not.toContain("still-inside");
+    expect(ids).toContain("outside-fence");
+  });
+
+  it("does not let a shorter backtick sequence close a longer fence", () => {
+    const ids = documentationFragmentIds(
+      [
+        "````md",
+        '<span id="still-inside"></span>',
+        "```",
+        '<span id="also-inside"></span>',
+        "````",
+        '<span id="outside-fence"></span>',
+      ].join("\n"),
+    );
+
+    expect(ids).not.toContain("still-inside");
+    expect(ids).not.toContain("also-inside");
+    expect(ids).toContain("outside-fence");
   });
 });
