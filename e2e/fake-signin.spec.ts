@@ -42,8 +42,11 @@ test.describe("fake sign-in (cosmetic demo gate)", () => {
       ),
     ).toEqual([]);
 
+    // Dismissal removes the orientation itself; the surrounding app was already usable behind it,
+    // so the schedule link is not evidence of the dismissal.
     await page.getByRole("button", { name: "Got it" }).click();
-    await expect(page.getByRole("link", { name: "Schedule" })).toBeVisible();
+    await expect(page.getByTestId("product-orientation")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toHaveCount(0);
   });
 
   test("staying signed in persists across reload; Sign out returns to the demo sign-in", async ({ page }) => {
