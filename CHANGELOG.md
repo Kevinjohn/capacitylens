@@ -14,6 +14,8 @@ new features and **patch** versions carry fixes.
   always be reopened from the sidebar (#837).
 - Organise Settings into Company setup, Scheduling features, My display, and Data and support,
   with compact responsive rows, clearer labels and visible company/device scope (#965).
+- Name the Settings build and persistence row so build stamps, feedback and diagnostic breadcrumbs
+  have a clear support context, and keep the personal Account controls outside Data and support (#1042).
 
 ### Added
 

@@ -55,10 +55,18 @@ export function SettingsBuildDetails({
   stamp,
   feedback,
 }: Pick<Controller, "serverMode" | "persistenceDiagnostics" | "stamp" | "feedback">) {
+  if (!serverMode && !stamp && !feedback) return null;
+
   return (
-    <>
+    <SettingsSection
+      title={m.settings_build_details_heading()}
+      description={m.settings_build_details_description()}
+      help={m.settings_build_details_help()}
+      testId="settings-build-details"
+      contentClassName="gap-0"
+    >
       {(stamp ?? feedback) && (
-        <p className="flex flex-wrap items-center gap-3 px-4 py-4 text-xs text-muted-foreground sm:px-6">
+        <p className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
           {stamp && <span data-testid="build-stamp">{stamp}</span>}
           {feedback && (
             <a data-testid="send-feedback" href={feedback} className="underline underline-offset-2 hover:text-ink">
@@ -68,7 +76,7 @@ export function SettingsBuildDetails({
         </p>
       )}
       {serverMode && (
-        <details className="px-4 py-4 text-xs text-muted-foreground sm:px-6" data-testid="persistence-diagnostics">
+        <details className="text-xs text-muted-foreground" data-testid="persistence-diagnostics">
           <summary className="cursor-pointer">{m.settings_persistence_diagnostics()}</summary>
           <p className="mt-1 font-mono [overflow-wrap:anywhere]">
             {m.settings_persistence_diagnostics_summary({
@@ -85,7 +93,7 @@ export function SettingsBuildDetails({
           </p>
         </details>
       )}
-    </>
+    </SettingsSection>
   );
 }
 
