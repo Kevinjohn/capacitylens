@@ -1033,7 +1033,7 @@
   "login_sso_unavailable": "No external sign-in provider is configured.",
   "login_setup_heading": "Set up the first Owner",
   "login_setup_intro": "Create your personal sign-in for this new installation. You’ll become its first Owner, then create the first company.",
-  "login_setup_external_hint": "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a CapacityLens password.",
+  "login_setup_external_hint": "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
   "login_name": "Your name",
   "login_setup_email": "Work email",
   "login_setup_password": "Create a password",

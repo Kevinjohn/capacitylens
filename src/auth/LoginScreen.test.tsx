@@ -334,7 +334,7 @@ function registerOwnerSetupDisplayTests() {
     expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a CapacityLens password.",
+        "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
       ),
     ).toBeInTheDocument();
   });
