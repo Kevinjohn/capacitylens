@@ -51,13 +51,13 @@ is authoritative at month and year boundaries.
 
 Example for Wednesday 3 June 2026 in a Monday-start company:
 
-| Column | Range |
-| --- | --- |
-| 1 | 3–7 June |
-| 2 | 8–14 June |
-| 3 | 15–21 June |
-| 4 | 22–28 June |
-| Weeks 5–8 | 29 June–26 July |
+| Column     | Range             |
+| ---------- | ----------------- |
+| 1          | 3–7 June          |
+| 2          | 8–14 June         |
+| 3          | 15–21 June        |
+| 4          | 22–28 June        |
+| Weeks 5–8  | 29 June–26 July   |
 | Weeks 9–12 | 27 July–23 August |
 
 ### Capacity calculations
