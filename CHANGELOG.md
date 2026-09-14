@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Simplify onboarding from first-Owner and company setup through the first useful schedule, with
+  plain-language labels, three outcome-based setup steps and a non-blocking explanation that can
+  always be reopened from the sidebar (#837).
 - Organise Settings into Company setup, Scheduling features, My display, and Data and support,
   with compact responsive rows, clearer labels and visible company/device scope (#965).
 

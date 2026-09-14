@@ -105,8 +105,8 @@ Read the [CapacityLens documentation](https://kevinjohn.github.io/capacitylens/)
 docs ship with the repository: open [`docs/index.html`](docs/) straight from a checkout — no server,
 no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitHub.
 
-- [Getting started](docs-src/getting-started/what-is-capacitylens.md) — the two-minute demo, the
-  Docker and direct Node installation routes, invites and roles.
+- [Getting started](docs-src/getting-started/what-is-capacitylens.md) — the two-minute demo,
+  installation routes, first Owner and schedule, invites and roles.
 - [Using CapacityLens](docs-src/guide/the-schedule.md) — the schedule, people and placeholders,
   projects and allocations, time off and settings.
 - [Company login (SSO)](docs-src/company-login/index.md) — connecting your provider and the guided

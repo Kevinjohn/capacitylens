@@ -25,9 +25,9 @@ session must restore exactly the normal flow.
 
 **Precondition:** a deploy with `CAPACITYLENS_AUTH=password`, and a user account created.
 On a **fresh instance with zero users** the login wall instead shows the one sign-up form
-that exists — the first-run **Create the owner account** screen (see REFERENCE.md
-“First-run owner setup”). The owner enters `SMALLSASS_ACCOUNT_SETUP_TOKEN` from the server
-`.env` file or installer; success continues to **Set up your company**. Once any user exists,
+that exists — **Set up the first Owner** (see REFERENCE.md “First-run owner setup”). It explains
+that this creates a personal sign-in with the Owner role. The Owner enters the one-time setup
+value supplied during installation; success continues to **Set up your company**. Once any user exists,
 self-registration closes automatically and only the Sign in form below is reachable. See
 [Configuration](/self-hosting/configuration#sign-in-mode) for the secure token handoff and removal.
 
@@ -47,7 +47,7 @@ self-registration closes automatically and only the Sign in form below is reacha
   when none are available, the documented first-company or invitation path is shown instead.
 - Account shows the signed-in identity and personal security controls only while signed in on an
   auth-enabled deploy; it never exposes credential controls with auth off or in local mode.
-- First-owner signup keeps the **Create the owner account** heading, names the exact setup-token
-  variable, and continues to first-company creation without suggesting that the owner request an invitation.
+- First-Owner signup uses **Your name**, **Work email**, **Create a password** and **Owner setup
+  token**, shows the password length requirement, and explains that teammates can be invited later.
 - Sign out invalidates the session (subsequent loads show Sign in again).
 - The Sign in screen passes an axe accessibility audit (no serious/critical violations).
