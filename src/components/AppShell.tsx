@@ -24,6 +24,7 @@ import { Button } from "./ui/button";
 import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
 import { retryActiveAccountLoad } from "../data/persist";
 import { chooseAnotherAccountAfterLoadFailure } from "./accountLoadRecoveryActions";
+import { formatInstant } from "@/lib/dateDisplay";
 
 const masqueradeButtonClassName = "border-white/70 bg-transparent text-white hover:bg-white/15 hover:text-white";
 
@@ -248,9 +249,7 @@ function GatedMain({
         <Alert role="status" data-testid="offline-read-only" className="rounded-none border-x-0 border-t-0">
           <AlertDescription>
             {m.app_offline_read_only({
-              updated: offline.lastUpdated
-                ? new Date(offline.lastUpdated).toLocaleString()
-                : m.app_offline_unknown_time(),
+              updated: offline.lastUpdated ? formatInstant(offline.lastUpdated) : m.app_offline_unknown_time(),
             })}
           </AlertDescription>
         </Alert>

@@ -97,6 +97,23 @@ it("shows the session-scoped masquerade banner above ordinary app alerts", () =>
   expect(
     banner.compareDocumentPosition(screen.getByTestId("offline-read-only")) & Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  expect(screen.getByTestId("offline-read-only")).toHaveTextContent(
+    new Date(Date.parse("2026-09-01T10:00:00.000Z")).toLocaleString(),
+  );
+});
+
+it("keeps the offline banner's unknown-time fallback when no snapshot timestamp exists", () => {
+  setOfflineReadState("tenant", true);
+  renderAppShell();
+
+  expect(screen.getByTestId("offline-read-only")).toHaveTextContent(m.app_offline_unknown_time());
+});
+
+it("keeps the offline banner's unknown-time fallback for a numeric zero timestamp", () => {
+  setOfflineReadState("tenant", true, 0);
+  renderAppShell();
+
+  expect(screen.getByTestId("offline-read-only")).toHaveTextContent(m.app_offline_unknown_time());
 });
 
 it("shows a fail-closed banner while a member view is starting", () => {
