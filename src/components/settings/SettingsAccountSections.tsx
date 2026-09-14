@@ -22,6 +22,7 @@ export function SettingsAccountOptions({
   return (
     <SettingsSection
       title={m.settings_account_options_heading()}
+      description={m.settings_company_details_scope()}
       help={
         <>
           <p>{m.settings_account_options_help()}</p>
@@ -30,7 +31,7 @@ export function SettingsAccountOptions({
       }
       contentClassName="gap-0"
     >
-      <table className="w-full text-sm">
+      <table className="w-full table-fixed text-sm">
         <tbody className="divide-y divide-line">
           {rows.map(([label, value], index) => (
             <tr key={label}>
@@ -57,7 +58,7 @@ export function SettingsBuildDetails({
   return (
     <>
       {(stamp ?? feedback) && (
-        <p className="flex items-center gap-3 text-xs text-muted-foreground">
+        <p className="flex flex-wrap items-center gap-3 px-4 py-4 text-xs text-muted-foreground sm:px-6">
           {stamp && <span data-testid="build-stamp">{stamp}</span>}
           {feedback && (
             <a data-testid="send-feedback" href={feedback} className="underline underline-offset-2 hover:text-ink">
@@ -67,9 +68,9 @@ export function SettingsBuildDetails({
         </p>
       )}
       {serverMode && (
-        <details className="text-xs text-muted-foreground" data-testid="persistence-diagnostics">
+        <details className="px-4 py-4 text-xs text-muted-foreground sm:px-6" data-testid="persistence-diagnostics">
           <summary className="cursor-pointer">{m.settings_persistence_diagnostics()}</summary>
-          <p className="mt-1 font-mono">
+          <p className="mt-1 font-mono [overflow-wrap:anywhere]">
             {m.settings_persistence_diagnostics_summary({
               failed: persistenceDiagnostics.savesFailed,
               retries: persistenceDiagnostics.retriesArmed,
@@ -98,6 +99,7 @@ export function SettingsDiagnostics({
   return (
     <SettingsSection
       title={m.settings_diagnostics_heading()}
+      description={m.settings_support_scope()}
       help={m.settings_diagnostics_help()}
       testId="settings-diagnostics"
     >

@@ -2,6 +2,8 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/settings-bar-labels.spec.ts` → "bars show client and project before the activity by default", "switches in Settings default on and strip the client, then the project, from bars"
 
+**Documentation:** [Settings](../../docs-src/guide/settings.md)
+
 ## Goal
 
 Decide whether each bar on the schedule names its client and/or project before the activity, so the helicopter view carries as much (or as little) context as the studio wants.
@@ -18,7 +20,7 @@ theme), not shared account data.
 **Precondition:** Seeded app open on the Schedule (clock inside the seed window — see _Seed data_ in REFERENCE.md).
 
 1. Find Bruce's **Wireframes** bar. Its label reads **Queen Consolidated · Project Watchtower · Wireframes · 8h**.
-2. Open **Settings** (sidebar). In the **Allocation bars** section, find the **Show client name** and **Show project name** switches — both on.
+2. Open **Settings** (sidebar). In the **Allocation labels on this device** section, find the **Show client name** and **Show project name** switches — both on.
 3. Switch **Show client name** off.
 4. Return to **Schedule**. The bar now reads **Project Watchtower · Wireframes · 8h**.
 5. Back in **Settings**, switch **Show project name** off too.
@@ -26,7 +28,7 @@ theme), not shared account data.
 
 ## Acceptance criteria
 
-- The Allocation bars section appears before Utilisation in Settings.
+- The Allocation labels on this device row appears before **Utilisation figures on this device** in **My display**.
 - Both switches default to **on** (`aria-checked="true"`).
 - With both on, a bar's label is `Client · Project · Activity` (then `· Nh` outside blocks mode).
 - Switching **Show client name** off removes only the client part; **Show project name** off removes only the project part; both off leaves just the activity.

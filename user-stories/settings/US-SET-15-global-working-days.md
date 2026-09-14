@@ -2,6 +2,8 @@
 
 **Area:** Settings and Schedule · **Persona:** Studio manager · **Linked E2E:** `e2e/global-working-days.spec.ts` → "sets company-wide working days and gates schedule creation starts"
 
+**Documentation:** [Settings](../../docs-src/guide/settings.md)
+
 ## Goal
 
 Choose the weekdays on which the company accepts new work so the schedule does not advertise or
@@ -15,7 +17,7 @@ than displaying a misleading add hint and opening a form that cannot represent a
 
 ## How (end-to-end)
 
-1. Open **Settings** and find **Company-wide working days**.
+1. Open **Settings** and find **Company setup → Company-wide working days**.
 2. Confirm one row of seven abbreviated weekday headings appears above one row of seven checkboxes,
    following the company's configured week start, with the first five selected for a new company.
 3. Clear **Friday**, then return to **Schedule**.

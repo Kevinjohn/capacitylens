@@ -50,6 +50,25 @@ function liveTableSpec(table: string): TableSpec {
   return spec;
 }
 
+const ACCOUNT_COLUMN_INTRODUCED_AT: Record<string, number> = {
+  groupResourcesByEngagement: 30,
+  workingDays: 31,
+  showTaskFieldInSchedule: 37,
+  capacityOverviewAccess: 39,
+  dateStyle: 40,
+};
+
+export function buildAccountsTableAtVersion(targetVersion: number): TableSpec {
+  const accounts = liveTableSpec("accounts");
+  return {
+    ...accounts,
+    columns: accounts.columns.filter((column) => {
+      const introducedAt = ACCOUNT_COLUMN_INTRODUCED_AT[column.name];
+      return introducedAt === undefined || introducedAt <= targetVersion;
+    }),
+  };
+}
+
 export const V8_TABLES = tableSpecsFromHistoricalSql(SCHEMA_V8_SQL);
 export const V9_TABLES = tableSpecsFromHistoricalSql(`${SCHEMA_V8_SQL}
 ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;`);
@@ -60,27 +79,8 @@ ALTER TABLE accounts ADD COLUMN showInternalActivities TEXT;
 ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;`);
 // Historical contracts let released migrations validate their own result without accidentally
 // requiring columns owned by a later migration.
-const V29_ACCOUNTS: TableSpec = {
-  ...liveTableSpec("accounts"),
-  columns: liveTableSpec("accounts").columns.filter(
-    (column) =>
-      column.name !== "groupResourcesByEngagement" &&
-      column.name !== "workingDays" &&
-      column.name !== "showTaskFieldInSchedule" &&
-      column.name !== "capacityOverviewAccess" &&
-      column.name !== "dateStyle",
-  ),
-};
-const V30_ACCOUNTS: TableSpec = {
-  ...liveTableSpec("accounts"),
-  columns: liveTableSpec("accounts").columns.filter(
-    (column) =>
-      column.name !== "workingDays" &&
-      column.name !== "showTaskFieldInSchedule" &&
-      column.name !== "capacityOverviewAccess" &&
-      column.name !== "dateStyle",
-  ),
-};
+const V29_ACCOUNTS = buildAccountsTableAtVersion(29);
+const V30_ACCOUNTS = buildAccountsTableAtVersion(30);
 const PRE_V35_ALLOCATIONS: TableSpec = {
   ...liveTableSpec("allocations"),
   columns: liveTableSpec("allocations").columns.filter(
@@ -105,15 +105,7 @@ const V32_TIME_OFF: TableSpec = {
 };
 const PRE_V37_TABLES: Record<string, TableSpec> = {
   ...TABLES,
-  accounts: {
-    ...liveTableSpec("accounts"),
-    columns: liveTableSpec("accounts").columns.filter(
-      (column) =>
-        column.name !== "showTaskFieldInSchedule" &&
-        column.name !== "capacityOverviewAccess" &&
-        column.name !== "dateStyle",
-    ),
-  },
+  accounts: buildAccountsTableAtVersion(36),
   allocations: {
     ...liveTableSpec("allocations"),
     columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "task"),
@@ -130,12 +122,7 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
 // precondition proves the exact released shape before adding its two columns.
 export const V37_TABLES: Record<string, TableSpec> = {
   ...TABLES,
-  accounts: {
-    ...liveTableSpec("accounts"),
-    columns: liveTableSpec("accounts").columns.filter(
-      (column) => column.name !== "capacityOverviewAccess" && column.name !== "dateStyle",
-    ),
-  },
+  accounts: buildAccountsTableAtVersion(37),
   resources: {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
@@ -146,57 +133,22 @@ export const V37_TABLES: Record<string, TableSpec> = {
 /** Released v38 shape before the Capacity Overview access preference is added. */
 export const V38_TABLES: Record<string, TableSpec> = {
   ...TABLES,
-  accounts: {
-    ...liveTableSpec("accounts"),
-    columns: liveTableSpec("accounts").columns.filter(
-      (column) => column.name !== "capacityOverviewAccess" && column.name !== "dateStyle",
-    ),
-  },
+  accounts: buildAccountsTableAtVersion(38),
 };
 /** Released v39 shape before the account-wide date format is added. */
 export const V39_TABLES: Record<string, TableSpec> = {
   ...TABLES,
-  accounts: {
-    ...liveTableSpec("accounts"),
-    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "dateStyle"),
-  },
+  accounts: buildAccountsTableAtVersion(39),
 };
 /**
- * Released v40 shape. Nothing is excluded yet, because v40 is the newest migration — so today this
- * is the live spec, and the next migration that adds an `accounts` column must filter it out here
- * for its own `assertSchemaV40` pre-condition to hold. That editing step is what keeps v40's
- * post-condition tied to the shape v40 produced rather than to a still-moving `TABLES`.
- *
- * Forgetting it is the failure mode, so it is not left to memory: `V40_ACCOUNT_COLUMNS` below
- * spells the column names out, and `db.migrate.test.ts` asserts the live `accounts` spec still
- * matches. A v41 column fails that test at the moment it is added, naming this file.
+ * Released v40 shape. The account columns are derived at the v40 boundary, so a later account
+ * migration only needs to add its column and introduction version to the map above.
  */
-export const V40_TABLES: Record<string, TableSpec> = { ...TABLES };
+export const V40_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  accounts: buildAccountsTableAtVersion(40),
+};
 
-/** The `accounts` columns as released at v40, written out rather than derived. */
-export const V40_ACCOUNT_COLUMNS = [
-  "id",
-  "name",
-  "color",
-  "schedulingMode",
-  "timezone",
-  "weekStartsOn",
-  "workingDays",
-  "language",
-  "disciplinesEnabled",
-  "groupResourcesByEngagement",
-  "placeholdersEnabled",
-  "externalEnabled",
-  "internalColourMode",
-  "showInternalProjects",
-  "showInternalActivities",
-  "inlineActivityCreateEnabled",
-  "showTaskFieldInSchedule",
-  "capacityOverviewAccess",
-  "dateStyle",
-  "createdAt",
-  "updatedAt",
-] as const;
 const PRE_V34_TABLES = Object.fromEntries(
   Object.entries(PRE_V37_TABLES).filter(([key]) => key !== "closures"),
 ) as Record<string, TableSpec>;
