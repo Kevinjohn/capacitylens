@@ -87,25 +87,66 @@ function isValidHtmlTag(tag: string): boolean {
 }
 
 const attribute = /^\s+([a-zA-Z_:@][a-zA-Z0-9:._-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^"'=<>`\s]+)))?/;
+const namedCharacterReferences: Record<string, string> = {
+  amp: "&",
+  apos: "'",
+  copy: "©",
+  gt: ">",
+  hellip: "…",
+  laquo: "«",
+  ldquo: "“",
+  lt: "<",
+  mdash: "—",
+  nbsp: "\u00a0",
+  ndash: "–",
+  quot: '"',
+  raquo: "»",
+  rdquo: "”",
+  reg: "®",
+  trade: "™",
+};
 
-function rawIdFromAttributes(source: string): string | undefined {
+function decodeNumericCharacterReference(reference: string): string | undefined {
+  const hexadecimal = reference[0]?.toLowerCase() === "x";
+  const value = Number.parseInt(reference.slice(hexadecimal ? 1 : 0), hexadecimal ? 16 : 10);
+  if (!Number.isInteger(value) || value < 0 || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) {
+    return undefined;
+  }
+  return String.fromCodePoint(value);
+}
+
+function decodeHtmlAttributeValue(value: string): string {
+  return value.replace(
+    /&(?:#(x?[0-9a-f]+)|([a-z][a-z0-9]+));/gi,
+    (reference: string, numeric: string | undefined, named: string | undefined) => {
+      if (numeric) return decodeNumericCharacterReference(numeric) ?? reference;
+      return named ? (namedCharacterReferences[named.toLowerCase()] ?? reference) : reference;
+    },
+  );
+}
+
+function rawIdsFromAttributes(source: string, tagName: string): string[] {
+  const ids: string[] = [];
   let remainder = source;
   while (remainder.trim()) {
     const match = remainder.match(attribute);
-    if (!match) return undefined;
-    if (match[1]?.toLowerCase() === "id" || match[1]?.toLowerCase() === "name") {
-      return match[2] ?? match[3] ?? match[4];
+    if (!match) return [];
+    const name = match[1]?.toLowerCase();
+    const value = match[2] ?? match[3] ?? match[4];
+    if (value && (name === "id" || (name === "name" && tagName === "a"))) {
+      ids.push(decodeHtmlAttributeValue(value));
     }
     remainder = remainder.slice(match[0].length);
   }
-  return undefined;
+  return ids;
 }
 
-function rawIdFromTag(tag: string): string | undefined {
-  if (!isValidHtmlTag(tag) || !/^<[A-Za-z]/.test(tag)) return undefined;
-  const openingTag = tag.match(/^<[A-Za-z][A-Za-z0-9-]*/)?.[0];
-  if (!openingTag) return undefined;
-  return rawIdFromAttributes(tag.slice(openingTag.length, -1).replace(/\/\s*$/, ""));
+function rawIdsFromTag(tag: string): string[] {
+  if (!isValidHtmlTag(tag) || !/^<[A-Za-z]/.test(tag)) return [];
+  const openingTag = tag.match(/^<([A-Za-z][A-Za-z0-9-]*)/)?.[0];
+  const tagName = tag.match(/^<([A-Za-z][A-Za-z0-9-]*)/)?.[1]?.toLowerCase();
+  if (!openingTag || !tagName) return [];
+  return rawIdsFromAttributes(tag.slice(openingTag.length, -1).replace(/\/\s*$/, ""), tagName);
 }
 
 function rawIdsFromHtmlToken(content: string): string[] {
@@ -118,8 +159,7 @@ function rawIdsFromHtmlToken(content: string): string[] {
     }
     const end = completeHtmlTagEnd(characters, index + 1);
     if (end === -1) break;
-    const id = rawIdFromTag(characters.slice(index, end + 1).join(""));
-    if (id) ids.push(id);
+    ids.push(...rawIdsFromTag(characters.slice(index, end + 1).join("")));
     index = end + 1;
   }
   return ids;
@@ -332,13 +372,22 @@ describe("Markdown token fragment parity", () => {
         '<span data-id="wrong" title="id=wrong" id="right"></span>',
         '<span title=">hello" id="quoted-anchor"></span>',
         '<span\n id=multiline-anchor\n title="hello">\n</span>',
+        '<a id="modern" name="legacy"></a>',
+        '<span name="ghost-name"></span>',
+        '<a id="" id="later" name=""></a>',
+        '<span id="a&amp;b"></span>',
       ].join("\n"),
     );
 
     expect(ids).toContain("right");
     expect(ids).toContain("quoted-anchor");
     expect(ids).toContain("multiline-anchor");
+    expect(ids).toContain("modern");
+    expect(ids).toContain("legacy");
+    expect(ids).toContain("later");
+    expect(ids).toContain("a&b");
     expect(ids).not.toContain("wrong");
+    expect(ids).not.toContain("ghost-name");
   });
 });
 
