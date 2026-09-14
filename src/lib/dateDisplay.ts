@@ -323,10 +323,12 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
 
 // ─── Instants ────────────────────────────────────────────────────────────────
 // The two above render calendar DAYS (an `ISODate`, no clock, no zone). The two below render an
-// INSTANT — a full ISO timestamp from the server (an invite's expiry, a session's creation) — on the
-// VIEWER'S OWN wall clock. That conversion is the whole point: the alternative these replaced was a
-// `.slice(0, 10)` of the raw UTC string, which misreads by up to a day either side of midnight for
-// anyone outside UTC.
+// INSTANT — a server timestamp (an invite's expiry, a session's creation) — on the VIEWER'S OWN
+// wall clock. `formatInstant` accepts the string wire values and numeric epoch values used by local
+// read-only snapshots; `formatInstantDate` remains string-input because it serves server invite
+// dates. That conversion is the whole point: the alternative these replaced was a `.slice(0, 10)`
+// of the raw UTC string, which misreads by up to a day either side of midnight for anyone outside
+// UTC.
 //
 // WHY `Intl` (toLocale*) here rather than date-fns + `readActiveDateLocale()` like the day formatters:
 // `readActiveDateLocale()` returns a date-fns `Locale` OBJECT, which is not a BCP-47 tag and cannot be
@@ -350,11 +352,11 @@ export function formatDayCount(start: ISODate, end: ISODate): string {
  * misleads by up to a day in a non-UTC zone and hides the hour the thing dies. Use this whenever the
  * reader may need to act before the deadline today.
  *
- * @param iso - an ISO 8601 instant from the server.
+ * @param instant - an ISO 8601 instant or numeric epoch milliseconds.
  * @returns the instant on the viewer's wall clock, date + time.
  */
-export function formatInstant(iso: string): string {
-  return new Date(iso).toLocaleString();
+export function formatInstant(instant: string | number): string {
+  return new Date(instant).toLocaleString();
 }
 
 /**
@@ -365,9 +367,9 @@ export function formatInstant(iso: string): string {
  * time nobody plans around. Still resolved on the viewer's local calendar (that is the part slicing
  * the UTC string got wrong); only the hour is dropped.
  *
- * @param iso - an ISO 8601 instant from the server.
+ * @param instant - an ISO 8601 instant from the server.
  * @returns the instant's date on the viewer's local calendar, no time.
  */
-export function formatInstantDate(iso: string): string {
-  return new Date(iso).toLocaleDateString();
+export function formatInstantDate(instant: string): string {
+  return new Date(instant).toLocaleDateString();
 }
