@@ -827,17 +827,17 @@ message because their on-demand module graph cannot provide a complete, immutabl
 offline promotion.
 
 **Build stamp + feedback link (Settings, flag-gated).** When the build sets
-`VITE_CAPACITYLENS_BUILD_SHA`, the Settings page includes a muted one-line footer near the bottom containing the
+`VITE_CAPACITYLENS_BUILD_SHA`, the **Build details** row in Settings → **Data and support** includes a muted one-line stamp containing the
 stamp (`data-testid="build-stamp"`) reading `build <sha> · server` (a server backend is
 configured, i.e. `VITE_CAPACITYLENS_API` was baked in) or `build <sha> · demo` (in-memory
 mode). When the build also sets `VITE_CAPACITYLENS_FEEDBACK_MAILTO`, a **Send feedback** link
 (`data-testid="send-feedback"`) sits beside the stamp — a `mailto:` whose subject carries
 the build stamp, so reports arrive pinned to a build. The build value must be one valid email
 address; invalid build configuration is rejected, and the address is safely encoded into the URI.
-The default dev/local build leaves both variables unset and renders **nothing** — the seeded state
-these stories run against has no footer at all.
+The default dev/local build leaves both variables unset; the row still exposes server-mode persistence
+diagnostics, while a demo build with no stamp or feedback leaves the row absent.
 
-**Persistence diagnostics (Settings, server mode).** A collapsed **Persistence diagnostics**
+**Persistence diagnostics (Settings → Data and support → Build details, server mode).** A collapsed **Persistence diagnostics**
 disclosure (`data-testid="persistence-diagnostics"`) reports process-local, privacy-safe counts for
 failed saves, armed retries, completed reconciliations, superseded reloads, rebased edits and
 discarded edits, plus whether writes are currently suspended. It contains counts and state only—no
@@ -1359,8 +1359,8 @@ carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Se
 30-day grace elapses, purge-tier/admin-only),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy; absent in the default OFF/local deploy and for any non-viewer role),
-`persistence-diagnostics` (Settings diagnostics disclosure; server mode), `copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `build-stamp` (Settings footer; only rendered when the build sets
-`VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
+`persistence-diagnostics` (Settings → Build details disclosure; server mode), `copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
+`VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings → Build details mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
 `r-ph-designer`, `r-ext-northstar` (external party), `p-acme` (Project Watchtower), `p-brand` (Metropolis Rebrand), `t-wires`.
