@@ -67,4 +67,17 @@ test("shows strategic periods in a focusable table region without toolbar overfl
   expect(regionOverflow.scrollWidth).toBeGreaterThan(regionOverflow.clientWidth);
   await region.focus();
   await expect(region).toBeFocused();
+
+  const initialScrollLeft = await region.evaluate((element) => element.scrollLeft);
+  await region.press("ArrowRight");
+  const afterArrowScrollLeft = await region.evaluate((element) => element.scrollLeft);
+  expect(afterArrowScrollLeft).toBeGreaterThan(initialScrollLeft);
+
+  for (let press = 0; press < 20; press += 1) await region.press("ArrowRight");
+  const finalColumn = region.getByRole("columnheader", { name: "Weeks 9–12, 27 Jul – 23 Aug" });
+  const [regionBox, finalColumnBox] = await Promise.all([region.boundingBox(), finalColumn.boundingBox()]);
+  expect(regionBox).not.toBeNull();
+  expect(finalColumnBox).not.toBeNull();
+  expect(finalColumnBox!.x).toBeGreaterThanOrEqual(regionBox!.x);
+  expect(finalColumnBox!.x + finalColumnBox!.width).toBeLessThanOrEqual(regionBox!.x + regionBox!.width);
 });
