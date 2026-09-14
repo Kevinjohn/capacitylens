@@ -69,9 +69,10 @@ describe("SettingsView — grouped information architecture", () => {
     ]) {
       expect(within(display).getByRole("heading", { name: heading, level: 3 })).toBeVisible();
     }
-    for (const heading of ["Device data", "Import and export", "Company details", "Diagnostics"]) {
+    for (const heading of ["Device data", "Import and export", "Company details", "Build details", "Diagnostics"]) {
       expect(within(support).getByRole("heading", { name: heading, level: 3 })).toBeVisible();
     }
+    expect(within(support).getByTestId("settings-build-details")).toBeVisible();
     expect(within(support).getByText(/Read-only company details/)).toBeVisible();
     expect(within(support).getByText(/Support information/)).toBeVisible();
   });
