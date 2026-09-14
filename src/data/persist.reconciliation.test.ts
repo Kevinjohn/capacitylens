@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { attachPersistence, ReloadDiscardedEditError, flushPendingWrites } from "./persist";
+import { attachPersistence, ReloadDiscardedEditError, flushPendingWrites, switchAndAwaitHydration } from "./persist";
 import {
   BatchCommitUncertainError,
   BatchConflictError,
@@ -12,7 +12,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { resetStoreWithAccount } from "../test/fixtures";
 import { readPersistenceDiagnosticsSnapshot } from "./persistenceDiagnostics";
-import { requireCallback, recordingAdapter, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
+import { deferredSignal, requireCallback, recordingAdapter, a2Slice, attachActiveA2 } from "./__tests__/persistTestKit";
 
 beforeEach(() => {
   localStorage.clear();
@@ -26,10 +26,12 @@ async function attachHeldLossSwitch() {
     ...emptyAppData(),
     accounts: [{ id: "b1", name: "Beta Two", color: "#1", createdAt: "t", updatedAt: "t" }],
   };
+  const loadStarted = deferredSignal();
   let release: (() => void) | null = null;
   const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
     if (accountId !== "b1") return Promise.resolve(a2Slice());
     return new Promise<AppData>((resolve) => {
+      loadStarted.resolve();
       release = () => resolve(bSlice);
     });
   });
@@ -49,9 +51,14 @@ async function attachHeldLossSwitch() {
     serverMode: true,
   });
   useStore.getState().setActiveAccount("a2");
-  await vi.advanceTimersByTimeAsync(5);
+  try {
+    await vi.waitFor(() => expect(loadAll).toHaveBeenCalledWith("a2"));
+  } catch (error) {
+    detach();
+    throw error;
+  }
   const readReleaseB = () => release;
-  return { detach, onError, readReleaseB, saveAll };
+  return { detach, loadStarted, onError, readReleaseB, saveAll };
 }
 
 async function attachRecoverableAccountSwitch() {
@@ -77,27 +84,30 @@ async function attachRecoverableAccountSwitch() {
     onSuccess: onSuccess,
     serverMode: true,
   });
-  useStore.getState().setActiveAccount("a2");
-  await new Promise((resolve) => setTimeout(resolve, 5));
-  return { detach, loadAll, onSuccess, saveAll };
+  try {
+    await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" });
+    return { detach, loadAll, onError, onSuccess, saveAll };
+  } catch (error) {
+    detach();
+    throw error;
+  }
 }
 
 describe("a successful reload clears the failure state (cross-tenant leak + stuck banner)", () => {
   it("a successful TENANT SWITCH clears the prior tenant's failed-write state — B's import/refresh are not blocked by A", async () => {
-    const { detach, loadAll, onSuccess, saveAll } = await attachRecoverableAccountSwitch();
+    const { detach, loadAll, onError, onSuccess, saveAll } = await attachRecoverableAccountSwitch();
 
     // A's write fails → the failure state is up (import blocked, focus refresh suppressed).
     saveAll.mockRejectedValueOnce(new Error("server down"));
     useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
     expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
 
     // Switching to B succeeds: B's writes are clean BY CONSTRUCTION (fresh authoritative slice,
     // snapshot re-seeded) — A's abandoned failure must not follow the user into B.
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     onSuccess.mockClear();
-    useStore.getState().setActiveAccount("b1");
-    await new Promise((r) => setTimeout(r, 5));
+    await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "reloaded" });
     expect(await flushPendingWrites()).toEqual({ kind: "clean" }); // an import in B is no longer falsely blocked
     expect(onSuccess).toHaveBeenCalled(); // and the "changes aren't saving" banner came down
 
@@ -105,7 +115,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
     const loadsBefore = loadAll.mock.calls.length;
     now.mockReturnValue(131_000);
     window.dispatchEvent(new Event("focus"));
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() => expect(loadAll.mock.calls.length).toBe(loadsBefore + 1));
     expect(loadAll.mock.calls.length).toBe(loadsBefore + 1);
     detach();
     now.mockRestore();
@@ -118,7 +128,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
     // A's failure must not survive into the reload and fire mid-/post-load with A's stale tree.
     vi.useFakeTimers();
     try {
-      const { detach, onError, readReleaseB, saveAll } = await attachHeldLossSwitch();
+      const { detach, loadStarted, onError, readReleaseB, saveAll } = await attachHeldLossSwitch();
 
       saveAll.mockRejectedValue(new Error("server down")); // every save now fails
       useStore.getState().addClient({ name: "Doomed in A", color: "#222222" });
@@ -127,7 +137,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
 
       saveAll.mockResolvedValue(undefined); // the connection heals — but A's edit is already lost
       useStore.getState().setActiveAccount("b1");
-      await vi.advanceTimersByTimeAsync(5);
+      await loadStarted.promise;
       const releaseB = readReleaseB();
       expect(releaseB).not.toBeNull();
       const midSwitchEdit = useStore.getState().addClient({ name: "New in B", color: "#333333" });
@@ -373,18 +383,22 @@ describe("batch reconciliation (authoritative reload)", () => {
     hold = true; // the resolution reload will now be held open
 
     useStore.getState().addClient({ name: "Conflicted", color: "#222222" }); // immediate save → 409
-    await new Promise((r) => setTimeout(r, 5));
-    expect(release).not.toBeNull(); // resolution reload in flight
+    await vi.waitFor(() => expect(release).not.toBeNull()); // resolution reload in flight
 
     // A second edit lands while the reload is on the wire. (In this immediate-save configuration
     // its own save fires at edit time — pre-seed, so harmless; the danger is a save AFTER the
     // reload installed the slice re-pushing the pre-reload tree.)
     useStore.getState().addClient({ name: "During reload", color: "#333333" });
-    await new Promise((r) => setTimeout(r, 5));
     const savesBeforeReloadSettled = saveAll.mock.calls.length;
 
     requireCallback(release, "conflict reload release")(); // the reload resolves LAST
-    await new Promise((r) => setTimeout(r, 5));
+    await vi.waitFor(() =>
+      expect(useStore.getState().data.clients.map((client) => client.name)).toEqual([
+        "Stark Industries",
+        "Internal",
+        "During reload",
+      ]),
+    );
 
     const names = useStore.getState().data.clients.map((c) => c.name);
     expect(names).toEqual(["Stark Industries", "Internal", "During reload"]);
