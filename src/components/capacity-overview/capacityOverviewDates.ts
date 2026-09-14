@@ -52,16 +52,3 @@ export function buildCapacityOverviewPeriods({
     return { index, key, start, end, partial: index === 0 };
   });
 }
-
-export interface BuildCapacityOverviewWeeksInput {
-  today: ISODate;
-  weekStartsOn?: 0 | 1;
-}
-
-/** Build the fixed four-column planning window from the account's calendar week. */
-export function buildCapacityOverviewWeeks({
-  today,
-  weekStartsOn = 1,
-}: BuildCapacityOverviewWeeksInput): CapacityOverviewPeriod[] {
-  return buildCapacityOverviewPeriods({ today, weekStartsOn });
-}

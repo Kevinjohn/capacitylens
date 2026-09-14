@@ -113,7 +113,7 @@ function GroupHeader({
   height: number;
   showTotals: boolean;
 }) {
-  const periods = group.summary.periods ?? group.summary.weeks;
+  const periods = group.summary.periods;
   return (
     <TableRow
       data-testid="capacity-overview-group"
@@ -232,7 +232,7 @@ function CapacityTableBody({
             />
             {!collapsed &&
               group.rows.map((row) => {
-                const rowPeriods = row.periods ?? row.weeks;
+                const rowPeriods = row.periods;
                 return (
                   <TableRow key={row.resource.id} className="bg-scheduler-canvas" style={{ height: rowHeight }}>
                     <TableHead scope="row" className="h-auto min-w-0 whitespace-normal px-4 font-normal">
@@ -245,7 +245,7 @@ function CapacityTableBody({
                     </TableHead>
                     {rowPeriods.map((result) => (
                       <PeriodValuesCell
-                        key={result.period?.key ?? result.week.key}
+                        key={result.period.key}
                         result={result}
                         capacityDisplayMode={capacityDisplayMode}
                       />
@@ -258,10 +258,7 @@ function CapacityTableBody({
       })}
       {!hasRows && (
         <TableRow>
-          <TableCell
-            colSpan={(model.periods ?? model.weeks).length + 1}
-            className="py-8 text-center text-muted-foreground"
-          >
+          <TableCell colSpan={model.periods.length + 1} className="py-8 text-center text-muted-foreground">
             {m.capacity_overview_no_people()}
           </TableCell>
         </TableRow>
@@ -283,7 +280,7 @@ export function CapacityTable({
 } & PersonScheduleTriggerHandlers) {
   const density = useSchedulerDensity();
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
-  const periods = model.periods ?? model.weeks;
+  const periods = model.periods;
   const toggleGroup = (key: string) =>
     setCollapsedGroups((current) => {
       const next = new Set(current);
