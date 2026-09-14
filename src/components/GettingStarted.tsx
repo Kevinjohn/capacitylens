@@ -23,12 +23,14 @@ function StepRow({
   to,
   help,
   children,
+  focusRef,
 }: {
   done: boolean;
   label: string;
   to?: string;
   help: string;
   children?: React.ReactNode;
+  focusRef?: React.Ref<HTMLDivElement> | undefined;
 }) {
   let labelContent = <span className="font-medium text-ink">{label}</span>;
   if (done) {
@@ -52,7 +54,11 @@ function StepRow({
       ) : (
         <span aria-hidden="true" className="mt-1 size-3.5 shrink-0 rounded-full border border-line" />
       )}
-      <div className="min-w-0">
+      <div
+        ref={focusRef}
+        className="min-w-0"
+        {...(focusRef ? { tabIndex: -1, "aria-label": label, "data-testid": "first-incomplete-milestone" } : {})}
+      >
         {labelContent}
         {!done && <p className="text-xs text-muted-foreground">{help}</p>}
         {!done && children}
@@ -88,10 +94,15 @@ function GettingStartedCard({ accountId }: { accountId: string | null }) {
     setProgress(next);
   };
 
-  if (isGettingStartedComplete(steps, progress)) return null;
   const showMilestones =
     progress.started || progress.importChosen || progress.scratchChosen || hasExistingSetupData(data, steps);
   const canImport = activeRole === null || activeRole === "owner";
+  const { milestoneFocusRef, requestMilestoneFocus } = useManualMilestoneFocus(showMilestones);
+  const chooseManual = () => {
+    requestMilestoneFocus();
+    choosePath({ scratchChosen: true });
+  };
+  if (isGettingStartedComplete(steps, progress)) return null;
 
   return (
     <Card aria-label={m.gs_title()} data-testid="getting-started" className="getting-started-popover gap-4 py-4">
@@ -102,20 +113,7 @@ function GettingStartedCard({ accountId }: { accountId: string | null }) {
       <CardContent className="flex flex-col gap-3 px-4">
         {showMilestones ? (
           <>
-            <ol className="flex flex-col gap-3">
-              <StepRow done={steps.person} label={m.gs_step_person()} to="/resources" help={m.gs_step_person_help()} />
-              <StepRow done={steps.work} label={m.gs_step_work()} to="/activities" help={m.gs_step_work_help()}>
-                <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-                  <Link to="/clients" className="underline-offset-2 hover:text-brand hover:underline">
-                    {m.gs_add_client()}
-                  </Link>
-                  <Link to="/projects" className="underline-offset-2 hover:text-brand hover:underline">
-                    {m.gs_add_project()}
-                  </Link>
-                </span>
-              </StepRow>
-              <StepRow done={steps.scheduled} label={m.gs_step_schedule()} help={m.gs_step_schedule_help()} />
-            </ol>
+            <FirstUseMilestones steps={steps} focusRef={milestoneFocusRef} />
             <SupportingActions
               activeRole={activeRole}
               {...(canImport ? { importAction: () => choosePath({ importChosen: true }) } : {})}
@@ -126,7 +124,7 @@ function GettingStartedCard({ accountId }: { accountId: string | null }) {
             <SetupChoices
               canImport={canImport}
               onImport={() => choosePath({ importChosen: true })}
-              onManual={() => choosePath({ scratchChosen: true })}
+              onManual={chooseManual}
             />
             <SupportingActions activeRole={activeRole} />
           </>
@@ -147,6 +145,66 @@ function GettingStartedCard({ accountId }: { accountId: string | null }) {
         </Button>
       </CardFooter>
     </Card>
+  );
+}
+
+function useManualMilestoneFocus(showMilestones: boolean) {
+  const focusAfterManual = useRef(false);
+  const milestoneFocusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showMilestones || !focusAfterManual.current) return;
+    focusAfterManual.current = false;
+    milestoneFocusRef.current?.focus();
+  }, [showMilestones]);
+  return { milestoneFocusRef, requestMilestoneFocus: () => (focusAfterManual.current = true) };
+}
+
+function firstIncompleteOutcome(steps: ReturnType<typeof buildGettingStartedSteps>) {
+  if (!steps.person) return "person";
+  if (!steps.work) return "work";
+  return "scheduled";
+}
+
+function FirstUseMilestones({
+  steps,
+  focusRef,
+}: {
+  steps: ReturnType<typeof buildGettingStartedSteps>;
+  focusRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const firstIncomplete = firstIncompleteOutcome(steps);
+  return (
+    <ol className="flex flex-col gap-3">
+      <StepRow
+        done={steps.person}
+        label={m.gs_step_person()}
+        to="/resources"
+        help={m.gs_step_person_help()}
+        {...(firstIncomplete === "person" ? { focusRef } : {})}
+      />
+      <StepRow
+        done={steps.work}
+        label={m.gs_step_work()}
+        to="/activities"
+        help={m.gs_step_work_help()}
+        {...(firstIncomplete === "work" ? { focusRef } : {})}
+      >
+        <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          <Link to="/clients" className="underline-offset-2 hover:text-brand hover:underline">
+            {m.gs_add_client()}
+          </Link>
+          <Link to="/projects" className="underline-offset-2 hover:text-brand hover:underline">
+            {m.gs_add_project()}
+          </Link>
+        </span>
+      </StepRow>
+      <StepRow
+        done={steps.scheduled}
+        label={m.gs_step_schedule()}
+        help={m.gs_step_schedule_help()}
+        {...(firstIncomplete === "scheduled" ? { focusRef } : {})}
+      />
+    </ol>
   );
 }
 

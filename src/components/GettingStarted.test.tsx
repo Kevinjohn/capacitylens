@@ -55,6 +55,25 @@ describe("GettingStarted first-use outcomes", () => {
     expect(screen.getByRole("link", { name: "Add a project" })).toHaveAttribute("href", "/projects");
   });
 
+  it("moves keyboard focus to the first milestone only after manual setup is activated", async () => {
+    const user = userEvent.setup();
+    renderChecklist("editor");
+    const manual = screen.getByRole("button", { name: "Set up manually" });
+    manual.focus();
+    await user.keyboard("{Enter}");
+    await vi.waitFor(() => expect(screen.getByTestId("first-incomplete-milestone")).toHaveFocus());
+    expect(screen.getByTestId("first-incomplete-milestone")).toHaveAccessibleName("Add someone to the schedule");
+  });
+
+  it("does not move focus when background data reveals the milestones", async () => {
+    renderChecklist("editor");
+    const tour = screen.getByRole("button", { name: "Show me around" });
+    tour.focus();
+    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#2d75da" });
+    await vi.waitFor(() => expect(screen.getByTestId("first-incomplete-milestone")).toBeVisible());
+    expect(tour).toHaveFocus();
+  });
+
   it("explains schedule people, work hierarchy, scheduling, import, settings and sign-in access", async () => {
     const user = userEvent.setup();
     renderChecklist("owner");

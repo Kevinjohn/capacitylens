@@ -1,6 +1,7 @@
 import type { AppData } from "@capacitylens/shared/types/entities";
 import { STORAGE_KEY_PREFIX } from "@capacitylens/shared/brand";
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
+import { lifecycleStatus } from "@capacitylens/shared/domain/lifecycle";
 
 // Pure derivation for the first-run "Getting started" checklist (components/GettingStarted.tsx):
 // which useful first-use outcomes the active account has completed, read straight off scoped data.
@@ -24,14 +25,12 @@ export interface GettingStartedSteps {
 export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   const people = new Set(
     data.resources
-      .filter((resource) => !resource.archivedAt && !resource.deletedAt && resource.kind === "person")
+      .filter((resource) => lifecycleStatus(resource) === "active" && resource.kind === "person")
       .map(({ id }) => id),
   );
-  const clients = new Set(data.clients.filter((client) => !client.archivedAt && !client.deletedAt).map(({ id }) => id));
+  const clients = new Set(data.clients.filter((client) => lifecycleStatus(client) === "active").map(({ id }) => id));
   const projects = new Map(
-    data.projects
-      .filter((project) => !project.archivedAt && !project.deletedAt)
-      .map((project) => [project.id, project]),
+    data.projects.filter((project) => lifecycleStatus(project) === "active").map((project) => [project.id, project]),
   );
   const coherentProject = (projectId: string | undefined): boolean => {
     if (!projectId) return false;
@@ -40,7 +39,7 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
   };
   const activities = new Map(
     data.activities
-      .filter((activity) => !activity.archivedAt && !activity.deletedAt)
+      .filter((activity) => lifecycleStatus(activity) === "active")
       .map((activity) => [activity.id, activity]),
   );
   const coherentActivities = new Map(
@@ -68,8 +67,8 @@ export function buildGettingStartedSteps(data: AppData): GettingStartedSteps {
 export function hasExistingSetupData(data: AppData, steps: GettingStartedSteps): boolean {
   return (
     Object.values(steps).some(Boolean) ||
-    data.clients.some((client) => !client.archivedAt && !client.deletedAt && !isBuiltinClient(client)) ||
-    data.projects.some((project) => !project.archivedAt && !project.deletedAt)
+    data.clients.some((client) => lifecycleStatus(client) === "active" && !isBuiltinClient(client)) ||
+    data.projects.some((project) => lifecycleStatus(project) === "active")
   );
 }
 

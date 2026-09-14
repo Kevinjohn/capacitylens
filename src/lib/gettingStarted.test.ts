@@ -85,6 +85,28 @@ describe("first-use outcome truth table", () => {
     ).toBe(false);
   });
 
+  it("treats malformed lifecycle tombstones as active, matching activeOnly", () => {
+    const malformed = "not-a-date";
+    const malformedPerson = person({ archivedAt: malformed, deletedAt: malformed });
+    const malformedClient = client({ archivedAt: malformed, deletedAt: malformed });
+    const malformedProject = project({ archivedAt: malformed, deletedAt: malformed });
+    const malformedActivity = activity({
+      kind: "project",
+      projectId: "p1",
+      archivedAt: malformed,
+      deletedAt: malformed,
+    });
+    expect(buildGettingStartedSteps(dataWith({ resources: [malformedPerson] })).person).toBe(true);
+    expect(
+      buildGettingStartedSteps(
+        dataWith({ clients: [malformedClient], projects: [malformedProject], activities: [malformedActivity] }),
+      ).work,
+    ).toBe(true);
+    expect(
+      hasExistingSetupData(dataWith({ clients: [malformedClient] }), { person: false, work: false, scheduled: false }),
+    ).toBe(true);
+  });
+
   it.each([
     ["internal", activity({ kind: "internal" }), [], [], true],
     ["unattributed repeatable", activity({ kind: "repeatable" }), [], [], true],
