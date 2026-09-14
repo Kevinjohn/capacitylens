@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { attachPersistence, retryActiveAccountLoad, switchAndAwaitHydration } from "./persist";
+import { attachPersistence, flushPendingWrites, retryActiveAccountLoad, switchAndAwaitHydration } from "./persist";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
 import { useStore } from "../store/useStore";
@@ -65,12 +65,17 @@ function recordingAccountSwitchAdapter() {
 async function attachFailedSwitchWithParkedEdit() {
   const { aSlice } = accountSwitchSlices();
   let rejectB!: (error: Error) => void;
+  let resolveBStarted!: () => void;
+  const bStarted = new Promise<void>((resolve) => {
+    resolveBStarted = resolve;
+  });
   const loadAll = vi
     .fn<(accountId?: string) => Promise<AppData>>()
     .mockResolvedValueOnce(aSlice)
     .mockImplementationOnce(
       () =>
         new Promise<AppData>((_resolve, reject) => {
+          resolveBStarted();
           rejectB = reject;
         }),
     );
@@ -90,7 +95,7 @@ async function attachFailedSwitchWithParkedEdit() {
   });
   await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
   const switching = switchAndAwaitHydration("b1");
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await bStarted;
   useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
   rejectB(new Error("B unavailable"));
   await expect(switching).resolves.toEqual({ kind: "failed" });
@@ -103,7 +108,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const { detach, saveAll } = await attachFailedSwitchWithParkedEdit();
 
     document.dispatchEvent(new Event("visibilitychange"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(saveAll).not.toHaveBeenCalled();
     visibility.mockRestore();
@@ -114,7 +118,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const { detach, saveAll } = await attachFailedSwitchWithParkedEdit();
 
     window.dispatchEvent(new Event("pagehide"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(saveAll).not.toHaveBeenCalled();
     detach();
@@ -124,7 +127,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     const { detach, saveAll } = await attachFailedSwitchWithParkedEdit();
 
     await expect(switchAndAwaitHydration(null)).resolves.toEqual({ kind: "reloaded" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(useStore.getState().activeAccountId).toBeNull();
     expect(saveAll).not.toHaveBeenCalled();
@@ -134,15 +136,21 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
   it("clears failed retry state when a failed-load edit is discarded for the picker", async () => {
     const { aSlice } = accountSwitchSlices();
     let rejectB!: (error: Error) => void;
+    let resolveBStarted!: () => void;
+    const bStarted = new Promise<void>((resolve) => {
+      resolveBStarted = resolve;
+    });
     const loadAll = vi
       .fn<(accountId?: string) => Promise<AppData>>()
       .mockResolvedValueOnce(aSlice)
       .mockImplementationOnce(
         () =>
           new Promise<AppData>((_resolve, reject) => {
+            resolveBStarted();
             rejectB = reject;
           }),
       );
+    const onError = vi.fn();
     const saveAll = vi.fn().mockRejectedValueOnce(new Error("A save failed")).mockResolvedValue(undefined);
     useStore.getState().replaceAll(emptyAppData());
     useStore.getState().setActiveAccount(null);
@@ -154,15 +162,15 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       store: useStore,
       adapter: { loadAll, saveAll },
       debounceMs: 0,
-      onError: vi.fn(),
+      onError,
       serverMode: true,
     });
 
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     useStore.getState().addClient({ name: "Wayne Enterprises", color: "#222222" });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
     const switchingToB = switchAndAwaitHydration("b1");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await bStarted;
     useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
     rejectB(new Error("B unavailable"));
     await expect(switchingToB).resolves.toEqual({ kind: "failed" });
@@ -170,7 +178,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration(null)).resolves.toEqual({ kind: "reloaded" });
     window.dispatchEvent(new Event("online"));
     window.dispatchEvent(new Event("focus"));
-    await new Promise((resolve) => setTimeout(resolve, 0));
 
     detach();
     expect(saveAll).toHaveBeenCalledTimes(1);
@@ -203,7 +210,6 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
       now.mockReturnValue(131_000);
       window.dispatchEvent(new Event("focus"));
-      await new Promise((resolve) => setTimeout(resolve, 0));
 
       detach();
       expect(loadAll).toHaveBeenCalledTimes(2);
@@ -329,7 +335,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(useStore.getState().activeAccountLoadFailed).toBeNull();
     expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["cb"]);
     useStore.getState().addClient({ name: "Rand Enterprises", color: "#222222" });
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await expect(flushPendingWrites()).resolves.toEqual({ kind: "clean" });
     expect(saveAll).toHaveBeenCalledTimes(1);
     detach();
   });
@@ -358,7 +364,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     useStore.getState().addClient({ name: "Wayne Enterprises", color: "#222222" });
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await vi.waitFor(() => expect(saveAll).toHaveBeenCalledOnce());
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
     await expect(retryActiveAccountLoad("b1")).resolves.toEqual({ kind: "reloaded" });
 
@@ -411,6 +417,14 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       accounts: [{ id: "c1", name: "Gamma", color: "#1", createdAt: "t", updatedAt: "t" }],
     };
     let rejectB!: (error: Error) => void;
+    let resolveBStarted!: () => void;
+    const bStarted = new Promise<void>((resolve) => {
+      resolveBStarted = resolve;
+    });
+    let resolveCStarted!: () => void;
+    const cStarted = new Promise<void>((resolve) => {
+      resolveCStarted = resolve;
+    });
     let resolveC!: (data: AppData) => void;
     const loadAll = vi
       .fn<(accountId?: string) => Promise<AppData>>()
@@ -418,12 +432,14 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       .mockImplementationOnce(
         () =>
           new Promise<AppData>((_resolve, reject) => {
+            resolveBStarted();
             rejectB = reject;
           }),
       )
       .mockImplementationOnce(
         () =>
           new Promise<AppData>((resolve) => {
+            resolveCStarted();
             resolveC = resolve;
           }),
       );
@@ -445,17 +461,17 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
 
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     const switchingToB = switchAndAwaitHydration("b1");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await bStarted;
     const edit = useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
     rejectB(new Error("B unavailable"));
     await expect(switchingToB).resolves.toEqual({ kind: "failed" });
 
-    useStore.getState().setActiveAccount("c1");
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    const switchingToC = switchAndAwaitHydration("c1");
+    await cStarted;
     expect(saveAll).not.toHaveBeenCalled();
 
     resolveC(cSlice);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await expect(switchingToC).resolves.toEqual({ kind: "reloaded" });
     expect(saveAll).not.toHaveBeenCalled();
     expect(useStore.getState().data.clients).not.toContainEqual(edit);
     expect(useStore.getState().data.accounts[0]?.id).toBe("c1");
@@ -549,8 +565,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     });
 
     // Pick a2 (existence via the summary) → the orchestrator loads a2's slice.
-    useStore.getState().setActiveAccount("a2");
-    await new Promise((r) => setTimeout(r, 5));
+    await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" });
 
     expect(loadAll).toHaveBeenCalledWith("a2"); // per-account hydration
     expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["c2"]); // slice loaded into the store
@@ -560,33 +575,41 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
   });
 
   it("a genuine edit AFTER a switch still saves (the guard only suppresses the slice load)", async () => {
-    const a2Slice = {
-      ...emptyAppData(),
-      accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
-    };
-    const loadAll = vi.fn(async () => a2Slice);
-    const saveAll = vi.fn().mockResolvedValue(undefined);
-    const adapter: PersistenceAdapter = { loadAll, saveAll };
+    vi.useFakeTimers();
+    let detach: (() => void) | undefined;
+    try {
+      const a2Slice = {
+        ...emptyAppData(),
+        accounts: [{ id: "a2", name: "Beta", color: "#1", createdAt: "t", updatedAt: "t" }],
+      };
+      const loadAll = vi.fn(async () => a2Slice);
+      const saveAll = vi.fn().mockResolvedValue(undefined);
+      const adapter: PersistenceAdapter = { loadAll, saveAll };
 
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
-    const detach = attachPersistence({
-      store: useStore,
-      adapter: adapter,
-      debounceMs: 0,
-      serverMode: true,
-    });
+      useStore.getState().replaceAll(emptyAppData());
+      useStore.getState().setActiveAccount(null);
+      useStore.getState().setAccountSummaries([{ id: "a2", name: "Beta", role: "owner" }]);
+      detach = attachPersistence({
+        store: useStore,
+        adapter: adapter,
+        debounceMs: 300,
+        serverMode: true,
+      });
 
-    useStore.getState().setActiveAccount("a2");
-    await new Promise((r) => setTimeout(r, 5));
-    expect(saveAll).not.toHaveBeenCalled(); // the load itself didn't save
+      await expect(switchAndAwaitHydration("a2")).resolves.toEqual({ kind: "reloaded" });
+      expect(saveAll).not.toHaveBeenCalled(); // the load itself didn't save
 
-    // A real edit in the now-active account DOES save.
-    useStore.getState().addClient({ name: "New Client", color: "#222222" });
-    await new Promise((r) => setTimeout(r, 5));
-    expect(saveAll).toHaveBeenCalledTimes(1);
-    detach();
+      // A real edit in the now-active account is debounced, then saved at the exact boundary.
+      useStore.getState().addClient({ name: "New Client", color: "#222222" });
+      await vi.advanceTimersByTimeAsync(299);
+      expect(saveAll).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(flushPendingWrites()).resolves.toEqual({ kind: "clean" });
+      expect(saveAll).toHaveBeenCalledTimes(1);
+    } finally {
+      detach?.();
+      vi.useRealTimers();
+    }
   });
 
   it("FLUSHES (does not drop) account A's pending debounced edits before loading B's slice", async () => {
@@ -612,8 +635,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     }); // genuinely debounced
 
     // Pick A → orchestrator hydrates A's slice (snapshot := A).
-    useStore.getState().setActiveAccount("a1");
-    await new Promise((r) => setTimeout(r, 5));
+    await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     expect(useStore.getState().activeAccountId).toBe("a1");
 
     // Genuine edit to A → DEBOUNCED (not yet on the wire). Capture its id to find it later.
@@ -621,8 +643,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(wire.some((w) => w.ops)).toBe(false); // nothing flushed yet — still inside the 300ms window
 
     // Switch to B BEFORE the debounce timer fires → must FLUSH A's edit, then load B.
-    useStore.getState().setActiveAccount("b1");
-    await new Promise((r) => setTimeout(r, 20)); // < 300ms, so a dropped edit would NOT have its timer fire
+    await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "reloaded" });
 
     // A's edit reached the adapter (flushed, not dropped): a batch carrying A's client (a PUT, so
     // its accountId rides on the row — DELETEs carry a top-level accountId, PUTs carry the full row).
@@ -643,55 +664,62 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
   });
 
   it("rebases an edit landing while a switch load is in flight onto the newly active account", async () => {
-    const { aSlice, bSlice } = accountSwitchSlices();
-    let releaseB: (() => void) | null = null;
-    const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
-      if (accountId === "b1") {
-        return new Promise<AppData>((resolve) => {
-          releaseB = () => resolve(bSlice);
-        });
-      }
-      return Promise.resolve(aSlice);
-    });
-    const saveAll = vi.fn().mockResolvedValue(undefined);
-    const adapter: PersistenceAdapter = { loadAll, saveAll };
-    const onError = vi.fn();
+    let detach: (() => void) | undefined;
+    try {
+      const { aSlice, bSlice } = accountSwitchSlices();
+      let releaseB: (() => void) | null = null;
+      let resolveBStarted!: () => void;
+      const bStarted = new Promise<void>((resolve) => {
+        resolveBStarted = resolve;
+      });
+      const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
+        if (accountId === "b1") {
+          return new Promise<AppData>((resolve) => {
+            resolveBStarted();
+            releaseB = () => resolve(bSlice);
+          });
+        }
+        return Promise.resolve(aSlice);
+      });
+      const saveAll = vi.fn().mockResolvedValue(undefined);
+      const adapter: PersistenceAdapter = { loadAll, saveAll };
+      const onError = vi.fn();
 
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setActiveAccount(null);
-    useStore.getState().setAccountSummaries([
-      { id: "a1", name: "Alpha", role: "owner" },
-      { id: "b1", name: "Beta", role: "owner" },
-    ]);
-    const detach = attachPersistence({
-      store: useStore,
-      adapter: adapter,
-      debounceMs: 300,
-      onError: onError,
-      serverMode: true,
-    }); // debounced
+      useStore.getState().replaceAll(emptyAppData());
+      useStore.getState().setActiveAccount(null);
+      useStore.getState().setAccountSummaries([
+        { id: "a1", name: "Alpha", role: "owner" },
+        { id: "b1", name: "Beta", role: "owner" },
+      ]);
+      detach = attachPersistence({
+        store: useStore,
+        adapter: adapter,
+        debounceMs: 300,
+        onError: onError,
+        serverMode: true,
+      }); // debounced
 
-    useStore.getState().setActiveAccount("a1");
-    await new Promise((r) => setTimeout(r, 5));
-    useStore.getState().setActiveAccount("b1"); // B's load held open
-    await new Promise((r) => setTimeout(r, 5));
-    expect(releaseB).not.toBeNull();
+      await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
+      const switchingToB = switchAndAwaitHydration("b1"); // B's load held open
+      await bStarted;
+      expect(releaseB).not.toBeNull();
 
-    // Edit lands mid-switch (still inside the debounce window when B's slice arrives).
-    const edit = useStore.getState().addClient({ name: "Mid-switch edit", color: "#222222" });
-    saveAll.mockClear();
-    requireCallback(releaseB, "account B load release")();
-    await new Promise((r) => setTimeout(r, 5));
+      // Edit lands mid-switch (still inside the debounce window when B's slice arrives).
+      const edit = useStore.getState().addClient({ name: "Mid-switch edit", color: "#222222" });
+      saveAll.mockClear();
+      requireCallback(releaseB, "account B load release")();
+      await expect(switchingToB).resolves.toEqual({ kind: "reloaded" });
 
-    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
-    expect(useStore.getState().data.clients.find((c) => c.id === edit.id)?.accountId).toBe("b1");
-    expect(onError).not.toHaveBeenCalled();
-    await new Promise((r) => setTimeout(r, 400));
-    expect(saveAll).toHaveBeenCalledTimes(1);
-    const saved = saveAll.mock.calls[0]?.[0] as AppData;
-    expect(saved.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
-    expect(saved.clients.every((c) => c.accountId === "b1")).toBe(true);
-    detach();
+      expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
+      expect(useStore.getState().data.clients.find((c) => c.id === edit.id)?.accountId).toBe("b1");
+      expect(onError).not.toHaveBeenCalled();
+      expect(saveAll).toHaveBeenCalledTimes(1);
+      const saved = saveAll.mock.calls[0]?.[0] as AppData;
+      expect(saved.clients.map((c) => c.id)).toEqual(["cb", edit.id]);
+      expect(saved.clients.every((c) => c.accountId === "b1")).toBe(true);
+    } finally {
+      detach?.();
+    }
   });
 
   it("is INERT in the demo build — a switch does NOT call loadAll(accountId)", async () => {
@@ -709,7 +737,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     }); // demo build
 
     useStore.getState().setActiveAccount("a2");
-    await new Promise((r) => setTimeout(r, 5));
+    expect(useStore.getState().activeAccountId).toBe("a2");
     // Demo build: data already holds all accounts, so the orchestrator never fetches a slice.
     expect(loadAll).not.toHaveBeenCalled();
     detach();

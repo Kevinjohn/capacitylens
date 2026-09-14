@@ -2,7 +2,7 @@
 // Extracted from the former single-file persist.test.ts; bodies unchanged.
 
 import { vi } from "vitest";
-import { attachPersistence } from "../persist";
+import { attachPersistence, switchAndAwaitHydration } from "../persist";
 import type { PersistenceAdapter } from "../PersistenceAdapter";
 import { useStore } from "../../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -112,7 +112,6 @@ export async function attachActiveA2({ adapter, debounceMs = 0, onError, onSucce
     ...(onSuccess ? { onSuccess } : {}),
     serverMode: true,
   });
-  useStore.getState().setActiveAccount("a2"); // hydrates a2, seeds snapshot := a2
-  await new Promise((r) => setTimeout(r, 5));
+  await switchAndAwaitHydration("a2"); // hydrates a2, seeds snapshot := a2
   return detach;
 }
