@@ -31,9 +31,14 @@ beforeEach(() => {
 });
 
 function authenticatedAuth(userId: string): AuthContextValue {
+  const subjectNames: Record<string, string> = {
+    "user-a": "Bruce Wayne",
+    "user-b": "Tony Stark",
+    "viewer-user": "Bruce Wayne",
+  };
   return {
     authMode: "password",
-    user: { id: userId, name: userId },
+    user: { id: userId, name: subjectNames[userId] ?? "Bruce Wayne" },
     canCreateAccount: true,
     multiAccount: true,
     refreshAuth: async () => {},
@@ -176,8 +181,8 @@ describe("AppShell product orientation", () => {
   });
 
   it("follows company A to B to A without leaking dismissal between companies", async () => {
-    const accountA = makeAccount({ id: "acct-a", name: "Company A" });
-    const accountB = makeAccount({ id: "acct-b", name: "Company B" });
+    const accountA = makeAccount({ id: "acct-a", name: "Wayne Enterprises" });
+    const accountB = makeAccount({ id: "acct-b", name: "Stark Industries" });
     useStore.getState().replaceAll(makeAppData({ accounts: [accountA, accountB] }));
     useStore.getState().setAccountSummaries([
       { id: accountA.id, name: accountA.name, role: "owner" },
@@ -210,7 +215,7 @@ describe("AppShell product orientation", () => {
         const url = String(input);
         if (url.endsWith("/api/accounts")) {
           return Promise.resolve(
-            new Response(JSON.stringify([{ id: DEFAULT_ACCOUNT_ID, name: "Test Co", role: "viewer" }]), {
+            new Response(JSON.stringify([{ id: DEFAULT_ACCOUNT_ID, name: "Wayne Enterprises", role: "viewer" }]), {
               status: 200,
               headers: { "Content-Type": "application/json" },
             }),
@@ -233,10 +238,12 @@ describe("AppShell product orientation", () => {
     expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument();
   });
 
-  it("preserves focus on an unrelated control across an ordinary shell rerender", () => {
+  it("preserves focus on an unrelated control across an ordinary shell rerender", async () => {
     const auth = authenticatedAuth("user-a");
-    localStorage.setItem(buildProductOrientationKey("user-a", DEFAULT_ACCOUNT_ID), "dismissed");
+    localStorage.removeItem(buildProductOrientationKey("user-a", DEFAULT_ACCOUNT_ID));
     const view = renderShell("/", auth);
+    const heading = screen.getByRole("heading", { name: "How CapacityLens works" });
+    await waitFor(() => expect(heading).toHaveFocus());
     const unrelatedControl = screen.getByRole("link", { name: "Schedule" });
     unrelatedControl.focus();
 
