@@ -4,9 +4,7 @@ import type { CapacityOverviewHorizon, CapacityOverviewPeriod } from "./capacity
 export type CapacityOverviewState = "available" | "fully-booked" | "unavailable" | "unassigned";
 
 export interface CapacityOverviewPeriodResult {
-  period?: CapacityOverviewPeriod;
-  /** @deprecated Use period. Kept while the table migrates from week terminology. */
-  week: CapacityOverviewPeriod;
+  period: CapacityOverviewPeriod;
   /** Eight hours for each company working day in this column's date range. */
   companyWorkingHours: number;
   availableHours: number;
@@ -19,9 +17,6 @@ export interface CapacityOverviewPeriodResult {
   unassignedDemandDays: number;
   state: CapacityOverviewState;
 }
-
-/** @deprecated Use CapacityOverviewPeriodResult. */
-export type CapacityOverviewWeekResult = CapacityOverviewPeriodResult;
 
 export interface CapacityOverviewSummaryPeriod {
   availableHours: number;
@@ -38,16 +33,12 @@ export interface CapacityOverviewSummary {
   scope: "all-eligible-people";
   peopleCount: number;
   placeholderCount: number;
-  periods?: CapacityOverviewSummaryPeriod[];
-  /** @deprecated Use periods. Kept while the table migrates from week terminology. */
-  weeks: CapacityOverviewSummaryPeriod[];
+  periods: CapacityOverviewSummaryPeriod[];
 }
 
 export interface CapacityOverviewRow {
   resource: Resource;
-  periods?: CapacityOverviewPeriodResult[];
-  /** @deprecated Use periods. Kept while the table migrates from week terminology. */
-  weeks: CapacityOverviewWeekResult[];
+  periods: CapacityOverviewPeriodResult[];
 }
 
 export interface CapacityOverviewGroup {
@@ -61,9 +52,7 @@ export interface CapacityOverviewGroup {
 export interface CapacityOverviewModel {
   measured: boolean;
   reason?: "blocks-mode";
-  periods?: CapacityOverviewPeriod[];
-  /** @deprecated Use periods. Kept while the table migrates from week terminology. */
-  weeks: CapacityOverviewPeriod[];
+  periods: CapacityOverviewPeriod[];
   groups: CapacityOverviewGroup[];
   summary: CapacityOverviewSummary;
 }

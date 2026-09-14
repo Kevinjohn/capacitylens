@@ -95,7 +95,7 @@ test.describe("Overview bar geometry", () => {
     await expect(table).toBeVisible();
     await page.getByRole("radio", { name: "Bar", exact: true }).click();
 
-    const geometry = await table.locator('[aria-hidden="true"].inset-\\[3px\\]').evaluateAll((elements) =>
+    const geometry = await table.getByTestId("capacity-bar-fill-layer").evaluateAll((elements) =>
       elements.map((element) => {
         const cell = element.closest("td");
         const row = element.closest("tr");
