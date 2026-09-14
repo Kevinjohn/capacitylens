@@ -1,5 +1,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+// jsdom 29 ships its runtime API without TypeScript declarations.
+// @ts-expect-error The module is narrowed to the fragment surface below.
+import * as jsdom from "jsdom";
 import { createMarkdownRenderer } from "vitepress";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -15,6 +18,9 @@ type MarkdownToken = {
   attrs?: [string, string][] | null;
   children?: MarkdownToken[] | null;
 };
+type HtmlElement = { getAttribute(name: string): string | null; localName: string };
+type HtmlFragment = { querySelectorAll(selector: string): Iterable<HtmlElement> };
+const JSDOM = (jsdom as unknown as { JSDOM: { fragment(content: string): HtmlFragment } }).JSDOM;
 
 let markdownRenderer: MarkdownRenderer;
 
@@ -30,137 +36,16 @@ function decodeFragment(fragment: string): string {
   }
 }
 
-function closingSequenceEnd(characters: string[], start: number, sequence: string): number {
-  const end = characters.length - sequence.length;
-  for (let index = start; index <= end; index++) {
-    if (characters.slice(index, index + sequence.length).join("") === sequence) {
-      return index + sequence.length - 1;
-    }
-  }
-  return -1;
-}
-
-function specialHtmlTagEnd(characters: string[], start: number): number | undefined {
-  if (characters[start] === "!" && characters[start + 1] === "-" && characters[start + 2] === "-") {
-    return closingSequenceEnd(characters, start + 3, "-->");
-  }
-  if (characters[start] === "?") {
-    return closingSequenceEnd(characters, start + 1, "?>");
-  }
-  if (characters[start] === "!" && /[A-Z]/.test(characters[start + 1] ?? "")) {
-    return characters.indexOf(">", start);
-  }
-  if (
-    characters[start] === "!" &&
-    characters[start + 1] === "[" &&
-    characters.slice(start + 1, start + 8).join("") === "[CDATA["
-  ) {
-    return closingSequenceEnd(characters, start + 8, "]]>");
-  }
-  return undefined;
-}
-
-function completeHtmlTagEnd(characters: string[], start: number): number {
-  const specialEnd = specialHtmlTagEnd(characters, start);
-  if (specialEnd !== undefined) return specialEnd;
-  let quote: "'" | '"' | undefined;
-  for (let index = start; index < characters.length; index++) {
-    const character = characters[index];
-    if (quote) {
-      if (character === quote) quote = undefined;
-    } else if (character === "'" || character === '"') {
-      quote = character;
-    } else if (character === ">") {
-      return index;
-    }
-  }
-  return -1;
-}
-
-const htmlAttribute = String.raw`(?:\s+[a-zA-Z_:@][a-zA-Z0-9:._-]*(?:\s*=\s*(?:[^"'=<>\`\x00-\x20]+|'[^']*'|"[^"]*"))?)`;
-const validHtmlTag = new RegExp(
-  String.raw`^(?:<[A-Za-z][A-Za-z0-9-]*${htmlAttribute}*\s*/?>|<\/[A-Za-z][A-Za-z0-9-]*\s*>|<!---->|<!--(?:-?[^>-])(?:-?[^-])*-->|<[?][\s\S]*?[?]>|<![A-Z]+\s+[^>]*>|<!\[CDATA\[[\s\S]*?\]\]>)$`,
-);
-
-function isValidHtmlTag(tag: string): boolean {
-  return validHtmlTag.test(tag);
-}
-
-const attribute = /^\s+([a-zA-Z_:@][a-zA-Z0-9:._-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^"'=<>`\s]+)))?/;
-const namedCharacterReferences: Record<string, string> = {
-  amp: "&",
-  apos: "'",
-  copy: "©",
-  gt: ">",
-  hellip: "…",
-  laquo: "«",
-  ldquo: "“",
-  lt: "<",
-  mdash: "—",
-  nbsp: "\u00a0",
-  ndash: "–",
-  quot: '"',
-  raquo: "»",
-  rdquo: "”",
-  reg: "®",
-  trade: "™",
-};
-
-function decodeNumericCharacterReference(reference: string): string | undefined {
-  const hexadecimal = reference[0]?.toLowerCase() === "x";
-  const value = Number.parseInt(reference.slice(hexadecimal ? 1 : 0), hexadecimal ? 16 : 10);
-  if (!Number.isInteger(value) || value < 0 || value > 0x10ffff || (value >= 0xd800 && value <= 0xdfff)) {
-    return undefined;
-  }
-  return String.fromCodePoint(value);
-}
-
-function decodeHtmlAttributeValue(value: string): string {
-  return value.replace(
-    /&(?:#(x?[0-9a-f]+)|([a-z][a-z0-9]+));/gi,
-    (reference: string, numeric: string | undefined, named: string | undefined) => {
-      if (numeric) return decodeNumericCharacterReference(numeric) ?? reference;
-      return named ? (namedCharacterReferences[named.toLowerCase()] ?? reference) : reference;
-    },
-  );
-}
-
-function rawIdsFromAttributes(source: string, tagName: string): string[] {
-  const ids: string[] = [];
-  let remainder = source;
-  while (remainder.trim()) {
-    const match = remainder.match(attribute);
-    if (!match) return [];
-    const name = match[1]?.toLowerCase();
-    const value = match[2] ?? match[3] ?? match[4];
-    if (value && (name === "id" || (name === "name" && tagName === "a"))) {
-      ids.push(decodeHtmlAttributeValue(value));
-    }
-    remainder = remainder.slice(match[0].length);
-  }
-  return ids;
-}
-
-function rawIdsFromTag(tag: string): string[] {
-  if (!isValidHtmlTag(tag) || !/^<[A-Za-z]/.test(tag)) return [];
-  const openingTag = tag.match(/^<([A-Za-z][A-Za-z0-9-]*)/)?.[0];
-  const tagName = tag.match(/^<([A-Za-z][A-Za-z0-9-]*)/)?.[1]?.toLowerCase();
-  if (!openingTag || !tagName) return [];
-  return rawIdsFromAttributes(tag.slice(openingTag.length, -1).replace(/\/\s*$/, ""), tagName);
-}
-
 function rawIdsFromHtmlToken(content: string): string[] {
+  const fragment = JSDOM.fragment(content);
   const ids: string[] = [];
-  const characters = [...content];
-  for (let index = 0; index < characters.length;) {
-    if (characters[index] !== "<") {
-      index++;
-      continue;
+  for (const element of fragment.querySelectorAll("*")) {
+    const id = element.getAttribute("id");
+    if (id) ids.push(id);
+    if (element.localName === "a") {
+      const name = element.getAttribute("name");
+      if (name) ids.push(name);
     }
-    const end = completeHtmlTagEnd(characters, index + 1);
-    if (end === -1) break;
-    ids.push(...rawIdsFromTag(characters.slice(index, end + 1).join("")));
-    index = end + 1;
   }
   return ids;
 }
@@ -376,6 +261,9 @@ describe("Markdown token fragment parity", () => {
         '<span name="ghost-name"></span>',
         '<a id="" id="later" name=""></a>',
         '<span id="a&amp;b"></span>',
+        '<span id="caf&eacute;"></span>',
+        '<span id="null&#0;"></span>',
+        '<span id="malformed&#12abc;"></span>',
       ].join("\n"),
     );
 
@@ -384,8 +272,11 @@ describe("Markdown token fragment parity", () => {
     expect(ids).toContain("multiline-anchor");
     expect(ids).toContain("modern");
     expect(ids).toContain("legacy");
-    expect(ids).toContain("later");
+    expect(ids).not.toContain("later");
     expect(ids).toContain("a&b");
+    expect(ids).toContain("café");
+    expect(ids).toContain("null\uFFFD");
+    expect(ids).toContain("malformed\fabc;");
     expect(ids).not.toContain("wrong");
     expect(ids).not.toContain("ghost-name");
   });
