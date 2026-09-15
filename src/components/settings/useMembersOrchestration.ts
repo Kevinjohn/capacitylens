@@ -18,6 +18,7 @@ import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
 import type { WorkspaceReadiness } from "./ssoReadiness";
+import { takeInvitationPreselection } from "./invitationPreselection";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
 
@@ -287,7 +288,7 @@ function useMemberStoreActions() {
 
 // eslint-disable-next-line max-lines-per-function
 export function useMembersOrchestration(activeAccountId: string | null) {
-  const { authMode, providers, refreshAuth } = useAuth();
+  const { authMode, providers, refreshAuth, user } = useAuth();
   // Only the strict (non-experimental) OIDC provider's IDENTITY is needed here: the readiness read
   // is keyed on it, and keying on the provider OBJECT would re-fetch whenever an equal-but-new
   // provider list is resolved.
@@ -296,7 +297,8 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const { setNotice, setActiveAccount, invalidateMemberships } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
-  const memberInvites = useMemberInvites();
+  const proposedResourceId = activeAccountId && user ? takeInvitationPreselection(activeAccountId, user.id) : null;
+  const memberInvites = useMemberInvites(proposedResourceId);
   const { reconcileMintedInvite, resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
   const enabled = authMode !== "off" && isServerConfigured();
   const directoryState = useMemberDirectoryState({
@@ -313,8 +315,8 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     const unauthorized =
       directoryState.directory.kind === "hidden" ||
       (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
-    if (offline.readOnly || unauthorized) resetInviteDraft();
-  }, [directoryState.directory, offline.readOnly, resetInviteDraft]);
+    if ((offline.readOnly || unauthorized) && proposedResourceId === null) resetInviteDraft();
+  }, [directoryState.directory, offline.readOnly, proposedResourceId, resetInviteDraft]);
   const resourceCandidates = directoryState.resourceCandidates;
   const linkedResourceIds = new Set(
     (directoryState.members ?? []).flatMap((member) => (member.resourceLink ? [member.resourceLink.resourceId] : [])),

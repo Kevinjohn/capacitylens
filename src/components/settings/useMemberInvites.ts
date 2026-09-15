@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -179,13 +180,28 @@ function createCopyLink({
 
 /** Establish link reconciliation before directory reads, then bind actions to directory outputs. */
 // eslint-disable-next-line max-lines-per-function
-export function useMemberInvites() {
+export function useMemberInvites(initialResourceId: string | null = null) {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
-  const [invitationResourceId, setInvitationResourceId] = useState("");
+  const [invitationResourceId, setInvitationResourceId] = useState(initialResourceId ?? "");
+  const handoffResourceRef = useRef<string | null>(initialResourceId);
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
   // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
+  const setInvitationResourceIdForState = useCallback<Dispatch<SetStateAction<string>>>((value) => {
+    setInvitationResourceId((current) => {
+      const next = typeof value === "function" ? value(current) : value;
+      if (next === "") handoffResourceRef.current = null;
+      return next;
+    });
+  }, []);
+  // The one-shot navigation handoff is external to this hook's normal form lifecycle.
+  useEffect(() => {
+    if (initialResourceId) {
+      handoffResourceRef.current = initialResourceId;
+      setInvitationResourceId(initialResourceId);
+    }
+  }, [initialResourceId]);
   const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {
     setMintedLink((current) =>
       current?.inviteId && !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
@@ -195,7 +211,7 @@ export function useMemberInvites() {
   }, []);
   const resetInviteDraft = useCallback(() => {
     setInvitationPreauthorizedEmail("");
-    setInvitationResourceId("");
+    if (handoffResourceRef.current === null) setInvitationResourceId("");
     setMintedLink(null);
   }, []);
 
@@ -226,7 +242,7 @@ export function useMemberInvites() {
       setInvitationPreauthorizedEmail,
       setMintedLink,
       invitationResourceId,
-      setInvitationResourceId,
+      setInvitationResourceId: setInvitationResourceIdForState,
       invitationPeople,
     });
     const revokeInvite = createRevokeInvite({
@@ -247,7 +263,7 @@ export function useMemberInvites() {
     invitationPreauthorizedEmail,
     setInvitationPreauthorizedEmail,
     invitationResourceId,
-    setInvitationResourceId,
+    setInvitationResourceId: setInvitationResourceIdForState,
     mintedLink,
     resetInviteDraft,
     reconcileMintedInvite,

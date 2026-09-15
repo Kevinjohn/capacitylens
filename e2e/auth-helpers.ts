@@ -44,9 +44,9 @@ function cookiesOf(setCookie: string): string {
 
 /** Shared sign-up POST, factored out so the cookie-only and id-resolving variants below don't
  *  duplicate the request shape. Returns the collapsed session cookie. */
-async function postSignUp(ctx: APIRequestContext, email: string): Promise<string> {
+async function postSignUp(ctx: APIRequestContext, email: string, name = email.split("@")[0]): Promise<string> {
   const res = await ctx.post(`${AUTH_API}/api/auth/sign-up/email`, {
-    data: { email, password: AUTH_PASSWORD, name: email.split("@")[0] },
+    data: { email, password: AUTH_PASSWORD, name },
   });
   expect(res.ok(), `sign-up ${email}`).toBeTruthy();
   return cookiesOf(res.headers()["set-cookie"] ?? "");
@@ -65,10 +65,10 @@ async function postSignUp(ctx: APIRequestContext, email: string): Promise<string
  * server unit fixtures, which never call sign-in/email). Emails are unique per run (callers stamp
  * them), so a reused server never collides on a duplicate.
  */
-export async function signUpUser(email: string): Promise<{ email: string; cookie: string }> {
+export async function signUpUser(email: string, name?: string): Promise<{ email: string; cookie: string }> {
   const ctx = await playwrightRequest.newContext();
   try {
-    const cookie = await postSignUp(ctx, email);
+    const cookie = await postSignUp(ctx, email, name);
     return { email, cookie };
   } finally {
     await ctx.dispose();

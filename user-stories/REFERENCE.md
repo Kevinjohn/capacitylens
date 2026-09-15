@@ -13,6 +13,7 @@ Active person rows in **Resources** expose account-member association controls i
 unlinked, or **Change link** and **Remove link** when linked. The controls are available only to an
 authenticated Owner/Admin in an online, server-backed account; placeholder, external, archived and
 deleted rows do not expose them.
+The authenticated resource-first journey is covered by `e2e/resource-member-actions.auth.spec.ts` and hands invitation preselection to Team & access in memory.
 
 > CapacityLens is a multi-tenant resource scheduler. It is **server-backed by default** (an empty
 > env means the same-origin SQLite API). The app is **multi-tenant by Account**: you pick a company

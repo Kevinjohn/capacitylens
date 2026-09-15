@@ -43,7 +43,6 @@ const model = (members: readonly TeamMember[], canManage = true): ResourceMember
   authMode: "password",
   members,
   reload: vi.fn(),
-  reconcileInvitations: vi.fn(async () => true),
   directoryError: null,
   contextKey: "account-1\u0000member-1\u0000password\u0000false\u00000",
 });

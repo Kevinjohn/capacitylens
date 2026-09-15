@@ -32,4 +32,11 @@ describe("useMemberInvites schedule-person proposal", () => {
     );
     expect(createInvitation).not.toHaveBeenCalled();
   });
+
+  it("keeps a resource-first proposal selected until the established panel consumes it", () => {
+    const { result } = renderHook(() => useMemberInvites("person-resource"));
+    expect(result.current.invitationResourceId).toBe("person-resource");
+    act(() => result.current.resetInviteDraft());
+    expect(result.current.invitationResourceId).toBe("person-resource");
+  });
 });
