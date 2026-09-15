@@ -30,20 +30,24 @@ import {
   looksLikeEmail,
   inviteTokenHash,
   type AccountMember,
+  ensureAccountMemberResources,
 } from "./controlTables";
 import { ensureAccountBoundaryState } from "./accounts/state";
 import type { Db } from "./db";
 
-// Unit tests for the membership server-CONTROL table (P1.1). A bare in-memory DB + ensureControlTables
-// is enough — this table is intentionally decoupled from AppData/openDb, so it needs no schema setup
-// beyond its own DDL. (openDb wiring + the AppData-exclusion guarantees are covered in
-// app.controlTables.test.ts.)
+// Unit tests for the membership server-CONTROL table (P1.1). The control rows are intentionally
+// decoupled from AppData/openDb; only the resource table required by v43's cleanup trigger is added
+// below. (openDb wiring + the AppData-exclusion guarantees are covered in app.controlTables.test.ts.)
 
 const TS = "2026-01-01T00:00:00.000Z";
 
 const freshDb = (): Db => {
   const db = new DatabaseSync(":memory:");
   ensureControlTables(db);
+  // v43 installs a resource-owned cleanup trigger, so the focused control-plane fixture must
+  // establish that owning table before installing the association table, matching openDb order.
+  db.exec(`CREATE TABLE resources (id TEXT PRIMARY KEY, accountId TEXT NOT NULL, kind TEXT NOT NULL)`);
+  ensureAccountMemberResources(db);
   ensureAccountBoundaryState(db);
   return db;
 };
@@ -62,6 +66,19 @@ describe("ensureControlTables", () => {
     const db = new DatabaseSync(":memory:");
     ensureControlTables(db);
     expect(() => ensureControlTables(db)).not.toThrow();
+  });
+
+  it("installs the member/resource cleanup trigger after its owning resource table exists", () => {
+    const db = freshDb();
+    expect(
+      db
+        .prepare(
+          `SELECT name FROM sqlite_master
+            WHERE type = 'trigger' AND name = 'capacitylens_member_resource_kind_cleanup'`,
+        )
+        .get(),
+    ).toEqual({ name: "capacitylens_member_resource_kind_cleanup" });
+    db.close();
   });
 
   it("rejects unexpected control-table columns instead of accepting an unknown durable shape", () => {

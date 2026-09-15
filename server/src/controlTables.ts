@@ -83,3 +83,16 @@ export type { Invite } from "./controlTables/invites";
 export type { AccountMember, MembershipStatus } from "./controlTables/members.model";
 
 export { inviteTokenHash, newInviteId } from "./controlTables/inviteTokens";
+export {
+  ACCOUNT_MEMBER_RESOURCES_SQL,
+  ensureAccountMemberResources,
+  listAccountMemberResourceLinks,
+  setAccountMemberResourceLink,
+  clearAccountMemberResourceLink,
+  listResourceAvatarProjection,
+  removeAccountMemberResourceForMember,
+  removeAccountMemberResourceForResource,
+  removeAccountMemberResourcesForAccount,
+  reconcileAccountMemberResources,
+} from "./controlTables/accountMemberResources";
+export type { AccountMemberResourceLink, ResourceAvatarProjection } from "./controlTables/accountMemberResources";

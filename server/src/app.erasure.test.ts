@@ -320,6 +320,8 @@ async function testIdentityRetention(
   }
 }
 
+// Keep all no-FK erasure surfaces in this single atomic route suite.
+// eslint-disable-next-line max-lines-per-function
 describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-tenant)", () => {
   it("via the dedicated route: a1 is wiped whole and a2 stays wholly intact", async () => {
     const { app, db } = await appWithAuth();
@@ -333,6 +335,11 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     const u2 = await signUp(app, "a-owner2@capacitylens.dev");
     seedMembershipAndInvite({ db, accountId: "a1", userId: u1.userId, role: "owner" });
     seedMembershipAndInvite({ db, accountId: "a2", userId: u2.userId, role: "owner" });
+    db.prepare(
+      `INSERT INTO account_member_resources (accountId, userId, resourceId, revision, createdAt, updatedAt)
+       VALUES ('a1', ?, 'erased-person', 'erase-link', ?, ?),
+              ('a2', ?, 'retained-person', 'retain-link', ?, ?)`,
+    ).run(u1.userId, TS, TS, u2.userId, TS, TS);
     // Use the retained a2 owner as actor so identity cleanup cannot incidentally remove this row.
     seedCrossTenantCommands(db, u2.userId);
 
@@ -347,6 +354,9 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
 
     // a1 is gone everywhere and a2 is wholly intact, including its user PII.
     assertCrossTenantErasure(db, u2.userId);
+    expect(db.prepare(`SELECT accountId FROM account_member_resources ORDER BY accountId`).all()).toEqual([
+      { accountId: "a2" },
+    ]);
   });
 
   it("via the dedicated route: refuses a corrupt FK edge that would mutate another account", async () => {

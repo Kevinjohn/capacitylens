@@ -5,6 +5,7 @@ import { revokeResetTokensForUser } from "../auth";
 import { bumpSecurityRevision } from "../accounts/state";
 import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTracking";
 import { cachedStatement } from "./preparedStatement";
+import { removeAccountMemberResourceForMember, removeAccountMemberResourcesForAccount } from "./accountMemberResources";
 import {
   isKnownRole,
   toAccountMember,
@@ -285,6 +286,7 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
  * @param userId     The login whose membership to remove.
  */
 export function removeMember(db: Db, accountId: string, userId: string): string[] {
+  removeAccountMemberResourceForMember(db, accountId, userId);
   const result = db.prepare(`DELETE FROM account_members WHERE accountId = ? AND userId = ?`).run(accountId, userId);
   if (result.changes > 0) {
     revokeResetTokensForUser(db, userId);
@@ -308,6 +310,7 @@ export function removeMember(db: Db, accountId: string, userId: string): string[
  * @param accountId  The account whose memberships to remove entirely.
  */
 export function removeAllMembersForAccount(db: Db, accountId: string): void {
+  removeAccountMemberResourcesForAccount(db, accountId);
   const affected = db
     .prepare(`SELECT DISTINCT userId FROM account_members WHERE accountId = ?`)
     .all(accountId) as Array<{ userId: string }>;
