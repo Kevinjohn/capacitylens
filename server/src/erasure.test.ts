@@ -404,10 +404,28 @@ function testScopedSyncProvenanceRemoval(): void {
   ).toEqual([{ tableName: "clients", rowId: "c2", accountId: "a2" }]);
 }
 
+function testScopedMemberResourceLinkRemoval(): void {
+  const db = openDb(":memory:");
+  seedAccounts(db);
+  const insertLink = db.prepare(
+    `INSERT INTO account_member_resources (accountId, userId, resourceId, revision, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  );
+  insertLink.run("a1", "u1", "r1", "revision-a1", TS, TS);
+  insertLink.run("a2", "u2", "r2", "revision-a2", TS, TS);
+
+  tx(db, () => eraseWorkspaceProductDataInTx(db, "a1"));
+
+  expect(
+    db.prepare(`SELECT accountId, userId, resourceId FROM account_member_resources ORDER BY accountId`).all(),
+  ).toEqual([{ accountId: "a2", userId: "u2", resourceId: "r2" }]);
+}
+
 function registerWorkspaceErasureTenantBoundaryGuardTests(): void {
   it("refuses to erase product data outside an existing transaction", testExistingTransactionRequirement);
   it.each(crossTenantEdges)("refuses $relationship", testCrossTenantEdgeRefusal);
   it("removes only the erased workspace sync provenance", testScopedSyncProvenanceRemoval);
+  it("removes only the erased workspace member/person links", testScopedMemberResourceLinkRemoval);
 }
 
 describe("workspace erasure tenant-boundary guard", registerWorkspaceErasureTenantBoundaryGuardTests);
