@@ -6,6 +6,7 @@ import { type Row } from "../rowCodec";
 import { CREATE_ORDER, SCOPED_ORDER } from "../tables";
 import { insertRowRaw } from "./rows";
 import type { CompleteAccountSlice } from "./slices";
+import { removeAccountMemberResourcesForAccount } from "../controlTables/accountMemberResources";
 export { markInitialized, isInitialized } from "./initialization";
 /** First-run seeding gate used by the server entrypoint: seed ONLY a never-initialised DB.
  *  Gated on the persistent `initialized` marker — which survives the user emptying their
@@ -46,6 +47,9 @@ export function insertAll(db: Db, data: AppData): void {
  *  init marker is cleared so the next load seeds again. */
 export function wipe(db: Db): void {
   tx(db, () => {
+    if (db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'account_member_resources'`).get()) {
+      db.exec(`DELETE FROM account_member_resources`);
+    }
     for (let i = CREATE_ORDER.length - 1; i >= 0; i--) db.exec(`DELETE FROM ${CREATE_ORDER[i]}`);
     db.exec(`DELETE FROM account_member_sign_in_tracking`);
     db.exec(`DELETE FROM account_members`);
@@ -64,6 +68,10 @@ export function wipe(db: Db): void {
 export function replaceAccountSlice(db: Db, accountId: string, next: CompleteAccountSlice): void {
   const d = next as unknown as Record<string, Row[]>;
   tx(db, () => {
+    // Scheduling import is a destructive replacement. Associations are control-plane rows and
+    // must not be remapped onto newly generated resource ids; clearing inside this transaction
+    // preserves them when preparation/validation or insertion rolls back.
+    removeAccountMemberResourcesForAccount(db, accountId);
     for (let i = SCOPED_ORDER.length - 1; i >= 0; i--) {
       db.prepare(`DELETE FROM ${SCOPED_ORDER[i]} WHERE accountId = ?`).run(accountId);
     }

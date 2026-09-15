@@ -145,9 +145,20 @@ function assertScopedWriteFields(
 // This is the central preservation/normalisation boundary for every scoped table.
 // eslint-disable-next-line complexity
 function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedWriteInput): Record<string, unknown> {
+  if (table === "resources" && existing) {
+    const validKinds: ReadonlySet<unknown> = new Set(["person", "placeholder", "external"]);
+    if (typeof existing.kind !== "string" || !validKinds.has(existing.kind)) {
+      throw new ValidationError("The stored resource kind is invalid and must be repaired by import.", {
+        code: "resource_kind_immutable",
+      });
+    }
+    if (copy.kind !== existing.kind) {
+      throw new ValidationError("A resource’s kind cannot change after creation.", { code: "resource_kind_immutable" });
+    }
+  }
   // Availability boundaries use an explicit-null clear in full-row PUTs. Capture presence before
   // the import sanitiser drops null/malformed values, otherwise the preservation pass below would
-  // mistake a deliberate clear (or a person→non-person kind change) for an omitted legacy field
+  // mistake a deliberate clear for an omitted legacy field
   // and restore the old person's dates.
   const availabilityRequested =
     table === "resources"

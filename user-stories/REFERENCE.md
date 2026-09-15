@@ -988,8 +988,9 @@ section below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
 Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Scheduled
-person** field to associate one member with one active person per company. This association changes
-neither permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
+person** controls to see **Linked to [person] in the schedule** or **Not linked to the schedule**,
+then link, change, or remove one active person per member. This association changes neither
+permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
 validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
 association. Its **Your access** panel (`data-testid="current-access"`) shows the
 active role in a plain-language summary sentence. The full allowed/not-allowed capability list —

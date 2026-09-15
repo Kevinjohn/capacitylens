@@ -310,6 +310,7 @@ describe("account-boundary architecture", () => {
     // Routes and coordinators consume their ports instead; this list never grants directory access.
     const controlTableImporters = new Set([
       resolve(serverRoot, "db/open.ts"),
+      resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
       resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
       resolve(serverRoot, "controlTables.ts"),
@@ -328,6 +329,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/ownershipTransfer.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransferRequests.ts"),
       resolve(serverRoot, "accounts/sqliteAccountMemberResourcePort.ts"),
+      resolve(serverRoot, "erasure.ts"),
       resolve(serverRoot, "ownershipTransferRecovery.ts"),
     ]);
 

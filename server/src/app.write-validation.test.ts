@@ -303,10 +303,9 @@ function createExternalResourceWriteValidationTests(): void {
 }
 
 function createExternalResourceConversionRejectionTests(): void {
-  // Flipping a resource to external while it still owns loaded work / time-off would orphan those
-  // dependents (the scheduler hides external capacity + time-off). The server rejects the flip on
-  // BOTH the full-row PUT and the partial PATCH merge — same shared assert as the store.
-  it("rejects PATCH setting kind:external on a resource that has a loaded allocation", async () => {
+  // Resource kinds are immutable after creation; the server rejects both full-row and partial
+  // attempts before dependent validation can be bypassed.
+  it("rejects PATCH setting kind:external on a person resource", async () => {
     const { app } = freshApp();
     await scaffold(app); // r1 is a person
     await post(
@@ -316,7 +315,7 @@ function createExternalResourceConversionRejectionTests(): void {
     );
     const res = await patch({ app, entity: "resources", id: "r1", payload: { kind: "external" } });
     expect(res.statusCode).toBe(400);
-    expect(readErrorResponse(res).error).toMatch(/work and time off/i);
+    expect(readErrorResponse(res).error).toMatch(/kind cannot change/i);
   });
 
   it("rejects PUT setting kind:external on a resource that has time off", async () => {
@@ -341,12 +340,12 @@ function createExternalResourceConversionRejectionTests(): void {
       },
     });
     expect(res.statusCode).toBe(400);
-    expect(readErrorResponse(res).error).toMatch(/work and time off/i);
+    expect(readErrorResponse(res).error).toMatch(/kind cannot change/i);
   });
 }
 
 function createExternalResourceConversionAcceptanceTests(): void {
-  it("accepts flipping a resource to external when it has NO disallowed dependents (zero-load allocation is fine)", async () => {
+  it("rejects flipping a resource to external even without disallowed dependents", async () => {
     const { app } = freshApp();
     await scaffold(app);
     // A zero-load allocation is already valid for an external, so it must NOT block the flip.
@@ -355,8 +354,9 @@ function createExternalResourceConversionAcceptanceTests(): void {
       "allocations",
       allocation({ id: "al", accountId: "a1", resourceId: "r1", activityId: "t1", o: { hoursPerDay: 0 } }),
     );
-    expect((await patch({ app, entity: "resources", id: "r1", payload: { kind: "external" } })).statusCode).toBe(200);
-    expect(readResource((await readValidatedState(app)).resources, "r1").kind).toBe("external");
+    const result = await patch({ app, entity: "resources", id: "r1", payload: { kind: "external" } });
+    expect(result.statusCode).toBe(400);
+    expect(readResource((await readValidatedState(app)).resources, "r1").kind).toBe("person");
   });
 
   it("accepts creating an external resource with no dependents, and editing its name", async () => {

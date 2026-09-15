@@ -443,6 +443,20 @@ describe("account member/resource writes stay inside their account", () => {
     expect(starkAssociation()).toEqual({ resourceId: "r-stark", revision: "stark-revision" });
   });
 
+  it("reports the changed association only for the named account", () => {
+    const mutation = accountMemberResources.setAccountMemberResourceLinkWithResult({
+      db,
+      accountId: WAYNE,
+      userId: SHARED,
+      resourceId: "r-wayne",
+      expectedRevision: null,
+      now: NOW,
+    });
+
+    expect(mutation.changed).toBe(true);
+    expect(starkAssociation()).toEqual({ resourceId: "r-stark", revision: "stark-revision" });
+  });
+
   it("reconciles only the named account association", () => {
     seedAssociation(WAYNE, "r-wayne", "wayne-revision");
     db.prepare(`UPDATE resources SET kind = 'placeholder' WHERE accountId = ?`).run(WAYNE);
@@ -493,6 +507,7 @@ const CONTROL_TABLE_MODULES = Object.keys(MODULES).filter((name) => name !== "me
 
 const COVERED = new Set([
   "accountMemberResources.setAccountMemberResourceLink",
+  "accountMemberResources.setAccountMemberResourceLinkWithResult",
   "accountMemberResources.clearAccountMemberResourceLink",
   "accountMemberResources.reconcileAccountMemberResources",
   "accountMemberResources.removeAccountMemberResourceForMember",
