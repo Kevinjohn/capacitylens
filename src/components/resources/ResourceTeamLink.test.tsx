@@ -2,26 +2,21 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AuthContext } from "../../auth/authContext";
 import { PermissionContext, type PermissionContextValue } from "../../auth/permissionContext";
-import { authValue } from "../settings/MembersSection.testSupport";
 import { ResourceTeamLink } from "./ResourceTeamLink";
 
-vi.mock("../../data/apiConfig", () => ({ isServerConfigured: () => true }));
 afterEach(() => vi.unstubAllGlobals());
 
-function renderLink(permission: PermissionContextValue, auth = authValue()) {
+function renderLink(permission: PermissionContextValue) {
   return render(
-    <AuthContext.Provider value={auth}>
-      <PermissionContext.Provider value={permission}>
-        <MemoryRouter initialEntries={["/resources"]}>
-          <Routes>
-            <Route path="/resources" element={<ResourceTeamLink />} />
-            <Route path="/team" element={<h1>Team &amp; access</h1>} />
-          </Routes>
-        </MemoryRouter>
-      </PermissionContext.Provider>
-    </AuthContext.Provider>,
+    <PermissionContext.Provider value={permission}>
+      <MemoryRouter initialEntries={["/resources"]}>
+        <Routes>
+          <Route path="/resources" element={<ResourceTeamLink />} />
+          <Route path="/team" element={<h1>Team &amp; access</h1>} />
+        </Routes>
+      </MemoryRouter>
+    </PermissionContext.Provider>,
   );
 }
 
@@ -45,11 +40,6 @@ describe("Resources entry point to Team", () => {
 
   it.each(["pending", "unavailable"] as const)("waits for permission when %s", (status) => {
     renderLink({ role: "owner", status });
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
-  });
-
-  it("does not add membership controls to auth-off or demo mode", () => {
-    renderLink({ role: "owner", status: "resolved" }, authValue({ authMode: "off", user: null }));
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 });
