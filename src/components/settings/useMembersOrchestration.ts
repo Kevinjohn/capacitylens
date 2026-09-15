@@ -6,6 +6,7 @@ import type { TeamInvitation, TeamMember as Member } from "../../account/teamAcc
 import { resolveStrictOidcProvider, useAuth } from "../../auth/authContext";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useOfflineState } from "../../data/useOfflineState";
+import { useNavigatorOnline } from "../../data/useNavigatorOnline";
 import { useDeadlineClock } from "../../hooks/useDeadlineClock";
 import { useFieldError } from "../../hooks/useFieldError";
 import { useStore } from "../../store/useStore";
@@ -295,6 +296,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   // provider list is resolved.
   const strictProviderId = resolveStrictOidcProvider(providers)?.id ?? null;
   const offline = useOfflineState();
+  const online = useNavigatorOnline();
   const { setNotice, setActiveAccount, invalidateMemberships } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
@@ -318,16 +320,24 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     const unauthorized =
       directoryState.directory.kind === "hidden" ||
       (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
-    const contextReady = enabled && !offline.readOnly && !unauthorized && activeAccountId !== null && user !== null;
+    const contextReady =
+      enabled && online && !offline.readOnly && !unauthorized && activeAccountId !== null && user !== null;
     if (!contextReady) {
       clearInvitationPreselection();
       setProposedResourceId(null);
       resetInviteDraft();
       return;
     }
-    const claimed = claimInvitationPreselection(activeAccountId, user.id);
+    const claimed = claimInvitationPreselection({
+      accountId: activeAccountId,
+      userId: user.id,
+      sessionIdentity: user,
+      authMode,
+      offlineReadOnly: offline.readOnly,
+      online,
+    });
     if (claimed !== null) setProposedResourceId(claimed);
-  }, [activeAccountId, directoryState.directory, enabled, offline.readOnly, resetInviteDraft, user]);
+  }, [activeAccountId, authMode, directoryState.directory, enabled, offline, online, resetInviteDraft, user]);
   const resourceCandidates = directoryState.resourceCandidates;
   const linkedResourceIds = new Set(
     (directoryState.members ?? []).flatMap((member) => (member.resourceLink ? [member.resourceLink.resourceId] : [])),

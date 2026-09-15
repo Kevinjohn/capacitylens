@@ -60,6 +60,12 @@ export function useMemberResourceLinkMutation(options: MemberResourceLinkMutatio
       setPending(true);
       setError(null);
       let outcome: MutationResult = { kind: "stale" };
+      let reconciled = false;
+      const reconcileOnce = async (): Promise<void> => {
+        if (reconciled) return;
+        reconciled = true;
+        await (options.reconcile ?? options.reload)();
+      };
       try {
         const result = await request();
         if (!command.isCurrent() || contextRef.current !== contextKey) return outcome;
@@ -83,16 +89,18 @@ export function useMemberResourceLinkMutation(options: MemberResourceLinkMutatio
           options.onForbidden?.(forbiddenMessage);
           return outcome;
         }
-        await options.reconcile?.();
-        if (command.isCurrent() && contextRef.current === contextKey) await options.reload();
+        if (command.isCurrent() && contextRef.current === contextKey) {
+          await reconcileOnce();
+        }
         if (command.isCurrent() && contextRef.current === contextKey) useStore.getState().setNotice(message, "error");
         return outcome;
       } catch (cause: unknown) {
         if (!command.isCurrent() || contextRef.current !== contextKey) return outcome;
         outcome = { kind: "unknown" };
         setError(`${m.settings_member_resource_error()} ${resolveErrorMessage(cause)}`);
-        await options.reconcile?.();
-        if (command.isCurrent() && contextRef.current === contextKey) await options.reload();
+        if (command.isCurrent() && contextRef.current === contextKey) {
+          await reconcileOnce();
+        }
         if (command.isCurrent() && contextRef.current === contextKey)
           useStore.getState().setNotice(m.settings_member_resource_error(), "error");
         return outcome;

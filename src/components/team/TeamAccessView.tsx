@@ -5,6 +5,9 @@ import { useAuth } from "../../auth/authContext";
 import { resolveAccessLabel, resolveAccessSummary } from "../../lib/accessCopy";
 import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
 import { useOfflineState } from "../../data/useOfflineState";
+import { useNavigatorOnline } from "../../data/useNavigatorOnline";
+import { useStore } from "../../store/useStore";
+import { useInvitationPreselectionLifecycle } from "../settings/invitationPreselection";
 import { MembersSection } from "../settings/MembersSection";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
 import { Badge } from "../ui/badge";
@@ -145,8 +148,10 @@ function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissio
 export function TeamAccessView() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const { authMode } = useAuth();
+  const { authMode, user } = useAuth();
   const offline = useOfflineState();
+  const online = useNavigatorOnline();
+  const activeAccountId = useStore((state) => state.activeAccountId);
   const accessExperience = resolveAccessExperience(authMode);
   const authenticated = accessExperience === "authenticated";
   const resolvedRole = authenticated && permissionStatus === "resolved" ? role : null;
@@ -155,6 +160,16 @@ export function TeamAccessView() {
   // deliberately disabled and the server cannot confirm membership.
   const effectiveRole: Role | null = offline.readOnly ? "viewer" : resolvedRole;
   const mayManage = !offline.readOnly && resolvedRole !== null && can(resolvedRole, "manageMembers");
+  useInvitationPreselectionLifecycle({
+    accountId: activeAccountId,
+    userId: user?.id ?? null,
+    sessionIdentity: user,
+    authMode,
+    offlineReadOnly: offline.readOnly,
+    online,
+    permissionStatus,
+    mayManage,
+  });
   const accessCopyInput = {
     offlineReadOnly: offline.readOnly,
     experience: accessExperience,

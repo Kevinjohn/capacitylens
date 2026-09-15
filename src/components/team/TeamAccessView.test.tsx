@@ -1,11 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { PermissionContext } from "../../auth/permissionContext";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
 import { TeamAccessView } from "./TeamAccessView";
 import { setOfflineReadState } from "../../data/offlineCache";
+import { useStore } from "../../store/useStore";
+import {
+  claimInvitationPreselection,
+  clearInvitationPreselection,
+  setInvitationPreselection,
+} from "../settings/invitationPreselection";
 
 const buildMode = vi.hoisted(() => ({ demo: false }));
 vi.mock("../../data/apiConfig", () => ({
@@ -55,6 +61,8 @@ beforeEach(() => {
 
 afterEach(() => {
   setOfflineReadState("cleanup", false);
+  clearInvitationPreselection();
+  useStore.setState({ activeAccountId: null });
 });
 
 describe("TeamAccessView access presentation", () => {
@@ -139,6 +147,55 @@ describe("TeamAccessView member management", () => {
 
     expect(controls).not.toBeInTheDocument();
     expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
+  });
+
+  it("clears resource invitation handoff when the real Team boundary loses authorization", async () => {
+    const authContext = auth("password");
+    const sessionIdentity = authContext.user;
+    if (!sessionIdentity) throw new Error("Expected authenticated test user");
+    useStore.setState({ activeAccountId: "account-1" });
+    setInvitationPreselection(
+      {
+        accountId: "account-1",
+        userId: sessionIdentity.id,
+        sessionIdentity,
+        authMode: "password",
+        offlineReadOnly: false,
+        online: true,
+      },
+      "person-1",
+    );
+    const view = render(
+      <MemoryRouter>
+        <AuthContext.Provider value={authContext}>
+          <PermissionContext.Provider value={{ role: "owner", status: "resolved" }}>
+            <TeamAccessView />
+          </PermissionContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+    view.rerender(
+      <MemoryRouter>
+        <AuthContext.Provider value={authContext}>
+          <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
+            <TeamAccessView />
+          </PermissionContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(
+        claimInvitationPreselection({
+          accountId: "account-1",
+          userId: sessionIdentity.id,
+          sessionIdentity,
+          authMode: "password",
+          offlineReadOnly: false,
+          online: true,
+        }),
+      ).toBeNull(),
+    );
+    view.unmount();
   });
 
   it.each([

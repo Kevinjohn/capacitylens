@@ -11,15 +11,12 @@ export function RemoveResourceMemberLinkButton({
   mutation,
   returnFocusRef,
   onSuccess,
-  onForbidden,
 }: {
   resource: Resource;
-  accountId: string | null;
   member: TeamMember;
   mutation: ReturnType<typeof useMemberResourceLinkMutation>;
   returnFocusRef: RefObject<HTMLButtonElement | null>;
   onSuccess(): void;
-  onForbidden(message: string): void;
 }) {
   const remove = () => {
     if (!member.resourceLink) return;
@@ -31,7 +28,6 @@ export function RemoveResourceMemberLinkButton({
       })
       .then((result) => {
         if (result.kind === "ok") onSuccess();
-        if (result.kind === "rejected" && mutation.error) onForbidden(mutation.error);
       });
   };
   return (

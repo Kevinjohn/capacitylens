@@ -23,7 +23,7 @@ describe("useMemberResourceLinkMutation", () => {
     await act(async () => hook.current.mutate(input));
 
     expect(reconcile).toHaveBeenCalledTimes(1);
-    expect(reload).toHaveBeenCalledTimes(1);
+    expect(reload).not.toHaveBeenCalled();
     expect(hook.current.error).toBeTruthy();
   });
 
@@ -42,7 +42,44 @@ describe("useMemberResourceLinkMutation", () => {
 
     expect(outcome?.kind).toBe("unknown");
     expect(reconcile).toHaveBeenCalledOnce();
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("uses one reload when no separate reconciliation is supplied", async () => {
+    vi.spyOn(teamAccessClient, "setMemberResourceLink").mockResolvedValue({
+      kind: "unknown",
+      status: 0,
+      message: null,
+    } as never);
+    const reload = vi.fn();
+    const { result: hook } = renderHook(() =>
+      useMemberResourceLinkMutation({ workspaceId: "account-1", contextKey: "account-1:user-1", reload }),
+    );
+
+    await act(async () => hook.current.mutate(input));
+
     expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("does not retry reconciliation when the authoritative refresh itself throws", async () => {
+    vi.spyOn(teamAccessClient, "setMemberResourceLink").mockResolvedValue({
+      kind: "unknown",
+      status: 0,
+      message: null,
+    } as never);
+    const reconcile = vi.fn().mockRejectedValue(new Error("refresh failed"));
+    const { result: hook } = renderHook(() =>
+      useMemberResourceLinkMutation({
+        workspaceId: "account-1",
+        contextKey: "account-1:user-1",
+        reload: vi.fn(),
+        reconcile,
+      }),
+    );
+
+    await act(async () => hook.current.mutate(input));
+
+    expect(reconcile).toHaveBeenCalledOnce();
   });
 
   it("invalidates capability and feedback globally on a 403", async () => {

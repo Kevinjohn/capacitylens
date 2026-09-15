@@ -41,8 +41,12 @@ const member = (overrides: Partial<TeamMember> = {}) =>
 const model = (members: readonly TeamMember[], canManage = true): ResourceMemberActionsModel => ({
   canManage,
   authMode: "password",
+  sessionIdentity: { id: "member-1" },
+  offlineReadOnly: false,
+  online: true,
   members,
   reload: vi.fn(),
+  invalidate: vi.fn(),
   directoryError: null,
   contextKey: "account-1\u0000member-1\u0000password\u0000false\u00000",
 });

@@ -14,37 +14,28 @@ import { LinkResourceDialog } from "./ResourceMemberActionDialogs";
 import { RemoveResourceMemberLinkButton } from "./RemoveResourceMemberLinkButton";
 import { useMemberResourceLinkMutation } from "../settings/useMemberResourceLinkMutation";
 import { setInvitationPreselection } from "../settings/invitationPreselection";
+import { useNavigatorOnline } from "../../data/useNavigatorOnline";
 
 export type ResourceMemberActionsModel = {
   canManage: boolean;
   authMode: ReturnType<typeof useAuth>["authMode"];
   userId?: string | null;
+  sessionIdentity: ReturnType<typeof useAuth>["user"];
+  offlineReadOnly: boolean;
+  online: boolean;
   members: readonly TeamMember[];
   reload(): void;
+  invalidate(): void;
   directoryError: string | null;
   contextKey: string;
 };
-
-function useOnline(): boolean {
-  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
-  useEffect(() => {
-    const update = () => setOnline(navigator.onLine);
-    window.addEventListener("online", update);
-    window.addEventListener("offline", update);
-    return () => {
-      window.removeEventListener("online", update);
-      window.removeEventListener("offline", update);
-    };
-  }, []);
-  return online;
-}
 
 /** Loads the separately-authorized team projection used by active Resource rows. */
 /* eslint-disable react-refresh/only-export-components, complexity, max-lines-per-function */
 export function useResourceMemberActionsModel(accountId: string | null): ResourceMemberActionsModel {
   const { authMode, user } = useAuth();
   const offline = useOfflineState();
-  const online = useOnline();
+  const online = useNavigatorOnline();
   const enabled = authMode !== "off" && isServerConfigured();
   const membershipRevision = useStore((state) => state.membershipRevision);
   const accountSummary = useStore((state) => state.accountSummaries.find((summary) => summary.id === accountId));
@@ -58,11 +49,14 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
   } | null>(null);
   const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [forbiddenContext, setForbiddenContext] = useState<string | null>(null);
   const requestGeneration = useRef(0);
-  const directoryKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${membershipRevision}\u0000${accountSummary?.role ?? ""}\u0000${accountSummary?.roleStatus ?? ""}`;
+  const authorizationContextKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${online}`;
+  const directoryKey = `${authorizationContextKey}\u0000${membershipRevision}\u0000${accountSummary?.role ?? ""}\u0000${accountSummary?.roleStatus ?? ""}`;
   useEffect(() => {
     const generation = ++requestGeneration.current;
     const current = () => requestGeneration.current === generation;
+    if (forbiddenContext === authorizationContextKey) return;
     setDirectory(null);
     setDirectoryError(null);
     if (!enabled || !resolvedCanManage || !accountId || !user || offline.readOnly || !online) return;
@@ -71,10 +65,18 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
       .then((result) => {
         if (!current()) return;
         if (result.kind !== "ok") {
-          if (result.kind === "rejected" && result.status === 403) return;
+          if (result.kind === "rejected" && result.status === 403) {
+            const message = m.settings_members_err_access_changed();
+            setForbiddenContext(authorizationContextKey);
+            setDirectoryError(message);
+            useStore.getState().invalidateMemberships();
+            useStore.getState().setNotice(message, "error");
+            return;
+          }
           setDirectoryError(resolveRejectionMessage(result, m.settings_resource_member_unavailable()));
           return;
         }
+        setForbiddenContext(null);
         setDirectory({ accountId, userId: user.id, members: result.value.members });
       })
       .catch((cause: unknown) => {
@@ -86,6 +88,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
   }, [
     accountId,
     authMode,
+    authorizationContextKey,
     directoryKey,
     enabled,
     membershipRevision,
@@ -94,6 +97,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
     reloadKey,
     resolvedCanManage,
     user,
+    forbiddenContext,
   ]);
   const members = directory?.accountId === accountId && directory.userId === user?.id ? directory.members : [];
   const self = members.find((member) => member.isSelf);
@@ -101,15 +105,26 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
     requestGeneration.current += 1;
     setDirectory(null);
     setDirectoryError(null);
+    setForbiddenContext(null);
     setReloadKey((value) => value + 1);
     // The Team projection and validated avatar projection share this revision boundary.
     useStore.getState().invalidateMemberships();
   };
+  const invalidate = () => {
+    requestGeneration.current += 1;
+    setDirectory(null);
+    setDirectoryError(m.settings_members_err_access_changed());
+    setForbiddenContext(authorizationContextKey);
+  };
   return {
     members,
     authMode,
+    sessionIdentity: user,
+    offlineReadOnly: offline.readOnly,
+    online,
     userId: user?.id ?? null,
     reload,
+    invalidate,
     directoryError,
     contextKey: directoryKey,
     canManage:
@@ -173,13 +188,11 @@ function ResourceMemberActionsImpl({
     workspaceId: accountId,
     contextKey: `${model.contextKey}:${resource.id}:${linkedMember?.userId ?? ""}`,
     reload: model.reload,
-    reconcile: model.reload,
     onForbidden: (message) => {
       setForbidden(true);
       setDialog(null);
       setError(message);
-      useStore.getState().setNotice(message, "error");
-      model.reload();
+      model.invalidate();
     },
   });
 
@@ -213,7 +226,19 @@ function ResourceMemberActionsImpl({
     setError(null);
     setNotice(null);
     if (kind === "invite") {
-      if (accountId && model.userId) setInvitationPreselection(accountId, model.userId, resource.id);
+      if (accountId && model.userId && model.sessionIdentity) {
+        setInvitationPreselection(
+          {
+            accountId,
+            userId: model.userId,
+            sessionIdentity: model.sessionIdentity,
+            authMode: model.authMode,
+            offlineReadOnly: model.offlineReadOnly,
+            online: model.online,
+          },
+          resource.id,
+        );
+      }
       void navigate("/team");
       return;
     }
@@ -249,7 +274,6 @@ function ResourceMemberActionsImpl({
             {linkedMember.status === "active" && action(m.settings_resource_member_change_link(), () => open("link"))}
             <RemoveResourceMemberLinkButton
               resource={resource}
-              accountId={accountId}
               member={linkedMember}
               mutation={mutation}
               returnFocusRef={returnFocusRef}
@@ -257,13 +281,6 @@ function ResourceMemberActionsImpl({
                 const message = m.settings_resource_member_unlinked();
                 setNotice(message);
                 useStore.getState().setNotice(message);
-              }}
-              onForbidden={(message) => {
-                setForbidden(true);
-                setDialog(null);
-                setError(message);
-                useStore.getState().setNotice(message, "error");
-                model.reload();
               }}
             />
           </>

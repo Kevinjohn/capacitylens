@@ -29,7 +29,6 @@ export function MemberResourceLink({
     workspaceId,
     contextKey: `${workspaceId ?? ""}:${member.userId}:${myRole ?? ""}`,
     reload,
-    reconcile: reload,
     onForbidden: () => {
       setEditing(false);
       reload();
