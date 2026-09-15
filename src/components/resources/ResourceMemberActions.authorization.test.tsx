@@ -1,8 +1,23 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
+import type { Resource } from "@capacitylens/shared/types/entities";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { teamAccessClient } from "../../account/teamAccessClient";
 import { useStore } from "../../store/useStore";
-import { useResourceMemberActionsModel } from "./ResourceMemberActions";
+import { ResourceMemberActions, useResourceMemberActionsModel } from "./ResourceMemberActions";
+
+const person = {
+  id: "person-1",
+  accountId: "account-1",
+  kind: "person",
+  name: "Bruce Wayne",
+  role: "Developer",
+  employmentType: "permanent",
+  engagement: "studio",
+  workingHoursPerDay: 8,
+  workingDays: [1, 2, 3, 4, 5],
+  halfDays: [],
+  color: "#3b82f6",
+} as unknown as Resource;
 
 const auth = vi.hoisted(() => ({
   mode: "password" as "off" | "password",
@@ -167,6 +182,47 @@ describe("useResourceMemberActionsModel authorization boundary", () => {
     expect(result.current.canManage).toBe(false);
     expect(result.current.members).toEqual([]);
     await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(2));
+  });
+
+  it("preserves the directory and open link dialog for a fresh equivalent user object", async () => {
+    useStore.setState({ accountSummaries: [{ id: "account-1", role: "admin", roleStatus: "resolved" }] } as never);
+    const listMembers = vi.spyOn(teamAccessClient, "listMembers").mockResolvedValue({
+      kind: "ok",
+      status: 200,
+      value: {
+        members: [
+          {
+            userId: "user-1",
+            role: "admin",
+            status: "active",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            name: "Bruce Wayne",
+            email: "bruce@example.test",
+            signInConfirmed: null,
+            isSelf: true,
+            mayResetPassword: false,
+            mayRevokeSessions: false,
+            resourceLink: null,
+            resourceLinkException: null,
+          },
+        ],
+        signInTrackingEnabled: false,
+        resourceCandidates: [{ resourceId: "person-1", label: "Bruce Wayne" }],
+      },
+    });
+    const modelHook = renderHook(() => useResourceMemberActionsModel("account-1"));
+    await waitFor(() => expect(modelHook.result.current.canManage).toBe(true));
+    const view = render(
+      <ResourceMemberActions resource={person} accountId="account-1" model={modelHook.result.current} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Link existing member Bruce Wayne/i }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    auth.user = { id: "user-1" };
+    modelHook.rerender();
+    view.rerender(<ResourceMemberActions resource={person} accountId="account-1" model={modelHook.result.current} />);
+    expect(listMembers).toHaveBeenCalledOnce();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    view.unmount();
   });
 
   it.each([

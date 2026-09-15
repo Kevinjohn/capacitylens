@@ -34,6 +34,7 @@ export type ResourceMemberActionsModel = {
 /* eslint-disable react-refresh/only-export-components, complexity, max-lines-per-function */
 export function useResourceMemberActionsModel(accountId: string | null): ResourceMemberActionsModel {
   const { authMode, sessionInstanceId: authSessionInstanceId = null, user } = useAuth();
+  const userId = user?.id ?? null;
   const sessionInstanceId = authSessionInstanceId;
   const offline = useOfflineState();
   const online = useNavigatorOnline();
@@ -53,7 +54,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
   const [reloadKey, setReloadKey] = useState(0);
   const [forbiddenContext, setForbiddenContext] = useState<string | null>(null);
   const requestGeneration = useRef(0);
-  const authorizationContextKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${sessionInstanceId ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${online}`;
+  const authorizationContextKey = `${accountId ?? ""}\u0000${userId ?? ""}\u0000${sessionInstanceId ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${online}`;
   const previousAuthorizationContextKey = useRef(authorizationContextKey);
   const directoryKey = `${authorizationContextKey}\u0000${membershipRevision}\u0000${accountSummary?.role ?? ""}\u0000${accountSummary?.roleStatus ?? ""}`;
   useEffect(() => {
@@ -64,7 +65,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
     if (!contextChanged && forbiddenContext === authorizationContextKey) return;
     setDirectory(null);
     setDirectoryError(null);
-    if (!enabled || !resolvedCanManage || !accountId || !user || offline.readOnly || !online) return;
+    if (!enabled || !resolvedCanManage || !accountId || !userId || offline.readOnly || !online) return;
     void teamAccessClient
       .listMembers(accountId)
       .then((result) => {
@@ -84,7 +85,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
         setForbiddenContext(null);
         setDirectory({
           accountId,
-          userId: user.id,
+          userId,
           contextKey: authorizationContextKey,
           members: result.value.members,
         });
@@ -106,12 +107,12 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
     online,
     reloadKey,
     resolvedCanManage,
-    user,
+    userId,
     forbiddenContext,
   ]);
   const members =
     directory?.accountId === accountId &&
-    directory.userId === user?.id &&
+    directory.userId === userId &&
     directory.contextKey === authorizationContextKey
       ? directory.members
       : [];
@@ -137,7 +138,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
     sessionInstanceId,
     offlineReadOnly: offline.readOnly,
     online,
-    userId: user?.id ?? null,
+    userId,
     reload,
     invalidate,
     directoryError,
@@ -147,7 +148,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
       online &&
       !offline.readOnly &&
       resolvedCanManage &&
-      user !== null &&
+      userId !== null &&
       accountId !== null &&
       directory !== null &&
       directoryError === null &&

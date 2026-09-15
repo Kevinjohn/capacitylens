@@ -49,4 +49,27 @@ describe("authenticated session handle parsing", () => {
     const result = await fetchStatus({ authMode: "off", user: null });
     expect(result).toMatchObject({ kind: "pass", sessionInstanceId: null });
   });
+
+  it("does not log malformed auth-on user values", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const result = await fetchStatus({
+      authMode: "password",
+      user: { id: "private-user-marker", email: "private@example.test" },
+    });
+    expect(result).toMatchObject({ kind: "error" });
+    expect(JSON.stringify(warn.mock.calls)).not.toMatch(/private-user-marker|private@example\.test/);
+  });
+
+  it("does not log malformed auth-mode response values", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const result = await fetchStatus({
+      authMode: "bogus",
+      user: { id: "private-user-marker", email: "private@example.test" },
+      sessionInstanceId: "private-session-marker",
+    });
+    expect(result).toMatchObject({ kind: "error" });
+    expect(JSON.stringify(warn.mock.calls)).not.toMatch(
+      /private-user-marker|private@example\.test|private-session-marker/,
+    );
+  });
 });

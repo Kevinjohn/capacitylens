@@ -69,8 +69,28 @@ function parseSessionInstanceId(authMode: Extract<AuthStatusResult, { kind: "pas
   return isSessionInstanceId(value) ? value : null;
 }
 
+function summarizeResponseType(value: unknown): string {
+  if (Array.isArray(value)) return "array";
+  if (value === null) return "null";
+  return typeof value;
+}
+
+function summarizeAuthResponse(value: unknown) {
+  const record =
+    value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+  return {
+    responseType: summarizeResponseType(value),
+    authModeType: typeof record?.authMode,
+    userType: typeof record?.user,
+    sessionInstanceIdType: typeof record?.sessionInstanceId,
+  };
+}
+
 function invalidResponse(body: unknown): AuthStatusResult {
-  console.warn("AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned", body);
+  console.warn(
+    "AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned",
+    summarizeAuthResponse(body),
+  );
   return { kind: "error", message: m.auth_service_invalid_response() };
 }
 
@@ -91,7 +111,7 @@ function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatu
   const authMode = fields.authMode;
   const user = parseAuthUser({ value: fields.user, requireEmail: authMode !== "off" });
   if (authMode !== "off" && !user) {
-    console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user", body);
+    console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user", summarizeAuthResponse(body));
     return { kind: "error", message: m.auth_service_invalid_response() };
   }
   const sessionInstanceId = parseSessionInstanceId(authMode, fields.sessionInstanceId);
