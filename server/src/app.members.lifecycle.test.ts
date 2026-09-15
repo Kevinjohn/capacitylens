@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { upsertMember, getMemberRole, getInvite } from "./controlTables";
+import { seedMemberResourceLink } from "./fixtures/memberResourceTestSupport";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, readCookies, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
@@ -674,8 +675,7 @@ function registerDisabledMemberAuthorityTest(): void {
 function registerDisabledMemberRemovalTest(): void {
   it("removes a disabled membership without restoring its access first", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("remove-suspended");
-    // The gear offers Remove on a non-active row; before this fix the route's active-only lookup
-    // 404'd, so the only way to delete the membership was to hand its access back first.
+    seedMemberResourceLink({ db, accountId: "a1", userId: ed.userId, resourceId: "linked-person" });
     const res = await call(app, {
       method: "DELETE",
       url: `/api/accounts/a1/members/${ed.userId}`,
@@ -684,9 +684,9 @@ function registerDisabledMemberRemovalTest(): void {
     expect(res.statusCode).toBe(204);
     expect(getMemberRole(db, "a1", ed.userId)).toBeNull();
     expect(storedStatus(db, "a1", ed.userId)).toBeUndefined();
+    expect(db.prepare(`SELECT 1 FROM account_member_resources WHERE userId = ?`).get(ed.userId)).toBeUndefined();
   });
 }
-
 function registerDisabledMemberRoleChangeTest(): void {
   it("refuses a ROLE change on a non-active membership — restore is the only way back", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("role-suspended");

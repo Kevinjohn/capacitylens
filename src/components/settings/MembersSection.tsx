@@ -96,7 +96,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 type MembersOrchestration = Omit<ReturnType<typeof useMembersOrchestration>, "setActionStatusElement">;
 type MemberTableCapabilities = Pick<
   MembersOrchestration,
-  "myRole" | "busyAction" | "openMenuFor" | "setOpenMenuFor" | "setRoleEdit" | "chooseMemberAction"
+  "myRole" | "busyAction" | "openMenuFor" | "setOpenMenuFor" | "setRoleEdit" | "chooseMemberAction" | "reload"
 >;
 type ReadinessCapabilities = Pick<
   MembersOrchestration,
@@ -144,12 +144,17 @@ function MembersTable({
   testId,
   signInTrackingEnabled,
   memberActions,
+  allMembers,
 }: {
   rows: TeamMember[];
   testId: string;
   signInTrackingEnabled: boolean;
   memberActions: MemberTableCapabilities;
+  allMembers: TeamMember[];
 }) {
+  const linkedResourceIds = new Set(
+    allMembers.flatMap((candidate) => (candidate.resourceLink ? [candidate.resourceLink.resourceId] : [])),
+  );
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm" data-testid={testId}>
@@ -160,6 +165,9 @@ function MembersTable({
             </th>
             <th scope="col" className="py-2 pr-3 font-medium">
               {m.settings_member_col_email()}
+            </th>
+            <th scope="col" className="py-2 pr-3 font-medium">
+              {m.settings_member_col_scheduled_person()}
             </th>
             {signInTrackingEnabled && (
               <th scope="col" className="py-2 pr-3 font-medium">
@@ -186,6 +194,8 @@ function MembersTable({
               setOpenMenuFor={memberActions.setOpenMenuFor}
               setRoleEdit={memberActions.setRoleEdit}
               chooseMemberAction={memberActions.chooseMemberAction}
+              linkedResourceIds={linkedResourceIds}
+              reload={memberActions.reload}
             />
           ))}
         </tbody>
@@ -244,6 +254,7 @@ function MemberDirectory({
         testId="members-table"
         signInTrackingEnabled={signInTrackingEnabled}
         memberActions={directory}
+        allMembers={members}
       />
     );
   let disclosureIcon = <ChevronRight data-icon="inline-start" />;
@@ -271,6 +282,7 @@ function MemberDirectory({
                 testId="members-inactive-table"
                 signInTrackingEnabled={signInTrackingEnabled}
                 memberActions={directory}
+                allMembers={members}
               />
             </div>
           )}

@@ -12,6 +12,13 @@ administration, password reset, session revocation, workspace provisioning and t
 cross an explicit account boundary. Product code does not select a Better Auth type, identity table
 or membership table to perform those operations.
 
+The `account_member_resources` control table links one account member to one scheduled person for
+avatar presentation. It deliberately has no foreign keys into AppData: member removal, resource
+purge, account erasure, and imports reconcile it explicitly in their owning transaction. Its opaque
+revision provides compare-and-swap protection and is freshly generated after unlink/recreate. The
+ordinary read surface exposes only `{ resourceId, imageUrl }` for active, validated links; it never
+widens teammate identity records or enters exports, offline snapshots, or AppData diffs.
+
 This is deliberate partial decoupling. The boundary is repository-local and uses the same process,
 SQLite file, transaction manager and product migration ledger. It does not create a separate account
 service, account database, shared runtime identity or common portal. Those would change deployment

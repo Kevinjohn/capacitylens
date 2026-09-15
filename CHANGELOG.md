@@ -19,6 +19,8 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Let Owners and Admins explicitly link account members to scheduled people, using a validated
+  sign-in avatar only when that person has no explicit avatar URL (#1084).
 - Allow scheduled people to use an externally hosted HTTPS avatar, with initials as the loading and
   error fallback and no-referrer browser requests (#1083).
 - Add an optional **12 weeks** strategic horizon to Overview, while keeping the four-week tactical

@@ -1,5 +1,6 @@
 import { isLoopbackHostname } from "./strictOidcAddressPolicy";
 import { MAX_OIDC_JSON_BYTES, StrictOidcConfigError, StrictOidcProviderUnavailableError } from "./strictOidcErrors";
+import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
 
 export function parseObject(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -26,14 +27,8 @@ export function parseRequiredUrl(value: unknown, field: string): URL {
 }
 
 export function parseOptionalPictureUrl(value: unknown): string | null {
-  if (typeof value !== "string" || value.length > 2048) return null;
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "https:" || url.username || url.password) return null;
-    return url.toString();
-  } catch {
-    return null;
-  }
+  const parsed = parseResourceAvatarUrl(value);
+  return parsed.ok ? (parsed.value ?? null) : null;
 }
 
 async function fetchOidcEndpoint(url: string, init: RequestInit): Promise<Response> {

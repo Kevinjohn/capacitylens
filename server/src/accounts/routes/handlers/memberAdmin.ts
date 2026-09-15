@@ -4,6 +4,11 @@ import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import { NO_REPROMPT } from "../../../routes/routeShared";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor, requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
+import { AccountContractError } from "@capacitylens/shared/account/errors";
+
+function projectMemberResourceLink(link: { resourceId: string; revision: string } | undefined) {
+  return link ? { resourceId: link.resourceId, revision: link.revision } : null;
+}
 
 export async function listMembers(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
@@ -32,7 +37,9 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
       accountId,
       directory.map(({ membership }) => membership.principalId),
     );
+    const links = await context.memberResources.listLinks(accountId);
     const members = directory.map(({ membership: member, principal }) => {
+      const link = links.get(member.principalId);
       return {
         userId: member.principalId,
         role: member.role,
@@ -46,11 +53,88 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
           authMode === "password" &&
           projection.decisions.get(member.principalId)?.get("issue-password-reset")?.allowed === true,
         mayRevokeSessions: projection.decisions.get(member.principalId)?.get("revoke-sessions")?.allowed === true,
+        resourceLink: projectMemberResourceLink(link),
       };
     });
     return { members, signInTrackingEnabled: tracking.enabled };
   } catch (error) {
     return accountFail(reply, error);
+  }
+}
+
+function linkFailure(error: unknown): never {
+  if (error instanceof Error && error.name === "AccountMemberResourceConflict") {
+    throw new AccountContractError({ code: "CONFLICT", message: error.message, retryable: false }, { cause: error });
+  }
+  throw error;
+}
+
+/** Serve the authorized, privacy-minimal scheduled-person avatar projection for one account. */
+export async function listResourceAvatars(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { accountId } = req.params as { accountId: string };
+  if (!context.authorize({ req, reply, accountId, action: "read", options: NO_REPROMPT })) return;
+  if (context.authMode === "off") return { avatars: [] };
+  try {
+    return { avatars: await context.memberResources.listAvatarProjection(accountId) };
+  } catch (error) {
+    return context.fail(reply, error);
+  }
+}
+
+/** Create, retry, or change one member/person association under opaque revision CAS. */
+export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { accountId, userId } = req.params as { accountId: string; userId: string };
+  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
+    return;
+  const body = req.body as Record<string, unknown> | null;
+  if (
+    !body ||
+    typeof body.resourceId !== "string" ||
+    body.resourceId.length === 0 ||
+    !(body.expectedRevision === null || typeof body.expectedRevision === "string")
+  ) {
+    return context.fail(reply, context.validationFailed("resourceId and expectedRevision are required."));
+  }
+  try {
+    const link = await context.memberResources.setLink({
+      workspaceId: accountId,
+      principalId: userId,
+      resourceId: body.resourceId,
+      expectedRevision: body.expectedRevision,
+      now: new Date().toISOString(),
+    });
+    return reply.code(200).send({ resourceId: link.resourceId, revision: link.revision });
+  } catch (error) {
+    try {
+      linkFailure(error);
+    } catch (failure) {
+      return context.fail(reply, failure);
+    }
+  }
+}
+
+/** Remove one member/person association only when its opaque revision still matches. */
+export async function clearMemberResourceLink(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { accountId, userId } = req.params as { accountId: string; userId: string };
+  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
+    return;
+  const body = req.body as Record<string, unknown> | null;
+  if (!body || typeof body.expectedRevision !== "string" || body.expectedRevision.length === 0) {
+    return context.fail(reply, context.validationFailed("expectedRevision is required."));
+  }
+  try {
+    await context.memberResources.clearLink({
+      workspaceId: accountId,
+      principalId: userId,
+      expectedRevision: body.expectedRevision,
+    });
+    return reply.code(204).send();
+  } catch (error) {
+    try {
+      linkFailure(error);
+    } catch (failure) {
+      return context.fail(reply, failure);
+    }
   }
 }
 

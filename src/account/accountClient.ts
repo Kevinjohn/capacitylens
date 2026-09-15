@@ -5,6 +5,12 @@ import type { BrowserAccountCommand } from "./accountCommands";
 import { buildPayloadOperationKey } from "./commandOutcome";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 import type { ReauthAction } from "../auth/reauthCoordinator";
+import {
+  clearMemberResourceLinkRequest,
+  memberResourceLinkRequest,
+  resourceAvatarsUrl,
+  type MemberResourceLinkRequestInput,
+} from "./memberResourceClient";
 
 interface ChangeMemberRoleInput {
   workspaceId: string;
@@ -50,15 +56,11 @@ export { hasUnknownAccountCommandOutcome, readUnknownAccountCommandOutcome } fro
 
 export const accountClient = {
   me(signal?: AbortSignal): Promise<Response> {
-    // apiFetch (not raw fetch) so the audit-degradation header gets the same announceAuditWarning
-    // surfacing as every other account/sync request path.
     return apiFetch(`${API_BASE}/api/auth/me`, { credentials: "include", ...(signal ? { signal } : {}) });
   },
-
   listWorkspaces(signal?: AbortSignal): Promise<Response> {
     return apiFetch(`${API_BASE}/api/accounts`, { credentials: "include", ...(signal ? { signal } : {}) });
   },
-
   diagnostics(signal?: AbortSignal): Promise<Response> {
     return apiFetch(`${API_BASE}/api/diagnostics`, { credentials: "include", ...(signal ? { signal } : {}) });
   },
@@ -162,6 +164,11 @@ export const accountClient = {
       credentials: "include",
     });
   },
+
+  listResourceAvatars: (workspaceId: string) => apiFetch(resourceAvatarsUrl(workspaceId), { credentials: "include" }),
+  setMemberResourceLink: (input: MemberResourceLinkRequestInput) => apiFetch(...memberResourceLinkRequest(input)),
+  clearMemberResourceLink: (workspaceId: string, principalId: string, expectedRevision: string) =>
+    apiFetch(...clearMemberResourceLinkRequest(workspaceId, principalId, expectedRevision)),
 
   setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<Response> {
     return apiFetchReauth(

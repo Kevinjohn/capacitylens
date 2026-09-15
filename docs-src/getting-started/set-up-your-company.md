@@ -58,14 +58,26 @@ when deciding whether later invitees should be Viewers, Editors or Admins.
 
 Review **Team & access** beside **Resources** after the first invitations are accepted.
 
+An Owner or Admin can optionally choose a **Scheduled person** for each member. CapacityLens then
+uses that member's validated company-login picture on the schedule unless the person has an explicit
+avatar URL. Removing the link restores the person's explicit avatar, or initials when none is set.
+Linking never changes access or creates a person.
+The picture remains hosted by the identity provider, which receives the browser request (and can
+observe the viewer's IP address); CapacityLens sends no referrer and does not proxy or cache it.
+The schedule refreshes the picture reference after the confirmed link state is reloaded, after a
+company, account-data or session refresh, when the app leaves read-only offline mode, and when the
+page regains focus. If a provider replaces an image at the same URL, its HTTP cache headers and the
+browser determine when the new bytes appear; CapacityLens does not bypass that cache.
+Provider picture changes enter CapacityLens only after that member's next successful provider sign-in;
+an already open schedule observes the stored change on its next projection refresh.
+
 - **Team & access** lists members: people who can sign in and their permission role.
 - **Resources** lists people whose time can be scheduled, whether or not they can sign in.
 
-There is no account-to-resource link to create or maintain. Use the two lists to check that every
-teammate who needs access has the right membership, and that everyone whose capacity you plan has
-a resource with the right working pattern. Matching names can make that comparison easier, but
-the records remain independent. Do not invite freelancers or placeholders merely because they
-appear on the schedule.
+The optional **Scheduled person** association is only an avatar-display link. Use the two lists to
+check that every teammate who needs access has the right membership, and that everyone whose
+capacity you plan has a resource with the right working pattern. Do not invite freelancers or
+placeholders merely because they appear on the schedule.
 
 If you need confirmation that invited members have reached the company, the Owner can turn on
 **Record member sign-ins** in **Team & access**. It records only **Yes** or **Not yet** and is off

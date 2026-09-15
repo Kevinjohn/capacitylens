@@ -264,6 +264,7 @@ function buildProviderPolicies(context: EnabledAuthContext) {
     trustedOrigins: options.trustedOrigins,
     prepared: preparedProviderConfig,
     AuthConfigError: dependencies.AuthConfigError,
+    db,
   });
   return { pluginOptions, allowOpenSignup, setupToken, providerConfig };
 }

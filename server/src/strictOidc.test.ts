@@ -235,7 +235,7 @@ it("drops unsafe profile image URLs and rejects an oversized display name", asyn
       idToken: await idToken(currentKeys[0]),
       accessToken: "access-token",
     }),
-  ).resolves.toMatchObject({ image: undefined });
+  ).resolves.toMatchObject({ image: null });
   userInfo.name = "x".repeat(10_000);
   await expect(
     resolve({
@@ -250,7 +250,7 @@ it.each([
   "not a URL",
   "http://images.example.test/owner.png",
   `https://images.example.test/${"x".repeat(2049)}`,
-])("preserves an undefined image property for an unusable picture: %s", async (picture) => {
+])("preserves an explicit null image property for an unusable picture: %s", async (picture) => {
   if (picture === undefined) delete userInfo.picture;
   else userInfo.picture = picture;
   const resolve = createStrictOidcUserInfoResolver({ issuer, clientId, discoveryUrl });
@@ -259,7 +259,7 @@ it.each([
     accessToken: "access-token",
   });
   expect(Object.hasOwn(profile, "image")).toBe(true);
-  expect(profile.image).toBeUndefined();
+  expect(profile.image).toBeNull();
   expect(Object.getOwnPropertyDescriptor(profile, "image")).toMatchObject({
     writable: true,
     enumerable: true,
