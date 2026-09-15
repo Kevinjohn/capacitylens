@@ -148,7 +148,7 @@ function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissio
 export function TeamAccessView() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const { authMode, user } = useAuth();
+  const { authMode, sessionGeneration = 0, user } = useAuth();
   const offline = useOfflineState();
   const online = useNavigatorOnline();
   const activeAccountId = useStore((state) => state.activeAccountId);
@@ -163,7 +163,7 @@ export function TeamAccessView() {
   useInvitationPreselectionLifecycle({
     accountId: activeAccountId,
     userId: user?.id ?? null,
-    sessionIdentity: user,
+    sessionGeneration,
     authMode,
     offlineReadOnly: offline.readOnly,
     online,

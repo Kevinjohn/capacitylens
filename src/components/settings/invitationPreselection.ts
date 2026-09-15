@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
-import type { AccountMode, AuthUser } from "../../auth/authContext";
+import type { AccountMode } from "../../auth/authContext";
 
 interface PendingInvitationPreselection {
   accountId: string;
   userId: string;
-  sessionIdentity: AuthUser;
+  sessionGeneration: number;
   authMode: AccountMode;
   offlineReadOnly: boolean;
   online: boolean;
@@ -14,7 +14,7 @@ interface PendingInvitationPreselection {
 export interface InvitationPreselectionContext {
   accountId: string;
   userId: string;
-  sessionIdentity: AuthUser;
+  sessionGeneration: number;
   authMode: AccountMode;
   offlineReadOnly: boolean;
   online: boolean;
@@ -23,7 +23,7 @@ export interface InvitationPreselectionContext {
 export interface InvitationPreselectionLifecycleContext {
   accountId: string | null;
   userId: string | null;
-  sessionIdentity: AuthUser | null;
+  sessionGeneration: number;
   authMode: AccountMode;
   offlineReadOnly: boolean;
   online: boolean;
@@ -45,7 +45,7 @@ function matchesContext(
   return (
     pendingContext.accountId === context.accountId &&
     pendingContext.userId === context.userId &&
-    pendingContext.sessionIdentity === context.sessionIdentity &&
+    pendingContext.sessionGeneration === context.sessionGeneration &&
     pendingContext.authMode === context.authMode &&
     pendingContext.offlineReadOnly === context.offlineReadOnly &&
     pendingContext.online === context.online
@@ -96,7 +96,6 @@ export function useInvitationPreselectionLifecycle(context: InvitationPreselecti
     if (
       context.accountId === null ||
       context.userId === null ||
-      context.sessionIdentity === null ||
       context.authMode === "off" ||
       context.offlineReadOnly ||
       !context.online
@@ -107,7 +106,7 @@ export function useInvitationPreselectionLifecycle(context: InvitationPreselecti
     const current: InvitationPreselectionContext = {
       accountId: context.accountId,
       userId: context.userId,
-      sessionIdentity: context.sessionIdentity,
+      sessionGeneration: context.sessionGeneration,
       authMode: context.authMode,
       offlineReadOnly: context.offlineReadOnly,
       online: context.online,

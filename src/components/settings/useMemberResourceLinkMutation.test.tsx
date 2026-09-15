@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { teamAccessClient } from "../../account/teamAccessClient";
+import { useStore } from "../../store/useStore";
 import { useMemberResourceLinkMutation } from "./useMemberResourceLinkMutation";
 
 const input = { principalId: "user-1", resourceId: "person-1", expectedRevision: null };
@@ -128,6 +129,31 @@ describe("useMemberResourceLinkMutation", () => {
     await act(async () => pending);
 
     expect(reload).not.toHaveBeenCalled();
+  });
+
+  it("invalidates an in-flight command when the hook unmounts", async () => {
+    let resolve: ((value: never) => void) | undefined;
+    vi.spyOn(teamAccessClient, "setMemberResourceLink").mockReturnValue(
+      new Promise((done) => {
+        resolve = done;
+      }),
+    );
+    const reload = vi.fn();
+    const setNotice = vi.spyOn(useStore.getState(), "setNotice");
+    const { result: hook, unmount } = renderHook(() =>
+      useMemberResourceLinkMutation({ workspaceId: "account-1", contextKey: "account-1:user-1", reload }),
+    );
+
+    let pending: Promise<unknown> | undefined;
+    await act(async () => {
+      pending = hook.current.mutate(input);
+    });
+    unmount();
+    resolve?.({ kind: "rejected", status: 403, message: "late forbidden" } as never);
+    await act(async () => pending);
+
+    expect(reload).not.toHaveBeenCalled();
+    expect(setNotice).not.toHaveBeenCalled();
   });
 
   it.each([

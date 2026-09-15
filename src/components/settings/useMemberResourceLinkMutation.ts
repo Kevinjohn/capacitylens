@@ -45,6 +45,9 @@ export function useMemberResourceLinkMutation(options: MemberResourceLinkMutatio
     controller.invalidate();
     setPending(false);
     setError(null);
+    return () => {
+      controller.invalidate();
+    };
   }, [controller, options.contextKey]);
 
   const execute = useCallback(

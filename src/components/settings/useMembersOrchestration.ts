@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
@@ -20,7 +19,7 @@ import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
 import type { WorkspaceReadiness } from "./ssoReadiness";
-import { claimInvitationPreselection, clearInvitationPreselection } from "./invitationPreselection";
+import { useInvitationResourceHandoff } from "./useInvitationResourceHandoff";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
 
@@ -290,7 +289,7 @@ function useMemberStoreActions() {
 
 // eslint-disable-next-line max-lines-per-function
 export function useMembersOrchestration(activeAccountId: string | null) {
-  const { authMode, providers, refreshAuth, user } = useAuth();
+  const { authMode, providers, refreshAuth, sessionGeneration = 0, user } = useAuth();
   // Only the strict (non-experimental) OIDC provider's IDENTITY is needed here: the readiness read
   // is keyed on it, and keying on the provider OBJECT would re-fetch whenever an equal-but-new
   // provider list is resolved.
@@ -301,9 +300,27 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
   const enabled = authMode !== "off" && isServerConfigured();
-  const [proposedResourceId, setProposedResourceId] = useState<string | null>(null);
-  const memberInvites = useMemberInvites(proposedResourceId);
-  const { reconcileMintedInvite, resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
+  const inviteContextKey = [
+    activeAccountId ?? "",
+    user?.id ?? "",
+    sessionGeneration,
+    authMode,
+    enabled ? "configured" : "unconfigured",
+    offline.readOnly ? "offline" : "online",
+    online ? "browser-online" : "browser-offline",
+    "authorized-team-boundary",
+  ].join("\u0000");
+  const proposedResourceId = useInvitationResourceHandoff({
+    activeAccountId,
+    authMode,
+    enabled,
+    offlineReadOnly: offline.readOnly,
+    online,
+    sessionGeneration,
+    user,
+  });
+  const memberInvites = useMemberInvites(proposedResourceId, inviteContextKey);
+  const { reconcileMintedInvite, createActions: createInviteActions, ...inviteState } = memberInvites;
   const directoryState = useMemberDirectoryState({
     activeAccountId,
     enabled,
@@ -314,30 +331,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     viewState,
     reconcileMintedInvite,
   });
-  // Claim the one-shot handoff only after Team has committed this account/session context. This
-  // is deliberately not a render-time read: StrictMode may render more than once before commit.
-  useEffect(() => {
-    const unauthorized =
-      directoryState.directory.kind === "hidden" ||
-      (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
-    const contextReady =
-      enabled && online && !offline.readOnly && !unauthorized && activeAccountId !== null && user !== null;
-    if (!contextReady) {
-      clearInvitationPreselection();
-      setProposedResourceId(null);
-      resetInviteDraft();
-      return;
-    }
-    const claimed = claimInvitationPreselection({
-      accountId: activeAccountId,
-      userId: user.id,
-      sessionIdentity: user,
-      authMode,
-      offlineReadOnly: offline.readOnly,
-      online,
-    });
-    if (claimed !== null) setProposedResourceId(claimed);
-  }, [activeAccountId, authMode, directoryState.directory, enabled, offline, online, resetInviteDraft, user]);
   const resourceCandidates = directoryState.resourceCandidates;
   const linkedResourceIds = new Set(
     (directoryState.members ?? []).flatMap((member) => (member.resourceLink ? [member.resourceLink.resourceId] : [])),

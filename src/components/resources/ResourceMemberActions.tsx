@@ -20,7 +20,7 @@ export type ResourceMemberActionsModel = {
   canManage: boolean;
   authMode: ReturnType<typeof useAuth>["authMode"];
   userId?: string | null;
-  sessionIdentity: ReturnType<typeof useAuth>["user"];
+  sessionGeneration?: number;
   offlineReadOnly: boolean;
   online: boolean;
   members: readonly TeamMember[];
@@ -33,7 +33,7 @@ export type ResourceMemberActionsModel = {
 /** Loads the separately-authorized team projection used by active Resource rows. */
 /* eslint-disable react-refresh/only-export-components, complexity, max-lines-per-function */
 export function useResourceMemberActionsModel(accountId: string | null): ResourceMemberActionsModel {
-  const { authMode, user } = useAuth();
+  const { authMode, sessionGeneration = 0, user } = useAuth();
   const offline = useOfflineState();
   const online = useNavigatorOnline();
   const enabled = authMode !== "off" && isServerConfigured();
@@ -52,11 +52,14 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
   const [forbiddenContext, setForbiddenContext] = useState<string | null>(null);
   const requestGeneration = useRef(0);
   const authorizationContextKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${online}`;
+  const previousAuthorizationContextKey = useRef(authorizationContextKey);
   const directoryKey = `${authorizationContextKey}\u0000${membershipRevision}\u0000${accountSummary?.role ?? ""}\u0000${accountSummary?.roleStatus ?? ""}`;
   useEffect(() => {
     const generation = ++requestGeneration.current;
     const current = () => requestGeneration.current === generation;
-    if (forbiddenContext === authorizationContextKey) return;
+    const contextChanged = previousAuthorizationContextKey.current !== authorizationContextKey;
+    previousAuthorizationContextKey.current = authorizationContextKey;
+    if (!contextChanged && forbiddenContext === authorizationContextKey) return;
     setDirectory(null);
     setDirectoryError(null);
     if (!enabled || !resolvedCanManage || !accountId || !user || offline.readOnly || !online) return;
@@ -119,7 +122,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
   return {
     members,
     authMode,
-    sessionIdentity: user,
+    sessionGeneration,
     offlineReadOnly: offline.readOnly,
     online,
     userId: user?.id ?? null,
@@ -226,12 +229,12 @@ function ResourceMemberActionsImpl({
     setError(null);
     setNotice(null);
     if (kind === "invite") {
-      if (accountId && model.userId && model.sessionIdentity) {
+      if (accountId && model.userId) {
         setInvitationPreselection(
           {
             accountId,
             userId: model.userId,
-            sessionIdentity: model.sessionIdentity,
+            sessionGeneration: model.sessionGeneration ?? 0,
             authMode: model.authMode,
             offlineReadOnly: model.offlineReadOnly,
             online: model.online,

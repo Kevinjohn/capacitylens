@@ -6,6 +6,7 @@ import type { AuthStatusResult } from "./authStatus";
 // for statuses that never actually read it (checking/error), so those renders can't be mistaken by
 // the memo's dependency check for a "providers changed" render (a fresh `[]` literal would).
 const EMPTY_PROVIDERS: AuthProviderInfo[] = [];
+let nextSessionGeneration = 0;
 
 function authModeForStatus(status: AuthStatusResult) {
   if (status.kind === "pass" || status.kind === "login") return status.authMode;
@@ -29,10 +30,17 @@ export function useAuthContextValue(
   const contextProviders = status.kind === "pass" || status.kind === "login" ? status.providers : EMPTY_PROVIDERS;
   const contextCanCreateAccount = status.kind === "pass" ? status.canCreateAccount : false;
   const contextMultiAccount = status.kind === "pass" ? status.multiAccount : false;
+  const contextSessionKey = `${status.kind}\u0000${contextAuthMode}\u0000${contextUser?.id ?? ""}`;
+  const sessionGeneration = useMemo(() => {
+    // Capturing the scalar key makes the memo boundary explicit to both React and the hook lint.
+    void contextSessionKey;
+    return ++nextSessionGeneration;
+  }, [contextSessionKey]);
   const authContextValue = useMemo(
     () => ({
       authMode: contextAuthMode,
       user: contextUser,
+      sessionGeneration,
       providers: contextProviders,
       canCreateAccount: contextCanCreateAccount,
       multiAccount: contextMultiAccount,
@@ -42,6 +50,7 @@ export function useAuthContextValue(
     [
       contextAuthMode,
       contextUser,
+      sessionGeneration,
       contextProviders,
       contextCanCreateAccount,
       contextMultiAccount,

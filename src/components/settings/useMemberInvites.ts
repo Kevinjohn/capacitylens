@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -181,13 +181,14 @@ function createCopyLink({
 
 /** Establish link reconciliation before directory reads, then bind actions to directory outputs. */
 // eslint-disable-next-line max-lines-per-function
-export function useMemberInvites(initialResourceId: string | null = null) {
+export function useMemberInvites(initialResourceId: string | null = null, contextKey = "unbound") {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
   const [invitationResourceId, setInvitationResourceId] = useState(initialResourceId ?? "");
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
   // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
+  const previousContextKey = useRef(contextKey);
   const setInvitationResourceIdForState = useCallback<Dispatch<SetStateAction<string>>>((value) => {
     setInvitationResourceId(value);
   }, []);
@@ -205,11 +206,18 @@ export function useMemberInvites(initialResourceId: string | null = null) {
     );
   }, []);
   const resetInviteDraft = useCallback(() => {
+    setInviteRole("editor");
     setInvitationPreauthorizedEmail("");
     setInvitationResourceId("");
     setMintedLink(null);
     clearInvitationPreselection();
   }, []);
+
+  useEffect(() => {
+    if (previousContextKey.current === contextKey) return;
+    previousContextKey.current = contextKey;
+    resetInviteDraft();
+  }, [contextKey, resetInviteDraft]);
 
   const createActions = ({
     authMode,

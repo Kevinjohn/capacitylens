@@ -151,14 +151,15 @@ describe("TeamAccessView member management", () => {
 
   it("clears resource invitation handoff when the real Team boundary loses authorization", async () => {
     const authContext = auth("password");
-    const sessionIdentity = authContext.user;
-    if (!sessionIdentity) throw new Error("Expected authenticated test user");
+    authContext.sessionGeneration = 1;
+    const sessionUser = authContext.user;
+    if (!sessionUser) throw new Error("Expected authenticated test user");
     useStore.setState({ activeAccountId: "account-1" });
     setInvitationPreselection(
       {
         accountId: "account-1",
-        userId: sessionIdentity.id,
-        sessionIdentity,
+        userId: sessionUser.id,
+        sessionGeneration: 1,
         authMode: "password",
         offlineReadOnly: false,
         online: true,
@@ -187,8 +188,8 @@ describe("TeamAccessView member management", () => {
       expect(
         claimInvitationPreselection({
           accountId: "account-1",
-          userId: sessionIdentity.id,
-          sessionIdentity,
+          userId: sessionUser.id,
+          sessionGeneration: 1,
           authMode: "password",
           offlineReadOnly: false,
           online: true,
