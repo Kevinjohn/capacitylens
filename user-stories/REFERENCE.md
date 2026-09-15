@@ -4,6 +4,10 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
+Resources offers **Manage team links** (`data-testid="resource-team-link"`) to authenticated
+Owners and Admins. It opens `/team` without a resource selection, mutation, or invitation draft.
+All member linking and invitations remain in **Team & access**.
+
 Invitation administration may carry an optional `proposedResourceId` for an active person in the
 selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
 accept responses never include it.

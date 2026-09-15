@@ -1,5 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
+  "resources_team_link": "Manage team links",
+  "resources_team_link_help": "Link scheduled people to members and invite people in Team & access.",
   "nav_skip_to_content": "Skip to content",
   "nav_capacity_overview": "Overview",
   "nav_schedule": "Schedule",

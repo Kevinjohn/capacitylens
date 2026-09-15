@@ -14,6 +14,10 @@ owner-only operations. Ownership transfer is not part of this story: it has no p
 
 **Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md)
 
+From Resources, an Owner or Admin can choose **Manage team links** to open Team & access.
+Linking, changing or removing a scheduled-person association and creating invitations happen
+only here. Navigation does not submit a command or carry a resource or invitation selection.
+
 ## Why
 
 On an auth-enabled, server-backed deploy, access to a company is a real membership (a role per login),
@@ -65,7 +69,7 @@ the non-blocking product orientation if it is open.
    that exact action. Cancelling the confirmation leaves this page and its loaded directory available.
 
 2. The **member list** is a table (`data-testid="members-table"`) with the columns **Name**,
-   **Email**, **Edit member** and **Member settings**, one row per member
+   **Email**, **Scheduled person**, **Edit member** and **Member settings**, one row per member
    (`data-testid="member-row"`); the role sits beneath the name and B's own row is marked **(you)**.
    The table lists the active members,
    ordered by join date and then by name; disabled and archived memberships are grouped below it
@@ -107,7 +111,7 @@ the non-blocking product orientation if it is open.
    **Company ownership** section below, as a three-step ceremony the nominated Admin must agree to —
    see [US-SET-18](US-SET-18-ownership-transfer.md).
 10. Signed in as A, the Owner can turn on **Record member sign-ins**
-    (`data-testid="member-sign-in-tracking"`). This adds a **Signed in** column between **Email** and
+    (`data-testid="member-sign-in-tracking"`). This adds a **Signed in** column between **Scheduled person** and
     the two right-aligned action columns. It shows only **Yes** or **Not yet** for a successful
     sign-in while the setting is on. The setting is off by default, starts a fresh observation
     window when enabled, and deletes every confirmation when disabled. CapacityLens stores no
@@ -120,10 +124,10 @@ the non-blocking product orientation if it is open.
   from a persisted auth-off server's **Open access** posture. The **Members** management section
   renders only in server + auth-on mode for an Owner/Admin; a Viewer/Editor sees their role
   explanation but no member directory or controls.
-- The member list is a table of **Name**, **Email**, optional **Signed in**, **Edit member** and
+- The member list is a table of **Name**, **Email**, **Scheduled person**, optional **Signed in**, **Edit member** and
   **Member settings**, with the role visible beneath the name. The caller's own row is marked and
-  rows are ordered by join date and then by name. The pencil occupies the fourth column and the gear
-  the fifth when **Signed in** is visible; both action columns stay separated and right-aligned.
+  rows are ordered by join date and then by name. Both action columns stay separated and
+  right-aligned after the optional **Signed in** column.
 - **Record member sign-ins** is Owner-only and off by default. Enabling it starts a fresh window,
   confirms the Owner operating the switch and stores one nullable boolean per membership. A
   successful sign-in changes **Not yet** to **Yes**. Changing that membership's access state,
