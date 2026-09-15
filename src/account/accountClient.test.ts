@@ -64,6 +64,7 @@ describe("browser account client", () => {
   registerReadRouteTests();
   registerAuditWarningTests();
   registerMutationRouteTests();
+  registerMemberResourceCommandTests();
   registerMembershipRouteTests();
   registerReconciliationTests();
   registerStoredCommandTests();
@@ -191,6 +192,38 @@ function registerMutationRouteTests(): void {
         "https://app.example/api/accounts/workspace%20%2F%20one/invites/invite%20%2F%20one",
       ]),
     );
+  });
+}
+
+function registerMemberResourceCommandTests(): void {
+  it("routes member-resource commands with operation headers and ambiguous conflict handling", async () => {
+    mocks.apiFetch.mockResolvedValueOnce(new Response("unreadable conflict", { status: 409 }));
+    const link = await accountClient.setMemberResourceLink(
+      {
+        workspaceId: "workspace / one",
+        principalId: "person / one",
+        resourceId: "resource / one",
+        expectedRevision: null,
+      },
+      command,
+    );
+
+    expect(hasUnknownAccountCommandOutcome(link)).toBe(true);
+    const [linkUrl, linkInit] = mocks.apiFetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(linkUrl).toBe(
+      "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/resource-link",
+    );
+    expectCommand(linkInit, "PUT");
+    expect(JSON.parse(String(linkInit.body))).toEqual({ resourceId: "resource / one", expectedRevision: null });
+
+    await accountClient.clearMemberResourceLink(
+      { workspaceId: "workspace / one", principalId: "person / one", expectedRevision: "revision-1" },
+      command,
+    );
+    const [unlinkUrl, unlinkInit] = mocks.apiFetch.mock.calls[1] as unknown as [string, RequestInit];
+    expect(unlinkUrl).toBe(linkUrl);
+    expectCommand(unlinkInit, "DELETE");
+    expect(JSON.parse(String(unlinkInit.body))).toEqual({ expectedRevision: "revision-1" });
   });
 }
 

@@ -5,12 +5,7 @@ import type { BrowserAccountCommand } from "./accountCommands";
 import { buildPayloadOperationKey } from "./commandOutcome";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 import type { ReauthAction } from "../auth/reauthCoordinator";
-import {
-  clearMemberResourceLinkRequest,
-  memberResourceLinkRequest,
-  resourceAvatarsUrl,
-  type MemberResourceLinkRequestInput,
-} from "./memberResourceClient";
+import { clearMemberResourceLink, resourceAvatarsUrl, setMemberResourceLink } from "./memberResourceClient";
 
 interface ChangeMemberRoleInput {
   workspaceId: string;
@@ -166,37 +161,8 @@ export const accountClient = {
   },
 
   listResourceAvatars: (workspaceId: string) => apiFetch(resourceAvatarsUrl(workspaceId), { credentials: "include" }),
-  setMemberResourceLink(input: MemberResourceLinkRequestInput, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey:
-        `member-resource-link:${input.workspaceId}:${input.principalId}:` +
-        `${input.resourceId}:${input.expectedRevision ?? "none"}`,
-      explicit: command,
-      request: (resolved) => {
-        const [url, init] = memberResourceLinkRequest(input);
-        return apiFetch(url, buildCommandRequestInit(init, resolved));
-      },
-      ambiguousStatus: 409,
-    });
-  },
-  clearMemberResourceLink(
-    input: { workspaceId: string; principalId: string; expectedRevision: string },
-    command?: BrowserAccountCommand,
-  ): Promise<Response> {
-    return runCommand({
-      operationKey: `member-resource-unlink:${input.workspaceId}:${input.principalId}:${input.expectedRevision}`,
-      explicit: command,
-      request: (resolved) => {
-        const [url, init] = clearMemberResourceLinkRequest(
-          input.workspaceId,
-          input.principalId,
-          input.expectedRevision,
-        );
-        return apiFetch(url, buildCommandRequestInit(init, resolved));
-      },
-      ambiguousStatus: 409,
-    });
-  },
+  setMemberResourceLink,
+  clearMemberResourceLink,
 
   setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<Response> {
     return apiFetchReauth(
