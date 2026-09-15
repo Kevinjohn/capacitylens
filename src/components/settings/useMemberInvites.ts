@@ -2,8 +2,8 @@ import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
-import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { resolveRejectionMessage, teamAccessClient, type TeamInvitation } from "../../account/teamAccessClient";
+import { validateInvitationEmail } from "../../account/invitationValidation";
 import type { useAuth } from "../../auth/authContext";
 import type { FieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
@@ -36,22 +36,6 @@ export interface InvitationPersonOption {
   label: string;
 }
 
-type InviteEmailValidationResult = { kind: "valid"; email: string } | { kind: "invalid"; message: string };
-
-function buildInviteEmailValidation(
-  authMode: MemberInviteDependencies["authMode"],
-  email: string,
-): InviteEmailValidationResult {
-  const trimmed = email.trim();
-  if (authMode === "sso" && trimmed.length === 0) {
-    return { kind: "invalid", message: m.settings_sso_invite_email_required() };
-  }
-  if (trimmed.length > 0 && !isAccountEmail(trimmed)) {
-    return { kind: "invalid", message: m.identity_err_email() };
-  }
-  return { kind: "valid", email: trimmed };
-}
-
 function resolveInviteMutationError(message: string, error: unknown) {
   return m.settings_members_error_detail({ message, error: resolveErrorMessage(error) });
 }
@@ -77,9 +61,12 @@ function createSubmitInvite({
   return async () => {
     clear();
     requestAccountId();
-    const emailValidation = buildInviteEmailValidation(authMode, invitationPreauthorizedEmail);
+    const emailValidation = validateInvitationEmail(authMode, invitationPreauthorizedEmail);
     if (emailValidation.kind === "invalid") {
-      return fail("invite", emailValidation.message);
+      return fail(
+        "invite",
+        emailValidation.reason === "required" ? m.settings_sso_invite_email_required() : m.identity_err_email(),
+      );
     }
     if (invitationResourceId && !invitationPeople.some((person) => person.id === invitationResourceId)) {
       return fail("invite", m.settings_invite_person_stale());

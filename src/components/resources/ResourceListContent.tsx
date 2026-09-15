@@ -28,6 +28,11 @@ type ResourceListContentProps = {
 export function ResourceListContent(props: ResourceListContentProps) {
   return (
     <>
+      {props.memberActionsModel.directoryError && (
+        <p role="alert" className="mb-4 text-sm text-danger" data-testid="resource-member-directory-error">
+          {props.memberActionsModel.directoryError}
+        </p>
+      )}
       <PeopleSections {...props} />
       {props.model.placeholdersEnabled && <PlaceholderSection {...props} />}
       {props.model.externalEnabled && (

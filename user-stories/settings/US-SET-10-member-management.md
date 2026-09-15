@@ -41,6 +41,12 @@ person if it is still available; otherwise the member directory shows **Schedule
 attention**, with **Choose another person** and **Dismiss** controls. Invitees never see the
 proposal or exception.
 
+From **Resources**, the same Owner/Admin can manage an active scheduled person's association without
+opening Team & access. An unlinked person offers **Link existing member** and **Invite to company**;
+a linked active person offers **Change link** and **Remove link**. Existing links retained for inactive
+members are unlink-only. These actions are absent for placeholder, external, archived and deleted rows,
+and the invitation's optional person proposal remains private and in-memory until the invitation is created.
+
 The **Members management section** is a server + auth-on feature only. With auth off or in the
 in-memory demo, **Team & access** still explains the access posture and member/resource distinction,
 but no directory or management controls exist.

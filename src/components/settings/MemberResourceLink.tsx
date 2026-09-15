@@ -3,6 +3,7 @@ import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { resolveRejectionMessage, teamAccessClient, type TeamMember } from "../../account/teamAccessClient";
 import { invalidateResourceAvatars } from "../../account/useResourceAvatars";
+import { createMemberResourceCommandController } from "../../account/memberResourceCommandController";
 
 /** Account-admin control linking a login member to one active scheduled person. */
 // The branches mirror the complete selector state machine: authorization, CAS create/update/unlink,
@@ -29,7 +30,10 @@ export function MemberResourceLink({
   const selectorRef = useRef<HTMLSelectElement | null>(null);
   const statusRef = useRef<HTMLSpanElement | null>(null);
   const restoreFocusRef = useRef(false);
-  const requestGeneration = useRef(0);
+  const [commandController] = useState(createMemberResourceCommandController);
+  useEffect(() => {
+    commandController.invalidate();
+  }, [commandController, member.userId, workspaceId]);
   useEffect(() => {
     if (editing) {
       selectorRef.current?.focus();
@@ -60,8 +64,9 @@ export function MemberResourceLink({
   const change = (resourceId: string) => {
     restoreFocusRef.current = true;
     if (!workspaceId) return;
-    const generation = ++requestGeneration.current;
-    const current = () => generation === requestGeneration.current;
+    const command = commandController.begin(`link:${workspaceId}:${member.userId}`);
+    if (!command) return;
+    const current = command.isCurrent;
     setPending(true);
     setError(null);
     let request;
@@ -91,12 +96,14 @@ export function MemberResourceLink({
           reload();
           setPending(false);
         }
+        command.release();
       });
   };
   const dismissException = () => {
     if (!workspaceId || !member.resourceLinkException) return;
-    const generation = ++requestGeneration.current;
-    const current = () => generation === requestGeneration.current;
+    const command = commandController.begin(`dismiss:${workspaceId}:${member.userId}`);
+    if (!command) return;
+    const current = command.isCurrent;
     restoreFocusRef.current = true;
     setPending(true);
     setError(null);
@@ -116,6 +123,7 @@ export function MemberResourceLink({
           reload();
           setPending(false);
         }
+        command.release();
       });
   };
   let exceptionMessage: string | null = null;

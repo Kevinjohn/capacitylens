@@ -1,23 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
-import type { InvitationRole } from "@capacitylens/shared/account/types";
+import { useEffect, useRef, useState } from "react";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
-import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { useAuth } from "../../auth/authContext";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useOfflineState } from "../../data/useOfflineState";
-import { useFieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { invalidateResourceAvatars } from "../../account/useResourceAvatars";
 import { resolveRejectionMessage, teamAccessClient, type TeamMember } from "../../account/teamAccessClient";
-import { useTeamDirectory } from "../settings/useTeamDirectory";
+import { createMemberResourceCommandController } from "../../account/memberResourceCommandController";
+import { useStore } from "../../store/useStore";
 import { Button } from "../ui/button";
-import { Modal, SelectField, TextField } from "../common/ui";
+import { InviteResourceDialog, LinkResourceDialog } from "./ResourceMemberActionDialogs";
 
 export type ResourceMemberActionsModel = {
   canManage: boolean;
+  authMode: ReturnType<typeof useAuth>["authMode"];
   members: readonly TeamMember[];
   reload(): void;
+  directoryError: string | null;
+  contextKey: string;
 };
 
 function useOnline(): boolean {
@@ -35,29 +36,74 @@ function useOnline(): boolean {
 }
 
 /** Loads the separately-authorized team projection used by active Resource rows. */
-// eslint-disable-next-line react-refresh/only-export-components
+/* eslint-disable react-refresh/only-export-components, complexity */
 export function useResourceMemberActionsModel(accountId: string | null): ResourceMemberActionsModel {
   const { authMode, user } = useAuth();
   const offline = useOfflineState();
   const online = useOnline();
-  const { fail } = useFieldError();
   const enabled = authMode !== "off" && isServerConfigured();
-  const state = useTeamDirectory({ enabled, activeAccountId: accountId, offlineReadOnly: offline.readOnly, fail });
-  const members = state.directory.kind === "ready" ? state.directory.snapshot.members : [];
-  const role = members.find((member) => member.isSelf)?.role;
+  const membershipRevision = useStore((state) => state.membershipRevision);
+  const [directory, setDirectory] = useState<{
+    accountId: string;
+    userId: string;
+    members: TeamMember[];
+  } | null>(null);
+  const [directoryError, setDirectoryError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const requestGeneration = useRef(0);
+  const directoryKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${membershipRevision}`;
+  useEffect(() => {
+    const generation = ++requestGeneration.current;
+    const current = () => requestGeneration.current === generation;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDirectory(null);
+    setDirectoryError(null);
+    if (!enabled || !accountId || !user || offline.readOnly || !online) return;
+    void teamAccessClient
+      .listMembers(accountId)
+      .then((result) => {
+        if (!current()) return;
+        if (result.kind !== "ok") {
+          setDirectoryError(resolveRejectionMessage(result, m.settings_resource_member_unavailable()));
+          return;
+        }
+        setDirectory({ accountId, userId: user.id, members: result.value.members });
+      })
+      .catch((cause: unknown) => {
+        if (current()) setDirectoryError(resolveErrorMessage(cause));
+      });
+    return () => {
+      requestGeneration.current += 1;
+    };
+  }, [accountId, authMode, directoryKey, enabled, membershipRevision, offline.readOnly, online, reloadKey, user]);
+  const members = directory?.accountId === accountId && directory.userId === user?.id ? directory.members : [];
+  const self = members.find((member) => member.isSelf);
   return {
     members,
-    reload: state.reload,
+    authMode,
+    reload: () => {
+      requestGeneration.current += 1;
+      setDirectory(null);
+      setDirectoryError(null);
+      setReloadKey((value) => value + 1);
+      // The Team projection and validated avatar projection share this revision boundary.
+      useStore.getState().invalidateMemberships();
+    },
+    directoryError,
+    contextKey: directoryKey,
     canManage:
       enabled &&
       online &&
       !offline.readOnly &&
       user !== null &&
       accountId !== null &&
-      state.directory.kind === "ready" &&
-      (role === "owner" || role === "admin"),
+      directory !== null &&
+      directoryError === null &&
+      self?.status === "active" &&
+      (self.role === "owner" || self.role === "admin"),
   };
 }
+/* eslint-enable react-refresh/only-export-components, complexity */
 
 type ResourceMemberActionsProps = {
   resource: Resource;
@@ -73,20 +119,30 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [forbidden, setForbidden] = useState(false);
+  const requestGeneration = useRef(0);
+  const [commandController] = useState(createMemberResourceCommandController);
   const linkedMember = model.members.find((candidate) => candidate.resourceLink?.resourceId === resource.id);
-  const linkedMemberId = linkedMember?.userId;
 
   useEffect(() => {
+    requestGeneration.current += 1;
+    commandController.invalidate();
+    // Pending state belongs to the account/session context too; never leave an old command
+    // disabling controls after a tenant, auth or offline transition.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPending(false);
     // Account/auth/offline transitions must discard any private selection or token immediately.
     if (!model.canManage) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDialog(null);
       setError(null);
       setInviteLink(null);
     }
-  }, [model.canManage, accountId]);
+    // A rejected mutation invalidates this local capability until the next authoritative directory read.
+    if (model.canManage) setForbidden(false);
+  }, [accountId, commandController, model.canManage, model.contextKey]);
 
-  if (resource.kind !== "person" || !model.canManage) return null;
+  if (resource.kind !== "person" || resource.archivedAt || resource.deletedAt || !model.canManage || forbidden)
+    return null;
 
   const open = (kind: "link" | "invite") => {
     setError(null);
@@ -118,28 +174,24 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
       <div className="flex flex-wrap gap-1" data-testid="resource-member-actions">
         {linkedMember ? (
           <>
-            {action(m.settings_resource_member_change_link(), () => open("link"))}
-            {action(
-              m.settings_resource_member_remove_link(),
-              () => {
-                if (!accountId || !linkedMemberId || !linkedMember.resourceLink) return;
-                setPending(true);
+            {linkedMember.status === "active" && action(m.settings_resource_member_change_link(), () => open("link"))}
+            <RemoveResourceMemberLinkButton
+              resource={resource}
+              accountId={accountId}
+              member={linkedMember}
+              pending={pending}
+              commandController={commandController}
+              setPending={setPending}
+              setError={setError}
+              reload={model.reload}
+              onForbidden={() => {
+                requestGeneration.current += 1;
+                setForbidden(true);
+                setDialog(null);
                 setError(null);
-                void teamAccessClient
-                  .clearMemberResourceLink(accountId, linkedMemberId, linkedMember.resourceLink.revision)
-                  .then((result) => {
-                    if (result.kind !== "ok")
-                      setError(resolveRejectionMessage(result, m.settings_resource_member_error()));
-                    else {
-                      invalidateResourceAvatars();
-                      model.reload();
-                    }
-                  })
-                  .catch((cause: unknown) => setError(resolveErrorMessage(cause)))
-                  .finally(() => setPending(false));
-              },
-              true,
-            )}
+                model.reload();
+              }}
+            />
           </>
         ) : (
           <>
@@ -153,12 +205,16 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
           resource={dialog.resource}
           accountId={accountId}
           members={model.members}
+          commandController={commandController}
           linkedMember={linkedMember}
           pending={pending}
           error={error}
           onError={setError}
           onPending={setPending}
-          onForbidden={close}
+          onForbidden={() => {
+            setForbidden(true);
+            close();
+          }}
           onSuccess={() => {
             invalidateResourceAvatars();
             model.reload();
@@ -171,14 +227,21 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
         <InviteResourceDialog
           resource={dialog.resource}
           accountId={accountId}
+          authMode={model.authMode}
           pending={pending}
           error={error}
           inviteLink={inviteLink}
           onError={setError}
           onPending={setPending}
-          onForbidden={close}
+          onForbidden={() => {
+            setForbidden(true);
+            close();
+          }}
           onInviteLink={setInviteLink}
-          onSuccess={model.reload}
+          commandController={commandController}
+          // Keep the minted link visible; invitation creation does not change the narrow member projection.
+          onSuccess={() => {}}
+          onReconcile={model.reload}
           onClose={close}
         />
       )}
@@ -186,203 +249,62 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
   );
 }
 
-// eslint-disable-next-line max-lines-per-function
-function LinkResourceDialog({
+function RemoveResourceMemberLinkButton({
   resource,
   accountId,
-  members,
-  linkedMember,
+  member,
   pending,
-  error,
-  onError,
-  onPending,
+  commandController,
+  setPending,
+  setError,
+  reload,
   onForbidden,
-  onSuccess,
-  onClose,
 }: {
   resource: Resource;
   accountId: string | null;
-  members: readonly TeamMember[];
-  linkedMember: TeamMember | undefined;
+  member: TeamMember;
   pending: boolean;
-  error: string | null;
-  onError: (value: string | null) => void;
-  onPending: (value: boolean) => void;
-  onForbidden: () => void;
-  onSuccess: () => void;
-  onClose: () => void;
+  commandController: ReturnType<typeof createMemberResourceCommandController>;
+  setPending: (value: boolean) => void;
+  setError: (value: string | null) => void;
+  reload(): void;
+  onForbidden(): void;
 }) {
-  const [memberId, setMemberId] = useState(linkedMember?.userId ?? "");
-  const options = useMemo(
-    () =>
-      members
-        .filter((member) => member.status === "active")
-        .filter((member) => !member.resourceLink || member.userId === linkedMember?.userId)
-        .map((member) => ({ value: member.userId, label: member.name ?? member.email ?? member.userId })),
-    [members, linkedMember?.userId],
-  );
-  const submit = () => {
-    if (!accountId || !memberId) return;
-    const target = members.find((member) => member.userId === memberId);
-    if (!target) return;
-    onPending(true);
-    onError(null);
+  const remove = () => {
+    if (!accountId || !member.resourceLink) return;
+    const command = commandController.begin(`unlink:${accountId}:${member.userId}`);
+    if (!command) return;
+    setPending(true);
+    setError(null);
     void teamAccessClient
-      .setMemberResourceLink({
-        workspaceId: accountId,
-        principalId: memberId,
-        resourceId: resource.id,
-        expectedRevision: target.resourceLink?.revision ?? null,
-      })
+      .clearMemberResourceLink(accountId, member.userId, member.resourceLink.revision)
       .then((result) => {
-        if (result.kind !== "ok") {
-          onError(resolveRejectionMessage(result, m.settings_resource_member_error()));
-          if (result.kind === "rejected" && result.status === 403) onForbidden();
-        } else onSuccess();
-      })
-      .catch((cause: unknown) => onError(resolveErrorMessage(cause)))
-      .finally(() => onPending(false));
-  };
-  return (
-    <Modal
-      title={m.settings_resource_member_link_title({ resource: resource.name ?? resource.role })}
-      onClose={onClose}
-      onSubmit={submit}
-      footer={
-        <>
-          <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
-            {m.settings_member_resource_cancel()}
-          </Button>
-          <Button type="submit" disabled={pending || options.length === 0}>
-            {m.settings_resource_member_submit_link()}
-          </Button>
-        </>
-      }
-    >
-      <SelectField
-        label={m.settings_resource_member_member_label()}
-        ariaLabel={m.settings_resource_member_member_aria({ resource: resource.name ?? resource.role })}
-        value={memberId}
-        onChange={setMemberId}
-        options={options}
-        disabled={pending}
-      />
-      {options.length === 0 && (
-        <p className="text-sm text-muted-foreground">{m.settings_resource_member_no_members()}</p>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-    </Modal>
-  );
-}
-
-// eslint-disable-next-line max-lines-per-function
-function InviteResourceDialog({
-  resource,
-  accountId,
-  pending,
-  error,
-  inviteLink,
-  onError,
-  onPending,
-  onForbidden,
-  onInviteLink,
-  onSuccess,
-  onClose,
-}: {
-  resource: Resource;
-  accountId: string | null;
-  pending: boolean;
-  error: string | null;
-  inviteLink: string | null;
-  onError: (value: string | null) => void;
-  onPending: (value: boolean) => void;
-  onForbidden: () => void;
-  onInviteLink: (value: string | null) => void;
-  onSuccess: () => void;
-  onClose: () => void;
-}) {
-  const [email, setEmail] = useState("");
-  const submit = () => {
-    if (!accountId) return;
-    const trimmed = email.trim();
-    if (trimmed && !isAccountEmail(trimmed)) {
-      onError(m.identity_err_email());
-      return;
-    }
-    onPending(true);
-    onError(null);
-    void teamAccessClient
-      .createInvitation({
-        accountId,
-        role: "editor" satisfies InvitationRole,
-        ...(trimmed ? { preauthEmail: trimmed } : {}),
-        proposedResourceId: resource.id,
-      })
-      .then((result) => {
-        if (result.kind !== "ok") {
-          onError(resolveRejectionMessage(result, m.settings_resource_member_invite_error()));
-          if (result.kind === "rejected" && result.status === 403) onForbidden();
-          return;
+        if (!command.isCurrent()) return;
+        if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_resource_member_error()));
+        else {
+          invalidateResourceAvatars();
+          reload();
         }
-        onInviteLink(`${window.location.origin}/invite/${encodeURIComponent(result.value.token)}`);
-        onSuccess();
+        if (result.kind === "rejected" && result.status === 403) onForbidden();
       })
-      .catch((cause: unknown) => onError(resolveErrorMessage(cause)))
-      .finally(() => onPending(false));
+      .catch((cause: unknown) => {
+        if (command.isCurrent()) setError(resolveErrorMessage(cause));
+      })
+      .finally(() => {
+        if (command.isCurrent()) setPending(false);
+        command.release();
+      });
   };
   return (
-    <Modal
-      title={m.settings_resource_member_invite_title({ resource: resource.name ?? resource.role })}
-      onClose={onClose}
-      onSubmit={submit}
-      footer={
-        <>
-          <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
-            {m.settings_member_resource_cancel()}
-          </Button>
-          <Button type="submit" disabled={pending || inviteLink !== null}>
-            {m.settings_resource_member_submit_invite()}
-          </Button>
-        </>
-      }
+    <Button
+      type="button"
+      size="sm"
+      variant="danger-soft"
+      aria-label={`${m.settings_resource_member_remove_link()} ${resource.name ?? resource.role}`}
+      onClick={remove}
+      disabled={pending}
     >
-      <TextField
-        label={m.settings_resource_member_invite_email()}
-        ariaLabel={m.settings_resource_member_invite_email_aria({ resource: resource.name ?? resource.role })}
-        type="email"
-        value={email}
-        onChange={(value) => {
-          setEmail(value);
-          onError(null);
-        }}
-        description={m.settings_resource_member_invite_email_help()}
-        disabled={pending || inviteLink !== null}
-      />
-      {inviteLink && (
-        <div className="flex flex-col gap-2 rounded border border-ok/40 bg-ok/5 p-3" role="status" aria-live="polite">
-          <p className="text-sm font-medium text-ok">{m.settings_resource_member_invite_created()}</p>
-          <code className="break-all text-xs">{inviteLink}</code>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              void navigator.clipboard.writeText(inviteLink);
-            }}
-          >
-            {m.settings_resource_member_copy_invite()}
-          </Button>
-        </div>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-    </Modal>
+      {m.settings_resource_member_remove_link()}
+    </Button>
   );
 }

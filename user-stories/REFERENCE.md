@@ -8,6 +8,12 @@ Invitation administration may carry an optional `proposedResourceId` for an acti
 selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
 accept responses never include it.
 
+Active person rows in **Resources** expose account-member association controls in
+`data-testid="resource-member-actions"`: **Link existing member** and **Invite to company** when
+unlinked, or **Change link** and **Remove link** when linked. The controls are available only to an
+authenticated Owner/Admin in an online, server-backed account; placeholder, external, archived and
+deleted rows do not expose them.
+
 > CapacityLens is a multi-tenant resource scheduler. It is **server-backed by default** (an empty
 > env means the same-origin SQLite API). The app is **multi-tenant by Account**: you pick a company
 > on load and the whole dataset is scoped to it. An explicit in-browser **demo build**
