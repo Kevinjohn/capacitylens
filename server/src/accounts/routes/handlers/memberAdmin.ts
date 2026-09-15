@@ -100,6 +100,7 @@ export async function listResourceAvatars(req: FastifyRequest, reply: FastifyRep
 }
 
 /** Create, retry, or change one member/person association under opaque revision CAS. */
+// eslint-disable-next-line complexity
 export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const { accountId, userId } = req.params as { accountId: string; userId: string };
   if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
@@ -109,7 +110,12 @@ export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyR
     !body ||
     typeof body.resourceId !== "string" ||
     body.resourceId.length === 0 ||
-    !(body.expectedRevision === null || typeof body.expectedRevision === "string")
+    !(body.expectedRevision === null || typeof body.expectedRevision === "string") ||
+    (body.replacePrincipalId !== undefined &&
+      (typeof body.replacePrincipalId !== "string" || body.replacePrincipalId.length === 0)) ||
+    (body.replaceExpectedRevision !== undefined &&
+      (typeof body.replaceExpectedRevision !== "string" || body.replaceExpectedRevision.length === 0)) ||
+    (body.replacePrincipalId === undefined) !== (body.replaceExpectedRevision === undefined)
   ) {
     return context.fail(reply, context.validationFailed("resourceId and expectedRevision are required."));
   }
@@ -120,6 +126,10 @@ export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyR
       principalId: userId,
       resourceId: body.resourceId,
       expectedRevision: body.expectedRevision,
+      ...(typeof body.replacePrincipalId === "string" ? { replacePrincipalId: body.replacePrincipalId } : {}),
+      ...(typeof body.replaceExpectedRevision === "string"
+        ? { replaceExpectedRevision: body.replaceExpectedRevision }
+        : {}),
       now: new Date().toISOString(),
       actor,
       command: context.command(req),

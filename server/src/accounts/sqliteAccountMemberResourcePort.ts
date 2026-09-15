@@ -134,7 +134,17 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
     async listAvatarProjection(workspaceId) {
       return listResourceAvatarProjection(db, workspaceId);
     },
-    async setLink({ workspaceId, principalId, resourceId, expectedRevision, now, actor, command }) {
+    async setLink({
+      workspaceId,
+      principalId,
+      resourceId,
+      expectedRevision,
+      replacePrincipalId,
+      replaceExpectedRevision,
+      now,
+      actor,
+      command,
+    }) {
       const save = () => {
         const mutation = setAccountMemberResourceLinkWithResult({
           db,
@@ -142,6 +152,8 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
           userId: principalId,
           resourceId,
           expectedRevision,
+          ...(replacePrincipalId ? { replacePrincipalId } : {}),
+          ...(replaceExpectedRevision ? { replaceExpectedRevision } : {}),
           now,
         });
         return mutation;

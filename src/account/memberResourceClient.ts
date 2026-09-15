@@ -18,6 +18,8 @@ export interface MemberResourceLinkRequestInput {
   principalId: string;
   resourceId: string;
   expectedRevision: string | null;
+  replacePrincipalId?: string;
+  replaceExpectedRevision?: string;
 }
 
 /** Send a link or change command through the account command boundary. */
@@ -28,7 +30,8 @@ export function setMemberResourceLink(
   return runCommand({
     operationKey:
       `member-resource-link:${input.workspaceId}:${input.principalId}:` +
-      `${input.resourceId}:${input.expectedRevision ?? "none"}`,
+      `${input.resourceId}:${input.expectedRevision ?? "none"}:` +
+      `${input.replacePrincipalId ?? "none"}:${input.replaceExpectedRevision ?? "none"}`,
     explicit: command,
     request: (resolved) => {
       const [url, init] = memberResourceLinkRequest(input);
@@ -46,7 +49,12 @@ export function memberResourceLinkRequest(input: MemberResourceLinkRequestInput)
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resourceId: input.resourceId, expectedRevision: input.expectedRevision }),
+      body: JSON.stringify({
+        resourceId: input.resourceId,
+        expectedRevision: input.expectedRevision,
+        ...(input.replacePrincipalId ? { replacePrincipalId: input.replacePrincipalId } : {}),
+        ...(input.replaceExpectedRevision ? { replaceExpectedRevision: input.replaceExpectedRevision } : {}),
+      }),
     },
   ];
 }

@@ -166,6 +166,8 @@ type SetLinkInput = {
   userId: string;
   resourceId: string;
   expectedRevision: string | null;
+  replacePrincipalId?: string;
+  replaceExpectedRevision?: string;
   now: string;
 };
 type CurrentLink = { revision: string; resourceId: string; createdAt: string; updatedAt: string };
@@ -220,6 +222,7 @@ function persistLink(input: SetLinkInput, revision: string): void {
   }
 }
 
+// eslint-disable-next-line complexity
 export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): AccountMemberResourceMutation {
   const current = input.db
     .prepare(
@@ -228,6 +231,21 @@ export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): 
     .get(input.accountId, input.userId) as CurrentLink | undefined;
   if ((current?.revision ?? null) !== input.expectedRevision)
     throw conflict("The member link changed. Reload and try again.");
+  const replacing = input.replacePrincipalId
+    ? (input.db
+        .prepare(
+          `SELECT revision, resourceId, createdAt, updatedAt FROM account_member_resources
+             WHERE accountId = ? AND userId = ?`,
+        )
+        .get(input.accountId, input.replacePrincipalId) as CurrentLink | undefined)
+    : undefined;
+  if (input.replacePrincipalId === input.userId) throw conflict("A member link cannot be replaced by itself.");
+  if (input.replacePrincipalId && replacing === undefined)
+    throw conflict("The member link changed. Reload and try again.");
+  if (input.replacePrincipalId && replacing?.revision !== input.replaceExpectedRevision)
+    throw conflict("The member link changed. Reload and try again.");
+  if (input.replacePrincipalId && replacing?.resourceId !== input.resourceId)
+    throw conflict("The selected scheduled person is linked to a different member.");
   if (current?.resourceId === input.resourceId) {
     removeMemberResourceLinkExceptionState(input.db, input.accountId, input.userId);
     return { link: { accountId: input.accountId, userId: input.userId, ...current }, changed: false };
@@ -235,6 +253,10 @@ export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): 
   if (current) assertCurrentLinkCanChange(input, current);
   requireLinkTargets(input);
   const revision = newInviteId();
+  if (replacing && input.replacePrincipalId)
+    input.db
+      .prepare(`DELETE FROM account_member_resources WHERE accountId = ? AND userId = ?`)
+      .run(input.accountId, input.replacePrincipalId);
   persistLink(input, revision);
   removeMemberResourceLinkExceptionState(input.db, input.accountId, input.userId);
   return {

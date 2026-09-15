@@ -107,6 +107,45 @@ describe("account member resource links", () => {
     ).toThrow(/no longer available/);
   });
 
+  it("reassigns one scheduled person atomically under both member revisions", async () => {
+    const port = createSqliteAccountMemberResourcePort(db, { applicationId: "test-app" });
+    const original = await port.setLink({
+      workspaceId: "a1",
+      principalId: "u1",
+      resourceId: "r1",
+      expectedRevision: null,
+      now: NOW,
+      actor: actorContext("u1"),
+      command: { commandId: "reassign-create", idempotencyKey: "reassign-create-key" },
+    });
+    const reassigned = await port.setLink({
+      workspaceId: "a1",
+      principalId: "u2",
+      resourceId: "r1",
+      expectedRevision: null,
+      replacePrincipalId: "u1",
+      replaceExpectedRevision: original.revision,
+      now: NOW,
+      actor: actorContext("u1"),
+      command: { commandId: "reassign-change", idempotencyKey: "reassign-change-key" },
+    });
+    expect(reassigned.resourceId).toBe("r1");
+    expect(listAccountMemberResourceLinks(db, "a1").map(({ userId }) => userId)).toEqual(["u2"]);
+    await expect(
+      port.setLink({
+        workspaceId: "a1",
+        principalId: "u2",
+        resourceId: "r1",
+        expectedRevision: null,
+        replacePrincipalId: "u1",
+        replaceExpectedRevision: original.revision,
+        now: NOW,
+        actor: actorContext("u1"),
+        command: { commandId: "reassign-stale", idempotencyKey: "reassign-stale-key" },
+      }),
+    ).rejects.toThrow(/member link changed/i);
+  });
+
   // eslint-disable-next-line max-lines-per-function
   it("enforces both cardinalities across two SQLite connections", () => {
     const filename = join(tmpdir(), `capacitylens-member-links-${process.pid}-${randomUUID()}.db`);

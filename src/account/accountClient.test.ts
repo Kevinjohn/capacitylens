@@ -204,6 +204,8 @@ function registerMemberResourceCommandTests(): void {
         principalId: "person / one",
         resourceId: "resource / one",
         expectedRevision: null,
+        replacePrincipalId: "previous / member",
+        replaceExpectedRevision: "previous-revision",
       },
       command,
     );
@@ -214,7 +216,12 @@ function registerMemberResourceCommandTests(): void {
       "https://app.example/api/accounts/workspace%20%2F%20one/members/person%20%2F%20one/resource-link",
     );
     expectCommand(linkInit, "PUT");
-    expect(JSON.parse(String(linkInit.body))).toEqual({ resourceId: "resource / one", expectedRevision: null });
+    expect(JSON.parse(String(linkInit.body))).toEqual({
+      resourceId: "resource / one",
+      expectedRevision: null,
+      replacePrincipalId: "previous / member",
+      replaceExpectedRevision: "previous-revision",
+    });
 
     await accountClient.clearMemberResourceLink(
       { workspaceId: "workspace / one", principalId: "person / one", expectedRevision: "revision-1" },
