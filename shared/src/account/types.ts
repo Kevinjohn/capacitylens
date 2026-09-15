@@ -161,6 +161,8 @@ export interface InvitationSummary {
   createdAt: IsoInstant;
   /** Admin-only proposed schedule person; absent on public and invitee projections. */
   proposedResourceId?: string;
+  /** Admin-only current label projection for the proposed person; absent on public and invitee projections. */
+  proposedResourceLabel?: string;
 }
 
 /** Public bearer preview. Intentionally excludes the full address, domain, inviter, identity

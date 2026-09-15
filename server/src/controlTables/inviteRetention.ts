@@ -2,7 +2,10 @@ import type { Role } from "@capacitylens/shared/account/types";
 import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
 import type { Db } from "../db";
 import { isKnownRole } from "./members.model";
-import { getInvitationPersonProposal, removeInvitationPersonProposal } from "./invitationPersonProposals";
+import {
+  INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION,
+  removeInvitationPersonProposal,
+} from "./invitationPersonProposals";
 import {
   INVITATION_RETENTION_INDEXES_V24_SQL,
   USED_INVITATION_RETENTION_LIMIT,
@@ -22,6 +25,7 @@ export interface InviteSummary {
   usedAt: string | null;
   createdAt: string;
   proposedResourceId?: string;
+  proposedResourceLabel?: string;
 }
 
 /** Interpret invitation expiry consistently for admission, preview, redemption and pruning.
@@ -52,14 +56,24 @@ function compareIds(left: string, right: string): number {
  * @returns The account's invite summaries (NO token), newest first (possibly empty).
  */
 export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[] {
+  const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
+  const hasProposalSchema =
+    typeof schemaVersion === "number" && schemaVersion >= INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION;
   const rows = db
     .prepare(
       // NOTE: tokenHash is intentionally ABSENT from this SELECT — it must never leave on a read path.
       // Used invites are LISTED (not filtered out): the member-management UI shows them with a "used"
       // badge (MembersSection's `usedAt ? …used()` branch) so an admin can confirm an invite was
       // consumed. Dead expired-unused links are removed separately by pruneInvites, not hidden here.
-      `SELECT id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites
-       WHERE accountId = ?`,
+      `SELECT invitation.id, invitation.accountId, invitation.role, invitation.preauthEmail,
+              invitation.expiresAt, invitation.usedAt, invitation.createdAt,
+              ${hasProposalSchema ? "proposal.resourceId" : "NULL"} AS proposedResourceId,
+              ${hasProposalSchema ? "CASE WHEN resource.id IS NULL THEN NULL ELSE COALESCE(resource.name, resource.role) END" : "NULL"}
+                AS proposedResourceLabel
+         FROM invites AS invitation
+         ${hasProposalSchema ? "LEFT JOIN invitation_person_proposals AS proposal ON proposal.invitationId = invitation.id" : ""}
+         ${hasProposalSchema ? "LEFT JOIN resources AS resource ON resource.accountId = invitation.accountId AND resource.id = proposal.resourceId" : ""}
+        WHERE invitation.accountId = ?`,
     )
     .all(accountId) as Array<{
     id: string;
@@ -69,6 +83,8 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
     expiresAt: string;
     usedAt: string | null;
     createdAt: string;
+    proposedResourceId: string | null;
+    proposedResourceLabel: string | null;
   }>;
   const invitations = rows.map((r) => {
     if (!isKnownRole(r.role)) {
@@ -76,7 +92,6 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
         `listInvitesForAccount: stored role ${JSON.stringify(r.role)} for invite ${r.id} is not a known role — control table corrupted.`,
       );
     }
-    const proposal = getInvitationPersonProposal(db, r.id);
     return {
       id: r.id,
       accountId: r.accountId,
@@ -85,7 +100,8 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
       expiresAt: r.expiresAt,
       usedAt: r.usedAt ?? null,
       createdAt: r.createdAt,
-      ...(proposal ? { proposedResourceId: proposal.resourceId } : {}),
+      ...(r.proposedResourceId === null ? {} : { proposedResourceId: r.proposedResourceId }),
+      ...(r.proposedResourceLabel === null ? {} : { proposedResourceLabel: r.proposedResourceLabel }),
     };
   });
   return invitations.sort((a, b) => {

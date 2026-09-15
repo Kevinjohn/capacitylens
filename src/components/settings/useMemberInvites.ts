@@ -81,6 +81,9 @@ function createSubmitInvite({
     if (emailValidation.kind === "invalid") {
       return fail("invite", emailValidation.message);
     }
+    if (invitationResourceId && !invitationPeople.some((person) => person.id === invitationResourceId)) {
+      return fail("invite", m.settings_invite_person_stale());
+    }
     const trimmed = emailValidation.email;
     await withMemberAction("invite:create", async (accountId) => {
       setMintedLink(null);
@@ -89,9 +92,7 @@ function createSubmitInvite({
           accountId,
           role: inviteRole,
           ...(trimmed ? { preauthEmail: trimmed } : {}),
-          ...(invitationPeople.some((person) => person.id === invitationResourceId)
-            ? { proposedResourceId: invitationResourceId }
-            : {}),
+          ...(invitationResourceId ? { proposedResourceId: invitationResourceId } : {}),
         });
         if (!isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {

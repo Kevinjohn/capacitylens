@@ -325,6 +325,99 @@ describe("control-table writes stay inside their account: invitations", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function
+describe("control-table writes stay inside their account: invitation person proposals", () => {
+  beforeEach(() => {
+    seedBothCompanies(db);
+    seedAssociationResources();
+  });
+
+  it("scopes proposal eligibility, reads, and resource cleanup", () => {
+    invitationPersonProposals.createInvitationPersonProposal({
+      db,
+      invitationId: `inv-${WAYNE}`,
+      accountId: WAYNE,
+      resourceId: "r-wayne",
+      now: NOW,
+    });
+    invitationPersonProposals.createInvitationPersonProposal({
+      db,
+      invitationId: `inv-${STARK}`,
+      accountId: STARK,
+      resourceId: "r-stark",
+      now: NOW,
+    });
+    expect(invitationPersonProposals.isEligibleInvitationPerson(db, WAYNE, "r-wayne")).toBe(true);
+    expect(invitationPersonProposals.isEligibleInvitationPerson(db, WAYNE, "r-stark")).toBe(false);
+    expect(invitationPersonProposals.listInvitationPersonProposals(db, WAYNE)).toHaveLength(1);
+    expect(invitationPersonProposals.listInvitationPersonProposals(db, STARK)).toHaveLength(1);
+    expect(invitationPersonProposals.getInvitationPersonProposal(db, `inv-${STARK}`, WAYNE)).toBeNull();
+    invitationPersonProposals.removeInvitationPersonProposalsForResource(db, WAYNE, "r-wayne");
+    expect(invitationPersonProposals.listInvitationPersonProposals(db, WAYNE)).toEqual([]);
+    expect(invitationPersonProposals.listInvitationPersonProposals(db, STARK)).toHaveLength(1);
+    invitationPersonProposals.removeInvitationPersonProposal(db, `inv-${STARK}`);
+    expect(invitationPersonProposals.listInvitationPersonProposals(db, STARK)).toEqual([]);
+    invitationPersonProposals.removeInvitationPersonProposalsForAccount(db, WAYNE);
+  });
+
+  it("scopes current exceptions and settlement to one company", () => {
+    members.upsertMember(db, member(WAYNE, { userId: NEWCOMER }));
+    invitationPersonProposals.upsertMemberResourceLinkException({
+      db,
+      accountId: WAYNE,
+      userId: NEWCOMER,
+      proposedResourceId: "r-wayne",
+      reason: "resource_unavailable",
+      now: NOW,
+    });
+    invitationPersonProposals.upsertMemberResourceLinkException({
+      db,
+      accountId: STARK,
+      userId: SHARED,
+      proposedResourceId: "r-stark",
+      reason: "resource_unavailable",
+      now: NOW,
+    });
+    expect(invitationPersonProposals.listMemberResourceLinkExceptions(db, WAYNE)).toHaveLength(1);
+    expect(invitationPersonProposals.getMemberResourceLinkException(db, STARK, NEWCOMER)).toBeNull();
+    invitationPersonProposals.removeMemberResourceLinkExceptionsForResource(db, WAYNE, "r-wayne");
+    expect(invitationPersonProposals.listMemberResourceLinkExceptions(db, WAYNE)).toEqual([]);
+    expect(invitationPersonProposals.listMemberResourceLinkExceptions(db, STARK)).toHaveLength(1);
+
+    invitationPersonProposals.createInvitationPersonProposal({
+      db,
+      invitationId: `inv-${WAYNE}`,
+      accountId: WAYNE,
+      resourceId: "r-wayne",
+      now: NOW,
+    });
+    invitationPersonProposals.settleInvitationPersonProposal({
+      db,
+      invitationId: `inv-${WAYNE}`,
+      accountId: WAYNE,
+      userId: NEWCOMER,
+      now: NOW,
+    });
+    expect(db.prepare(`SELECT resourceId FROM account_member_resources WHERE accountId = ?`).get(WAYNE)).toEqual({
+      resourceId: "r-wayne",
+    });
+    expect(
+      db.prepare(`SELECT resourceId FROM account_member_resources WHERE accountId = ?`).get(STARK),
+    ).toBeUndefined();
+    invitationPersonProposals.upsertMemberResourceLinkException({
+      db,
+      accountId: WAYNE,
+      userId: NEWCOMER,
+      proposedResourceId: null,
+      reason: "member_already_linked",
+      now: NOW,
+    });
+    invitationPersonProposals.removeMemberResourceLinkException(db, WAYNE, NEWCOMER);
+    invitationPersonProposals.removeMemberResourceLinkExceptionsForAccount(db, WAYNE);
+    expect(invitationPersonProposals.listMemberResourceLinkExceptions(db, STARK)).toHaveLength(1);
+  });
+});
+
 // The transfer cases split by what the write does to a ceremony: this group starts and advances
 // one, the next ends one or bounds its history.
 describe("control-table writes stay inside their account: starting and advancing transfers", () => {
@@ -418,6 +511,7 @@ describe("control-table writes stay inside their account: ending and bounding tr
   });
 });
 
+// eslint-disable-next-line max-lines-per-function
 describe("account member/resource writes stay inside their account", () => {
   beforeEach(() => {
     seedBothCompanies(db);
@@ -445,6 +539,21 @@ describe("account member/resource writes stay inside their account", () => {
   });
 
   it("reports the changed association only for the named account", () => {
+    const directMutation = accountMemberResources.setAccountMemberResourceLinkInTransaction({
+      db,
+      accountId: WAYNE,
+      userId: SHARED,
+      resourceId: "r-wayne",
+      expectedRevision: null,
+      now: NOW,
+    });
+    expect(directMutation.changed).toBe(true);
+    accountMemberResources.clearAccountMemberResourceLink({
+      db,
+      accountId: WAYNE,
+      userId: SHARED,
+      expectedRevision: directMutation.link.revision,
+    });
     const mutation = accountMemberResources.setAccountMemberResourceLinkWithResult({
       db,
       accountId: WAYNE,
@@ -510,11 +619,26 @@ const CONTROL_TABLE_MODULES = Object.keys(MODULES).filter((name) => name !== "me
 const COVERED = new Set([
   "accountMemberResources.setAccountMemberResourceLink",
   "accountMemberResources.setAccountMemberResourceLinkWithResult",
+  "accountMemberResources.setAccountMemberResourceLinkInTransaction",
   "accountMemberResources.clearAccountMemberResourceLink",
   "accountMemberResources.reconcileAccountMemberResources",
   "accountMemberResources.removeAccountMemberResourceForMember",
   "accountMemberResources.removeAccountMemberResourceForResource",
   "accountMemberResources.removeAccountMemberResourcesForAccount",
+  "invitationPersonProposals.createInvitationPersonProposal",
+  "invitationPersonProposals.getInvitationPersonProposal",
+  "invitationPersonProposals.isEligibleInvitationPerson",
+  "invitationPersonProposals.listInvitationPersonProposals",
+  "invitationPersonProposals.removeInvitationPersonProposal",
+  "invitationPersonProposals.removeInvitationPersonProposalsForAccount",
+  "invitationPersonProposals.removeInvitationPersonProposalsForResource",
+  "invitationPersonProposals.listMemberResourceLinkExceptions",
+  "invitationPersonProposals.getMemberResourceLinkException",
+  "invitationPersonProposals.upsertMemberResourceLinkException",
+  "invitationPersonProposals.removeMemberResourceLinkException",
+  "invitationPersonProposals.removeMemberResourceLinkExceptionsForAccount",
+  "invitationPersonProposals.removeMemberResourceLinkExceptionsForResource",
+  "invitationPersonProposals.settleInvitationPersonProposal",
   "members.upsertMember",
   "members.setMemberStatus",
   "members.removeMember",
@@ -538,20 +662,7 @@ const EXCLUDED = new Map<string, string>([
   ["accountMemberResources.ACCOUNT_MEMBER_RESOURCE_KIND_CLEANUP_TRIGGER", "schema definition"],
   ["accountMemberResources.ACCOUNT_MEMBER_RESOURCES_SQL", "schema definition"],
   ["invitationPersonProposals.INVITATION_PERSON_PROPOSALS_SQL", "schema definition"],
-  ["invitationPersonProposals.createInvitationPersonProposal", "scoped write; proposal admission tests"],
-  ["invitationPersonProposals.getInvitationPersonProposal", "account-scoped read"],
-  ["invitationPersonProposals.isEligibleInvitationPerson", "account-scoped read"],
-  ["invitationPersonProposals.listInvitationPersonProposals", "account-scoped read"],
-  ["invitationPersonProposals.removeInvitationPersonProposal", "scoped write; proposal admission tests"],
-  ["invitationPersonProposals.removeInvitationPersonProposalsForAccount", "scoped cleanup"],
-  ["invitationPersonProposals.removeInvitationPersonProposalsForResource", "scoped cleanup"],
-  ["invitationPersonProposals.listMemberResourceLinkExceptions", "account-scoped read"],
-  ["invitationPersonProposals.getMemberResourceLinkException", "account-scoped read"],
-  ["invitationPersonProposals.upsertMemberResourceLinkException", "scoped write; proposal admission tests"],
-  ["invitationPersonProposals.removeMemberResourceLinkException", "scoped cleanup"],
-  ["invitationPersonProposals.removeMemberResourceLinkExceptionsForAccount", "scoped cleanup"],
-  ["invitationPersonProposals.removeMemberResourceLinkExceptionsForResource", "scoped cleanup"],
-  ["invitationPersonProposals.settleInvitationPersonProposal", "scoped write; proposal admission tests"],
+  ["invitationPersonProposals.INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION", "schema definition"],
   ["accountMemberResources.ensureAccountMemberResources", "schema installer"],
   ["accountMemberResources.listAccountMemberResourceLinks", "account-scoped read"],
   ["accountMemberResources.listResourceAvatarProjection", "account-scoped privacy projection"],

@@ -88,6 +88,7 @@ export {
   ensureAccountMemberResources,
   listAccountMemberResourceLinks,
   setAccountMemberResourceLink,
+  setAccountMemberResourceLinkInTransaction,
   clearAccountMemberResourceLink,
   listResourceAvatarProjection,
   removeAccountMemberResourceForMember,
@@ -95,7 +96,8 @@ export {
   removeAccountMemberResourcesForAccount,
   reconcileAccountMemberResources,
 } from "./controlTables/accountMemberResources";
-export type { AccountMemberResourceLink, ResourceAvatarProjection } from "./controlTables/accountMemberResources";
+export type { AccountMemberResourceLink, AccountMemberResourceMutation } from "./controlTables/accountMemberResources";
+export type { ResourceAvatarProjection } from "./controlTables/accountMemberResources";
 export {
   INVITATION_PERSON_PROPOSALS_SQL,
   createInvitationPersonProposal,

@@ -1,5 +1,10 @@
-import { randomBytes } from "node:crypto";
 import type { Db } from "../db";
+import {
+  setAccountMemberResourceLinkInTransaction,
+  type AccountMemberResourceMutation,
+} from "./accountMemberResources";
+
+export const INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION = 44;
 
 /** Bounded, current-only reasons for a proposal that could not become a live link. */
 export type MemberResourceLinkExceptionReason =
@@ -53,8 +58,9 @@ interface ProposalInput {
   now: string;
 }
 
-function newAssociationRevision(): string {
-  return randomBytes(16).toString("base64url");
+function hasInvitationPersonProposalSchema(db: Db): boolean {
+  const version = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
+  return typeof version === "number" && version >= INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION;
 }
 
 /** Return whether a resource can be proposed without reserving it. */
@@ -80,17 +86,25 @@ export function createInvitationPersonProposal(input: ProposalInput): void {
     .run(input.invitationId, input.accountId, input.resourceId, input.now, input.now);
 }
 
-export function getInvitationPersonProposal(db: Db, invitationId: string): InvitationPersonProposal | null {
+export function getInvitationPersonProposal(
+  db: Db,
+  invitationId: string,
+  accountId?: string,
+): InvitationPersonProposal | null {
+  if (!hasInvitationPersonProposalSchema(db)) return null;
   const row = db
     .prepare(
       `SELECT invitationId, accountId, resourceId, createdAt, updatedAt
-         FROM invitation_person_proposals WHERE invitationId = ?`,
+         FROM invitation_person_proposals
+        WHERE invitationId = ?${accountId === undefined ? "" : " AND accountId = ?"}`,
     )
-    .get(invitationId) as InvitationPersonProposal | undefined;
+    .get(...(accountId === undefined ? [invitationId] : [invitationId, accountId])) as
+    InvitationPersonProposal | undefined;
   return row ?? null;
 }
 
 export function listInvitationPersonProposals(db: Db, accountId: string): InvitationPersonProposal[] {
+  if (!hasInvitationPersonProposalSchema(db)) return [];
   return db
     .prepare(
       `SELECT invitationId, accountId, resourceId, createdAt, updatedAt
@@ -100,14 +114,17 @@ export function listInvitationPersonProposals(db: Db, accountId: string): Invita
 }
 
 export function removeInvitationPersonProposal(db: Db, invitationId: string): void {
+  if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM invitation_person_proposals WHERE invitationId = ?`).run(invitationId);
 }
 
 export function removeInvitationPersonProposalsForAccount(db: Db, accountId: string): void {
+  if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM invitation_person_proposals WHERE accountId = ?`).run(accountId);
 }
 
 export function removeInvitationPersonProposalsForResource(db: Db, accountId: string, resourceId: string): void {
+  if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM invitation_person_proposals WHERE accountId = ? AND resourceId = ?`).run(
     accountId,
     resourceId,
@@ -115,6 +132,7 @@ export function removeInvitationPersonProposalsForResource(db: Db, accountId: st
 }
 
 export function listMemberResourceLinkExceptions(db: Db, accountId: string): MemberResourceLinkException[] {
+  if (!hasInvitationPersonProposalSchema(db)) return [];
   return db
     .prepare(
       `SELECT accountId, userId, proposedResourceId, reason, createdAt, updatedAt
@@ -128,6 +146,7 @@ export function getMemberResourceLinkException(
   accountId: string,
   userId: string,
 ): MemberResourceLinkException | null {
+  if (!hasInvitationPersonProposalSchema(db)) return null;
   const row = db
     .prepare(
       `SELECT accountId, userId, proposedResourceId, reason, createdAt, updatedAt
@@ -159,14 +178,17 @@ export function upsertMemberResourceLinkException(input: {
 }
 
 export function removeMemberResourceLinkException(db: Db, accountId: string, userId: string): void {
+  if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM member_resource_link_exceptions WHERE accountId = ? AND userId = ?`).run(accountId, userId);
 }
 
 export function removeMemberResourceLinkExceptionsForAccount(db: Db, accountId: string): void {
+  if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(`DELETE FROM member_resource_link_exceptions WHERE accountId = ?`).run(accountId);
 }
 
 export function removeMemberResourceLinkExceptionsForResource(db: Db, accountId: string, resourceId: string): void {
+  if (!hasInvitationPersonProposalSchema(db)) return;
   db.prepare(
     `DELETE FROM member_resource_link_exceptions
          WHERE accountId = ? AND proposedResourceId = ?`,
@@ -186,7 +208,7 @@ export function settleInvitationPersonProposal(input: {
   userId: string;
   now: string;
 }): void {
-  const proposal = getInvitationPersonProposal(input.db, input.invitationId);
+  const proposal = getInvitationPersonProposal(input.db, input.invitationId, input.accountId);
   if (!proposal) return;
   if (proposal.accountId !== input.accountId) {
     throw new Error("Invitation proposal account scope is corrupt.");
@@ -216,22 +238,18 @@ export function settleInvitationPersonProposal(input: {
     });
   } else {
     try {
-      input.db
-        .prepare(
-          `INSERT INTO account_member_resources (accountId, userId, resourceId, revision, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-        )
-        .run(input.accountId, input.userId, proposal.resourceId, newAssociationRevision(), input.now, input.now);
+      const mutation: AccountMemberResourceMutation = setAccountMemberResourceLinkInTransaction({
+        db: input.db,
+        accountId: input.accountId,
+        userId: input.userId,
+        resourceId: proposal.resourceId,
+        expectedRevision: null,
+        now: input.now,
+      });
+      void mutation;
       removeMemberResourceLinkException(input.db, input.accountId, input.userId);
     } catch (cause) {
-      const detail = cause instanceof Error ? cause.message : "";
-      if (
-        !detail.includes(
-          "UNIQUE constraint failed: account_member_resources.accountId, account_member_resources.resourceId",
-        )
-      ) {
-        throw cause;
-      }
+      if (!isResourceAlreadyLinkedConflict(cause)) throw cause;
       upsertMemberResourceLinkException({
         db: input.db,
         accountId: input.accountId,
@@ -243,4 +261,10 @@ export function settleInvitationPersonProposal(input: {
     }
   }
   removeInvitationPersonProposal(input.db, input.invitationId);
+}
+
+function isResourceAlreadyLinkedConflict(error: unknown): boolean {
+  return (
+    error instanceof Error && error.name === "AccountMemberResourceConflict" && /already linked/i.test(error.message)
+  );
 }

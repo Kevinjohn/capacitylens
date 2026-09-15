@@ -346,6 +346,7 @@
   "settings_invite_person_pending": "Intended person: {person}.",
   "settings_invite_person_not_reserved": "This person is not reserved until the invite is accepted.",
   "settings_invite_person_missing": "Scheduled person no longer available",
+  "settings_invite_person_stale": "The selected person is no longer eligible. Choose another person before creating the invite.",
   "settings_invite_submit": "Create invite",
   "settings_invite_copy": "Copy",
   "settings_reset_copy_aria": "Copy reset link for {member}",

@@ -343,6 +343,7 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
         usedAt: invite.usedAt,
         createdAt: invite.createdAt,
         ...(invite.proposedResourceId === undefined ? {} : { proposedResourceId: invite.proposedResourceId }),
+        ...(invite.proposedResourceLabel === undefined ? {} : { proposedResourceLabel: invite.proposedResourceLabel }),
       })),
     };
   } catch (error) {

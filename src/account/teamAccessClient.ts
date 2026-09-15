@@ -59,6 +59,7 @@ export interface TeamInvitation {
   usedAt: string | null;
   createdAt: string;
   proposedResourceId?: string;
+  proposedResourceLabel?: string;
 }
 
 export interface OneTimeToken {
@@ -210,16 +211,17 @@ function hasValidInvitationDates(
   return isTimestamp(row.expiresAt) && (row.usedAt === null || isTimestamp(row.usedAt)) && isTimestamp(row.createdAt);
 }
 
+function isOptionalNonEmptyString(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && value.length > 0);
+}
+
 function parseInvitation(row: unknown): TeamInvitation | null {
   if (!isRecord(row)) return null;
   if (!hasValidInvitationIdentity(row)) return null;
   if (!hasValidInvitationDates(row)) return null;
   if (!(row.preauthEmail === undefined || row.preauthEmail === null || typeof row.preauthEmail === "string"))
     return null;
-  if (
-    row.proposedResourceId !== undefined &&
-    (typeof row.proposedResourceId !== "string" || row.proposedResourceId.length === 0)
-  )
+  if (!isOptionalNonEmptyString(row.proposedResourceId) || !isOptionalNonEmptyString(row.proposedResourceLabel))
     return null;
   return {
     id: row.id,
@@ -229,6 +231,7 @@ function parseInvitation(row: unknown): TeamInvitation | null {
     usedAt: row.usedAt,
     createdAt: row.createdAt,
     ...(typeof row.proposedResourceId === "string" ? { proposedResourceId: row.proposedResourceId } : {}),
+    ...(typeof row.proposedResourceLabel === "string" ? { proposedResourceLabel: row.proposedResourceLabel } : {}),
   };
 }
 

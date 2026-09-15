@@ -1,15 +1,9 @@
 import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
 import type { Db } from "../db";
+import { DB_SCHEMA_VERSION } from "../db/constants";
 import { tx } from "../txn";
 import { newInviteId } from "./inviteTokens";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
-import {
-  removeInvitationPersonProposalsForAccount,
-  removeInvitationPersonProposalsForResource,
-  removeMemberResourceLinkException,
-  removeMemberResourceLinkExceptionsForAccount,
-  removeMemberResourceLinkExceptionsForResource,
-} from "./invitationPersonProposals";
 
 /** Resource-write invariant installed alongside the v43 association table. */
 export const ACCOUNT_MEMBER_RESOURCE_KIND_CLEANUP_TRIGGER = {
@@ -102,6 +96,42 @@ function canSkipLegacyCleanup(db: Db): boolean {
   return version < 43 && !associationTableExists(db);
 }
 
+function canUseInvitationPersonProposalState(db: Db): boolean {
+  const version = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
+  return typeof version === "number" && version >= DB_SCHEMA_VERSION;
+}
+
+function removeMemberResourceLinkExceptionState(db: Db, accountId: string, userId: string): void {
+  if (!canUseInvitationPersonProposalState(db)) return;
+  db.prepare(`DELETE FROM member_resource_link_exceptions WHERE accountId = ? AND userId = ?`).run(accountId, userId);
+}
+
+function removeMemberResourceLinkExceptionsForAccountState(db: Db, accountId: string): void {
+  if (!canUseInvitationPersonProposalState(db)) return;
+  db.prepare(`DELETE FROM member_resource_link_exceptions WHERE accountId = ?`).run(accountId);
+}
+
+function removeMemberResourceLinkExceptionsForResourceState(db: Db, accountId: string, resourceId: string): void {
+  if (!canUseInvitationPersonProposalState(db)) return;
+  db.prepare(`DELETE FROM member_resource_link_exceptions WHERE accountId = ? AND proposedResourceId = ?`).run(
+    accountId,
+    resourceId,
+  );
+}
+
+function removeInvitationPersonProposalsForAccountState(db: Db, accountId: string): void {
+  if (!canUseInvitationPersonProposalState(db)) return;
+  db.prepare(`DELETE FROM invitation_person_proposals WHERE accountId = ?`).run(accountId);
+}
+
+function removeInvitationPersonProposalsForResourceState(db: Db, accountId: string, resourceId: string): void {
+  if (!canUseInvitationPersonProposalState(db)) return;
+  db.prepare(`DELETE FROM invitation_person_proposals WHERE accountId = ? AND resourceId = ?`).run(
+    accountId,
+    resourceId,
+  );
+}
+
 /** Install the app-owned, no-FK member/resource association table. */
 export function ensureAccountMemberResources(db: Db): void {
   db.exec(ACCOUNT_MEMBER_RESOURCES_SQL);
@@ -190,7 +220,7 @@ function persistLink(input: SetLinkInput, revision: string): void {
   }
 }
 
-function setLinkInTransaction(input: SetLinkInput): AccountMemberResourceMutation {
+export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): AccountMemberResourceMutation {
   const current = input.db
     .prepare(
       `SELECT revision, resourceId, createdAt, updatedAt FROM account_member_resources WHERE accountId = ? AND userId = ?`,
@@ -199,14 +229,14 @@ function setLinkInTransaction(input: SetLinkInput): AccountMemberResourceMutatio
   if ((current?.revision ?? null) !== input.expectedRevision)
     throw conflict("The member link changed. Reload and try again.");
   if (current?.resourceId === input.resourceId) {
-    removeMemberResourceLinkException(input.db, input.accountId, input.userId);
+    removeMemberResourceLinkExceptionState(input.db, input.accountId, input.userId);
     return { link: { accountId: input.accountId, userId: input.userId, ...current }, changed: false };
   }
   if (current) assertCurrentLinkCanChange(input, current);
   requireLinkTargets(input);
   const revision = newInviteId();
   persistLink(input, revision);
-  removeMemberResourceLinkException(input.db, input.accountId, input.userId);
+  removeMemberResourceLinkExceptionState(input.db, input.accountId, input.userId);
   return {
     link: {
       accountId: input.accountId,
@@ -227,7 +257,7 @@ export function setAccountMemberResourceLink(input: SetLinkInput): AccountMember
 
 /** Create or replace a link and report whether the CAS mutation changed its resource endpoint. */
 export function setAccountMemberResourceLinkWithResult(input: SetLinkInput): AccountMemberResourceMutation {
-  return tx(input.db, () => setLinkInTransaction(input), "immediate");
+  return tx(input.db, () => setAccountMemberResourceLinkInTransaction(input), "immediate");
 }
 
 /** Remove one link only if its current opaque revision matches. */
@@ -241,7 +271,7 @@ export function clearAccountMemberResourceLink(input: {
     .prepare(`DELETE FROM account_member_resources WHERE accountId = ? AND userId = ? AND revision = ?`)
     .run(input.accountId, input.userId, input.expectedRevision);
   if (result.changes !== 1) throw conflict("The member link changed. Reload and try again.");
-  removeMemberResourceLinkException(input.db, input.accountId, input.userId);
+  removeMemberResourceLinkExceptionState(input.db, input.accountId, input.userId);
 }
 
 /** Return only active, safe avatar pointers for resources visible in one account. */
@@ -264,23 +294,23 @@ export function listResourceAvatarProjection(db: Db, accountId: string): Resourc
 export function removeAccountMemberResourceForMember(db: Db, accountId: string, userId: string): void {
   if (canSkipLegacyCleanup(db)) return;
   db.prepare(`DELETE FROM account_member_resources WHERE accountId = ? AND userId = ?`).run(accountId, userId);
-  removeMemberResourceLinkException(db, accountId, userId);
+  removeMemberResourceLinkExceptionState(db, accountId, userId);
 }
 
 /** Explicit cleanup for a permanently purged resource. */
 export function removeAccountMemberResourceForResource(db: Db, accountId: string, resourceId: string): void {
   if (canSkipLegacyCleanup(db)) return;
   db.prepare(`DELETE FROM account_member_resources WHERE accountId = ? AND resourceId = ?`).run(accountId, resourceId);
-  removeInvitationPersonProposalsForResource(db, accountId, resourceId);
-  removeMemberResourceLinkExceptionsForResource(db, accountId, resourceId);
+  removeInvitationPersonProposalsForResourceState(db, accountId, resourceId);
+  removeMemberResourceLinkExceptionsForResourceState(db, accountId, resourceId);
 }
 
 /** Explicit cleanup for account erasure. */
 export function removeAccountMemberResourcesForAccount(db: Db, accountId: string): void {
   if (canSkipLegacyCleanup(db)) return;
   db.prepare(`DELETE FROM account_member_resources WHERE accountId = ?`).run(accountId);
-  removeInvitationPersonProposalsForAccount(db, accountId);
-  removeMemberResourceLinkExceptionsForAccount(db, accountId);
+  removeInvitationPersonProposalsForAccountState(db, accountId);
+  removeMemberResourceLinkExceptionsForAccountState(db, accountId);
 }
 
 /** Remove links whose resource disappeared or is no longer a person. Destructive imports clear
@@ -300,6 +330,8 @@ export function reconcileAccountMemberResources(input: {
        SELECT 1 FROM resources r WHERE r.accountId = account_member_resources.accountId
         AND r.id = account_member_resources.resourceId AND r.kind = 'person')`,
   ).run(accountId);
+  const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
+  if (typeof schemaVersion !== "number" || schemaVersion < DB_SCHEMA_VERSION) return;
   db.prepare(
     `DELETE FROM invitation_person_proposals WHERE accountId = ? AND NOT EXISTS (
     SELECT 1 FROM resources r WHERE r.accountId = invitation_person_proposals.accountId

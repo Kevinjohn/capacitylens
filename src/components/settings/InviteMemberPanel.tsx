@@ -280,6 +280,7 @@ function resolveInvitationStatus(invitation: TeamInvitation, expired: boolean): 
 
 function resolveInvitationPerson(invitation: TeamInvitation, people: readonly InvitationPersonOption[]): string | null {
   if (!invitation.proposedResourceId) return null;
+  if (invitation.proposedResourceLabel) return invitation.proposedResourceLabel;
   return (
     people.find((person) => person.id === invitation.proposedResourceId)?.label ?? m.settings_invite_person_missing()
   );

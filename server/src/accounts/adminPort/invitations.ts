@@ -80,6 +80,7 @@ async function listInvitations(
         usedAt: invite.usedAt,
         createdAt: invite.createdAt,
         ...(invite.proposedResourceId === undefined ? {} : { proposedResourceId: invite.proposedResourceId }),
+        ...(invite.proposedResourceLabel === undefined ? {} : { proposedResourceLabel: invite.proposedResourceLabel }),
       },
     ];
   });

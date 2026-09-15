@@ -56,6 +56,7 @@ export function MemberResourceLink({
     member.resourceLink?.resourceStatus === "archived" ||
     member.resourceLink?.resourceStatus === "disabled";
   const canEdit = member.status === "active" && !currentPersonInactive && people.length > 0;
+  const hasException = member.resourceLinkException !== null && member.resourceLinkException !== undefined;
   const change = (resourceId: string) => {
     restoreFocusRef.current = true;
     if (!workspaceId) return;
@@ -199,7 +200,7 @@ export function MemberResourceLink({
               {m.settings_member_resource_cancel()}
             </button>
           )}
-          {canEdit && !editing && (
+          {canEdit && !editing && !hasException && (
             <button
               type="button"
               className="text-xs font-medium text-primary underline"

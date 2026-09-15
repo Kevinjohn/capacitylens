@@ -190,6 +190,16 @@ function remapSchedulingCoordinates(db: DatabaseSync): void {
       { table: "member_resource_link_exceptions", column: "proposedResourceId" },
     ],
   });
+  scrubDanglingReferences({
+    db,
+    parentTable: "resources",
+    parentColumn: "id",
+    references: [
+      { table: "invitation_person_proposals", column: "resourceId" },
+      { table: "member_resource_link_exceptions", column: "proposedResourceId" },
+    ],
+    label: "resource-coordinate",
+  });
   remapIds({
     db: db,
     table: hasTable(db, "activities") ? "activities" : "tasks",

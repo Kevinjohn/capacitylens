@@ -5,6 +5,7 @@ import {
   createInvitationPersonProposal,
   getMemberResourceLinkException,
   getInvitationPersonProposal,
+  listInvitationPersonProposals,
   listMemberResourceLinkExceptions,
   settleInvitationPersonProposal,
 } from "./invitationPersonProposals";
@@ -46,6 +47,13 @@ function invite(db: ReturnType<typeof openDb>, id = "i1") {
 }
 
 describe("invitation person proposals", () => {
+  it("fails closed when a current-schema proposal table is damaged", () => {
+    const db = fixture();
+    db.exec(`DROP TABLE invitation_person_proposals`);
+    expect(() => listInvitationPersonProposals(db, "a1")).toThrow(/no such table/i);
+    db.close();
+  });
+
   it("stores a minimal, account-scoped non-reserving proposal", () => {
     const db = fixture();
     invite(db);
