@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { teamAccessClient } from "../../account/teamAccessClient";
 import { useMemberInvites } from "./useMemberInvites";
@@ -53,7 +53,7 @@ describe("useMemberInvites schedule-person proposal", () => {
       result.current.setInviteRole("viewer");
     });
     rerender({ contextKey: "account-1\u0000user-b\u00002\u0000sso\u0000unready\u0000offline" });
-    await waitFor(() => expect(result.current.invitationResourceId).toBe(""));
+    expect(result.current.invitationResourceId).toBe("");
     expect(result.current.invitationPreauthorizedEmail).toBe("");
     expect(result.current.inviteRole).toBe("editor");
   });

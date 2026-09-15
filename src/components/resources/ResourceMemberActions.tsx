@@ -45,13 +45,14 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
   const [directory, setDirectory] = useState<{
     accountId: string;
     userId: string;
+    contextKey: string;
     members: TeamMember[];
   } | null>(null);
   const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [forbiddenContext, setForbiddenContext] = useState<string | null>(null);
   const requestGeneration = useRef(0);
-  const authorizationContextKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${online}`;
+  const authorizationContextKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${sessionGeneration}\u0000${authMode}\u0000${offline.readOnly}\u0000${online}`;
   const previousAuthorizationContextKey = useRef(authorizationContextKey);
   const directoryKey = `${authorizationContextKey}\u0000${membershipRevision}\u0000${accountSummary?.role ?? ""}\u0000${accountSummary?.roleStatus ?? ""}`;
   useEffect(() => {
@@ -80,7 +81,12 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
           return;
         }
         setForbiddenContext(null);
-        setDirectory({ accountId, userId: user.id, members: result.value.members });
+        setDirectory({
+          accountId,
+          userId: user.id,
+          contextKey: authorizationContextKey,
+          members: result.value.members,
+        });
       })
       .catch((cause: unknown) => {
         if (current()) setDirectoryError(`${m.settings_resource_member_unavailable()} ${resolveErrorMessage(cause)}`);
@@ -102,7 +108,12 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
     user,
     forbiddenContext,
   ]);
-  const members = directory?.accountId === accountId && directory.userId === user?.id ? directory.members : [];
+  const members =
+    directory?.accountId === accountId &&
+    directory.userId === user?.id &&
+    directory.contextKey === authorizationContextKey
+      ? directory.members
+      : [];
   const self = members.find((member) => member.isSelf);
   const reload = () => {
     requestGeneration.current += 1;

@@ -32,10 +32,12 @@ export function useAuthContextValue(
   const contextMultiAccount = status.kind === "pass" ? status.multiAccount : false;
   const contextSessionKey = `${status.kind}\u0000${contextAuthMode}\u0000${contextUser?.id ?? ""}`;
   const sessionGeneration = useMemo(() => {
-    // Capturing the scalar key makes the memo boundary explicit to both React and the hook lint.
+    // A new auth status snapshot may represent a replaced server session for the same principal;
+    // over-clearing private UI is safer than retaining a draft across that boundary.
+    void status;
     void contextSessionKey;
     return ++nextSessionGeneration;
-  }, [contextSessionKey]);
+  }, [contextSessionKey, status]);
   const authContextValue = useMemo(
     () => ({
       authMode: contextAuthMode,

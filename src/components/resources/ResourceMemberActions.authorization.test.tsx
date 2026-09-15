@@ -7,9 +7,12 @@ import { useResourceMemberActionsModel } from "./ResourceMemberActions";
 const auth = vi.hoisted(() => ({
   mode: "password" as "off" | "password",
   user: { id: "user-1" } as { id: string } | null,
+  sessionGeneration: 1,
 }));
 const offline = vi.hoisted(() => ({ readOnly: false }));
-vi.mock("../../auth/authContext", () => ({ useAuth: () => ({ authMode: auth.mode, user: auth.user }) }));
+vi.mock("../../auth/authContext", () => ({
+  useAuth: () => ({ authMode: auth.mode, user: auth.user, sessionGeneration: auth.sessionGeneration }),
+}));
 vi.mock("../../data/apiConfig", () => ({ isServerConfigured: () => true }));
 vi.mock("../../data/useOfflineState", () => ({ useOfflineState: () => offline }));
 
@@ -17,6 +20,7 @@ describe("useResourceMemberActionsModel authorization boundary", () => {
   afterEach(() => {
     auth.mode = "password";
     auth.user = { id: "user-1" };
+    auth.sessionGeneration = 1;
     offline.readOnly = false;
     vi.restoreAllMocks();
   });
@@ -127,6 +131,42 @@ describe("useResourceMemberActionsModel authorization boundary", () => {
     window.dispatchEvent(new Event("online"));
     await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(2));
     Object.defineProperty(navigator, "onLine", { configurable: true, value: originalOnline });
+  });
+
+  it("clears the candidate projection on a same-user session-generation change", async () => {
+    useStore.setState({ accountSummaries: [{ id: "account-1", role: "admin", roleStatus: "resolved" }] } as never);
+    const listMembers = vi.spyOn(teamAccessClient, "listMembers").mockResolvedValue({
+      kind: "ok",
+      status: 200,
+      value: {
+        members: [
+          {
+            userId: "user-1",
+            role: "admin",
+            status: "active",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            name: "Bruce Wayne",
+            email: "bruce@example.test",
+            signInConfirmed: null,
+            isSelf: true,
+            mayResetPassword: false,
+            mayRevokeSessions: false,
+            resourceLink: null,
+            resourceLinkException: null,
+          },
+        ],
+        signInTrackingEnabled: false,
+        resourceCandidates: [{ resourceId: "person-1", label: "Bruce Wayne" }],
+      },
+    });
+    const { result, rerender } = renderHook(() => useResourceMemberActionsModel("account-1"));
+    await waitFor(() => expect(result.current.canManage).toBe(true));
+    expect(result.current.members).toHaveLength(1);
+    auth.sessionGeneration = 2;
+    rerender();
+    expect(result.current.canManage).toBe(false);
+    expect(result.current.members).toEqual([]);
+    await waitFor(() => expect(listMembers).toHaveBeenCalledTimes(2));
   });
 
   it.each([

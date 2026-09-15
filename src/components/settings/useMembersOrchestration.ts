@@ -19,6 +19,7 @@ import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
 import type { WorkspaceReadiness } from "./ssoReadiness";
+import { resolveInvitationDirectoryBoundary } from "./useMemberInvitationState";
 import { useInvitationResourceHandoff } from "./useInvitationResourceHandoff";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
@@ -308,19 +309,9 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     enabled ? "configured" : "unconfigured",
     offline.readOnly ? "offline" : "online",
     online ? "browser-online" : "browser-offline",
-    "authorized-team-boundary",
+    "team-boundary",
   ].join("\u0000");
-  const proposedResourceId = useInvitationResourceHandoff({
-    activeAccountId,
-    authMode,
-    enabled,
-    offlineReadOnly: offline.readOnly,
-    online,
-    sessionGeneration,
-    user,
-  });
-  const memberInvites = useMemberInvites(proposedResourceId, inviteContextKey);
-  const { reconcileMintedInvite, createActions: createInviteActions, ...inviteState } = memberInvites;
+  const memberInvites = useMemberInvites(null, inviteContextKey);
   const directoryState = useMemberDirectoryState({
     activeAccountId,
     enabled,
@@ -329,8 +320,26 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     setNotice,
     setActiveAccount,
     viewState,
-    reconcileMintedInvite,
+    reconcileMintedInvite: memberInvites.reconcileMintedInvite,
   });
+  const directoryBoundary = resolveInvitationDirectoryBoundary(directoryState);
+  const setInvitationResourceId = memberInvites.setInvitationResourceId;
+  const proposedResourceId = useInvitationResourceHandoff({
+    activeAccountId,
+    authMode,
+    directoryAuthorized: directoryBoundary.authorized,
+    directoryPending: directoryState.directory.kind === "loading",
+    enabled,
+    offlineReadOnly: offline.readOnly,
+    online,
+    resetInviteDraft: memberInvites.resetInviteDraft,
+    sessionGeneration,
+    user,
+  });
+  useEffect(() => {
+    if (proposedResourceId !== null) setInvitationResourceId(proposedResourceId);
+  }, [proposedResourceId, setInvitationResourceId]);
+  const { createActions: createInviteActions, ...inviteState } = memberInvites;
   const resourceCandidates = directoryState.resourceCandidates;
   const linkedResourceIds = new Set(
     (directoryState.members ?? []).flatMap((member) => (member.resourceLink ? [member.resourceLink.resourceId] : [])),

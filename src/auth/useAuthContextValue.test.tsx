@@ -28,4 +28,16 @@ describe("useAuthContextValue session boundary", () => {
     expect(replacementGeneration).not.toBe(initialGeneration);
     expect(result.current.sessionGeneration).not.toBe(replacementGeneration);
   });
+
+  it("advances for a replacement status snapshot with the same user and mode", () => {
+    const refreshAuth = async () => {};
+    const signOut = async () => {};
+    const first = buildOpenAuthResult("password", { id: "user-1", name: "Bruce Wayne" });
+    const { result, rerender } = renderHook(({ status }) => useAuthContextValue(status, refreshAuth, signOut), {
+      initialProps: { status: first },
+    });
+    const initialGeneration = result.current.sessionGeneration;
+    rerender({ status: { ...first } });
+    expect(result.current.sessionGeneration).not.toBe(initialGeneration);
+  });
 });

@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -188,7 +188,7 @@ export function useMemberInvites(initialResourceId: string | null = null, contex
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
   // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
-  const previousContextKey = useRef(contextKey);
+  const [committedContextKey, setCommittedContextKey] = useState(contextKey);
   const setInvitationResourceIdForState = useCallback<Dispatch<SetStateAction<string>>>((value) => {
     setInvitationResourceId(value);
   }, []);
@@ -214,10 +214,14 @@ export function useMemberInvites(initialResourceId: string | null = null, contex
   }, []);
 
   useEffect(() => {
-    if (previousContextKey.current === contextKey) return;
-    previousContextKey.current = contextKey;
+    if (committedContextKey === contextKey) return;
+    setCommittedContextKey(contextKey);
     resetInviteDraft();
-  }, [contextKey, resetInviteDraft]);
+  }, [committedContextKey, contextKey, resetInviteDraft]);
+
+  // The effect clears the underlying draft, but expose safe defaults during the transition render
+  // so an account/session/authorization change cannot flash the old private values.
+  const contextCurrent = committedContextKey === contextKey;
 
   const createActions = ({
     authMode,
@@ -262,13 +266,13 @@ export function useMemberInvites(initialResourceId: string | null = null, contex
     return { submitInvite, revokeInvite, copyLink };
   };
   return {
-    inviteRole,
+    inviteRole: contextCurrent ? inviteRole : ("editor" as InvitationRole),
     setInviteRole,
-    invitationPreauthorizedEmail,
+    invitationPreauthorizedEmail: contextCurrent ? invitationPreauthorizedEmail : "",
     setInvitationPreauthorizedEmail,
-    invitationResourceId,
+    invitationResourceId: contextCurrent ? invitationResourceId : "",
     setInvitationResourceId: setInvitationResourceIdForState,
-    mintedLink,
+    mintedLink: contextCurrent ? mintedLink : null,
     resetInviteDraft,
     reconcileMintedInvite,
     createActions,

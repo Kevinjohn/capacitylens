@@ -31,6 +31,7 @@ interface CurrentAccessCardProps {
 interface AccessManagementProps {
   authenticated: boolean;
   mayManage: boolean;
+  online: boolean;
   offlineReadOnly: boolean;
   permissionStatus: ReturnType<typeof usePermissionStatus>;
 }
@@ -120,7 +121,13 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
   );
 }
 
-function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissionStatus }: AccessManagementProps) {
+function AccessManagement({
+  authenticated,
+  mayManage,
+  online,
+  offlineReadOnly,
+  permissionStatus,
+}: AccessManagementProps) {
   if (!authenticated) {
     // Demo and open installations have no real membership directory, so say so plainly rather
     // than leaving the page looking broken. Previously this lived in a members explainer card.
@@ -130,6 +137,7 @@ function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissio
       </Alert>
     );
   }
+  if (!online) return null;
   if (mayManage) return <MembersSection />;
   if (offlineReadOnly || permissionStatus !== "resolved") return null;
 
@@ -159,7 +167,7 @@ export function TeamAccessView() {
   // this is an auth-off installation. Never advertise live Owner/Open/Demo powers while writes are
   // deliberately disabled and the server cannot confirm membership.
   const effectiveRole: Role | null = offline.readOnly ? "viewer" : resolvedRole;
-  const mayManage = !offline.readOnly && resolvedRole !== null && can(resolvedRole, "manageMembers");
+  const mayManage = online && !offline.readOnly && resolvedRole !== null && can(resolvedRole, "manageMembers");
   useInvitationPreselectionLifecycle({
     accountId: activeAccountId,
     userId: user?.id ?? null,
@@ -202,6 +210,7 @@ export function TeamAccessView() {
       <AccessManagement
         authenticated={authenticated}
         mayManage={mayManage}
+        online={online}
         offlineReadOnly={offline.readOnly}
         permissionStatus={permissionStatus}
       />

@@ -149,6 +149,23 @@ describe("TeamAccessView member management", () => {
     expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
   });
 
+  it("hides member management while the browser is offline and restores it when online", async () => {
+    const originalOnline = navigator.onLine;
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    const view = renderView("owner", "password", "resolved");
+    expect(screen.getByTestId("member-management")).toBeInTheDocument();
+
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+    window.dispatchEvent(new Event("offline"));
+    await waitFor(() => expect(screen.queryByTestId("member-management")).not.toBeInTheDocument());
+
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+    window.dispatchEvent(new Event("online"));
+    await waitFor(() => expect(screen.getByTestId("member-management")).toBeInTheDocument());
+    view.unmount();
+    Object.defineProperty(navigator, "onLine", { configurable: true, value: originalOnline });
+  });
+
   it("clears resource invitation handoff when the real Team boundary loses authorization", async () => {
     const authContext = auth("password");
     authContext.sessionGeneration = 1;
