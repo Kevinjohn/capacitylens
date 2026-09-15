@@ -31,7 +31,7 @@ describe("member resource links", () => {
       `INSERT INTO resources
        (id, accountId, kind, name, role, color, employmentType, engagement,
         workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
-       VALUES ('bruce', 'a1', 'person', 'Bruce Wayne', 'Owner', '#6366f1', 'employee', 'studio', 8,
+       VALUES ('bruce', 'a1', 'person', 'Bruce Wayne', 'Owner', '#6366f1', 'permanent', 'studio', 8,
         '[1,2,3,4,5]', '[]', ?, ?)`,
     ).run(TS, TS);
     const viewerWrite = await call(app, {
@@ -78,7 +78,31 @@ describe("member resource links", () => {
         })
       ).statusCode,
     ).toBe(409);
-    const revision = (linked.json() as { revision: string }).revision;
+    const converted = await call(app, {
+      method: "PATCH",
+      url: "/api/resources/bruce",
+      headers: { cookie: owner.cookie },
+      payload: { kind: "external" },
+    });
+    expect(converted.statusCode, converted.body).toBe(200);
+    expect(
+      (
+        await call(app, { method: "GET", url: "/api/accounts/a1/resource-avatars", headers: { cookie: viewer.cookie } })
+      ).json(),
+    ).toEqual({ avatars: [] });
+    await call(app, {
+      method: "PATCH",
+      url: "/api/resources/bruce",
+      headers: { cookie: owner.cookie },
+      payload: { kind: "person" },
+    });
+    const relinked = await call(app, {
+      method: "PUT",
+      url: `/api/accounts/a1/members/${owner.userId}/resource-link`,
+      headers: { cookie: owner.cookie },
+      payload: { resourceId: "bruce", expectedRevision: null },
+    });
+    const revision = (relinked.json() as { revision: string }).revision;
     expect(
       (
         await call(app, {

@@ -4,6 +4,17 @@ import { tx } from "../txn";
 import { newInviteId } from "./inviteTokens";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
 
+/** Resource-write invariant installed alongside the v43 association table. */
+export const ACCOUNT_MEMBER_RESOURCE_KIND_CLEANUP_TRIGGER = {
+  name: "capacitylens_member_resource_kind_cleanup",
+  sql: `CREATE TRIGGER IF NOT EXISTS capacitylens_member_resource_kind_cleanup
+AFTER UPDATE OF kind ON resources
+WHEN OLD.kind = 'person' AND NEW.kind <> 'person'
+BEGIN
+  DELETE FROM account_member_resources WHERE accountId = OLD.accountId AND resourceId = OLD.id;
+END`,
+} as const;
+
 /** Immutable v43 DDL for the app-owned, deliberately no-FK association control table. */
 export const ACCOUNT_MEMBER_RESOURCES_SQL = `
 CREATE TABLE IF NOT EXISTS account_member_resources (
@@ -15,7 +26,8 @@ CREATE TABLE IF NOT EXISTS account_member_resources (
   updatedAt TEXT NOT NULL,
   PRIMARY KEY (accountId, userId),
   UNIQUE (accountId, resourceId)
-);`;
+);
+${ACCOUNT_MEMBER_RESOURCE_KIND_CLEANUP_TRIGGER.sql};`;
 
 /** Complete durable association row used only inside the SQLite account-storage adapter. */
 export interface AccountMemberResourceLink {

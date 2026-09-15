@@ -5,7 +5,7 @@ import type { Db } from "../db";
 import { resolveAccountConfigKey } from "../accountConfig";
 import { createStrictOidcClient, isLoopbackHostname, StrictOidcVerificationError } from "../strictOidc";
 import type { AuthConfigError, AuthProviderInfo } from "../auth";
-import { adaptStrictOidcProfileForBetterAuth } from "./betterAuthProfileCompatibility";
+import { adaptStrictOidcProfileForBetterAuth, persistLinkedExternalAvatar } from "./betterAuthProfileCompatibility";
 import { parseSocialProvidersFromEnvironment } from "./socialProviders";
 
 type Env = Record<string, string | undefined>;
@@ -255,7 +255,6 @@ function createGenericOidcPlugin(
         issuer,
         // Dex may omit RFC 9207 `iss`; the strict client still enforces ID-token issuer and audience.
         requireIssuerValidation: false,
-        overrideUserInfo: true,
         pkce: true,
         getToken: ({ code, redirectURI, codeVerifier }) =>
           strictOidcClient.exchangeCode({
@@ -270,6 +269,7 @@ function createGenericOidcPlugin(
               ...(tokens.idToken === undefined ? {} : { idToken: tokens.idToken }),
             });
             input.assertStrictOidcEmailAdmission(input.db, providerId, profile);
+            persistLinkedExternalAvatar({ db: input.db, providerId, subject: profile.sub, value: profile.image });
             return adaptStrictOidcProfileForBetterAuth(profile);
           } catch (error) {
             return captureStrictOidcVerificationError(error, input.authHandlerErrorCapture);
@@ -316,6 +316,7 @@ export function buildProviders({
   env,
   defaultProviderLabel,
   trustedOrigins,
+  db,
   prepared,
   AuthConfigError,
 }: {
@@ -324,11 +325,12 @@ export function buildProviders({
   trustedOrigins: string[] | undefined;
   prepared: ReturnType<typeof prepareProviders>;
   AuthConfigError: AuthConfigErrorConstructor;
+  db: Db;
 }) {
   // Resolve every remaining provider configuration before the first explicit database DDL below.
   // An invalid provider/URL must not leave a bootstrap-control table behind on an otherwise
   // untouched database merely because validation happened in an unfortunate order.
-  const configuredSocialProviders = parseSocialProvidersFromEnvironment(env, AuthConfigError);
+  const configuredSocialProviders = parseSocialProvidersFromEnvironment(env, AuthConfigError, db);
   const configuredProviderInfo = buildExternalProviderInfo(env, prepared.genericProviderId, defaultProviderLabel);
   // Experimental social providers still receive a stable issuer namespace so identity
   // correlation is always (issuer, subject), never email or a mutable display label. Generic

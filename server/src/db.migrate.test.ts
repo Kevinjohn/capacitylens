@@ -148,7 +148,7 @@ const V42_MIGRATION = {
 const V43_MIGRATION = {
   version: 43,
   name: "add-account-member-resource-links",
-  checksum: "ec82ba77e87ed2f896eb5dc66e95e16cc5931bb08c5d3392265a8047dc930d91",
+  checksum: "46cbdc72fdb7fd382810a3344e4d8f94f465dd9b1102b2d3430bebd5561f3c94",
 } as const;
 const RELEASED_MIGRATION_HISTORY = [
   {

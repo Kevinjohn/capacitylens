@@ -1,13 +1,20 @@
 import type { SocialProviders } from "better-auth/social-providers";
 import { resolveAccountConfigKey } from "../accountConfig";
 import type { AuthConfigError } from "../auth";
-import { mapExternalAvatar } from "./betterAuthProfileCompatibility";
+import { persistLinkedExternalAvatar } from "./betterAuthProfileCompatibility";
+import type { Db } from "../db";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
 
 function resolveMicrosoftTenantId(value: string | undefined): string {
   return value === undefined || value === "" ? "common" : value;
+}
+
+function readMicrosoftAvatarProfile(value: unknown): { subject: string; picture: unknown } {
+  if (typeof value !== "object" || value === null) return { subject: "", picture: null };
+  const profile = value as Record<string, unknown>;
+  return { subject: typeof profile.sub === "string" ? profile.sub : "", picture: profile.picture };
 }
 
 function parseCredentialPair(input: {
@@ -32,6 +39,7 @@ function parseCredentialPair(input: {
 export function parseSocialProvidersFromEnvironment(
   environment: Env,
   ErrorType: AuthConfigErrorConstructor,
+  db: Db,
 ): SocialProviders {
   const providers: SocialProviders = {};
   const pair = (idKey: string, secretKey: string, label: string) =>
@@ -41,8 +49,8 @@ export function parseSocialProvidersFromEnvironment(
     providers.google = {
       clientId: google[0],
       clientSecret: google[1],
-      overrideUserInfoOnSignIn: true,
-      mapProfileToUser: (profile) => mapExternalAvatar(profile.picture),
+      mapProfileToUser: (profile) =>
+        persistLinkedExternalAvatar({ db, providerId: "google", subject: profile.sub, value: profile.picture }),
     };
   const microsoft = pair(
     "CAPACITYLENS_MICROSOFT_CLIENT_ID",
@@ -53,8 +61,10 @@ export function parseSocialProvidersFromEnvironment(
     providers.microsoft = {
       clientId: microsoft[0],
       clientSecret: microsoft[1],
-      overrideUserInfoOnSignIn: true,
-      mapProfileToUser: (profile) => mapExternalAvatar(profile.picture),
+      mapProfileToUser: (profile) => {
+        const { subject, picture } = readMicrosoftAvatarProfile(profile);
+        return persistLinkedExternalAvatar({ db, providerId: "microsoft", subject, value: picture });
+      },
       tenantId: resolveMicrosoftTenantId(environment.CAPACITYLENS_MICROSOFT_TENANT_ID),
     };
   const github = pair("CAPACITYLENS_GITHUB_CLIENT_ID", "CAPACITYLENS_GITHUB_CLIENT_SECRET", "GitHub sign-in");
@@ -62,8 +72,13 @@ export function parseSocialProvidersFromEnvironment(
     providers.github = {
       clientId: github[0],
       clientSecret: github[1],
-      overrideUserInfoOnSignIn: true,
-      mapProfileToUser: (profile) => mapExternalAvatar(profile.avatar_url),
+      mapProfileToUser: (profile) =>
+        persistLinkedExternalAvatar({
+          db,
+          providerId: "github",
+          subject: String(profile.id),
+          value: profile.avatar_url,
+        }),
     };
   return providers;
 }

@@ -3,14 +3,13 @@ import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
-import { call, PASSWORD_ENV } from "./testHelpers";
+import { call, PASSWORD_ENV, signUp } from "./testHelpers";
 import {
   createInvite,
   listResourceAvatarProjection,
   setAccountMemberResourceLink,
   upsertMember,
 } from "./controlTables";
-import { mapExternalAvatar } from "./authConfig/betterAuthProfileCompatibility";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
@@ -143,8 +142,10 @@ describe("CAPACITYLENS_AUTH sso", () => {
     const pair = await generateKeyPair("RS256");
     const publicJwk = { ...(await exportJWK(pair.publicKey)), kid: "strict-key", use: "sig", alg: "RS256" };
     let picture: unknown = "https://images.example/strict-a.png";
+    let providerEmail = "bruce@wayne.test";
+    let providerName = "Bruce Wayne";
     const token = () =>
-      new SignJWT({ email: "bruce@wayne.test", email_verified: true })
+      new SignJWT({ email: providerEmail, email_verified: true })
         .setProtectedHeader({ alg: "RS256", kid: "strict-key" })
         .setIssuer(SSO_ENV.CAPACITYLENS_SSO_ISSUER)
         .setAudience(SSO_ENV.CAPACITYLENS_SSO_CLIENT_ID)
@@ -172,9 +173,9 @@ describe("CAPACITYLENS_AUTH sso", () => {
       if (url === "https://idp.test/userinfo")
         return Response.json({
           sub: "strict-subject",
-          email: "bruce@wayne.test",
+          email: providerEmail,
           email_verified: true,
-          name: "Bruce Wayne",
+          name: providerName,
           ...(picture === undefined ? {} : { picture }),
         });
       throw new Error(`Unexpected strict OIDC fetch: ${url}`);
@@ -183,6 +184,10 @@ describe("CAPACITYLENS_AUTH sso", () => {
     const configured = createAuthFromEnvironment(db, SSO_ENV, { externalIdentityAdmission: async () => true });
     const auth = parseConfiguredAuth(configured.auth);
     await runAuthMigrations(auth);
+    db.prepare(
+      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+       VALUES ('collision-user', 'Clark Kent', 'collision@wayne.test', 1, ?, ?)`,
+    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
     db.prepare(
       `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a1', 'Wayne Enterprises', '#6366f1', ?, ?)`,
     ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
@@ -212,25 +217,29 @@ describe("CAPACITYLENS_AUTH sso", () => {
         headers: { cookie: callbackCookie },
       });
     };
-    let linked = false;
-    for (const [claim, expected] of [
-      ["https://images.example/strict-a.png", "https://images.example/strict-a.png"],
-      ["https://images.example/strict-b.png", "https://images.example/strict-b.png"],
-      [undefined, null],
-      [null, null],
-      ["https://images.example/strict-a.png", "https://images.example/strict-a.png"],
-      ["javascript:alert(1)", null],
+    let principalId: string | null = null;
+    for (const [claim, expected, assertedEmail] of [
+      ["https://images.example/strict-a.png", "https://images.example/strict-a.png", "bruce@wayne.test"],
+      ["https://images.example/strict-b.png", "https://images.example/strict-b.png", "changed@wayne.test"],
+      [undefined, null, "collision@wayne.test"],
+      [null, null, "changed-again@wayne.test"],
+      ["https://images.example/strict-a.png", "https://images.example/strict-a.png", "bruce@wayne.test"],
+      ["javascript:alert(1)", null, "collision@wayne.test"],
     ] as const) {
       picture = claim;
+      providerEmail = assertedEmail;
+      providerName = assertedEmail === "bruce@wayne.test" ? "Bruce Wayne" : "Provider Renamed Bruce";
       expect((await signIn()).statusCode).toBe(302);
-      expect(
-        (db.prepare(`SELECT image FROM user WHERE email = 'bruce@wayne.test'`).get() as { image: string | null }).image,
-      ).toBe(expected);
-      if (!linked) {
-        const principal = db.prepare(`SELECT id FROM user WHERE email = 'bruce@wayne.test'`).get() as { id: string };
+      principalId ??= (db.prepare(`SELECT id FROM user WHERE email = 'bruce@wayne.test'`).get() as { id: string }).id;
+      expect(db.prepare(`SELECT email, name, image FROM user WHERE id = ?`).get(principalId)).toEqual({
+        email: "bruce@wayne.test",
+        name: "Bruce Wayne",
+        image: expected,
+      });
+      if (!db.prepare(`SELECT 1 FROM account_member_resources WHERE userId = ?`).get(principalId)) {
         upsertMember(db, {
           accountId: "a1",
-          userId: principal.id,
+          userId: principalId,
           role: "viewer",
           status: "active",
           createdAt: "2026-09-14T10:00:00.000Z",
@@ -238,12 +247,11 @@ describe("CAPACITYLENS_AUTH sso", () => {
         setAccountMemberResourceLink({
           db,
           accountId: "a1",
-          userId: principal.id,
+          userId: principalId,
           resourceId: "bruce",
           expectedRevision: null,
           now: "2026-09-14T10:00:00.000Z",
         });
-        linked = true;
       }
       expect(listResourceAvatarProjection(db, "a1")).toEqual(
         expected === null ? [] : [{ resourceId: "bruce", imageUrl: expected }],
@@ -301,6 +309,37 @@ describe("social providers (P1.7)", () => {
     });
   });
 
+  it("refreshes and clears Microsoft avatars by provider subject rather than profile id", async () => {
+    const db = openDb(":memory:");
+    const { auth } = createAuthFromEnvironment(db, SOCIAL_ENV);
+    const configured = parseConfiguredAuth(auth);
+    await runAuthMigrations(configured);
+    db.prepare(
+      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
+       VALUES ('microsoft-user', 'Diana Prince', 'diana@wayne.test', 1, ?, ?)`,
+    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
+    db.prepare(
+      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES ('microsoft-link', 'microsoft', 'microsoft-subject', 'microsoft-user', ?, ?)`,
+    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
+    const microsoft = configured.options.socialProviders?.microsoft;
+    if (!microsoft || typeof microsoft === "function" || !microsoft.mapProfileToUser) {
+      throw new Error("Expected configured Microsoft profile mapping.");
+    }
+
+    await microsoft.mapProfileToUser({
+      id: "different-profile-id",
+      sub: "microsoft-subject",
+      picture: "https://images.example/microsoft.png",
+    } as never);
+    expect(db.prepare(`SELECT image FROM user WHERE id = 'microsoft-user'`).get()).toEqual({
+      image: "https://images.example/microsoft.png",
+    });
+    await microsoft.mapProfileToUser({ id: "different-profile-id", sub: "microsoft-subject" } as never);
+    expect(db.prepare(`SELECT image FROM user WHERE id = 'microsoft-user'`).get()).toEqual({ image: null });
+    db.close();
+  });
+
   it("refuses a half-configured provider instead of silently hiding it", () => {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
@@ -328,18 +367,25 @@ describe("social providers (P1.7)", () => {
     const configured = parseConfiguredAuth(auth);
     const google = configured.options.socialProviders?.google;
     if (!google || typeof google === "function") throw new Error("Expected resolved Google provider options.");
+    const mapProfileToUser = google.mapProfileToUser;
+    if (!mapProfileToUser) throw new Error("Expected configured Google profile mapping.");
     let picture: string | null | undefined = "https://images.example/a.png";
+    let providerEmail = "bruce@wayne.test";
+    let providerName = "Bruce Wayne";
     google.verifyIdToken = async () => true;
-    google.getUserInfo = async () => ({
-      user: {
-        id: "google-subject-1",
-        name: "Bruce Wayne",
-        email: "bruce@wayne.test",
-        emailVerified: true,
-        ...mapExternalAvatar(picture),
-      },
-      data: {},
-    });
+    google.getUserInfo = async () => {
+      const mapped = await mapProfileToUser({ sub: "google-subject-1", picture } as never);
+      return {
+        user: {
+          id: "google-subject-1",
+          name: providerName,
+          email: providerEmail,
+          emailVerified: true,
+          ...mapped,
+        },
+        data: {},
+      };
+    };
     await runAuthMigrations(configured);
     db.prepare(
       `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a1', 'Wayne Enterprises', '#6366f1', ?, ?)`,
@@ -355,6 +401,8 @@ describe("social providers (P1.7)", () => {
       createdAt: "2026-09-14T10:00:00.000Z",
     });
     const app = createApp(db, { authMode: mode, auth: configured });
+    const collision = await signUp(app, "collision@wayne.test");
+    const collisionBefore = db.prepare(`SELECT email, name, image FROM user WHERE id = ?`).get(collision.userId);
     const originalFetch = globalThis.fetch;
     vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0]) => {
       if (String(input) === "https://oauth2.googleapis.com/token")
@@ -381,24 +429,33 @@ describe("social providers (P1.7)", () => {
         headers: { cookie },
       });
     };
-    for (const [claim, expected] of [
-      ["https://images.example/a.png", "https://images.example/a.png"],
-      ["https://images.example/b.png", "https://images.example/b.png"],
-      [undefined, null],
-      [null, null],
-      ["https://images.example/a.png", "https://images.example/a.png"],
-      ["javascript:alert(1)", null],
+    let principalId: string | null = null;
+    for (const [claim, expected, assertedEmail] of [
+      ["https://images.example/a.png", "https://images.example/a.png", "bruce@wayne.test"],
+      ["https://images.example/b.png", "https://images.example/b.png", "changed@wayne.test"],
+      [undefined, null, "collision@wayne.test"],
+      [null, null, "changed-again@wayne.test"],
+      ["https://images.example/a.png", "https://images.example/a.png", "bruce@wayne.test"],
+      ["javascript:alert(1)", null, "collision@wayne.test"],
     ] as const) {
       picture = claim;
+      providerEmail = assertedEmail;
+      providerName = assertedEmail === "bruce@wayne.test" ? "Bruce Wayne" : "Provider Renamed Bruce";
       expect((await signIn()).statusCode).toBe(302);
-      expect(
-        (db.prepare(`SELECT image FROM user WHERE email = 'bruce@wayne.test'`).get() as { image: string | null }).image,
-      ).toBe(expected);
+      principalId ??= (db.prepare(`SELECT id FROM user WHERE email = 'bruce@wayne.test'`).get() as { id: string }).id;
+      expect(db.prepare(`SELECT email, name, image FROM user WHERE id = ?`).get(principalId)).toEqual({
+        email: "bruce@wayne.test",
+        name: "Bruce Wayne",
+        image: expected,
+      });
+      expect(db.prepare(`SELECT email, name, image FROM user WHERE id = ?`).get(collision.userId)).toEqual(
+        collisionBefore,
+      );
     }
-    const principal = db.prepare(`SELECT id FROM user WHERE email = 'bruce@wayne.test'`).get() as { id: string };
+    if (principalId === null) throw new Error("Expected the configured provider callback to create a principal.");
     upsertMember(db, {
       accountId: "a1",
-      userId: principal.id,
+      userId: principalId,
       role: "viewer",
       status: "active",
       createdAt: "2026-09-14T10:00:00.000Z",
@@ -409,7 +466,7 @@ describe("social providers (P1.7)", () => {
     setAccountMemberResourceLink({
       db,
       accountId: "a1",
-      userId: principal.id,
+      userId: principalId,
       resourceId: "bruce",
       expectedRevision: null,
       now: "2026-09-14T10:00:00.000Z",

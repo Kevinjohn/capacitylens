@@ -518,6 +518,7 @@ const COVERED = new Set([
 
 /** Why each remaining export cannot carry one company's rows out of its own account. */
 const EXCLUDED = new Map<string, string>([
+  ["accountMemberResources.ACCOUNT_MEMBER_RESOURCE_KIND_CLEANUP_TRIGGER", "schema definition"],
   ["accountMemberResources.ACCOUNT_MEMBER_RESOURCES_SQL", "schema definition"],
   ["accountMemberResources.ensureAccountMemberResources", "schema installer"],
   ["accountMemberResources.listAccountMemberResourceLinks", "account-scoped read"],

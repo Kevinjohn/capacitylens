@@ -191,8 +191,28 @@ describe("account member resource links", () => {
     expect(() => listResourceAvatarProjection(db, "a1")).toThrow(/Corrupt member\/resource link/);
   });
 
+  it("clears the association when an ordinary resource write changes a person to a non-person", () => {
+    setAccountMemberResourceLink({
+      db,
+      accountId: "a1",
+      userId: "u1",
+      resourceId: "r1",
+      expectedRevision: null,
+      now: NOW,
+    });
+
+    db.prepare(`UPDATE resources SET kind = 'placeholder' WHERE accountId = 'a1' AND id = 'r1'`).run();
+
+    expect(listAccountMemberResourceLinks(db, "a1")).toEqual([]);
+    expect(listResourceAvatarProjection(db, "a1")).toEqual([]);
+  });
+
   it.each([
-    ["wrong resource kind", `UPDATE resources SET kind = 'placeholder' WHERE id = 'r1'`],
+    [
+      "wrong resource kind",
+      `DROP TRIGGER capacitylens_member_resource_kind_cleanup;
+       UPDATE resources SET kind = 'placeholder' WHERE id = 'r1'`,
+    ],
     ["unknown membership status", `UPDATE account_members SET status = 'unknown' WHERE userId = 'u1'`],
     ["empty revision", `UPDATE account_member_resources SET revision = '' WHERE userId = 'u1'`],
     ["malformed metadata", `UPDATE account_member_resources SET updatedAt = 'yesterday' WHERE userId = 'u1'`],
@@ -206,7 +226,7 @@ describe("account member resource links", () => {
       now: NOW,
     });
     db.exec(`PRAGMA ignore_check_constraints = ON`);
-    db.prepare(statement).run();
+    db.exec(statement);
     expect(() => listResourceAvatarProjection(db, "a1")).toThrow(/Corrupt member\/resource link/);
   });
 

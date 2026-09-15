@@ -271,6 +271,7 @@ describe("account-boundary architecture", () => {
 const identitySqlOwners = new Set([
   resolve(serverRoot, "auth.ts"),
   resolve(serverRoot, "authConfig/authAdapter.ts"),
+  resolve(serverRoot, "authConfig/betterAuthProfileCompatibility.ts"),
   resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
   resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
   resolve(serverRoot, "authConfig/sessionActivity.ts"),
