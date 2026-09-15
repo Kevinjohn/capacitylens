@@ -68,6 +68,13 @@ describe("member resource links", () => {
         })
       ).statusCode,
     ).toBe(403);
+    db.prepare(
+      `INSERT INTO resources
+       (id, accountId, kind, name, role, color, employmentType, engagement,
+        workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
+       VALUES ('clark', 'a1', 'person', 'Clark Kent', 'Designer', '#6366f1', 'permanent', 'studio', 8,
+        '[1,2,3,4,5]', '[]', ?, ?)`,
+    ).run(TS, TS);
     expect(
       (
         await call(app, {
@@ -91,6 +98,14 @@ describe("member resource links", () => {
       ).json(),
     ).toEqual({ avatars: [{ resourceId: "bruce", imageUrl: "https://images.example/bruce.png" }] });
     const revision = (linked.json() as { revision: string }).revision;
+    db.prepare(`UPDATE resources SET archivedAt = ? WHERE accountId = 'a1' AND id = 'bruce'`).run(TS);
+    const rejectedChange = await call(app, {
+      method: "PUT",
+      url: `/api/accounts/a1/members/${owner.userId}/resource-link`,
+      headers: { cookie: owner.cookie },
+      payload: { resourceId: "clark", expectedRevision: revision },
+    });
+    expect(rejectedChange.statusCode).toBe(409);
     expect(
       (
         await call(app, {

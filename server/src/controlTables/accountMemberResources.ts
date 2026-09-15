@@ -132,6 +132,10 @@ type SetLinkInput = {
   now: string;
 };
 type CurrentLink = { revision: string; resourceId: string; createdAt: string; updatedAt: string };
+export interface AccountMemberResourceMutation {
+  link: AccountMemberResourceLink;
+  changed: boolean;
+}
 
 function requireLinkTargets(input: SetLinkInput): void {
   const member = input.db
@@ -145,6 +149,16 @@ function requireLinkTargets(input: SetLinkInput): void {
     { kind: string; archivedAt: string | null; deletedAt: string | null } | undefined;
   if (!resource || resource.kind !== "person" || resource.archivedAt || resource.deletedAt)
     throw conflict("The selected scheduled person is no longer available.");
+}
+
+function assertCurrentLinkCanChange(input: SetLinkInput, current: CurrentLink): void {
+  const resource = input.db
+    .prepare(`SELECT kind, archivedAt, deletedAt FROM resources WHERE accountId = ? AND id = ?`)
+    .get(input.accountId, current.resourceId) as
+    { kind: string; archivedAt: string | null; deletedAt: string | null } | undefined;
+  if (!resource || resource.kind !== "person" || resource.archivedAt || resource.deletedAt) {
+    throw conflict("The current scheduled person is no longer available; unlink it before changing the link.");
+  }
 }
 
 function persistLink(input: SetLinkInput, revision: string): void {
@@ -169,8 +183,7 @@ function persistLink(input: SetLinkInput, revision: string): void {
   }
 }
 
-function setLinkInTransaction(input: SetLinkInput): AccountMemberResourceLink {
-  requireLinkTargets(input);
+function setLinkInTransaction(input: SetLinkInput): AccountMemberResourceMutation {
   const current = input.db
     .prepare(
       `SELECT revision, resourceId, createdAt, updatedAt FROM account_member_resources WHERE accountId = ? AND userId = ?`,
@@ -178,21 +191,32 @@ function setLinkInTransaction(input: SetLinkInput): AccountMemberResourceLink {
     .get(input.accountId, input.userId) as CurrentLink | undefined;
   if ((current?.revision ?? null) !== input.expectedRevision)
     throw conflict("The member link changed. Reload and try again.");
-  if (current?.resourceId === input.resourceId) return { accountId: input.accountId, userId: input.userId, ...current };
+  if (current?.resourceId === input.resourceId)
+    return { link: { accountId: input.accountId, userId: input.userId, ...current }, changed: false };
+  if (current) assertCurrentLinkCanChange(input, current);
+  requireLinkTargets(input);
   const revision = newInviteId();
   persistLink(input, revision);
   return {
-    accountId: input.accountId,
-    userId: input.userId,
-    resourceId: input.resourceId,
-    revision,
-    createdAt: current?.createdAt ?? input.now,
-    updatedAt: input.now,
+    link: {
+      accountId: input.accountId,
+      userId: input.userId,
+      resourceId: input.resourceId,
+      revision,
+      createdAt: current?.createdAt ?? input.now,
+      updatedAt: input.now,
+    },
+    changed: true,
   };
 }
 
 /** Create or replace a member/person link under compare-and-swap semantics. */
 export function setAccountMemberResourceLink(input: SetLinkInput): AccountMemberResourceLink {
+  return setAccountMemberResourceLinkWithResult(input).link;
+}
+
+/** Create or replace a link and report whether the CAS mutation changed its resource endpoint. */
+export function setAccountMemberResourceLinkWithResult(input: SetLinkInput): AccountMemberResourceMutation {
   return tx(input.db, () => setLinkInTransaction(input), "immediate");
 }
 

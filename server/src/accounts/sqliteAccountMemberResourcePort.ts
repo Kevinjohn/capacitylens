@@ -11,7 +11,7 @@ import {
   listResourceAvatarProjection,
   reconcileAccountMemberResources,
   removeAccountMemberResourceForResource,
-  setAccountMemberResourceLink,
+  setAccountMemberResourceLinkWithResult,
 } from "../controlTables/accountMemberResources";
 import type { AuditRecord } from "../audit";
 
@@ -22,7 +22,7 @@ interface PortOptions {
 function assertAssociationAuthority(input: {
   db: Db;
   accountId: string;
-  actorPrincipalId: string | null;
+  actorPrincipalId: string;
   command: CommandIdentity;
 }) {
   const { db, accountId, actorPrincipalId, command } = input;
@@ -67,7 +67,7 @@ function runCommand<T>(input: {
   applicationId: string;
   accountId: string;
   principalId: string;
-  actorPrincipalId: string | null;
+  actorPrincipalId: string;
   command: CommandIdentity;
   payload: unknown;
   action: () => T;
@@ -133,7 +133,7 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
     },
     async setLink({ workspaceId, principalId, resourceId, expectedRevision, now, actorPrincipalId, command }) {
       const save = () => {
-        const link = setAccountMemberResourceLink({
+        const mutation = setAccountMemberResourceLinkWithResult({
           db,
           accountId: workspaceId,
           userId: principalId,
@@ -141,30 +141,30 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
           expectedRevision,
           now,
         });
-        return { link };
+        return mutation;
       };
-      const result = command
-        ? runCommand({
+      const result = runCommand({
+        db,
+        applicationId,
+        accountId: workspaceId,
+        principalId,
+        actorPrincipalId,
+        command,
+        payload: { operation: "link", workspaceId, principalId, resourceId, expectedRevision },
+        action: save,
+        audit: (mutation) => {
+          if (!mutation.changed) return;
+          associationAudit({
             db,
-            applicationId,
             accountId: workspaceId,
+            actorPrincipalId,
             principalId,
-            actorPrincipalId: actorPrincipalId ?? null,
+            resourceId,
             command,
-            payload: { operation: "link", workspaceId, principalId, resourceId, expectedRevision },
-            action: save,
-            audit: () =>
-              associationAudit({
-                db,
-                accountId: workspaceId,
-                actorPrincipalId: actorPrincipalId ?? "unknown",
-                principalId,
-                resourceId,
-                command,
-                action: expectedRevision === null ? "memberResourceLink" : "memberResourceChange",
-              }),
-          })
-        : save();
+            action: expectedRevision === null ? "memberResourceLink" : "memberResourceChange",
+          });
+        },
+      });
       const link = result.link;
       return { resourceId: link.resourceId, revision: link.revision };
     },
@@ -174,28 +174,26 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
         clearAccountMemberResourceLink({ db, accountId: workspaceId, userId: principalId, expectedRevision });
         return current?.resourceId ?? "unknown";
       };
-      if (command) {
-        runCommand({
-          db,
-          applicationId,
-          accountId: workspaceId,
-          principalId,
-          actorPrincipalId: actorPrincipalId ?? null,
-          command,
-          payload: { operation: "unlink", workspaceId, principalId, expectedRevision },
-          action: clear,
-          audit: (resourceId) =>
-            associationAudit({
-              db,
-              accountId: workspaceId,
-              actorPrincipalId: actorPrincipalId ?? "unknown",
-              principalId,
-              resourceId,
-              command,
-              action: "memberResourceUnlink",
-            }),
-        });
-      } else clear();
+      runCommand({
+        db,
+        applicationId,
+        accountId: workspaceId,
+        principalId,
+        actorPrincipalId,
+        command,
+        payload: { operation: "unlink", workspaceId, principalId, expectedRevision },
+        action: clear,
+        audit: (resourceId) =>
+          associationAudit({
+            db,
+            accountId: workspaceId,
+            actorPrincipalId,
+            principalId,
+            resourceId,
+            command,
+            action: "memberResourceUnlink",
+          }),
+      });
     },
     reconcileImportedLinks({ workspaceId, resourceIdMap, updatedAt }) {
       reconcileAccountMemberResources({ db, accountId: workspaceId, resourceIdMap, updatedAt });

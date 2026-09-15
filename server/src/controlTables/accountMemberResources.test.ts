@@ -189,6 +189,35 @@ describe("account member resource links", () => {
     expect(listAccountMemberResourceLinks(db, "a1")).toHaveLength(1);
   });
 
+  it.each(["archivedAt", "deletedAt"])(
+    "rejects changing a retained link whose current person is %s but still allows unlink",
+    (inactiveColumn) => {
+      const first = setAccountMemberResourceLink({
+        db,
+        accountId: "a1",
+        userId: "u1",
+        resourceId: "r1",
+        expectedRevision: null,
+        now: NOW,
+      });
+      db.prepare(`UPDATE resources SET ${inactiveColumn} = ? WHERE accountId = ? AND id = ?`).run(NOW, "a1", "r1");
+      expect(() =>
+        setAccountMemberResourceLink({
+          db,
+          accountId: "a1",
+          userId: "u1",
+          resourceId: "r2",
+          expectedRevision: first.revision,
+          now: NOW,
+        }),
+      ).toThrow(/current scheduled person is no longer available/i);
+      expect(listAccountMemberResourceLinks(db, "a1")).toHaveLength(1);
+      expect(() =>
+        clearAccountMemberResourceLink({ db, accountId: "a1", userId: "u1", expectedRevision: first.revision }),
+      ).not.toThrow();
+    },
+  );
+
   // eslint-disable-next-line max-lines-per-function
   it("binds authorized link commands, replays idempotently, and audits atomically", async () => {
     const port = createSqliteAccountMemberResourcePort(db, { applicationId: "test-app" });
@@ -239,6 +268,38 @@ describe("account member resource links", () => {
       }),
     ).rejects.toThrow(/Owner or Admin/i);
 
+    const noOp = await port.setLink({
+      workspaceId: "a1",
+      principalId: "u1",
+      resourceId: "r1",
+      expectedRevision: first.revision,
+      now: "2026-09-14T12:00:00.000Z",
+      actorPrincipalId: "u1",
+      command: { commandId: "member-link-command-04", idempotencyKey: "member-link-key-04" },
+    });
+    expect(noOp).toEqual(first);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM capacitylens_audit_outbox`).get()).toEqual({ count: 1 });
+    const changed = await port.setLink({
+      workspaceId: "a1",
+      principalId: "u1",
+      resourceId: "r2",
+      expectedRevision: first.revision,
+      now: "2026-09-14T13:00:00.000Z",
+      actorPrincipalId: "u1",
+      command: { commandId: "member-link-command-05", idempotencyKey: "member-link-key-05" },
+    });
+    await port.clearLink({
+      workspaceId: "a1",
+      principalId: "u1",
+      expectedRevision: changed.revision,
+      actorPrincipalId: "u1",
+      command: { commandId: "member-link-command-06", idempotencyKey: "member-link-key-06" },
+    });
+    const actions = (
+      db.prepare(`SELECT payload FROM capacitylens_audit_outbox ORDER BY sequence`).all() as { payload: string }[]
+    ).map(({ payload }) => (JSON.parse(payload) as { action?: unknown }).action);
+    expect(actions).toEqual(["memberResourceLink", "memberResourceChange", "memberResourceUnlink"]);
+
     db.exec(
       `CREATE TRIGGER reject_member_resource_audit BEFORE INSERT ON capacitylens_audit_outbox
        BEGIN SELECT RAISE(ABORT, 'injected audit failure'); END`,
@@ -254,7 +315,7 @@ describe("account member resource links", () => {
         command: { commandId: "member-link-command-03", idempotencyKey: "member-link-key-03" },
       }),
     ).rejects.toThrow(/injected audit failure/i);
-    expect(listAccountMemberResourceLinks(db, "a1")).toHaveLength(1);
+    expect(listAccountMemberResourceLinks(db, "a1")).toHaveLength(0);
   });
 
   it("does not misreport storage faults as a cardinality conflict", () => {

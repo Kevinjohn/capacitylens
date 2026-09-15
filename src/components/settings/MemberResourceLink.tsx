@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { resolveRejectionMessage, teamAccessClient, type TeamMember } from "../../account/teamAccessClient";
@@ -25,6 +25,19 @@ export function MemberResourceLink({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const selectorRef = useRef<HTMLSelectElement | null>(null);
+  const statusRef = useRef<HTMLSpanElement | null>(null);
+  const restoreFocusRef = useRef(false);
+  useEffect(() => {
+    if (editing) {
+      selectorRef.current?.focus();
+      return;
+    }
+    if (!pending && restoreFocusRef.current) {
+      restoreFocusRef.current = false;
+      statusRef.current?.focus();
+    }
+  }, [editing, pending]);
   if (myRole !== "owner" && myRole !== "admin") return <td className="py-2 pr-3" />;
   const currentPerson = resources.find(
     (resource) => resource.accountId === accountId && resource.id === member.resourceLink?.resourceId,
@@ -39,13 +52,17 @@ export function MemberResourceLink({
   );
   const memberLabel = member.name ?? member.email ?? member.userId;
   const currentPersonLabel =
-    currentPerson?.name ?? currentPerson?.role ?? member.resourceLink?.resourceName ?? "scheduled person";
+    currentPerson?.name ??
+    currentPerson?.role ??
+    member.resourceLink?.resourceName ??
+    m.settings_member_resource_default_person();
   const currentPersonInactive =
     Boolean(member.resourceLink && (!currentPerson || (currentPerson.archivedAt ?? currentPerson.deletedAt) != null)) ||
     member.resourceLink?.resourceStatus === "archived" ||
     member.resourceLink?.resourceStatus === "disabled";
   const canEdit = member.status === "active" && !currentPersonInactive && people.length > 0;
   const change = (resourceId: string) => {
+    restoreFocusRef.current = true;
     if (!accountId) return;
     setPending(true);
     setError(null);
@@ -78,8 +95,10 @@ export function MemberResourceLink({
   return (
     <td className="py-2 pr-3">
       <div className="flex flex-col items-start gap-1">
-        <span data-testid="member-resource-status">
-          {member.resourceLink ? `Linked to ${currentPersonLabel} in the schedule` : "Not linked to the schedule"}
+        <span ref={statusRef} tabIndex={-1} aria-live="polite" data-testid="member-resource-status">
+          {member.resourceLink
+            ? m.settings_member_resource_linked({ name: currentPersonLabel })
+            : m.settings_member_resource_not_linked()}
         </span>
         {member.resourceLink && currentPersonInactive && (
           <span className="text-xs text-muted-foreground">
@@ -88,7 +107,8 @@ export function MemberResourceLink({
         )}
         {editing && canEdit && (
           <select
-            aria-label={`Choose scheduled person for ${memberLabel}`}
+            ref={selectorRef}
+            aria-label={m.settings_member_resource_choose_aria({ member: memberLabel })}
             data-testid="member-resource-link"
             className="max-w-48 rounded-md border border-input bg-background px-2 py-1 text-sm"
             disabled={pending || !accountId}
@@ -107,15 +127,34 @@ export function MemberResourceLink({
           </select>
         )}
         <div className="flex flex-wrap gap-2">
+          {editing && canEdit && (
+            <button
+              type="button"
+              className="text-xs font-medium text-primary underline"
+              onClick={() => {
+                restoreFocusRef.current = true;
+                setEditing(false);
+              }}
+            >
+              {m.settings_member_resource_cancel()}
+            </button>
+          )}
           {canEdit && !editing && (
             <button
               type="button"
               className="text-xs font-medium text-primary underline"
               disabled={pending || !accountId}
-              aria-label={`${member.resourceLink ? "Change" : "Link"} scheduled person for ${memberLabel}`}
-              onClick={() => setEditing(true)}
+              aria-label={
+                member.resourceLink
+                  ? m.settings_member_resource_change_aria({ member: memberLabel })
+                  : m.settings_member_resource_link_aria({ member: memberLabel })
+              }
+              onClick={() => {
+                restoreFocusRef.current = true;
+                setEditing(true);
+              }}
             >
-              {member.resourceLink ? "Change" : "Link"}
+              {member.resourceLink ? m.settings_member_resource_change() : m.settings_member_resource_link()}
             </button>
           )}
           {member.resourceLink && (
@@ -123,14 +162,14 @@ export function MemberResourceLink({
               type="button"
               className="text-xs font-medium text-danger underline"
               disabled={pending || !accountId}
-              aria-label={`Remove scheduled-person link for ${memberLabel}`}
+              aria-label={m.settings_member_resource_remove_aria({ member: memberLabel })}
               onClick={() => change("")}
             >
-              Remove
+              {m.settings_member_resource_remove()}
             </button>
           )}
         </div>
-        <span className="text-xs text-muted-foreground">Access and scheduling are unchanged.</span>
+        <span className="text-xs text-muted-foreground">{m.settings_member_resource_explanation()}</span>
       </div>
       {error && (
         <p role="alert" className="mt-1 text-xs text-danger">
