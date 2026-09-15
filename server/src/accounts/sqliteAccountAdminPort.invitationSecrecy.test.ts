@@ -77,6 +77,7 @@ describe("sqliteAccountAdminPort invitation secrecy", () => {
   registerSqliteAccountAdminPortTest11();
   registerSqliteAccountAdminPortTest12();
   registerSqliteAccountAdminPortTest13();
+  registerTrustedLocalProposalRefusalTest();
   registerStaleInvitationReplayTest();
 });
 
@@ -613,7 +614,7 @@ function registerSqliteAccountAdminPortTest13(): void {
       applicationId: "test-application",
       workspaceId: "workspace-1",
       actorPrincipalId: actor.principalId,
-      changedFields: ["role", "preauthorizedEmail", "expiresAt"],
+      changedFields: ["role", "preauthorizedEmail", "expiresAt", "proposedResourceId"],
     });
   });
 }
@@ -657,5 +658,38 @@ function registerStaleInvitationReplayTest(): void {
         command,
       }),
     ).rejects.toMatchObject({ failure: { code: "MFA_REQUIRED" } });
+  });
+}
+
+function registerTrustedLocalProposalRefusalTest(): void {
+  it("refuses an invitation schedule proposal under trusted-local administration", async () => {
+    db = openDb(":memory:");
+    insertRow(db, "accounts", {
+      id: "workspace-1",
+      name: "Workspace",
+      color: "#6366f1",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    });
+    const port = createSqliteAccountAdminPort({
+      applicationId: "test-application",
+      db,
+      lock: new KeyedOperationLock(),
+      trustedLocal: true,
+    });
+
+    await expect(
+      port.createInvitation({
+        actor,
+        workspaceId: "workspace-1",
+        role: "editor",
+        preauthorizedEmail: null,
+        expiresAt: null,
+        proposedResourceId: "person-clark",
+        command,
+      }),
+    ).rejects.toThrow(/authenticated administration/i);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM invites").get()).toEqual({ count: 0 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM invitation_person_proposals").get()).toEqual({ count: 0 });
   });
 }

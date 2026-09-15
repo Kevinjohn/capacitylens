@@ -40,6 +40,7 @@ import {
 } from "./definitions";
 import { RESOURCE_AVATAR_URL_V42_MIGRATION } from "./resourceAvatarUrlV42";
 import { ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION } from "./accountMemberResourcesV43";
+import { INVITATION_PERSON_PROPOSALS_V44_MIGRATION } from "./invitationPersonProposalsV44";
 import { migrateTimeOffResourceNullableV33, COMPANY_CLOSURES_V34_DEFINITION } from "./definitions";
 import { migrateCompanyClosuresV34 } from "./definitions";
 import { ACCOUNT_BOUNDARY_STATE_V15_SQL, assertAccountBoundaryStateCurrent } from "../../accounts/state";
@@ -386,11 +387,10 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   defineMigration(41, "add-ownership-transfer-requests", OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, runOwnershipTransfersV41),
   RESOURCE_AVATAR_URL_V42_MIGRATION,
   ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION,
+  INVITATION_PERSON_PROPOSALS_V44_MIGRATION,
 ];
-
-if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {
+if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION)
   throw new Error("DB_SCHEMA_VERSION must equal the newest explicit database migration.");
-}
 for (let index = 1; index < DATABASE_MIGRATIONS.length; index += 1) {
   const migration = DATABASE_MIGRATIONS[index];
   const previous = DATABASE_MIGRATIONS[index - 1];

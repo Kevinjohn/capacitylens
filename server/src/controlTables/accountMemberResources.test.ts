@@ -514,4 +514,26 @@ describe("account member resource links", () => {
     db.exec(`DROP TABLE account_member_resources; PRAGMA user_version = 43;`);
     expect(() => removeAccountMemberResourcesForAccount(db, "a1")).toThrow(/no such table/i);
   });
+
+  it("keeps V44 proposal cleanup active on a future schema version", () => {
+    db.prepare(
+      `INSERT INTO invitation_person_proposals (invitationId, accountId, resourceId, createdAt, updatedAt)
+       VALUES ('future-invite', 'a1', 'r1', ?, ?)`,
+    ).run(NOW, NOW);
+    db.prepare(
+      `INSERT INTO member_resource_link_exceptions (accountId, userId, proposedResourceId, reason, createdAt, updatedAt)
+       VALUES ('a1', 'u1', 'r1', 'resource_unavailable', ?, ?)`,
+    ).run(NOW, NOW);
+    db.exec(`PRAGMA user_version = 45`);
+    removeAccountMemberResourcesForAccount(db, "a1");
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM member_resource_link_exceptions`).get()).toEqual({ count: 0 });
+  });
+
+  it("does not require V44 state tables during V43 cleanup", () => {
+    db.exec(
+      `DROP TABLE invitation_person_proposals; DROP TABLE member_resource_link_exceptions; PRAGMA user_version = 43`,
+    );
+    expect(() => removeAccountMemberResourcesForAccount(db, "a1")).not.toThrow();
+  });
 });

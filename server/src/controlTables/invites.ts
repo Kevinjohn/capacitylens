@@ -3,6 +3,7 @@ import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/acco
 import type { Db } from "../db";
 import { inviteTokenHash } from "./inviteTokens";
 import { isKnownRole } from "./members.model";
+import { removeInvitationPersonProposalsForAccount } from "./invitationPersonProposals";
 
 /**
  * Revoke EVERY outstanding invite of one account in a single statement — the bulk revoke the per-tenant
@@ -19,6 +20,7 @@ import { isKnownRole } from "./members.model";
  */
 export function removeAllInvitesForAccount(db: Db, accountId: string): void {
   db.prepare(`DELETE FROM invites WHERE accountId = ?`).run(accountId);
+  removeInvitationPersonProposalsForAccount(db, accountId);
 }
 
 /**

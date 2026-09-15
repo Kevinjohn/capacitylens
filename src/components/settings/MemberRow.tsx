@@ -320,6 +320,8 @@ export function MemberRow({
   setRoleEdit,
   chooseMemberAction,
   linkedResourceIds,
+  resourceCandidates,
+  workspaceId,
   reload,
 }: {
   member: TeamMember;
@@ -331,6 +333,8 @@ export function MemberRow({
   setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
   chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
   linkedResourceIds: ReadonlySet<string>;
+  resourceCandidates: readonly { resourceId: string; label: string }[];
+  workspaceId: string | null;
   reload(): void;
 }) {
   // One row renderer for both tables: the gear's actions, the pencil's gate and the status badge are
@@ -345,7 +349,14 @@ export function MemberRow({
       <td className="py-2 pr-3 text-muted-foreground" data-testid="member-email">
         {member.email ?? m.settings_member_email_missing()}
       </td>
-      <MemberResourceLink member={member} myRole={myRole} linkedResourceIds={linkedResourceIds} reload={reload} />
+      <MemberResourceLink
+        member={member}
+        myRole={myRole}
+        linkedResourceIds={linkedResourceIds}
+        resourceCandidates={resourceCandidates}
+        workspaceId={workspaceId}
+        reload={reload}
+      />
       {signInTrackingEnabled && (
         <td className="py-2 pr-3 text-muted-foreground" data-testid="member-sign-in-confirmed">
           {member.signInConfirmed ? m.settings_member_sign_in_confirmed() : m.settings_member_sign_in_not_confirmed()}

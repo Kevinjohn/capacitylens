@@ -10,7 +10,7 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { useStore } from "../../store/useStore";
 import type { StoreState } from "../../store/types";
 import { useTeamDirectory } from "./useTeamDirectory";
-import { useMemberInvites } from "./useMemberInvites";
+import { useMemberInvites, type InvitationPersonOption } from "./useMemberInvites";
 import { useWorkspaceReadiness } from "./useWorkspaceReadiness";
 import { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 import { createMemberMutations } from "./createMemberMutations";
@@ -155,6 +155,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   const authorizedDirectory = selectAuthorizedDirectory(directoryState.directory);
   const members = authorizedDirectory?.members ?? null;
   const invites = authorizedDirectory?.invites ?? NO_INVITES;
+  const resourceCandidates = authorizedDirectory?.resourceCandidates ?? [];
   const requestAccountId = (): string => {
     if (!input.activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return input.activeAccountId;
@@ -184,6 +185,7 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
   return {
     ...directoryState,
     members,
+    resourceCandidates,
     renderedAt,
     closeActiveAccount,
     clearResetLinkFor,
@@ -209,6 +211,7 @@ interface MemberMutationStateInput {
   inviteState: ReturnType<typeof useMemberInvites>;
   createInviteActions: ReturnType<typeof useMemberInvites>["createActions"];
   directoryState: ReturnType<typeof useMemberDirectoryState>;
+  invitationPeople: readonly InvitationPersonOption[];
 }
 
 function useMemberMutationState(input: MemberMutationStateInput) {
@@ -250,6 +253,7 @@ function useMemberMutationState(input: MemberMutationStateInput) {
     ...input.directoryState.actionDependencies,
     reloadInvites: input.directoryState.reloadInvites,
     reconcileUnknownMutation: reconciliation.reconcileUnknownMutation,
+    invitationPeople: input.invitationPeople,
   });
   return {
     actions,
@@ -281,6 +285,7 @@ function useMemberStoreActions() {
   };
 }
 
+// eslint-disable-next-line max-lines-per-function
 export function useMembersOrchestration(activeAccountId: string | null) {
   const { authMode, providers, refreshAuth } = useAuth();
   // Only the strict (non-experimental) OIDC provider's IDENTITY is needed here: the readiness read
@@ -292,7 +297,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
   const memberInvites = useMemberInvites();
-  const { reconcileMintedInvite, createActions: createInviteActions, ...inviteState } = memberInvites;
+  const { reconcileMintedInvite, resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
   const enabled = authMode !== "off" && isServerConfigured();
   const directoryState = useMemberDirectoryState({
     activeAccountId,
@@ -304,6 +309,19 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     viewState,
     reconcileMintedInvite,
   });
+  useEffect(() => {
+    const unauthorized =
+      directoryState.directory.kind === "hidden" ||
+      (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
+    if (offline.readOnly || unauthorized) resetInviteDraft();
+  }, [directoryState.directory, offline.readOnly, resetInviteDraft]);
+  const resourceCandidates = directoryState.resourceCandidates;
+  const linkedResourceIds = new Set(
+    (directoryState.members ?? []).flatMap((member) => (member.resourceLink ? [member.resourceLink.resourceId] : [])),
+  );
+  const invitationPeople: InvitationPersonOption[] = resourceCandidates
+    .filter(({ resourceId }) => !linkedResourceIds.has(resourceId))
+    .map(({ resourceId, label }) => ({ id: resourceId, label }));
   const mutationState = useMemberMutationState({
     activeAccountId,
     authMode,
@@ -316,9 +334,11 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     inviteState: memberInvites,
     createInviteActions,
     directoryState,
+    invitationPeople,
   });
   const setActionStatusElement = useActionStatusFocus(directoryState.busyAction);
   return {
+    activeAccountId,
     authMode,
     enabled,
     directory: directoryState.directory,
@@ -330,11 +350,13 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     ...mutationState.readinessActions,
     ...mutationState.readinessPresentation,
     members: directoryState.members,
+    resourceCandidates,
     ...buildMemberDirectoryPresentation(directoryState.members),
     changeSignInTracking: mutationState.actions.changeSignInTracking,
     busyAction: directoryState.busyAction,
     resetLink: viewState.resetLink,
     ...inviteState,
+    invitationPeople,
     ...mutationState.inviteActions,
     renderedAt: directoryState.renderedAt,
     ...selectPublicViewState(viewState),

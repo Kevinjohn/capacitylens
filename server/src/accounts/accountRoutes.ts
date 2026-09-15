@@ -18,6 +18,7 @@ import {
   listResourceAvatars,
   setMemberResourceLink,
   clearMemberResourceLink,
+  dismissMemberResourceLinkException,
 } from "./routes/handlers/memberAdmin";
 import {
   acceptOwnershipTransfer,
@@ -39,6 +40,7 @@ export type { AccountRouteDependencies } from "./routes/accountRouteDependencies
  * This module owns transport validation and response compatibility only. Policy stays in the
  * account-administration port/policy module; cross-port ordering stays in AccountFlows.
  */
+// eslint-disable-next-line max-lines-per-function
 export function registerAccountRoutes(app: FastifyInstance, dependencies: AccountRouteDependencies): void {
   const context = { ...dependencies, ...createReplyHelpers(dependencies) };
 
@@ -100,6 +102,9 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   );
   app.delete("/api/accounts/:accountId/members/:userId/resource-link", async (req, reply) =>
     clearMemberResourceLink(req, reply, context),
+  );
+  app.delete("/api/accounts/:accountId/members/:userId/resource-link-exception", async (req, reply) =>
+    dismissMemberResourceLinkException(req, reply, context),
   );
 
   // OWNER-only privacy control. The desired-state PUT is safely repeatable after a lost response:

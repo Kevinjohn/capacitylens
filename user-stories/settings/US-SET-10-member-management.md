@@ -35,6 +35,12 @@ status and removal, but cannot be new or changed targets. When the member has a 
 picture, the schedule uses it only if the person has no explicit avatar URL; inactive endpoints show
 no derived picture. Unlinking returns the person to their explicit avatar, or initials when none is set.
 
+When creating an invitation, an Owner or Admin may choose **Person in the schedule** or leave the
+default **Not on the schedule**. The choice is not reserved. On admission CapacityLens links the
+person if it is still available; otherwise the member directory shows **Schedule link needs
+attention**, with **Choose another person** and **Dismiss** controls. Invitees never see the
+proposal or exception.
+
 The **Members management section** is a server + auth-on feature only. With auth off or in the
 in-memory demo, **Team & access** still explains the access posture and member/resource distinction,
 but no directory or management controls exist.

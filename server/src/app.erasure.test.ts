@@ -340,6 +340,16 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
        VALUES ('a1', ?, 'erased-person', 'erase-link', ?, ?),
               ('a2', ?, 'retained-person', 'retain-link', ?, ?)`,
     ).run(u1.userId, TS, TS, u2.userId, TS, TS);
+    db.prepare(
+      `INSERT INTO invitation_person_proposals (invitationId, accountId, resourceId, createdAt, updatedAt)
+       VALUES ('inv-a1', 'a1', 'erased-person', ?, ?), ('inv-a2', 'a2', 'retained-person', ?, ?)`,
+    ).run(TS, TS, TS, TS);
+    db.prepare(
+      `INSERT INTO member_resource_link_exceptions
+       (accountId, userId, proposedResourceId, reason, createdAt, updatedAt)
+       VALUES ('a1', ?, 'erased-person', 'resource_unavailable', ?, ?),
+              ('a2', ?, 'retained-person', 'resource_unavailable', ?, ?)`,
+    ).run(u1.userId, TS, TS, u2.userId, TS, TS);
     // Use the retained a2 owner as actor so identity cleanup cannot incidentally remove this row.
     seedCrossTenantCommands(db, u2.userId);
 
@@ -355,6 +365,12 @@ describe("P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     // a1 is gone everywhere and a2 is wholly intact, including its user PII.
     assertCrossTenantErasure(db, u2.userId);
     expect(db.prepare(`SELECT accountId FROM account_member_resources ORDER BY accountId`).all()).toEqual([
+      { accountId: "a2" },
+    ]);
+    expect(db.prepare(`SELECT accountId FROM invitation_person_proposals ORDER BY accountId`).all()).toEqual([
+      { accountId: "a2" },
+    ]);
+    expect(db.prepare(`SELECT accountId FROM member_resource_link_exceptions ORDER BY accountId`).all()).toEqual([
       { accountId: "a2" },
     ]);
   });

@@ -115,6 +115,8 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
     account_members: ["accountId", "userId", "role", "status", "createdAt", "signInConfirmed"],
     // Opaque revisions and timestamps carry no source identity; all three coordinates are remapped.
     account_member_resources: ["accountId", "userId", "resourceId", "revision", "createdAt", "updatedAt"],
+    invitation_person_proposals: ["invitationId", "accountId", "resourceId", "createdAt", "updatedAt"],
+    member_resource_link_exceptions: ["accountId", "userId", "proposedResourceId", "reason", "createdAt", "updatedAt"],
     // `terminalReason` is a bounded enum of workflow outcomes (never free text, never an
     // identifier), so it is RETAINED rather than scrubbed: a rehearsal that lost it could not
     // exercise the retention sweep or the participant projection it feeds.

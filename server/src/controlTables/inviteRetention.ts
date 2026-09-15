@@ -3,6 +3,10 @@ import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
 import type { Db } from "../db";
 import { isKnownRole } from "./members.model";
 import {
+  INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION,
+  removeInvitationPersonProposal,
+} from "./invitationPersonProposals";
+import {
   INVITATION_RETENTION_INDEXES_V24_SQL,
   USED_INVITATION_RETENTION_LIMIT,
   USED_INVITATION_RETENTION_MS,
@@ -20,6 +24,8 @@ export interface InviteSummary {
   expiresAt: string;
   usedAt: string | null;
   createdAt: string;
+  proposedResourceId?: string;
+  proposedResourceLabel?: string;
 }
 
 /** Interpret invitation expiry consistently for admission, preview, redemption and pruning.
@@ -50,14 +56,25 @@ function compareIds(left: string, right: string): number {
  * @returns The account's invite summaries (NO token), newest first (possibly empty).
  */
 export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[] {
+  const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
+  const hasProposalSchema =
+    typeof schemaVersion === "number" && schemaVersion >= INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION;
   const rows = db
     .prepare(
       // NOTE: tokenHash is intentionally ABSENT from this SELECT — it must never leave on a read path.
       // Used invites are LISTED (not filtered out): the member-management UI shows them with a "used"
       // badge (MembersSection's `usedAt ? …used()` branch) so an admin can confirm an invite was
       // consumed. Dead expired-unused links are removed separately by pruneInvites, not hidden here.
-      `SELECT id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites
-       WHERE accountId = ?`,
+      `SELECT invitation.id, invitation.accountId, invitation.role, invitation.preauthEmail,
+              invitation.expiresAt, invitation.usedAt, invitation.createdAt,
+              ${hasProposalSchema ? "proposal.resourceId" : "NULL"} AS proposedResourceId,
+              ${hasProposalSchema ? "proposal.accountId" : "NULL"} AS proposalAccountId,
+              ${hasProposalSchema ? "CASE WHEN resource.id IS NULL THEN NULL ELSE COALESCE(resource.name, resource.role) END" : "NULL"}
+                AS proposedResourceLabel
+         FROM invites AS invitation
+         ${hasProposalSchema ? "LEFT JOIN invitation_person_proposals AS proposal ON proposal.invitationId = invitation.id" : ""}
+         ${hasProposalSchema ? "LEFT JOIN resources AS resource ON resource.accountId = invitation.accountId AND resource.id = proposal.resourceId" : ""}
+        WHERE invitation.accountId = ?`,
     )
     .all(accountId) as Array<{
     id: string;
@@ -67,12 +84,18 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
     expiresAt: string;
     usedAt: string | null;
     createdAt: string;
+    proposedResourceId: string | null;
+    proposalAccountId: string | null;
+    proposedResourceLabel: string | null;
   }>;
   const invitations = rows.map((r) => {
     if (!isKnownRole(r.role)) {
       throw new Error(
         `listInvitesForAccount: stored role ${JSON.stringify(r.role)} for invite ${r.id} is not a known role — control table corrupted.`,
       );
+    }
+    if (r.proposalAccountId !== null && r.proposalAccountId !== r.accountId) {
+      throw new Error(`listInvitesForAccount: proposal ${r.id} has a corrupt account scope.`);
     }
     return {
       id: r.id,
@@ -82,6 +105,8 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
       expiresAt: r.expiresAt,
       usedAt: r.usedAt ?? null,
       createdAt: r.createdAt,
+      ...(r.proposedResourceId === null ? {} : { proposedResourceId: r.proposedResourceId }),
+      ...(r.proposedResourceLabel === null ? {} : { proposedResourceLabel: r.proposedResourceLabel }),
     };
   });
   return invitations.sort((a, b) => {
@@ -103,7 +128,9 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
  * @param id         The non-secret invite id to revoke.
  */
 export function revokeInvite(db: Db, accountId: string, id: string): number {
-  return Number(db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId).changes);
+  const result = Number(db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId).changes);
+  if (result > 0) removeInvitationPersonProposal(db, id);
+  return result;
 }
 
 /** Remove dead unused links and bound used operational history. This is a write-oriented
@@ -114,16 +141,21 @@ export function pruneInvites(db: Db, now = Date.now(), accountId?: string): numb
   const accountClause = accountId === undefined ? "" : " AND accountId = ?";
   const parameters = accountId === undefined ? [] : [accountId];
   const candidates = db
-    .prepare(`SELECT tokenHash, expiresAt FROM invites WHERE usedAt IS NULL${accountClause}`)
+    .prepare(`SELECT tokenHash, id, expiresAt FROM invites WHERE usedAt IS NULL${accountClause}`)
     .all(...parameters) as Array<{
     tokenHash: string;
+    id: string;
     expiresAt: string;
   }>;
   const removeUnused = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NULL`);
   let deleted = 0;
   for (const candidate of candidates) {
     if (inviteIsExpired(candidate.expiresAt, now)) {
-      deleted += Number(removeUnused.run(candidate.tokenHash).changes);
+      const removed = Number(removeUnused.run(candidate.tokenHash).changes);
+      if (removed > 0) {
+        removeInvitationPersonProposal(db, candidate.id);
+      }
+      deleted += removed;
     }
   }
 
@@ -145,7 +177,9 @@ function pruneUsedInvitationHistory(db: Db, now = Date.now(), accountId?: string
   for (const row of used) {
     const instant = parseISOTimestamp(row.usedAt);
     if (instant === null || instant < cutoff) {
-      deleted += Number(removeUsed.run(row.tokenHash).changes);
+      const removed = Number(removeUsed.run(row.tokenHash).changes);
+      if (removed > 0) removeInvitationPersonProposal(db, row.id);
+      deleted += removed;
       continue;
     }
     const retained = retainedByAccount.get(row.accountId) ?? [];
@@ -155,7 +189,9 @@ function pruneUsedInvitationHistory(db: Db, now = Date.now(), accountId?: string
   for (const retained of retainedByAccount.values()) {
     retained.sort((left, right) => right.instant - left.instant || left.id.localeCompare(right.id));
     for (const row of retained.slice(USED_INVITATION_RETENTION_LIMIT)) {
-      deleted += Number(removeUsed.run(row.tokenHash).changes);
+      const removed = Number(removeUsed.run(row.tokenHash).changes);
+      if (removed > 0) removeInvitationPersonProposal(db, row.id);
+      deleted += removed;
     }
   }
   return deleted;

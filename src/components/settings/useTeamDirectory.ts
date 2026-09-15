@@ -23,6 +23,7 @@ interface DirectorySnapshot {
   members: TeamMember[];
   invites: TeamInvitation[];
   signInTrackingEnabled: boolean;
+  resourceCandidates: { resourceId: string; label: string }[];
 }
 
 type DirectoryState =
@@ -108,6 +109,7 @@ async function loadMembers({
     snapshot: {
       members: result.value.members,
       signInTrackingEnabled: result.value.signInTrackingEnabled,
+      resourceCandidates: result.value.resourceCandidates,
       // Preserve the last authoritative invitation list while a same-account refresh is in
       // flight. On an account switch, the old list is discarded before this account's
       // separately-authorized invite read completes.
@@ -248,7 +250,12 @@ export function useTeamDirectory(options: TeamDirectoryOptions) {
     (next: TeamDirectory, invites: TeamInvitation[]) => {
       setDirectory((previous) => {
         if (previous.kind !== "ready" && previous.kind !== "error") return previous;
-        const snapshot = { members: next.members, signInTrackingEnabled: next.signInTrackingEnabled, invites };
+        const snapshot = {
+          members: next.members,
+          signInTrackingEnabled: next.signInTrackingEnabled,
+          resourceCandidates: next.resourceCandidates,
+          invites,
+        };
         return previous.kind === "ready"
           ? { ...previous, snapshot }
           : { ...previous, content: { kind: "authorized", snapshot } };

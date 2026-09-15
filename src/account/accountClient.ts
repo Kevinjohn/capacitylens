@@ -5,7 +5,12 @@ import type { BrowserAccountCommand } from "./accountCommands";
 import { buildPayloadOperationKey } from "./commandOutcome";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 import type { ReauthAction } from "../auth/reauthCoordinator";
-import { clearMemberResourceLink, resourceAvatarsUrl, setMemberResourceLink } from "./memberResourceClient";
+import {
+  clearMemberResourceLink,
+  dismissMemberResourceLinkException,
+  resourceAvatarsUrl,
+  setMemberResourceLink,
+} from "./memberResourceClient";
 
 interface ChangeMemberRoleInput {
   workspaceId: string;
@@ -163,6 +168,7 @@ export const accountClient = {
   listResourceAvatars: (workspaceId: string) => apiFetch(resourceAvatarsUrl(workspaceId), { credentials: "include" }),
   setMemberResourceLink,
   clearMemberResourceLink,
+  dismissMemberResourceLinkException,
 
   setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<Response> {
     return apiFetchReauth(

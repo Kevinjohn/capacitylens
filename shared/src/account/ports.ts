@@ -147,6 +147,8 @@ export interface AccountAdminPort {
     preauthorizedEmail: string | null;
     /** Null selects the implementation's standard bounded lifetime at first execution. */
     expiresAt: IsoInstant | null;
+    /** Optional account-scoped person to attempt linking after admission; never reserved. */
+    proposedResourceId?: string;
     command: CommandIdentity;
   }): Promise<CreatedInvitation>;
   acceptInvitation(input: {
@@ -260,6 +262,16 @@ export interface ResourceAvatarEntry {
 /** Account-scoped storage seam for association administration and its privacy-preserving read model. */
 export interface AccountMemberResourcePort {
   listLinks(workspaceId: WorkspaceId): Promise<ReadonlyMap<PrincipalId, MemberResourceLink>>;
+  listCandidates(workspaceId: WorkspaceId): Promise<readonly { resourceId: string; label: string }[]>;
+  listExceptions(workspaceId: WorkspaceId): Promise<
+    ReadonlyMap<
+      PrincipalId,
+      {
+        proposedResourceId: string | null;
+        reason: "resource_unavailable" | "resource_already_linked" | "member_already_linked";
+      }
+    >
+  >;
   listAvatarProjection(workspaceId: WorkspaceId): Promise<readonly ResourceAvatarEntry[]>;
   setLink(input: {
     workspaceId: WorkspaceId;
@@ -274,6 +286,12 @@ export interface AccountMemberResourcePort {
     workspaceId: WorkspaceId;
     principalId: PrincipalId;
     expectedRevision: string;
+    actor: ActorContext;
+    command: CommandIdentity;
+  }): Promise<void>;
+  dismissException(input: {
+    workspaceId: WorkspaceId;
+    principalId: PrincipalId;
     actor: ActorContext;
     command: CommandIdentity;
   }): Promise<void>;

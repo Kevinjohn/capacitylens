@@ -4,6 +4,10 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
+Invitation administration may carry an optional `proposedResourceId` for an active person in the
+selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
+accept responses never include it.
+
 > CapacityLens is a multi-tenant resource scheduler. It is **server-backed by default** (an empty
 > env means the same-origin SQLite API). The app is **multi-tenant by Account**: you pick a company
 > on load and the whole dataset is scoped to it. An explicit in-browser **demo build**

@@ -83,3 +83,20 @@ export function clearMemberResourceLink(
     ambiguousStatus: 409,
   });
 }
+
+/** Dismiss one current member/person link exception through the account command boundary. */
+export function dismissMemberResourceLinkException(
+  workspaceId: string,
+  principalId: string,
+  command?: BrowserAccountCommand,
+): Promise<Response> {
+  return runCommand({
+    operationKey: `resource-link-exception-dismiss:${workspaceId}:${principalId}`,
+    explicit: command,
+    request: (resolved) =>
+      apiFetch(
+        `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/resource-link-exception`,
+        buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
+      ),
+  });
+}

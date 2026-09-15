@@ -150,6 +150,11 @@ const V43_MIGRATION = {
   name: "add-account-member-resource-links",
   checksum: "46cbdc72fdb7fd382810a3344e4d8f94f465dd9b1102b2d3430bebd5561f3c94",
 } as const;
+const V44_MIGRATION = {
+  version: 44,
+  name: "add-invitation-person-proposals",
+  checksum: "5d8954d0ad867841f181d9da2742345bf49d016a35634ebde542778004b2fa42",
+} as const;
 const RELEASED_MIGRATION_HISTORY = [
   {
     version: 8,
@@ -259,6 +264,7 @@ const RELEASED_MIGRATION_HISTORY = [
   V41_MIGRATION,
   V42_MIGRATION,
   V43_MIGRATION,
+  V44_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -284,6 +290,7 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V41_MIGRATION,
   V42_MIGRATION,
   V43_MIGRATION,
+  V44_MIGRATION,
 ] as const;
 /** The same list without its v25 head — what a database rolled back to v25 still has pending. */
 const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
@@ -1779,7 +1786,7 @@ describe("schema migration of an existing on-disk DB", () => {
       }) as Db;
 
       expect(plannedBeforeWinner).toEqual([
-        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
       ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
@@ -1811,7 +1818,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
-      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
+      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -2123,7 +2130,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2139,6 +2146,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
 // eslint-disable-next-line max-lines-per-function
 describe("schema migration of an existing on-disk DB", () => {
+  // eslint-disable-next-line max-lines-per-function
   it("v21 adds every tenant-slice index through one explicit ledger step", () => {
     const db = openDb(":memory:");
     dropTenantEntityIndexes(db);
@@ -2190,6 +2198,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V41_MIGRATION,
       V42_MIGRATION,
       V43_MIGRATION,
+      V44_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2205,6 +2214,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
 // eslint-disable-next-line max-lines-per-function
 describe("schema migration of an existing on-disk DB", () => {
+  // eslint-disable-next-line max-lines-per-function
   it("v22 reactivates tombstoned built-in Internal clients and advances their revisions", () => {
     const db = openDb(":memory:");
     const priorRevision = "2099-01-01T00:00:00.000Z";
@@ -2248,6 +2258,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V41_MIGRATION,
       V42_MIGRATION,
       V43_MIGRATION,
+      V44_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2312,6 +2323,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V41_MIGRATION,
       V42_MIGRATION,
       V43_MIGRATION,
+      V44_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2359,6 +2371,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V41_MIGRATION,
       V42_MIGRATION,
       V43_MIGRATION,
+      V44_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2659,6 +2672,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V41_MIGRATION,
       V42_MIGRATION,
       V43_MIGRATION,
+      V44_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2817,6 +2831,7 @@ function registerActivityLifecycleMigrationTest(): void {
       V41_MIGRATION,
       V42_MIGRATION,
       V43_MIGRATION,
+      V44_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
@@ -2862,6 +2877,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V41_MIGRATION,
       V42_MIGRATION,
       V43_MIGRATION,
+      V44_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2896,7 +2912,13 @@ describe("schema migration of an existing on-disk DB", () => {
     const before = readState(db).accounts;
     rewindToV39(db);
 
-    expect(planDatabaseMigrations(db).migrations).toEqual([V40_MIGRATION, V41_MIGRATION, V42_MIGRATION, V43_MIGRATION]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([
+      V40_MIGRATION,
+      V41_MIGRATION,
+      V42_MIGRATION,
+      V43_MIGRATION,
+      V44_MIGRATION,
+    ]);
     initializeOpenDb(db, ":memory:");
 
     expect(db.prepare("PRAGMA table_info(accounts)").all()).toEqual(
@@ -2941,6 +2963,7 @@ describe("schema migration of an existing on-disk DB", () => {
           V41_MIGRATION,
           V42_MIGRATION,
           V43_MIGRATION,
+          V44_MIGRATION,
         ]);
         initializeOpenDb(db, copied.path);
 

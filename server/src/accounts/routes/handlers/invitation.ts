@@ -31,6 +31,9 @@ function requireAuthenticatedPrincipal(req: FastifyRequest) {
   return { actor: requireAccountActor(req), user: requireAuthenticatedUser(req) };
 }
 
+const trustedLocalProposalFailure = () =>
+  new AccountContractError({ code: "FORBIDDEN", message: "Forbidden.", retryable: false });
+
 type ParseResult<T, E> = { value: T; failure?: never } | { failure: E; value?: never };
 
 function parsePreauthorizedEmail(
@@ -67,7 +70,13 @@ function parseCreateInvitationAuthorizationInput({
   isKnownRole: AccountRouteContext["isKnownRole"];
   createValidationFailure: AccountRouteContext["validationFailed"];
 }): ParseResult<
-  { accountId: string; role: Role; preauthEmail: string | null; requestedExpiry: unknown },
+  {
+    accountId: string;
+    role: Role;
+    preauthEmail: string | null;
+    proposedResourceId?: string;
+    requestedExpiry: unknown;
+  },
   AccountContractError
 > {
   const body = (req.body ?? {}) as {
@@ -75,6 +84,7 @@ function parseCreateInvitationAuthorizationInput({
     role?: unknown;
     expiresAt?: unknown;
     preauthEmail?: unknown;
+    proposedResourceId?: unknown;
   };
   if (typeof body.accountId !== "string" || body.accountId.length === 0) {
     return { failure: createValidationFailure("accountId must be a non-empty string.") };
@@ -92,6 +102,11 @@ function parseCreateInvitationAuthorizationInput({
       accountId: body.accountId,
       role: body.role,
       preauthEmail: emailResult.value,
+      ...(body.proposedResourceId === undefined
+        ? {}
+        : {
+            proposedResourceId: typeof body.proposedResourceId === "string" ? body.proposedResourceId.trim() : "",
+          }),
       requestedExpiry: body.expiresAt,
     },
   };
@@ -132,6 +147,10 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   const { value } = input;
   // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
   if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites", options: NO_REPROMPT })) return;
+  if (value.proposedResourceId === "")
+    return accountFail(reply, createValidationFailure("proposedResourceId must be a non-empty string."));
+  if (authMode === "off" && value.proposedResourceId !== undefined)
+    return accountFail(reply, trustedLocalProposalFailure());
   const expiryResult = parseInvitationExpiry(value.requestedExpiry, createValidationFailure);
   if ("failure" in expiryResult) return accountFail(reply, expiryResult.failure);
   try {
@@ -143,6 +162,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       preauthorizedEmail: value.preauthEmail,
       // Null is canonical across retries; the port chooses the bounded default only on first execution.
       expiresAt: expiryResult.value,
+      ...(value.proposedResourceId === undefined ? {} : { proposedResourceId: value.proposedResourceId }),
       command: accountCommand(req),
     });
     auditUnlessReplayed({
@@ -155,7 +175,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
         action: "inviteCreate",
         entity: "invite",
         id: invite.id,
-        changedFields: ["role", "preauthEmail", "expiresAt"],
+        changedFields: ["role", "preauthEmail", "expiresAt", "proposedResourceId"],
       },
     });
     // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
@@ -169,6 +189,7 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
       role: invite.role,
       expiresAt: invite.expiresAt,
       preauthEmail: invite.preauthorizedEmail,
+      ...(invite.proposedResourceId === undefined ? {} : { proposedResourceId: invite.proposedResourceId }),
     });
   } catch (error) {
     return accountFail(reply, error);
@@ -326,6 +347,8 @@ export async function listInvitations(req: FastifyRequest, reply: FastifyReply, 
         expiresAt: invite.expiresAt,
         usedAt: invite.usedAt,
         createdAt: invite.createdAt,
+        ...(invite.proposedResourceId === undefined ? {} : { proposedResourceId: invite.proposedResourceId }),
+        ...(invite.proposedResourceLabel === undefined ? {} : { proposedResourceLabel: invite.proposedResourceLabel }),
       })),
     };
   } catch (error) {

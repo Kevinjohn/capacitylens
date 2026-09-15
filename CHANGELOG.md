@@ -9,6 +9,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Let Owners and Admins optionally propose an account-scoped scheduled person for an invitation;
+  admission attempts the link atomically and reports actionable exceptions without exposing proposal
+  state to invitees (#1087).
+
 - Keep scheduled-person kinds immutable, clear member links during destructive scheduling imports
   and permanent lifecycle removal, and make Team & access link changes retry-safe and auditable (#1086).
 
