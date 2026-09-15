@@ -68,6 +68,13 @@ describe("member resource links", () => {
         })
       ).statusCode,
     ).toBe(403);
+    db.prepare(
+      `INSERT INTO resources
+       (id, accountId, kind, name, role, color, employmentType, engagement,
+        workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
+       VALUES ('clark', 'a1', 'person', 'Clark Kent', 'Designer', '#6366f1', 'permanent', 'studio', 8,
+        '[1,2,3,4,5]', '[]', ?, ?)`,
+    ).run(TS, TS);
     expect(
       (
         await call(app, {
@@ -84,25 +91,21 @@ describe("member resource links", () => {
       headers: { cookie: owner.cookie },
       payload: { kind: "external" },
     });
-    expect(converted.statusCode, converted.body).toBe(200);
+    expect(converted.statusCode, converted.body).toBe(400);
     expect(
       (
         await call(app, { method: "GET", url: "/api/accounts/a1/resource-avatars", headers: { cookie: viewer.cookie } })
       ).json(),
-    ).toEqual({ avatars: [] });
-    await call(app, {
-      method: "PATCH",
-      url: "/api/resources/bruce",
-      headers: { cookie: owner.cookie },
-      payload: { kind: "person" },
-    });
-    const relinked = await call(app, {
+    ).toEqual({ avatars: [{ resourceId: "bruce", imageUrl: "https://images.example/bruce.png" }] });
+    const revision = (linked.json() as { revision: string }).revision;
+    db.prepare(`UPDATE resources SET archivedAt = ? WHERE accountId = 'a1' AND id = 'bruce'`).run(TS);
+    const rejectedChange = await call(app, {
       method: "PUT",
       url: `/api/accounts/a1/members/${owner.userId}/resource-link`,
       headers: { cookie: owner.cookie },
-      payload: { resourceId: "bruce", expectedRevision: null },
+      payload: { resourceId: "clark", expectedRevision: revision },
     });
-    const revision = (relinked.json() as { revision: string }).revision;
+    expect(rejectedChange.statusCode).toBe(409);
     expect(
       (
         await call(app, {
@@ -118,6 +121,75 @@ describe("member resource links", () => {
         await call(app, { method: "GET", url: "/api/accounts/a1/resource-avatars", headers: { cookie: viewer.cookie } })
       ).json(),
     ).toEqual({ avatars: [] });
+    await app.close();
+    db.close();
+  });
+
+  it("authorizes exception dismissal and choose-another recovery only for account administrators", async () => {
+    const db = openDb(":memory:");
+    const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
+    if (!auth) throw new Error("Expected auth configuration.");
+    await runAuthMigrations(auth);
+    const app = createApp(db, { authMode: mode, auth });
+    const data = emptyAppData();
+    data.accounts = [
+      { id: "a1", name: "Wayne Enterprises", color: "#6366f1", createdAt: TS, updatedAt: TS },
+      { id: "a2", name: "Stark Industries", color: "#6366f1", createdAt: TS, updatedAt: TS },
+    ];
+    insertAll(db, data as AppData);
+    const owner = await signUp(app, "bruce-wayne-recovery@capacitylens.dev");
+    const admin = await signUp(app, "alfred-pennyworth-recovery@capacitylens.dev");
+    const viewer = await signUp(app, "clark-kent-recovery@capacitylens.dev");
+    const editor = await signUp(app, "dick-grayson-recovery@capacitylens.dev");
+    const otherOwner = await signUp(app, "tony-stark-recovery@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    upsertMember(db, { accountId: "a1", userId: admin.userId, role: "admin", status: "active", createdAt: TS });
+    upsertMember(db, { accountId: "a1", userId: viewer.userId, role: "viewer", status: "active", createdAt: TS });
+    upsertMember(db, { accountId: "a1", userId: editor.userId, role: "editor", status: "active", createdAt: TS });
+    upsertMember(db, { accountId: "a2", userId: otherOwner.userId, role: "owner", status: "active", createdAt: TS });
+    db.prepare(
+      `INSERT INTO resources
+       (id, accountId, kind, name, role, color, employmentType, engagement,
+        workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
+       VALUES ('recovery-person', 'a1', 'person', 'Bruce Wayne', 'Designer', '#6366f1', 'permanent', 'studio', 8,
+        '[1,2,3,4,5]', '[]', ?, ?)`,
+    ).run(TS, TS);
+    const exception = (userId: string) =>
+      db
+        .prepare(
+          `INSERT INTO member_resource_link_exceptions
+           (accountId, userId, proposedResourceId, reason, createdAt, updatedAt)
+           VALUES ('a1', ?, 'missing-person', 'resource_unavailable', ?, ?)`,
+        )
+        .run(userId, TS, TS);
+    exception(owner.userId);
+    const dismissed = await call(app, {
+      method: "DELETE",
+      url: `/api/accounts/a1/members/${owner.userId}/resource-link-exception`,
+      headers: { cookie: owner.cookie },
+    });
+    expect(dismissed.statusCode).toBe(204);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM member_resource_link_exceptions`).get()).toEqual({ count: 0 });
+
+    exception(owner.userId);
+    const denied = await Promise.all(
+      [viewer, editor, otherOwner].map(({ cookie }) =>
+        call(app, {
+          method: "DELETE",
+          url: `/api/accounts/a1/members/${owner.userId}/resource-link-exception`,
+          headers: { cookie },
+        }),
+      ),
+    );
+    expect(denied.map((response) => response.statusCode)).toEqual([403, 403, 403]);
+    const changed = await call(app, {
+      method: "PUT",
+      url: `/api/accounts/a1/members/${owner.userId}/resource-link`,
+      headers: { cookie: admin.cookie },
+      payload: { resourceId: "recovery-person", expectedRevision: null },
+    });
+    expect(changed.statusCode).toBe(200);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM member_resource_link_exceptions`).get()).toEqual({ count: 0 });
     await app.close();
     db.close();
   });

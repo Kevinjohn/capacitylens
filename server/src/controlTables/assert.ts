@@ -117,8 +117,15 @@ function collectIndexProblems(db: Db, table: string, expected: Record<string, Ex
 /** Verify the app-owned control plane after migration. These tables deliberately sit outside
  * AppData/TABLES, so schema.ts cannot cover them; without this companion assertion a missed future
  * control-table migration would otherwise surface only when an account or invite route is used. */
+// eslint-disable-next-line max-lines-per-function
 export function assertControlTablesCurrent(db: Db): void {
   const accountMemberColumns = db.prepare("PRAGMA table_info(account_members)").all() as TableColumn[];
+  const hasInvitationPersonProposalTables = db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM sqlite_master
+        WHERE type = 'table' AND name IN ('invitation_person_proposals', 'member_resource_link_exceptions')`,
+    )
+    .get() as { count: number };
   const expectedColumns: Record<string, Record<string, ExpectedColumn>> = {
     account_members: {
       accountId: { notNull: true, primaryKey: 1 },
@@ -140,6 +147,25 @@ export function assertControlTablesCurrent(db: Db): void {
       usedAt: { notNull: false, primaryKey: 0 },
       createdAt: { notNull: true, primaryKey: 0 },
     },
+    ...(Number(hasInvitationPersonProposalTables.count) === 2
+      ? {
+          invitation_person_proposals: {
+            invitationId: { notNull: true, primaryKey: 1 },
+            accountId: { notNull: true, primaryKey: 0 },
+            resourceId: { notNull: true, primaryKey: 0 },
+            createdAt: { notNull: true, primaryKey: 0 },
+            updatedAt: { notNull: true, primaryKey: 0 },
+          },
+          member_resource_link_exceptions: {
+            accountId: { notNull: true, primaryKey: 1 },
+            userId: { notNull: true, primaryKey: 2 },
+            proposedResourceId: { notNull: false, primaryKey: 0 },
+            reason: { notNull: true, primaryKey: 0 },
+            createdAt: { notNull: true, primaryKey: 0 },
+            updatedAt: { notNull: true, primaryKey: 0 },
+          },
+        }
+      : {}),
   };
   const problems: string[] = [];
   for (const [table, expected] of Object.entries(expectedColumns)) {
@@ -168,6 +194,16 @@ export function assertControlTablesCurrent(db: Db): void {
       },
       idx_invites_live_preauthEmail: { unique: false, columns: ["preauthEmail"], partial: true },
     },
+    ...(Number(hasInvitationPersonProposalTables.count) === 2
+      ? {
+          invitation_person_proposals: {
+            idx_invitation_person_proposals_accountId: { unique: false, columns: ["accountId"] },
+          },
+          member_resource_link_exceptions: {
+            idx_member_resource_link_exceptions_accountId: { unique: false, columns: ["accountId"] },
+          },
+        }
+      : {}),
   };
   for (const [table, expected] of Object.entries(expectedIndexes)) {
     problems.push(...collectIndexProblems(db, table, expected));

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { InviteMemberPanel } from "./InviteMemberPanel";
@@ -23,6 +24,9 @@ function renderInvite(overrides: Partial<React.ComponentProps<typeof InviteMembe
     renderedAt: Date.now(),
     revokeInvite: vi.fn(async () => {}),
     roleOptions: [{ value: "editor" satisfies Role, label: "Editor" }],
+    invitationPeople: [],
+    invitationResourceId: "",
+    setInvitationResourceId: vi.fn(),
     ...overrides,
   };
   return render(<InviteMemberPanel {...props} />);
@@ -81,5 +85,36 @@ describe("InviteMemberPanel creation guidance", () => {
     expect(status).toHaveTextContent("Invite created. Copy this link and send it yourself.");
     expect(status).toHaveTextContent("If you lose it, revoke this invite and create a new one.");
     expect(status).toContainElement(screen.getByRole("button", { name: "Copy invitation link" }));
+  });
+
+  it("defaults the private schedule-person proposal to not on the schedule", async () => {
+    renderInvite({ invitationPeople: [{ id: "r1", label: "Bruce Wayne" }] });
+
+    expect(screen.getByTestId("invite-person")).toHaveValue("");
+    await userEvent.click(screen.getByTestId("invite-person"));
+    expect(screen.getByRole("option", { name: "Not on the schedule" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Bruce Wayne" })).toBeInTheDocument();
+  });
+
+  it("renders a pending intended person with explicit non-reservation guidance", () => {
+    renderInvite({
+      invitationPeople: [{ id: "r1", label: "Bruce Wayne" }],
+      invites: [
+        {
+          id: "invite-1",
+          role: "editor",
+          preauthEmail: null,
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          usedAt: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          proposedResourceId: "r1",
+        },
+      ],
+    });
+
+    expect(screen.getByTestId("invite-row")).toHaveTextContent("Intended person: Bruce Wayne.");
+    expect(screen.getByTestId("invite-row")).toHaveTextContent(
+      "This person is not reserved until the invite is accepted.",
+    );
   });
 });

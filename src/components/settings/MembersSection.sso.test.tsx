@@ -155,7 +155,7 @@ function registerSsoDraftTests(directory: RawMember[]): void {
 
     await user.click(screen.getByRole("button", { name: m.settings_members_retry() }));
 
-    expect(await screen.findByTestId("invite-preauth")).toHaveValue("draft@example.com");
+    expect(await screen.findByTestId("invite-preauth")).toHaveValue("");
     expect(screen.getByTestId("invite-role")).toHaveTextContent("Viewer");
     expect(within(await screen.findByRole("dialog")).getByRole("combobox")).toHaveTextContent("Editor");
   });

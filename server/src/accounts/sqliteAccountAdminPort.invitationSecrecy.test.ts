@@ -613,7 +613,7 @@ function registerSqliteAccountAdminPortTest13(): void {
       applicationId: "test-application",
       workspaceId: "workspace-1",
       actorPrincipalId: actor.principalId,
-      changedFields: ["role", "preauthorizedEmail", "expiresAt"],
+      changedFields: ["role", "preauthorizedEmail", "expiresAt", "proposedResourceId"],
     });
   });
 }

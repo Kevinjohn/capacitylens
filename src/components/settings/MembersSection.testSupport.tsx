@@ -25,7 +25,11 @@ export interface RawMember {
   isSelf?: boolean;
   mayResetPassword?: boolean;
   mayRevokeSessions?: boolean;
-  resourceLink?: { resourceId: string; revision: string } | null;
+  resourceLink?: { resourceId: string; revision: string; resourceName?: string | null } | null;
+  resourceLinkException?: {
+    proposedResourceId: string | null;
+    reason: "resource_unavailable" | "resource_already_linked" | "member_already_linked";
+  } | null;
 }
 
 /** Build a full server-shaped member record from just what a test cares about pinning. Common
@@ -60,6 +64,12 @@ export function mockApi(members: RawMember[] | { status: number } = [], override
         : jsonResponse({
             signInTrackingEnabled: members.some((member) => member.signInConfirmed !== undefined),
             members: members.map((member) => rawMember(member)),
+            resourceCandidates: useStore
+              .getState()
+              .data.resources.filter(
+                (resource) => resource.kind === "person" && !resource.archivedAt && !resource.deletedAt,
+              )
+              .map((resource) => ({ resourceId: resource.id, label: resource.name ?? resource.role })),
           }),
     "GET /invites": () => jsonResponse({ invites: [] }),
     "GET /api/accounts": () => {

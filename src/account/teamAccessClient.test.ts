@@ -173,6 +173,19 @@ describe("teamAccessClient invitation defaults", () => {
 });
 
 describe("teamAccessClient invitation validation", () => {
+  it("forwards an optional private schedule-person proposal without exposing it in invitee codecs", async () => {
+    const create = vi.spyOn(accountClient, "createInvitation").mockResolvedValue(
+      new Response(JSON.stringify({ id: "invite-1", token: "opaque-token", expiresAt: "2026-08-27T10:00:00.000Z" }), {
+        status: 201,
+      }),
+    );
+
+    await expect(
+      teamAccessClient.createInvitation({ accountId: "a1", role: "editor", proposedResourceId: "r1" }),
+    ).resolves.toMatchObject({ kind: "ok", value: { id: "invite-1" } });
+    expect(create).toHaveBeenCalledWith({ accountId: "a1", role: "editor", proposedResourceId: "r1" });
+  });
+
   it.each(["2026-02-30T10:00:00.000Z", "0", "2026-08-27", "2026-08-27T11:00:00.000+01:00"])(
     "rejects a non-canonical invitation timestamp: %s",
     async (expiresAt) => {

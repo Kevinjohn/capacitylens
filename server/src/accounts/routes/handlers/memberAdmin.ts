@@ -6,8 +6,18 @@ import type { AccountRouteContext } from "../createReplyHelpers";
 import { requireAccountActor, requireAuthenticatedPrincipal } from "./authenticatedPrincipal";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 
-function projectMemberResourceLink(link: { resourceId: string; revision: string } | undefined) {
-  return link ? { resourceId: link.resourceId, revision: link.revision } : null;
+function projectMemberResourceLink(
+  link:
+    { resourceId: string; revision: string; resourceName?: string | null; resourceStatus?: string | null } | undefined,
+) {
+  return link
+    ? {
+        resourceId: link.resourceId,
+        revision: link.revision,
+        resourceName: link.resourceName ?? null,
+        resourceStatus: link.resourceStatus ?? null,
+      }
+    : null;
 }
 
 export async function listMembers(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
@@ -38,6 +48,8 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
       directory.map(({ membership }) => membership.principalId),
     );
     const links = await context.memberResources.listLinks(accountId);
+    const exceptions = await context.memberResources.listExceptions(accountId);
+    const resourceCandidates = await context.memberResources.listCandidates(accountId);
     const members = directory.map(({ membership: member, principal }) => {
       const link = links.get(member.principalId);
       return {
@@ -54,9 +66,15 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
           projection.decisions.get(member.principalId)?.get("issue-password-reset")?.allowed === true,
         mayRevokeSessions: projection.decisions.get(member.principalId)?.get("revoke-sessions")?.allowed === true,
         resourceLink: projectMemberResourceLink(link),
+        resourceLinkException: (() => {
+          const exception = exceptions.get(member.principalId);
+          return exception === undefined
+            ? null
+            : { proposedResourceId: exception.proposedResourceId, reason: exception.reason };
+        })(),
       };
     });
-    return { members, signInTrackingEnabled: tracking.enabled };
+    return { members, signInTrackingEnabled: tracking.enabled, resourceCandidates };
   } catch (error) {
     return accountFail(reply, error);
   }
@@ -96,12 +114,15 @@ export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyR
     return context.fail(reply, context.validationFailed("resourceId and expectedRevision are required."));
   }
   try {
+    const actor = requireAccountActor(req);
     const link = await context.memberResources.setLink({
       workspaceId: accountId,
       principalId: userId,
       resourceId: body.resourceId,
       expectedRevision: body.expectedRevision,
       now: new Date().toISOString(),
+      actor,
+      command: context.command(req),
     });
     return reply.code(200).send({ resourceId: link.resourceId, revision: link.revision });
   } catch (error) {
@@ -123,10 +144,13 @@ export async function clearMemberResourceLink(req: FastifyRequest, reply: Fastif
     return context.fail(reply, context.validationFailed("expectedRevision is required."));
   }
   try {
+    const actor = requireAccountActor(req);
     await context.memberResources.clearLink({
       workspaceId: accountId,
       principalId: userId,
       expectedRevision: body.expectedRevision,
+      actor,
+      command: context.command(req),
     });
     return reply.code(204).send();
   } catch (error) {
@@ -135,6 +159,28 @@ export async function clearMemberResourceLink(req: FastifyRequest, reply: Fastif
     } catch (failure) {
       return context.fail(reply, failure);
     }
+  }
+}
+
+/** Dismiss the current proposal exception without changing a live member/person link. */
+export async function dismissMemberResourceLinkException(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: AccountRouteContext,
+) {
+  const { accountId, userId } = req.params as { accountId: string; userId: string };
+  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
+    return;
+  try {
+    await context.memberResources.dismissException({
+      workspaceId: accountId,
+      principalId: userId,
+      actor: requireAccountActor(req),
+      command: context.command(req),
+    });
+    return reply.code(204).send();
+  } catch (error) {
+    return context.fail(reply, error);
   }
 }
 

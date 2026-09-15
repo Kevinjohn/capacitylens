@@ -85,6 +85,62 @@ describe("MembersSection — member lifecycle", () => {
 });
 
 function registerMemberResourceLinkTests(): void {
+  it("shows schedule attention and clears it through choose-another-person", async () => {
+    const user = userEvent.setup();
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const members: RawMember[] = [
+      { userId: "me", role: "owner", isSelf: true },
+      {
+        userId: "ed",
+        role: "editor",
+        name: "Clark Kent",
+        resourceLinkException: { proposedResourceId: "missing", reason: "resource_unavailable" },
+      },
+    ];
+    const fetchMock = mockApi(members, {
+      "PUT /members/ed/resource-link": () => jsonResponse({ resourceId: resource.id, revision: "rev-2" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const row = await findMemberRow(/ed@x\.io/);
+    expect(within(row).getByText("Schedule link needs attention")).toBeInTheDocument();
+    expect(within(row).getByText("That scheduled person is no longer available.")).toBeInTheDocument();
+
+    await user.click(within(row).getByRole("button", { name: "Choose another person" }));
+    const select = within(row).getByRole("combobox", { name: /choose scheduled person/i });
+    expect(select).toHaveFocus();
+    await user.selectOptions(select, resource.id);
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
+    );
+  });
+
+  it("dismisses a schedule attention exception and refreshes the directory", async () => {
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const fetchMock = mockApi(
+      [
+        { userId: "me", role: "owner", isSelf: true },
+        {
+          userId: "ed",
+          role: "editor",
+          name: "Clark Kent",
+          resourceLinkException: { proposedResourceId: resource.id, reason: "resource_already_linked" },
+        },
+      ],
+      { "DELETE /members/ed/resource-link-exception": () => new Response(null, { status: 204 }) },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const row = await findMemberRow(/ed@x\.io/);
+    await userEvent.click(within(row).getByRole("button", { name: "Dismiss" }));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/members/ed/resource-link-exception"),
+        expect.objectContaining({ method: "DELETE" }),
+      ),
+    );
+  });
+
   it("retains the current inactive person for direct unlink and reconciles after the write", async () => {
     const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
     useStore.getState().updateResource(resource.id, { archivedAt: "2026-09-14T10:00:00.000Z" });
@@ -94,14 +150,17 @@ function registerMemberResourceLinkTests(): void {
         userId: "ed",
         role: "editor",
         name: "Clark Kent",
-        resourceLink: { resourceId: resource.id, revision: "rev-1" },
+        resourceLink: { resourceId: resource.id, resourceName: "Bruce Wayne", revision: "rev-1" },
       },
     ]);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const select = await screen.findByRole("combobox", { name: /scheduled person: clark kent/i });
-    expect(within(select).getByRole("option", { name: /bruce wayne.*inactive.*unlink only/i })).toBeInTheDocument();
-    await userEvent.selectOptions(select, "");
+    const row = await findMemberRow(/ed@x\.io/);
+    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(
+      /Linked to Bruce Wayne in the schedule/,
+    );
+    expect(within(row).queryByRole("button", { name: /change scheduled person/i })).not.toBeInTheDocument();
+    await userEvent.click(within(row).getByRole("button", { name: /remove scheduled-person link/i }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining(`/members/ed/resource-link`),
@@ -109,6 +168,36 @@ function registerMemberResourceLinkTests(): void {
       ),
     );
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/members"))).toHaveLength(2);
+  });
+
+  it("focuses the selector on open and restores focus after cancel and completion", async () => {
+    const user = userEvent.setup();
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const fetchMock = mockApi(
+      [
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", name: "Clark Kent" },
+      ],
+      {
+        "PUT /members/ed/resource-link": () => jsonResponse({ resourceId: resource.id, revision: "rev-2" }),
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const row = await findMemberRow(/ed@x\.io/);
+    const link = within(row).getByRole("button", { name: /link scheduled person/i });
+    await user.click(link);
+    const select = within(row).getByRole("combobox", { name: /choose scheduled person/i });
+    expect(select).toHaveFocus();
+    await user.click(within(row).getByRole("button", { name: /cancel/i }));
+    expect(within(row).getByTestId("member-resource-status")).toHaveFocus();
+
+    await user.click(within(row).getByRole("button", { name: /link scheduled person/i }));
+    await user.selectOptions(within(row).getByRole("combobox"), resource.id);
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
+    );
+    await waitFor(() => expect(within(row).getByTestId("member-resource-status")).toHaveFocus());
   });
 }
 

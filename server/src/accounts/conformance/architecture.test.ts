@@ -285,15 +285,19 @@ const identitySqlOwners = new Set([
   resolve(serverRoot, "controlTables/accountMemberResources.ts"),
 ]);
 
+// eslint-disable-next-line max-lines-per-function
 describe("account-boundary architecture", () => {
+  // eslint-disable-next-line max-lines-per-function
   it("makes account and identity storage ownership deny-by-default across production source", () => {
     // Product membership/invitation SQL is confined to schema/lifecycle owners, the control-table
     // implementation and the two named operations that update tracking or settle invitations.
     const accountSqlOwners = new Set([
       resolve(serverRoot, "controlTables/accountMemberResources.ts"),
+      resolve(serverRoot, "controlTables/invitationPersonProposals.ts"),
       resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
       resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
+      resolve(serverRoot, "db/migrations/invitationPersonProposalsV44.ts"),
       resolve(serverRoot, "controlTables/assert.ts"),
       resolve(serverRoot, "controlTables/inviteRetention.ts"),
       resolve(serverRoot, "controlTables/invites.ts"),
@@ -310,10 +314,13 @@ describe("account-boundary architecture", () => {
     // Routes and coordinators consume their ports instead; this list never grants directory access.
     const controlTableImporters = new Set([
       resolve(serverRoot, "db/open.ts"),
+      resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
       resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
+      resolve(serverRoot, "db/migrations/invitationPersonProposalsV44.ts"),
       resolve(serverRoot, "controlTables.ts"),
       resolve(serverRoot, "controlTables/accountMemberResources.ts"),
+      resolve(serverRoot, "controlTables/invitationPersonProposals.ts"),
       resolve(serverRoot, "controlTables/inviteRetention.ts"),
       resolve(serverRoot, "controlTables/invites.ts"),
       resolve(serverRoot, "controlTables/members.ts"),
@@ -328,6 +335,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/ownershipTransfer.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransferRequests.ts"),
       resolve(serverRoot, "accounts/sqliteAccountMemberResourcePort.ts"),
+      resolve(serverRoot, "erasure.ts"),
       resolve(serverRoot, "ownershipTransferRecovery.ts"),
     ]);
 
@@ -376,6 +384,7 @@ const EXTRACTED_ACCOUNT_ROUTE_PATHS = [
   "/api/invites/:token/signup",
   "/api/accounts/:accountId/members",
   "/api/accounts/:accountId/members/:userId",
+  "/api/accounts/:accountId/members/:userId/resource-link-exception",
   "/api/accounts/:accountId/ownership-transfer",
   "/api/accounts/:accountId/ownership-transfer/:requestId",
   "/api/accounts/:accountId/ownership-transfer/:requestId/accept",

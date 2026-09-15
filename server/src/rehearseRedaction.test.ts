@@ -10,6 +10,12 @@ function requireSqlRow(row: Record<string, unknown> | undefined): Record<string,
   return row;
 }
 
+function requireSqlText(value: unknown, label: string): string {
+  expect(typeof value).toBe("string");
+  if (typeof value !== "string") throw new Error(`Expected ${label} to be text`);
+  return value;
+}
+
 function populateFederatedIdentityDb(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE user (id TEXT PRIMARY KEY);
@@ -652,6 +658,55 @@ function registerSchedulingRedactionTest(): void {
   });
 }
 
+function registerNoForeignKeyProposalRedactionTest(): void {
+  it("scrubs dangling no-FK proposal and exception resource coordinates", () => {
+    const db = new DatabaseSync(":memory:");
+    try {
+      db.exec(`
+        CREATE TABLE accounts (id TEXT PRIMARY KEY);
+        CREATE TABLE resources (id TEXT PRIMARY KEY, accountId TEXT, kind TEXT, name TEXT, role TEXT);
+        CREATE TABLE invitation_person_proposals (
+          invitationId TEXT PRIMARY KEY, accountId TEXT, resourceId TEXT, createdAt TEXT, updatedAt TEXT
+        );
+        CREATE TABLE member_resource_link_exceptions (
+          accountId TEXT, userId TEXT, proposedResourceId TEXT, reason TEXT, createdAt TEXT, updatedAt TEXT
+        );
+        INSERT INTO accounts VALUES ('source-workspace');
+        INSERT INTO resources VALUES ('source-resource', 'source-workspace', 'person', 'Lois Lane', 'Designer');
+        INSERT INTO invitation_person_proposals VALUES
+          ('source-invite-live', 'source-workspace', 'source-resource', '2026-01-01', '2026-01-01'),
+          ('source-invite-dangling', 'source-workspace', 'source-resource-missing', '2026-01-01', '2026-01-01');
+        INSERT INTO member_resource_link_exceptions VALUES
+          ('source-workspace', 'source-member-live', 'source-resource', 'resource_unavailable', '2026-01-01', '2026-01-01'),
+          ('source-workspace', 'source-member-dangling', 'source-resource-missing', 'resource_unavailable', '2026-01-01', '2026-01-01');
+      `);
+      anonymise(db);
+      const resource = requireSqlRow(db.prepare("SELECT id FROM resources").get());
+      const proposals = db.prepare("SELECT resourceId FROM invitation_person_proposals ORDER BY invitationId").all();
+      const exceptions = db
+        .prepare("SELECT proposedResourceId FROM member_resource_link_exceptions ORDER BY userId")
+        .all();
+      expect(proposals).toContainEqual({ resourceId: resource.id });
+      expect(
+        proposals.some(({ resourceId }) =>
+          /^rehearsal-dangling-resource-coordinate-/.test(requireSqlText(resourceId, "dangling proposal resource id")),
+        ),
+      ).toBe(true);
+      expect(exceptions).toContainEqual({ proposedResourceId: resource.id });
+      expect(
+        exceptions.some(({ proposedResourceId }) =>
+          /^rehearsal-dangling-resource-coordinate-/.test(
+            requireSqlText(proposedResourceId, "dangling exception resource id"),
+          ),
+        ),
+      ).toBe(true);
+      expect(JSON.stringify({ proposals, exceptions })).not.toContain("source-resource");
+    } finally {
+      db.close();
+    }
+  });
+}
+
 function registerTenantTriggerTest(): void {
   it("restores immutable tenant triggers byte-for-byte after remapping", () => {
     const db = new DatabaseSync(":memory:");
@@ -713,6 +768,7 @@ describe("migration rehearsal redaction", () => {
   registerProviderBindingAbsenceTests();
   registerMembershipConfirmationTest();
   registerSchedulingRedactionTest();
+  registerNoForeignKeyProposalRedactionTest();
   registerTenantTriggerTest();
   registerRedactionRollbackTest();
 });

@@ -74,6 +74,9 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           renderedAt={orchestration.renderedAt}
           revokeInvite={orchestration.revokeInvite}
           roleOptions={orchestration.roleOptions}
+          invitationPeople={orchestration.invitationPeople}
+          invitationResourceId={orchestration.invitationResourceId}
+          setInvitationResourceId={orchestration.setInvitationResourceId}
         />
       )}
       <MemberConfirmations
@@ -96,7 +99,15 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 type MembersOrchestration = Omit<ReturnType<typeof useMembersOrchestration>, "setActionStatusElement">;
 type MemberTableCapabilities = Pick<
   MembersOrchestration,
-  "myRole" | "busyAction" | "openMenuFor" | "setOpenMenuFor" | "setRoleEdit" | "chooseMemberAction" | "reload"
+  | "myRole"
+  | "busyAction"
+  | "openMenuFor"
+  | "setOpenMenuFor"
+  | "setRoleEdit"
+  | "chooseMemberAction"
+  | "reload"
+  | "activeAccountId"
+  | "resourceCandidates"
 >;
 type ReadinessCapabilities = Pick<
   MembersOrchestration,
@@ -195,6 +206,8 @@ function MembersTable({
               setRoleEdit={memberActions.setRoleEdit}
               chooseMemberAction={memberActions.chooseMemberAction}
               linkedResourceIds={linkedResourceIds}
+              resourceCandidates={memberActions.resourceCandidates}
+              workspaceId={memberActions.activeAccountId}
               reload={memberActions.reload}
             />
           ))}

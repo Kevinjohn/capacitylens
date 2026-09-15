@@ -27,11 +27,19 @@ Invites reuse the P1.9 single-use link: the secret token is shown once at creati
 one-way hash, and never read back, so listing or revoking invites can never leak a live, role-bearing
 link.
 
-An Owner or Admin can also associate one member with one active scheduled person. The association
-does not grant access or create schedule data. When the member has a validated sign-in picture, the
-schedule uses it only if the person has no explicit avatar URL; inactive members or people retain the
-association but show no derived picture. Unlinking returns the person to their explicit avatar, or
-initials when none is set.
+An Owner or Admin can also associate one active member with one active scheduled person. Team & access
+states this explicitly as **Linked to [person] in the schedule** or **Not linked to the schedule** and
+offers separate Link, Change, and Remove actions. The association does not grant access or create
+schedule data. Archived or disabled members and scheduled people retain an existing association for
+status and removal, but cannot be new or changed targets. When the member has a validated sign-in
+picture, the schedule uses it only if the person has no explicit avatar URL; inactive endpoints show
+no derived picture. Unlinking returns the person to their explicit avatar, or initials when none is set.
+
+When creating an invitation, an Owner or Admin may choose **Person in the schedule** or leave the
+default **Not on the schedule**. The choice is not reserved. On admission CapacityLens links the
+person if it is still available; otherwise the member directory shows **Schedule link needs
+attention**, with **Choose another person** and **Dismiss** controls. Invitees never see the
+proposal or exception.
 
 The **Members management section** is a server + auth-on feature only. With auth off or in the
 in-memory demo, **Team & access** still explains the access posture and member/resource distinction,

@@ -6,10 +6,10 @@ import { buildPayloadOperationKey } from "./commandOutcome";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 import type { ReauthAction } from "../auth/reauthCoordinator";
 import {
-  clearMemberResourceLinkRequest,
-  memberResourceLinkRequest,
+  clearMemberResourceLink,
+  dismissMemberResourceLinkException,
   resourceAvatarsUrl,
-  type MemberResourceLinkRequestInput,
+  setMemberResourceLink,
 } from "./memberResourceClient";
 
 interface ChangeMemberRoleInput {
@@ -166,9 +166,9 @@ export const accountClient = {
   },
 
   listResourceAvatars: (workspaceId: string) => apiFetch(resourceAvatarsUrl(workspaceId), { credentials: "include" }),
-  setMemberResourceLink: (input: MemberResourceLinkRequestInput) => apiFetch(...memberResourceLinkRequest(input)),
-  clearMemberResourceLink: (workspaceId: string, principalId: string, expectedRevision: string) =>
-    apiFetch(...clearMemberResourceLinkRequest(workspaceId, principalId, expectedRevision)),
+  setMemberResourceLink,
+  clearMemberResourceLink,
+  dismissMemberResourceLinkException,
 
   setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<Response> {
     return apiFetchReauth(

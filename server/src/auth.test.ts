@@ -24,7 +24,7 @@ import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
 import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
 import { RESOURCE_AVATAR_URL_V42_PIN as AVATAR_MIGRATION } from "./db/migrations/resourceAvatarUrlV42";
 import { ACCOUNT_MEMBER_RESOURCES_V43_PIN as MEMBER_RESOURCE_MIGRATION } from "./db/migrations/accountMemberResourcesV43";
-
+import { INVITATION_PERSON_PROPOSALS_V44_PIN as V44_MIGRATION } from "./db/migrations/invitationPersonProposalsV44";
 const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
   hasLivePreauthorizedInvitation: (email: string) => hasLivePreauthorizedInvitation(db, email),
@@ -419,8 +419,7 @@ const registerStartupControlTests = () => {
     expect(configured.auth).not.toBeNull();
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
-
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(MEMBER_RESOURCE_MIGRATION));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(V44_MIGRATION));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -630,6 +629,7 @@ const CHECKSUM_PINNED_MIGRATIONS = [
   OWNERSHIP_TRANSFER_MIGRATION,
   AVATAR_MIGRATION,
   MEMBER_RESOURCE_MIGRATION,
+  V44_MIGRATION,
 ];
 
 const registerStartupMigrationPlanningTest = () => {

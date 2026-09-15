@@ -4,6 +4,7 @@ import { inviteTokenHash, newInviteId } from "./inviteTokens";
 import { hasColumn } from "../schema";
 import { tx } from "../txn";
 import type { Invite } from "./invites";
+import { INVITATION_PERSON_PROPOSALS_SQL } from "./invitationPersonProposals";
 
 export const USED_INVITATION_RETENTION_LIMIT = 200;
 export const USED_INVITATION_RETENTION_MS = 365 * 24 * 60 * 60 * 1_000;
@@ -174,4 +175,7 @@ export function ensureControlTables(db: Db): void {
   db.exec(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_id ON invites(id); CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId); ${INVITATION_RETENTION_INDEXES_V24_SQL}`,
   );
+  // The v44 migration owns the immutable ledger entry; this idempotent fresh/boot repair keeps
+  // focused control-plane fixtures and newly-created databases on the same current shape.
+  db.exec(INVITATION_PERSON_PROPOSALS_SQL);
 }

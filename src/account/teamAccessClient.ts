@@ -33,12 +33,22 @@ export interface TeamMember {
   isSelf: boolean;
   mayResetPassword: boolean;
   mayRevokeSessions: boolean;
-  resourceLink?: { resourceId: string; revision: string } | null;
+  resourceLink?: {
+    resourceId: string;
+    revision: string;
+    resourceName?: string | null;
+    resourceStatus?: "active" | "disabled" | "archived" | null;
+  } | null;
+  resourceLinkException?: {
+    proposedResourceId: string | null;
+    reason: "resource_unavailable" | "resource_already_linked" | "member_already_linked";
+  } | null;
 }
 
 export interface TeamDirectory {
   members: TeamMember[];
   signInTrackingEnabled: boolean;
+  resourceCandidates: { resourceId: string; label: string }[];
 }
 
 export interface TeamInvitation {
@@ -48,6 +58,8 @@ export interface TeamInvitation {
   expiresAt: string;
   usedAt: string | null;
   createdAt: string;
+  proposedResourceId?: string;
+  proposedResourceLabel?: string;
 }
 
 export interface OneTimeToken {
@@ -92,6 +104,8 @@ function parseMember(row: unknown): TeamMember | null {
   if (!isNullableString(row.name) || !isNullableString(row.email)) return null;
   const resourceLink = parseMemberResourceLink(row.resourceLink);
   if (resourceLink === undefined) return null;
+  const resourceLinkException = parseMemberResourceLinkException(row.resourceLinkException);
+  if (resourceLinkException === undefined) return null;
   return {
     userId: row.userId,
     role: row.role,
@@ -104,26 +118,56 @@ function parseMember(row: unknown): TeamMember | null {
     mayResetPassword: row.mayResetPassword === true,
     mayRevokeSessions: row.mayRevokeSessions === true,
     resourceLink,
+    resourceLinkException,
   };
 }
 
+function parseMemberResourceLinkException(value: unknown): TeamMember["resourceLinkException"] | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isRecord(value)) return undefined;
+  if (
+    (value.proposedResourceId !== null && typeof value.proposedResourceId !== "string") ||
+    (value.reason !== "resource_unavailable" &&
+      value.reason !== "resource_already_linked" &&
+      value.reason !== "member_already_linked")
+  )
+    return undefined;
+  return { proposedResourceId: value.proposedResourceId, reason: value.reason };
+}
+
+function parseMemberResourceStatus(value: unknown): "active" | "disabled" | "archived" | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (value === "active" || value === "disabled" || value === "archived") return value;
+  return undefined;
+}
+
+// eslint-disable-next-line complexity
 function parseMemberResourceLink(value: unknown): TeamMember["resourceLink"] | undefined {
   if (value === undefined || value === null) return null;
   if (!isRecord(value) || typeof value.resourceId !== "string" || value.resourceId.length === 0) return undefined;
   if (typeof value.revision !== "string" || value.revision.length === 0) return undefined;
-  return { resourceId: value.resourceId, revision: value.revision };
+  if (value.resourceName !== undefined && value.resourceName !== null && typeof value.resourceName !== "string")
+    return undefined;
+  const resourceStatus = parseMemberResourceStatus(value.resourceStatus);
+  if (resourceStatus === undefined) return undefined;
+  return {
+    resourceId: value.resourceId,
+    revision: value.revision,
+    resourceName: typeof value.resourceName === "string" ? value.resourceName : null,
+    resourceStatus,
+  };
 }
 
-function parseMembers(value: unknown): TeamDirectory | null {
-  if (
-    !isRecord(value) ||
-    !Array.isArray(value.members) ||
-    !(value.signInTrackingEnabled === undefined || typeof value.signInTrackingEnabled === "boolean")
-  )
-    return null;
-  const signInTrackingEnabled = value.signInTrackingEnabled === true;
+function parseResourceCandidate(value: unknown): { resourceId: string; label: string } | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.resourceId !== "string" || value.resourceId.length === 0) return null;
+  if (typeof value.label !== "string" || value.label.length === 0) return null;
+  return { resourceId: value.resourceId, label: value.label };
+}
+
+function parseDirectoryMembers(rows: readonly unknown[]): TeamMember[] | null {
   const members: TeamMember[] = [];
-  for (const row of value.members) {
+  for (const row of rows) {
     const member = parseMember(row);
     if (member === null) {
       console.warn("teamAccessClient: dropped an unsupported member-directory row", row);
@@ -131,8 +175,28 @@ function parseMembers(value: unknown): TeamDirectory | null {
     }
     members.push(member);
   }
-  if (value.members.length > 0 && members.length === 0) return null;
-  return hasDuplicateIdentity(members, (member) => member.userId) ? null : { members, signInTrackingEnabled };
+  return rows.length > 0 && members.length === 0 ? null : members;
+}
+
+function parseResourceCandidates(rows: readonly unknown[]): { resourceId: string; label: string }[] {
+  return rows.flatMap((candidate) => {
+    const parsed = parseResourceCandidate(candidate);
+    return parsed === null ? [] : [parsed];
+  });
+}
+
+function parseMembers(value: unknown): TeamDirectory | null {
+  if (!isRecord(value) || !Array.isArray(value.members)) return null;
+  if (value.signInTrackingEnabled !== undefined && typeof value.signInTrackingEnabled !== "boolean") return null;
+  if (value.resourceCandidates !== undefined && !Array.isArray(value.resourceCandidates)) return null;
+  const signInTrackingEnabled = value.signInTrackingEnabled === true;
+  const members = parseDirectoryMembers(value.members);
+  if (members === null) return null;
+  const resourceCandidates = parseResourceCandidates(value.resourceCandidates ?? []);
+  return hasDuplicateIdentity(members, (member) => member.userId) ||
+    hasDuplicateIdentity(resourceCandidates, (candidate) => candidate.resourceId)
+    ? null
+    : { members, signInTrackingEnabled, resourceCandidates };
 }
 
 function hasValidInvitationIdentity(
@@ -147,11 +211,17 @@ function hasValidInvitationDates(
   return isTimestamp(row.expiresAt) && (row.usedAt === null || isTimestamp(row.usedAt)) && isTimestamp(row.createdAt);
 }
 
+function isOptionalNonEmptyString(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && value.length > 0);
+}
+
 function parseInvitation(row: unknown): TeamInvitation | null {
   if (!isRecord(row)) return null;
   if (!hasValidInvitationIdentity(row)) return null;
   if (!hasValidInvitationDates(row)) return null;
   if (!(row.preauthEmail === undefined || row.preauthEmail === null || typeof row.preauthEmail === "string"))
+    return null;
+  if (!isOptionalNonEmptyString(row.proposedResourceId) || !isOptionalNonEmptyString(row.proposedResourceLabel))
     return null;
   return {
     id: row.id,
@@ -160,6 +230,8 @@ function parseInvitation(row: unknown): TeamInvitation | null {
     expiresAt: row.expiresAt,
     usedAt: row.usedAt,
     createdAt: row.createdAt,
+    ...(typeof row.proposedResourceId === "string" ? { proposedResourceId: row.proposedResourceId } : {}),
+    ...(typeof row.proposedResourceLabel === "string" ? { proposedResourceLabel: row.proposedResourceLabel } : {}),
   };
 }
 
@@ -269,7 +341,15 @@ export const teamAccessClient = {
 
   async clearMemberResourceLink(workspaceId: string, principalId: string, expectedRevision: string) {
     return readCommandResult(
-      await accountClient.clearMemberResourceLink(workspaceId, principalId, expectedRevision),
+      await accountClient.clearMemberResourceLink({ workspaceId, principalId, expectedRevision }),
+      noContent,
+      204,
+    );
+  },
+
+  async dismissMemberResourceLinkException(workspaceId: string, principalId: string) {
+    return readCommandResult(
+      await accountClient.dismissMemberResourceLinkException(workspaceId, principalId),
       noContent,
       204,
     );
@@ -287,6 +367,7 @@ export const teamAccessClient = {
     accountId: string;
     role: InvitationRole;
     preauthEmail?: string;
+    proposedResourceId?: string;
   }): Promise<TeamAccessResult<OneTimeToken>> {
     return readCommandResult(await accountClient.createInvitation(input), parseToken, 201);
   },
