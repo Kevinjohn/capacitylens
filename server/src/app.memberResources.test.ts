@@ -26,14 +26,6 @@ describe("member resource links", () => {
     const viewer = await signUp(app, "clark-kent@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
     upsertMember(db, { accountId: "a1", userId: viewer.userId, role: "viewer", status: "active", createdAt: TS });
-    const malformedReplacement = await call(app, {
-      method: "PUT",
-      url: `/api/accounts/a1/members/${owner.userId}/resource-link`,
-      headers: { cookie: owner.cookie },
-      payload: { resourceId: "bruce", expectedRevision: null, replacePrincipalId: "old-principal" },
-    });
-    expect(malformedReplacement.statusCode).toBe(400);
-    expect(malformedReplacement.body).toContain("replaceExpectedRevision");
     db.prepare(`UPDATE user SET image = ? WHERE id = ?`).run(" https://images.example/bruce.png ", owner.userId);
     db.prepare(
       `INSERT INTO resources

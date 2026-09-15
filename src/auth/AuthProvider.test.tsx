@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { IDBFactory } from "fake-indexeddb";
-import { me } from "./testAuthResponse";
 
 // P3.3: the auth boundary's three behaviours. The demo build (VITE_CAPACITYLENS_DEMO=1) is a
 // pass-through that performs NO fetch at all; server mode (the default) + authMode 'off' renders
@@ -15,6 +14,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks(); // console.warn spies in the refreshAuth describe
 });
+
+const me = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 
 async function freshProvider() {
   vi.resetModules();
@@ -1291,7 +1296,6 @@ function registerAccountPolicyTest08() {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 }
-
 describe("AuthProvider — canCreateAccount / multiAccount (single-company-per-instance policy)", () => {
   registerAccountPolicyTest01();
   registerAccountPolicyTest02();

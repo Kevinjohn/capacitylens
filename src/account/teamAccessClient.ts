@@ -331,8 +331,6 @@ export const teamAccessClient = {
     principalId: string;
     resourceId: string;
     expectedRevision: string | null;
-    replacePrincipalId?: string;
-    replaceExpectedRevision?: string;
   }) {
     return readResult(await accountClient.setMemberResourceLink(input), (body) =>
       isRecord(body) && typeof body.resourceId === "string" && typeof body.revision === "string"

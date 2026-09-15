@@ -1,6 +1,6 @@
 # US-SET-10 — Member management (Owner/Admin invite / list / role / revoke)
 
-**Area:** Team & access · **Persona:** Studio owner / admin · **Linked E2E:** `e2e/members.auth.spec.ts` → "admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak" · `e2e/resource-member-actions.auth.spec.ts` → "an Owner links, changes, removes, and invites from resource rows while denied roles see no controls"
+**Area:** Team & access · **Persona:** Studio owner / admin · **Linked E2E:** `e2e/members.auth.spec.ts` → "admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak"
 
 ## Goal
 
@@ -13,6 +13,10 @@ owner-only operations. Ownership transfer is not part of this story: it has no p
 [US-SET-18](US-SET-18-ownership-transfer.md).
 
 **Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md)
+
+From Resources, an Owner or Admin can choose **Manage team links** to open Team & access.
+Linking, changing or removing a scheduled-person association and creating invitations happen
+only here. Navigation does not submit a command or carry a resource or invitation selection.
 
 ## Why
 
@@ -41,12 +45,6 @@ person if it is still available; otherwise the member directory shows **Schedule
 attention**, with **Choose another person** and **Dismiss** controls. Invitees never see the
 proposal or exception.
 
-From **Resources**, the same Owner/Admin can manage an active scheduled person's association without
-opening Team & access. An unlinked person offers **Link existing member** and **Invite to company**;
-a linked active person offers **Change link** and **Remove link**. Existing links retained for inactive
-members are unlink-only. These actions are absent for placeholder, external, archived and deleted rows,
-and the invitation's optional person proposal remains private and in-memory until the invitation is created.
-
 The **Members management section** is a server + auth-on feature only. With auth off or in the
 in-memory demo, **Team & access** still explains the access posture and member/resource distinction,
 but no directory or management controls exist.
@@ -71,7 +69,7 @@ the non-blocking product orientation if it is open.
    that exact action. Cancelling the confirmation leaves this page and its loaded directory available.
 
 2. The **member list** is a table (`data-testid="members-table"`) with the columns **Name**,
-   **Email**, **Edit member** and **Member settings**, one row per member
+   **Email**, **Scheduled person**, **Edit member** and **Member settings**, one row per member
    (`data-testid="member-row"`); the role sits beneath the name and B's own row is marked **(you)**.
    The table lists the active members,
    ordered by join date and then by name; disabled and archived memberships are grouped below it
@@ -113,7 +111,7 @@ the non-blocking product orientation if it is open.
    **Company ownership** section below, as a three-step ceremony the nominated Admin must agree to —
    see [US-SET-18](US-SET-18-ownership-transfer.md).
 10. Signed in as A, the Owner can turn on **Record member sign-ins**
-    (`data-testid="member-sign-in-tracking"`). This adds a **Signed in** column between **Email** and
+    (`data-testid="member-sign-in-tracking"`). This adds a **Signed in** column between **Scheduled person** and
     the two right-aligned action columns. It shows only **Yes** or **Not yet** for a successful
     sign-in while the setting is on. The setting is off by default, starts a fresh observation
     window when enabled, and deletes every confirmation when disabled. CapacityLens stores no
@@ -126,10 +124,10 @@ the non-blocking product orientation if it is open.
   from a persisted auth-off server's **Open access** posture. The **Members** management section
   renders only in server + auth-on mode for an Owner/Admin; a Viewer/Editor sees their role
   explanation but no member directory or controls.
-- The member list is a table of **Name**, **Email**, optional **Signed in**, **Edit member** and
+- The member list is a table of **Name**, **Email**, **Scheduled person**, optional **Signed in**, **Edit member** and
   **Member settings**, with the role visible beneath the name. The caller's own row is marked and
-  rows are ordered by join date and then by name. The pencil occupies the fourth column and the gear
-  the fifth when **Signed in** is visible; both action columns stay separated and right-aligned.
+  rows are ordered by join date and then by name. Both action columns stay separated and
+  right-aligned after the optional **Signed in** column.
 - **Record member sign-ins** is Owner-only and off by default. Enabling it starts a fresh window,
   confirms the Owner operating the switch and stores one nullable boolean per membership. A
   successful sign-in changes **Not yet** to **Yes**. Changing that membership's access state,

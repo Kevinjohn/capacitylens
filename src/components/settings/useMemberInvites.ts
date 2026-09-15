@@ -1,16 +1,14 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
+import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { resolveRejectionMessage, teamAccessClient, type TeamInvitation } from "../../account/teamAccessClient";
-import { validateInvitationEmail } from "../../account/invitationValidation";
 import type { useAuth } from "../../auth/authContext";
 import type { FieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import type { MemberActionDependencies } from "./memberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
-import { clearInvitationPreselection } from "./invitationPreselection";
 
 interface MemberInviteDependencies extends MemberActionDependencies {
   authMode: ReturnType<typeof useAuth>["authMode"];
@@ -38,6 +36,22 @@ export interface InvitationPersonOption {
   label: string;
 }
 
+type InviteEmailValidationResult = { kind: "valid"; email: string } | { kind: "invalid"; message: string };
+
+function buildInviteEmailValidation(
+  authMode: MemberInviteDependencies["authMode"],
+  email: string,
+): InviteEmailValidationResult {
+  const trimmed = email.trim();
+  if (authMode === "sso" && trimmed.length === 0) {
+    return { kind: "invalid", message: m.settings_sso_invite_email_required() };
+  }
+  if (trimmed.length > 0 && !isAccountEmail(trimmed)) {
+    return { kind: "invalid", message: m.identity_err_email() };
+  }
+  return { kind: "valid", email: trimmed };
+}
+
 function resolveInviteMutationError(message: string, error: unknown) {
   return m.settings_members_error_detail({ message, error: resolveErrorMessage(error) });
 }
@@ -63,12 +77,9 @@ function createSubmitInvite({
   return async () => {
     clear();
     requestAccountId();
-    const emailValidation = validateInvitationEmail(authMode, invitationPreauthorizedEmail);
+    const emailValidation = buildInviteEmailValidation(authMode, invitationPreauthorizedEmail);
     if (emailValidation.kind === "invalid") {
-      return fail(
-        "invite",
-        emailValidation.reason === "required" ? m.settings_sso_invite_email_required() : m.identity_err_email(),
-      );
+      return fail("invite", emailValidation.message);
     }
     if (invitationResourceId && !invitationPeople.some((person) => person.id === invitationResourceId)) {
       return fail("invite", m.settings_invite_person_stale());
@@ -181,23 +192,13 @@ function createCopyLink({
 
 /** Establish link reconciliation before directory reads, then bind actions to directory outputs. */
 // eslint-disable-next-line max-lines-per-function
-export function useMemberInvites(initialResourceId: string | null = null, contextKey = "unbound") {
+export function useMemberInvites() {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
-  const [invitationResourceId, setInvitationResourceId] = useState(initialResourceId ?? "");
+  const [invitationResourceId, setInvitationResourceId] = useState("");
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
   // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
-  const [committedContextKey, setCommittedContextKey] = useState(contextKey);
-  const setInvitationResourceIdForState = useCallback<Dispatch<SetStateAction<string>>>((value) => {
-    setInvitationResourceId(value);
-  }, []);
-  // The one-shot navigation handoff is external to this hook's normal form lifecycle.
-  useEffect(() => {
-    if (initialResourceId) {
-      setInvitationResourceId(initialResourceId);
-    }
-  }, [initialResourceId]);
   const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {
     setMintedLink((current) =>
       current?.inviteId && !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
@@ -206,22 +207,10 @@ export function useMemberInvites(initialResourceId: string | null = null, contex
     );
   }, []);
   const resetInviteDraft = useCallback(() => {
-    setInviteRole("editor");
     setInvitationPreauthorizedEmail("");
     setInvitationResourceId("");
     setMintedLink(null);
-    clearInvitationPreselection();
   }, []);
-
-  useEffect(() => {
-    if (committedContextKey === contextKey) return;
-    setCommittedContextKey(contextKey);
-    resetInviteDraft();
-  }, [committedContextKey, contextKey, resetInviteDraft]);
-
-  // The effect clears the underlying draft, but expose safe defaults during the transition render
-  // so an account/session/authorization change cannot flash the old private values.
-  const contextCurrent = committedContextKey === contextKey;
 
   const createActions = ({
     authMode,
@@ -250,7 +239,7 @@ export function useMemberInvites(initialResourceId: string | null = null, contex
       setInvitationPreauthorizedEmail,
       setMintedLink,
       invitationResourceId,
-      setInvitationResourceId: setInvitationResourceIdForState,
+      setInvitationResourceId,
       invitationPeople,
     });
     const revokeInvite = createRevokeInvite({
@@ -266,13 +255,13 @@ export function useMemberInvites(initialResourceId: string | null = null, contex
     return { submitInvite, revokeInvite, copyLink };
   };
   return {
-    inviteRole: contextCurrent ? inviteRole : ("editor" as InvitationRole),
+    inviteRole,
     setInviteRole,
-    invitationPreauthorizedEmail: contextCurrent ? invitationPreauthorizedEmail : "",
+    invitationPreauthorizedEmail,
     setInvitationPreauthorizedEmail,
-    invitationResourceId: contextCurrent ? invitationResourceId : "",
-    setInvitationResourceId: setInvitationResourceIdForState,
-    mintedLink: contextCurrent ? mintedLink : null,
+    invitationResourceId,
+    setInvitationResourceId,
+    mintedLink,
     resetInviteDraft,
     reconcileMintedInvite,
     createActions,

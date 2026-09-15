@@ -6,6 +6,7 @@ import type { AuthStatusResult } from "./authStatus";
 // for statuses that never actually read it (checking/error), so those renders can't be mistaken by
 // the memo's dependency check for a "providers changed" render (a fresh `[]` literal would).
 const EMPTY_PROVIDERS: AuthProviderInfo[] = [];
+
 function authModeForStatus(status: AuthStatusResult) {
   if (status.kind === "pass" || status.kind === "login") return status.authMode;
   return "off";
@@ -28,12 +29,10 @@ export function useAuthContextValue(
   const contextProviders = status.kind === "pass" || status.kind === "login" ? status.providers : EMPTY_PROVIDERS;
   const contextCanCreateAccount = status.kind === "pass" ? status.canCreateAccount : false;
   const contextMultiAccount = status.kind === "pass" ? status.multiAccount : false;
-  const contextSessionInstanceId = status.kind === "pass" ? status.sessionInstanceId : null;
   const authContextValue = useMemo(
     () => ({
       authMode: contextAuthMode,
       user: contextUser,
-      sessionInstanceId: contextSessionInstanceId,
       providers: contextProviders,
       canCreateAccount: contextCanCreateAccount,
       multiAccount: contextMultiAccount,
@@ -43,7 +42,6 @@ export function useAuthContextValue(
     [
       contextAuthMode,
       contextUser,
-      contextSessionInstanceId,
       contextProviders,
       contextCanCreateAccount,
       contextMultiAccount,

@@ -10,8 +10,6 @@ import { resolveResourceDisplayName } from "../../lib/metadata";
 import { FavouriteButton } from "./FavouriteButton";
 import { ExternalResourceSection } from "./ExternalResourceSection";
 import type { ResourceListModel } from "./useResourceListModel";
-import type { ResourceMemberActionsModel } from "./ResourceMemberActions";
-import { ResourceMemberActions } from "./ResourceMemberActions";
 
 type ResourceListContentProps = {
   model: ResourceListModel;
@@ -21,25 +19,11 @@ type ResourceListContentProps = {
   onAddExternal: () => void;
   onEditExternal: (resource: Resource) => void;
   onRequestExternalArchive: (resource: Resource) => void;
-  memberActionsModel: ResourceMemberActionsModel;
-  activeAccountId: string | null;
 };
 
 export function ResourceListContent(props: ResourceListContentProps) {
   return (
     <>
-      {props.memberActionsModel.directoryError && (
-        <div
-          role="alert"
-          className="mb-4 flex items-center gap-2 text-sm text-danger"
-          data-testid="resource-member-directory-error"
-        >
-          <span>{props.memberActionsModel.directoryError}</span>
-          <button type="button" className="underline" onClick={props.memberActionsModel.reload}>
-            {m.settings_resource_member_retry()}
-          </button>
-        </div>
-      )}
       <PeopleSections {...props} />
       {props.model.placeholdersEnabled && <PlaceholderSection {...props} />}
       {props.model.externalEnabled && (
@@ -166,12 +150,7 @@ function ResourceRow({
   model,
   onEdit,
   onRequestArchive,
-  memberActionsModel,
-  activeAccountId,
-}: Pick<
-  ResourceListContentProps,
-  "model" | "onEdit" | "onRequestArchive" | "memberActionsModel" | "activeAccountId"
-> & { resource: Resource }) {
+}: Pick<ResourceListContentProps, "model" | "onEdit" | "onRequestArchive"> & { resource: Resource }) {
   const metadata = model.buildMetadata(resource);
   const displayName = resolveResourceDisplayName(resource);
   return (
@@ -184,7 +163,6 @@ function ResourceRow({
       </ItemContent>
       <ItemActions>
         {resource.kind === "person" && <FavouriteButton resource={resource} />}
-        <ResourceMemberActions resource={resource} accountId={activeAccountId} model={memberActionsModel} />
         <EditButton label={m.list_edit_aria({ name: displayName })} onClick={() => onEdit(resource)} />
         <DeleteButton
           label={m.list_resources_archive_aria({ name: displayName })}

@@ -90,7 +90,10 @@ async function manageAdminMembers(
   await page.getByRole("button", { name: "Got it" }).click();
   await expect(page.getByTestId("getting-started")).toBeVisible();
   await expect(page.getByRole("link", { name: "Invite people to sign in" })).toHaveAttribute("href", "/team");
-  await page.getByRole("link", { name: "Team & access" }).click();
+  await page.getByRole("link", { name: "Resources" }).click();
+  const teamLink = page.getByRole("link", { name: "Manage team links" });
+  await teamLink.focus();
+  await page.keyboard.press("Enter");
   await expect(page.getByTestId("current-access")).toContainText("Admin");
   await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
   await expect(page.getByText("View the schedule")).toHaveCount(0);
@@ -165,7 +168,8 @@ async function manageOwnerMembers(
   await ownerPage.getByRole("button", { name: "Sign in" }).click();
   await ownerPage.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true }).click();
   await waitForAppLanding(ownerPage, ownerPage.locator("#main"));
-  await ownerPage.getByRole("link", { name: "Team & access" }).click();
+  await ownerPage.getByRole("link", { name: "Resources" }).click();
+  await ownerPage.getByRole("link", { name: "Manage team links" }).click();
   await expect(ownerPage.getByTestId("current-access")).toContainText("Owner");
   const ownerTarget = ownerPage.getByTestId("member-row").filter({ hasText: EDITOR });
   await ownerTarget.getByTestId("member-menu").click();

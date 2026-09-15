@@ -278,9 +278,6 @@ export interface AccountMemberResourcePort {
     principalId: PrincipalId;
     resourceId: string;
     expectedRevision: string | null;
-    /** Optional atomic reassignment of the same resource from this member. */
-    replacePrincipalId?: PrincipalId;
-    replaceExpectedRevision?: string;
     now: IsoInstant;
     actor: ActorContext;
     command: CommandIdentity;

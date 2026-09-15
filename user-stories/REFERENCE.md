@@ -4,16 +4,13 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
+Resources offers **Manage team links** (`data-testid="resource-team-link"`) to authenticated
+Owners and Admins. It opens `/team` without a resource selection, mutation, or invitation draft.
+All member linking and invitations remain in **Team & access**.
+
 Invitation administration may carry an optional `proposedResourceId` for an active person in the
 selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
 accept responses never include it.
-
-Active person rows in **Resources** expose account-member association controls in
-`data-testid="resource-member-actions"`: **Link existing member** and **Invite to company** when
-unlinked, or **Change link** and **Remove link** when linked. The controls are available only to an
-authenticated Owner/Admin in an online, server-backed account; placeholder, external, archived and
-deleted rows do not expose them.
-The authenticated resource-first journey is covered by `e2e/resource-member-actions.auth.spec.ts` and hands invitation preselection to Team & access in memory.
 
 > CapacityLens is a multi-tenant resource scheduler. It is **server-backed by default** (an empty
 > env means the same-origin SQLite API). The app is **multi-tenant by Account**: you pick a company

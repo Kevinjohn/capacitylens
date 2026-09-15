@@ -86,13 +86,9 @@ function parseAuthMeResponse(res: LightMyRequestResponse) {
   if (!("user" in value) || typeof value.user !== "object" || value.user === null || Array.isArray(value.user)) {
     throw new Error("Expected authenticated response body to include a user.");
   }
-  if (!("sessionInstanceId" in value) || typeof value.sessionInstanceId !== "string") {
-    throw new Error("Expected authenticated response body to include a session instance handle.");
-  }
   return {
     authMode: value.authMode,
     mfaRequired: value.mfaRequired,
-    sessionInstanceId: value.sessionInstanceId,
     user: parseAuthUser(value.user),
   };
 }
@@ -501,16 +497,6 @@ describe("CAPACITYLENS_AUTH password", () => {
     expect(parseAuthMeResponse(me).authMode).toBe("password");
     expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
     expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
-    const sessionInstanceId = parseAuthMeResponse(me).sessionInstanceId;
-    expect(sessionInstanceId).toMatch(/^[A-Za-z0-9_-]{43}$/);
-    // The response exposes only the one-way application handle, never the bearer cookie value.
-    expect(me.body).not.toContain(cookie.split("capacitylens.session_token=")[1]?.split(";")[0] ?? "");
-    const refreshedMe = await call(app, {
-      method: "GET",
-      url: "/api/auth/me",
-      headers: { cookie },
-    });
-    expect(parseAuthMeResponse(refreshedMe).sessionInstanceId).toBe(sessionInstanceId);
     // P1.7a: emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
     // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
     // is present and defaults correctly (the P1.10 invite-bind gate depends on it).

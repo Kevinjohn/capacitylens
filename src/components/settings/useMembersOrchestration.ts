@@ -5,7 +5,6 @@ import type { TeamInvitation, TeamMember as Member } from "../../account/teamAcc
 import { resolveStrictOidcProvider, useAuth } from "../../auth/authContext";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useOfflineState } from "../../data/useOfflineState";
-import { useNavigatorOnline } from "../../data/useNavigatorOnline";
 import { useDeadlineClock } from "../../hooks/useDeadlineClock";
 import { useFieldError } from "../../hooks/useFieldError";
 import { useStore } from "../../store/useStore";
@@ -19,16 +18,8 @@ import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
 import type { WorkspaceReadiness } from "./ssoReadiness";
-import { resolveInvitationDirectoryBoundary } from "./useMemberInvitationState";
-import { useInvitationResourceHandoff } from "./useInvitationResourceHandoff";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
-function resolveMemberManagementEnabled(
-  authMode: ReturnType<typeof useAuth>["authMode"],
-  sessionInstanceId: string | null,
-) {
-  return authMode !== "off" && isServerConfigured() && sessionInstanceId !== null;
-}
 
 function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory>["directory"]) {
   switch (directory.kind) {
@@ -296,28 +287,18 @@ function useMemberStoreActions() {
 
 // eslint-disable-next-line max-lines-per-function
 export function useMembersOrchestration(activeAccountId: string | null) {
-  const { authMode, providers, refreshAuth, sessionInstanceId = null, user } = useAuth();
+  const { authMode, providers, refreshAuth } = useAuth();
   // Only the strict (non-experimental) OIDC provider's IDENTITY is needed here: the readiness read
   // is keyed on it, and keying on the provider OBJECT would re-fetch whenever an equal-but-new
   // provider list is resolved.
   const strictProviderId = resolveStrictOidcProvider(providers)?.id ?? null;
   const offline = useOfflineState();
-  const online = useNavigatorOnline();
   const { setNotice, setActiveAccount, invalidateMemberships } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
-  const enabled = resolveMemberManagementEnabled(authMode, sessionInstanceId);
-  const inviteContextKey = [
-    activeAccountId ?? "",
-    user?.id ?? "",
-    sessionInstanceId,
-    authMode,
-    enabled ? "configured" : "unconfigured",
-    offline.readOnly ? "offline" : "online",
-    online ? "browser-online" : "browser-offline",
-    "team-boundary",
-  ].join("\u0000");
-  const memberInvites = useMemberInvites(null, inviteContextKey);
+  const memberInvites = useMemberInvites();
+  const { reconcileMintedInvite, resetInviteDraft, createActions: createInviteActions, ...inviteState } = memberInvites;
+  const enabled = authMode !== "off" && isServerConfigured();
   const directoryState = useMemberDirectoryState({
     activeAccountId,
     enabled,
@@ -326,27 +307,14 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     setNotice,
     setActiveAccount,
     viewState,
-    reconcileMintedInvite: memberInvites.reconcileMintedInvite,
-  });
-  const directoryBoundary = resolveInvitationDirectoryBoundary(directoryState);
-  const setInvitationResourceId = memberInvites.setInvitationResourceId;
-  const proposedResourceId = useInvitationResourceHandoff({
-    activeAccountId,
-    authMode,
-    directoryAuthorized: directoryBoundary.authorized,
-    directoryContextKey: directoryBoundary.key,
-    directoryPending: directoryState.directory.kind === "loading",
-    enabled,
-    offlineReadOnly: offline.readOnly,
-    online,
-    resetInviteDraft: memberInvites.resetInviteDraft,
-    sessionInstanceId,
-    user,
+    reconcileMintedInvite,
   });
   useEffect(() => {
-    if (proposedResourceId !== null) setInvitationResourceId(proposedResourceId);
-  }, [proposedResourceId, setInvitationResourceId]);
-  const { createActions: createInviteActions, ...inviteState } = memberInvites;
+    const unauthorized =
+      directoryState.directory.kind === "hidden" ||
+      (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
+    if (offline.readOnly || unauthorized) resetInviteDraft();
+  }, [directoryState.directory, offline.readOnly, resetInviteDraft]);
   const resourceCandidates = directoryState.resourceCandidates;
   const linkedResourceIds = new Set(
     (directoryState.members ?? []).flatMap((member) => (member.resourceLink ? [member.resourceLink.resourceId] : [])),

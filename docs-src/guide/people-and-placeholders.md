@@ -17,6 +17,27 @@ A person on the schedule doesn't get a CapacityLens sign-in, and inviting a
 separate — see [Roles and permissions](/getting-started/roles-and-permissions).
 :::
 
+## Link a person to a member
+
+Owners and Admins on a signed-in server can select **Manage team links** on Resources
+to open **Team & access**. This opens the existing member directory; it does not select
+a person or change a link.
+
+![Resources with the Manage team links entry point above the scheduled people](../screenshots/flows/resources_team_links.png)
+
+In the member's **Scheduled person** column, choose **Link** and select an available
+person. Use **Change** to choose another person or **Remove** to unlink them. Each member
+can have one scheduled person, and each person can have one member. The association does
+not grant access or create schedule data.
+
+Only active members and active scheduled people can be new link targets. Existing links
+to inactive members or people can be removed. To move an occupied person's link to another
+member, remove the old link first, then link the new member.
+
+To invite someone instead, use **Invite someone** on Team & access. Its optional
+**Person in the schedule** selector can propose an existing person. See
+[Invite your team](/getting-started/invite-your-team).
+
 ## Add a person
 
 1. Open **Resources**.

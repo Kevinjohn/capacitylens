@@ -211,10 +211,6 @@ async function readAuthenticatedIdentity(
   });
   return {
     authMode,
-    // ApplicationSession.id is a stable, one-way application-local handle. It is safe for the
-    // client to use as an in-memory session boundary; the bearer cookie/token never crosses this
-    // response boundary.
-    sessionInstanceId: session.id,
     user,
     mfaRequired: authMode === "password" && requireMfa && !dependencies.sessionSatisfiesRequiredMfa(session),
     reauthMethod: session.assurance === "federated" ? "provider" : "password",

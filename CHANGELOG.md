@@ -9,8 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
-- Add Owner/Admin member-association actions to active scheduled-person rows in Resources, including
-  atomic relinking, unlinking, and private invitation preselection (#1088).
+- Keep member links and invitations in Team & access, with a **Manage team links** entry point
+  from Resources (#1088).
 
 - Let Owners and Admins optionally propose an account-scoped scheduled person for an invitation;
   admission attempts the link atomically and reports actionable exceptions without exposing proposal

@@ -1,11 +1,13 @@
-/* eslint-disable max-lines-per-function, complexity */
 import { useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
-import type { TeamMember } from "../../account/teamAccessClient";
-import { useMemberResourceLinkMutation } from "./useMemberResourceLinkMutation";
+import { resolveRejectionMessage, teamAccessClient, type TeamMember } from "../../account/teamAccessClient";
+import { invalidateResourceAvatars } from "../../account/useResourceAvatars";
 
 /** Account-admin control linking a login member to one active scheduled person. */
+// The branches mirror the complete selector state machine: authorization, CAS create/update/unlink,
+// retained inactive display, in-flight reconciliation and explicit error presentation.
+// eslint-disable-next-line complexity, max-lines-per-function
 export function MemberResourceLink({
   member,
   myRole,
@@ -21,31 +23,23 @@ export function MemberResourceLink({
   workspaceId: string | null;
   reload(): void;
 }) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const selectorRef = useRef<HTMLSelectElement | null>(null);
   const statusRef = useRef<HTMLSpanElement | null>(null);
   const restoreFocusRef = useRef(false);
-  const mutation = useMemberResourceLinkMutation({
-    workspaceId,
-    contextKey: `${workspaceId ?? ""}:${member.userId}:${myRole ?? ""}`,
-    reload,
-    onForbidden: () => {
-      setEditing(false);
-      reload();
-    },
-  });
-
+  const requestGeneration = useRef(0);
   useEffect(() => {
     if (editing) {
       selectorRef.current?.focus();
       return;
     }
-    if (!mutation.pending && restoreFocusRef.current) {
+    if (!pending && restoreFocusRef.current) {
       restoreFocusRef.current = false;
       statusRef.current?.focus();
     }
-  }, [editing, mutation.pending]);
-
+  }, [editing, pending]);
   if (myRole !== "owner" && myRole !== "admin") return <td className="py-2 pr-3" />;
   const currentPerson = resourceCandidates.find((resource) => resource.resourceId === member.resourceLink?.resourceId);
   const people = resourceCandidates
@@ -65,18 +59,64 @@ export function MemberResourceLink({
   const hasException = member.resourceLinkException !== null && member.resourceLinkException !== undefined;
   const change = (resourceId: string) => {
     restoreFocusRef.current = true;
-    setEditing(false);
-    void mutation.mutate({
-      principalId: member.userId,
-      resourceId,
-      expectedRevision: member.resourceLink?.revision ?? null,
-    });
+    if (!workspaceId) return;
+    const generation = ++requestGeneration.current;
+    const current = () => generation === requestGeneration.current;
+    setPending(true);
+    setError(null);
+    let request;
+    if (resourceId !== "")
+      request = teamAccessClient.setMemberResourceLink({
+        workspaceId,
+        principalId: member.userId,
+        resourceId,
+        expectedRevision: member.resourceLink?.revision ?? null,
+      });
+    else if (member.resourceLink)
+      request = teamAccessClient.clearMemberResourceLink(workspaceId, member.userId, member.resourceLink.revision);
+    else request = Promise.resolve({ kind: "ok", value: true, status: 204 } as const);
+    void request
+      .then((result) => {
+        if (!current()) return;
+        if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
+        else invalidateResourceAvatars();
+      })
+      .catch((cause: unknown) => {
+        console.warn("Scheduled-person link request failed", cause);
+        if (current()) setError(m.settings_member_resource_error());
+        invalidateResourceAvatars();
+      })
+      .finally(() => {
+        if (current()) {
+          reload();
+          setPending(false);
+        }
+      });
   };
   const dismissException = () => {
     if (!workspaceId || !member.resourceLinkException) return;
+    const generation = ++requestGeneration.current;
+    const current = () => generation === requestGeneration.current;
     restoreFocusRef.current = true;
-    setEditing(false);
-    void mutation.dismiss(member.userId);
+    setPending(true);
+    setError(null);
+    void teamAccessClient
+      .dismissMemberResourceLinkException(workspaceId, member.userId)
+      .then((result) => {
+        if (!current()) return;
+        if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
+        else invalidateResourceAvatars();
+      })
+      .catch((cause: unknown) => {
+        console.warn("Scheduled-person exception dismissal failed", cause);
+        if (current()) setError(m.settings_member_resource_error());
+      })
+      .finally(() => {
+        if (current()) {
+          reload();
+          setPending(false);
+        }
+      });
   };
   let exceptionMessage: string | null = null;
   if (member.resourceLinkException?.reason === "resource_already_linked")
@@ -101,7 +141,7 @@ export function MemberResourceLink({
                 <button
                   type="button"
                   className="font-medium text-primary underline"
-                  disabled={mutation.pending || !workspaceId}
+                  disabled={pending || !workspaceId}
                   onClick={() => {
                     restoreFocusRef.current = true;
                     setEditing(true);
@@ -113,7 +153,7 @@ export function MemberResourceLink({
               <button
                 type="button"
                 className="font-medium text-muted-foreground underline"
-                disabled={mutation.pending || !workspaceId}
+                disabled={pending || !workspaceId}
                 onClick={dismissException}
               >
                 {m.settings_member_resource_dismiss()}
@@ -132,9 +172,12 @@ export function MemberResourceLink({
             aria-label={m.settings_member_resource_choose_aria({ member: memberLabel })}
             data-testid="member-resource-link"
             className="max-w-48 rounded-md border border-input bg-background px-2 py-1 text-sm"
-            disabled={mutation.pending || !workspaceId}
+            disabled={pending || !workspaceId}
             value={member.resourceLink?.resourceId ?? ""}
-            onChange={(event) => change(event.currentTarget.value)}
+            onChange={(event) => {
+              change(event.currentTarget.value);
+              setEditing(false);
+            }}
           >
             <option value="">{m.settings_member_resource_unlinked()}</option>
             {people.map((person) => (
@@ -161,7 +204,7 @@ export function MemberResourceLink({
             <button
               type="button"
               className="text-xs font-medium text-primary underline"
-              disabled={mutation.pending || !workspaceId}
+              disabled={pending || !workspaceId}
               aria-label={
                 member.resourceLink
                   ? m.settings_member_resource_change_aria({ member: memberLabel })
@@ -179,7 +222,7 @@ export function MemberResourceLink({
             <button
               type="button"
               className="text-xs font-medium text-danger underline"
-              disabled={mutation.pending || !workspaceId}
+              disabled={pending || !workspaceId}
               aria-label={m.settings_member_resource_remove_aria({ member: memberLabel })}
               onClick={() => change("")}
             >
@@ -189,9 +232,9 @@ export function MemberResourceLink({
         </div>
         <span className="text-xs text-muted-foreground">{m.settings_member_resource_explanation()}</span>
       </div>
-      {mutation.error && (
+      {error && (
         <p role="alert" className="mt-1 text-xs text-danger">
-          {mutation.error}
+          {error}
         </p>
       )}
     </td>

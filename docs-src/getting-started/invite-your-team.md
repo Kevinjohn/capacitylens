@@ -14,8 +14,9 @@ CapacityLens sends no invitation emails. You create a single-use link and paste 
 wherever your team already talks — Slack, a text message, whatever's fastest.
 
 ::: tip
-Inviting someone doesn't put them on the schedule, and adding someone to the schedule
-doesn't give them a sign-in. These are separate records — see [Roles and
+Adding someone to the schedule doesn't give them a sign-in. An invitation can optionally
+link its recipient to an existing scheduled person, but does not create one. These are
+separate records — see [Roles and
 permissions](/getting-started/roles-and-permissions) for why.
 :::
 
@@ -31,18 +32,25 @@ permissions](/getting-started/roles-and-permissions) for why.
 
 1. Open **Team & access**. Your own access is summarised at the top of the page; select
    **See full capabilities** if you want the full list of what your role can and can't do.
+   You can also get here using **Manage team links** on Resources.
 
 2. Choose a role in the "Invite someone" panel. The consequences of that role are spelled
    out in plain language underneath it, and you can optionally pre-authorise a specific
    email address. That restricts acceptance to that address. Leave it empty for a single-use
    link that another recipient can use. Company-login-only installs require an email address.
 
-3. Select **Create invite**, then **Copy** the one-time link. It's shown exactly once — the server keeps only a hash of it —
+3. Optionally choose **Person in the schedule**, or leave **Not on the schedule** selected.
+   This proposes an existing person without reserving them. The recipient cannot see this
+   selection. If the person is no longer available when the invitation is accepted, the
+   member can still join; Team & access shows **Schedule link needs attention**. Choose
+   **Choose another person** or **Dismiss** there.
+
+4. Select **Create invite**, then **Copy** the one-time link. It's shown exactly once — the server keeps only a hash of it —
    so copy it now and send it to the [person](/reference/glossary). The confirmation stays beside
    the link. CapacityLens does not send it for you. If you lose it, revoke the invite and create
    another one.
 
-   ![Invite created: single-use link shown with a Copy button](../screenshots/flows/invitation_created.png)
+   ![Invitation form with an optional scheduled person and the created link redacted for publication](../screenshots/flows/invitation_created.png)
 
 ## What the invitee sees
 
@@ -81,12 +89,15 @@ see their own access.
 Your members are listed in a table showing their name and email, with their role beneath
 their name. Two controls sit at the end of each row:
 
-![Members table with the privacy-preserving sign-in setting enabled](../screenshots/flows/team-access.jpg)
+![Members table with scheduled-person links and the privacy-preserving sign-in setting enabled](../screenshots/flows/team_access_members.png)
 
 - The **pencil** changes that person's role, with the consequences spelled out before you
   save.
 - The **gear** opens the rest: reset their password, sign them out everywhere, disable or
   archive them, or remove them from the company.
+
+The **Scheduled person** column shows the member's association, with **Link**, **Change**
+and **Remove** controls. See [Link a person to a member](/guide/people-and-placeholders#link-a-person-to-a-member).
 
 **Disable** and **archive** both stop someone opening the company immediately while
 keeping their role and history — use them when someone leaves, goes on long-term leave, or
@@ -95,7 +106,7 @@ access** in the same menu puts them back exactly as they were. Removing someone,
 contrast, is permanent: they'd need a fresh invitation to return.
 
 Owners can turn on **Record member sign-ins** above the table. It is off by default. When
-it is on, the columns are **Name**, **Email**, **Signed in**, **Edit member** and **Member
+it is on, the columns are **Name**, **Email**, **Scheduled person**, **Signed in**, **Edit member** and **Member
 settings**. The last two controls stay together at the right-hand edge. **Signed in**
 shows **Yes** or **Not yet** for each member. CapacityLens stores no sign-in date or
 activity history for this feature. Turning the setting off deletes every confirmation.

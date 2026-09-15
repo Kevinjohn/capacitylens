@@ -5,9 +5,6 @@ import { useAuth } from "../../auth/authContext";
 import { resolveAccessLabel, resolveAccessSummary } from "../../lib/accessCopy";
 import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
 import { useOfflineState } from "../../data/useOfflineState";
-import { useNavigatorOnline } from "../../data/useNavigatorOnline";
-import { useStore } from "../../store/useStore";
-import { useInvitationPreselectionLifecycle } from "../settings/invitationPreselection";
 import { MembersSection } from "../settings/MembersSection";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
 import { Badge } from "../ui/badge";
@@ -31,7 +28,6 @@ interface CurrentAccessCardProps {
 interface AccessManagementProps {
   authenticated: boolean;
   mayManage: boolean;
-  online: boolean;
   offlineReadOnly: boolean;
   permissionStatus: ReturnType<typeof usePermissionStatus>;
 }
@@ -121,13 +117,7 @@ function CurrentAccessCard({ accessLabel, accessSummary, accessWarning, effectiv
   );
 }
 
-function AccessManagement({
-  authenticated,
-  mayManage,
-  online,
-  offlineReadOnly,
-  permissionStatus,
-}: AccessManagementProps) {
+function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissionStatus }: AccessManagementProps) {
   if (!authenticated) {
     // Demo and open installations have no real membership directory, so say so plainly rather
     // than leaving the page looking broken. Previously this lived in a members explainer card.
@@ -137,7 +127,6 @@ function AccessManagement({
       </Alert>
     );
   }
-  if (!online) return null;
   if (mayManage) return <MembersSection />;
   if (offlineReadOnly || permissionStatus !== "resolved") return null;
 
@@ -153,28 +142,11 @@ function AccessManagement({
   );
 }
 
-function resolveMayManageMembers(input: {
-  online: boolean;
-  offlineReadOnly: boolean;
-  sessionInstanceId: string | null;
-  role: Role | null;
-}): boolean {
-  return (
-    input.online &&
-    !input.offlineReadOnly &&
-    input.sessionInstanceId !== null &&
-    input.role !== null &&
-    can(input.role, "manageMembers")
-  );
-}
-
 export function TeamAccessView() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const { authMode, sessionInstanceId = null, user } = useAuth();
+  const { authMode } = useAuth();
   const offline = useOfflineState();
-  const online = useNavigatorOnline();
-  const activeAccountId = useStore((state) => state.activeAccountId);
   const accessExperience = resolveAccessExperience(authMode);
   const authenticated = accessExperience === "authenticated";
   const resolvedRole = authenticated && permissionStatus === "resolved" ? role : null;
@@ -182,22 +154,7 @@ export function TeamAccessView() {
   // this is an auth-off installation. Never advertise live Owner/Open/Demo powers while writes are
   // deliberately disabled and the server cannot confirm membership.
   const effectiveRole: Role | null = offline.readOnly ? "viewer" : resolvedRole;
-  const mayManage = resolveMayManageMembers({
-    online,
-    offlineReadOnly: offline.readOnly,
-    sessionInstanceId,
-    role: resolvedRole,
-  });
-  useInvitationPreselectionLifecycle({
-    accountId: activeAccountId,
-    userId: user?.id ?? null,
-    sessionInstanceId,
-    authMode,
-    offlineReadOnly: offline.readOnly,
-    online,
-    permissionStatus,
-    mayManage,
-  });
+  const mayManage = !offline.readOnly && resolvedRole !== null && can(resolvedRole, "manageMembers");
   const accessCopyInput = {
     offlineReadOnly: offline.readOnly,
     experience: accessExperience,
@@ -230,7 +187,6 @@ export function TeamAccessView() {
       <AccessManagement
         authenticated={authenticated}
         mayManage={mayManage}
-        online={online}
         offlineReadOnly={offline.readOnly}
         permissionStatus={permissionStatus}
       />

@@ -1,17 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { PermissionContext } from "../../auth/permissionContext";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
 import { TeamAccessView } from "./TeamAccessView";
 import { setOfflineReadState } from "../../data/offlineCache";
-import { useStore } from "../../store/useStore";
-import {
-  claimInvitationPreselection,
-  clearInvitationPreselection,
-  setInvitationPreselection,
-} from "../settings/invitationPreselection";
 
 const buildMode = vi.hoisted(() => ({ demo: false }));
 vi.mock("../../data/apiConfig", () => ({
@@ -27,7 +21,6 @@ vi.mock("../settings/MembersSection", () => ({
 const auth = (authMode: AuthContextValue["authMode"]): AuthContextValue => ({
   authMode,
   user: authMode === "off" ? null : { id: "me", email: "me@example.com" },
-  sessionInstanceId: authMode === "off" ? null : "A".repeat(43),
   canCreateAccount: true,
   multiAccount: true,
   refreshAuth: async () => {},
@@ -62,8 +55,6 @@ beforeEach(() => {
 
 afterEach(() => {
   setOfflineReadState("cleanup", false);
-  clearInvitationPreselection();
-  useStore.setState({ activeAccountId: null });
 });
 
 describe("TeamAccessView access presentation", () => {
@@ -148,72 +139,6 @@ describe("TeamAccessView member management", () => {
 
     expect(controls).not.toBeInTheDocument();
     expect(screen.queryByTestId("member-management")).not.toBeInTheDocument();
-  });
-
-  it("hides member management while the browser is offline and restores it when online", async () => {
-    const originalOnline = navigator.onLine;
-    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
-    const view = renderView("owner", "password", "resolved");
-    expect(screen.getByTestId("member-management")).toBeInTheDocument();
-
-    Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
-    window.dispatchEvent(new Event("offline"));
-    await waitFor(() => expect(screen.queryByTestId("member-management")).not.toBeInTheDocument());
-
-    Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
-    window.dispatchEvent(new Event("online"));
-    await waitFor(() => expect(screen.getByTestId("member-management")).toBeInTheDocument());
-    view.unmount();
-    Object.defineProperty(navigator, "onLine", { configurable: true, value: originalOnline });
-  });
-
-  it("clears resource invitation handoff when the real Team boundary loses authorization", async () => {
-    const authContext = auth("password");
-    const sessionUser = authContext.user;
-    if (!sessionUser) throw new Error("Expected authenticated test user");
-    useStore.setState({ activeAccountId: "account-1" });
-    setInvitationPreselection(
-      {
-        accountId: "account-1",
-        userId: sessionUser.id,
-        sessionInstanceId: authContext.sessionInstanceId ?? null,
-        authMode: "password",
-        offlineReadOnly: false,
-        online: true,
-      },
-      "person-1",
-    );
-    const view = render(
-      <MemoryRouter>
-        <AuthContext.Provider value={authContext}>
-          <PermissionContext.Provider value={{ role: "owner", status: "resolved" }}>
-            <TeamAccessView />
-          </PermissionContext.Provider>
-        </AuthContext.Provider>
-      </MemoryRouter>,
-    );
-    view.rerender(
-      <MemoryRouter>
-        <AuthContext.Provider value={authContext}>
-          <PermissionContext.Provider value={{ role: "viewer", status: "resolved" }}>
-            <TeamAccessView />
-          </PermissionContext.Provider>
-        </AuthContext.Provider>
-      </MemoryRouter>,
-    );
-    await waitFor(() =>
-      expect(
-        claimInvitationPreselection({
-          accountId: "account-1",
-          userId: sessionUser.id,
-          sessionInstanceId: authContext.sessionInstanceId ?? null,
-          authMode: "password",
-          offlineReadOnly: false,
-          online: true,
-        }),
-      ).toBeNull(),
-    );
-    view.unmount();
   });
 
   it.each([
