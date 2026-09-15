@@ -23,6 +23,7 @@ import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort"
 import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
 import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
 import { RESOURCE_AVATAR_URL_V42_PIN as AVATAR_MIGRATION } from "./db/migrations/resourceAvatarUrlV42";
+import { ACCOUNT_MEMBER_RESOURCES_V43_PIN as MEMBER_RESOURCE_MIGRATION } from "./db/migrations/accountMemberResourcesV43";
 
 const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
@@ -419,7 +420,7 @@ const registerStartupControlTests = () => {
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
 
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(AVATAR_MIGRATION));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(MEMBER_RESOURCE_MIGRATION));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -586,7 +587,6 @@ const registerStartupDiscoveryFailureTest = () => {
     expect(response.headers.get("location")).not.toContain("attacker.example");
   });
 };
-
 const CAPACITY_OVERVIEW_MIGRATION = {
   version: 39,
   name: "add-capacity-overview-access",
@@ -602,7 +602,6 @@ const RESOURCE_AVAILABILITY_MIGRATION = {
   name: "add-resource-availability-dates",
   checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
 };
-
 const OWNERSHIP_TRANSFER_MIGRATION = {
   version: 41,
   name: "add-ownership-transfer-requests",
@@ -630,6 +629,7 @@ const CHECKSUM_PINNED_MIGRATIONS = [
   DATE_STYLE_MIGRATION,
   OWNERSHIP_TRANSFER_MIGRATION,
   AVATAR_MIGRATION,
+  MEMBER_RESOURCE_MIGRATION,
 ];
 
 const registerStartupMigrationPlanningTest = () => {

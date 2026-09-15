@@ -27,6 +27,12 @@ Invites reuse the P1.9 single-use link: the secret token is shown once at creati
 one-way hash, and never read back, so listing or revoking invites can never leak a live, role-bearing
 link.
 
+An Owner or Admin can also associate one member with one active scheduled person. The association
+does not grant access or create schedule data. When the member has a validated sign-in picture, the
+schedule uses it only if the person has no explicit avatar URL; inactive members or people retain the
+association but show no derived picture. Unlinking returns the person to their explicit avatar, or
+initials when none is set.
+
 The **Members management section** is a server + auth-on feature only. With auth off or in the
 in-memory demo, **Team & access** still explains the access posture and member/resource distinction,
 but no directory or management controls exist.

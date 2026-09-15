@@ -12,7 +12,7 @@ const request: ImportWorkerRequest = {
   now: "2026-07-30T00:00:00.000Z",
 };
 
-const result: ImportWorkerResult = { data: emptyAppData(), imported: 0, skipped: 0 };
+const result: ImportWorkerResult = { data: emptyAppData(), imported: 0, skipped: 0, resourceIdMap: new Map() };
 
 function deferred<T>() {
   let resolve!: (value: T) => void;

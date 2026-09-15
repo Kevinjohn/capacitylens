@@ -21,6 +21,7 @@ import { useSchedulerGridPreferences, useSchedulerGridModel } from "./useSchedul
 import { useSchedulerGridVirtualization } from "./useSchedulerGridVirtualization";
 import { PersonScheduleSheet } from "../person-schedule/PersonScheduleSheet";
 import { usePersonScheduleDrawer } from "../person-schedule/usePersonScheduleDrawer";
+import { useResourceAvatars } from "../../account/useResourceAvatars";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
@@ -180,6 +181,7 @@ type GridViewProps = {
   navigateToResources: () => void;
   interactions: ReturnType<typeof useSchedulerInteractions>;
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
+  resourceAvatars: ReadonlyMap<string, string>;
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 };
 
@@ -238,6 +240,7 @@ function SchedulerGridContents(props: GridViewProps) {
         handleEdit={interactions.editAllocation}
         handleDraw={interactions.createFromDraw}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
+        resourceAvatars={props.resourceAvatars}
         onViewSchedule={props.onViewSchedule}
       />
       <SchedulerModalBoundary interactions={interactions} />
@@ -339,6 +342,8 @@ export function SchedulerGrid() {
   const canEdit = useCanEdit();
   const toggleGroup = useStore((state) => state.toggleGroup);
   const clearFilters = useStore((state) => state.clearFilters);
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const resourceAvatars = useResourceAvatars(activeAccountId);
   const { accountPrefs, ui, minimiseWeekends, snapToWeekStart } = preferences;
   const interactions = useSchedulerInteractions(ui);
   const viewport = useSchedulerViewport({
@@ -367,6 +372,7 @@ export function SchedulerGrid() {
     navigateToResources: () => void navigate("/resources"),
     interactions,
     personScheduleTitlesByResourceId: personScheduleDrawer.titlesByResourceId,
+    resourceAvatars,
     onViewSchedule: personScheduleDrawer.viewSchedule,
   };
   return (

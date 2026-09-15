@@ -287,17 +287,18 @@ function finishImport(input: ImportInput, brought: ImportTables, prepared: Prepa
   return { data, imported, skipped: total - imported };
 }
 
-function runImport(input: ImportInput): { data: AppData; imported: number; skipped: number } {
+function runImport(input: ImportInput) {
   const prepared = prepareIncoming(input.incoming);
+  const idMaps = buildIdMaps(prepared.rows);
   const brought = remapImportedRows({
     ...input,
     rows: prepared.rows,
-    idMaps: buildIdMaps(prepared.rows),
+    idMaps,
   });
   foldInternalClients(brought);
   repairHierarchy(brought);
   repairBookings({ accountId: input.accountId, brought });
-  return finishImport(input, brought, prepared);
+  return { ...finishImport(input, brought, prepared), resourceIdMap: idMaps.resources };
 }
 
 /**
@@ -315,11 +316,7 @@ function runImport(input: ImportInput): { data: AppData; imported: number; skipp
  * complete AppData produced by the transfer parser/migrator; a non-array scoped table fails loudly
  * here as defence in depth instead of disappearing from both counters.
  */
-function remapAndValidateImport(...[data, accountId, incoming, now]: [AppData, ID, AppData, ISOTimestamp]): {
-  data: AppData;
-  imported: number;
-  skipped: number;
-} {
+function remapAndValidateImport(...[data, accountId, incoming, now]: [AppData, ID, AppData, ISOTimestamp]) {
   return runImport({ data, accountId, incoming, now });
 }
 

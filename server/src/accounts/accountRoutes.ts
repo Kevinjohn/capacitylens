@@ -15,6 +15,9 @@ import {
   listMembers,
   removeMember,
   setMemberSignInTracking,
+  listResourceAvatars,
+  setMemberResourceLink,
+  clearMemberResourceLink,
 } from "./routes/handlers/memberAdmin";
 import {
   acceptOwnershipTransfer,
@@ -91,6 +94,13 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // here, only for this authorized admin). isSelf marks the caller's own row (the client derives its
   // role from it). A missing name/email degrades to null — never a throw.
   app.get("/api/accounts/:accountId/members", async (req, reply) => listMembers(req, reply, context));
+  app.get("/api/accounts/:accountId/resource-avatars", async (req, reply) => listResourceAvatars(req, reply, context));
+  app.put("/api/accounts/:accountId/members/:userId/resource-link", async (req, reply) =>
+    setMemberResourceLink(req, reply, context),
+  );
+  app.delete("/api/accounts/:accountId/members/:userId/resource-link", async (req, reply) =>
+    clearMemberResourceLink(req, reply, context),
+  );
 
   // OWNER-only privacy control. The desired-state PUT is safely repeatable after a lost response:
   // enabling an already-enabled account never resets its confirmations, and disabling is a no-op

@@ -271,6 +271,7 @@ describe("account-boundary architecture", () => {
 const identitySqlOwners = new Set([
   resolve(serverRoot, "auth.ts"),
   resolve(serverRoot, "authConfig/authAdapter.ts"),
+  resolve(serverRoot, "authConfig/betterAuthProfileCompatibility.ts"),
   resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
   resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
   resolve(serverRoot, "authConfig/sessionActivity.ts"),
@@ -281,6 +282,7 @@ const identitySqlOwners = new Set([
   resolve(serverRoot, "accounts/identityPort/inspection.ts"),
   resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
   resolve(serverRoot, "accounts/identityPort/sessions.ts"),
+  resolve(serverRoot, "controlTables/accountMemberResources.ts"),
 ]);
 
 describe("account-boundary architecture", () => {
@@ -288,8 +290,10 @@ describe("account-boundary architecture", () => {
     // Product membership/invitation SQL is confined to schema/lifecycle owners, the control-table
     // implementation and the two named operations that update tracking or settle invitations.
     const accountSqlOwners = new Set([
+      resolve(serverRoot, "controlTables/accountMemberResources.ts"),
       resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
       resolve(serverRoot, "controlTables/assert.ts"),
       resolve(serverRoot, "controlTables/inviteRetention.ts"),
       resolve(serverRoot, "controlTables/invites.ts"),
@@ -307,7 +311,9 @@ describe("account-boundary architecture", () => {
     const controlTableImporters = new Set([
       resolve(serverRoot, "db/open.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
       resolve(serverRoot, "controlTables.ts"),
+      resolve(serverRoot, "controlTables/accountMemberResources.ts"),
       resolve(serverRoot, "controlTables/inviteRetention.ts"),
       resolve(serverRoot, "controlTables/invites.ts"),
       resolve(serverRoot, "controlTables/members.ts"),
@@ -321,6 +327,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/membership.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransfer.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransferRequests.ts"),
+      resolve(serverRoot, "accounts/sqliteAccountMemberResourcePort.ts"),
       resolve(serverRoot, "ownershipTransferRecovery.ts"),
     ]);
 

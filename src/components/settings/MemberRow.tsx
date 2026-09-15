@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Eye, Pencil, Settings } from "lucide-react";
 import type { MemberRoleEdit } from "./MemberConfirmations";
 import { resolveMemberLabel, type MemberConfirmationAction } from "./memberConfirmationCopy";
+import { MemberResourceLink } from "./MemberResourceLink";
 
 /**
  * Which of a row's controls the viewer may see. Pure and shared by both member tables, so the
@@ -318,6 +319,8 @@ export function MemberRow({
   setOpenMenuFor,
   setRoleEdit,
   chooseMemberAction,
+  linkedResourceIds,
+  reload,
 }: {
   member: TeamMember;
   myRole: Role | undefined;
@@ -327,6 +330,8 @@ export function MemberRow({
   setOpenMenuFor(value: string | null): void;
   setRoleEdit: Dispatch<SetStateAction<MemberRoleEdit | null>>;
   chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
+  linkedResourceIds: ReadonlySet<string>;
+  reload(): void;
 }) {
   // One row renderer for both tables: the gear's actions, the pencil's gate and the status badge are
   // identical wherever the row is drawn — only the grouping differs.
@@ -340,6 +345,7 @@ export function MemberRow({
       <td className="py-2 pr-3 text-muted-foreground" data-testid="member-email">
         {member.email ?? m.settings_member_email_missing()}
       </td>
+      <MemberResourceLink member={member} myRole={myRole} linkedResourceIds={linkedResourceIds} reload={reload} />
       {signInTrackingEnabled && (
         <td className="py-2 pr-3 text-muted-foreground" data-testid="member-sign-in-confirmed">
           {member.signInConfirmed ? m.settings_member_sign_in_confirmed() : m.settings_member_sign_in_not_confirmed()}
