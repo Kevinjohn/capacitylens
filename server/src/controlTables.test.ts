@@ -96,6 +96,8 @@ describe("ensureControlTables", () => {
     expect(() => assertControlTablesCurrent(db)).toThrow(/unexpected account_members\.unexpected/i);
   });
 
+  registerInvitationProposalSchemaAssertionTest();
+
   it("rolls back the entire plaintext-token rebuild when a legacy row cannot migrate", () => {
     const db = new DatabaseSync(":memory:");
     db.exec(`CREATE TABLE invites (
@@ -787,3 +789,13 @@ describe("corrupt-role surfacing in scalar readers", () => {
     expect(getMemberRole(db, "acc-1", "nobody")).toBeNull();
   });
 });
+
+function registerInvitationProposalSchemaAssertionTest(): void {
+  it("rejects a current database whose invitation-proposal control tables are missing", () => {
+    const db = freshDb();
+    expect(() => assertControlTablesCurrent(db)).not.toThrow();
+    db.exec("PRAGMA user_version = 44");
+    db.exec("DROP TABLE invitation_person_proposals; DROP TABLE member_resource_link_exceptions");
+    expect(() => assertControlTablesCurrent(db)).toThrow(/invitation_person_proposals/i);
+  });
+}

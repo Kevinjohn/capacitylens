@@ -207,6 +207,26 @@ describe("invitation person proposal route admission", () => {
     );
   });
 
+  it("refuses to create an invitation proposing an ineligible person", async () => {
+    const { app, db } = await appWithAuth();
+    seedOne(db);
+    seedPerson(db, "person-archived");
+    db.prepare(`UPDATE resources SET archivedAt = ? WHERE id = 'person-archived'`).run(TS);
+    const owner = await signUp(app, "ineligible-proposal-owner@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+
+    const created = await createInvite(
+      app,
+      { accountId: "a1", role: "editor", proposedResourceId: "person-archived" },
+      owner.cookie,
+      "ineligible-proposal-command-01",
+    );
+
+    expect(created.statusCode).toBe(400);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invites`).get()).toEqual({ count: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 0 });
+  });
+
   it("settles proposals through the password-signup child transaction without public resource state", async () => {
     const { app, db, token } = await closedSignupProposalContext();
     const signup = await call(app, {
