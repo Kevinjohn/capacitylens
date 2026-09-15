@@ -23,6 +23,12 @@ import { resolveInvitationDirectoryBoundary } from "./useMemberInvitationState";
 import { useInvitationResourceHandoff } from "./useInvitationResourceHandoff";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
+function resolveMemberManagementEnabled(
+  authMode: ReturnType<typeof useAuth>["authMode"],
+  sessionInstanceId: string | null,
+) {
+  return authMode !== "off" && isServerConfigured() && sessionInstanceId !== null;
+}
 
 function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory>["directory"]) {
   switch (directory.kind) {
@@ -290,7 +296,7 @@ function useMemberStoreActions() {
 
 // eslint-disable-next-line max-lines-per-function
 export function useMembersOrchestration(activeAccountId: string | null) {
-  const { authMode, providers, refreshAuth, sessionGeneration = 0, user } = useAuth();
+  const { authMode, providers, refreshAuth, sessionInstanceId = null, user } = useAuth();
   // Only the strict (non-experimental) OIDC provider's IDENTITY is needed here: the readiness read
   // is keyed on it, and keying on the provider OBJECT would re-fetch whenever an equal-but-new
   // provider list is resolved.
@@ -300,11 +306,11 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const { setNotice, setActiveAccount, invalidateMemberships } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const viewState = useMemberViewState();
-  const enabled = authMode !== "off" && isServerConfigured();
+  const enabled = resolveMemberManagementEnabled(authMode, sessionInstanceId);
   const inviteContextKey = [
     activeAccountId ?? "",
     user?.id ?? "",
-    sessionGeneration,
+    sessionInstanceId,
     authMode,
     enabled ? "configured" : "unconfigured",
     offline.readOnly ? "offline" : "online",
@@ -334,7 +340,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     offlineReadOnly: offline.readOnly,
     online,
     resetInviteDraft: memberInvites.resetInviteDraft,
-    sessionGeneration,
+    sessionInstanceId,
     user,
   });
   useEffect(() => {

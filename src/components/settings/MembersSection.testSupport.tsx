@@ -129,6 +129,7 @@ export function makeSignInTrackingApi(): ReturnType<typeof vi.fn> {
 export const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
   authMode: "password",
   user: { id: "me", email: "me@x.io" },
+  sessionInstanceId: "A".repeat(43),
   canCreateAccount: true,
   multiAccount: true,
   refreshAuth: async () => {},

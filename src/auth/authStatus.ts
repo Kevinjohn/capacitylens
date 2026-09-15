@@ -8,6 +8,8 @@ export type AuthStatusResult =
       kind: "pass";
       authMode: AccountMode;
       user: AuthUser | null;
+      /** Stable application-local session handle; never a bearer token or persisted value. */
+      sessionInstanceId: string | null;
       canCreateAccount: boolean;
       multiAccount: boolean;
       mfaRequired: boolean;
@@ -35,11 +37,16 @@ export type AuthStatusResult =
 // used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
 // wire (an off-spec body, a non-401 non-ok response, or a network failure) — the server 403 remains
 // the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.
-export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null): AuthStatusResult {
+export function buildOpenAuthResult(
+  authMode: AccountMode,
+  user: AuthUser | null,
+  sessionInstanceId: string | null = null,
+): AuthStatusResult {
   return {
     kind: "pass",
     authMode,
     user,
+    sessionInstanceId,
     canCreateAccount: true,
     multiAccount: true,
     mfaRequired: false,
@@ -47,6 +54,11 @@ export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null
     reauthMethod: "password",
     reauthProviderId: null,
   };
+}
+
+/** ApplicationSession handles are SHA-256 digests encoded as unpadded base64url. */
+export function isSessionInstanceId(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{43}$/.test(value);
 }
 
 // Narrowing guards for the UNTRUSTED /api/auth/me response body (see fetchAuthStatus). The server

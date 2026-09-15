@@ -65,8 +65,8 @@ export function resolveStrictOidcProvider(
 export interface AuthContextValue {
   authMode: AccountMode;
   user: AuthUser | null;
-  /** Process-local boundary for identity/session replacement; never a bearer or public value. */
-  sessionGeneration?: number;
+  /** Stable application-local session boundary; never a bearer or public value. */
+  sessionInstanceId?: string | null;
   /** Configured public provider metadata. Needed by pre-session invite and re-authentication
    * surfaces so they use the same server-owned provider list as the ordinary login wall. */
   providers?: readonly AuthProviderInfo[];
@@ -98,7 +98,7 @@ export interface AuthContextValue {
 export const AuthContext = createContext<AuthContextValue>({
   authMode: "off",
   user: null,
-  sessionGeneration: 0,
+  sessionInstanceId: null,
   providers: [],
   canCreateAccount: true,
   multiAccount: true,

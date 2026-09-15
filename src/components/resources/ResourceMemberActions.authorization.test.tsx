@@ -7,11 +7,11 @@ import { useResourceMemberActionsModel } from "./ResourceMemberActions";
 const auth = vi.hoisted(() => ({
   mode: "password" as "off" | "password",
   user: { id: "user-1" } as { id: string } | null,
-  sessionGeneration: 1,
+  sessionInstanceId: "A".repeat(43) as string | null,
 }));
 const offline = vi.hoisted(() => ({ readOnly: false }));
 vi.mock("../../auth/authContext", () => ({
-  useAuth: () => ({ authMode: auth.mode, user: auth.user, sessionGeneration: auth.sessionGeneration }),
+  useAuth: () => ({ authMode: auth.mode, user: auth.user, sessionInstanceId: auth.sessionInstanceId }),
 }));
 vi.mock("../../data/apiConfig", () => ({ isServerConfigured: () => true }));
 vi.mock("../../data/useOfflineState", () => ({ useOfflineState: () => offline }));
@@ -20,7 +20,7 @@ describe("useResourceMemberActionsModel authorization boundary", () => {
   afterEach(() => {
     auth.mode = "password";
     auth.user = { id: "user-1" };
-    auth.sessionGeneration = 1;
+    auth.sessionInstanceId = "A".repeat(43);
     offline.readOnly = false;
     vi.restoreAllMocks();
   });
@@ -133,7 +133,7 @@ describe("useResourceMemberActionsModel authorization boundary", () => {
     Object.defineProperty(navigator, "onLine", { configurable: true, value: originalOnline });
   });
 
-  it("clears the candidate projection on a same-user session-generation change", async () => {
+  it("clears the candidate projection on a same-user session-handle change", async () => {
     useStore.setState({ accountSummaries: [{ id: "account-1", role: "admin", roleStatus: "resolved" }] } as never);
     const listMembers = vi.spyOn(teamAccessClient, "listMembers").mockResolvedValue({
       kind: "ok",
@@ -162,7 +162,7 @@ describe("useResourceMemberActionsModel authorization boundary", () => {
     const { result, rerender } = renderHook(() => useResourceMemberActionsModel("account-1"));
     await waitFor(() => expect(result.current.canManage).toBe(true));
     expect(result.current.members).toHaveLength(1);
-    auth.sessionGeneration = 2;
+    auth.sessionInstanceId = "B".repeat(43);
     rerender();
     expect(result.current.canManage).toBe(false);
     expect(result.current.members).toEqual([]);
@@ -198,6 +198,12 @@ describe("useResourceMemberActionsModel authorization boundary", () => {
       "unresolved session",
       () => {
         auth.user = null;
+      },
+    ],
+    [
+      "legacy session without a handle",
+      () => {
+        auth.sessionInstanceId = null;
       },
     ],
   ] as const)("fails closed and suppresses reads in %s mode", async (_label, change) => {

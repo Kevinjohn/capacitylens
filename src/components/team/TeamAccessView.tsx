@@ -153,10 +153,25 @@ function AccessManagement({
   );
 }
 
+function resolveMayManageMembers(input: {
+  online: boolean;
+  offlineReadOnly: boolean;
+  sessionInstanceId: string | null;
+  role: Role | null;
+}): boolean {
+  return (
+    input.online &&
+    !input.offlineReadOnly &&
+    input.sessionInstanceId !== null &&
+    input.role !== null &&
+    can(input.role, "manageMembers")
+  );
+}
+
 export function TeamAccessView() {
   const role = useRole();
   const permissionStatus = usePermissionStatus();
-  const { authMode, sessionGeneration = 0, user } = useAuth();
+  const { authMode, sessionInstanceId = null, user } = useAuth();
   const offline = useOfflineState();
   const online = useNavigatorOnline();
   const activeAccountId = useStore((state) => state.activeAccountId);
@@ -167,11 +182,16 @@ export function TeamAccessView() {
   // this is an auth-off installation. Never advertise live Owner/Open/Demo powers while writes are
   // deliberately disabled and the server cannot confirm membership.
   const effectiveRole: Role | null = offline.readOnly ? "viewer" : resolvedRole;
-  const mayManage = online && !offline.readOnly && resolvedRole !== null && can(resolvedRole, "manageMembers");
+  const mayManage = resolveMayManageMembers({
+    online,
+    offlineReadOnly: offline.readOnly,
+    sessionInstanceId,
+    role: resolvedRole,
+  });
   useInvitationPreselectionLifecycle({
     accountId: activeAccountId,
     userId: user?.id ?? null,
-    sessionGeneration,
+    sessionInstanceId,
     authMode,
     offlineReadOnly: offline.readOnly,
     online,

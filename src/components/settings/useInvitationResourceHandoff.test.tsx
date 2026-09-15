@@ -13,7 +13,7 @@ const input = {
   offlineReadOnly: false,
   online: true,
   resetInviteDraft: vi.fn(),
-  sessionGeneration: 1,
+  sessionInstanceId: "A".repeat(43),
   user: { id: "user-1" },
 };
 
@@ -25,7 +25,7 @@ describe("useInvitationResourceHandoff directory boundary", () => {
       {
         accountId: "account-1",
         userId: "user-1",
-        sessionGeneration: 1,
+        sessionInstanceId: "A".repeat(43),
         authMode: "password",
         offlineReadOnly: false,
         online: true,

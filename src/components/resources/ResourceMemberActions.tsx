@@ -20,7 +20,7 @@ export type ResourceMemberActionsModel = {
   canManage: boolean;
   authMode: ReturnType<typeof useAuth>["authMode"];
   userId?: string | null;
-  sessionGeneration?: number;
+  sessionInstanceId: string | null;
   offlineReadOnly: boolean;
   online: boolean;
   members: readonly TeamMember[];
@@ -33,10 +33,11 @@ export type ResourceMemberActionsModel = {
 /** Loads the separately-authorized team projection used by active Resource rows. */
 /* eslint-disable react-refresh/only-export-components, complexity, max-lines-per-function */
 export function useResourceMemberActionsModel(accountId: string | null): ResourceMemberActionsModel {
-  const { authMode, sessionGeneration = 0, user } = useAuth();
+  const { authMode, sessionInstanceId: authSessionInstanceId = null, user } = useAuth();
+  const sessionInstanceId = authSessionInstanceId;
   const offline = useOfflineState();
   const online = useNavigatorOnline();
-  const enabled = authMode !== "off" && isServerConfigured();
+  const enabled = authMode !== "off" && isServerConfigured() && sessionInstanceId !== null;
   const membershipRevision = useStore((state) => state.membershipRevision);
   const accountSummary = useStore((state) => state.accountSummaries.find((summary) => summary.id === accountId));
   const resolvedCanManage =
@@ -52,7 +53,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
   const [reloadKey, setReloadKey] = useState(0);
   const [forbiddenContext, setForbiddenContext] = useState<string | null>(null);
   const requestGeneration = useRef(0);
-  const authorizationContextKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${sessionGeneration}\u0000${authMode}\u0000${offline.readOnly}\u0000${online}`;
+  const authorizationContextKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${sessionInstanceId ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${online}`;
   const previousAuthorizationContextKey = useRef(authorizationContextKey);
   const directoryKey = `${authorizationContextKey}\u0000${membershipRevision}\u0000${accountSummary?.role ?? ""}\u0000${accountSummary?.roleStatus ?? ""}`;
   useEffect(() => {
@@ -133,7 +134,7 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
   return {
     members,
     authMode,
-    sessionGeneration,
+    sessionInstanceId,
     offlineReadOnly: offline.readOnly,
     online,
     userId: user?.id ?? null,
@@ -245,7 +246,7 @@ function ResourceMemberActionsImpl({
           {
             accountId,
             userId: model.userId,
-            sessionGeneration: model.sessionGeneration ?? 0,
+            sessionInstanceId: model.sessionInstanceId,
             authMode: model.authMode,
             offlineReadOnly: model.offlineReadOnly,
             online: model.online,

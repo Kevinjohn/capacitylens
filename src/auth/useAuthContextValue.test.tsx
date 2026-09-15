@@ -9,35 +9,31 @@ describe("useAuthContextValue session boundary", () => {
     const signOut = async () => {};
     const status = buildOpenAuthResult("password", { id: "user-1", name: "Bruce Wayne" });
     const { result, rerender } = renderHook(() => useAuthContextValue(status, refreshAuth, signOut));
-    const generation = result.current.sessionGeneration;
     rerender();
-    expect(result.current.sessionGeneration).toBe(generation);
+    expect(result.current.sessionInstanceId).toBeNull();
   });
 
-  it("advances when the authenticated identity or mode is replaced", () => {
+  it("keeps the application session handle across an equivalent refresh", () => {
     const refreshAuth = async () => {};
     const signOut = async () => {};
-    const first = buildOpenAuthResult("password", { id: "user-1", name: "Bruce Wayne" });
+    const first = buildOpenAuthResult("password", { id: "user-1", name: "Bruce Wayne" }, "A".repeat(43));
     const { result, rerender } = renderHook(({ status }) => useAuthContextValue(status, refreshAuth, signOut), {
       initialProps: { status: first },
     });
-    const initialGeneration = result.current.sessionGeneration;
-    rerender({ status: buildOpenAuthResult("password", { id: "user-2", name: "Clark Kent" }) });
-    const replacementGeneration = result.current.sessionGeneration;
-    rerender({ status: buildOpenAuthResult("sso", { id: "user-2", name: "Clark Kent" }) });
-    expect(replacementGeneration).not.toBe(initialGeneration);
-    expect(result.current.sessionGeneration).not.toBe(replacementGeneration);
+    rerender({ status: buildOpenAuthResult("password", { id: "user-1", name: "Bruce Wayne" }, "A".repeat(43)) });
+    expect(result.current.sessionInstanceId).toBe("A".repeat(43));
   });
 
-  it("advances for a replacement status snapshot with the same user and mode", () => {
+  it("carries a changed same-user session handle as a new private-state boundary", () => {
     const refreshAuth = async () => {};
     const signOut = async () => {};
-    const first = buildOpenAuthResult("password", { id: "user-1", name: "Bruce Wayne" });
+    const first = buildOpenAuthResult("password", { id: "user-1", name: "Bruce Wayne" }, "A".repeat(43));
     const { result, rerender } = renderHook(({ status }) => useAuthContextValue(status, refreshAuth, signOut), {
       initialProps: { status: first },
     });
-    const initialGeneration = result.current.sessionGeneration;
-    rerender({ status: { ...first } });
-    expect(result.current.sessionGeneration).not.toBe(initialGeneration);
+    rerender({
+      status: buildOpenAuthResult("password", { id: "user-1", name: "Bruce Wayne" }, "B".repeat(43)),
+    });
+    expect(result.current.sessionInstanceId).toBe("B".repeat(43));
   });
 });

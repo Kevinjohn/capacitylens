@@ -5,7 +5,13 @@ import { isTransportFailure } from "../data/requestTimeout";
 import { readApiError } from "../lib/readApiError";
 import { useStore } from "../store/useStore";
 import { m } from "@/i18n";
-import { isAuthMode, parseAuthProviders, resolveBooleanField, type AuthStatusResult } from "./authStatus";
+import {
+  isAuthMode,
+  isSessionInstanceId,
+  parseAuthProviders,
+  resolveBooleanField,
+  type AuthStatusResult,
+} from "./authStatus";
 import { parseAuthUser } from "./validateAuthUser";
 
 interface AuthResponseFields {
@@ -17,6 +23,7 @@ interface AuthResponseFields {
   providers: unknown;
   reauthMethod: unknown;
   reauthProviderId: unknown;
+  sessionInstanceId: unknown;
   user: unknown;
 }
 
@@ -35,6 +42,7 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
     providers: readField(value, "providers"),
     reauthMethod: readField(value, "reauthMethod"),
     reauthProviderId: readField(value, "reauthProviderId"),
+    sessionInstanceId: readField(value, "sessionInstanceId"),
     user: readField(value, "user"),
   };
 }
@@ -54,6 +62,11 @@ function parseLoginResult(body: unknown, acceptEffects: () => boolean): AuthStat
     providers: parseAuthProviders(fields?.providers),
     needsSetup: fields?.needsSetup === true,
   };
+}
+
+function parseSessionInstanceId(authMode: Extract<AuthStatusResult, { kind: "pass" }>["authMode"], value: unknown) {
+  if (authMode === "off") return null;
+  return isSessionInstanceId(value) ? value : null;
 }
 
 function invalidResponse(body: unknown): AuthStatusResult {
@@ -81,10 +94,16 @@ function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatu
     console.warn("AuthProvider: /api/auth/me returned auth-on without a valid user", body);
     return { kind: "error", message: m.auth_service_invalid_response() };
   }
+  const sessionInstanceId = parseSessionInstanceId(authMode, fields.sessionInstanceId);
+  if (authMode !== "off" && sessionInstanceId === null) {
+    console.warn("AuthProvider: /api/auth/me omitted an invalid authenticated session handle");
+    return { kind: "error", message: m.auth_service_invalid_response() };
+  }
   const next: Extract<AuthStatusResult, { kind: "pass" }> = {
     kind: "pass",
     authMode,
     user,
+    sessionInstanceId,
     canCreateAccount: resolveBooleanField(fields.canCreateAccount, true),
     multiAccount: resolveBooleanField(fields.multiAccount, true),
     mfaRequired: authMode === "password" && resolveBooleanField(fields.mfaRequired, false),
@@ -119,6 +138,7 @@ async function readOfflineIdentity(error: unknown, acceptEffects: () => boolean)
       kind: "pass",
       authMode: cached.value.authMode,
       user: cached.value.user,
+      sessionInstanceId: null,
       canCreateAccount: false,
       multiAccount: cached.value.multiAccount,
       mfaRequired: false,

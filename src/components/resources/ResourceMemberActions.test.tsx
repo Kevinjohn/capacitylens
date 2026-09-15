@@ -41,7 +41,7 @@ const member = (overrides: Partial<TeamMember> = {}) =>
 const model = (members: readonly TeamMember[], canManage = true): ResourceMemberActionsModel => ({
   canManage,
   authMode: "password",
-  sessionGeneration: 1,
+  sessionInstanceId: "A".repeat(43),
   offlineReadOnly: false,
   online: true,
   members,

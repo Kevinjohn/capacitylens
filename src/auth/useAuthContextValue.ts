@@ -6,8 +6,6 @@ import type { AuthStatusResult } from "./authStatus";
 // for statuses that never actually read it (checking/error), so those renders can't be mistaken by
 // the memo's dependency check for a "providers changed" render (a fresh `[]` literal would).
 const EMPTY_PROVIDERS: AuthProviderInfo[] = [];
-let nextSessionGeneration = 0;
-
 function authModeForStatus(status: AuthStatusResult) {
   if (status.kind === "pass" || status.kind === "login") return status.authMode;
   return "off";
@@ -30,19 +28,12 @@ export function useAuthContextValue(
   const contextProviders = status.kind === "pass" || status.kind === "login" ? status.providers : EMPTY_PROVIDERS;
   const contextCanCreateAccount = status.kind === "pass" ? status.canCreateAccount : false;
   const contextMultiAccount = status.kind === "pass" ? status.multiAccount : false;
-  const contextSessionKey = `${status.kind}\u0000${contextAuthMode}\u0000${contextUser?.id ?? ""}`;
-  const sessionGeneration = useMemo(() => {
-    // A new auth status snapshot may represent a replaced server session for the same principal;
-    // over-clearing private UI is safer than retaining a draft across that boundary.
-    void status;
-    void contextSessionKey;
-    return ++nextSessionGeneration;
-  }, [contextSessionKey, status]);
+  const contextSessionInstanceId = status.kind === "pass" ? status.sessionInstanceId : null;
   const authContextValue = useMemo(
     () => ({
       authMode: contextAuthMode,
       user: contextUser,
-      sessionGeneration,
+      sessionInstanceId: contextSessionInstanceId,
       providers: contextProviders,
       canCreateAccount: contextCanCreateAccount,
       multiAccount: contextMultiAccount,
@@ -52,7 +43,7 @@ export function useAuthContextValue(
     [
       contextAuthMode,
       contextUser,
-      sessionGeneration,
+      contextSessionInstanceId,
       contextProviders,
       contextCanCreateAccount,
       contextMultiAccount,

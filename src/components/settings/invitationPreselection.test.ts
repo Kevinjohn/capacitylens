@@ -12,7 +12,7 @@ import {
 const context = (overrides: Partial<Parameters<typeof setInvitationPreselection>[0]> = {}) => ({
   accountId: "account-1",
   userId: "user-1",
-  sessionGeneration: 1,
+  sessionInstanceId: "A".repeat(43),
   authMode: "password" as const,
   offlineReadOnly: false,
   online: true,
@@ -37,7 +37,8 @@ describe("invitation preselection handoff", () => {
   it("treats a renewed identity, auth mode, or connectivity as a mismatch", () => {
     const current = context();
     for (const mismatch of [
-      { sessionGeneration: 2 },
+      { sessionInstanceId: "B".repeat(43) },
+      { sessionInstanceId: null },
       { authMode: "sso" as const },
       { offlineReadOnly: true },
       { online: false },
@@ -70,7 +71,7 @@ describe("invitation preselection handoff", () => {
       lifecycle: {
         ...current,
         userId: "user-2",
-        sessionGeneration: 2,
+        sessionInstanceId: "B".repeat(43),
         permissionStatus: "resolved",
         mayManage: false,
       },

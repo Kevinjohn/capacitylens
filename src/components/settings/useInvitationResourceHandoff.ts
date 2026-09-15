@@ -13,7 +13,7 @@ interface InvitationResourceHandoffInput {
   offlineReadOnly: boolean;
   online: boolean;
   resetInviteDraft: () => void;
-  sessionGeneration: number;
+  sessionInstanceId: string | null;
   user: AuthUser | null;
 }
 
@@ -27,12 +27,13 @@ export function useInvitationResourceHandoff({
   offlineReadOnly,
   online,
   resetInviteDraft,
-  sessionGeneration,
+  sessionInstanceId,
   user,
 }: InvitationResourceHandoffInput): string | null {
   const [proposedResourceId, setProposedResourceId] = useState<string | null>(null);
   useEffect(() => {
-    const contextReady = enabled && online && !offlineReadOnly && activeAccountId !== null && user !== null;
+    const contextReady =
+      enabled && online && !offlineReadOnly && activeAccountId !== null && user !== null && sessionInstanceId !== null;
     if (!contextReady || (!directoryAuthorized && !directoryPending)) {
       clearInvitationPreselection();
       setProposedResourceId(null);
@@ -43,7 +44,7 @@ export function useInvitationResourceHandoff({
     const claimed = claimInvitationPreselection({
       accountId: activeAccountId,
       userId: user.id,
-      sessionGeneration,
+      sessionInstanceId,
       authMode,
       offlineReadOnly,
       online,
@@ -59,7 +60,7 @@ export function useInvitationResourceHandoff({
     offlineReadOnly,
     online,
     resetInviteDraft,
-    sessionGeneration,
+    sessionInstanceId,
     user,
   ]);
   return proposedResourceId;

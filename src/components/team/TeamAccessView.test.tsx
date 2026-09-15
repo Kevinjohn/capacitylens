@@ -27,6 +27,7 @@ vi.mock("../settings/MembersSection", () => ({
 const auth = (authMode: AuthContextValue["authMode"]): AuthContextValue => ({
   authMode,
   user: authMode === "off" ? null : { id: "me", email: "me@example.com" },
+  sessionInstanceId: authMode === "off" ? null : "A".repeat(43),
   canCreateAccount: true,
   multiAccount: true,
   refreshAuth: async () => {},
@@ -168,7 +169,6 @@ describe("TeamAccessView member management", () => {
 
   it("clears resource invitation handoff when the real Team boundary loses authorization", async () => {
     const authContext = auth("password");
-    authContext.sessionGeneration = 1;
     const sessionUser = authContext.user;
     if (!sessionUser) throw new Error("Expected authenticated test user");
     useStore.setState({ activeAccountId: "account-1" });
@@ -176,7 +176,7 @@ describe("TeamAccessView member management", () => {
       {
         accountId: "account-1",
         userId: sessionUser.id,
-        sessionGeneration: 1,
+        sessionInstanceId: authContext.sessionInstanceId ?? null,
         authMode: "password",
         offlineReadOnly: false,
         online: true,
@@ -206,7 +206,7 @@ describe("TeamAccessView member management", () => {
         claimInvitationPreselection({
           accountId: "account-1",
           userId: sessionUser.id,
-          sessionGeneration: 1,
+          sessionInstanceId: authContext.sessionInstanceId ?? null,
           authMode: "password",
           offlineReadOnly: false,
           online: true,
