@@ -340,9 +340,20 @@ function registerOwnerSetupDisplayTests() {
   });
 
   it("renders the ordinary sign-in form when needsSetup is absent (fail-closed default)", () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(
+      <LoginScreen
+        authMode="password"
+        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: false }]}
+        onSignedIn={vi.fn()}
+      />,
+    );
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
+      ),
+    ).not.toBeInTheDocument();
   });
 }
 
