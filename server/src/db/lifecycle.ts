@@ -48,8 +48,10 @@ export function insertAll(db: Db, data: AppData): void {
 export function wipe(db: Db): void {
   tx(db, () => {
     if (db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'account_member_resources'`).get()) {
-      db.exec(`DELETE FROM account_member_resources`);
+      const accounts = db.prepare(`SELECT id FROM accounts`).all() as Array<{ id: string }>;
+      for (const account of accounts) removeAccountMemberResourcesForAccount(db, account.id);
     }
+    db.exec(`DELETE FROM invitation_person_proposals; DELETE FROM member_resource_link_exceptions;`);
     for (let i = CREATE_ORDER.length - 1; i >= 0; i--) db.exec(`DELETE FROM ${CREATE_ORDER[i]}`);
     db.exec(`DELETE FROM account_member_sign_in_tracking`);
     db.exec(`DELETE FROM account_members`);

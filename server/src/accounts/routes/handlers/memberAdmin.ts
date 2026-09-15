@@ -48,6 +48,7 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
       directory.map(({ membership }) => membership.principalId),
     );
     const links = await context.memberResources.listLinks(accountId);
+    const exceptions = await context.memberResources.listExceptions(accountId);
     const members = directory.map(({ membership: member, principal }) => {
       const link = links.get(member.principalId);
       return {
@@ -64,6 +65,12 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
           projection.decisions.get(member.principalId)?.get("issue-password-reset")?.allowed === true,
         mayRevokeSessions: projection.decisions.get(member.principalId)?.get("revoke-sessions")?.allowed === true,
         resourceLink: projectMemberResourceLink(link),
+        resourceLinkException: (() => {
+          const exception = exceptions.get(member.principalId);
+          return exception === undefined
+            ? null
+            : { proposedResourceId: exception.proposedResourceId, reason: exception.reason };
+        })(),
       };
     });
     return { members, signInTrackingEnabled: tracking.enabled };
@@ -151,6 +158,28 @@ export async function clearMemberResourceLink(req: FastifyRequest, reply: Fastif
     } catch (failure) {
       return context.fail(reply, failure);
     }
+  }
+}
+
+/** Dismiss the current proposal exception without changing a live member/person link. */
+export async function dismissMemberResourceLinkException(
+  req: FastifyRequest,
+  reply: FastifyReply,
+  context: AccountRouteContext,
+) {
+  const { accountId, userId } = req.params as { accountId: string; userId: string };
+  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
+    return;
+  try {
+    await context.memberResources.dismissException({
+      workspaceId: accountId,
+      principalId: userId,
+      actor: requireAccountActor(req),
+      command: context.command(req),
+    });
+    return reply.code(204).send();
+  } catch (error) {
+    return context.fail(reply, error);
   }
 }
 

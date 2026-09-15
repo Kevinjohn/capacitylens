@@ -39,6 +39,10 @@ export interface TeamMember {
     resourceName?: string | null;
     resourceStatus?: "active" | "disabled" | "archived" | null;
   } | null;
+  resourceLinkException?: {
+    proposedResourceId: string | null;
+    reason: "resource_unavailable" | "resource_already_linked" | "member_already_linked";
+  } | null;
 }
 
 export interface TeamDirectory {
@@ -53,6 +57,7 @@ export interface TeamInvitation {
   expiresAt: string;
   usedAt: string | null;
   createdAt: string;
+  proposedResourceId?: string;
 }
 
 export interface OneTimeToken {
@@ -97,6 +102,8 @@ function parseMember(row: unknown): TeamMember | null {
   if (!isNullableString(row.name) || !isNullableString(row.email)) return null;
   const resourceLink = parseMemberResourceLink(row.resourceLink);
   if (resourceLink === undefined) return null;
+  const resourceLinkException = parseMemberResourceLinkException(row.resourceLinkException);
+  if (resourceLinkException === undefined) return null;
   return {
     userId: row.userId,
     role: row.role,
@@ -109,7 +116,21 @@ function parseMember(row: unknown): TeamMember | null {
     mayResetPassword: row.mayResetPassword === true,
     mayRevokeSessions: row.mayRevokeSessions === true,
     resourceLink,
+    resourceLinkException,
   };
+}
+
+function parseMemberResourceLinkException(value: unknown): TeamMember["resourceLinkException"] | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isRecord(value)) return undefined;
+  if (
+    (value.proposedResourceId !== null && typeof value.proposedResourceId !== "string") ||
+    (value.reason !== "resource_unavailable" &&
+      value.reason !== "resource_already_linked" &&
+      value.reason !== "member_already_linked")
+  )
+    return undefined;
+  return { proposedResourceId: value.proposedResourceId, reason: value.reason };
 }
 
 function parseMemberResourceStatus(value: unknown): "active" | "disabled" | "archived" | null | undefined {
@@ -174,6 +195,11 @@ function parseInvitation(row: unknown): TeamInvitation | null {
   if (!hasValidInvitationDates(row)) return null;
   if (!(row.preauthEmail === undefined || row.preauthEmail === null || typeof row.preauthEmail === "string"))
     return null;
+  if (
+    row.proposedResourceId !== undefined &&
+    (typeof row.proposedResourceId !== "string" || row.proposedResourceId.length === 0)
+  )
+    return null;
   return {
     id: row.id,
     role: row.role,
@@ -181,6 +207,7 @@ function parseInvitation(row: unknown): TeamInvitation | null {
     expiresAt: row.expiresAt,
     usedAt: row.usedAt,
     createdAt: row.createdAt,
+    ...(typeof row.proposedResourceId === "string" ? { proposedResourceId: row.proposedResourceId } : {}),
   };
 }
 
@@ -296,6 +323,14 @@ export const teamAccessClient = {
     );
   },
 
+  async dismissMemberResourceLinkException(workspaceId: string, principalId: string) {
+    return readCommandResult(
+      await accountClient.dismissMemberResourceLinkException(workspaceId, principalId),
+      noContent,
+      204,
+    );
+  },
+
   async issuePasswordReset(workspaceId: string, principalId: string): Promise<TeamAccessResult<OneTimeToken>> {
     return readCommandResult(await accountClient.issuePasswordReset(workspaceId, principalId), parseToken, 201);
   },
@@ -308,6 +343,7 @@ export const teamAccessClient = {
     accountId: string;
     role: InvitationRole;
     preauthEmail?: string;
+    proposedResourceId?: string;
   }): Promise<TeamAccessResult<OneTimeToken>> {
     return readCommandResult(await accountClient.createInvitation(input), parseToken, 201);
   },

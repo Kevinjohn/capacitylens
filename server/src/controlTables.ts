@@ -96,3 +96,25 @@ export {
   reconcileAccountMemberResources,
 } from "./controlTables/accountMemberResources";
 export type { AccountMemberResourceLink, ResourceAvatarProjection } from "./controlTables/accountMemberResources";
+export {
+  INVITATION_PERSON_PROPOSALS_SQL,
+  createInvitationPersonProposal,
+  getInvitationPersonProposal,
+  isEligibleInvitationPerson,
+  listInvitationPersonProposals,
+  removeInvitationPersonProposal,
+  removeInvitationPersonProposalsForAccount,
+  removeInvitationPersonProposalsForResource,
+  listMemberResourceLinkExceptions,
+  getMemberResourceLinkException,
+  upsertMemberResourceLinkException,
+  removeMemberResourceLinkException,
+  removeMemberResourceLinkExceptionsForAccount,
+  removeMemberResourceLinkExceptionsForResource,
+  settleInvitationPersonProposal,
+} from "./controlTables/invitationPersonProposals";
+export type {
+  InvitationPersonProposal,
+  MemberResourceLinkException,
+  MemberResourceLinkExceptionReason,
+} from "./controlTables/invitationPersonProposals";

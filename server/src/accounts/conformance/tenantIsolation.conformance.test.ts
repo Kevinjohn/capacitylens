@@ -5,6 +5,7 @@ import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/ac
 import { openDb, type Db } from "../../db";
 import * as assertions from "../../controlTables/assert";
 import * as accountMemberResources from "../../controlTables/accountMemberResources";
+import * as invitationPersonProposals from "../../controlTables/invitationPersonProposals";
 import * as inviteRetention from "../../controlTables/inviteRetention";
 import * as inviteTokens from "../../controlTables/inviteTokens";
 import * as invites from "../../controlTables/invites";
@@ -484,6 +485,7 @@ describe("account member/resource writes stay inside their account", () => {
  */
 const MODULES: Record<string, Record<string, unknown>> = {
   accountMemberResources,
+  invitationPersonProposals,
   assert: assertions,
   inviteRetention,
   inviteTokens,
@@ -535,6 +537,21 @@ const COVERED = new Set([
 const EXCLUDED = new Map<string, string>([
   ["accountMemberResources.ACCOUNT_MEMBER_RESOURCE_KIND_CLEANUP_TRIGGER", "schema definition"],
   ["accountMemberResources.ACCOUNT_MEMBER_RESOURCES_SQL", "schema definition"],
+  ["invitationPersonProposals.INVITATION_PERSON_PROPOSALS_SQL", "schema definition"],
+  ["invitationPersonProposals.createInvitationPersonProposal", "scoped write; proposal admission tests"],
+  ["invitationPersonProposals.getInvitationPersonProposal", "account-scoped read"],
+  ["invitationPersonProposals.isEligibleInvitationPerson", "account-scoped read"],
+  ["invitationPersonProposals.listInvitationPersonProposals", "account-scoped read"],
+  ["invitationPersonProposals.removeInvitationPersonProposal", "scoped write; proposal admission tests"],
+  ["invitationPersonProposals.removeInvitationPersonProposalsForAccount", "scoped cleanup"],
+  ["invitationPersonProposals.removeInvitationPersonProposalsForResource", "scoped cleanup"],
+  ["invitationPersonProposals.listMemberResourceLinkExceptions", "account-scoped read"],
+  ["invitationPersonProposals.getMemberResourceLinkException", "account-scoped read"],
+  ["invitationPersonProposals.upsertMemberResourceLinkException", "scoped write; proposal admission tests"],
+  ["invitationPersonProposals.removeMemberResourceLinkException", "scoped cleanup"],
+  ["invitationPersonProposals.removeMemberResourceLinkExceptionsForAccount", "scoped cleanup"],
+  ["invitationPersonProposals.removeMemberResourceLinkExceptionsForResource", "scoped cleanup"],
+  ["invitationPersonProposals.settleInvitationPersonProposal", "scoped write; proposal admission tests"],
   ["accountMemberResources.ensureAccountMemberResources", "schema installer"],
   ["accountMemberResources.listAccountMemberResourceLinks", "account-scoped read"],
   ["accountMemberResources.listResourceAvatarProjection", "account-scoped privacy projection"],

@@ -138,6 +138,8 @@ function remapAccountCoordinates(db: DatabaseSync): void {
       { table: "closures", column: "accountId" },
       { table: "account_members", column: "accountId" },
       { table: "account_member_resources", column: "accountId" },
+      { table: "invitation_person_proposals", column: "accountId" },
+      { table: "member_resource_link_exceptions", column: "accountId" },
       { table: "account_member_sign_in_tracking", column: "accountId" },
       { table: "account_ownership_transfers", column: "accountId" },
       { table: "invites", column: "accountId" },
@@ -184,6 +186,8 @@ function remapSchedulingCoordinates(db: DatabaseSync): void {
       { table: "allocations", column: "resourceId" },
       { table: "timeOff", column: "resourceId" },
       { table: "account_member_resources", column: "resourceId" },
+      { table: "invitation_person_proposals", column: "resourceId" },
+      { table: "member_resource_link_exceptions", column: "proposedResourceId" },
     ],
   });
   remapIds({
@@ -202,6 +206,7 @@ function remapSchedulingCoordinates(db: DatabaseSync): void {
   remapIds({ db: db, table: "closures", idColumn: "id", references: [] });
 }
 
+// eslint-disable-next-line max-lines-per-function
 function remapPrincipalCoordinates(db: DatabaseSync): void {
   remapIds({
     db: db,
@@ -213,6 +218,7 @@ function remapPrincipalCoordinates(db: DatabaseSync): void {
       { table: "twoFactor", column: "userId" },
       { table: "account_members", column: "userId" },
       { table: "account_member_resources", column: "userId" },
+      { table: "member_resource_link_exceptions", column: "userId" },
       { table: "account_ownership_transfers", column: "initiatorUserId" },
       { table: "account_ownership_transfers", column: "targetUserId" },
       { table: "account_security_revisions", column: "principalId" },
@@ -245,7 +251,12 @@ function remapPrincipalCoordinates(db: DatabaseSync): void {
   remapIds({ db: db, table: "session", idColumn: "id", references: [] });
   remapIds({ db: db, table: "twoFactor", idColumn: "id", references: [] });
   remapIds({ db: db, table: "verification", idColumn: "id", references: [] });
-  remapIds({ db: db, table: "invites", idColumn: "id", references: [] });
+  remapIds({
+    db: db,
+    table: "invites",
+    idColumn: "id",
+    references: [{ table: "invitation_person_proposals", column: "invitationId" }],
+  });
   remapIds({ db: db, table: "account_ownership_transfers", idColumn: "id", references: [] });
   remapIds({ db: db, table: "account_commands", idColumn: "commandId", references: [] });
   remapIds({ db: db, table: "account_session_assurance", idColumn: "sessionId", references: [] });
@@ -262,6 +273,7 @@ function remapPrincipalCoordinates(db: DatabaseSync): void {
   });
 }
 
+// eslint-disable-next-line max-lines-per-function
 function scrubIdentityCoordinates(db: DatabaseSync): void {
   scrubDanglingReferences({
     db: db,
@@ -270,6 +282,8 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
     references: [
       { table: "account_members", column: "accountId" },
       { table: "account_member_resources", column: "accountId" },
+      { table: "invitation_person_proposals", column: "accountId" },
+      { table: "member_resource_link_exceptions", column: "accountId" },
       { table: "account_member_sign_in_tracking", column: "accountId" },
       { table: "account_ownership_transfers", column: "accountId" },
       { table: "invites", column: "accountId" },
@@ -285,6 +299,7 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
       { table: "account", column: "userId" },
       { table: "account_members", column: "userId" },
       { table: "account_member_resources", column: "userId" },
+      { table: "member_resource_link_exceptions", column: "userId" },
       { table: "account_security_revisions", column: "principalId" },
       { table: "account_commands", column: "actorPrincipalId" },
       { table: "account_commands", column: "targetPrincipalId" },
@@ -296,6 +311,13 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
       { table: "verification", column: "value" },
     ],
     label: "principal",
+  });
+  scrubDanglingReferences({
+    db: db,
+    parentTable: "invites",
+    parentColumn: "id",
+    references: [{ table: "invitation_person_proposals", column: "invitationId" }],
+    label: "invitation",
   });
   // Deliberately two calls with DISTINCT labels rather than two entries in the group above: the
   // dangling replacement is `<label>-<rowid>`, so one label would give both participants of the

@@ -13,6 +13,10 @@ import {
   removeAccountMemberResourceForResource,
   setAccountMemberResourceLinkWithResult,
 } from "../controlTables/accountMemberResources";
+import {
+  listMemberResourceLinkExceptions,
+  removeMemberResourceLinkException,
+} from "../controlTables/invitationPersonProposals";
 import type { AuditRecord } from "../audit";
 
 interface PortOptions {
@@ -106,6 +110,17 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
         ),
       );
     },
+    async listExceptions(workspaceId) {
+      return new Map(
+        listMemberResourceLinkExceptions(db, workspaceId).map((exception) => [
+          exception.userId,
+          {
+            proposedResourceId: exception.proposedResourceId,
+            reason: exception.reason,
+          },
+        ]),
+      );
+    },
     async listAvatarProjection(workspaceId) {
       return listResourceAvatarProjection(db, workspaceId);
     },
@@ -171,6 +186,20 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
             command,
             action: "memberResourceUnlink",
           }),
+      });
+    },
+    async dismissException({ workspaceId, principalId, actor, command }) {
+      runCommand({
+        db,
+        applicationId,
+        accountId: workspaceId,
+        principalId,
+        actor,
+        command,
+        payload: { operation: "dismiss-exception", workspaceId, principalId },
+        action: () => {
+          removeMemberResourceLinkException(db, workspaceId, principalId);
+        },
       });
     },
     reconcileImportedLinks({ workspaceId, resourceIdMap, updatedAt }) {

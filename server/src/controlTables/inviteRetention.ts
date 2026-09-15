@@ -2,6 +2,7 @@ import type { Role } from "@capacitylens/shared/account/types";
 import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
 import type { Db } from "../db";
 import { isKnownRole } from "./members.model";
+import { getInvitationPersonProposal, removeInvitationPersonProposal } from "./invitationPersonProposals";
 import {
   INVITATION_RETENTION_INDEXES_V24_SQL,
   USED_INVITATION_RETENTION_LIMIT,
@@ -20,6 +21,7 @@ export interface InviteSummary {
   expiresAt: string;
   usedAt: string | null;
   createdAt: string;
+  proposedResourceId?: string;
 }
 
 /** Interpret invitation expiry consistently for admission, preview, redemption and pruning.
@@ -74,6 +76,7 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
         `listInvitesForAccount: stored role ${JSON.stringify(r.role)} for invite ${r.id} is not a known role — control table corrupted.`,
       );
     }
+    const proposal = getInvitationPersonProposal(db, r.id);
     return {
       id: r.id,
       accountId: r.accountId,
@@ -82,6 +85,7 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
       expiresAt: r.expiresAt,
       usedAt: r.usedAt ?? null,
       createdAt: r.createdAt,
+      ...(proposal ? { proposedResourceId: proposal.resourceId } : {}),
     };
   });
   return invitations.sort((a, b) => {
@@ -103,7 +107,9 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
  * @param id         The non-secret invite id to revoke.
  */
 export function revokeInvite(db: Db, accountId: string, id: string): number {
-  return Number(db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId).changes);
+  const result = Number(db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId).changes);
+  if (result > 0) removeInvitationPersonProposal(db, id);
+  return result;
 }
 
 /** Remove dead unused links and bound used operational history. This is a write-oriented
@@ -114,16 +120,21 @@ export function pruneInvites(db: Db, now = Date.now(), accountId?: string): numb
   const accountClause = accountId === undefined ? "" : " AND accountId = ?";
   const parameters = accountId === undefined ? [] : [accountId];
   const candidates = db
-    .prepare(`SELECT tokenHash, expiresAt FROM invites WHERE usedAt IS NULL${accountClause}`)
+    .prepare(`SELECT tokenHash, id, expiresAt FROM invites WHERE usedAt IS NULL${accountClause}`)
     .all(...parameters) as Array<{
     tokenHash: string;
+    id: string;
     expiresAt: string;
   }>;
   const removeUnused = db.prepare(`DELETE FROM invites WHERE tokenHash = ? AND usedAt IS NULL`);
   let deleted = 0;
   for (const candidate of candidates) {
     if (inviteIsExpired(candidate.expiresAt, now)) {
-      deleted += Number(removeUnused.run(candidate.tokenHash).changes);
+      const removed = Number(removeUnused.run(candidate.tokenHash).changes);
+      if (removed > 0) {
+        removeInvitationPersonProposal(db, candidate.id);
+      }
+      deleted += removed;
     }
   }
 
@@ -145,7 +156,9 @@ function pruneUsedInvitationHistory(db: Db, now = Date.now(), accountId?: string
   for (const row of used) {
     const instant = parseISOTimestamp(row.usedAt);
     if (instant === null || instant < cutoff) {
-      deleted += Number(removeUsed.run(row.tokenHash).changes);
+      const removed = Number(removeUsed.run(row.tokenHash).changes);
+      if (removed > 0) removeInvitationPersonProposal(db, row.id);
+      deleted += removed;
       continue;
     }
     const retained = retainedByAccount.get(row.accountId) ?? [];
@@ -155,7 +168,9 @@ function pruneUsedInvitationHistory(db: Db, now = Date.now(), accountId?: string
   for (const retained of retainedByAccount.values()) {
     retained.sort((left, right) => right.instant - left.instant || left.id.localeCompare(right.id));
     for (const row of retained.slice(USED_INVITATION_RETENTION_LIMIT)) {
-      deleted += Number(removeUsed.run(row.tokenHash).changes);
+      const removed = Number(removeUsed.run(row.tokenHash).changes);
+      if (removed > 0) removeInvitationPersonProposal(db, row.id);
+      deleted += removed;
     }
   }
   return deleted;

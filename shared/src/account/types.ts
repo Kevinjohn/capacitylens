@@ -159,6 +159,8 @@ export interface InvitationSummary {
   expiresAt: IsoInstant;
   usedAt: IsoInstant | null;
   createdAt: IsoInstant;
+  /** Admin-only proposed schedule person; absent on public and invitee projections. */
+  proposedResourceId?: string;
 }
 
 /** Public bearer preview. Intentionally excludes the full address, domain, inviter, identity
