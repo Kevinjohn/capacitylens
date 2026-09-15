@@ -1,5 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -10,6 +10,7 @@ import type { FieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import type { MemberActionDependencies } from "./memberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
+import { clearInvitationPreselection } from "./invitationPreselection";
 
 interface MemberInviteDependencies extends MemberActionDependencies {
   authMode: ReturnType<typeof useAuth>["authMode"];
@@ -184,21 +185,15 @@ export function useMemberInvites(initialResourceId: string | null = null) {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
   const [invitationResourceId, setInvitationResourceId] = useState(initialResourceId ?? "");
-  const handoffResourceRef = useRef<string | null>(initialResourceId);
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
   // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
   const setInvitationResourceIdForState = useCallback<Dispatch<SetStateAction<string>>>((value) => {
-    setInvitationResourceId((current) => {
-      const next = typeof value === "function" ? value(current) : value;
-      if (next === "") handoffResourceRef.current = null;
-      return next;
-    });
+    setInvitationResourceId(value);
   }, []);
   // The one-shot navigation handoff is external to this hook's normal form lifecycle.
   useEffect(() => {
     if (initialResourceId) {
-      handoffResourceRef.current = initialResourceId;
       setInvitationResourceId(initialResourceId);
     }
   }, [initialResourceId]);
@@ -211,8 +206,9 @@ export function useMemberInvites(initialResourceId: string | null = null) {
   }, []);
   const resetInviteDraft = useCallback(() => {
     setInvitationPreauthorizedEmail("");
-    if (handoffResourceRef.current === null) setInvitationResourceId("");
+    setInvitationResourceId("");
     setMintedLink(null);
+    clearInvitationPreselection();
   }, []);
 
   const createActions = ({

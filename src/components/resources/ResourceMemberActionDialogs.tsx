@@ -48,13 +48,18 @@ export function LinkResourceDialog({
       return;
     }
     if (!options.some((option) => option.value === memberId)) {
-      const message = m.settings_invite_person_stale();
+      const message = linkedMember ? m.settings_resource_member_replacement_stale() : m.settings_invite_person_stale();
       setSelectionError(message);
       onError(null);
       return;
     }
     const target = members.find((member) => member.userId === memberId);
-    if (!target) return;
+    if (!target) {
+      const message = linkedMember ? m.settings_resource_member_replacement_stale() : m.settings_invite_person_stale();
+      setSelectionError(message);
+      onError(null);
+      return;
+    }
     void mutation
       .mutate({
         principalId: memberId,

@@ -295,9 +295,9 @@ function ResourceMemberActionsImpl({
           onClose={close}
         />
       )}
-      {error && !dialog && (
+      {(error ?? mutation.error) && !dialog && (
         <p role="alert" className="text-sm text-danger">
-          {error}
+          {error ?? mutation.error}
         </p>
       )}
       {notice && !dialog && (

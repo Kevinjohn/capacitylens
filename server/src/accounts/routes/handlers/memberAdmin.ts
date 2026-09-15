@@ -117,7 +117,12 @@ export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyR
       (typeof body.replaceExpectedRevision !== "string" || body.replaceExpectedRevision.length === 0)) ||
     (body.replacePrincipalId === undefined) !== (body.replaceExpectedRevision === undefined)
   ) {
-    return context.fail(reply, context.validationFailed("resourceId and expectedRevision are required."));
+    return context.fail(
+      reply,
+      context.validationFailed(
+        "resourceId and expectedRevision are required; replacePrincipalId and replaceExpectedRevision must both be provided together when replacing an existing link.",
+      ),
+    );
   }
   try {
     const actor = requireAccountActor(req);

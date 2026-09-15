@@ -1,6 +1,6 @@
 # US-SET-10 — Member management (Owner/Admin invite / list / role / revoke)
 
-**Area:** Team & access · **Persona:** Studio owner / admin · **Linked E2E:** `e2e/members.auth.spec.ts` → "admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak"
+**Area:** Team & access · **Persona:** Studio owner / admin · **Linked E2E:** `e2e/members.auth.spec.ts` → "admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak" · `e2e/resource-member-actions.auth.spec.ts` → "an Owner links, changes, removes, and invites from resource rows while denied roles see no controls"
 
 ## Goal
 

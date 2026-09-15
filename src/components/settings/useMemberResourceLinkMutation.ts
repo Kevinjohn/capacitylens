@@ -47,12 +47,10 @@ export function useMemberResourceLinkMutation(options: MemberResourceLinkMutatio
     setError(null);
   }, [controller, options.contextKey]);
 
-  const mutate = useCallback(
-    async (input: MemberResourceLinkMutationInput): Promise<MutationResult> => {
+  const execute = useCallback(
+    async (key: string, request: () => Promise<TeamAccessResult<unknown>>): Promise<MutationResult> => {
       if (!options.workspaceId) return { kind: "stale" };
-      const command = controller.begin(
-        options.commandKey ?? `link:${options.workspaceId}:${input.principalId}:${input.resourceId}`,
-      );
+      const command = controller.begin(options.commandKey ?? key);
       if (!command) return { kind: "stale" };
       const contextKey = options.contextKey;
       if (contextRef.current !== contextKey) {
@@ -63,15 +61,7 @@ export function useMemberResourceLinkMutation(options: MemberResourceLinkMutatio
       setError(null);
       let outcome: MutationResult = { kind: "stale" };
       try {
-        const result = input.resourceId
-          ? await teamAccessClient.setMemberResourceLink({ workspaceId: options.workspaceId, ...input })
-          : input.expectedRevision === null
-            ? ({ kind: "ok", status: 204, value: true } satisfies TeamAccessResult<true>)
-            : await teamAccessClient.clearMemberResourceLink(
-                options.workspaceId,
-                input.principalId,
-                input.expectedRevision,
-              );
+        const result = await request();
         if (!command.isCurrent() || contextRef.current !== contextKey) return outcome;
         outcome = { kind: result.kind };
         if (result.kind === "ok") {
@@ -95,6 +85,7 @@ export function useMemberResourceLinkMutation(options: MemberResourceLinkMutatio
         }
         await options.reconcile?.();
         if (command.isCurrent() && contextRef.current === contextKey) await options.reload();
+        if (command.isCurrent() && contextRef.current === contextKey) useStore.getState().setNotice(message, "error");
         return outcome;
       } catch (cause: unknown) {
         if (!command.isCurrent() || contextRef.current !== contextKey) return outcome;
@@ -102,6 +93,8 @@ export function useMemberResourceLinkMutation(options: MemberResourceLinkMutatio
         setError(`${m.settings_member_resource_error()} ${resolveErrorMessage(cause)}`);
         await options.reconcile?.();
         if (command.isCurrent() && contextRef.current === contextKey) await options.reload();
+        if (command.isCurrent() && contextRef.current === contextKey)
+          useStore.getState().setNotice(m.settings_member_resource_error(), "error");
         return outcome;
       } finally {
         if (command.isCurrent() && contextRef.current === contextKey) setPending(false);
@@ -111,5 +104,30 @@ export function useMemberResourceLinkMutation(options: MemberResourceLinkMutatio
     [controller, options],
   );
 
-  return { pending, error, setError, mutate, invalidate: controller.invalidate };
+  const mutate = useCallback(
+    (input: MemberResourceLinkMutationInput) => {
+      const workspaceId = options.workspaceId;
+      if (!workspaceId) return Promise.resolve({ kind: "stale" } as const);
+      const expectedRevision = input.expectedRevision;
+      const request = input.resourceId
+        ? () => teamAccessClient.setMemberResourceLink({ workspaceId, ...input })
+        : expectedRevision === null
+          ? () => Promise.resolve({ kind: "ok", status: 204, value: true } satisfies TeamAccessResult<true>)
+          : () => teamAccessClient.clearMemberResourceLink(workspaceId, input.principalId, expectedRevision);
+      return execute(`link:${workspaceId}:${input.principalId}:${input.resourceId}`, request);
+    },
+    [execute, options],
+  );
+  const dismiss = useCallback(
+    (principalId: string) => {
+      const workspaceId = options.workspaceId;
+      if (!workspaceId) return Promise.resolve({ kind: "stale" } as const);
+      return execute(`dismiss:${workspaceId}:${principalId}`, () =>
+        teamAccessClient.dismissMemberResourceLinkException(workspaceId, principalId),
+      );
+    },
+    [execute, options],
+  );
+
+  return { pending, error, setError, mutate, dismiss, invalidate: controller.invalidate };
 }

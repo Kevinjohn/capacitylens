@@ -77,11 +77,7 @@ export function MemberResourceLink({
     if (!workspaceId || !member.resourceLinkException) return;
     restoreFocusRef.current = true;
     setEditing(false);
-    void mutation.mutate({
-      principalId: member.userId,
-      resourceId: "",
-      expectedRevision: member.resourceLink?.revision ?? null,
-    });
+    void mutation.dismiss(member.userId);
   };
   let exceptionMessage: string | null = null;
   if (member.resourceLinkException?.reason === "resource_already_linked")

@@ -293,6 +293,7 @@
   "settings_resource_member_member_aria": "Company member for {resource}",
   "settings_resource_member_no_members": "No active members are available to link.",
   "settings_resource_member_select_required": "Choose a company member before saving.",
+  "settings_resource_member_replacement_stale": "The selected replacement member or existing link is no longer current. Reload the member choices and choose the replacement again.",
   "settings_resource_member_invite_email": "Pre-authorise email (optional)",
   "settings_resource_member_invite_email_aria": "Pre-authorise email for {resource}",
   "settings_resource_member_invite_email_help": "Leave empty for a generic one-use invite link.",

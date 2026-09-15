@@ -92,4 +92,52 @@ describe("useMemberResourceLinkMutation", () => {
 
     expect(reload).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { kind: "unknown", status: 0, message: null },
+    { kind: "rejected", status: 403, message: null },
+  ] as const)("uses the distinct exception dismissal command for $kind", async (response) => {
+    const dismiss = vi
+      .spyOn(teamAccessClient, "dismissMemberResourceLinkException")
+      .mockResolvedValue(response as never);
+    const onForbidden = vi.fn();
+    const reconcile = vi.fn().mockResolvedValue(true);
+    const reload = vi.fn();
+    const { result: hook } = renderHook(() =>
+      useMemberResourceLinkMutation({
+        workspaceId: "account-1",
+        contextKey: "account-1:user-1",
+        reload,
+        reconcile,
+        onForbidden,
+      }),
+    );
+
+    await act(async () => hook.current.dismiss("user-1"));
+
+    expect(dismiss).toHaveBeenCalledWith("account-1", "user-1");
+    if (response.kind === "unknown") expect(reconcile).toHaveBeenCalledOnce();
+    else expect(onForbidden).toHaveBeenCalledOnce();
+  });
+
+  it("reconciles a thrown exception dismissal outcome", async () => {
+    vi.spyOn(teamAccessClient, "dismissMemberResourceLinkException").mockRejectedValue(new Error("offline"));
+    const reconcile = vi.fn().mockResolvedValue(true);
+    const { result: hook } = renderHook(() =>
+      useMemberResourceLinkMutation({
+        workspaceId: "account-1",
+        contextKey: "account-1:user-1",
+        reload: vi.fn(),
+        reconcile,
+      }),
+    );
+
+    let outcome: { kind: string } | undefined;
+    await act(async () => {
+      outcome = await hook.current.dismiss("user-1");
+    });
+    expect(reconcile).toHaveBeenCalledOnce();
+    expect(outcome?.kind).toBe("unknown");
+    expect(hook.current.error).toContain("could not be changed");
+  });
 });

@@ -116,9 +116,7 @@ test("an Owner links, changes, removes, and invites from resource rows while den
   await expect(page).toHaveURL(/\/team$/);
   const invitePanel = page.getByTestId("invites-section");
   await selectShadOption(invitePanel.getByTestId("invite-role"), "viewer");
-  // The transient handoff is private; selecting the already-visible option also proves the
-  // established Team panel remains the source of truth if its directory refreshes during navigation.
-  await selectShadOption(invitePanel.getByTestId("invite-person"), { label: "Clark Kent" });
+  await expect(invitePanel.getByTestId("invite-person")).toContainText("Clark Kent");
   await invitePanel.getByTestId("invite-submit").click();
   await expect(invitePanel.getByTestId("invite-created-status")).toContainText("Invite created");
   expect(inviteRequests).toHaveLength(1);
