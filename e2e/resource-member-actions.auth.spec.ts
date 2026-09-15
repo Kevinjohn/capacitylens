@@ -60,6 +60,7 @@ async function signInOwner(page: Page) {
 
 test("an Owner links a member and creates a private resource-first invitation", async ({ page, request }) => {
   const { owner, accountId } = await setupResourceMembers(request);
+  const memberName = MEMBER.split("@")[0] ?? MEMBER;
   await signInOwner(page);
   await page.getByRole("button", { name: `Resource links ${STAMP}`, exact: true }).click();
   await waitForAppLanding(page, page.locator("#main"));
@@ -69,7 +70,7 @@ test("an Owner links a member and creates a private resource-first invitation", 
   await linkedRow.getByRole("button", { name: /Link existing member Victor Stone/i }).click();
   const linkDialog = page.getByRole("dialog", { name: "Link Victor Stone to a member" });
   await selectShadOption(linkDialog.getByRole("combobox", { name: "Company member for Victor Stone" }), {
-    label: MEMBER.split("@")[0],
+    label: memberName,
   });
   await linkDialog.getByRole("button", { name: "Save link" }).click();
   await expect(linkedRow.getByRole("button", { name: /Change link Victor Stone/i })).toBeVisible();
@@ -93,9 +94,11 @@ test("an Owner links a member and creates a private resource-first invitation", 
   await inviteDialog.getByRole("button", { name: "Create invite" }).click();
   await expect(inviteDialog.getByRole("status")).toContainText("Invitation created");
   expect(inviteRequests).toHaveLength(1);
-  expect(JSON.parse(inviteRequests[0])).toMatchObject({
+  const inviteBody = inviteRequests[0];
+  expect(inviteBody).toBeDefined();
+  expect(JSON.parse(inviteBody!)).toMatchObject({
     role: "viewer",
     proposedResourceId: `resource-invite-${STAMP}`,
   });
-  expect(inviteRequests[0]).not.toContain("/invite/");
+  expect(inviteBody).not.toContain("/invite/");
 });
