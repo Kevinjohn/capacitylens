@@ -48,6 +48,7 @@ export interface TeamMember {
 export interface TeamDirectory {
   members: TeamMember[];
   signInTrackingEnabled: boolean;
+  resourceCandidates: { resourceId: string; label: string }[];
 }
 
 export interface TeamInvitation {
@@ -156,16 +157,16 @@ function parseMemberResourceLink(value: unknown): TeamMember["resourceLink"] | u
   };
 }
 
-function parseMembers(value: unknown): TeamDirectory | null {
-  if (
-    !isRecord(value) ||
-    !Array.isArray(value.members) ||
-    !(value.signInTrackingEnabled === undefined || typeof value.signInTrackingEnabled === "boolean")
-  )
-    return null;
-  const signInTrackingEnabled = value.signInTrackingEnabled === true;
+function parseResourceCandidate(value: unknown): { resourceId: string; label: string } | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.resourceId !== "string" || value.resourceId.length === 0) return null;
+  if (typeof value.label !== "string" || value.label.length === 0) return null;
+  return { resourceId: value.resourceId, label: value.label };
+}
+
+function parseDirectoryMembers(rows: readonly unknown[]): TeamMember[] | null {
   const members: TeamMember[] = [];
-  for (const row of value.members) {
+  for (const row of rows) {
     const member = parseMember(row);
     if (member === null) {
       console.warn("teamAccessClient: dropped an unsupported member-directory row", row);
@@ -173,8 +174,28 @@ function parseMembers(value: unknown): TeamDirectory | null {
     }
     members.push(member);
   }
-  if (value.members.length > 0 && members.length === 0) return null;
-  return hasDuplicateIdentity(members, (member) => member.userId) ? null : { members, signInTrackingEnabled };
+  return rows.length > 0 && members.length === 0 ? null : members;
+}
+
+function parseResourceCandidates(rows: readonly unknown[]): { resourceId: string; label: string }[] {
+  return rows.flatMap((candidate) => {
+    const parsed = parseResourceCandidate(candidate);
+    return parsed === null ? [] : [parsed];
+  });
+}
+
+function parseMembers(value: unknown): TeamDirectory | null {
+  if (!isRecord(value) || !Array.isArray(value.members)) return null;
+  if (value.signInTrackingEnabled !== undefined && typeof value.signInTrackingEnabled !== "boolean") return null;
+  if (value.resourceCandidates !== undefined && !Array.isArray(value.resourceCandidates)) return null;
+  const signInTrackingEnabled = value.signInTrackingEnabled === true;
+  const members = parseDirectoryMembers(value.members);
+  if (members === null) return null;
+  const resourceCandidates = parseResourceCandidates(value.resourceCandidates ?? []);
+  return hasDuplicateIdentity(members, (member) => member.userId) ||
+    hasDuplicateIdentity(resourceCandidates, (candidate) => candidate.resourceId)
+    ? null
+    : { members, signInTrackingEnabled, resourceCandidates };
 }
 
 function hasValidInvitationIdentity(

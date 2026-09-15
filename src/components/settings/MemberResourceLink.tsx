@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { resolveRejectionMessage, teamAccessClient, type TeamMember } from "../../account/teamAccessClient";
-import { useStore } from "../../store/useStore";
 import { invalidateResourceAvatars } from "../../account/useResourceAvatars";
 
 /** Account-admin control linking a login member to one active scheduled person. */
@@ -13,21 +12,24 @@ export function MemberResourceLink({
   member,
   myRole,
   linkedResourceIds,
+  resourceCandidates,
+  workspaceId,
   reload,
 }: {
   member: TeamMember;
   myRole: Role | undefined;
   linkedResourceIds: ReadonlySet<string>;
+  resourceCandidates: readonly { resourceId: string; label: string }[];
+  workspaceId: string | null;
   reload(): void;
 }) {
-  const accountId = useStore((state) => state.activeAccountId);
-  const resources = useStore((state) => state.data.resources);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const selectorRef = useRef<HTMLSelectElement | null>(null);
   const statusRef = useRef<HTMLSpanElement | null>(null);
   const restoreFocusRef = useRef(false);
+  const requestGeneration = useRef(0);
   useEffect(() => {
     if (editing) {
       selectorRef.current?.focus();
@@ -39,59 +41,88 @@ export function MemberResourceLink({
     }
   }, [editing, pending]);
   if (myRole !== "owner" && myRole !== "admin") return <td className="py-2 pr-3" />;
-  const currentPerson = resources.find(
-    (resource) => resource.accountId === accountId && resource.id === member.resourceLink?.resourceId,
-  );
-  const people = resources.filter(
-    (resource) =>
-      resource.accountId === accountId &&
-      resource.kind === "person" &&
-      !resource.archivedAt &&
-      !resource.deletedAt &&
-      (!linkedResourceIds.has(resource.id) || resource.id === member.resourceLink?.resourceId),
-  );
+  const currentPerson = resourceCandidates.find((resource) => resource.resourceId === member.resourceLink?.resourceId);
+  const people = resourceCandidates
+    .filter(
+      (resource) =>
+        !linkedResourceIds.has(resource.resourceId) || resource.resourceId === member.resourceLink?.resourceId,
+    )
+    .map((resource) => ({ id: resource.resourceId, name: resource.label }));
   const memberLabel = member.name ?? member.email ?? member.userId;
   const currentPersonLabel =
-    currentPerson?.name ??
-    currentPerson?.role ??
-    member.resourceLink?.resourceName ??
-    m.settings_member_resource_default_person();
+    currentPerson?.label ?? member.resourceLink?.resourceName ?? m.settings_member_resource_default_person();
   const currentPersonInactive =
-    Boolean(member.resourceLink && (!currentPerson || (currentPerson.archivedAt ?? currentPerson.deletedAt) != null)) ||
+    Boolean(member.resourceLink && !currentPerson) ||
     member.resourceLink?.resourceStatus === "archived" ||
     member.resourceLink?.resourceStatus === "disabled";
   const canEdit = member.status === "active" && !currentPersonInactive && people.length > 0;
   const change = (resourceId: string) => {
     restoreFocusRef.current = true;
-    if (!accountId) return;
+    if (!workspaceId) return;
+    const generation = ++requestGeneration.current;
+    const current = () => generation === requestGeneration.current;
     setPending(true);
     setError(null);
     let request;
     if (resourceId !== "")
       request = teamAccessClient.setMemberResourceLink({
-        workspaceId: accountId,
+        workspaceId,
         principalId: member.userId,
         resourceId,
         expectedRevision: member.resourceLink?.revision ?? null,
       });
     else if (member.resourceLink)
-      request = teamAccessClient.clearMemberResourceLink(accountId, member.userId, member.resourceLink.revision);
+      request = teamAccessClient.clearMemberResourceLink(workspaceId, member.userId, member.resourceLink.revision);
     else request = Promise.resolve({ kind: "ok", value: true, status: 204 } as const);
     void request
       .then((result) => {
+        if (!current()) return;
         if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
         else invalidateResourceAvatars();
       })
       .catch((cause: unknown) => {
         console.warn("Scheduled-person link request failed", cause);
-        setError(m.settings_member_resource_error());
+        if (current()) setError(m.settings_member_resource_error());
         invalidateResourceAvatars();
       })
       .finally(() => {
-        reload();
-        setPending(false);
+        if (current()) {
+          reload();
+          setPending(false);
+        }
       });
   };
+  const dismissException = () => {
+    if (!workspaceId || !member.resourceLinkException) return;
+    const generation = ++requestGeneration.current;
+    const current = () => generation === requestGeneration.current;
+    restoreFocusRef.current = true;
+    setPending(true);
+    setError(null);
+    void teamAccessClient
+      .dismissMemberResourceLinkException(workspaceId, member.userId)
+      .then((result) => {
+        if (!current()) return;
+        if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
+        else invalidateResourceAvatars();
+      })
+      .catch((cause: unknown) => {
+        console.warn("Scheduled-person exception dismissal failed", cause);
+        if (current()) setError(m.settings_member_resource_error());
+      })
+      .finally(() => {
+        if (current()) {
+          reload();
+          setPending(false);
+        }
+      });
+  };
+  let exceptionMessage: string | null = null;
+  if (member.resourceLinkException?.reason === "resource_already_linked")
+    exceptionMessage = m.settings_member_resource_attention_occupied();
+  else if (member.resourceLinkException?.reason === "member_already_linked")
+    exceptionMessage = m.settings_member_resource_attention_member_linked();
+  else if (member.resourceLinkException) exceptionMessage = m.settings_member_resource_attention_unavailable();
   return (
     <td className="py-2 pr-3">
       <div className="flex flex-col items-start gap-1">
@@ -100,6 +131,35 @@ export function MemberResourceLink({
             ? m.settings_member_resource_linked({ name: currentPersonLabel })
             : m.settings_member_resource_not_linked()}
         </span>
+        {exceptionMessage && (
+          <div className="flex flex-col items-start gap-1 rounded border border-warn/40 bg-warn/5 p-2 text-xs">
+            <strong className="font-medium text-ink">{m.settings_member_resource_attention_heading()}</strong>
+            <span>{exceptionMessage}</span>
+            <div className="flex flex-wrap gap-2">
+              {canEdit && !editing && (
+                <button
+                  type="button"
+                  className="font-medium text-primary underline"
+                  disabled={pending || !workspaceId}
+                  onClick={() => {
+                    restoreFocusRef.current = true;
+                    setEditing(true);
+                  }}
+                >
+                  {m.settings_member_resource_choose_another()}
+                </button>
+              )}
+              <button
+                type="button"
+                className="font-medium text-muted-foreground underline"
+                disabled={pending || !workspaceId}
+                onClick={dismissException}
+              >
+                {m.settings_member_resource_dismiss()}
+              </button>
+            </div>
+          </div>
+        )}
         {member.resourceLink && currentPersonInactive && (
           <span className="text-xs text-muted-foreground">
             {m.settings_member_resource_inactive({ name: currentPersonLabel })}
@@ -111,7 +171,7 @@ export function MemberResourceLink({
             aria-label={m.settings_member_resource_choose_aria({ member: memberLabel })}
             data-testid="member-resource-link"
             className="max-w-48 rounded-md border border-input bg-background px-2 py-1 text-sm"
-            disabled={pending || !accountId}
+            disabled={pending || !workspaceId}
             value={member.resourceLink?.resourceId ?? ""}
             onChange={(event) => {
               change(event.currentTarget.value);
@@ -121,7 +181,7 @@ export function MemberResourceLink({
             <option value="">{m.settings_member_resource_unlinked()}</option>
             {people.map((person) => (
               <option key={person.id} value={person.id}>
-                {person.name ?? person.role}
+                {person.name}
               </option>
             ))}
           </select>
@@ -143,7 +203,7 @@ export function MemberResourceLink({
             <button
               type="button"
               className="text-xs font-medium text-primary underline"
-              disabled={pending || !accountId}
+              disabled={pending || !workspaceId}
               aria-label={
                 member.resourceLink
                   ? m.settings_member_resource_change_aria({ member: memberLabel })
@@ -161,7 +221,7 @@ export function MemberResourceLink({
             <button
               type="button"
               className="text-xs font-medium text-danger underline"
-              disabled={pending || !accountId}
+              disabled={pending || !workspaceId}
               aria-label={m.settings_member_resource_remove_aria({ member: memberLabel })}
               onClick={() => change("")}
             >

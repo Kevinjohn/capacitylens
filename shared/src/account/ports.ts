@@ -262,6 +262,7 @@ export interface ResourceAvatarEntry {
 /** Account-scoped storage seam for association administration and its privacy-preserving read model. */
 export interface AccountMemberResourcePort {
   listLinks(workspaceId: WorkspaceId): Promise<ReadonlyMap<PrincipalId, MemberResourceLink>>;
+  listCandidates(workspaceId: WorkspaceId): Promise<readonly { resourceId: string; label: string }[]>;
   listExceptions(workspaceId: WorkspaceId): Promise<
     ReadonlyMap<
       PrincipalId,

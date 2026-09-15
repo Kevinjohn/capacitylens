@@ -49,6 +49,7 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
     );
     const links = await context.memberResources.listLinks(accountId);
     const exceptions = await context.memberResources.listExceptions(accountId);
+    const resourceCandidates = await context.memberResources.listCandidates(accountId);
     const members = directory.map(({ membership: member, principal }) => {
       const link = links.get(member.principalId);
       return {
@@ -73,7 +74,7 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
         })(),
       };
     });
-    return { members, signInTrackingEnabled: tracking.enabled };
+    return { members, signInTrackingEnabled: tracking.enabled, resourceCandidates };
   } catch (error) {
     return accountFail(reply, error);
   }

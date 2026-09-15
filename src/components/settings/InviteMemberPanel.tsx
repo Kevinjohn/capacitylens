@@ -5,6 +5,7 @@ import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import type { TeamInvitation } from "../../account/teamAccessClient";
+import type { InvitationPersonOption } from "./useMemberInvites";
 import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
 import { resolveRoleSummary } from "../../lib/accessCopy";
 import { SelectField, TextField } from "../common/ui";
@@ -82,6 +83,9 @@ export function InviteMemberPanel(props: {
   renderedAt: number;
   revokeInvite(id: string): Promise<void>;
   roleOptions: { value: Role; label: string }[];
+  invitationPeople: readonly InvitationPersonOption[];
+  invitationResourceId: string;
+  setInvitationResourceId(value: string): void;
 }) {
   return (
     <Card data-testid="invites-section" aria-busy={props.busy}>
@@ -121,6 +125,9 @@ type InviteFormProps = Pick<
   | "copyLink"
   | "submitInvite"
   | "roleOptions"
+  | "invitationPeople"
+  | "invitationResourceId"
+  | "setInvitationResourceId"
 >;
 
 function InviteForm(props: InviteFormProps) {
@@ -139,6 +146,9 @@ function InviteForm(props: InviteFormProps) {
     copyLink,
     submitInvite,
     roleOptions,
+    invitationPeople,
+    invitationResourceId,
+    setInvitationResourceId,
   } = props;
   return (
     <FieldSet className="gap-2">
@@ -165,6 +175,20 @@ function InviteForm(props: InviteFormProps) {
             clear,
           }}
         />
+        <div className="min-w-48 flex-1">
+          <SelectField
+            label={m.settings_invite_person_label()}
+            ariaLabel={m.settings_invite_person_aria()}
+            value={invitationResourceId}
+            onChange={setInvitationResourceId}
+            disabled={busy}
+            options={[
+              { value: "", label: m.settings_invite_person_none() },
+              ...invitationPeople.map((person) => ({ value: person.id, label: person.label })),
+            ]}
+            testId="invite-person"
+          />
+        </div>
         <Button size="sm" data-testid="invite-submit" disabled={busy} onClick={() => void submitInvite()}>
           {m.settings_invite_submit()}
         </Button>
@@ -243,7 +267,7 @@ function InviteEmailField(props: InviteEmailFieldProps) {
 
 type OutstandingInvitesProps = Pick<
   Parameters<typeof InviteMemberPanel>[0],
-  "invites" | "renderedAt" | "busy" | "revokeInvite"
+  "invites" | "renderedAt" | "busy" | "revokeInvite" | "invitationPeople"
 >;
 
 function resolveInvitationStatus(invitation: TeamInvitation, expired: boolean): string {
@@ -254,7 +278,14 @@ function resolveInvitationStatus(invitation: TeamInvitation, expired: boolean): 
   return m.settings_invite_suffix_expires({ date: formatInviteExpiryDate(invitation.expiresAt) });
 }
 
-function OutstandingInvites({ invites, renderedAt, busy, revokeInvite }: OutstandingInvitesProps) {
+function resolveInvitationPerson(invitation: TeamInvitation, people: readonly InvitationPersonOption[]): string | null {
+  if (!invitation.proposedResourceId) return null;
+  return (
+    people.find((person) => person.id === invitation.proposedResourceId)?.label ?? m.settings_invite_person_missing()
+  );
+}
+
+function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitationPeople }: OutstandingInvitesProps) {
   if (invites.length === 0) return null;
   return (
     <div className="flex flex-col gap-1">
@@ -263,6 +294,7 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite }: Outstan
         {invites.map((invitation, index) => {
           const expired = Date.parse(invitation.expiresAt) <= renderedAt;
           const actionable = invitation.usedAt === null && !expired;
+          const proposedPerson = resolveInvitationPerson(invitation, invitationPeople);
           return (
             <Fragment key={invitation.id}>
               {index > 0 && <ItemSeparator />}
@@ -273,6 +305,12 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite }: Outstan
                     ? m.settings_invite_suffix_email({ email: invitation.preauthEmail })
                     : m.settings_invite_suffix_link()}
                   {resolveInvitationStatus(invitation, expired)}
+                  {proposedPerson && (
+                    <span className="block text-xs text-muted-foreground">
+                      {m.settings_invite_person_pending({ person: proposedPerson })}{" "}
+                      {m.settings_invite_person_not_reserved()}
+                    </span>
+                  )}
                 </ItemContent>
                 {actionable && (
                   <ItemActions>

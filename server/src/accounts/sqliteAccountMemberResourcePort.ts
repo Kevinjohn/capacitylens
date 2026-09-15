@@ -110,6 +110,16 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
         ),
       );
     },
+    async listCandidates(workspaceId) {
+      return db
+        .prepare(
+          `SELECT r.id AS resourceId, COALESCE(r.name, r.role) AS label
+             FROM resources r
+            WHERE r.accountId = ? AND r.kind = 'person' AND r.archivedAt IS NULL AND r.deletedAt IS NULL
+            ORDER BY label, r.id`,
+        )
+        .all(workspaceId) as unknown as { resourceId: string; label: string }[];
+    },
     async listExceptions(workspaceId) {
       return new Map(
         listMemberResourceLinkExceptions(db, workspaceId).map((exception) => [

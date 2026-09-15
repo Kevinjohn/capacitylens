@@ -27,6 +27,13 @@ interface InviteMutationDependencies extends MemberInviteDependencies {
   inviteRole: InvitationRole;
   setInvitationPreauthorizedEmail: Dispatch<SetStateAction<string>>;
   setMintedLink: Dispatch<SetStateAction<MintedInviteLink | null>>;
+  invitationResourceId: string;
+  setInvitationResourceId: Dispatch<SetStateAction<string>>;
+}
+
+export interface InvitationPersonOption {
+  id: string;
+  label: string;
 }
 
 type InviteEmailValidationResult = { kind: "valid"; email: string } | { kind: "invalid"; message: string };
@@ -49,6 +56,7 @@ function resolveInviteMutationError(message: string, error: unknown) {
   return m.settings_members_error_detail({ message, error: resolveErrorMessage(error) });
 }
 
+// eslint-disable-next-line max-lines-per-function
 function createSubmitInvite({
   authMode,
   clear,
@@ -62,7 +70,10 @@ function createSubmitInvite({
   inviteRole,
   setInvitationPreauthorizedEmail,
   setMintedLink,
-}: InviteMutationDependencies) {
+  invitationResourceId,
+  setInvitationResourceId,
+  invitationPeople,
+}: InviteMutationDependencies & { invitationPeople: readonly InvitationPersonOption[] }) {
   return async () => {
     clear();
     requestAccountId();
@@ -78,6 +89,9 @@ function createSubmitInvite({
           accountId,
           role: inviteRole,
           ...(trimmed ? { preauthEmail: trimmed } : {}),
+          ...(invitationPeople.some((person) => person.id === invitationResourceId)
+            ? { proposedResourceId: invitationResourceId }
+            : {}),
         });
         if (!isActiveAccount(accountId)) return;
         if (result.kind !== "ok") {
@@ -99,6 +113,7 @@ function createSubmitInvite({
           link: `${window.location.origin}/invite/${encodeURIComponent(result.value.token)}`,
         });
         setInvitationPreauthorizedEmail("");
+        setInvitationResourceId("");
         clear();
         void reloadInvites();
       } catch (e) {
@@ -175,9 +190,11 @@ function createCopyLink({
 }
 
 /** Establish link reconciliation before directory reads, then bind actions to directory outputs. */
+// eslint-disable-next-line max-lines-per-function
 export function useMemberInvites() {
   const [inviteRole, setInviteRole] = useState<InvitationRole>("editor");
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
+  const [invitationResourceId, setInvitationResourceId] = useState("");
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
   // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
@@ -187,6 +204,11 @@ export function useMemberInvites() {
         ? null
         : current,
     );
+  }, []);
+  const resetInviteDraft = useCallback(() => {
+    setInvitationPreauthorizedEmail("");
+    setInvitationResourceId("");
+    setMintedLink(null);
   }, []);
 
   const createActions = ({
@@ -199,7 +221,8 @@ export function useMemberInvites() {
     setNotice,
     reloadInvites,
     reconcileUnknownMutation,
-  }: MemberInviteDependencies) => {
+    invitationPeople,
+  }: MemberInviteDependencies & { invitationPeople: readonly InvitationPersonOption[] }) => {
     const submitInvite = createSubmitInvite({
       authMode,
       clear,
@@ -214,6 +237,9 @@ export function useMemberInvites() {
       inviteRole,
       setInvitationPreauthorizedEmail,
       setMintedLink,
+      invitationResourceId,
+      setInvitationResourceId,
+      invitationPeople,
     });
     const revokeInvite = createRevokeInvite({
       withMemberAction,
@@ -232,7 +258,10 @@ export function useMemberInvites() {
     setInviteRole,
     invitationPreauthorizedEmail,
     setInvitationPreauthorizedEmail,
+    invitationResourceId,
+    setInvitationResourceId,
     mintedLink,
+    resetInviteDraft,
     reconcileMintedInvite,
     createActions,
   };
