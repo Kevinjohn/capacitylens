@@ -328,6 +328,7 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     activeAccountId,
     authMode,
     directoryAuthorized: directoryBoundary.authorized,
+    directoryContextKey: directoryBoundary.key,
     directoryPending: directoryState.directory.kind === "loading",
     enabled,
     offlineReadOnly: offline.readOnly,

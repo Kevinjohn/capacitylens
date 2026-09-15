@@ -7,6 +7,7 @@ interface InvitationResourceHandoffInput {
   activeAccountId: string | null;
   authMode: AuthMode;
   directoryAuthorized: boolean;
+  directoryContextKey: string;
   directoryPending: boolean;
   enabled: boolean;
   offlineReadOnly: boolean;
@@ -20,6 +21,7 @@ export function useInvitationResourceHandoff({
   activeAccountId,
   authMode,
   directoryAuthorized,
+  directoryContextKey,
   directoryPending,
   enabled,
   offlineReadOnly,
@@ -51,6 +53,7 @@ export function useInvitationResourceHandoff({
     activeAccountId,
     authMode,
     directoryAuthorized,
+    directoryContextKey,
     directoryPending,
     enabled,
     offlineReadOnly,

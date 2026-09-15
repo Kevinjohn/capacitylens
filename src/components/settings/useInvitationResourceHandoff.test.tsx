@@ -7,6 +7,7 @@ const input = {
   activeAccountId: "account-1",
   authMode: "password" as const,
   directoryAuthorized: true,
+  directoryContextKey: "authorized",
   directoryPending: false,
   enabled: true,
   offlineReadOnly: false,
