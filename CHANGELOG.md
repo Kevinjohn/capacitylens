@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.68.0-alpha.1] - 2026-09-15
+
 ### Changed
 
 - Keep member links and invitations in Team & access, with a **Manage team links** entry point
@@ -4462,7 +4464,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.67.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...HEAD
+[0.68.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.67.0-alpha.1...v0.68.0-alpha.1
 [0.67.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.66.0-alpha.1...v0.67.0-alpha.1
 [0.66.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.65.0-alpha.1...v0.66.0-alpha.1
 [0.65.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.64.1-alpha.1...v0.65.0-alpha.1
