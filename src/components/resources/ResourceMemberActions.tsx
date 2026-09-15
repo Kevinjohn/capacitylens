@@ -11,12 +11,14 @@ import { createMemberResourceCommandController } from "../../account/memberResou
 import { useStore } from "../../store/useStore";
 import { Button } from "../ui/button";
 import { InviteResourceDialog, LinkResourceDialog } from "./ResourceMemberActionDialogs";
+import { RemoveResourceMemberLinkButton } from "./RemoveResourceMemberLinkButton";
 
 export type ResourceMemberActionsModel = {
   canManage: boolean;
   authMode: ReturnType<typeof useAuth>["authMode"];
   members: readonly TeamMember[];
   reload(): void;
+  reconcileInvitations(): Promise<boolean>;
   directoryError: string | null;
   contextKey: string;
 };
@@ -36,13 +38,17 @@ function useOnline(): boolean {
 }
 
 /** Loads the separately-authorized team projection used by active Resource rows. */
-/* eslint-disable react-refresh/only-export-components, complexity */
+/* eslint-disable react-refresh/only-export-components, complexity, max-lines-per-function */
 export function useResourceMemberActionsModel(accountId: string | null): ResourceMemberActionsModel {
   const { authMode, user } = useAuth();
   const offline = useOfflineState();
   const online = useOnline();
   const enabled = authMode !== "off" && isServerConfigured();
   const membershipRevision = useStore((state) => state.membershipRevision);
+  const accountSummary = useStore((state) => state.accountSummaries.find((summary) => summary.id === accountId));
+  const resolvedCanManage =
+    accountSummary?.roleStatus !== "unavailable" &&
+    (accountSummary?.role === "owner" || accountSummary?.role === "admin");
   const [directory, setDirectory] = useState<{
     accountId: string;
     userId: string;
@@ -51,50 +57,79 @@ export function useResourceMemberActionsModel(accountId: string | null): Resourc
   const [directoryError, setDirectoryError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const requestGeneration = useRef(0);
-  const directoryKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${membershipRevision}`;
+  const directoryKey = `${accountId ?? ""}\u0000${user?.id ?? ""}\u0000${authMode}\u0000${offline.readOnly}\u0000${membershipRevision}\u0000${accountSummary?.role ?? ""}\u0000${accountSummary?.roleStatus ?? ""}`;
   useEffect(() => {
     const generation = ++requestGeneration.current;
     const current = () => requestGeneration.current === generation;
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setDirectory(null);
     setDirectoryError(null);
-    if (!enabled || !accountId || !user || offline.readOnly || !online) return;
+    if (!enabled || !resolvedCanManage || !accountId || !user || offline.readOnly || !online) return;
     void teamAccessClient
       .listMembers(accountId)
       .then((result) => {
         if (!current()) return;
         if (result.kind !== "ok") {
+          if (result.kind === "rejected" && result.status === 403) return;
           setDirectoryError(resolveRejectionMessage(result, m.settings_resource_member_unavailable()));
           return;
         }
         setDirectory({ accountId, userId: user.id, members: result.value.members });
       })
       .catch((cause: unknown) => {
-        if (current()) setDirectoryError(resolveErrorMessage(cause));
+        if (current()) setDirectoryError(`${m.settings_resource_member_unavailable()} ${resolveErrorMessage(cause)}`);
       });
     return () => {
       requestGeneration.current += 1;
     };
-  }, [accountId, authMode, directoryKey, enabled, membershipRevision, offline.readOnly, online, reloadKey, user]);
+  }, [
+    accountId,
+    authMode,
+    directoryKey,
+    enabled,
+    membershipRevision,
+    offline.readOnly,
+    online,
+    reloadKey,
+    resolvedCanManage,
+    user,
+  ]);
   const members = directory?.accountId === accountId && directory.userId === user?.id ? directory.members : [];
   const self = members.find((member) => member.isSelf);
+  const reload = () => {
+    requestGeneration.current += 1;
+    setDirectory(null);
+    setDirectoryError(null);
+    setReloadKey((value) => value + 1);
+    // The Team projection and validated avatar projection share this revision boundary.
+    useStore.getState().invalidateMemberships();
+  };
+  const reconcileInvitations = async (): Promise<boolean> => {
+    if (!enabled || !resolvedCanManage || !accountId || !user || offline.readOnly || !online) return false;
+    const generation = requestGeneration.current;
+    let result: Awaited<ReturnType<typeof teamAccessClient.listInvitations>>;
+    try {
+      result = await teamAccessClient.listInvitations(accountId);
+    } catch {
+      return false;
+    }
+    if (requestGeneration.current !== generation) return false;
+    if (result.kind === "ok") return true;
+    if (result.kind === "rejected" && result.status === 403) reload();
+    return false;
+  };
   return {
     members,
     authMode,
-    reload: () => {
-      requestGeneration.current += 1;
-      setDirectory(null);
-      setDirectoryError(null);
-      setReloadKey((value) => value + 1);
-      // The Team projection and validated avatar projection share this revision boundary.
-      useStore.getState().invalidateMemberships();
-    },
+    reload,
+    reconcileInvitations,
     directoryError,
     contextKey: directoryKey,
     canManage:
       enabled &&
       online &&
       !offline.readOnly &&
+      resolvedCanManage &&
       user !== null &&
       accountId !== null &&
       directory !== null &&
@@ -113,19 +148,20 @@ type ResourceMemberActionsProps = {
 
 type DialogState = { kind: "link" | "invite"; resource: Resource } | null;
 
-// eslint-disable-next-line max-lines-per-function
+// eslint-disable-next-line complexity
 export function ResourceMemberActions({ resource, accountId, model }: ResourceMemberActionsProps) {
   const [dialog, setDialog] = useState<DialogState>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
-  const requestGeneration = useRef(0);
+  const returnFocusRef = useRef<HTMLButtonElement | null>(null);
+  const noticeRef = useRef<HTMLParagraphElement | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [commandController] = useState(createMemberResourceCommandController);
   const linkedMember = model.members.find((candidate) => candidate.resourceLink?.resourceId === resource.id);
 
   useEffect(() => {
-    requestGeneration.current += 1;
     commandController.invalidate();
     // Pending state belongs to the account/session context too; never leave an old command
     // disabling controls after a tenant, auth or offline transition.
@@ -136,10 +172,15 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
       setDialog(null);
       setError(null);
       setInviteLink(null);
+      setNotice(null);
     }
     // A rejected mutation invalidates this local capability until the next authoritative directory read.
     if (model.canManage) setForbidden(false);
   }, [accountId, commandController, model.canManage, model.contextKey]);
+
+  useEffect(() => {
+    if (!dialog && notice) noticeRef.current?.focus();
+  }, [dialog, notice]);
 
   if (resource.kind !== "person" || resource.archivedAt || resource.deletedAt || !model.canManage || forbidden)
     return null;
@@ -147,6 +188,7 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
   const open = (kind: "link" | "invite") => {
     setError(null);
     setInviteLink(null);
+    setNotice(null);
     setDialog({ kind, resource });
   };
 
@@ -162,7 +204,10 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
       size="sm"
       variant={danger ? "danger-soft" : "outline"}
       aria-label={`${label} ${resource.name ?? resource.role}`}
-      onClick={onClick}
+      onClick={(event) => {
+        returnFocusRef.current = event.currentTarget;
+        onClick();
+      }}
       disabled={pending}
     >
       {label}
@@ -184,11 +229,21 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
               setPending={setPending}
               setError={setError}
               reload={model.reload}
+              returnFocusRef={returnFocusRef}
+              onSuccess={() => {
+                const message = m.settings_resource_member_unlinked();
+                setNotice(message);
+                useStore.getState().setNotice(message);
+              }}
               onForbidden={() => {
-                requestGeneration.current += 1;
                 setForbidden(true);
                 setDialog(null);
                 setError(null);
+                model.reload();
+              }}
+              onReconcile={() => {
+                const message = m.settings_resource_member_unknown();
+                useStore.getState().setNotice(message, "error");
                 model.reload();
               }}
             />
@@ -214,8 +269,17 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
           onForbidden={() => {
             setForbidden(true);
             close();
+            model.reload();
+          }}
+          onReconcile={() => {
+            const message = m.settings_resource_member_unknown();
+            useStore.getState().setNotice(message, "error");
+            model.reload();
           }}
           onSuccess={() => {
+            const message = m.settings_resource_member_linked();
+            setNotice(message);
+            useStore.getState().setNotice(message);
             invalidateResourceAvatars();
             model.reload();
             close();
@@ -236,75 +300,35 @@ export function ResourceMemberActions({ resource, accountId, model }: ResourceMe
           onForbidden={() => {
             setForbidden(true);
             close();
+            model.reload();
           }}
           onInviteLink={setInviteLink}
           commandController={commandController}
           // Keep the minted link visible; invitation creation does not change the narrow member projection.
           onSuccess={() => {}}
-          onReconcile={model.reload}
+          onReconcile={async () => {
+            const reconciled = await model.reconcileInvitations();
+            useStore
+              .getState()
+              .setNotice(
+                reconciled ? m.settings_resource_member_invite_unknown() : m.settings_resource_member_unavailable(),
+                "error",
+              );
+            return reconciled;
+          }}
           onClose={close}
         />
       )}
+      {error && !dialog && (
+        <p role="alert" className="text-sm text-danger">
+          {error}
+        </p>
+      )}
+      {notice && !dialog && (
+        <p ref={noticeRef} tabIndex={-1} role="status" aria-live="polite" className="text-sm text-ok">
+          {notice}
+        </p>
+      )}
     </>
-  );
-}
-
-function RemoveResourceMemberLinkButton({
-  resource,
-  accountId,
-  member,
-  pending,
-  commandController,
-  setPending,
-  setError,
-  reload,
-  onForbidden,
-}: {
-  resource: Resource;
-  accountId: string | null;
-  member: TeamMember;
-  pending: boolean;
-  commandController: ReturnType<typeof createMemberResourceCommandController>;
-  setPending: (value: boolean) => void;
-  setError: (value: string | null) => void;
-  reload(): void;
-  onForbidden(): void;
-}) {
-  const remove = () => {
-    if (!accountId || !member.resourceLink) return;
-    const command = commandController.begin(`unlink:${accountId}:${member.userId}`);
-    if (!command) return;
-    setPending(true);
-    setError(null);
-    void teamAccessClient
-      .clearMemberResourceLink(accountId, member.userId, member.resourceLink.revision)
-      .then((result) => {
-        if (!command.isCurrent()) return;
-        if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_resource_member_error()));
-        else {
-          invalidateResourceAvatars();
-          reload();
-        }
-        if (result.kind === "rejected" && result.status === 403) onForbidden();
-      })
-      .catch((cause: unknown) => {
-        if (command.isCurrent()) setError(resolveErrorMessage(cause));
-      })
-      .finally(() => {
-        if (command.isCurrent()) setPending(false);
-        command.release();
-      });
-  };
-  return (
-    <Button
-      type="button"
-      size="sm"
-      variant="danger-soft"
-      aria-label={`${m.settings_resource_member_remove_link()} ${resource.name ?? resource.role}`}
-      onClick={remove}
-      disabled={pending}
-    >
-      {m.settings_resource_member_remove_link()}
-    </Button>
   );
 }

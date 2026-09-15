@@ -11,7 +11,7 @@ export type MemberResourceCommand = {
 
 export function createMemberResourceCommandController() {
   let generation = 0;
-  const pending = new Set<string>();
+  const pending = new Map<string, symbol>();
   return {
     invalidate() {
       generation += 1;
@@ -19,15 +19,16 @@ export function createMemberResourceCommandController() {
     },
     begin(key: string): MemberResourceCommand | null {
       if (pending.has(key)) return null;
-      pending.add(key);
       const commandGeneration = generation;
+      const token = Symbol(key);
+      pending.set(key, token);
       let released = false;
       return {
-        isCurrent: () => commandGeneration === generation,
+        isCurrent: () => commandGeneration === generation && pending.get(key) === token,
         release: () => {
           if (released) return;
           released = true;
-          pending.delete(key);
+          if (pending.get(key) === token) pending.delete(key);
         },
       };
     },

@@ -29,9 +29,16 @@ export function ResourceListContent(props: ResourceListContentProps) {
   return (
     <>
       {props.memberActionsModel.directoryError && (
-        <p role="alert" className="mb-4 text-sm text-danger" data-testid="resource-member-directory-error">
-          {props.memberActionsModel.directoryError}
-        </p>
+        <div
+          role="alert"
+          className="mb-4 flex items-center gap-2 text-sm text-danger"
+          data-testid="resource-member-directory-error"
+        >
+          <span>{props.memberActionsModel.directoryError}</span>
+          <button type="button" className="underline" onClick={props.memberActionsModel.reload}>
+            {m.settings_resource_member_retry()}
+          </button>
+        </div>
       )}
       <PeopleSections {...props} />
       {props.model.placeholdersEnabled && <PlaceholderSection {...props} />}

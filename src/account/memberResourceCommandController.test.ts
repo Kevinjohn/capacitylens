@@ -19,4 +19,15 @@ describe("member resource command controller", () => {
     expect(first?.isCurrent()).toBe(false);
     expect(controller.begin("link:account:resource")).not.toBeNull();
   });
+
+  it("does not let an invalidated A release remove newer B or a third command", () => {
+    const controller = createMemberResourceCommandController();
+    const first = controller.begin("link:account:resource");
+    controller.invalidate();
+    const second = controller.begin("link:account:resource");
+    first?.release();
+    expect(controller.begin("link:account:resource")).toBeNull();
+    second?.release();
+    expect(controller.begin("link:account:resource")).not.toBeNull();
+  });
 });

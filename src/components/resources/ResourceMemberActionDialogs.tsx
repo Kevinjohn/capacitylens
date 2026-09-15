@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
@@ -22,6 +22,7 @@ export function LinkResourceDialog({
   onError,
   onPending,
   onForbidden,
+  onReconcile,
   onSuccess,
   onClose,
 }: {
@@ -35,11 +36,14 @@ export function LinkResourceDialog({
   onError: (value: string | null) => void;
   onPending: (value: boolean) => void;
   onForbidden: () => void;
+  onReconcile: () => void;
   onSuccess: () => void;
   onClose: () => void;
 }) {
   const [memberId, setMemberId] = useState(linkedMember?.userId ?? "");
+  const [selectionError, setSelectionError] = useState<string | null>(null);
   const submitLock = useRef(false);
+  const selectionErrorId = useId();
   const options = useMemo(
     () =>
       members
@@ -48,15 +52,26 @@ export function LinkResourceDialog({
         .map((member) => ({ value: member.userId, label: member.name ?? member.email ?? member.userId })),
     [members, linkedMember?.userId],
   );
+  // eslint-disable-next-line complexity
   const submit = () => {
     if (submitLock.current || !accountId) return;
     if (!memberId) {
-      onError(m.settings_resource_member_select_required());
+      const message = m.settings_resource_member_select_required();
+      setSelectionError(message);
+      onError(message);
+      return;
+    }
+    if (!options.some((option) => option.value === memberId)) {
+      const message = m.settings_invite_person_stale();
+      setSelectionError(message);
+      onError(message);
       return;
     }
     const target = members.find((member) => member.userId === memberId);
     if (!target) {
-      onError(m.settings_invite_person_stale());
+      const message = m.settings_invite_person_stale();
+      setSelectionError(message);
+      onError(message);
       return;
     }
     const previousLink = linkedMember?.resourceLink;
@@ -65,6 +80,7 @@ export function LinkResourceDialog({
     submitLock.current = true;
     onPending(true);
     onError(null);
+    setSelectionError(null);
     void teamAccessClient
       .setMemberResourceLink({
         workspaceId: accountId,
@@ -75,10 +91,15 @@ export function LinkResourceDialog({
           ? { replacePrincipalId: linkedMember.userId, replaceExpectedRevision: previousLink.revision }
           : {}),
       })
-      .then((result) => {
+      .then(async (result) => {
         if (!command.isCurrent()) return;
         if (result.kind !== "ok") {
-          onError(resolveRejectionMessage(result, m.settings_resource_member_error()));
+          onError(
+            result.kind === "unknown" || result.kind === "invalid"
+              ? m.settings_resource_member_unknown()
+              : resolveRejectionMessage(result, m.settings_resource_member_error()),
+          );
+          if (result.kind === "unknown" || result.kind === "invalid") onReconcile();
           if (result.kind === "rejected" && result.status === 403) onForbidden();
         } else onSuccess();
       })
@@ -101,7 +122,7 @@ export function LinkResourceDialog({
           <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
             {m.settings_member_resource_cancel()}
           </Button>
-          <Button type="submit" disabled={pending || options.length === 0}>
+          <Button type="submit" disabled={pending || options.length === 0 || memberId === ""}>
             {m.settings_resource_member_submit_link()}
           </Button>
         </>
@@ -111,13 +132,24 @@ export function LinkResourceDialog({
         label={m.settings_resource_member_member_label()}
         ariaLabel={m.settings_resource_member_member_aria({ resource: resource.name ?? resource.role })}
         value={memberId}
-        onChange={setMemberId}
+        onChange={(value) => {
+          setMemberId(value);
+          setSelectionError(null);
+          onError(null);
+        }}
         options={options}
         required
+        invalid={selectionError !== null}
+        describedById={selectionErrorId}
         disabled={pending}
       />
       {options.length === 0 && (
         <p className="text-sm text-muted-foreground">{m.settings_resource_member_no_members()}</p>
+      )}
+      {selectionError && (
+        <p id={selectionErrorId} role="alert" className="text-sm text-danger">
+          {selectionError}
+        </p>
       )}
       {error && (
         <p role="alert" className="text-sm text-danger">
@@ -157,12 +189,13 @@ export function InviteResourceDialog({
   onForbidden: () => void;
   onInviteLink: (value: string | null) => void;
   onSuccess: () => void;
-  onReconcile: () => void;
+  onReconcile: () => Promise<boolean>;
   onClose: () => void;
 }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<InvitationRole>("editor");
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
+  const [reconciling, setReconciling] = useState(false);
   const submitLock = useRef(false);
   const submit = () => {
     if (submitLock.current || !accountId) return;
@@ -188,11 +221,19 @@ export function InviteResourceDialog({
         ...(trimmed ? { preauthEmail: trimmed } : {}),
         proposedResourceId: resource.id,
       })
-      .then((result) => {
+      .then(async (result) => {
         if (!command.isCurrent()) return;
         if (result.kind !== "ok") {
-          onError(resolveRejectionMessage(result, m.settings_resource_member_invite_error()));
-          if (result.kind === "unknown" || result.kind === "invalid") onReconcile();
+          onError(
+            result.kind === "unknown" || result.kind === "invalid"
+              ? m.settings_resource_member_invite_unknown()
+              : resolveRejectionMessage(result, m.settings_resource_member_invite_error()),
+          );
+          if (result.kind === "unknown" || result.kind === "invalid") {
+            setReconciling(true);
+            await onReconcile();
+            setReconciling(false);
+          }
           if (result.kind === "rejected" && result.status === 403) onForbidden();
           return;
         }
@@ -218,7 +259,7 @@ export function InviteResourceDialog({
           <Button type="button" variant="outline" onClick={onClose} disabled={pending}>
             {m.settings_member_resource_cancel()}
           </Button>
-          <Button type="submit" disabled={pending || inviteLink !== null}>
+          <Button type="submit" disabled={pending || reconciling || inviteLink !== null}>
             {m.settings_resource_member_submit_invite()}
           </Button>
         </>

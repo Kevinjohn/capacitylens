@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { Resource } from "@capacitylens/shared/types/entities";
 import { ResourceMemberActions, type ResourceMemberActionsModel } from "./ResourceMemberActions";
+import { ResourceListContent } from "./ResourceListContent";
 import type { TeamMember } from "../../account/teamAccessClient";
 
 const resource = (overrides: Partial<Resource> = {}) =>
@@ -42,6 +43,7 @@ const model = (members: readonly TeamMember[], canManage = true): ResourceMember
   authMode: "password",
   members,
   reload: vi.fn(),
+  reconcileInvitations: vi.fn(async () => true),
   directoryError: null,
   contextKey: "account-1\u0000member-1\u0000password\u0000false\u00000",
 });
@@ -85,5 +87,69 @@ describe("ResourceMemberActions", () => {
   it("fails closed when the resolved authorization is not available", () => {
     render(<ResourceMemberActions resource={resource()} accountId="account-1" model={model([member()], false)} />);
     expect(screen.queryByTestId("resource-member-actions")).not.toBeInTheDocument();
+  });
+
+  it.each(["editor", "viewer"] as const)("omits controls for a resolved %s self role", (role) => {
+    render(
+      <ResourceMemberActions resource={resource()} accountId="account-1" model={model([member({ role })], false)} />,
+    );
+    expect(screen.queryByTestId("resource-member-actions")).not.toBeInTheDocument();
+  });
+
+  it.each(["auth off", "offline", "unresolved membership"])("fails closed in %s mode", (label) => {
+    const currentModel = model(label === "unresolved membership" ? [] : [member()], false);
+    currentModel.authMode = label === "auth off" ? "off" : "password";
+    render(<ResourceMemberActions resource={resource()} accountId="account-1" model={currentModel} />);
+    expect(screen.queryByTestId("resource-member-actions")).not.toBeInTheDocument();
+  });
+
+  it("offers an actionable retry for an authorized directory failure", () => {
+    const reload = vi.fn();
+    render(
+      <ResourceListContent
+        model={{
+          people: [resource()],
+          studioPeople: [resource()],
+          supplementaryPeople: [],
+          placeholders: [],
+          externals: [],
+          groupByEngagement: false,
+          placeholdersEnabled: false,
+          externalEnabled: false,
+          visibleCount: 1,
+          resolveSwatchColor: () => "#3b82f6",
+          buildMetadata: () => "Developer",
+        }}
+        onAdd={vi.fn()}
+        onEdit={vi.fn()}
+        onRequestArchive={vi.fn()}
+        onAddExternal={vi.fn()}
+        onEditExternal={vi.fn()}
+        onRequestExternalArchive={vi.fn()}
+        memberActionsModel={{ ...model([member()], false), directoryError: "Directory unavailable.", reload }}
+        activeAccountId="account-1"
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Directory unavailable.");
+    fireEvent.click(screen.getByRole("button", { name: /Retry association controls/i }));
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it("does not expose a View action in the complete active-row matrix", () => {
+    const linked = member({ resourceLink: { resourceId: "person-1", revision: "rev-1", resourceStatus: "active" } });
+    for (const current of [
+      model([member()]),
+      model([linked]),
+      model([
+        member({
+          status: "disabled",
+          resourceLink: { resourceId: "person-1", revision: "rev-1", resourceStatus: "disabled" },
+        }),
+      ]),
+    ]) {
+      const { unmount } = render(<ResourceMemberActions resource={resource()} accountId="account-1" model={current} />);
+      expect(screen.queryByRole("button", { name: /View/i })).not.toBeInTheDocument();
+      unmount();
+    }
   });
 });
