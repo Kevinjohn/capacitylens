@@ -84,25 +84,13 @@ describe("member resource links", () => {
       headers: { cookie: owner.cookie },
       payload: { kind: "external" },
     });
-    expect(converted.statusCode, converted.body).toBe(200);
+    expect(converted.statusCode, converted.body).toBe(400);
     expect(
       (
         await call(app, { method: "GET", url: "/api/accounts/a1/resource-avatars", headers: { cookie: viewer.cookie } })
       ).json(),
-    ).toEqual({ avatars: [] });
-    await call(app, {
-      method: "PATCH",
-      url: "/api/resources/bruce",
-      headers: { cookie: owner.cookie },
-      payload: { kind: "person" },
-    });
-    const relinked = await call(app, {
-      method: "PUT",
-      url: `/api/accounts/a1/members/${owner.userId}/resource-link`,
-      headers: { cookie: owner.cookie },
-      payload: { resourceId: "bruce", expectedRevision: null },
-    });
-    const revision = (relinked.json() as { revision: string }).revision;
+    ).toEqual({ avatars: [{ resourceId: "bruce", imageUrl: "https://images.example/bruce.png" }] });
+    const revision = (linked.json() as { revision: string }).revision;
     expect(
       (
         await call(app, {

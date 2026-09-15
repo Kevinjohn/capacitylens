@@ -2,6 +2,7 @@ import type { Db } from "./db";
 import { deleteRow } from "./db";
 import { forgetWorkspaceSyncProvenance } from "./syncOrdering";
 import { TENANT_RELATIONSHIPS } from "./tenantIntegrity";
+import { removeAccountMemberResourcesForAccount } from "./controlTables/accountMemberResources";
 
 interface CrossTenantErasureEdge {
   relationship: string;
@@ -61,5 +62,6 @@ export function eraseWorkspaceProductDataInTx(db: Db, workspaceId: string): void
   }
   assertErasureStaysWithinWorkspace(db, workspaceId);
   forgetWorkspaceSyncProvenance(db, workspaceId);
+  removeAccountMemberResourcesForAccount(db, workspaceId);
   deleteRow(db, "accounts", workspaceId);
 }

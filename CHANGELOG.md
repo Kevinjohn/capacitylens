@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Keep scheduled-person kinds immutable, clear member links during destructive scheduling imports
+  and permanent lifecycle removal, and make Team & access link changes retry-safe and auditable (#1086).
+
 - Simplify onboarding from first-Owner and company setup through the first useful schedule, with
   plain-language labels, three outcome-based setup steps and a non-blocking explanation that can
   always be reopened from the sidebar (#837).

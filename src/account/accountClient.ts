@@ -166,9 +166,37 @@ export const accountClient = {
   },
 
   listResourceAvatars: (workspaceId: string) => apiFetch(resourceAvatarsUrl(workspaceId), { credentials: "include" }),
-  setMemberResourceLink: (input: MemberResourceLinkRequestInput) => apiFetch(...memberResourceLinkRequest(input)),
-  clearMemberResourceLink: (workspaceId: string, principalId: string, expectedRevision: string) =>
-    apiFetch(...clearMemberResourceLinkRequest(workspaceId, principalId, expectedRevision)),
+  setMemberResourceLink(input: MemberResourceLinkRequestInput, command?: BrowserAccountCommand): Promise<Response> {
+    return runCommand({
+      operationKey:
+        `member-resource-link:${input.workspaceId}:${input.principalId}:` +
+        `${input.resourceId}:${input.expectedRevision ?? "none"}`,
+      explicit: command,
+      request: (resolved) => {
+        const [url, init] = memberResourceLinkRequest(input);
+        return apiFetch(url, buildCommandRequestInit(init, resolved));
+      },
+      ambiguousStatus: 409,
+    });
+  },
+  clearMemberResourceLink(
+    input: { workspaceId: string; principalId: string; expectedRevision: string },
+    command?: BrowserAccountCommand,
+  ): Promise<Response> {
+    return runCommand({
+      operationKey: `member-resource-unlink:${input.workspaceId}:${input.principalId}:${input.expectedRevision}`,
+      explicit: command,
+      request: (resolved) => {
+        const [url, init] = clearMemberResourceLinkRequest(
+          input.workspaceId,
+          input.principalId,
+          input.expectedRevision,
+        );
+        return apiFetch(url, buildCommandRequestInit(init, resolved));
+      },
+      ambiguousStatus: 409,
+    });
+  },
 
   setMemberSignInTracking(workspaceId: string, enabled: boolean): Promise<Response> {
     return apiFetchReauth(

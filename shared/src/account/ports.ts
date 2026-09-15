@@ -247,6 +247,8 @@ export interface MemberDirectoryEntry {
 export interface MemberResourceLink {
   resourceId: string;
   revision: string;
+  resourceName?: string | null;
+  resourceStatus?: "active" | "disabled" | "archived" | null;
 }
 
 /** Minimum identity-derived projection required to render a scheduled person's avatar. */
@@ -265,8 +267,16 @@ export interface AccountMemberResourcePort {
     resourceId: string;
     expectedRevision: string | null;
     now: IsoInstant;
+    actorPrincipalId?: PrincipalId | null;
+    command?: CommandIdentity;
   }): Promise<MemberResourceLink>;
-  clearLink(input: { workspaceId: WorkspaceId; principalId: PrincipalId; expectedRevision: string }): Promise<void>;
+  clearLink(input: {
+    workspaceId: WorkspaceId;
+    principalId: PrincipalId;
+    expectedRevision: string;
+    actorPrincipalId?: PrincipalId | null;
+    command?: CommandIdentity;
+  }): Promise<void>;
   reconcileImportedLinks(input: {
     workspaceId: WorkspaceId;
     resourceIdMap: ReadonlyMap<string, string>;

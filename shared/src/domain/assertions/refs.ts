@@ -12,6 +12,8 @@ import {
   type ValidationDataLookup,
 } from "../validationLookup";
 
+const RESOURCE_KINDS: ReadonlySet<unknown> = new Set(["person", "placeholder", "external"]);
+
 /**
  * Strict tenancy at the WRITE boundary. An update/delete must own its target:
  *   - ABSENT row  → return null; the caller no-ops (preserves the silent-no-op
@@ -193,10 +195,24 @@ function assertResourceRefs(context: ScopedRefsContext): void {
  * slice can't prove is yours. (The server needs no such relaxation: its validateWrite
  * runs against the full DB, where an archived parent still exists.)
  */
+function assertResourceKindImmutable(
+  previous: Record<string, unknown> | undefined,
+  record: Record<string, unknown>,
+): void {
+  if (previous === undefined) return;
+  if (typeof previous.kind !== "string" || !RESOURCE_KINDS.has(previous.kind)) {
+    domainError("resource_kind_immutable", "The stored resource kind is invalid and must be repaired by import.");
+  }
+  if (typeof record.kind === "string" && previous.kind !== record.kind) {
+    domainError("resource_kind_immutable", "A resource’s kind cannot change after creation.");
+  }
+}
+
 export function assertScopedRefs(
   ...[data, accountId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
 ): void {
   const context = createScopedRefsContext(data, accountId, record, existing, lookup);
+  if (key === "resources") assertResourceKindImmutable(context.previous, record);
   switch (key) {
     case "projects":
       assertRequiredRef(

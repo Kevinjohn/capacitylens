@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { randomUUID } from "node:crypto";
+import { rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Db } from "../db";
 import { openDb } from "../db";
 import { upsertMember } from "./members";
@@ -13,6 +17,7 @@ import {
   setAccountMemberResourceLink,
 } from "./accountMemberResources";
 import { tx } from "../txn";
+import { createSqliteAccountMemberResourcePort } from "../accounts/sqliteAccountMemberResourcePort";
 
 const NOW = "2026-09-14T10:00:00.000Z";
 
@@ -89,6 +94,167 @@ describe("account member resource links", () => {
         now: NOW,
       }),
     ).toThrow(/no longer available/);
+  });
+
+  // eslint-disable-next-line max-lines-per-function
+  it("enforces both cardinalities across two SQLite connections", () => {
+    const filename = join(tmpdir(), `capacitylens-member-links-${process.pid}-${randomUUID()}.db`);
+    const left = openDb(filename);
+    const right = openDb(filename);
+    try {
+      left
+        .prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`)
+        .run("shared", "Wayne Enterprises", "#6366f1", NOW, NOW);
+      for (const id of ["shared-r1", "shared-r2"]) {
+        left
+          .prepare(
+            `INSERT INTO resources
+             (id, accountId, kind, name, role, color, employmentType, engagement,
+              workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
+             VALUES (?, 'shared', 'person', ?, 'Designer', '#6366f1', 'employee', 'studio', 8,
+              '[1,2,3,4,5]', '[]', ?, ?)`,
+          )
+          .run(id, id, NOW, NOW);
+      }
+      for (const userId of ["shared-u1", "shared-u2"])
+        upsertMember(left, { accountId: "shared", userId, role: "admin", status: "active", createdAt: NOW });
+
+      setAccountMemberResourceLink({
+        db: left,
+        accountId: "shared",
+        userId: "shared-u1",
+        resourceId: "shared-r1",
+        expectedRevision: null,
+        now: NOW,
+      });
+      expect(() =>
+        setAccountMemberResourceLink({
+          db: right,
+          accountId: "shared",
+          userId: "shared-u2",
+          resourceId: "shared-r1",
+          expectedRevision: null,
+          now: NOW,
+        }),
+      ).toThrow(/already linked/i);
+
+      const second = setAccountMemberResourceLink({
+        db: right,
+        accountId: "shared",
+        userId: "shared-u2",
+        resourceId: "shared-r2",
+        expectedRevision: null,
+        now: NOW,
+      });
+      expect(() =>
+        setAccountMemberResourceLink({
+          db: left,
+          accountId: "shared",
+          userId: "shared-u2",
+          resourceId: "shared-r1",
+          expectedRevision: null,
+          now: NOW,
+        }),
+      ).toThrow(/changed/i);
+      expect(second.resourceId).toBe("shared-r2");
+    } finally {
+      left.close();
+      right.close();
+      rmSync(filename, { force: true });
+      rmSync(`${filename}-wal`, { force: true });
+      rmSync(`${filename}-shm`, { force: true });
+    }
+  });
+
+  it("rejects new links for inactive members while retaining existing links", () => {
+    const first = setAccountMemberResourceLink({
+      db,
+      accountId: "a1",
+      userId: "u1",
+      resourceId: "r1",
+      expectedRevision: null,
+      now: NOW,
+    });
+    db.prepare(`UPDATE account_members SET status = 'disabled' WHERE accountId = 'a1' AND userId = 'u1'`).run();
+    expect(() =>
+      setAccountMemberResourceLink({
+        db,
+        accountId: "a1",
+        userId: "u1",
+        resourceId: "r2",
+        expectedRevision: first.revision,
+        now: NOW,
+      }),
+    ).toThrow(/active member/i);
+    expect(listAccountMemberResourceLinks(db, "a1")).toHaveLength(1);
+  });
+
+  // eslint-disable-next-line max-lines-per-function
+  it("binds authorized link commands, replays idempotently, and audits atomically", async () => {
+    const port = createSqliteAccountMemberResourcePort(db, { applicationId: "test-app" });
+    const linkCommand = { commandId: "member-link-command-01", idempotencyKey: "member-link-key-01" };
+    const first = await port.setLink({
+      workspaceId: "a1",
+      principalId: "u1",
+      resourceId: "r1",
+      expectedRevision: null,
+      now: NOW,
+      actorPrincipalId: "u1",
+      command: linkCommand,
+    });
+    const replay = await port.setLink({
+      workspaceId: "a1",
+      principalId: "u1",
+      resourceId: "r1",
+      expectedRevision: null,
+      now: "2026-09-14T11:00:00.000Z",
+      actorPrincipalId: "u1",
+      command: linkCommand,
+    });
+    expect(replay).toEqual(first);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM capacitylens_audit_outbox`).get()).toEqual({ count: 1 });
+    const auditRow = db.prepare(`SELECT payload FROM capacitylens_audit_outbox`).get() as { payload: string };
+    const audit = JSON.parse(auditRow.payload) as { action?: unknown };
+    expect(audit.action).toBe("memberResourceLink");
+    await expect(
+      port.setLink({
+        workspaceId: "a1",
+        principalId: "u1",
+        resourceId: "r2",
+        expectedRevision: null,
+        now: NOW,
+        actorPrincipalId: "u1",
+        command: linkCommand,
+      }),
+    ).rejects.toThrow(/already used|different command payload/i);
+    await expect(
+      port.setLink({
+        workspaceId: "a1",
+        principalId: "u1",
+        resourceId: "r2",
+        expectedRevision: first.revision,
+        now: NOW,
+        actorPrincipalId: "u3",
+        command: { commandId: "member-link-command-02", idempotencyKey: "member-link-key-02" },
+      }),
+    ).rejects.toThrow(/Owner or Admin/i);
+
+    db.exec(
+      `CREATE TRIGGER reject_member_resource_audit BEFORE INSERT ON capacitylens_audit_outbox
+       BEGIN SELECT RAISE(ABORT, 'injected audit failure'); END`,
+    );
+    await expect(
+      port.setLink({
+        workspaceId: "a1",
+        principalId: "u2",
+        resourceId: "r2",
+        expectedRevision: null,
+        now: NOW,
+        actorPrincipalId: "u2",
+        command: { commandId: "member-link-command-03", idempotencyKey: "member-link-key-03" },
+      }),
+    ).rejects.toThrow(/injected audit failure/i);
+    expect(listAccountMemberResourceLinks(db, "a1")).toHaveLength(1);
   });
 
   it("does not misreport storage faults as a cardinality conflict", () => {

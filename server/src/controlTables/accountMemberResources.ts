@@ -37,6 +37,8 @@ export interface AccountMemberResourceLink {
   revision: string;
   createdAt: string;
   updatedAt: string;
+  resourceName?: string | null;
+  resourceStatus?: "active" | "disabled" | "archived" | null;
 }
 
 /** Privacy-minimal active avatar projection returned to an authorized account reader. */
@@ -102,8 +104,15 @@ export function ensureAccountMemberResources(db: Db): void {
 export function listAccountMemberResourceLinks(db: Db, accountId: string): AccountMemberResourceLink[] {
   return db
     .prepare(
-      `SELECT accountId, userId, resourceId, revision, createdAt, updatedAt
-       FROM account_member_resources WHERE accountId = ? ORDER BY userId`,
+      `SELECT l.accountId, l.userId, l.resourceId, l.revision, l.createdAt, l.updatedAt,
+              CASE WHEN r.id IS NULL THEN NULL ELSE COALESCE(r.name, r.role) END AS resourceName,
+              CASE WHEN r.id IS NULL THEN NULL
+                   WHEN r.deletedAt IS NOT NULL THEN 'archived'
+                   WHEN r.archivedAt IS NOT NULL THEN 'archived'
+                   ELSE 'active' END AS resourceStatus
+         FROM account_member_resources l
+         LEFT JOIN resources r ON r.accountId = l.accountId AND r.id = l.resourceId
+        WHERE l.accountId = ? ORDER BY l.userId`,
     )
     .all(accountId) as unknown as AccountMemberResourceLink[];
 }
@@ -126,9 +135,10 @@ type CurrentLink = { revision: string; resourceId: string; createdAt: string; up
 
 function requireLinkTargets(input: SetLinkInput): void {
   const member = input.db
-    .prepare(`SELECT 1 FROM account_members WHERE accountId = ? AND userId = ?`)
+    .prepare(`SELECT status FROM account_members WHERE accountId = ? AND userId = ?`)
     .get(input.accountId, input.userId);
-  if (!member) throw conflict("The selected member no longer belongs to this account.");
+  if (!member || (member as { status?: unknown }).status !== "active")
+    throw conflict("Only an active member in this account can be linked.");
   const resource = input.db
     .prepare(`SELECT kind, archivedAt, deletedAt FROM resources WHERE accountId = ? AND id = ?`)
     .get(input.accountId, input.resourceId) as
@@ -233,7 +243,9 @@ export function removeAccountMemberResourcesForAccount(db: Db, accountId: string
   db.prepare(`DELETE FROM account_member_resources WHERE accountId = ?`).run(accountId);
 }
 
-/** Delete links whose resource disappeared or changed away from the person kind after replacement/import. */
+/** Remove links whose resource disappeared or is no longer a person. Destructive imports clear
+ * the account's links before replacement; this narrow repair helper intentionally never remaps a
+ * link to an imported id. */
 export function reconcileAccountMemberResources(input: {
   db: Db;
   accountId: string;
@@ -241,13 +253,8 @@ export function reconcileAccountMemberResources(input: {
   updatedAt?: string;
 }): void {
   const { db, accountId, resourceIdMap = new Map<string, string>(), updatedAt = new Date().toISOString() } = input;
-  const update = db.prepare(
-    `UPDATE account_member_resources SET resourceId = ?, revision = ?, updatedAt = ?
-     WHERE accountId = ? AND resourceId = ?`,
-  );
-  for (const [sourceId, importedId] of resourceIdMap) {
-    if (sourceId !== importedId) update.run(importedId, newInviteId(), updatedAt, accountId, sourceId);
-  }
+  void resourceIdMap;
+  void updatedAt;
   db.prepare(
     `DELETE FROM account_member_resources WHERE accountId = ? AND NOT EXISTS (
        SELECT 1 FROM resources r WHERE r.accountId = account_member_resources.accountId

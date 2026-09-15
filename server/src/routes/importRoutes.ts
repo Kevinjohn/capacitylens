@@ -61,6 +61,7 @@ export interface ImportRouteDependencies {
   authMode: AccountMode;
   allowReset: boolean;
   accountAdminPort: ImportAccountAdministration;
+  /** Retained for test/runtime dependency compatibility; replacement cleanup is owned by replaceAccountSlice. */
   memberResources: AccountMemberResourcePort;
   accountLock: KeyedOperationLock;
   authorize: (input: AuthorizeImportInput) => boolean;
@@ -142,9 +143,6 @@ function buildImportAuditRecord(userId: string, accountId: string): AuditRecord 
   };
 }
 
-// Import authorization, worker isolation, snapshot CAS, audit and atomic replacement remain visible
-// together because their ordering is the route's security contract.
-// eslint-disable-next-line max-lines-per-function
 async function handleImport(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -188,11 +186,6 @@ async function handleImport(
           throw new ImportSnapshotConflictError();
         }
         replaceAccountSlice(dependencies.db, body.accountId, buildCompleteAccountSlice(result.data));
-        dependencies.memberResources.reconcileImportedLinks({
-          workspaceId: body.accountId,
-          resourceIdMap: result.resourceIdMap,
-          updatedAt: auditRecord.ts,
-        });
       });
     });
     if (auditOk === undefined) {

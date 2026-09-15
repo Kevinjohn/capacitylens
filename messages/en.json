@@ -1288,6 +1288,7 @@
   "domain_error_activity_phase_project_required": "An activity with a phase must also belong to that phase’s project.",
   "domain_error_activity_phase_project_mismatch": "Activity phase must belong to the activity’s project.",
   "domain_error_resource_project_forbidden": "Only a placeholder can be assigned to a project.",
+  "domain_error_resource_kind_immutable": "A resource’s kind cannot change after creation.",
   "domain_error_resource_avatar_url_invalid": "Enter an HTTPS URL without embedded credentials (maximum 2,048 characters).",
   "domain_error_resource_avatar_url_forbidden": "Only people can have an avatar URL.",
   "domain_error_allocation_references_invalid": "Allocation must reference an existing resource and activity in this company.",

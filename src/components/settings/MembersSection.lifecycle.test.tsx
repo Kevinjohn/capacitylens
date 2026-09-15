@@ -99,9 +99,12 @@ function registerMemberResourceLinkTests(): void {
     ]);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const select = await screen.findByRole("combobox", { name: /scheduled person: clark kent/i });
-    expect(within(select).getByRole("option", { name: /bruce wayne.*inactive.*unlink only/i })).toBeInTheDocument();
-    await userEvent.selectOptions(select, "");
+    const row = await findMemberRow(/ed@x\.io/);
+    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(
+      /Linked to Bruce Wayne in the schedule/,
+    );
+    expect(within(row).queryByRole("button", { name: /change scheduled person/i })).not.toBeInTheDocument();
+    await userEvent.click(within(row).getByRole("button", { name: /remove scheduled-person link/i }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining(`/members/ed/resource-link`),
