@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp as buildAppRaw } from "./app";
-import { openDb as openDbRaw, insertAll, type Db } from "./db";
+import { buildCompleteAccountSlice, openDb as openDbRaw, insertAll, replaceAccountSlice, type Db, wipe } from "./db";
 import { createAuthFromEnvironment, DEMO_USER, runAuthMigrations } from "./auth";
-import { getInvite, getMemberRole, upsertMember } from "./controlTables";
+import {
+  createInvite as createControlInvite,
+  createInvitationPersonProposal,
+  getInvite,
+  getMemberRole,
+  pruneInvites,
+  removeAccountMemberResourceForResource,
+  removeAllInvitesForAccount,
+  removeMember,
+  revokeInvite,
+  upsertMember,
+} from "./controlTables";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { PASSWORD_ENV, call, readCookies, registerServerFixtureCleanup, signUp } from "./testHelpers";
 
@@ -28,6 +39,14 @@ function readResponseString(response: Awaited<ReturnType<typeof call>>, key: str
   return value;
 }
 
+function assertPublicInviteShape(response: Awaited<ReturnType<typeof call>>, keys: readonly string[]): void {
+  const body = readObject(response.json());
+  expect(Object.keys(body).sort()).toEqual([...keys].sort());
+  expect(JSON.stringify(body)).not.toMatch(
+    /resourceId|proposedResourceId|resource_unavailable|resource_already_linked|member_already_linked|Clark Kent|person-/i,
+  );
+}
+
 function seedOne(db: Db): void {
   const data = emptyAppData() as unknown as Record<string, unknown[]>;
   data.accounts = [{ id: "a1", name: "Studio a1", color: "#3b82f6", createdAt: TS, updatedAt: TS }];
@@ -41,6 +60,20 @@ function seedPerson(db: Db, id = "person-clark"): void {
        workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
      VALUES (?, 'a1', 'person', 'Clark Kent', 'Developer', '#3b82f6', 'employee', 'studio', 8, '[1,2,3,4,5]', '[]', ?, ?)`,
   ).run(id, TS, TS);
+}
+
+function seedControlProposal(db: Db, invitationId: string, resourceId = "person-clark"): void {
+  createControlInvite(db, {
+    token: `token-${invitationId}`,
+    id: invitationId,
+    accountId: "a1",
+    role: "editor",
+    preauthEmail: null,
+    expiresAt: "2099-01-01T00:00:00.000Z",
+    usedAt: null,
+    createdAt: TS,
+  });
+  createInvitationPersonProposal({ db, invitationId, accountId: "a1", resourceId, now: TS });
 }
 
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
@@ -62,7 +95,7 @@ async function closedSignupProposalContext(): Promise<{ app: FastifyInstance; db
   await runAuthMigrations(requiredAuth);
   const inviter = await requiredAuth.createCredentialUser({
     email: "proposal-signup-owner@capacitylens.dev",
-    name: "Inviter",
+    name: "Bruce Wayne",
     password: "password-123456",
   });
   const app = buildApp(db, { authMode: mode, auth: requiredAuth });
@@ -150,7 +183,8 @@ describe("invitation person proposal route admission", () => {
     const token = readResponseString(first, "token");
     const invitee = await signUp(app, "proposal-invitee@capacitylens.dev");
     const preview = await call(app, { method: "GET", url: `/api/invites/${token}/preview` });
-    expect(JSON.stringify(preview.json())).not.toContain("person-clark");
+    expect(preview.statusCode).toBe(200);
+    assertPublicInviteShape(preview, ["accountName", "role", "expiresAt", "emailBound", "emailHint"]);
     const accepted = await call(app, {
       method: "POST",
       url: `/api/invites/${token}/accept`,
@@ -158,7 +192,7 @@ describe("invitation person proposal route admission", () => {
     });
     expect(accepted.statusCode).toBe(200);
     expect(accepted.json()).toEqual({ accountId: "a1", role: "editor" });
-    expect(JSON.stringify(accepted.json())).not.toContain("person-clark");
+    assertPublicInviteShape(accepted, ["accountId", "role"]);
     expect(db.prepare(`SELECT resourceId FROM account_member_resources WHERE userId = ?`).get(invitee.userId)).toEqual({
       resourceId: "person-clark",
     });
@@ -178,10 +212,10 @@ describe("invitation person proposal route admission", () => {
     const signup = await call(app, {
       method: "POST",
       url: `/api/invites/${token}/signup`,
-      payload: { email: "proposal-signup@capacitylens.dev", name: "New Person", password: "password-123456" },
+      payload: { email: "proposal-signup@capacitylens.dev", name: "Dick Grayson", password: "password-123456" },
     });
     expect(signup.statusCode).toBe(201);
-    expect(JSON.stringify(signup.json())).not.toContain("person-signup");
+    assertPublicInviteShape(signup, ["ok", "accountId", "role"]);
     const signedIn = await call(app, {
       method: "POST",
       url: "/api/auth/sign-in/email",
@@ -196,18 +230,160 @@ describe("invitation person proposal route admission", () => {
     });
   });
 
-  it("settles proposals through trusted/off-mode admission without exposing resource state", async () => {
+  it("rolls back password-signup membership, invite use, and proposal on link failure", async () => {
+    const { app, db, token } = await closedSignupProposalContext();
+    db.exec(`
+      CREATE TRIGGER signup_proposal_writer_failure
+      BEFORE INSERT ON account_member_resources
+      BEGIN SELECT RAISE(ABORT, 'injected signup proposal failure'); END;
+    `);
+    const signup = await call(app, {
+      method: "POST",
+      url: `/api/invites/${token}/signup`,
+      payload: { email: "proposal-signup@capacitylens.dev", name: "Dick Grayson", password: "password-123456" },
+    });
+    expect(signup.statusCode).toBe(500);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM account_members`).get()).toEqual({ count: 1 });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM account_member_resources`).get()).toEqual({ count: 0 });
+    expect(requireValue(getInvite(db, token), "signup rollback invite").usedAt).toBeNull();
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 1 });
+    expect(
+      db.prepare(`SELECT COUNT(*) AS count FROM user WHERE email = 'proposal-signup@capacitylens.dev'`).get(),
+    ).toEqual({
+      count: 0,
+    });
+  });
+
+  it.each([
+    ["viewer", "viewer-proposal@capacitylens.dev", "a1", "viewer"],
+    ["editor", "editor-proposal@capacitylens.dev", "a1", "editor"],
+    ["cross-account owner", "cross-account-proposal@capacitylens.dev", "a2", "owner"],
+  ] as const)(
+    "denies proposal creation for %s", // eslint-disable-next-line max-params
+    async (_label, email, accountId, role) => {
+      const { app, db } = await appWithAuth();
+      seedOne(db);
+      db.prepare(
+        `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a2', 'Stark Industries', '#3b82f6', ?, ?)`,
+      ).run(TS, TS);
+      seedPerson(db, `person-${_label.replaceAll(" ", "-")}`);
+      const actor = await signUp(app, email);
+      upsertMember(db, {
+        accountId,
+        userId: actor.userId,
+        role,
+        status: "active",
+        createdAt: TS,
+      });
+      const denied = await createInvite(
+        app,
+        { accountId: "a1", role: "editor", proposedResourceId: "person-viewer" },
+        actor.cookie,
+      );
+      expect(denied.statusCode).toBe(403);
+      expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 0 });
+    },
+  );
+
+  it("rolls back account admission when settlement finds a cross-account proposal", async () => {
+    const { app, db } = await appWithAuth();
+    seedOne(db);
+    seedPerson(db, "person-corrupt");
+    const owner = await signUp(app, "corrupt-proposal-owner@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    const created = await createInvite(
+      app,
+      { accountId: "a1", role: "editor", proposedResourceId: "person-corrupt" },
+      owner.cookie,
+    );
+    const token = readResponseString(created, "token");
+    db.prepare(`UPDATE invitation_person_proposals SET accountId = 'a2' WHERE resourceId = 'person-corrupt'`).run();
+    const invitee = await signUp(app, "corrupt-proposal-invitee@capacitylens.dev");
+    const accepted = await call(app, {
+      method: "POST",
+      url: `/api/invites/${token}/accept`,
+      headers: { cookie: invitee.cookie },
+    });
+    expect(accepted.statusCode).toBe(500);
+    expect(getMemberRole(db, "a1", invitee.userId)).toBeNull();
+    expect(requireValue(getInvite(db, token), "corrupt proposal invite").usedAt).toBeNull();
+    expect(
+      db.prepare(`SELECT accountId FROM invitation_person_proposals WHERE resourceId = 'person-corrupt'`).get(),
+    ).toEqual({
+      accountId: "a2",
+    });
+  });
+
+  it("keeps public preview, signup, and accept failures resource-free", async () => {
+    const { app, db } = await appWithAuth();
+    seedOne(db);
+    seedPerson(db, "person-failure");
+    const owner = await signUp(app, "failure-shape-owner@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
+    const created = await createInvite(
+      app,
+      { accountId: "a1", role: "editor", proposedResourceId: "person-failure" },
+      owner.cookie,
+    );
+    const token = readResponseString(created, "token");
+    const unknownPreview = await call(app, { method: "GET", url: "/api/invites/missing/preview" });
+    expect(unknownPreview.statusCode).toBe(404);
+    assertPublicInviteShape(unknownPreview, ["code", "error", "retryable"]);
+    const invalidSignup = await call(app, {
+      method: "POST",
+      url: `/api/invites/${token}/signup`,
+      payload: { email: "not-an-email", name: "Bruce Wayne", password: "short" },
+    });
+    expect(invalidSignup.statusCode).toBe(400);
+    assertPublicInviteShape(invalidSignup, ["error"]);
+    const invitee = await signUp(app, "failure-shape-invitee@capacitylens.dev");
+    const accepted = await call(app, {
+      method: "POST",
+      url: `/api/invites/${token}/accept`,
+      headers: { cookie: invitee.cookie },
+    });
+    expect(accepted.statusCode).toBe(200);
+    assertPublicInviteShape(accepted, ["accountId", "role"]);
+    const repeated = await call(app, {
+      method: "POST",
+      url: `/api/invites/${token}/accept`,
+      headers: { cookie: invitee.cookie },
+    });
+    expect(repeated.statusCode).toBe(409);
+    assertPublicInviteShape(repeated, ["code", "commandId", "error", "retryable"]);
+  });
+
+  it("denies proposal creation in trusted/off mode without reserving or linking", async () => {
     const db = openDb(":memory:");
     const app = buildApp(db);
     seedOne(db);
     seedPerson(db, "person-off-mode");
-    const created = await createInvite(
+    const denied = await createInvite(
       app,
       { accountId: "a1", role: "editor", proposedResourceId: "person-off-mode" },
       "",
     );
+    expect(denied.statusCode).toBe(403);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM account_member_resources`).get()).toEqual({ count: 0 });
+  });
+
+  it("settles a pre-existing proposal through trusted/off-mode admission without exposing resource state", async () => {
+    const db = openDb(":memory:");
+    const app = buildApp(db);
+    seedOne(db);
+    seedPerson(db, "person-off-mode");
+    const created = await createInvite(app, { accountId: "a1", role: "editor" }, "");
     expect(created.statusCode).toBe(201);
     const token = readResponseString(created, "token");
+    const invitation = requireValue(getInvite(db, token), "trusted-local invitation");
+    createInvitationPersonProposal({
+      db,
+      invitationId: invitation.id,
+      accountId: "a1",
+      resourceId: "person-off-mode",
+      now: TS,
+    });
     const accepted = await call(app, { method: "POST", url: `/api/invites/${token}/accept` });
     expect(accepted.statusCode).toBe(200);
     expect(JSON.stringify(accepted.json())).not.toContain("person-off-mode");
@@ -326,5 +502,88 @@ describe("invitation person proposal route admission", () => {
         .prepare(`SELECT reason FROM member_resource_link_exceptions WHERE accountId = 'a1' AND userId = ?`)
         .get(targetUserId),
     ).toEqual({ reason });
+  });
+});
+
+// eslint-disable-next-line max-lines-per-function
+describe("invitation proposal lifecycle cleanup", () => {
+  it("cleans proposals through admin revoke and retention expiry paths", () => {
+    const db = openDb(":memory:");
+    seedOne(db);
+    seedPerson(db);
+    seedControlProposal(db, "revoke-invite");
+    expect(revokeInvite(db, "a1", "revoke-invite")).toBe(1);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 0 });
+
+    seedControlProposal(db, "expired-invite");
+    db.prepare(`UPDATE invites SET expiresAt = '2000-01-01T00:00:00.000Z' WHERE id = 'expired-invite'`).run();
+    expect(pruneInvites(db, Date.parse("2026-01-01T00:00:00.000Z"), "a1")).toBe(1);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 0 });
+    db.close();
+  });
+
+  // eslint-disable-next-line max-lines-per-function
+  it("cleans member, resource, account, import, rollback, and wipe state atomically", () => {
+    const db = openDb(":memory:");
+    seedOne(db);
+    seedPerson(db);
+    upsertMember(db, { accountId: "a1", userId: "member-cleanup", role: "editor", status: "active", createdAt: TS });
+    seedControlProposal(db, "member-invite");
+    db.prepare(
+      `INSERT INTO member_resource_link_exceptions
+       (accountId, userId, proposedResourceId, reason, createdAt, updatedAt)
+       VALUES ('a1', 'member-cleanup', 'person-clark', 'resource_unavailable', ?, ?)`,
+    ).run(TS, TS);
+    removeMember(db, "a1", "member-cleanup");
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM member_resource_link_exceptions`).get()).toEqual({ count: 0 });
+    removeAccountMemberResourceForResource(db, "a1", "person-clark");
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 0 });
+
+    seedPerson(db, "person-import");
+    seedControlProposal(db, "import-invite", "person-import");
+    db.prepare(
+      `INSERT INTO member_resource_link_exceptions
+       (accountId, userId, proposedResourceId, reason, createdAt, updatedAt)
+       VALUES ('a1', 'import-member', 'person-import', 'resource_unavailable', ?, ?)`,
+    ).run(TS, TS);
+    const replacement = {
+      ...emptyAppData(),
+      resources: [
+        {
+          id: "replacement-person",
+          accountId: "a1",
+          kind: "person" as const,
+          name: "Bruce Wayne",
+          role: "Designer",
+          color: "#3b82f6",
+          employmentType: "employee" as const,
+          engagement: "studio" as const,
+          workingHoursPerDay: 8,
+          workingDays: [1, 2, 3, 4, 5],
+          halfDays: [],
+          createdAt: TS,
+          updatedAt: TS,
+        },
+      ],
+    } as unknown as AppData;
+    db.exec(`CREATE TRIGGER import_failure BEFORE INSERT ON resources WHEN NEW.accountId = 'a1'
+      BEGIN SELECT RAISE(ABORT, 'injected destructive import failure'); END`);
+    expect(() => replaceAccountSlice(db, "a1", buildCompleteAccountSlice(replacement))).toThrow(
+      /destructive import failure/,
+    );
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 1 });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM member_resource_link_exceptions`).get()).toEqual({ count: 1 });
+    db.exec(`DROP TRIGGER import_failure`);
+    replaceAccountSlice(db, "a1", buildCompleteAccountSlice(replacement));
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM member_resource_link_exceptions`).get()).toEqual({ count: 0 });
+
+    seedPerson(db, "person-wipe");
+    seedControlProposal(db, "wipe-invite", "person-wipe");
+    wipe(db);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invitation_person_proposals`).get()).toEqual({ count: 0 });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM member_resource_link_exceptions`).get()).toEqual({ count: 0 });
+    removeAllInvitesForAccount(db, "a1");
+    db.close();
   });
 });

@@ -79,8 +79,12 @@ async function listInvitations(
         expiresAt: invite.expiresAt,
         usedAt: invite.usedAt,
         createdAt: invite.createdAt,
-        ...(invite.proposedResourceId === undefined ? {} : { proposedResourceId: invite.proposedResourceId }),
-        ...(invite.proposedResourceLabel === undefined ? {} : { proposedResourceLabel: invite.proposedResourceLabel }),
+        ...(trustedLocal || invite.proposedResourceId === undefined
+          ? {}
+          : { proposedResourceId: invite.proposedResourceId }),
+        ...(trustedLocal || invite.proposedResourceLabel === undefined
+          ? {}
+          : { proposedResourceLabel: invite.proposedResourceLabel }),
       },
     ];
   });
@@ -208,6 +212,13 @@ async function createInvitation(
   const { actor, workspaceId, role, preauthorizedEmail, expiresAt, proposedResourceId, command } = input;
   const { db, trustedLocal, requireMfa, invitationSecretReplay, runMutation } = context;
   assertInvitationRole(role, command.commandId);
+  if (trustedLocal && proposedResourceId !== undefined) {
+    throw createAccountFailure(
+      "FORBIDDEN",
+      "Invitation schedule proposals require authenticated administration.",
+      command.commandId,
+    );
+  }
   return runMutation<() => CreatedInvitation>({
     operation: "create-invitation",
     actorPrincipalId: actor.principalId,

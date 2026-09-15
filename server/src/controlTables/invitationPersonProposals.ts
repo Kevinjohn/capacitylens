@@ -1,10 +1,11 @@
 import type { Db } from "../db";
+import { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "../db/constants";
 import {
   setAccountMemberResourceLinkInTransaction,
   type AccountMemberResourceMutation,
 } from "./accountMemberResources";
 
-export const INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION = 44;
+export { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "../db/constants";
 
 /** Bounded, current-only reasons for a proposal that could not become a live link. */
 export type MemberResourceLinkExceptionReason =
@@ -208,7 +209,7 @@ export function settleInvitationPersonProposal(input: {
   userId: string;
   now: string;
 }): void {
-  const proposal = getInvitationPersonProposal(input.db, input.invitationId, input.accountId);
+  const proposal = getInvitationPersonProposal(input.db, input.invitationId);
   if (!proposal) return;
   if (proposal.accountId !== input.accountId) {
     throw new Error("Invitation proposal account scope is corrupt.");

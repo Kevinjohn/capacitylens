@@ -7,7 +7,7 @@ import { CREATE_ORDER, SCOPED_ORDER } from "../tables";
 import { insertRowRaw } from "./rows";
 import type { CompleteAccountSlice } from "./slices";
 import { removeAccountMemberResourcesForAccount } from "../controlTables/accountMemberResources";
-import { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "../controlTables/invitationPersonProposals";
+import { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "./constants";
 export { markInitialized, isInitialized } from "./initialization";
 /** First-run seeding gate used by the server entrypoint: seed ONLY a never-initialised DB.
  *  Gated on the persistent `initialized` marker — which survives the user emptying their

@@ -31,6 +31,9 @@ function requireAuthenticatedPrincipal(req: FastifyRequest) {
   return { actor: requireAccountActor(req), user: requireAuthenticatedUser(req) };
 }
 
+const trustedLocalProposalFailure = () =>
+  new AccountContractError({ code: "FORBIDDEN", message: "Forbidden.", retryable: false });
+
 type ParseResult<T, E> = { value: T; failure?: never } | { failure: E; value?: never };
 
 function parsePreauthorizedEmail(
@@ -146,6 +149,8 @@ export async function createInvitation(req: FastifyRequest, reply: FastifyReply,
   if (!authorize({ req, reply, accountId: value.accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   if (value.proposedResourceId === "")
     return accountFail(reply, createValidationFailure("proposedResourceId must be a non-empty string."));
+  if (authMode === "off" && value.proposedResourceId !== undefined)
+    return accountFail(reply, trustedLocalProposalFailure());
   const expiryResult = parseInvitationExpiry(value.requestedExpiry, createValidationFailure);
   if ("failure" in expiryResult) return accountFail(reply, expiryResult.failure);
   try {

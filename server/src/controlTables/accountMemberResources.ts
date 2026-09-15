@@ -1,6 +1,6 @@
 import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
 import type { Db } from "../db";
-import { DB_SCHEMA_VERSION } from "../db/constants";
+import { ACCOUNT_MEMBER_RESOURCES_SCHEMA_VERSION, INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "../db/constants";
 import { tx } from "../txn";
 import { newInviteId } from "./inviteTokens";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
@@ -93,12 +93,12 @@ function associationTableExists(db: Db): boolean {
 
 function canSkipLegacyCleanup(db: Db): boolean {
   const version = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
-  return version < 43 && !associationTableExists(db);
+  return version < ACCOUNT_MEMBER_RESOURCES_SCHEMA_VERSION && !associationTableExists(db);
 }
 
 function canUseInvitationPersonProposalState(db: Db): boolean {
   const version = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
-  return typeof version === "number" && version >= DB_SCHEMA_VERSION;
+  return typeof version === "number" && version >= INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION;
 }
 
 function removeMemberResourceLinkExceptionState(db: Db, accountId: string, userId: string): void {
@@ -331,7 +331,7 @@ export function reconcileAccountMemberResources(input: {
         AND r.id = account_member_resources.resourceId AND r.kind = 'person')`,
   ).run(accountId);
   const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
-  if (typeof schemaVersion !== "number" || schemaVersion < DB_SCHEMA_VERSION) return;
+  if (typeof schemaVersion !== "number" || schemaVersion < INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION) return;
   db.prepare(
     `DELETE FROM invitation_person_proposals WHERE accountId = ? AND NOT EXISTS (
     SELECT 1 FROM resources r WHERE r.accountId = invitation_person_proposals.accountId

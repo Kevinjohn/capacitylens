@@ -68,6 +68,7 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
       `SELECT invitation.id, invitation.accountId, invitation.role, invitation.preauthEmail,
               invitation.expiresAt, invitation.usedAt, invitation.createdAt,
               ${hasProposalSchema ? "proposal.resourceId" : "NULL"} AS proposedResourceId,
+              ${hasProposalSchema ? "proposal.accountId" : "NULL"} AS proposalAccountId,
               ${hasProposalSchema ? "CASE WHEN resource.id IS NULL THEN NULL ELSE COALESCE(resource.name, resource.role) END" : "NULL"}
                 AS proposedResourceLabel
          FROM invites AS invitation
@@ -84,6 +85,7 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
     usedAt: string | null;
     createdAt: string;
     proposedResourceId: string | null;
+    proposalAccountId: string | null;
     proposedResourceLabel: string | null;
   }>;
   const invitations = rows.map((r) => {
@@ -91,6 +93,9 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
       throw new Error(
         `listInvitesForAccount: stored role ${JSON.stringify(r.role)} for invite ${r.id} is not a known role — control table corrupted.`,
       );
+    }
+    if (r.proposalAccountId !== null && r.proposalAccountId !== r.accountId) {
+      throw new Error(`listInvitesForAccount: proposal ${r.id} has a corrupt account scope.`);
     }
     return {
       id: r.id,

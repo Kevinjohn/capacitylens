@@ -672,7 +672,7 @@ function registerNoForeignKeyProposalRedactionTest(): void {
           accountId TEXT, userId TEXT, proposedResourceId TEXT, reason TEXT, createdAt TEXT, updatedAt TEXT
         );
         INSERT INTO accounts VALUES ('source-workspace');
-        INSERT INTO resources VALUES ('source-resource', 'source-workspace', 'person', 'Source Person', 'Designer');
+        INSERT INTO resources VALUES ('source-resource', 'source-workspace', 'person', 'Lois Lane', 'Designer');
         INSERT INTO invitation_person_proposals VALUES
           ('source-invite-live', 'source-workspace', 'source-resource', '2026-01-01', '2026-01-01'),
           ('source-invite-dangling', 'source-workspace', 'source-resource-missing', '2026-01-01', '2026-01-01');

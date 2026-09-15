@@ -46,7 +46,28 @@ function invite(db: ReturnType<typeof openDb>, id = "i1") {
   });
 }
 
+// eslint-disable-next-line max-lines-per-function
 describe("invitation person proposals", () => {
+  it("rejects cross-account settlement before consuming the corrupt proposal", () => {
+    const db = fixture();
+    db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`).run(
+      "a2",
+      "Stark Industries",
+      "#000000",
+      TS,
+      TS,
+    );
+    invite(db);
+    createInvitationPersonProposal({ db, invitationId: "i1", accountId: "a1", resourceId: "r1", now: TS });
+    expect(() =>
+      settleInvitationPersonProposal({ db, invitationId: "i1", accountId: "a2", userId: "u2", now: TS }),
+    ).toThrow(/account scope is corrupt/i);
+    expect(getInvitationPersonProposal(db, "i1")).toMatchObject({ accountId: "a1" });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM account_member_resources`).get()).toEqual({ count: 0 });
+    expect(listMemberResourceLinkExceptions(db, "a2")).toEqual([]);
+    db.close();
+  });
+
   it("fails closed when a current-schema proposal table is damaged", () => {
     const db = fixture();
     db.exec(`DROP TABLE invitation_person_proposals`);
@@ -79,6 +100,21 @@ describe("invitation person proposals", () => {
     ]);
     expect(getInvitationPersonProposal(db, "i1")).toBeNull();
     expect(listMemberResourceLinkExceptions(db, "a1")).toEqual([]);
+    db.close();
+  });
+
+  it("treats an identical existing link as satisfied without duplicating state", () => {
+    const db = fixture();
+    invite(db);
+    db.prepare(
+      `INSERT INTO account_member_resources (accountId, userId, resourceId, revision, createdAt, updatedAt)
+       VALUES ('a1', 'u1', 'r1', 'existing-revision', ?, ?)`,
+    ).run(TS, TS);
+    createInvitationPersonProposal({ db, invitationId: "i1", accountId: "a1", resourceId: "r1", now: TS });
+    settleInvitationPersonProposal({ db, invitationId: "i1", accountId: "a1", userId: "u1", now: TS });
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM account_member_resources`).get()).toEqual({ count: 1 });
+    expect(listMemberResourceLinkExceptions(db, "a1")).toEqual([]);
+    expect(getInvitationPersonProposal(db, "i1")).toBeNull();
     db.close();
   });
 
