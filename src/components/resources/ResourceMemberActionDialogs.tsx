@@ -231,8 +231,10 @@ export function InviteResourceDialog({
           );
           if (result.kind === "unknown" || result.kind === "invalid") {
             setReconciling(true);
-            await onReconcile();
-            setReconciling(false);
+            const reconciled = await onReconcile();
+            // Do not permit a second create request while the invitation directory itself could
+            // not be reconciled; a one-time token may already exist server-side.
+            setReconciling(!reconciled);
           }
           if (result.kind === "rejected" && result.status === 403) onForbidden();
           return;
