@@ -528,10 +528,21 @@ describe("buildCapacityOverviewModel", () => {
         [
           allocation("first-load", first.id, "2026-06-01", "2026-06-01", 7),
           allocation("second-load", second.id, "2026-06-01", "2026-06-01", 7),
+          allocation("first-overload", first.id, "2026-06-08", "2026-06-08", 10),
         ],
       ),
       today: "2026-06-01",
       accountWorkingDays: WEEKDAYS,
+      timeOff: [
+        {
+          ...BASE,
+          id: "first-leave",
+          resourceId: first.id,
+          startDate: "2026-06-09",
+          endDate: "2026-06-09",
+          type: "holiday",
+        },
+      ],
       disciplinesEnabled: false,
     });
 
@@ -540,6 +551,7 @@ describe("buildCapacityOverviewModel", () => {
     expect(period(result, second.id, 0).freeDays).toBe(4);
     expect(summary).toMatchObject({ peopleCount: 2 });
     expect(summary.periods[0]).toMatchObject({ freeHours: 66, freeDays: 8.25 });
+    expect(summary.periods[1]).toMatchObject({ availableHours: 72, freeHours: 64, overHours: 2 });
   });
 
   it("returns a measured-capacity explanation in Blocks mode", () => {
