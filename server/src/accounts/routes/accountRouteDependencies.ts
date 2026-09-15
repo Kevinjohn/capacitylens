@@ -1,5 +1,10 @@
 import type { AuthorizeRouteInput } from "../../routes/routeShared";
-import type { AccountAdminPort, AccountFlows, IdentityPort } from "@capacitylens/shared/account/ports";
+import type {
+  AccountAdminPort,
+  AccountFlows,
+  AccountMemberResourcePort,
+  IdentityPort,
+} from "@capacitylens/shared/account/ports";
 import type {
   AccountMode,
   CommandIdentity,
@@ -25,6 +30,7 @@ type SetMemberSignInTrackingRequestInput = Omit<SetMemberSignInTrackingInput, "d
 };
 
 export interface AccountRouteDependencies {
+  memberResources: AccountMemberResourcePort;
   authMode: AccountMode;
   authenticationConfigured: boolean;
   /** SSO-only invitation acceptance must arrive through this provider so a new membership cannot

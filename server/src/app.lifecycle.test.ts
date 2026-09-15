@@ -21,14 +21,12 @@ import {
 import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import type { TenantStore } from "./tenantStore";
+import { seedMemberResourceLink } from "./fixtures/memberResourceTestSupport";
 
 // P2.5a entity-lifecycle routes — the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
-// This suite drives the four dedicated action routes (archive/unarchive/delete/purge) + the
-// `?includeInactive=1` admin read END-TO-END (sign-up → membership → request) and asserts the resulting
-// status codes, the server-enforced interlocks (409s), the purge cascade, the persisted resource
-// obfuscation (P2.3 carry-forward) and the built-in-Internal-client guard. The pure transitions
-// themselves are unit-tested in shared/domain/lifecycle.test.ts; here we prove the WIRING:
-// authorize tiers, owned targeted writes and the audit line.
+// This suite drives archive/unarchive/delete/purge and admin inactive reads end-to-end, asserting
+// authorization, interlocks, cascades, persisted obfuscation and audit wiring. Pure transitions
+// remain unit-tested in shared/domain/lifecycle.test.ts.
 
 const TS = "2026-01-01T00:00:00.000Z";
 const meta = () => ({ createdAt: TS, updatedAt: TS });
@@ -1251,7 +1249,8 @@ describe("P2.5a lifecycle — OFF mode is allow-all (the #1 invariant)", () => {
   }
 
   it("every lifecycle route + read-inactive succeeds with NO auth cookie", async () => {
-    const { app } = offApp();
+    const { app, db } = offApp();
+    seedMemberResourceLink({ db, accountId: "a1", userId: "cleanup-user", resourceId: "rDel" });
     expect(
       (await lifecycleAction({ app, entity: "clients", id: "c1", action: "archive", accountId: "a1" })).statusCode,
     ).toBe(200);
@@ -1264,6 +1263,7 @@ describe("P2.5a lifecycle — OFF mode is allow-all (the #1 invariant)", () => {
     expect(
       (await lifecycleAction({ app, entity: "resources", id: "rDel", action: "purge", accountId: "a1" })).statusCode,
     ).toBe(204);
+    expect(db.prepare(`SELECT 1 FROM account_member_resources WHERE resourceId = 'rDel'`).get()).toBeUndefined();
     expect((await readInactive(app, "a1")).statusCode).toBe(200);
   });
 

@@ -137,6 +137,7 @@ function remapAccountCoordinates(db: DatabaseSync): void {
       { table: "timeOff", column: "accountId" },
       { table: "closures", column: "accountId" },
       { table: "account_members", column: "accountId" },
+      { table: "account_member_resources", column: "accountId" },
       { table: "account_member_sign_in_tracking", column: "accountId" },
       { table: "account_ownership_transfers", column: "accountId" },
       { table: "invites", column: "accountId" },
@@ -182,6 +183,7 @@ function remapSchedulingCoordinates(db: DatabaseSync): void {
     references: [
       { table: "allocations", column: "resourceId" },
       { table: "timeOff", column: "resourceId" },
+      { table: "account_member_resources", column: "resourceId" },
     ],
   });
   remapIds({
@@ -210,6 +212,7 @@ function remapPrincipalCoordinates(db: DatabaseSync): void {
       { table: "session", column: "userId" },
       { table: "twoFactor", column: "userId" },
       { table: "account_members", column: "userId" },
+      { table: "account_member_resources", column: "userId" },
       { table: "account_ownership_transfers", column: "initiatorUserId" },
       { table: "account_ownership_transfers", column: "targetUserId" },
       { table: "account_security_revisions", column: "principalId" },
@@ -266,6 +269,7 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
     parentColumn: "id",
     references: [
       { table: "account_members", column: "accountId" },
+      { table: "account_member_resources", column: "accountId" },
       { table: "account_member_sign_in_tracking", column: "accountId" },
       { table: "account_ownership_transfers", column: "accountId" },
       { table: "invites", column: "accountId" },
@@ -280,6 +284,7 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
     references: [
       { table: "account", column: "userId" },
       { table: "account_members", column: "userId" },
+      { table: "account_member_resources", column: "userId" },
       { table: "account_security_revisions", column: "principalId" },
       { table: "account_commands", column: "actorPrincipalId" },
       { table: "account_commands", column: "targetPrincipalId" },

@@ -14,6 +14,7 @@ import {
   parseTimestampMilliseconds,
 } from "./instants";
 import { createInvalidProviderSessionError, createProviderFailure } from "./vendorErrors";
+import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
 
 type SessionsContext = Pick<IdentityPortContext, "input" | "accountTableExists" | "revokePrincipalSessionsInTx">;
 type SessionsPort = Pick<
@@ -55,6 +56,12 @@ async function verifyApplicationSession(
   }
 }
 
+function narrowProviderImage(value: unknown): string | null {
+  const parsed = parseResourceAvatarUrl(value);
+  if (!parsed.ok) return null;
+  return parsed.value ?? null;
+}
+
 function buildVerifiedApplicationSession(
   context: SessionsContext,
   resolved: ResolvedProviderSession,
@@ -76,7 +83,7 @@ function buildVerifiedApplicationSession(
       displayName: resolved.user.name,
       email: resolved.user.email,
       emailVerified: resolved.user.emailVerified,
-      image: resolved.user.image,
+      image: narrowProviderImage(resolved.user.image),
       linkedSubject: federatedIdentity?.linkedSubject ?? null,
     },
     createdAt,

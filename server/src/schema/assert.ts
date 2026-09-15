@@ -187,8 +187,34 @@ function inspectTableConstraints(input: InspectTableConstraintsInput): void {
     db.prepare(`SELECT name FROM sqlite_master WHERE type = 'trigger' AND tbl_name = ?`).all(table) as Array<{
       name: string;
     }>
-  ).filter(({ name }) => !name.startsWith("capacitylens_tenant_"));
+  ).filter(
+    ({ name }) => !name.startsWith("capacitylens_tenant_") && name !== "capacitylens_member_resource_kind_cleanup",
+  );
   for (const trigger of unexpectedTriggers) problems.push(`${table}.${trigger.name} is an unexpected trigger`);
+}
+
+/** Verify the exact current resource-kind cleanup trigger without widening historical schema contracts. */
+export function assertMemberResourceKindCleanupTrigger(db: Db): void {
+  const expected = `CREATE TRIGGER IF NOT EXISTS capacitylens_member_resource_kind_cleanup
+AFTER UPDATE OF kind ON resources
+WHEN OLD.kind = 'person' AND NEW.kind <> 'person'
+BEGIN
+  DELETE FROM account_member_resources WHERE accountId = OLD.accountId AND resourceId = OLD.id;
+END`;
+  const actual = db
+    .prepare(
+      `SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'capacitylens_member_resource_kind_cleanup'`,
+    )
+    .get() as { sql: string } | undefined;
+  const normalize = (sql: string): string =>
+    sql
+      .replace(/\bIF\s+NOT\s+EXISTS\s+/i, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/;$/, "");
+  if (!actual || normalize(actual.sql) !== normalize(expected)) {
+    throw new Error("Database member/resource kind cleanup trigger is missing or invalid.");
+  }
 }
 /**
  * Fail loudly if the live DB has drifted from the current spec in a way migrateSchema can't (or

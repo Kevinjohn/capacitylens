@@ -1,5 +1,5 @@
 import type { Db } from "./db";
-import { assertSchemaVersion } from "./schema/assert";
+import { assertMemberResourceKindCleanupTrigger, assertSchemaVersion } from "./schema/assert";
 import {
   V16_TABLES,
   V27_TABLES,
@@ -114,4 +114,5 @@ export function assertSchemaV40(db: Db): void {
 /** Assert that the live database matches the current entity/table specification. */
 export function assertSchemaCurrent(db: Db): void {
   assertSchemaVersion(db, TABLES, true);
+  assertMemberResourceKindCleanupTrigger(db);
 }

@@ -39,6 +39,7 @@ import {
   runAccountDateStyleV40,
 } from "./definitions";
 import { RESOURCE_AVATAR_URL_V42_MIGRATION } from "./resourceAvatarUrlV42";
+import { ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION } from "./accountMemberResourcesV43";
 import { migrateTimeOffResourceNullableV33, COMPANY_CLOSURES_V34_DEFINITION } from "./definitions";
 import { migrateCompanyClosuresV34 } from "./definitions";
 import { ACCOUNT_BOUNDARY_STATE_V15_SQL, assertAccountBoundaryStateCurrent } from "../../accounts/state";
@@ -73,7 +74,6 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       INTERNAL_CLIENT_UNIQUE_INDEX_SQL,
     ].join("\n-- migration component --\n"),
     (db) => {
-      // Consolidate legacy v0-v7 through the proven repair path; v8+ use ordered migrations.
       renameLegacyActivityTables(db);
       db.exec(SCHEMA_V8_SQL);
       migrateSchemaV8(db);
@@ -93,8 +93,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       "ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;",
     ].join("\n"),
     (db) => {
-      // Some pre-ledger databases were version-stamped after optional-column repair. Keep this
-      // idempotent for that shape while real released v8 databases take the ALTER path.
+      // Pre-ledger development databases may already have the optional column.
       if (!tableHasColumns(db, "accounts", ["internalColourMode"])) {
         db.exec("ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;");
       }
@@ -386,6 +385,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   defineMigration(40, "add-account-date-style", ACCOUNT_DATE_STYLE_V40_DEFINITION, runAccountDateStyleV40),
   defineMigration(41, "add-ownership-transfer-requests", OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, runOwnershipTransfersV41),
   RESOURCE_AVATAR_URL_V42_MIGRATION,
+  ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION,
 ];
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {

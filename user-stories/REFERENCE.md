@@ -987,7 +987,11 @@ request. The link page is `src/components/invites/InviteAccept.tsx`; the create 
 section below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
-Owner, Admin, Editor and Viewer. Its **Your access** panel (`data-testid="current-access"`) shows the
+Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Scheduled
+person** field to associate one member with one active person per company. This association changes
+neither permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
+validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
+association. Its **Your access** panel (`data-testid="current-access"`) shows the
 active role in a plain-language summary sentence. The full allowed/not-allowed capability list —
 schedule writes, member administration, time-off-note visibility and private client/project-name
 visibility — is collapsed behind a **See full capabilities** disclosure

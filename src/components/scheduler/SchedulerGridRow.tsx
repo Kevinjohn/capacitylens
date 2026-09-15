@@ -34,6 +34,7 @@ export interface SchedulerGridRowProps {
   handleEdit: LaneProps["onEdit"];
   handleDraw: LaneProps["onDraw"];
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
+  resourceAvatars?: ReadonlyMap<string, string>;
   onViewSchedule: (resourceId: string, opener: HTMLButtonElement) => void;
 }
 
@@ -42,10 +43,15 @@ function ResourceIdentity({
   row,
   density,
   personScheduleTitlesByResourceId,
+  resourceAvatars = new Map(),
   onViewSchedule,
-}: Pick<SchedulerGridRowProps, "group" | "row" | "density" | "personScheduleTitlesByResourceId" | "onViewSchedule">) {
+}: Pick<
+  SchedulerGridRowProps,
+  "group" | "row" | "density" | "personScheduleTitlesByResourceId" | "resourceAvatars" | "onViewSchedule"
+>) {
   const { resource } = row;
   const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
+  const imageUrl = resource.kind === "person" ? (resource.avatarUrl ?? resourceAvatars.get(resource.id)) : undefined;
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2" style={{ height: density.identityBandHeight }}>
       <PersonScheduleTrigger
@@ -54,7 +60,7 @@ function ResourceIdentity({
         avatarName={resource.name ?? resource.role}
         color={group.color ?? resource.color}
         placeholder={resource.kind === "placeholder"}
-        {...(resource.kind === "person" && resource.avatarUrl ? { imageUrl: resource.avatarUrl } : {})}
+        {...(imageUrl ? { imageUrl } : {})}
         onViewSchedule={onViewSchedule}
       />
       <div className="ms-1.5 min-w-0 flex-1">
@@ -148,11 +154,13 @@ type RowHeaderProps = Pick<
   | "visibleStartDate"
   | "setModal"
   | "personScheduleTitlesByResourceId"
+  | "resourceAvatars"
   | "onViewSchedule"
 >;
 
 function SchedulerGridRowHeader(props: RowHeaderProps) {
   const { row, group, density, utilizationPrefs, visibleWeeksLabel, ui } = props;
+  const resourceAvatars = props.resourceAvatars ?? new Map<string, string>();
   const { resource } = row;
   return (
     <div
@@ -175,6 +183,7 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
         row={row}
         density={density}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
+        resourceAvatars={resourceAvatars}
         onViewSchedule={props.onViewSchedule}
       />
       <ResourceActions {...props} />

@@ -25,6 +25,7 @@ export interface RawMember {
   isSelf?: boolean;
   mayResetPassword?: boolean;
   mayRevokeSessions?: boolean;
+  resourceLink?: { resourceId: string; revision: string } | null;
 }
 
 /** Build a full server-shaped member record from just what a test cares about pinning. Common

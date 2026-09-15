@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from "../../test/fixtures";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "../../test/fixtures";
 import { useStore } from "../../store/useStore";
 import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
@@ -81,7 +81,36 @@ describe("MembersSection — member lifecycle", () => {
   registerLifecycleTrackingTests();
   registerLifecycleReconciliationTests();
   registerLifecycleConcurrencyTests();
+  registerMemberResourceLinkTests();
 });
+
+function registerMemberResourceLinkTests(): void {
+  it("retains the current inactive person for direct unlink and reconciles after the write", async () => {
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    useStore.getState().updateResource(resource.id, { archivedAt: "2026-09-14T10:00:00.000Z" });
+    const fetchMock = mockApi([
+      { userId: "me", role: "owner", isSelf: true },
+      {
+        userId: "ed",
+        role: "editor",
+        name: "Clark Kent",
+        resourceLink: { resourceId: resource.id, revision: "rev-1" },
+      },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const select = await screen.findByRole("combobox", { name: /scheduled person: clark kent/i });
+    expect(within(select).getByRole("option", { name: /bruce wayne.*inactive.*unlink only/i })).toBeInTheDocument();
+    await userEvent.selectOptions(select, "");
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(`/members/ed/resource-link`),
+        expect.objectContaining({ method: "DELETE", body: JSON.stringify({ expectedRevision: "rev-1" }) }),
+      ),
+    );
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/members"))).toHaveLength(2);
+  });
+}
 
 function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
   it("never offers a transfer-ownership control on any row", async () => {
@@ -317,6 +346,7 @@ function registerLifecycleTrackingTests(): void {
     ).toEqual([
       m.settings_member_col_name(),
       m.settings_member_col_email(),
+      m.settings_member_col_scheduled_person(),
       m.settings_member_col_sign_in_confirmed(),
       m.settings_member_col_edit(),
       m.settings_member_col_settings(),
@@ -328,9 +358,9 @@ function registerLifecycleTrackingTests(): void {
       "the Clark Kent row in the members table",
     );
     const cells = within(editorRow).getAllByRole("cell");
-    expect(cells).toHaveLength(5);
-    expect(within(requireValue(cells[3], "the edit cell")).getByTestId("member-edit")).toBeInTheDocument();
-    expect(within(requireValue(cells[4], "the settings cell")).getByTestId("member-menu")).toBeInTheDocument();
+    expect(cells).toHaveLength(6);
+    expect(within(requireValue(cells[4], "the edit cell")).getByTestId("member-edit")).toBeInTheDocument();
+    expect(within(requireValue(cells[5], "the settings cell")).getByTestId("member-menu")).toBeInTheDocument();
   });
 }
 
