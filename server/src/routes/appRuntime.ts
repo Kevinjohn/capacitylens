@@ -108,7 +108,7 @@ function createAccountPorts({ db, config, options, accountAudit, masqueradeSessi
     eraseProductWorkspaceInTx: (workspaceId) => eraseWorkspaceProductDataInTx(db, workspaceId),
     audit: accountAudit,
   });
-  const memberResources = createSqliteAccountMemberResourcePort(db);
+  const memberResources = createSqliteAccountMemberResourcePort(db, { applicationId: application.applicationId });
   return { accountLock, identityPort, accountAdminPort, accountFlows, memberResources };
 }
 

@@ -37,6 +37,8 @@ export interface AccountMemberResourceLink {
   revision: string;
   createdAt: string;
   updatedAt: string;
+  resourceName?: string | null;
+  resourceStatus?: "active" | "disabled" | "archived" | null;
 }
 
 /** Privacy-minimal active avatar projection returned to an authorized account reader. */
@@ -102,8 +104,15 @@ export function ensureAccountMemberResources(db: Db): void {
 export function listAccountMemberResourceLinks(db: Db, accountId: string): AccountMemberResourceLink[] {
   return db
     .prepare(
-      `SELECT accountId, userId, resourceId, revision, createdAt, updatedAt
-       FROM account_member_resources WHERE accountId = ? ORDER BY userId`,
+      `SELECT l.accountId, l.userId, l.resourceId, l.revision, l.createdAt, l.updatedAt,
+              CASE WHEN r.id IS NULL THEN NULL ELSE COALESCE(r.name, r.role) END AS resourceName,
+              CASE WHEN r.id IS NULL THEN NULL
+                   WHEN r.deletedAt IS NOT NULL THEN 'archived'
+                   WHEN r.archivedAt IS NOT NULL THEN 'archived'
+                   ELSE 'active' END AS resourceStatus
+         FROM account_member_resources l
+         LEFT JOIN resources r ON r.accountId = l.accountId AND r.id = l.resourceId
+        WHERE l.accountId = ? ORDER BY l.userId`,
     )
     .all(accountId) as unknown as AccountMemberResourceLink[];
 }
@@ -123,18 +132,33 @@ type SetLinkInput = {
   now: string;
 };
 type CurrentLink = { revision: string; resourceId: string; createdAt: string; updatedAt: string };
+export interface AccountMemberResourceMutation {
+  link: AccountMemberResourceLink;
+  changed: boolean;
+}
 
 function requireLinkTargets(input: SetLinkInput): void {
   const member = input.db
-    .prepare(`SELECT 1 FROM account_members WHERE accountId = ? AND userId = ?`)
+    .prepare(`SELECT status FROM account_members WHERE accountId = ? AND userId = ?`)
     .get(input.accountId, input.userId);
-  if (!member) throw conflict("The selected member no longer belongs to this account.");
+  if (!member || (member as { status?: unknown }).status !== "active")
+    throw conflict("Only an active member in this account can be linked.");
   const resource = input.db
     .prepare(`SELECT kind, archivedAt, deletedAt FROM resources WHERE accountId = ? AND id = ?`)
     .get(input.accountId, input.resourceId) as
     { kind: string; archivedAt: string | null; deletedAt: string | null } | undefined;
   if (!resource || resource.kind !== "person" || resource.archivedAt || resource.deletedAt)
     throw conflict("The selected scheduled person is no longer available.");
+}
+
+function assertCurrentLinkCanChange(input: SetLinkInput, current: CurrentLink): void {
+  const resource = input.db
+    .prepare(`SELECT kind, archivedAt, deletedAt FROM resources WHERE accountId = ? AND id = ?`)
+    .get(input.accountId, current.resourceId) as
+    { kind: string; archivedAt: string | null; deletedAt: string | null } | undefined;
+  if (!resource || resource.kind !== "person" || resource.archivedAt || resource.deletedAt) {
+    throw conflict("The current scheduled person is no longer available; unlink it before changing the link.");
+  }
 }
 
 function persistLink(input: SetLinkInput, revision: string): void {
@@ -159,8 +183,7 @@ function persistLink(input: SetLinkInput, revision: string): void {
   }
 }
 
-function setLinkInTransaction(input: SetLinkInput): AccountMemberResourceLink {
-  requireLinkTargets(input);
+function setLinkInTransaction(input: SetLinkInput): AccountMemberResourceMutation {
   const current = input.db
     .prepare(
       `SELECT revision, resourceId, createdAt, updatedAt FROM account_member_resources WHERE accountId = ? AND userId = ?`,
@@ -168,21 +191,32 @@ function setLinkInTransaction(input: SetLinkInput): AccountMemberResourceLink {
     .get(input.accountId, input.userId) as CurrentLink | undefined;
   if ((current?.revision ?? null) !== input.expectedRevision)
     throw conflict("The member link changed. Reload and try again.");
-  if (current?.resourceId === input.resourceId) return { accountId: input.accountId, userId: input.userId, ...current };
+  if (current?.resourceId === input.resourceId)
+    return { link: { accountId: input.accountId, userId: input.userId, ...current }, changed: false };
+  if (current) assertCurrentLinkCanChange(input, current);
+  requireLinkTargets(input);
   const revision = newInviteId();
   persistLink(input, revision);
   return {
-    accountId: input.accountId,
-    userId: input.userId,
-    resourceId: input.resourceId,
-    revision,
-    createdAt: current?.createdAt ?? input.now,
-    updatedAt: input.now,
+    link: {
+      accountId: input.accountId,
+      userId: input.userId,
+      resourceId: input.resourceId,
+      revision,
+      createdAt: current?.createdAt ?? input.now,
+      updatedAt: input.now,
+    },
+    changed: true,
   };
 }
 
 /** Create or replace a member/person link under compare-and-swap semantics. */
 export function setAccountMemberResourceLink(input: SetLinkInput): AccountMemberResourceLink {
+  return setAccountMemberResourceLinkWithResult(input).link;
+}
+
+/** Create or replace a link and report whether the CAS mutation changed its resource endpoint. */
+export function setAccountMemberResourceLinkWithResult(input: SetLinkInput): AccountMemberResourceMutation {
   return tx(input.db, () => setLinkInTransaction(input), "immediate");
 }
 
@@ -233,7 +267,9 @@ export function removeAccountMemberResourcesForAccount(db: Db, accountId: string
   db.prepare(`DELETE FROM account_member_resources WHERE accountId = ?`).run(accountId);
 }
 
-/** Delete links whose resource disappeared or changed away from the person kind after replacement/import. */
+/** Remove links whose resource disappeared or is no longer a person. Destructive imports clear
+ * the account's links before replacement; this narrow repair helper intentionally never remaps a
+ * link to an imported id. */
 export function reconcileAccountMemberResources(input: {
   db: Db;
   accountId: string;
@@ -241,13 +277,8 @@ export function reconcileAccountMemberResources(input: {
   updatedAt?: string;
 }): void {
   const { db, accountId, resourceIdMap = new Map<string, string>(), updatedAt = new Date().toISOString() } = input;
-  const update = db.prepare(
-    `UPDATE account_member_resources SET resourceId = ?, revision = ?, updatedAt = ?
-     WHERE accountId = ? AND resourceId = ?`,
-  );
-  for (const [sourceId, importedId] of resourceIdMap) {
-    if (sourceId !== importedId) update.run(importedId, newInviteId(), updatedAt, accountId, sourceId);
-  }
+  void resourceIdMap;
+  void updatedAt;
   db.prepare(
     `DELETE FROM account_member_resources WHERE accountId = ? AND NOT EXISTS (
        SELECT 1 FROM resources r WHERE r.accountId = account_member_resources.accountId

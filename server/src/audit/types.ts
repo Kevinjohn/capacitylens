@@ -45,7 +45,10 @@ export interface AuditRecord {
     | "inviteAccept"
     | "inviteRevoke"
     | "passwordResetIssue"
-    | "sessionsRevoke";
+    | "sessionsRevoke"
+    | "memberResourceLink"
+    | "memberResourceChange"
+    | "memberResourceUnlink";
   /** The entity/table touched (e.g. 'timeOff', 'clients'), or 'account' for an import slice. */
   entity: string;
   /** The affected row id (the import record uses the accountId as its id). */

@@ -100,6 +100,9 @@ const PRODUCT_ACTION_VALUES = [
   "inviteRevoke",
   "passwordResetIssue",
   "sessionsRevoke",
+  "memberResourceLink",
+  "memberResourceChange",
+  "memberResourceUnlink",
 ] as const satisfies readonly AuditRecord["action"][];
 const ACCOUNT_ACTION_VALUES = [
   "workspace.provisioned",

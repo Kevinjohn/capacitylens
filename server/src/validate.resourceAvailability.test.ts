@@ -88,21 +88,19 @@ function registerClearTests(): void {
 }
 
 function registerNonPersonTests(): void {
-  it("strips stale boundaries when a person is changed to a non-person through a direct write", () => {
-    const cleaned = sanitizeWrite({
-      table: "resources",
-      row: {
-        ...resource,
-        kind: "external",
-        firstAvailableDate: resource.firstAvailableDate,
-        lastAvailableDate: resource.lastAvailableDate,
-      },
-      existing: resource,
-    });
-
-    expect(cleaned.kind).toBe("external");
-    expect(cleaned).not.toHaveProperty("firstAvailableDate");
-    expect(cleaned).not.toHaveProperty("lastAvailableDate");
+  it("rejects changing a person to a non-person through a direct write", () => {
+    expect(() =>
+      sanitizeWrite({
+        table: "resources",
+        row: {
+          ...resource,
+          kind: "external",
+          firstAvailableDate: resource.firstAvailableDate,
+          lastAvailableDate: resource.lastAvailableDate,
+        },
+        existing: resource,
+      }),
+    ).toThrow(/kind cannot change/i);
   });
 }
 

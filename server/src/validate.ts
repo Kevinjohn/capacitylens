@@ -230,6 +230,9 @@ function assertResourceWrite(input: AssertValidWriteInput, accountId: string): v
   const { state, row, existing, lookup } = input;
   const resource = parseResource(row);
   const previous = existing ? parseResource(existing) : undefined;
+  if (previous && previous.kind !== resource.kind) {
+    throw new ValidationError("A resource’s kind cannot change after creation.", { code: "resource_kind_immutable" });
+  }
   assertResourceProjectAllowsDependents(state, accountId, resource.id, resource, previous, lookup);
   assertResourceKindAllowsDependents(state, accountId, resource.id, resource.kind, lookup);
   const availability = validateResourceAvailabilityPair(resource.firstAvailableDate, resource.lastAvailableDate);

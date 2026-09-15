@@ -99,9 +99,12 @@ function registerMemberResourceLinkTests(): void {
     ]);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
-    const select = await screen.findByRole("combobox", { name: /scheduled person: clark kent/i });
-    expect(within(select).getByRole("option", { name: /bruce wayne.*inactive.*unlink only/i })).toBeInTheDocument();
-    await userEvent.selectOptions(select, "");
+    const row = await findMemberRow(/ed@x\.io/);
+    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(
+      /Linked to Bruce Wayne in the schedule/,
+    );
+    expect(within(row).queryByRole("button", { name: /change scheduled person/i })).not.toBeInTheDocument();
+    await userEvent.click(within(row).getByRole("button", { name: /remove scheduled-person link/i }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining(`/members/ed/resource-link`),
@@ -109,6 +112,36 @@ function registerMemberResourceLinkTests(): void {
       ),
     );
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/members"))).toHaveLength(2);
+  });
+
+  it("focuses the selector on open and restores focus after cancel and completion", async () => {
+    const user = userEvent.setup();
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const fetchMock = mockApi(
+      [
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", name: "Clark Kent" },
+      ],
+      {
+        "PUT /members/ed/resource-link": () => jsonResponse({ resourceId: resource.id, revision: "rev-2" }),
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const row = await findMemberRow(/ed@x\.io/);
+    const link = within(row).getByRole("button", { name: /link scheduled person/i });
+    await user.click(link);
+    const select = within(row).getByRole("combobox", { name: /choose scheduled person/i });
+    expect(select).toHaveFocus();
+    await user.click(within(row).getByRole("button", { name: /cancel/i }));
+    expect(within(row).getByTestId("member-resource-status")).toHaveFocus();
+
+    await user.click(within(row).getByRole("button", { name: /link scheduled person/i }));
+    await user.selectOptions(within(row).getByRole("combobox"), resource.id);
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
+    );
+    await waitFor(() => expect(within(row).getByTestId("member-resource-status")).toHaveFocus());
   });
 }
 

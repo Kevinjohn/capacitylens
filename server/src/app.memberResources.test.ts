@@ -68,6 +68,13 @@ describe("member resource links", () => {
         })
       ).statusCode,
     ).toBe(403);
+    db.prepare(
+      `INSERT INTO resources
+       (id, accountId, kind, name, role, color, employmentType, engagement,
+        workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
+       VALUES ('clark', 'a1', 'person', 'Clark Kent', 'Designer', '#6366f1', 'permanent', 'studio', 8,
+        '[1,2,3,4,5]', '[]', ?, ?)`,
+    ).run(TS, TS);
     expect(
       (
         await call(app, {
@@ -84,25 +91,21 @@ describe("member resource links", () => {
       headers: { cookie: owner.cookie },
       payload: { kind: "external" },
     });
-    expect(converted.statusCode, converted.body).toBe(200);
+    expect(converted.statusCode, converted.body).toBe(400);
     expect(
       (
         await call(app, { method: "GET", url: "/api/accounts/a1/resource-avatars", headers: { cookie: viewer.cookie } })
       ).json(),
-    ).toEqual({ avatars: [] });
-    await call(app, {
-      method: "PATCH",
-      url: "/api/resources/bruce",
-      headers: { cookie: owner.cookie },
-      payload: { kind: "person" },
-    });
-    const relinked = await call(app, {
+    ).toEqual({ avatars: [{ resourceId: "bruce", imageUrl: "https://images.example/bruce.png" }] });
+    const revision = (linked.json() as { revision: string }).revision;
+    db.prepare(`UPDATE resources SET archivedAt = ? WHERE accountId = 'a1' AND id = 'bruce'`).run(TS);
+    const rejectedChange = await call(app, {
       method: "PUT",
       url: `/api/accounts/a1/members/${owner.userId}/resource-link`,
       headers: { cookie: owner.cookie },
-      payload: { resourceId: "bruce", expectedRevision: null },
+      payload: { resourceId: "clark", expectedRevision: revision },
     });
-    const revision = (relinked.json() as { revision: string }).revision;
+    expect(rejectedChange.statusCode).toBe(409);
     expect(
       (
         await call(app, {

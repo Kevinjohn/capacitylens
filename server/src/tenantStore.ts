@@ -276,8 +276,12 @@ export function createSqliteTenantStore(
     validationLookup: () => validationLookup,
     readLifecycleRow: (accountId, entity, id) => getOwnedLifecycleRow({ db, accountId, entity, id }),
     writeLifecycleRow: (accountId, entity, row) => {
-      if (row.accountId !== accountId || !getOwnedLifecycleRow({ db, accountId, entity, id: row.id })) {
+      const existing = getOwnedLifecycleRow({ db, accountId, entity, id: row.id });
+      if (row.accountId !== accountId || !existing) {
         throw new Error("Lifecycle row does not belong to the requested company.");
+      }
+      if (entity === "resources" && (existing as Resource).kind !== (row as Resource).kind) {
+        throw new Error("A resource’s kind cannot change after creation.");
       }
       upsertRow(db, entity, row as unknown as Record<string, unknown>);
     },

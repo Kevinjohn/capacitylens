@@ -30,8 +30,8 @@ function importPayload(resources: unknown[]) {
   };
 }
 
-describe("POST /api/import member resource reconciliation", () => {
-  it("retains person links and atomically removes absent or non-person targets", async () => {
+describe("POST /api/import member resource associations", () => {
+  it("clears all person links only after a successful destructive replacement", async () => {
     const { app, db } = freshApp();
     await post(app, "accounts", account("a1"));
     for (const id of ["keep", "inactive", "removed", "non-person"]) await post(app, "resources", person(id, "a1"));
@@ -44,23 +44,13 @@ describe("POST /api/import member resource reconciliation", () => {
       payload: importPayload([namedPerson("keep"), inactive, { ...namedPerson("non-person"), kind: "placeholder" }]),
     });
     expect(response.statusCode).toBe(200);
-    const retained = db
-      .prepare(
-        `SELECT r.name, r.archivedAt, l.revision, l.updatedAt FROM account_member_resources l
-           JOIN resources r ON r.accountId = l.accountId AND r.id = l.resourceId ORDER BY r.name`,
-      )
-      .all() as Array<{ name: string; archivedAt: string | null; revision: string; updatedAt: string }>;
-    expect(retained.map(({ name, archivedAt }) => ({ name, archivedAt }))).toEqual([
-      { name: "inactive", archivedAt: now },
-      { name: "keep", archivedAt: null },
-    ]);
-    expect(retained.every((link) => !["rev0", "rev1"].includes(link.revision) && link.updatedAt !== now)).toBe(true);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM account_member_resources`).get()).toEqual({ count: 0 });
     expect(() =>
       clearAccountMemberResourceLink({ db, accountId: "a1", userId: "u0", expectedRevision: "rev0" }),
     ).toThrow(/changed/i);
   });
 
-  it("rolls resources and links back when reconciliation fails inside the import transaction", async () => {
+  it("rolls resources and links back when association cleanup fails inside the import transaction", async () => {
     const { app, db } = freshApp();
     await post(app, "accounts", account("a1"));
     await post(app, "resources", person("removed", "a1"));

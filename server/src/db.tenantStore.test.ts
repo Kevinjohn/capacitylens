@@ -405,6 +405,19 @@ function createTenantStoreLifecycleWriteTest(): void {
     ]);
     expect(store.readSlice("a2", FULL)).toEqual(readSlice(db, "a2", FULL));
   });
+
+  it("rejects lifecycle resource writes that change the stored kind", () => {
+    const db = openDb(":memory:");
+    insertAll(db, seedTwoAccounts());
+    const store = createSqliteTenantStore(db);
+    const row = store.readLifecycleRow("a1", "resources", "r1");
+    if (!row) throw new Error("Expected the seeded resource.");
+    const resource = row as AppData["resources"][number];
+    expect(() => store.writeLifecycleRow("a1", "resources", { ...resource, kind: "external" })).toThrow(
+      /kind cannot change/i,
+    );
+    expect(store.readLifecycleRow("a1", "resources", "r1")).toMatchObject({ kind: "person" });
+  });
 }
 
 function createTenantStoreLookupTest(): void {

@@ -33,7 +33,12 @@ export interface TeamMember {
   isSelf: boolean;
   mayResetPassword: boolean;
   mayRevokeSessions: boolean;
-  resourceLink?: { resourceId: string; revision: string } | null;
+  resourceLink?: {
+    resourceId: string;
+    revision: string;
+    resourceName?: string | null;
+    resourceStatus?: "active" | "disabled" | "archived" | null;
+  } | null;
 }
 
 export interface TeamDirectory {
@@ -107,11 +112,27 @@ function parseMember(row: unknown): TeamMember | null {
   };
 }
 
+function parseMemberResourceStatus(value: unknown): "active" | "disabled" | "archived" | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (value === "active" || value === "disabled" || value === "archived") return value;
+  return undefined;
+}
+
+// eslint-disable-next-line complexity
 function parseMemberResourceLink(value: unknown): TeamMember["resourceLink"] | undefined {
   if (value === undefined || value === null) return null;
   if (!isRecord(value) || typeof value.resourceId !== "string" || value.resourceId.length === 0) return undefined;
   if (typeof value.revision !== "string" || value.revision.length === 0) return undefined;
-  return { resourceId: value.resourceId, revision: value.revision };
+  if (value.resourceName !== undefined && value.resourceName !== null && typeof value.resourceName !== "string")
+    return undefined;
+  const resourceStatus = parseMemberResourceStatus(value.resourceStatus);
+  if (resourceStatus === undefined) return undefined;
+  return {
+    resourceId: value.resourceId,
+    revision: value.revision,
+    resourceName: typeof value.resourceName === "string" ? value.resourceName : null,
+    resourceStatus,
+  };
 }
 
 function parseMembers(value: unknown): TeamDirectory | null {
@@ -269,7 +290,7 @@ export const teamAccessClient = {
 
   async clearMemberResourceLink(workspaceId: string, principalId: string, expectedRevision: string) {
     return readCommandResult(
-      await accountClient.clearMemberResourceLink(workspaceId, principalId, expectedRevision),
+      await accountClient.clearMemberResourceLink({ workspaceId, principalId, expectedRevision }),
       noContent,
       204,
     );
