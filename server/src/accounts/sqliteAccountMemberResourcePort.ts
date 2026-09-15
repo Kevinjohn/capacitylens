@@ -30,6 +30,8 @@ function associationAudit(input: {
   actor: ActorContext;
   principalId: string;
   resourceId: string;
+  revision: string;
+  previousRevision?: string | undefined;
   command: CommandIdentity;
 }): void {
   const record: AuditRecord = {
@@ -39,7 +41,13 @@ function associationAudit(input: {
     action: input.action,
     entity: "account_member_resources",
     id: `${input.accountId}:${input.principalId}:${input.resourceId}`,
-    changedFields: ["resourceId", "principalId"],
+    changedFields: ["resourceId", "principalId", "revision", ...(input.previousRevision ? ["previousRevision"] : [])],
+    association: {
+      principalId: input.principalId,
+      resourceId: input.resourceId,
+      revision: input.revision,
+      ...(input.previousRevision ? { previousRevision: input.previousRevision } : {}),
+    },
   };
   enqueueAudit(input.db, record, `${input.command.commandId}:${input.action}:${record.id}`);
 }
@@ -134,6 +142,7 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
     async listAvatarProjection(workspaceId) {
       return listResourceAvatarProjection(db, workspaceId);
     },
+    // eslint-disable-next-line max-lines-per-function
     async setLink({
       workspaceId,
       principalId,
@@ -165,16 +174,40 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
         principalId,
         actor,
         command,
-        payload: { operation: "link", workspaceId, principalId, resourceId, expectedRevision },
+        payload: {
+          operation: "link",
+          workspaceId,
+          principalId,
+          resourceId,
+          expectedRevision,
+          replacePrincipalId: replacePrincipalId ?? null,
+          replaceExpectedRevision: replaceExpectedRevision ?? null,
+        },
         action: save,
         audit: (mutation) => {
           if (!mutation.changed) return;
+          if (mutation.removed) {
+            associationAudit({
+              db,
+              accountId: workspaceId,
+              actor,
+              principalId: mutation.removed.principalId,
+              resourceId: mutation.removed.resourceId,
+              revision: mutation.removed.revision,
+              command,
+              action: "memberResourceUnlink",
+            });
+          }
           associationAudit({
             db,
             accountId: workspaceId,
             actor,
             principalId,
             resourceId,
+            revision: mutation.link.revision,
+            ...((expectedRevision ?? mutation.removed?.revision)
+              ? { previousRevision: expectedRevision ?? mutation.removed?.revision }
+              : {}),
             command,
             action: expectedRevision === null ? "memberResourceLink" : "memberResourceChange",
           });
@@ -205,6 +238,7 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
             actor,
             principalId,
             resourceId,
+            revision: expectedRevision,
             command,
             action: "memberResourceUnlink",
           }),

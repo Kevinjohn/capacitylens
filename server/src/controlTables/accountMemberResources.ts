@@ -174,6 +174,11 @@ type CurrentLink = { revision: string; resourceId: string; createdAt: string; up
 export interface AccountMemberResourceMutation {
   link: AccountMemberResourceLink;
   changed: boolean;
+  removed?: {
+    principalId: string;
+    resourceId: string;
+    revision: string;
+  };
 }
 
 function requireLinkTargets(input: SetLinkInput): void {
@@ -246,6 +251,9 @@ export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): 
     throw conflict("The member link changed. Reload and try again.");
   if (input.replacePrincipalId && replacing?.resourceId !== input.resourceId)
     throw conflict("The selected scheduled person is linked to a different member.");
+  if (input.replacePrincipalId && current && current.resourceId !== input.resourceId)
+    throw conflict("The target member already has a different scheduled-person link.");
+  if (replacing) assertCurrentLinkCanChange(input, replacing);
   if (current?.resourceId === input.resourceId) {
     removeMemberResourceLinkExceptionState(input.db, input.accountId, input.userId);
     return { link: { accountId: input.accountId, userId: input.userId, ...current }, changed: false };
@@ -253,10 +261,14 @@ export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): 
   if (current) assertCurrentLinkCanChange(input, current);
   requireLinkTargets(input);
   const revision = newInviteId();
-  if (replacing && input.replacePrincipalId)
+  const removed =
+    replacing && input.replacePrincipalId
+      ? { principalId: input.replacePrincipalId, resourceId: replacing.resourceId, revision: replacing.revision }
+      : undefined;
+  if (removed)
     input.db
       .prepare(`DELETE FROM account_member_resources WHERE accountId = ? AND userId = ?`)
-      .run(input.accountId, input.replacePrincipalId);
+      .run(input.accountId, removed.principalId);
   persistLink(input, revision);
   removeMemberResourceLinkExceptionState(input.db, input.accountId, input.userId);
   return {
@@ -269,6 +281,7 @@ export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): 
       updatedAt: input.now,
     },
     changed: true,
+    ...(removed ? { removed } : {}),
   };
 }
 

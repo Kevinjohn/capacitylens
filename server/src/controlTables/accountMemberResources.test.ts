@@ -107,6 +107,7 @@ describe("account member resource links", () => {
     ).toThrow(/no longer available/);
   });
 
+  // eslint-disable-next-line max-lines-per-function
   it("reassigns one scheduled person atomically under both member revisions", async () => {
     const port = createSqliteAccountMemberResourcePort(db, { applicationId: "test-app" });
     const original = await port.setLink({
@@ -131,6 +132,37 @@ describe("account member resource links", () => {
     });
     expect(reassigned.resourceId).toBe("r1");
     expect(listAccountMemberResourceLinks(db, "a1").map(({ userId }) => userId)).toEqual(["u2"]);
+    const reassignmentAudits = (
+      db.prepare(`SELECT payload FROM capacitylens_audit_outbox ORDER BY sequence`).all() as { payload: string }[]
+    ).map(({ payload }) => JSON.parse(payload) as { action?: unknown; association?: Record<string, unknown> });
+    expect(reassignmentAudits.map(({ action }) => action)).toEqual([
+      "memberResourceLink",
+      "memberResourceUnlink",
+      "memberResourceLink",
+    ]);
+    expect(reassignmentAudits[1]?.association).toMatchObject({
+      principalId: "u1",
+      resourceId: "r1",
+      revision: original.revision,
+    });
+    expect(reassignmentAudits[2]?.association).toMatchObject({
+      principalId: "u2",
+      resourceId: "r1",
+      previousRevision: original.revision,
+    });
+    await expect(
+      port.setLink({
+        workspaceId: "a1",
+        principalId: "u2",
+        resourceId: "r1",
+        expectedRevision: null,
+        replacePrincipalId: "u1",
+        replaceExpectedRevision: "changed-coordinate",
+        now: NOW,
+        actor: actorContext("u1"),
+        command: { commandId: "reassign-change", idempotencyKey: "reassign-change-key" },
+      }),
+    ).rejects.toThrow(/different command payload/i);
     await expect(
       port.setLink({
         workspaceId: "a1",
@@ -144,6 +176,39 @@ describe("account member resource links", () => {
         command: { commandId: "reassign-stale", idempotencyKey: "reassign-stale-key" },
       }),
     ).rejects.toThrow(/member link changed/i);
+  });
+
+  it("rolls back the removed principal when reassignment audit insertion fails", async () => {
+    const port = createSqliteAccountMemberResourcePort(db, { applicationId: "test-app" });
+    const original = await port.setLink({
+      workspaceId: "a1",
+      principalId: "u1",
+      resourceId: "r1",
+      expectedRevision: null,
+      now: NOW,
+      actor: actorContext("u1"),
+      command: { commandId: "rollback-link", idempotencyKey: "rollback-link-key" },
+    });
+    db.exec(
+      `CREATE TRIGGER reject_member_resource_reassignment_audit BEFORE INSERT ON capacitylens_audit_outbox
+       WHEN NEW.id LIKE 'rollback-replace:%'
+       BEGIN SELECT RAISE(ABORT, 'injected replacement audit failure'); END`,
+    );
+    await expect(
+      port.setLink({
+        workspaceId: "a1",
+        principalId: "u2",
+        resourceId: "r1",
+        expectedRevision: null,
+        replacePrincipalId: "u1",
+        replaceExpectedRevision: original.revision,
+        now: NOW,
+        actor: actorContext("u1"),
+        command: { commandId: "rollback-replace", idempotencyKey: "rollback-replace-key" },
+      }),
+    ).rejects.toThrow(/injected replacement audit failure/i);
+    expect(listAccountMemberResourceLinks(db, "a1").map(({ userId }) => userId)).toEqual(["u1"]);
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM capacitylens_audit_outbox`).get()).toEqual({ count: 1 });
   });
 
   // eslint-disable-next-line max-lines-per-function

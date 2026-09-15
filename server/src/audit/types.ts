@@ -55,6 +55,13 @@ export interface AuditRecord {
   id: string;
   /** Field NAMES that changed — Object.keys of the wire body/row. NEVER values. */
   changedFields: string[];
+  /** Association coordinates and opaque revisions for member/resource audit events. */
+  association?: {
+    principalId: string;
+    resourceId: string;
+    revision: string;
+    previousRevision?: string;
+  };
   /** Counts only, never values: rows removed from each scoped table by an irreversible purge. */
   cascadeCounts?: Partial<Record<ScopedEntityKey, number>>;
 }
