@@ -10,6 +10,8 @@ import { resolveResourceDisplayName } from "../../lib/metadata";
 import { FavouriteButton } from "./FavouriteButton";
 import { ExternalResourceSection } from "./ExternalResourceSection";
 import type { ResourceListModel } from "./useResourceListModel";
+import type { ResourceMemberActionsModel } from "./ResourceMemberActions";
+import { ResourceMemberActions } from "./ResourceMemberActions";
 
 type ResourceListContentProps = {
   model: ResourceListModel;
@@ -19,6 +21,8 @@ type ResourceListContentProps = {
   onAddExternal: () => void;
   onEditExternal: (resource: Resource) => void;
   onRequestExternalArchive: (resource: Resource) => void;
+  memberActionsModel: ResourceMemberActionsModel;
+  activeAccountId: string | null;
 };
 
 export function ResourceListContent(props: ResourceListContentProps) {
@@ -150,7 +154,12 @@ function ResourceRow({
   model,
   onEdit,
   onRequestArchive,
-}: Pick<ResourceListContentProps, "model" | "onEdit" | "onRequestArchive"> & { resource: Resource }) {
+  memberActionsModel,
+  activeAccountId,
+}: Pick<
+  ResourceListContentProps,
+  "model" | "onEdit" | "onRequestArchive" | "memberActionsModel" | "activeAccountId"
+> & { resource: Resource }) {
   const metadata = model.buildMetadata(resource);
   const displayName = resolveResourceDisplayName(resource);
   return (
@@ -163,6 +172,7 @@ function ResourceRow({
       </ItemContent>
       <ItemActions>
         {resource.kind === "person" && <FavouriteButton resource={resource} />}
+        <ResourceMemberActions resource={resource} accountId={activeAccountId} model={memberActionsModel} />
         <EditButton label={m.list_edit_aria({ name: displayName })} onClick={() => onEdit(resource)} />
         <DeleteButton
           label={m.list_resources_archive_aria({ name: displayName })}

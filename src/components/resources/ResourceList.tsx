@@ -10,9 +10,13 @@ import { ResourceForm } from "./ResourceForm";
 import { ResourceListContent } from "./ResourceListContent";
 import { useResourceListModel } from "./useResourceListModel";
 import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
+import { useStore } from "../../store/useStore";
+import { useResourceMemberActionsModel } from "./ResourceMemberActions";
 
 export function ResourceList() {
   const model = useResourceListModel();
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const memberActionsModel = useResourceMemberActionsModel(activeAccountId);
   const { archive } = useLifecycleActions();
   const { editing, setEditing, confirming, setConfirming } = useEntityListState<Resource>();
   const externalState = useEntityListState<Resource>();
@@ -31,6 +35,8 @@ export function ResourceList() {
         onAddExternal={() => externalState.setCreating(true)}
         onEditExternal={externalState.setEditing}
         onRequestExternalArchive={externalState.setConfirming}
+        memberActionsModel={memberActionsModel}
+        activeAccountId={activeAccountId}
       />
       <ArchivedEntitySection entity="resources" />
       {creatingKind && <ResourceForm kind={creatingKind} onClose={() => setCreatingKind(null)} />}
