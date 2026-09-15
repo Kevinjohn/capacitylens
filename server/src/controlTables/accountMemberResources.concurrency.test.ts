@@ -120,14 +120,17 @@ function seedRaceDatabase(dbPath: string): void {
     NOW,
     NOW,
   );
-  for (const id of ["r1", "r2"])
+  for (const [id, name] of [
+    ["r1", "Bruce Wayne"],
+    ["r2", "Clark Kent"],
+  ] as const)
     db.prepare(
       `INSERT INTO resources
          (id, accountId, kind, name, role, color, employmentType, engagement,
           workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
          VALUES (?, 'a1', 'person', ?, 'Designer', '#6366f1', 'employee', 'studio', 8,
           '[1,2,3,4,5]', '[]', ?, ?)`,
-    ).run(id, id, NOW, NOW);
+    ).run(id, name, NOW, NOW);
   upsertMember(db, { accountId: "a1", userId: "u1", role: "owner", status: "active", createdAt: NOW });
   upsertMember(db, { accountId: "a1", userId: "u2", role: "admin", status: "active", createdAt: NOW });
   db.close();

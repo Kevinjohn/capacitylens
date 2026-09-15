@@ -37,17 +37,17 @@ describe("account member resource links", () => {
     db.exec(
       `CREATE TABLE user (id TEXT PRIMARY KEY, name TEXT, email TEXT, emailVerified INTEGER, image TEXT, createdAt TEXT, updatedAt TEXT)`,
     );
-    for (const [id, kind] of [
-      ["r1", "person"],
-      ["r2", "person"],
-      ["placeholder", "placeholder"],
+    for (const [id, kind, name] of [
+      ["r1", "person", "Bruce Wayne"],
+      ["r2", "person", "Clark Kent"],
+      ["placeholder", "placeholder", "placeholder"],
     ] as const) {
       db.prepare(
         `INSERT INTO resources
            (id, accountId, kind, name, role, color, employmentType, engagement,
             workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
          VALUES (?, 'a1', ?, ?, 'Designer', '#6366f1', 'employee', 'studio', 8, '[1,2,3,4,5]', '[]', ?, ?)`,
-      ).run(id, kind, id, NOW, NOW);
+      ).run(id, kind, name, NOW, NOW);
     }
     for (const userId of ["u1", "u2"]) {
       upsertMember(db, {
@@ -105,7 +105,10 @@ describe("account member resource links", () => {
       left
         .prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`)
         .run("shared", "Wayne Enterprises", "#6366f1", NOW, NOW);
-      for (const id of ["shared-r1", "shared-r2"]) {
+      for (const [id, name] of [
+        ["shared-r1", "Bruce Wayne"],
+        ["shared-r2", "Clark Kent"],
+      ] as const) {
         left
           .prepare(
             `INSERT INTO resources
@@ -114,7 +117,7 @@ describe("account member resource links", () => {
              VALUES (?, 'shared', 'person', ?, 'Designer', '#6366f1', 'employee', 'studio', 8,
               '[1,2,3,4,5]', '[]', ?, ?)`,
           )
-          .run(id, id, NOW, NOW);
+          .run(id, name, NOW, NOW);
       }
       for (const userId of ["shared-u1", "shared-u2"])
         upsertMember(left, { accountId: "shared", userId, role: "admin", status: "active", createdAt: NOW });
