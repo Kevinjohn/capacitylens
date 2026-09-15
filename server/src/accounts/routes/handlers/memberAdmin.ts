@@ -106,14 +106,14 @@ export async function setMemberResourceLink(req: FastifyRequest, reply: FastifyR
     return context.fail(reply, context.validationFailed("resourceId and expectedRevision are required."));
   }
   try {
-    const { user } = requireAuthenticatedPrincipal(req);
+    const actor = requireAccountActor(req);
     const link = await context.memberResources.setLink({
       workspaceId: accountId,
       principalId: userId,
       resourceId: body.resourceId,
       expectedRevision: body.expectedRevision,
       now: new Date().toISOString(),
-      actorPrincipalId: user.id,
+      actor,
       command: context.command(req),
     });
     return reply.code(200).send({ resourceId: link.resourceId, revision: link.revision });
@@ -136,12 +136,12 @@ export async function clearMemberResourceLink(req: FastifyRequest, reply: Fastif
     return context.fail(reply, context.validationFailed("expectedRevision is required."));
   }
   try {
-    const { user } = requireAuthenticatedPrincipal(req);
+    const actor = requireAccountActor(req);
     await context.memberResources.clearLink({
       workspaceId: accountId,
       principalId: userId,
       expectedRevision: body.expectedRevision,
-      actorPrincipalId: user.id,
+      actor,
       command: context.command(req),
     });
     return reply.code(204).send();

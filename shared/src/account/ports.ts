@@ -267,14 +267,14 @@ export interface AccountMemberResourcePort {
     resourceId: string;
     expectedRevision: string | null;
     now: IsoInstant;
-    actorPrincipalId: PrincipalId;
+    actor: ActorContext;
     command: CommandIdentity;
   }): Promise<MemberResourceLink>;
   clearLink(input: {
     workspaceId: WorkspaceId;
     principalId: PrincipalId;
     expectedRevision: string;
-    actorPrincipalId: PrincipalId;
+    actor: ActorContext;
     command: CommandIdentity;
   }): Promise<void>;
   reconcileImportedLinks(input: {

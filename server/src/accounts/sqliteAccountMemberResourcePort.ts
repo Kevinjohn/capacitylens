@@ -1,9 +1,9 @@
 import type { AccountMemberResourcePort } from "@capacitylens/shared/account/ports";
-import type { CommandIdentity } from "@capacitylens/shared/account/types";
+import type { ActorContext, CommandIdentity } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
-import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { enqueueAudit } from "../auditOutbox";
 import { beginCommand, completeCommand, markAccountCommandReplay } from "./commands";
+import { assertAccountAuthority } from "./adminPort/authority";
 import { tx, type SynchronousCallback } from "../txn";
 import {
   clearAccountMemberResourceLink,
@@ -19,40 +19,18 @@ interface PortOptions {
   applicationId?: string;
 }
 
-function assertAssociationAuthority(input: {
-  db: Db;
-  accountId: string;
-  actorPrincipalId: string;
-  command: CommandIdentity;
-}) {
-  const { db, accountId, actorPrincipalId, command } = input;
-  const member = actorPrincipalId
-    ? (db
-        .prepare(`SELECT role, status FROM account_members WHERE accountId = ? AND userId = ?`)
-        .get(accountId, actorPrincipalId) as { role?: unknown; status?: unknown } | undefined)
-    : undefined;
-  if (member?.status !== "active" || (member.role !== "owner" && member.role !== "admin")) {
-    throw new AccountContractError({
-      code: "FORBIDDEN",
-      message: "Only an active Owner or Admin may manage schedule links.",
-      retryable: false,
-      commandId: command.commandId,
-    });
-  }
-}
-
 function associationAudit(input: {
   action: "memberResourceLink" | "memberResourceChange" | "memberResourceUnlink";
   db: Db;
   accountId: string;
-  actorPrincipalId: string;
+  actor: ActorContext;
   principalId: string;
   resourceId: string;
   command: CommandIdentity;
 }): void {
   const record: AuditRecord = {
     ts: new Date().toISOString(),
-    userId: input.actorPrincipalId,
+    userId: input.actor.principalId,
     accountId: input.accountId,
     action: input.action,
     entity: "account_member_resources",
@@ -67,25 +45,25 @@ function runCommand<T>(input: {
   applicationId: string;
   accountId: string;
   principalId: string;
-  actorPrincipalId: string;
+  actor: ActorContext;
   command: CommandIdentity;
   payload: unknown;
   action: () => T;
   audit?: (result: T) => void;
 }): T {
   const transaction = (() => {
-    assertAssociationAuthority({
+    assertAccountAuthority({
       db: input.db,
-      accountId: input.accountId,
-      actorPrincipalId: input.actorPrincipalId,
-      command: input.command,
+      actor: input.actor,
+      workspaceId: input.accountId,
+      action: "manage-members",
     });
     const begun = beginCommand({
       db: input.db,
       scope: {
         applicationId: input.applicationId,
         operation: "member-resource-association",
-        actorPrincipalId: input.actorPrincipalId,
+        actorPrincipalId: input.actor.principalId,
         targetPrincipalId: input.principalId,
         workspaceId: input.accountId,
       },
@@ -131,7 +109,7 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
     async listAvatarProjection(workspaceId) {
       return listResourceAvatarProjection(db, workspaceId);
     },
-    async setLink({ workspaceId, principalId, resourceId, expectedRevision, now, actorPrincipalId, command }) {
+    async setLink({ workspaceId, principalId, resourceId, expectedRevision, now, actor, command }) {
       const save = () => {
         const mutation = setAccountMemberResourceLinkWithResult({
           db,
@@ -148,7 +126,7 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
         applicationId,
         accountId: workspaceId,
         principalId,
-        actorPrincipalId,
+        actor,
         command,
         payload: { operation: "link", workspaceId, principalId, resourceId, expectedRevision },
         action: save,
@@ -157,7 +135,7 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
           associationAudit({
             db,
             accountId: workspaceId,
-            actorPrincipalId,
+            actor,
             principalId,
             resourceId,
             command,
@@ -168,7 +146,7 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
       const link = result.link;
       return { resourceId: link.resourceId, revision: link.revision };
     },
-    async clearLink({ workspaceId, principalId, expectedRevision, actorPrincipalId, command }) {
+    async clearLink({ workspaceId, principalId, expectedRevision, actor, command }) {
       const clear = () => {
         const current = listAccountMemberResourceLinks(db, workspaceId).find((row) => row.userId === principalId);
         clearAccountMemberResourceLink({ db, accountId: workspaceId, userId: principalId, expectedRevision });
@@ -179,7 +157,7 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
         applicationId,
         accountId: workspaceId,
         principalId,
-        actorPrincipalId,
+        actor,
         command,
         payload: { operation: "unlink", workspaceId, principalId, expectedRevision },
         action: clear,
@@ -187,7 +165,7 @@ export function createSqliteAccountMemberResourcePort(db: Db, options: PortOptio
           associationAudit({
             db,
             accountId: workspaceId,
-            actorPrincipalId,
+            actor,
             principalId,
             resourceId,
             command,

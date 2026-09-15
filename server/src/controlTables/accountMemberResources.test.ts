@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ActorContext } from "@capacitylens/shared/account/types";
 import { randomUUID } from "node:crypto";
 import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -20,6 +21,16 @@ import { tx } from "../txn";
 import { createSqliteAccountMemberResourcePort } from "../accounts/sqliteAccountMemberResourcePort";
 
 const NOW = "2026-09-14T10:00:00.000Z";
+
+function actorContext(principalId: string): ActorContext {
+  return {
+    principalId,
+    sessionId: `session-${principalId}`,
+    assurance: "mfa",
+    fresh: true,
+    mfaSatisfied: true,
+  };
+}
 
 // The suite deliberately shares one realistic auth/resource fixture across the storage invariants.
 // eslint-disable-next-line max-lines-per-function
@@ -231,7 +242,7 @@ describe("account member resource links", () => {
       resourceId: "r1",
       expectedRevision: null,
       now: NOW,
-      actorPrincipalId: "u1",
+      actor: actorContext("u1"),
       command: linkCommand,
     });
     const replay = await port.setLink({
@@ -240,7 +251,7 @@ describe("account member resource links", () => {
       resourceId: "r1",
       expectedRevision: null,
       now: "2026-09-14T11:00:00.000Z",
-      actorPrincipalId: "u1",
+      actor: actorContext("u1"),
       command: linkCommand,
     });
     expect(replay).toEqual(first);
@@ -255,7 +266,7 @@ describe("account member resource links", () => {
         resourceId: "r2",
         expectedRevision: null,
         now: NOW,
-        actorPrincipalId: "u1",
+        actor: actorContext("u1"),
         command: linkCommand,
       }),
     ).rejects.toThrow(/already used|different command payload/i);
@@ -266,10 +277,10 @@ describe("account member resource links", () => {
         resourceId: "r2",
         expectedRevision: first.revision,
         now: NOW,
-        actorPrincipalId: "u3",
+        actor: actorContext("u3"),
         command: { commandId: "member-link-command-02", idempotencyKey: "member-link-key-02" },
       }),
-    ).rejects.toThrow(/Owner or Admin/i);
+    ).rejects.toThrow(/not a member/i);
 
     const noOp = await port.setLink({
       workspaceId: "a1",
@@ -277,7 +288,7 @@ describe("account member resource links", () => {
       resourceId: "r1",
       expectedRevision: first.revision,
       now: "2026-09-14T12:00:00.000Z",
-      actorPrincipalId: "u1",
+      actor: actorContext("u1"),
       command: { commandId: "member-link-command-04", idempotencyKey: "member-link-key-04" },
     });
     expect(noOp).toEqual(first);
@@ -288,14 +299,14 @@ describe("account member resource links", () => {
       resourceId: "r2",
       expectedRevision: first.revision,
       now: "2026-09-14T13:00:00.000Z",
-      actorPrincipalId: "u1",
+      actor: actorContext("u1"),
       command: { commandId: "member-link-command-05", idempotencyKey: "member-link-key-05" },
     });
     await port.clearLink({
       workspaceId: "a1",
       principalId: "u1",
       expectedRevision: changed.revision,
-      actorPrincipalId: "u1",
+      actor: actorContext("u1"),
       command: { commandId: "member-link-command-06", idempotencyKey: "member-link-key-06" },
     });
     const actions = (
@@ -314,7 +325,7 @@ describe("account member resource links", () => {
         resourceId: "r2",
         expectedRevision: null,
         now: NOW,
-        actorPrincipalId: "u2",
+        actor: actorContext("u2"),
         command: { commandId: "member-link-command-03", idempotencyKey: "member-link-key-03" },
       }),
     ).rejects.toThrow(/injected audit failure/i);
