@@ -1,30 +1,55 @@
 ---
 title: Choose company settings
-description: Review the company choices that affect scheduling, access and optional features.
+description: Set the shared scheduling rules and optional features, then keep personal display choices on this device.
+prev: false
+next: false
 ---
+
+<span id="steps"></span>
+<span id="what-s-next"></span>
 
 # Choose company settings
 
-This task helps an Admin review the settings that may need changing before the team begins
-planning. The defaults are suitable for a simple company, so change only what your process needs.
+![Placeholder: Settings: Company setup controls and Overview access](https://placehold.co/686x385?text=Settings%3A+Company+setup+controls+and%0AOverview+access)
 
-## Steps
+Open Settings near the bottom of the left menu. Company setup and Scheduling features affect everyone.
 
-1. **Open Settings and start with Company setup.** Choose allocation units (**Days** is the
-   default), company-wide working days, date format, disciplines, engagement grouping, and
-   Overview access. The week start, timezone, and language chosen at company creation are fixed.
-2. **Review Scheduling features.** Turn placeholders, external resources, internal-work
-   display choices, inline activity creation, or the allocation task field on only when
-   the team uses them.
-3. **Choose Overview access.** Decide whether weekly capacity summaries are available to
-   Owners and Admins only, Editors too, or everyone.
-4. **Leave My display to each person.** Display and offline choices apply to the current
-   device. Turning on **Make this device available offline** keeps a seven-day, read-only
-   snapshot and never queues changes. Company date format is the deliberate shared exception.
+## Company setup
 
-![Settings grouped into Company setup, Scheduling features, My display, and Data and support](../screenshots/flows/settings_page.jpg)
+| Setting | What it changes |
+| --- | --- |
+| Allocation units | Enter work in Hours, Days or Blocks. Days is the default. |
+| Company-wide working days | Set the shared working week. A person's own working pattern also applies. |
+| Date format | Change how planning dates appear for everyone. |
+| Use disciplines | Group people by discipline. Create the names and colours on Disciplines. |
+| Group resources by engagement | Separate Studio and Supplementary people. |
+| Overview access | Choose who can open the capacity summary. Owners and Admins only is the default. |
 
-## What's next
+Changing working days recalculates capacity for existing work; it does not move booking dates.
 
-[Prepare clients and work](/admin/prepare-work), or use the detailed [Settings
-reference](/guide/settings).
+Editors can change most company settings. Only Owners and Admins can change Overview access.
+
+## Scheduling features
+
+![Placeholder: Settings: Scheduling features switches](https://placehold.co/686x385?text=Settings%3A+Scheduling+features+switches)
+
+| Setting | What it changes |
+| --- | --- |
+| Show placeholders | Plan unfilled project roles. |
+| Show external resources | Track work assigned outside your team. |
+| Internal work colours | Use grey bars or the saved colour palette. |
+| Show internal projects / Show internal activities | Show or hide internal work. Hidden work still counts towards utilisation. |
+| Inline activity creation | Add activities while making a booking. |
+| Show task field in schedule | Add a short task description to bookings. |
+
+Turning a visibility option off hides existing information; it does not delete it.
+
+## Personal preferences and company details
+
+My display changes only the current browser. Let teammates choose their own [display preferences](/using/settings).
+
+Week start and time zone are fixed after company creation. Check them under Data and support → Company details.
+
+[Full settings reference](/guide/settings)
+
+[Offline access](/guide/offline-access)

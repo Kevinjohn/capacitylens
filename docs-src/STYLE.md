@@ -65,6 +65,7 @@ to study it.
   missing, without making every reader study the permission model.
 - Write FAQs around actual interruptions: a missing invitation, an unavailable control,
   an unexpected result. Avoid repeating the introduction as questions and answers.
+  FAQs do not need an opening image; use one only when it helps answer a specific question.
 
 ### Owner, Admin and Settings
 

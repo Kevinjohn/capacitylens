@@ -1,44 +1,55 @@
 ---
 title: Owner FAQ
-description: Answers to common questions about first setup, delegation and ownership.
+description: Answers to common questions about company setup, handover and ownership.
+prev: false
 next: false
 ---
 
+<span id="what-s-next"></span>
+<span id="do-i-have-to-set-up-the-schedule-myself"></span>
+<span id="can-i-have-more-than-one-owner"></span>
+<span id="can-an-admin-transfer-ownership"></span>
+<span id="why-do-some-actions-ask-me-to-confirm-my-sign-in"></span>
+<span id="what-does-the-technical-installer-need-from-me"></span>
+
 # Owner FAQ
 
-These answers cover the questions Owners most often have during setup and handover.
+## Can I stop after I appoint an Admin?
 
-## Do I have to set up the schedule myself?
+Yes. Wait for the invitation to be accepted, check the Admin role in Team & access, and send the [Admin and settings guide](/admin/).
 
-No. Create the company, invite an Admin, confirm they have joined, and send them the
-[Admin and settings guide](/admin/). They can add people, work, settings, and the first booking.
+## Why is the Admin invitation still pending?
 
-## Can I have more than one Owner?
+Check that you sent the link and the recipient accepted it. CapacityLens does not send invitation emails.
 
-No. CapacityLens keeps exactly one active Owner per company. Give other trusted company
-managers the Admin role.
+If the link is lost, revoke it under Outstanding invites and create a replacement.
 
-## Can an Admin transfer ownership?
+## Does an Admin invitation transfer ownership?
 
-No. The current Owner nominates an active Admin, that Admin agrees, and the same Owner
-confirms the transfer. Ownership changes only after the final confirmation. The operator
-guide covers recovery when a transfer is blocked.
+No. It gives the person sign-in access with the Admin role. Ownership changes only through Company ownership after the nominee agrees and the current Owner selects Confirm the transfer.
+
+## Why can I not choose a language when I create the company?
+
+The Language field shows English and is read-only. You choose Week starts on and Timezone during creation, and those settings are fixed afterward.
+
+## What does Record member sign-ins show?
+
+The Owner can turn it on in Team & access. Each member then shows Yes or Not yet under Signed in; no dates or activity history are kept. Turning it off deletes all confirmations.
+
+## Why is there no Admin to choose as Next Owner?
+
+Only another active Admin can be nominated. Use the Admin invitation flow first, then return to Team & access after they accept.
+
+[Owner responsibilities](/owner/responsibilities)
+
+## Can there be more than one Owner?
+
+No. Give other company managers the Admin role.
 
 ## What if I am also the Admin?
 
-Finish [Create your company](/owner/create-your-company), then follow the [Admin and
-settings guide](/admin/) yourself.
+After creating the company, follow the [Admin and settings guide](/admin/) yourself.
 
-## Why do some actions ask me to confirm my sign-in?
+## Why am I asked to confirm my sign-in?
 
-Ownership transfer, company deletion, imports, and some identity actions have larger
-consequences. CapacityLens requires a recent sign-in before completing them.
-
-## What does the technical installer need from me?
-
-Agree the company address, sign-in route, and who will become the first Owner. With
-company login, give them the exact verified email that your provider reports.
-
-## What's next
-
-Return to [Owner setup](/owner/).
+Sensitive actions such as ownership transfer, import and company deletion require a recent sign-in.

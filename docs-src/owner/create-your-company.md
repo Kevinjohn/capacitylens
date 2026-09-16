@@ -1,35 +1,34 @@
 ---
 title: Create your company
-description: Create the first company and choose the calendar rules everyone will share.
+description: Create the first company and choose the shared calendar rules.
+prev: false
+next: false
 ---
+
+<span id="prerequisites"></span>
+<span id="steps"></span>
+<span id="what-s-next"></span>
 
 # Create your company
 
-This task takes the first Owner from the sign-in page to an empty company. Allow about
-three minutes after the technical installer has handed you the CapacityLens address and
-first-Owner instructions.
+![Placeholder: First Owner sign-in: local setup form and company login option](https://placehold.co/686x385?text=First+Owner+sign-in%3A+local+setup+form+and%0Acompany+login+option)
 
-## Prerequisites
+Open the CapacityLens address supplied by your installer.
 
-- In password mode, get the one-time Owner setup value from the installer.
-- With company login, ask the installer to confirm that your verified email is approved
-  for first-Owner setup.
+For password sign-in, enter your name, work email, password and the Owner setup token supplied by the installer. Select Create my sign-in.
 
-## Steps
+For company login, choose the configured provider and use the verified email approved by your installer.
 
-1. **Open the CapacityLens address.** Follow the password or company-login route given by
-   the installer.
-2. **Create the first Owner sign-in.** In password mode, enter your name, work email,
-   password, and Owner setup token. With company login, select the provider and sign in
-   with the approved email.
-3. **Enter the company name.** This can be changed later.
-4. **Choose the week start, timezone, and language.** These calendar choices are shared
-   by everyone and fixed after the company is created. Confirm them with your team first.
-5. **Create the company.** CapacityLens opens its empty Schedule.
+## Create the company
 
-![The first company form with shared week start, timezone and language choices](../screenshots/flows/company_setup.jpg)
+![Placeholder: Company form: Company name, Week starts on, Timezone and Create company](https://placehold.co/686x385?text=Company+form%3A+Company+name%2C+Week+starts%0Aon%2C+Timezone+and+Create+company)
 
-## What's next
+The first-company form opens after sign-in. Enter the Company name.
 
-[Appoint an Admin](/owner/appoint-an-admin). If you will do the administration yourself,
-continue with the [Admin and settings guide](/admin/).
+Choose Week starts on and Timezone. These apply to everyone and cannot be changed after creation.
+
+Language currently shows English; there is no language choice.
+
+Select Create company to open Schedule.
+
+[Appoint an Admin](/owner/appoint-an-admin)

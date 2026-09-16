@@ -7,7 +7,7 @@ next: false
 
 # Activities
 
-![Placeholder: Activities grouped into Internal, All projects and Project-specific sections](https://placehold.co/686x385?text=Activities%3A+Internal+All+projects+and+Project-specific)
+![Placeholder: Activities grouped into Internal, All projects and Project-specific sections](https://placehold.co/686x385?text=Activities%3A+Internal+All+projects+and%0AProject-specific)
 
 Activities are grouped by where they can be used:
 

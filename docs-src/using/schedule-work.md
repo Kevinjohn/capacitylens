@@ -1,32 +1,31 @@
 ---
 title: Schedule work
 description: Put an existing activity onto a person's schedule for one day or a date range.
+prev: false
+next: false
 ---
 
 # Schedule work
 
-This task is for Editors, Admins, and Owners. It adds an existing activity to a person's
-schedule in less than a minute.
+![Placeholder: Schedule with a person's empty lane, row plus button and a two-day draw area highlighted](https://placehold.co/686x385?text=Schedule%3A+person+row+plus+button+and+empty%0Adraw+area)
 
-## Prerequisites
+<span id="prerequisites"></span>
+<span id="steps"></span>
 
-- The person and activity must already exist.
-- A Viewer can read bookings but cannot create them.
+Editors, Admins and Owners can add bookings. You need a person in Resources and an activity to book.
 
-## Steps
+Open Schedule in the left menu and select the plus button on the person's row.
 
-1. **Open Schedule.** Find the person's row and the first date of the work.
-2. **Select the dates.** Select one empty cell, or drag across several days.
-3. **Choose the Project context.** Select **Internal**, **No specific project**, or a real project.
-4. **Choose the Activity.** The available activities change to match the selected Project context.
-5. **Check the amount and status.** Confirm how much capacity the work uses and whether it
-   is confirmed, tentative, or completed.
-6. **Save the allocation.** The booking bar appears on the person's row and utilisation
-   updates immediately.
+To choose dates on the grid, drag across an empty part of their row. A single click on an empty cell does not open the form.
 
-![The allocation form opened from an empty area of the schedule](../screenshots/flows/allocation-form.jpg)
+![Placeholder: New allocation form with Project, Activity, dates, amount and Status highlighted](https://placehold.co/686x385?text=New+allocation%3A+project+activity+dates%0Aamount+and+status)
 
-## What's next
+Choose Project, then Activity. Use Internal or No specific project when the work has no project.
 
-[Change or remove work](/using/change-work), or read [Projects and allocations](/guide/projects-and-allocations)
-for repeats, project scopes, and other details.
+Check the dates, amount and status, then select Save. The booking appears on the person's row.
+
+<span id="what-s-next"></span>
+
+[Move or change the booking](/using/change-work)
+
+[Activity choices, amounts and repeats](/guide/projects-and-allocations#create-an-allocation)

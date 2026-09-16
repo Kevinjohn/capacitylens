@@ -1,30 +1,37 @@
 ---
 title: Add people to the schedule
-description: Create schedulable people, set their working patterns, and link members when needed.
+description: Create schedulable people, set their working pattern and availability dates, and link a member when needed.
+prev: false
+next: false
 ---
+
+<span id="steps"></span>
+<span id="what-s-next"></span>
 
 # Add people to the schedule
 
-This task adds the people whose capacity your company plans. A scheduled person does not
-need a sign-in.
+![Placeholder: Resources: Add resource and the person form with Working days](https://placehold.co/686x385?text=Resources%3A+Add+resource+and+the+person%0Aform+with+Working+days)
 
-## Steps
+Open Resources in the left menu and select Add resource.
 
-1. **Open Resources and select Add resource.** Choose **Person** for a named person. Use a
-   placeholder only for an unfilled role attached to a project.
-2. **Enter the person's details.** Add their name, role, engagement, and discipline when
-   disciplines are enabled.
-3. **Set Working days.** Mark each weekday as **Full day**, **Half day**, or **Not working**.
-   Add start and end dates when their availability is time-limited.
-4. **Save the person.** They appear in Resources and as a row on Schedule.
-5. **Link their sign-in when appropriate.** Open **Team & access**, find the member, and
-   use the Link to Resource control. A linked member can be recognised consistently, but
-   linking does not change their role.
+Enter the person's name. Add their role, engagement and discipline where relevant.
 
-![The resource form showing details and a weekly working pattern](../screenshots/flows/resource_form.jpg)
+Set Working days to match their usual week. Use Start date and End date if their availability is time-limited.
 
-## What's next
+Select Save. They now have a row on Schedule; they do not need a sign-in.
 
-[Choose company settings](/admin/company-settings), or read [People and
-placeholders](/guide/people-and-placeholders) for engagement types, placeholders, and
-member links.
+## Connect their sign-in
+
+![Placeholder: Team & access: Link to Resource dialog with a person selected](https://placehold.co/686x385?text=Team+%26+access%3A+Link+to+Resource+dialog%0Awith+a+person+selected)
+
+If they also need access, [invite them](/admin/invite-teammates).
+
+In Team & access, use Link to Resource beside the member to select their scheduled person. Linking does not change their permissions.
+
+## Plan an unfilled role
+
+Select Add placeholder in Resources and choose its Bound project. The placeholder holds bookings until a person is assigned.
+
+If Add placeholder is missing, enable Show placeholders in [Settings](/admin/company-settings).
+
+[Working patterns, placeholders and external resources](/guide/people-and-placeholders)

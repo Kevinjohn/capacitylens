@@ -7,7 +7,7 @@ next: false
 
 # Disciplines
 
-![Placeholder: Disciplines showing group names and colour swatches](https://placehold.co/686x385?text=Disciplines%3A+group+names+and+colour+swatches)
+![Placeholder: Disciplines showing group names and colour swatches](https://placehold.co/686x385?text=Disciplines%3A+group+names+and+colour%0Aswatches)
 
 Discipline colours and groups carry through to people on Schedule.
 

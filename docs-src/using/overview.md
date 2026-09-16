@@ -7,7 +7,7 @@ next: false
 
 # Overview
 
-![Placeholder: Overview showing free days, overbooked days and the planning horizon](https://placehold.co/686x385?text=Overview%3A+free+days+overbooked+days+and+planning+horizon)
+![Placeholder: Overview showing free days, overbooked days and the planning horizon](https://placehold.co/686x385?text=Overview%3A+free+days+overbooked+days+and%0Aplanning+horizon)
 
 Overview shows free and overbooked capacity for this week and the next three weeks.
 

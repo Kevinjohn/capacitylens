@@ -1,36 +1,33 @@
 ---
 title: Administer your company
-description: Invite teammates, add people and work, choose settings, and prepare a usable schedule.
+description: Invite teammates, prepare the people and work on the schedule, and keep company settings accurate.
 prev: false
+next: false
 ---
+
+<span id="your-route"></span>
+<span id="two-records-that-often-look-like-one-person"></span>
+<span id="when-you-are-done"></span>
+<span id="what-s-next"></span>
 
 # Administer your company
 
-This guide is for an Admin taking over a new or existing CapacityLens company. It keeps
-the full setup path in one place, from member access to the first visible booking.
+![Placeholder: Team & access: members and Invite someone](https://placehold.co/686x385?text=Team+%26+access%3A+members+and+Invite+someone)
 
-## Your route
+Invite your team, prepare the schedule and manage company settings.
 
-1. [Invite teammates](/admin/invite-teammates) and choose what they can do.
-2. [Add people to the schedule](/admin/add-people), including people who never sign in.
-3. [Choose company settings](/admin/company-settings) that differ from the defaults.
-4. [Prepare clients and work](/admin/prepare-work).
-5. [Make the first booking](/admin/first-booking) and check the result.
-6. Use [Ongoing administration](/admin/ongoing-administration) when roles, access, people,
-   or settings change later.
+## Set up
 
-## Two records that often look like one person
+- [Invite teammates](/admin/invite-teammates)
+- [Add people to the schedule](/admin/add-people)
+- [Choose company settings](/admin/company-settings)
+- [Prepare clients and work](/admin/prepare-work)
+- [Make the first booking](/admin/first-booking)
 
-**Invite someone** when they need to sign in. **Add a person to Resources** when their
-time needs to appear on the schedule. Some people need both. You can link the two records,
-but creating either one does not silently create the other.
+An invitation gives someone access. Adding them in Resources puts them on the schedule. Some teammates need both.
 
-## When you are done
+## Already up and running?
 
-The right people can sign in, schedulable people and work exist, company choices are set,
-and the first booking is visible.
+[Ongoing administration](/admin/ongoing-administration) covers access changes, working patterns and closures.
 
-## What's next
-
-[Invite teammates](/admin/invite-teammates), or go straight to [Add people to the
-schedule](/admin/add-people) if access is already correct.
+[Admin FAQ](/admin/faq)

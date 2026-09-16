@@ -1,33 +1,32 @@
 ---
 title: Make the first booking
-description: Connect a scheduled person to prepared work and confirm that the company is ready to use.
+description: Place prepared work on a scheduled person's row and confirm that the setup is usable.
+prev: false
+next: false
 ---
+
+<span id="prerequisites"></span>
+<span id="steps"></span>
+<span id="what-s-next"></span>
 
 # Make the first booking
 
-This task places prepared work onto a person's schedule and confirms the basic company
-setup works from beginning to end.
+![Placeholder: Schedule: person row with Add allocation plus button and drag area](https://placehold.co/686x385?text=Schedule%3A+person+row+with+Add+allocation%0Aplus+button+and+drag+area)
 
-## Prerequisites
+You need a [scheduled person](/admin/add-people) and an [activity](/admin/prepare-work).
 
-- At least one person exists in Resources.
-- At least one activity exists.
+Open Schedule in the left menu. Select the plus button on the person's row, or drag across the dates to book.
 
-## Steps
+## Save the booking
 
-1. **Open Schedule and find the person's row.** Move to the date when the work begins.
-2. **Select one empty cell or drag across several days.** The allocation form opens.
-3. **Choose the Project context.** Select **Internal**, **No specific project**, or a real project.
-4. **Choose the Activity.** A real project offers shared **All projects** activities and
-   the activities created specifically for that project.
-5. **Check the dates, amount, and status.** Save the allocation.
-6. **Check the result.** The bar appears across the chosen dates and the person's
-   utilisation updates. The company's initial setup panel closes after a person, coherent
-   work, and an allocation all exist.
+![Placeholder: New allocation: Assignee, Project, Activity, dates, amount and Save](https://placehold.co/686x385?text=New+allocation%3A+Assignee%2C+Project%2C%0AActivity%2C+dates%2C+amount+and+Save)
 
-![The allocation form for prepared work](../screenshots/flows/allocation-form.jpg)
+Choose Project, then Activity. Use Internal or No specific project for work without a project.
 
-## What's next
+Check the assignee, dates, amount and status. Select Save.
 
-Send teammates to the [day-to-day guide](/using/), and keep [Ongoing
-administration](/admin/ongoing-administration) for later changes.
+The booking appears on the person's row. They can find it in their [work list](/using/read-the-schedule#your-work-list).
+
+[Move or change the booking](/using/change-work)
+
+[Booking options and repeats](/guide/projects-and-allocations)

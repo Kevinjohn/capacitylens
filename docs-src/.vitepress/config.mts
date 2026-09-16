@@ -47,6 +47,15 @@ const usingSidebar = [
         ],
       },
       {
+        text: "Scheduling tasks",
+        items: [
+          { text: "Find capacity", link: "/using/find-capacity" },
+          { text: "Schedule work", link: "/using/schedule-work" },
+          { text: "Change work", link: "/using/change-work" },
+          { text: "Record time off", link: "/using/record-time-off" },
+        ],
+      },
+      {
         text: "When you need it",
         items: [
           { text: "Settings", link: "/using/settings" },

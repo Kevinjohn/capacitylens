@@ -7,7 +7,7 @@ next: false
 
 # Join your team
 
-![Placeholder: Invitation preview with the company, invited email and sign-in choices](https://placehold.co/686x385?text=Invitation+preview%3A+company+email+and+sign-in+choices)
+![Placeholder: Invitation preview with the company, invited email and sign-in choices](https://placehold.co/686x385?text=Invitation+preview%3A+company+email+and%0Asign-in+choices)
 
 <span id="steps"></span>
 
@@ -21,7 +21,7 @@ If the preview shows the wrong signed-in identity, select Use a different accoun
 
 ## Accept your invitation
 
-![Placeholder: Signed-in invitation with the company and acceptance action](https://placehold.co/686x385?text=Signed-in+invitation%3A+company+and+acceptance+action)
+![Placeholder: Signed-in invitation with the company and acceptance action](https://placehold.co/686x385?text=Signed-in+invitation%3A+company+and%0Aacceptance+action)
 
 Accept the invitation to open your company's Schedule.
 

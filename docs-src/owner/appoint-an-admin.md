@@ -1,31 +1,31 @@
 ---
 title: Appoint an Admin
 description: Invite the person who will manage members, settings and everyday company setup.
+prev: false
+next: false
 ---
+
+<span id="steps"></span>
+<span id="what-s-next"></span>
 
 # Appoint an Admin
 
-This task gives another person the access needed to complete everyday setup. It takes
-about a minute on your side, plus the time they need to accept the invitation.
+![Placeholder: Team & access showing Invite someone with Admin, email, No Resource linked and Create invite](https://placehold.co/686x385?text=Team+%26+access%3A+Invite+someone%2C+Admin%2C%0Aemail%2C+Create+invite)
 
-## Steps
+Open Team & access in the left menu and find Invite someone.
 
-1. **Open Team & access.** Find the **Invite someone** panel.
-2. **Choose Admin.** Admins can manage members, scheduling data, and most company settings.
-   They cannot transfer ownership or delete the company.
-3. **Enter the Admin's work email when appropriate.** Company-login-only installations
-   require it. An email-bound invitation can be accepted only by that address.
-4. **Leave Link to Resource empty unless the Admin is already schedulable.** A company
-   member and a Resource are separate. You can link them later.
-5. **Create and copy the invitation.** CapacityLens shows the one-time link once. Send it
-   through your normal private communication channel.
-6. **Confirm acceptance.** The person moves from pending invitations into the members list
-   with the Admin role.
+Set Role to Admin and enter the person's email. Leave No Resource linked selected unless their scheduled person already exists.
 
-Send the new Admin the [Admin and settings guide](/admin/). You do not need to add sample
-people, work, or bookings before handing over.
+Select Create invite, then Copy. Send the link privately; CapacityLens does not email it for you.
 
-## What's next
+## Hand over
 
-Read [Owner responsibilities](/owner/responsibilities), or stop here until an Owner-only
-decision is needed.
+![Placeholder: Team & access: accepted member showing Admin role](https://placehold.co/686x385?text=Team+%26+access%3A+accepted+member+showing%0AAdmin+role)
+
+After they accept, check that the members list shows their Admin role.
+
+Send them the [Admin and settings guide](/admin/). They can complete the setup from here.
+
+You remain the Owner. Appointing an Admin does not transfer ownership.
+
+[Owner responsibilities](/owner/responsibilities)
