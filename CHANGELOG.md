@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Centre allocation detail popovers over the visible segment of a schedule bar when horizontal
+  scrolling clips the bar (#1107).
 - Size schedule rows for overlapping allocations in the visible date window, so historical
   overlaps do not leave otherwise single-lane rows unnecessarily tall (#858).
 
