@@ -23,8 +23,6 @@ export function PrivateNameFields({
     <>
       <SwitchField
         label={m.form_private_toggle_label()}
-        description={m.form_private_toggle_description()}
-        descriptionPlacement="control"
         checked={fields.isPrivate}
         onChange={fields.setIsPrivate}
         layout={layout}

@@ -743,14 +743,14 @@ describe("compact product fields", () => {
   it("lays out a privacy switch with the shared responsive label-control contract", () => {
     render(
       <SwitchField
-        label="Use a code name"
+        label="Use code name"
         description="Hide the real name"
         checked={false}
         onChange={vi.fn()}
         layout="label-control"
       />,
     );
-    const control = screen.getByRole("switch", { name: "Use a code name" });
+    const control = screen.getByRole("switch", { name: "Use code name" });
     const field = control.closest('[data-slot="field"]');
     const description = screen.getByText("Hide the real name");
     expect(field).toHaveAttribute("data-product-layout", "label-control");

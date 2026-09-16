@@ -92,6 +92,25 @@ export function TextField(props: TextFieldProps) {
   const id = useId();
   const descriptionId = useId();
   const input = <TextFieldControl {...props} id={id} descriptionId={descriptionId} />;
+  const descriptionOnOwnRow = description && layout === "label-control";
+  let fieldControl = input;
+  if (descriptionOnOwnRow) {
+    fieldControl = (
+      <>
+        {input}
+        <FieldDescription id={descriptionId} className="-mt-1.5 sm:col-start-2">
+          {description}
+        </FieldDescription>
+      </>
+    );
+  } else if (description) {
+    fieldControl = (
+      <FieldContent>
+        {input}
+        <FieldDescription id={descriptionId}>{description}</FieldDescription>
+      </FieldContent>
+    );
+  }
 
   return (
     <Field
@@ -100,14 +119,7 @@ export function TextField(props: TextFieldProps) {
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
-      {description ? (
-        <FieldContent>
-          {input}
-          <FieldDescription id={descriptionId}>{description}</FieldDescription>
-        </FieldContent>
-      ) : (
-        input
-      )}
+      {fieldControl}
     </Field>
   );
 }

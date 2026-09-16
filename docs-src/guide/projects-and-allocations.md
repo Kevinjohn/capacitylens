@@ -64,14 +64,14 @@ renamed or deleted, and its colour on the schedule is controlled from
 [Settings](/guide/settings).
 
 If a client or project name shouldn't be visible to most of the team — an
-unannounced prospect, for example — turn on its "use a code name" option when you
-create or edit it. Everyone below Owner sees a generic code name instead of the real
-one; only the Owner sees both. See [Roles and permissions](/getting-started/roles-and-permissions)
+unannounced prospect, for example — turn on **Use code name** when you create or edit
+it. The explanation below **Code name** confirms that everyone below Owner sees the
+code name instead of the real one; only the Owner sees both. See [Roles and permissions](/getting-started/roles-and-permissions)
 for what each role can see.
 
-![The Add client form with the privacy explanation aligned beside the Use a code name switch](../screenshots/flows/client_private_name.jpg)
+![The Add client form with the privacy explanation below the Code name input](../screenshots/flows/client_private_name.jpg)
 
-![The Add project form with the same privacy explanation aligned beside its Use a code name switch](../screenshots/flows/project_private_name.jpg)
+![The Add project form with the same privacy explanation below its Code name input](../screenshots/flows/project_private_name.jpg)
 
 ### Activities
 

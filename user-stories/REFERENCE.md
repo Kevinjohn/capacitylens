@@ -416,9 +416,10 @@ The allocation checkbox is labelled exactly `Ignore working days`. Unchecked, th
 the assignee's effective working week (company-wide working days intersected with their
 personal pattern); checked, it uses every calendar day in the date span. The
 control is hidden for external allocations, whose start/end span is already literal.
-Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
+Client and project forms also expose an owner-only `Use code name` switch, **off by default**.
 Turning it on reveals the required `Code name` field (placeholder `e.g. Nightwing`) and the hint
-`Quotation marks are added automatically.` Non-owners editing an already-private row do not see the
+`Only account owners can see real names. Everyone else sees the code name.` The hint sits on its own
+row below the input so each left-hand label stays aligned with its control. Non-owners editing an already-private row do not see the
 switch/code-name field; its redacted `Name` is disabled with `Only an account owner can change this
 private name.` An open client or project edit form never silently overwrites a newer copy loaded
 underneath it. If that entity changes or disappears before **Save**, the form stays open, writes
