@@ -21,15 +21,22 @@ async function expectWorkingDaysGeometry(dialog: Locator) {
 async function expectAvailabilityDateGeometry(dialog: Locator) {
   await expect(dialog.getByLabel("Avatar URL")).toHaveCount(0);
   const dateRow = dialog.locator("[data-resource-availability-date-row]");
+  const separators = dialog.locator('[data-slot="separator"]');
   const startDateBox = await dialog.getByLabel("Start date").boundingBox();
   const endDateBox = await dialog.getByLabel("End date").boundingBox();
   const dateRowBox = await dateRow.boundingBox();
+  const topSeparatorBox = await separators.nth(0).boundingBox();
+  const bottomSeparatorBox = await separators.nth(1).boundingBox();
   expect(startDateBox).not.toBeNull();
   expect(endDateBox).not.toBeNull();
   expect(dateRowBox).not.toBeNull();
+  expect(topSeparatorBox).not.toBeNull();
+  expect(bottomSeparatorBox).not.toBeNull();
   expect(Math.abs(startDateBox!.y - endDateBox!.y)).toBeLessThanOrEqual(1);
   expect(Math.abs(startDateBox!.x - dateRowBox!.x)).toBeLessThanOrEqual(1);
   expect(Math.abs(endDateBox!.x + endDateBox!.width - (dateRowBox!.x + dateRowBox!.width))).toBeLessThanOrEqual(1);
+  expect(dateRowBox!.y - (topSeparatorBox!.y + topSeparatorBox!.height)).toBeGreaterThanOrEqual(8);
+  expect(bottomSeparatorBox!.y - (dateRowBox!.y + dateRowBox!.height)).toBeGreaterThanOrEqual(8);
 }
 
 async function expectNarrowAvailabilityDateGeometry(dialog: Locator) {

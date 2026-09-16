@@ -47,7 +47,9 @@ describe("ResourceForm layout", () => {
     expect(startField?.parentElement).toHaveAttribute("data-resource-availability-date-row");
     expect(startField?.parentElement).toHaveClass("grid", "min-w-0", "grid-cols-1", "gap-2", "sm:grid-cols-2");
     expect(screen.queryByText(/leave blank for no boundary/i)).not.toBeInTheDocument();
-    expect(document.body.querySelectorAll('[data-slot="separator"]')).toHaveLength(2);
+    const separators = document.body.querySelectorAll('[data-slot="separator"]');
+    expect(separators).toHaveLength(2);
+    for (const separator of separators) expect(separator).toHaveClass("my-2");
 
     person.unmount();
     const placeholder = render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
