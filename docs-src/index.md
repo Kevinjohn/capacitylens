@@ -8,8 +8,10 @@ description: Choose the CapacityLens guide that matches the job you need to comp
 CapacityLens helps a small agency plan who is working on what, week by week, and see who
 has room for more work. These guides take you straight to the job you need to complete.
 
-New to the product? Read [What is CapacityLens?](/getting-started/what-is-capacitylens),
-then use the [Quick start](/getting-started/quick-start) to make your first booking.
+New to the product?
+
+- Read [What is CapacityLens?](/getting-started/what-is-capacitylens)
+- then use the [Quick start](/getting-started/quick-start) to make your first booking.
 
 ## Choose your guide
 
@@ -20,16 +22,13 @@ then use the [Quick start](/getting-started/quick-start) to make your first book
 <span id="day-to-day-usage"></span>
 <span id="self-hosting-operations"></span>
 
-- **[Use CapacityLens day to day](/using/):** join your team, understand the schedule,
-  find available capacity, and plan or check work.
-- **[Set up your company as the Owner](/owner/):** create your company, appoint an Admin,
-  and hand over everyday setup.
-- **[Administer your company](/admin/):** invite teammates, add people to the schedule,
-  choose settings, and prepare the first piece of work.
-- **[Install CapacityLens](/installation/):** put CapacityLens on a server, configure
-  sign-in, verify it, and hand it to the Owner.
-- **[Operate an existing installation](/operations/):** back up, upgrade, monitor,
-  configure, and recover the service.
+| Guide | Use it to |
+| --- | --- |
+| [Use CapacityLens day to day](/using/) | Join your team, understand the schedule, find available capacity, and plan or check work. |
+| [Set up your company as the Owner](/owner/) | Create your company, appoint an Admin, and hand over everyday setup. |
+| [Administer your company](/admin/) | Invite teammates, add people to the schedule, choose settings, and prepare the first piece of work. |
+| [Install CapacityLens](/installation/) | Put CapacityLens on a server, configure sign-in, verify it, and hand it to the Owner. |
+| [Operate an existing installation](/operations/) | Back up, upgrade, monitor, configure, and recover the service. |
 
 ## Not sure where to start?
 
