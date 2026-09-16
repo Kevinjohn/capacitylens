@@ -18,6 +18,12 @@ new features and **patch** versions carry fixes.
   actions and Resource linking into centered dialogs, and rename the association controls to **Link
   to Resource** (#1104).
 
+- Start Overview in **Bar & number** mode and give the 12-week table extra breathing room only at
+  the Week 4 to Weeks 5–8 strategic boundary (#1102).
+- Remove member-link guidance and entry points from Resources, and add a consistent pointer cursor
+  to enabled action controls across the resource and directory pages (#1103).
+- Consolidate the sidebar footer to one avatar-led **Account** row, move real and demo sign-out to
+  Account, and hide product-orientation navigation and unnecessary single-company context (#1105).
 - Make the documentation home easier to scan, replace the day-to-day application tour entry with
   the task-focused Overview guide, and keep the current page marked in the static sidebar and
   narrow-screen guide menu.

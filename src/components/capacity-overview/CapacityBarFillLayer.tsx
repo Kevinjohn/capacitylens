@@ -11,12 +11,20 @@ import type { CapacityBarFill, CapacityBarFillContext } from "./capacityOverview
 // via `border-spacing` on the table: that spacing model paints a table-owned gutter between
 // cells, which also strips every row's `border-b` divider (row borders don't apply in the
 // separated-borders model) and breaks each row's continuous background into per-cell fragments.
-export function CapacityBarFillLayer({ fill, context }: { fill: CapacityBarFill; context: CapacityBarFillContext }) {
+export function CapacityBarFillLayer({
+  fill,
+  context,
+  strategicBreak,
+}: {
+  fill: CapacityBarFill;
+  context: CapacityBarFillContext;
+  strategicBreak?: boolean;
+}) {
   return (
     <div
       aria-hidden="true"
       data-testid="capacity-bar-fill-layer"
-      className="pointer-events-none absolute inset-[3px]"
+      className={`pointer-events-none absolute inset-[3px] ${strategicBreak ? "left-[19px]" : ""}`}
       style={{ background: "var(--color-line-soft)" }}
     >
       {fill.kind !== "none" && (

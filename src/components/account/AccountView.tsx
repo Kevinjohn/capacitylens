@@ -3,7 +3,10 @@ import demoAvatarUrl from "@/assets/avatar-demo.svg";
 import { m } from "@/i18n";
 import { FAKE_USER, useDemoAuthActive } from "@/lib/fakeAuth";
 import { DEFAULT_COLORS } from "@/lib/palette";
+import { useStore } from "@/store/useStore";
+import { LogOut } from "lucide-react";
 import { Avatar, ListPage } from "../common/ui";
+import { Button } from "../ui/button";
 import { SecuritySection } from "../settings/SecuritySection";
 import { SettingsSection } from "../settings/SettingsSection";
 import { Badge } from "../ui/badge";
@@ -27,6 +30,7 @@ function resolveAccess(authMode: ReturnType<typeof useAuth>["authMode"], demo: b
 export function AccountView() {
   const auth = useAuth();
   const demo = useDemoAuthActive();
+  const signOutDemo = useStore((state) => state.signOutDemo);
   const { name, email, imageUrl } = resolveIdentity(auth, demo);
   const access = resolveAccess(auth.authMode, demo);
 
@@ -44,6 +48,20 @@ export function AccountView() {
               </Badge>
             </div>
           </div>
+          {(demo || auth.authMode !== "off") && (
+            <Button
+              type="button"
+              variant="outline"
+              className="self-start"
+              onClick={() => {
+                if (demo) signOutDemo();
+                else void auth.signOut();
+              }}
+            >
+              <LogOut data-icon="inline-start" />
+              {m.nav_sign_out()}
+            </Button>
+          )}
         </SettingsSection>
         {auth.authMode !== "off" && <SecuritySection />}
       </div>

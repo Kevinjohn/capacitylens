@@ -266,22 +266,24 @@ fresh report, so the support note describes one clear observation rather than a 
 ## Your personal account
 
 Your personal account is outside the **Data and support** group. It is reached through the
-sidebar's **Account**, **Switch company** and **Sign out** controls.
+sidebar's **Account** row.
 
-Open **Account** near **Switch company** and **Sign out** at the bottom of the sidebar to
-review your identity and the security controls available for your sign-in method. These are
-personal controls, separate from the company settings on this page.
+Open **Account** at the bottom of the sidebar to review your identity and the security controls
+available for your sign-in method. Real and demo sessions can also **Sign out** from that page.
+With one accessible company, real authentication hides the company context and switch; with two
+or more, the sidebar retains them. These are personal controls, separate from the company settings
+on this page.
 
 If a selected company cannot be loaded, a recovery screen hides the previously open company's
 data. **Retry** loads the selected company again without changing your selection, or you can choose
 another company.
 
-![The Account page in demo mode showing Bruce Wayne’s fictional identity and Demo access](../screenshots/flows/account.jpg)
+![The Account page showing Lucius Fox’s fictional identity and the Sign out action](../screenshots/flows/account.jpg)
 
 In password mode, Account includes password changes, reported multi-factor authentication
 status and active sessions. Company single sign-on shows its connection and session controls
 without a local password form. Demo mode identifies the fictional persona; installations with
-sign-in off have no credential controls. **Sign out** remains in the sidebar.
+sign-in off have no credential controls or sign-out action.
 
 ## What's next
 

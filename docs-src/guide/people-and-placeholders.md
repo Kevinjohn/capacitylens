@@ -21,8 +21,8 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 
 Open **Team & access** from the sidebar. In the member's row, open **More actions** and select
 an available person Resource in the centered dialog. Use **Change** to choose another Resource or
-**Remove** to unlink it. Each member
-can have one person Resource, and each person Resource can have one member. The association does
+**Remove** to unlink it. Each member can have one person Resource, and each person Resource can
+have one member. The association does
 not grant access or create schedule data.
 
 Only active members and active scheduled people can be new link targets. Existing links

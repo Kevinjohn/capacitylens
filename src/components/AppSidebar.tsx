@@ -1,4 +1,4 @@
-import { CircleHelpIcon, EyeIcon } from "lucide-react";
+import { EyeIcon } from "lucide-react";
 import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/authContext";
 import { usePermissionStatus, useRole } from "../auth/permissionContext";
@@ -37,11 +37,10 @@ interface AppSidebarProps {
   activeAccount: { name: string } | undefined;
   /** Administration destinations pinned to the bottom of the nav (Team & access, Settings). */
   adminLinks: NavigationLinkDefinition[];
+  accessibleAccountCount: number;
   demoAuthActive: boolean;
   navLinks: NavigationLinkDefinition[];
-  onSignOut: () => void;
   onSwitchAccount: () => void;
-  onShowOrientation: (trigger: HTMLButtonElement, delayMs?: number) => void;
   open: boolean;
 }
 
@@ -49,11 +48,10 @@ interface AppSidebarProps {
 export function AppSidebar({
   activeAccount,
   adminLinks,
+  accessibleAccountCount,
   demoAuthActive,
   navLinks,
-  onSignOut,
   onSwitchAccount,
-  onShowOrientation,
   open,
 }: AppSidebarProps) {
   const { pathname } = useLocation();
@@ -92,13 +90,11 @@ export function AppSidebar({
       <SidebarNavigation navLinks={navLinks} adminLinks={adminLinks} pathname={pathname} onNavigate={closeOnMobile} />
       <SidebarAccountFooter
         activeAccount={activeAccount}
+        accessibleAccountCount={accessibleAccountCount}
         demoAuthActive={demoAuthActive}
-        onSignOut={onSignOut}
         onSwitchAccount={onSwitchAccount}
         onNavigate={closeOnMobile}
         pathname={pathname}
-        onShowOrientation={onShowOrientation}
-        isMobile={isMobile}
       />
 
       <SidebarRail aria-hidden="true" />
@@ -164,43 +160,24 @@ function SidebarNavigation({
 
 function SidebarAccountFooter({
   activeAccount,
+  accessibleAccountCount,
   demoAuthActive,
-  onSignOut,
   onSwitchAccount,
   onNavigate,
   pathname,
-  onShowOrientation,
-  isMobile,
 }: {
   activeAccount: AppSidebarProps["activeAccount"];
+  accessibleAccountCount: number;
   demoAuthActive: boolean;
-  onSignOut: () => void;
   onSwitchAccount: () => void;
   onNavigate: () => void;
   pathname: string;
-  isMobile: boolean;
-  onShowOrientation: (trigger: HTMLButtonElement, delayMs?: number) => void;
 }) {
+  const { authMode } = useAuth();
+  const showCompanyContext = activeAccount !== undefined && (authMode === "off" || accessibleAccountCount > 1);
   return (
     <SidebarFooter>
-      <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton
-            tooltip={m.product_orientation_heading({ app: APP_NAME })}
-            onClick={(event) => {
-              onNavigate();
-              const returnTarget = isMobile
-                ? document.querySelector<HTMLButtonElement>('main [data-sidebar="trigger"]')
-                : event.currentTarget;
-              onShowOrientation(returnTarget ?? event.currentTarget, isMobile ? 300 : 0);
-            }}
-          >
-            <CircleHelpIcon aria-hidden="true" focusable="false" />
-            <span>{m.product_orientation_heading({ app: APP_NAME })}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      </SidebarMenu>
-      {activeAccount && (
+      {showCompanyContext && (
         <div className="group-data-[collapsible=icon]:hidden">
           <SidebarSeparator className="mx-0" />
           <div className="min-w-0 px-2">
@@ -219,12 +196,7 @@ function SidebarAccountFooter({
         </div>
       )}
       <SidebarMenu>
-        <SessionMenuItem
-          demoAuthActive={demoAuthActive}
-          onNavigate={onNavigate}
-          onSignOutDemo={onSignOut}
-          pathname={pathname}
-        />
+        <SessionMenuItem demoAuthActive={demoAuthActive} onNavigate={onNavigate} pathname={pathname} />
       </SidebarMenu>
     </SidebarFooter>
   );
@@ -262,70 +234,43 @@ function NavMenu({
   );
 }
 
-/**
- * The personal Account destination plus signed-in identity/sign-out controls at the very bottom
- * of the nav (issue #169).
- *
- * Two identities can be signed in here and they never overlap: the COSMETIC demo persona
- * (`demoAuthActive` — real auth is off, see fakeAuth.ts) and a REAL Better Auth session
- * (`authMode !== "off"`). The Account destination remains available for an auth-off local identity;
- * the sign-out control appears only for the demo persona or a real session. It always reads
- * "Sign out" rather than toggling to "Sign in": the entry gate (AppEntryGate / LoginScreen) means
- * the shell only renders after demo sign-in or a real session has passed its outer gate.
- */
+/** The personal Account destination and identity avatar at the very bottom of the nav. */
 function SessionMenuItem({
   demoAuthActive,
   onNavigate,
-  onSignOutDemo,
   pathname,
 }: {
   demoAuthActive: boolean;
   onNavigate: () => void;
-  onSignOutDemo: () => void;
   pathname: string;
 }) {
-  const { authMode, signOut, user } = useAuth();
-  const AccountIcon = ACCOUNT_LINK.icon;
-  const showSignOut = demoAuthActive || authMode !== "off";
+  const { authMode, user } = useAuth();
 
   let name: string = FAKE_USER.name;
   let imageUrl: string | undefined = demoAvatarUrl;
-  let onSignOut = onSignOutDemo;
   if (!demoAuthActive) {
     name = user?.name ?? user?.email ?? m.settings_signed_in_unknown();
     imageUrl = user?.image ?? undefined;
-    onSignOut = () => void signOut();
   }
 
   return (
-    <>
-      <SidebarMenuItem>
-        <SidebarMenuButton
-          asChild
-          size="sm"
-          isActive={matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null}
-          tooltip={ACCOUNT_LINK.label()}
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        size="sm"
+        isActive={matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null}
+        tooltip={ACCOUNT_LINK.label()}
+      >
+        <NavLink
+          to={ACCOUNT_LINK.to}
+          onClick={onNavigate}
+          {...(demoAuthActive || authMode !== "off" ? { title: m.nav_signed_in_as({ who: name }) } : {})}
         >
-          <NavLink to={ACCOUNT_LINK.to} onClick={onNavigate}>
-            <AccountIcon aria-hidden="true" focusable="false" />
-            <span>{ACCOUNT_LINK.label()}</span>
-          </NavLink>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-      {showSignOut && (
-        <SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-          <SidebarMenuButton
-            size="sm"
-            data-testid="nav-sign-out"
-            title={m.nav_signed_in_as({ who: name })}
-            onClick={onSignOut}
-          >
-            <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
-            <span className="truncate">{m.nav_sign_out()}</span>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-      )}
-    </>
+          <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
+          <span>{ACCOUNT_LINK.label()}</span>
+        </NavLink>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 

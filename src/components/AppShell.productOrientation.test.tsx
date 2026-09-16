@@ -1,5 +1,5 @@
 import { act } from "react";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -73,28 +73,16 @@ describe("AppShell product orientation", () => {
     expect(localStorage.getItem("capacitylens/productOrientation/v1/demo/acct-test")).toBe("dismissed");
   });
 
-  it("can be reopened from the permanent sidebar action and returns focus on dismissal", async () => {
-    const user = userEvent.setup();
+  it("does not expose a separate product-orientation sidebar action", () => {
     renderShell();
-    const trigger = screen.getByRole("button", { name: "How CapacityLens works" });
-
-    await user.click(trigger);
-    await waitFor(() => expect(screen.getByRole("heading", { name: "How CapacityLens works" })).toHaveFocus());
-    await user.click(screen.getByRole("button", { name: "Got it" }));
-    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
   });
 
-  it("refocuses and scrolls the heading when the visible orientation is explicitly activated", async () => {
+  it("focuses the visible orientation heading on entry", async () => {
     localStorage.removeItem("capacitylens/productOrientation/v1/demo/acct-test");
-    const user = userEvent.setup();
     renderShell();
     const heading = screen.getByRole("heading", { name: "How CapacityLens works" });
-    const trigger = screen.getByRole("button", { name: "How CapacityLens works" });
-    trigger.focus();
-
-    await user.click(trigger);
-
-    expect(heading).toHaveFocus();
+    await waitFor(() => expect(heading).toHaveFocus());
   });
 
   it("keeps a failed storage dismissal suppressed for the current mount", async () => {
@@ -120,16 +108,14 @@ describe("AppShell product orientation", () => {
     expect(localStorage.getItem("capacitylens/productOrientation/v1/demo/no-company")).toBe("dismissed");
   });
 
-  it("keeps the collapsed sidebar action keyboard-discoverable with a rich tooltip", async () => {
+  it("does not add a product-orientation control to the collapsed sidebar", () => {
     renderShell();
     act(() => useStore.getState().setSidebarOpen(false));
 
-    const trigger = screen.getByRole("button", { name: "How CapacityLens works" });
-    act(() => trigger.focus());
-    expect(await screen.findByRole("tooltip", { name: "How CapacityLens works" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
   });
 
-  it("closes the mobile sidebar when its orientation action is activated", async () => {
+  it("does not add a product-orientation control to the mobile sidebar", () => {
     vi.stubGlobal(
       "matchMedia",
       vi.fn(
@@ -147,18 +133,8 @@ describe("AppShell product orientation", () => {
       ),
     );
     sessionStorage.setItem("capacitylens/rotateHintDismissed", "1");
-    const user = userEvent.setup();
     renderShell();
-    const topTrigger = within(screen.getByRole("main")).getByRole("button", { name: "Expand menu" });
-    await user.click(topTrigger);
-    await user.click(screen.getByRole("button", { name: "How CapacityLens works" }));
-
-    expect(topTrigger).toHaveAttribute("aria-expanded", "false");
-    const heading = screen.getByRole("heading", { name: "How CapacityLens works" });
-    expect(heading).not.toHaveFocus();
-    await waitFor(() => expect(heading).toHaveFocus());
-    await user.click(screen.getByRole("button", { name: "Got it" }));
-    expect(topTrigger).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
   });
 
   it("scopes guidance to the authenticated subject when the signed-in user changes", async () => {
@@ -207,7 +183,7 @@ describe("AppShell product orientation", () => {
     );
   });
 
-  it("keeps the orientation action available to an authenticated Viewer", async () => {
+  it("keeps the orientation guidance available to an authenticated Viewer", async () => {
     serverFlag.on = true;
     vi.stubGlobal(
       "fetch",
@@ -233,9 +209,9 @@ describe("AppShell product orientation", () => {
 
     renderShell("/", authenticatedAuth("viewer-user"));
 
-    expect(await screen.findByTestId("active-role")).toHaveTextContent("Viewer");
-    expect(screen.getByRole("button", { name: "How CapacityLens works" })).toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument());
+    expect(screen.queryByTestId("active-role")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
   });
 
   it("preserves focus on an unrelated control across an ordinary shell rerender", async () => {

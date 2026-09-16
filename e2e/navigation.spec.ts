@@ -125,10 +125,10 @@ function registerSuiteScenario4() {
       "/settings",
     ]);
 
-    // Switch company then the avatar'd sign-out, both below the nav landmark.
+    // Demo keeps company switching in the footer; Account is the only session row.
     await expect(page.getByRole("button", { name: "Switch company" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Account", exact: true })).toBeVisible();
-    await expect(page.getByTestId("nav-sign-out")).toBeVisible();
+    await expect(page.getByTestId("nav-sign-out")).toHaveCount(0);
 
     // Import/export is gone from the sidebar and lives on Settings instead (#169).
     await expect(page.getByTestId("export-data")).toHaveCount(0);

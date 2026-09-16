@@ -67,7 +67,7 @@ figures for every displayed period, including the two four-week strategic totals
 
 ## Choose a capacity display
 
-**Number** starts selected and shows each period's figures as text, as described above. Switch to
+**Bar & number** starts selected and shows each period's fill and figures together. Switch to
 **Bar** to see a person's free capacity as a fill that grows from the bottom of the cell,
 proportioned against the company working days in that column. For a five-day company week, four
 free days fill 80% of the cell and 1.5 free days fill 30%. This makes people with different working
@@ -77,8 +77,9 @@ first column uses only the company working days remaining between today and the 
 Green fill shows free capacity; red fill shows overbooking, capped at a full cell. A person with
 nothing to show, including someone fully booked or with no availability that week, keeps a subtle
 neutral-grey cell. Bar modes use 6px horizontal and vertical gaps between cells so adjacent periods
-and rows stay easy to distinguish.
-**Bar & number** shows the fill and the figures together. The underlying value stays available to
+and rows stay easy to distinguish. In **12 weeks** mode, the boundary between Week 4 and Weeks 5–8
+has approximately double that ordinary inter-column breathing room across the header and every row.
+The Weeks 5–8 to Weeks 9–12 boundary keeps the ordinary spacing. The underlying value stays available to
 assistive technology in every mode. Group header totals and unassigned-demand rows always show
 figures only; the bar never applies to them.
 

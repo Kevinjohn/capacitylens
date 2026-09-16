@@ -92,6 +92,17 @@ function registerButtonAppearanceTests() {
     expect(button).not.toHaveClass("transition-all");
   });
 
+  it("signals enabled buttons and links as clickable without making disabled controls look enabled", () => {
+    const { rerender } = render(
+      <Button asChild>
+        <a href="/archived">Archived</a>
+      </Button>,
+    );
+    expect(screen.getByRole("link", { name: "Archived" })).toHaveClass("[&:not(:disabled)]:cursor-pointer");
+    rerender(<Button disabled>Disabled</Button>);
+    expect(screen.getByRole("button", { name: "Disabled" })).not.toHaveClass("cursor-pointer");
+  });
+
   it("renders ghost variant", () => {
     render(<Button variant="ghost">Ghost</Button>);
     expect(screen.getByRole("button", { name: "Ghost" })).toBeInTheDocument();

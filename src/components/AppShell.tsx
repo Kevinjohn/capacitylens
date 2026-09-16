@@ -111,7 +111,6 @@ type GatedAppProps = {
     | ReturnType<typeof useStore.getState>["accountSummaries"][number]
     | undefined;
   navLinks: typeof LINKS;
-  signOutDemo: () => void;
   dirtyForm: boolean;
   paletteOpen: boolean;
   closePalette: () => void;
@@ -136,7 +135,6 @@ function GatedApp({
   setSidebarOpen,
   activeAccount,
   navLinks,
-  signOutDemo,
   dirtyForm,
   paletteOpen,
   closePalette,
@@ -183,9 +181,7 @@ function GatedApp({
             activeAccount={activeAccount}
             navLinks={navLinks}
             demoAuthActive={demoAuthActive}
-            signOutDemo={signOutDemo}
             sidebarOpen={sidebarOpen}
-            onShowOrientation={orientation.show}
           />
           {/* prettier-ignore */}
           <GatedMain hydrated={hydrated} offline={offline} persistError={persistError} masqueradeBanner={masqueradeBanner} navigate={navigate} orientation={orientation} />
@@ -201,17 +197,14 @@ function GatedSidebar({
   activeAccount,
   navLinks,
   demoAuthActive,
-  signOutDemo,
   sidebarOpen,
-  onShowOrientation,
-}: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "signOutDemo" | "sidebarOpen"> & {
-  onShowOrientation: (trigger: HTMLButtonElement, delayMs?: number) => void;
-}) {
+}: Pick<GatedAppProps, "activeAccount" | "navLinks" | "demoAuthActive" | "sidebarOpen">) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null;
   const role = useRole();
   const permissionStatus = usePermissionStatus();
+  const accessibleAccountCount = useStore((state) => state.accountSummaries.length);
   const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
   const visibleNavLinks =
     resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed"
@@ -228,12 +221,11 @@ function GatedSidebar({
       <AppSidebar
         activeAccount={activeAccount}
         adminLinks={ADMIN_LINKS}
+        accessibleAccountCount={accessibleAccountCount}
         demoAuthActive={demoAuthActive}
         navLinks={visibleNavLinks}
-        onSignOut={signOutDemo}
         onSwitchAccount={() => void chooseAnotherAccountAfterLoadFailure(accountRoute, navigate)}
         open={sidebarOpen}
-        onShowOrientation={onShowOrientation}
       />
     </>
   );
@@ -358,7 +350,6 @@ export function AppShell() {
   const demoAuthActive = useDemoAuthActive();
   const fakeSignedIn = useStore((state) => state.fakeSignedIn);
   const setFakeSignedIn = useStore((state) => state.setFakeSignedIn);
-  const signOutDemo = useStore((state) => state.signOutDemo);
   const disciplinesEnabled = useStore((state) => hasDisciplinesEnabled(state.data, state.activeAccountId));
   const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(({ to }) => to !== "/disciplines");
   const accountRoute = matchPath({ path: ACCOUNT_LINK.to, end: true }, useLocation().pathname) !== null;
@@ -385,7 +376,6 @@ export function AppShell() {
         setSidebarOpen={setSidebarOpen}
         activeAccount={activeAccount}
         navLinks={navLinks}
-        signOutDemo={signOutDemo}
         dirtyForm={dirtyForm}
         paletteOpen={paletteOpen}
         closePalette={closePalette}

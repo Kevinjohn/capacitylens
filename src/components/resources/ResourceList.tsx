@@ -8,7 +8,6 @@ import { ConfirmDialog, ListPage } from "../common/ui";
 import { ExternalForm } from "../external/ExternalForm";
 import { ResourceForm } from "./ResourceForm";
 import { ResourceListContent } from "./ResourceListContent";
-import { ResourceTeamLink } from "./ResourceTeamLink";
 import { useResourceListModel } from "./useResourceListModel";
 import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
 
@@ -24,7 +23,6 @@ export function ResourceList() {
       addLabel={m.list_resources_add()}
       onAdd={() => setCreatingKind("person")}
     >
-      <ResourceTeamLink />
       <ResourceListContent
         model={model}
         onAdd={setCreatingKind}
