@@ -25,7 +25,7 @@ The list covers the current company week and the following three weeks.
 
 It combines your bookings and personal time off.
 
-Changing the main Schedule’s dates or filters does not change this four-week range.
+Changing the main Schedule's dates or filters does not change this four-week range.
 
 ## Booking details
 
@@ -46,7 +46,7 @@ Clear Filters removes a search or filter.
 
 Today returns the grid to the current week.
 
-If you still cannot find yourself, ask your agency’s Admin to check your access and schedule.
+If you still cannot find yourself, ask your agency's Admin to check your access and schedule.
 
 ## More schedule detail
 

@@ -27,7 +27,7 @@ Readers understand agency work. They need to understand this interface.
 - Add another image when the view changes or a useful interaction needs highlighting.
 - Link to detailed guidance without requiring readers to follow a chapter sequence.
 
-“Why would someone open this page?” and “Where is the information they need?” are
+"Why would someone open this page?" and "Where is the information they need?" are
 editorial questions, not required headings. Avoid learning-outcome summaries and commentary
 about reading the guide. There is no target paragraph count or page length: every section
 must provide value and remain easy to scan.
@@ -40,7 +40,7 @@ using assistive technology and for language models without access to the images.
 Use a short task title, necessary context and prerequisites, then the actions needed.
 Number steps when order matters. Show the relevant screen before asking the reader to act.
 Explain important results and link to related help where useful. Do not force every page
-into an opening paragraph, steps and “What's next” template.
+into an opening paragraph, steps and "What's next" template.
 
 ## Applying this to each guide
 
@@ -58,7 +58,7 @@ to study it.
 - Keep related explanation together. Give a separate decision, exception or destination
   its own paragraph. Do not turn every sentence into a bullet.
 - Make the next action locatable: name the page, control and useful result. Avoid generic
-  commands such as “open the schedule” without a location, or “read each bar”.
+  commands such as "open the schedule" without a location, or "read each bar".
 - Keep essential information in the chosen guide. Reuse concise instructions where roles
   overlap; link out for depth rather than sending readers to another role's onboarding.
 - State access restrictions where they affect an action. Explain what to do if access is

@@ -14,7 +14,7 @@ next: false
 
 ![Placeholder: Schedule with the left menu and your work highlighted](https://placehold.co/686x385?text=Schedule+with+left+menu+and+your+work%0Ahighlighted)
 
-CapacityLens shows your team’s planned work and availability.
+CapacityLens shows your team's planned work and availability.
 
 Open [Schedule](/using/read-the-schedule) to find your work.
 
