@@ -674,6 +674,11 @@ function registerSuiteScenario17() {
     await page.getByTestId("scheduler-grid").evaluate(
       (element, delta) => {
         element.scrollLeft += delta;
+        // Assigning scrollLeft moves the element's layout immediately but queues the scroll event,
+        // and the label's inset is published from that handler. A real scroll publishes it in the
+        // same frame it paints; a direct assignment can be measured in between, with the bar in its
+        // new position and the inset still on the old one. Dispatch it so the read is not a race.
+        element.dispatchEvent(new Event("scroll"));
       },
       Math.round(before.x - timelineLeft + before.width / 2),
     );
