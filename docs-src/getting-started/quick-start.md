@@ -1,37 +1,54 @@
 ---
-title: Get started quickly
-description: Choose the shortest route to try CapacityLens, install it, or start using an installation your team already runs.
+title: Make your first booking
+description: Add a client, project, person and activity, then place the first piece of work on the schedule.
 ---
 
-# Get started quickly
+# Make your first booking
 
-Use this page to reach the right starting point in under a minute. You do not need to
-read the documentation from beginning to end.
+<span id="get-started-quickly"></span>
+
+This quick start takes an Editor, Admin, or Owner from an empty company to one visible
+booking, then shows how to move it. Allow about five minutes. Your company must already
+exist. If you have Viewer access, start with [Read the schedule](/using/read-the-schedule).
 
 ## Steps
 
-1. **Choose what you want to do.**
+1. **Add a client.** Open **Clients**, select **Add client**, enter the client's name, and
+   save it. The client appears in the Clients list.
 
-   - To explore CapacityLens without keeping any data, [try the demo](/getting-started/try-the-demo).
-   - To put CapacityLens on a server, [choose an installation route](/getting-started/install).
-   - If somebody else has already installed it, ask an Owner or Admin for an invitation link,
-     then follow [Invite your team](/getting-started/invite-your-team#what-the-invitee-sees).
+2. **Add a project.** Open **Projects**, select **Add project**, choose the client, enter
+   the project name, and save it. The project appears under that client.
 
-2. **Finish the first company setup.** The person responsible for the new installation should
-   follow [Set up your company as Owner](/getting-started/set-up-your-company). It connects the
-   technical installation to the first useful schedule through three clear outcomes, and explains
-   when to involve an Admin.
+3. **Add a person.** Open **Resources**, select **Add resource**, then choose **Person**.
+   Enter their name and role, choose their engagement and discipline when available, then
+   set each working day to **Full day**, **Half day**, or **Not working**. Save the person.
+   They appear on the Schedule.
 
-3. **Learn only the screen you need.** Start with [The schedule](/guide/the-schedule), then use
-   [People and placeholders](/guide/people-and-placeholders), [Projects and
-   allocations](/guide/projects-and-allocations), or [Time off](/guide/time-off) when that job
-   comes up.
+   Adding a person makes them schedulable. It does not give them a sign-in. An Owner or
+   Admin can [invite them separately](/admin/invite-teammates).
 
-4. **Return to the specialist sections when needed.** [Admin and settings](/guide/settings)
-   covers company options, while [Self-hosting](/self-hosting/) covers backups, upgrades,
-   monitoring and incidents.
+4. **Add an activity.** Open **Activities**, select **Add activity**, choose
+   **Project-specific**, then select the project. Give the activity a clear name such as
+   “Design” and save it.
+
+5. **Open the Schedule.** Find the person's row and the date when the work should begin.
+
+6. **Drag across the working days.** Start in an empty cell and drag to the final day of
+   the booking. You can also select a single empty cell for one day.
+
+7. **Choose the project and activity, then save.** Choose the real project first, then
+   select the project-specific activity you created. The new allocation appears as a bar across the
+   person's row. Its length, working-day total, and utilisation update immediately.
+
+8. **Move the booking.** Drag the saved bar to another date or person, then check its new
+   position. Use **Undo** if you want to put it back.
+
+![The Schedule with people, allocation bars and utilisation percentages](../screenshots/flows/schedule.jpg)
+
+You now have the basic CapacityLens shape: a client has a project, the project has work,
+and that work is allocated to a person on the schedule.
 
 ## What's next
 
-[Try the demo](/getting-started/try-the-demo) for the fastest look, or [choose how to
-install CapacityLens](/getting-started/install) to keep your own data.
+Learn how to [read the schedule](/using/read-the-schedule), or continue with the
+[day-to-day guide](/using/) for the tasks you will use most often.

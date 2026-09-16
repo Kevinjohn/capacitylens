@@ -184,3 +184,53 @@ html:has(.cl-toggle:checked) {
 .vp-doc blockquote {
   font-size: 0.9375rem;
 }
+
+/* The published site has no client-side menu. Keep each track reachable on
+   narrow screens with a native details element that works without JavaScript. */
+.guide-links {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.75rem 0 1.5rem;
+  font-size: 0.875rem;
+}
+
+.guide-navigation {
+  display: none;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg-soft);
+}
+
+.guide-navigation summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.guide-navigation ul {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.guide-navigation li + li {
+  margin-top: 0.35rem;
+}
+
+@media (max-width: 959px) {
+  /* VitePress moves this sidebar off-canvas and expects JavaScript to open it.
+     The shipped site removes that script, so remove the duplicate from the
+     accessibility tree and use the native guide menu above the page instead. */
+  .VPSidebar {
+    display: none !important;
+  }
+
+  .guide-links {
+    display: block;
+    margin-top: 0;
+  }
+
+  .guide-navigation {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+}
