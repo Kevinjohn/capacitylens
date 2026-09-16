@@ -386,7 +386,7 @@ function registerSuiteScenario10() {
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await resetSchedulerScroll(page);
+    await goToSeedWeek(page);
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).hover();
     const pop = page.getByTestId("allocation-popover");
     await expect(pop).toBeVisible();
@@ -475,7 +475,7 @@ function registerSuiteScenario13() {
   test("stacks overlapping allocations onto a taller row (US-SCH-08)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await resetSchedulerScroll(page);
+    await goToSeedWeek(page);
     // Bruce has two overlapping seed bars (3-4 June) -> 2 lanes; Clark has one -> 1 lane.
     const bruceBars = page.locator('[data-resource-id="r-tyler"]').getByTestId("allocation-bar");
     await expect(bruceBars).toHaveCount(2);
@@ -496,7 +496,7 @@ function registerSuiteScenario15() {
   test("allocation status and note are visually distinct on the bar (US-SCH-19)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await resetSchedulerScroll(page);
+    await goToSeedWeek(page);
 
     // Seed: Bruce's Visual Design bar is tentative (the placeholder also has a confirmed one).
     await expect(

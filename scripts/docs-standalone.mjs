@@ -61,6 +61,27 @@ const toRelative = (pageDir, absolutePath) => {
   return rel === "" ? "index.html" : rel;
 };
 
+// VitePress adds the sidebar's current-page class and aria-current attribute in
+// its client-side navigation. The standalone build removes that client code, so
+// mark the matching server-rendered link while the page file and its relative
+// sidebar href are both available. This keeps the same semantic state in the
+// static pages, including links nested below a sidebar group.
+const markSidebarCurrent = (html, file) => {
+  const sidebar = html.match(/<aside class="VPSidebar"[\s\S]*?<\/aside>/)?.[0];
+  if (!sidebar) return html;
+
+  const currentFile = resolve(file);
+  const marked = sidebar.replace(/<a class="VPLink link link" href="([^"]+)"([^>]*)>/g, (tag, href, attributes) => {
+    const target = href.split("#", 1)[0];
+    if (!target || /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(target)) return tag;
+    if (resolve(dirname(file), target) !== currentFile) return tag;
+    if (/\baria-current=/.test(attributes)) return tag;
+    return `<a class="VPLink link link" href="${href}" aria-current="page"${attributes}>`;
+  });
+
+  return html.replace(sidebar, marked);
+};
+
 let pages = 0;
 for (const file of files.filter((f) => f.endsWith(".html"))) {
   const pageDir = dirname(file);
@@ -87,6 +108,8 @@ for (const file of files.filter((f) => f.endsWith(".html"))) {
     // Removing VitePress scripts can leave indentation on otherwise empty lines.
     // Normalise it here so a rebuild is both Prettier-clean and byte-for-byte stable.
     .replace(/[^\S\r\n]+$/gm, "");
+
+  html = markSidebarCurrent(html, file);
 
   writeFileSync(file, html);
   pages++;

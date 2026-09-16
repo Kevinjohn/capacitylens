@@ -40,4 +40,4 @@ start](/getting-started/quick-start) shows the basic order.
 
 ## What's next
 
-Return to the [day-to-day guide](/using/) or [choose another guide](/#choose-your-guide).
+Return to the [day-to-day guide](/using/).

@@ -7,12 +7,20 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Size schedule rows for overlapping allocations in the visible date window, so historical
+  overlaps do not leave otherwise single-lane rows unnecessarily tall (#858).
+
 ### Changed
 
 - Align Team & access member and outstanding-invite rows with the managed-resource list, move member
   actions and Resource linking into centered dialogs, and rename the association controls to **Link
   to Resource** (#1104).
 
+- Make the documentation home easier to scan, replace the day-to-day application tour entry with
+  the task-focused Overview guide, and keep the current page marked in the static sidebar and
+  narrow-screen guide menu.
 - Reorganise the documentation into self-contained day-to-day, Owner, Admin, installation,
   and operations guides, each with its own task path and FAQ. Add a plain-language introduction,
   first-booking quick start, script-free narrow-screen guide navigation, and an open-source and
