@@ -1,32 +1,34 @@
 ---
-title: Use CapacityLens day to day
-description: Learn the schedule, find available capacity, and plan the work your role allows.
+title: Welcome
+description: Find your work in CapacityLens and open the pages that match your role.
+prev: false
+next: false
 ---
 
-# Use CapacityLens day to day
+<span id="use-capacitylens-day-to-day"></span>
+<span id="your-route"></span>
+<span id="when-you-are-done"></span>
+<span id="what-s-next"></span>
 
-This guide is for anyone joining a team that already uses CapacityLens. Start here even
-if you have never used capacity-planning software before.
+# Welcome
 
-## Your route
+![Placeholder: Schedule with the left menu and your work highlighted](https://placehold.co/686x385?text=Schedule+with+left+menu+and+your+work+highlighted)
 
-1. [Join your team](/using/join-your-team) if you have received an invitation.
-2. [Read the schedule](/using/read-the-schedule) and learn what the rows, bars, dates, and
-   utilisation figures mean.
-3. [Find available capacity](/using/find-capacity) for the period you need.
-4. If your role allows changes, [schedule work](/using/schedule-work), [change existing
-   work](/using/change-work), or [record time off](/using/record-time-off).
+CapacityLens shows your team’s planned work and availability.
 
-A Viewer can stop after the first two tasks. Reading the schedule and finding capacity
-are complete, useful outcomes; you do not need editing access to use this guide.
+Open [Schedule](/using/read-the-schedule) to find your work.
 
-## When you are done
+[Join your team](/using/join-your-team) if you need to sign in.
 
-You can identify who is available, understand what each booking represents, and know
-which actions your role allows. Keep the [day-to-day FAQ](/using/faq) nearby for common
-questions.
+## Page guide
 
-## What's next
+- [Schedule](/using/read-the-schedule)
+- [Overview](/using/overview)
+- [Resources](/using/resources)
+- [Disciplines](/using/disciplines)
+- [Clients](/using/clients)
+- [Projects](/using/projects)
+- [Activities](/using/activities)
+- [Time off](/using/time-off)
 
-Start with [Join your team](/using/join-your-team), or [Read the
-schedule](/using/read-the-schedule) if you can already sign in.
+[FAQ](/using/faq) · [Settings](/using/settings) · [Account](/using/account) · [Team & access](/using/team-access)

@@ -18,6 +18,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Rework the day-to-day documentation as a visual page guide, prioritising personal scheduled
+  work and linking to detailed tasks. Use labelled image placeholders for the content-review draft.
+
 - Align Team & access member and outstanding-invite rows with the managed-resource list, move member
   actions and Resource linking into centered dialogs, and rename the association controls to **Link
   to Resource** (#1104).

@@ -1717,3 +1717,15 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   future automated test can name the exact contract it covers rather than only the broad story.
 - Each story names its **Linked E2E test(s)** (file + test title) so the automated coverage
   is traceable to the manual script.
+
+## Documentation navigation
+
+The day-to-day documentation introduces the application page by page: Schedule, Overview,
+Resources, Disciplines, Clients, Projects, Activities and Time off. Schedule is first in the
+guide so an invited teammate can find their own work. Settings, Account, Team & access and
+the FAQ provide supporting help. The application navigation itself is unchanged.
+
+The [Schedule guide](../docs-src/using/read-the-schedule.md) explains the avatar/eye button
+that opens a person's work list and distinguishes viewing booking details from editing.
+Introductory pages use the application's labels, show the screen before instructions and
+link to detailed tasks when needed. They are not a required sequence of onboarding steps.

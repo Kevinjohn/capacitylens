@@ -12,32 +12,39 @@ five seconds whether it answers their question.
 
 ## The shape of a page
 
-Every task page follows the same skeleton:
+Choose the structure that helps someone use the screen or complete their task.
 
-1. **Title** — a verb phrase describing the task ("Invite your team"), never a noun dump
-   ("Team invitation management").
-2. **Opening paragraph** — one short paragraph saying what the reader will have when
-   they finish, who this page is for, and roughly how long it takes. No history, no
-   architecture, no throat-clearing.
-3. **Prerequisites** (only if there are any) — a short bulleted list with links.
-4. **Numbered steps** — each step starts with the action, in the imperative ("Click
-   **Settings**", "Run the command below"). One action per step. Show the result the
-   reader should see after the important steps: a screenshot, a terminal output block,
-   or a sentence ("The invite appears in the list with a _Pending_ tag").
-5. **What's next** — one or two links to the page a reader most likely needs after
-   this one.
+### Application page introductions
 
-Concept pages (the minority) drop the numbered steps and instead explain one idea in
-plain language, with a concrete example before any general rule.
+Readers understand agency work. They need to understand this interface.
 
-**Exception: long multi-stage pages.** A page covering several distinct stages, where
-each stage has its own sub-steps (for example, a full migration procedure), may number
-its own H2 stages (`## 1. …`, `## 2. …`) instead of a single `## Steps` list. Every
-other page uses the standard numbered-list-under-`## Steps` pattern.
+- Use the application's page name as the title.
+- Show the screen before explaining the useful controls or interactions.
+- Keep each paragraph on one subject. Separate navigation advice from explanations.
+- Remove obvious definitions and narration of what the image already makes clear.
+- Use lists when a list helps, not as a substitute for editing a paragraph.
+- Use bold selectively. Repeated bold lead-ins make emphasis ineffective.
+- Add another image when the view changes or a useful interaction needs highlighting.
+- Link to detailed guidance without requiring readers to follow a chapter sequence.
+
+“Why would someone open this page?” and “Where is the information they need?” are
+editorial questions, not required headings. Avoid learning-outcome summaries and commentary
+about reading the guide. There is no target paragraph count or page length: every section
+must provide value and remain easy to scan.
+
+Essential controls and outcomes must also be clear in text, so the guide works for people
+using assistive technology and for language models without access to the images.
+
+### Task instructions
+
+Use a short task title, necessary context and prerequisites, then the actions needed.
+Number steps when order matters. Show the relevant screen before asking the reader to act.
+Explain important results and link to related help where useful. Do not force every page
+into an opening paragraph, steps and “What's next” template.
 
 ## Rules
 
-- **One task per page.** If a page needs two H1-worthy verbs, it is two pages.
+- **Keep a clear focus.** A page introduction may cover several related interactions. Separate detailed procedures when they would obscure that introduction.
 - **Plain language.** Prefer the everyday word: "sign in" not "authenticate", "company
   login" not "IdP-initiated SSO", "link" not "federate". The first use of any term in
   the [glossary](reference/glossary.md) links to it. Jargon that has no everyday
@@ -45,6 +52,9 @@ other page uses the standard numbered-list-under-`## Steps` pattern.
 - **Short sentences, active voice.** If a sentence needs a second comma, try splitting it.
 - **Time estimates are honest.** "Two minutes" means two minutes on a laptop with
   Docker already installed, and the page says so.
+- **Preview placeholders.** During an explicitly agreed content-review stage, use labelled
+  `https://placehold.co/686x385?text=...` images. Their text and alt text describe the
+  intended view. They are placeholders, never evidence of the application UI.
 - **Screenshots are real.** Every screenshot is captured from the running app (the
   access lab: `pnpm run dev:access`), lives in `docs-src/screenshots/`, and has alt text
   describing what it shows. Never mock up a screenshot. If the UI changes, recapture.
@@ -104,4 +114,4 @@ A docs change is done when:
 2. The page renders correctly in the built site — checked by eye, in the browser,
    including the sidebar position, breadcrumbs and "On this page" outline.
 3. Every new term is either everyday language or linked to the glossary.
-4. Screenshots show the current UI.
+4. Screenshots show the current UI, or an agreed preview clearly labels its temporary placeholders.
