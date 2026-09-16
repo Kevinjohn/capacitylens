@@ -49,7 +49,7 @@ describe("ResourceForm layout", () => {
     expect(screen.queryByText(/leave blank for no boundary/i)).not.toBeInTheDocument();
     const separators = document.body.querySelectorAll('[data-slot="separator"]');
     expect(separators).toHaveLength(2);
-    for (const separator of separators) expect(separator).toHaveClass("my-2");
+    for (const separator of separators) expect(separator).toHaveClass("my-4");
 
     person.unmount();
     const placeholder = render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
