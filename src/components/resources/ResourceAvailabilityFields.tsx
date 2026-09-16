@@ -1,5 +1,5 @@
 import { m } from "@/i18n";
-import { TextField, WorkingDayPicker } from "../common/ui";
+import { DateField, WorkingDayPicker } from "../common/ui";
 import { Separator } from "../ui/separator";
 import type { ResourceFormState } from "./useResourceFormState";
 
@@ -26,24 +26,22 @@ export function ResourceAvailabilityFields({ form, errorField, errorId }: Resour
   return (
     <>
       <Separator />
-      <TextField
-        label={m.form_resource_first_available_date_label()}
-        value={form.firstAvailableDate}
-        onChange={form.setFirstAvailableDate}
-        type="date"
-        invalid={errorField === "firstAvailableDate"}
-        describedById={errorId}
-        layout="label-control"
-      />
-      <TextField
-        label={m.form_resource_last_available_date_label()}
-        value={form.lastAvailableDate}
-        onChange={form.setLastAvailableDate}
-        type="date"
-        invalid={errorField === "lastAvailableDate"}
-        describedById={errorId}
-        layout="label-control"
-      />
+      <div data-resource-availability-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+        <DateField
+          label={m.form_resource_first_available_date_label()}
+          value={form.firstAvailableDate}
+          onChange={form.setFirstAvailableDate}
+          invalid={errorField === "firstAvailableDate"}
+          describedById={errorId}
+        />
+        <DateField
+          label={m.form_resource_last_available_date_label()}
+          value={form.lastAvailableDate}
+          onChange={form.setLastAvailableDate}
+          invalid={errorField === "lastAvailableDate"}
+          describedById={errorId}
+        />
+      </div>
       <Separator />
       <WorkingDayPicker
         label={m.form_resource_working_days_label()}
