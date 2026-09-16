@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Size schedule rows for overlapping allocations in the visible date window, so historical
+  overlaps do not leave otherwise single-lane rows unnecessarily tall (#858).
+
 ### Changed
 
 - Reorganise the documentation into self-contained day-to-day, Owner, Admin, installation,
