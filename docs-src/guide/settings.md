@@ -278,7 +278,7 @@ If a selected company cannot be loaded, a recovery screen hides the previously o
 data. **Retry** loads the selected company again without changing your selection, or you can choose
 another company.
 
-![The Account page in demo mode showing Bruce Wayne’s fictional identity and Demo access](../screenshots/flows/account.jpg)
+![The Account page showing Lucius Fox’s fictional identity and the Sign out action](../screenshots/flows/account.jpg)
 
 In password mode, Account includes password changes, reported multi-factor authentication
 status and active sessions. Company single sign-on shows its connection and session controls
