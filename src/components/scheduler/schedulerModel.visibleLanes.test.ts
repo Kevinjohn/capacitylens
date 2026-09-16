@@ -1,11 +1,12 @@
+import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { emptyAppData, type ISODate } from "@capacitylens/shared/types/entities";
-import { buildEmptyFilters } from "../../store/useStore";
+import { buildEmptyFilters, useStore } from "../../store/useStore";
 import { makeActivity, makeAllocation, makeResource, requireValue } from "../../test/fixtures";
 import { buildColumnGeometry } from "./columnGeometry";
 import { applyVisibleUtilization, buildSchedulerModel } from "./schedulerModel";
-import { partiallyExposesNextColumn } from "./useSchedulerGridModel";
+import { partiallyExposesNextColumn, usePartiallyExposedNextColumn } from "./useSchedulerGridModel";
 
 describe("visible-window lane projection", () => {
   it.each([false, true])(
@@ -163,5 +164,54 @@ describe("visible-window lane projection", () => {
     const augustRow = projectWindow("2026-08-17", "2026-08-30");
     expect(augustRow.rowHeight).toBe(76);
     expect(new Set(augustRow.bars.slice(0, 2).map((bar) => bar.top)).size).toBe(2);
+  });
+});
+
+describe("partial exposure during an allocation drag", () => {
+  function renderExposure() {
+    const days = eachDayISO("2026-06-01", "2026-06-30");
+    const geometry = buildColumnGeometry(days, 48, { minimiseWeekends: false, weekendWidth: 22 });
+    const element = document.createElement("div");
+    const scrollRef = { current: element };
+    const viewport = {
+      days,
+      geom: geometry,
+      scrollRef,
+      timelineWidth: 256 + geometry.x(7),
+      leftEdgeIdx: 0,
+      start: days[0] as ISODate,
+      end: days[6] as ISODate,
+    };
+    const view = renderHook(() => usePartiallyExposedNextColumn(viewport, 1));
+    const scrollTo = (scrollLeft: number) =>
+      act(() => {
+        element.scrollLeft = scrollLeft;
+        element.dispatchEvent(new Event("scroll"));
+      });
+    return { ...view, scrollTo };
+  }
+
+  it("holds the flag while an allocation is dragged and resyncs on drop", () => {
+    const { result, scrollTo, unmount } = renderExposure();
+    try {
+      expect(result.current).toBe(false);
+
+      // The window follows the scroll normally.
+      scrollTo(1);
+      expect(result.current).toBe(true);
+      scrollTo(0);
+      expect(result.current).toBe(false);
+
+      // While dragging, leftEdgeIndex is frozen, so this must not move either.
+      act(() => useStore.setState({ draggingAllocationId: "a1" }));
+      scrollTo(1);
+      expect(result.current).toBe(false);
+
+      act(() => useStore.setState({ draggingAllocationId: null }));
+      expect(result.current).toBe(true);
+    } finally {
+      unmount();
+      useStore.setState({ draggingAllocationId: null });
+    }
   });
 });

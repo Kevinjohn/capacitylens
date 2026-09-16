@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { carriesHourlyLoad, emptyAppData, isCapacityTracked } from "@capacitylens/shared/types/entities";
@@ -60,8 +60,15 @@ export function partiallyExposesNextColumn({
   return viewportWidth > 0 && endIndex < days.length - 1 && scrollLeft + viewportWidth > geometry.x(endIndex + 1);
 }
 
-function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: number) {
+export function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: number) {
   const { scrollRef, geom: geometry, days, timelineWidth } = viewport;
+  // The window this flag extends stops following the scroll while an allocation is being dragged:
+  // useSchedulerViewport freezes leftEdgeIndex for the duration and resyncs on drop. The flag has to
+  // freeze with it. A scroll mid-drag (a keyboard grab scrolls the bar into view) would otherwise
+  // re-pack the lanes under the pointer against a window that is no longer moving, which is the
+  // repacking the freeze exists to prevent.
+  const dragging = useStore((state) => state.draggingAllocationId !== null);
+  const exposedRef = useRef(false);
   const subscribe = useCallback(
     (onStoreChange: () => void) => {
       const element = scrollRef.current;
@@ -71,17 +78,17 @@ function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: number) {
     },
     [scrollRef],
   );
-  const getSnapshot = useCallback(
-    () =>
-      partiallyExposesNextColumn({
-        geometry,
-        days,
-        scrollLeft: scrollRef.current?.scrollLeft ?? 0,
-        timelineWidth,
-        zoom,
-      }),
-    [days, geometry, scrollRef, timelineWidth, zoom],
-  );
+  const getSnapshot = useCallback(() => {
+    if (dragging) return exposedRef.current;
+    exposedRef.current = partiallyExposesNextColumn({
+      geometry,
+      days,
+      scrollLeft: scrollRef.current?.scrollLeft ?? 0,
+      timelineWidth,
+      zoom,
+    });
+    return exposedRef.current;
+  }, [dragging, days, geometry, scrollRef, timelineWidth, zoom]);
   return useSyncExternalStore(subscribe, getSnapshot, () => false);
 }
 
