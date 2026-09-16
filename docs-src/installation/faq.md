@@ -40,4 +40,4 @@ Follow [TLS and networking](/self-hosting/tls-and-networking) for the supported 
 
 ## What's next
 
-Return to [Technical installation](/installation/) or [choose another guide](/#choose-your-guide).
+Return to [Technical installation](/installation/).
