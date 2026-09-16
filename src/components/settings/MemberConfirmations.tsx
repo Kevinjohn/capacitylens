@@ -102,8 +102,8 @@ export function MemberConfirmations({
           onCancel={() => setMemberConfirmation(null)}
         />
       )}
-      {/* The pencil's editor. Role only, by design (#175): everything else a member's row can do
-          lives behind the gear, and ownership is not a row-level action at all. */}
+      {/* Role editing remains a dedicated centered dialog; the member-actions dialog also offers
+          this same entry point so every manageable operation is discoverable from one place. */}
       {roleEdit && (
         <MemberRoleEditDialog
           roleEdit={roleEdit}

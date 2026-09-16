@@ -9,6 +9,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Align Team & access member and outstanding-invite rows with the managed-resource list, move member
+  actions and Resource linking into centered dialogs, and rename the association controls to **Link
+  to Resource** (#1104).
+
 - Reorganise the documentation into self-contained day-to-day, Owner, Admin, installation,
   and operations guides, each with its own task path and FAQ. Add a plain-language introduction,
   first-booking quick start, script-free narrow-screen guide navigation, and an open-source and

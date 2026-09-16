@@ -15,7 +15,7 @@ owner-only operations. Ownership transfer is not part of this story: it has no p
 **Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md)
 
 From Resources, an Owner or Admin can choose **Manage team links** to open Team & access.
-Linking, changing or removing a scheduled-person association and creating invitations happen
+Linking, changing or removing a Resource association and creating invitations happen
 only here. Navigation does not submit a command or carry a resource or invitation selection.
 
 ## Why
@@ -31,17 +31,17 @@ Invites reuse the P1.9 single-use link: the secret token is shown once at creati
 one-way hash, and never read back, so listing or revoking invites can never leak a live, role-bearing
 link.
 
-An Owner or Admin can also associate one active member with one active scheduled person. Team & access
-states this explicitly as **Linked to [person] in the schedule** or **Not linked to the schedule** and
-offers separate Link, Change, and Remove actions. The association does not grant access or create
-schedule data. Archived or disabled members and scheduled people retain an existing association for
+An Owner or Admin can also associate one active member with one active person Resource. Team & access
+states this explicitly as **Linked to Resource: [person]** or **No Resource linked** and
+offers separate Link, Change, and Remove actions through the centered member-actions dialog. The association does not grant access or create
+schedule data. Archived or disabled members and Resources retain an existing association for
 status and removal, but cannot be new or changed targets. When the member has a validated sign-in
 picture, the schedule uses it only if the person has no explicit avatar URL; inactive endpoints show
 no derived picture. Unlinking returns the person to their explicit avatar, or initials when none is set.
 
-When creating an invitation, an Owner or Admin may choose **Person in the schedule** or leave the
-default **Not on the schedule**. The choice is not reserved. On admission CapacityLens links the
-person if it is still available; otherwise the member directory shows **Schedule link needs
+When creating an invitation, an Owner or Admin may choose **Link to Resource** or leave the
+default **No Resource linked**. The choice is not reserved. On admission CapacityLens links the
+person if it is still available; otherwise the member directory shows **Resource link needs
 attention**, with **Choose another person** and **Dismiss** controls. Invitees never see the
 proposal or exception.
 
@@ -69,7 +69,7 @@ the non-blocking product orientation if it is open.
    that exact action. Cancelling the confirmation leaves this page and its loaded directory available.
 
 2. The **member list** is a table (`data-testid="members-table"`) with the columns **Name**,
-   **Email**, **Scheduled person**, **Edit member** and **Member settings**, one row per member
+   **Email**, **Link to Resource**, **Edit member** and **Member settings**, one row per member
    (`data-testid="member-row"`); the role sits beneath the name and B's own row is marked **(you)**.
    The table lists the active members,
    ordered by join date and then by name; disabled and archived memberships are grouped below it
@@ -77,16 +77,17 @@ the non-blocking product orientation if it is open.
    (`data-testid="members-inactive-toggle"`) that reveals a second table
    (`data-testid="members-inactive-table"`) whose rows carry a **Disabled**/**Archived** badge.
 3. Each row ends in two controls, both naming their member for screen readers: a pencil
-   (`data-testid="member-edit"`) that opens the **Change member role** dialog, and a gear
-   (`data-testid="member-menu"`) that opens the member-actions menu. Both are disabled while any
+   (`data-testid="member-edit"`) that opens the **Change member role** dialog, and a more-actions button
+   (`data-testid="member-menu"`) that opens the centered **Member actions** dialog naming the selected
+   member. Both are disabled while any
    member mutation is in flight.
 4. B clicks **C**'s pencil, chooses Viewer in the dialog's role select
    (`data-testid="member-role-select"`), reads the plain-language summary of what Viewer can and
    cannot do, and clicks **Save role** (`data-testid="member-role-save"`).
-5. B opens **C**'s gear menu. It holds **Reset password** (US-SET-13), **Revoke sessions**, **Disable
+5. B opens **C**'s member-actions dialog. It holds **Reset password** (US-SET-13), **Revoke sessions**, **Disable
    user** (`data-testid="member-disable"`), **Archive user** (`data-testid="member-archive"`) and
    **Remove** — each behind an explicit confirmation naming C. Once C is disabled, C's row moves into
-   the **No longer active** group and C's menu offers **Restore access**
+   the **No longer active** group and C's dialog offers **Restore access**
    (`data-testid="member-restore"`) in place of disable/archive. C stays listed there, so the
    operation is visible and reversible, but every read C attempts against the company is refused by
    the server.
@@ -104,14 +105,14 @@ the non-blocking product orientation if it is open.
    (`data-testid="invite-revoke"`) on the newest and its row goes away.
 8. B never sees an **Owner** option (neither in a role select nor the invite-role picker), no
    **Transfer ownership** button on any row — since #175 no row offers one to anyone — and owner A's
-   row shows B neither a pencil nor a gear (an Admin can't touch an owner). Signed in as A, that same
-   row keeps a gear holding only the self-service **Reset password** and **Revoke sessions**: nobody
+   row shows B neither a pencil nor a more-actions button (an Admin can't touch an owner). Signed in as A, that same
+   row keeps a more-actions button holding only the self-service **Reset password** and **Revoke sessions**: nobody
    can disable an Owner, or themselves. See US-SET-13 for the reset-link flow itself.
 9. **Ownership transfer** is not reachable from the member table at all. It lives in its own
    **Company ownership** section below, as a three-step ceremony the nominated Admin must agree to —
    see [US-SET-18](US-SET-18-ownership-transfer.md).
 10. Signed in as A, the Owner can turn on **Record member sign-ins**
-    (`data-testid="member-sign-in-tracking"`). This adds a **Signed in** column between **Scheduled person** and
+    (`data-testid="member-sign-in-tracking"`). This adds a **Signed in** column between **Link to Resource** and
     the two right-aligned action columns. It shows only **Yes** or **Not yet** for a successful
     sign-in while the setting is on. The setting is off by default, starts a fresh observation
     window when enabled, and deletes every confirmation when disabled. CapacityLens stores no
@@ -124,7 +125,7 @@ the non-blocking product orientation if it is open.
   from a persisted auth-off server's **Open access** posture. The **Members** management section
   renders only in server + auth-on mode for an Owner/Admin; a Viewer/Editor sees their role
   explanation but no member directory or controls.
-- The member list is a table of **Name**, **Email**, **Scheduled person**, optional **Signed in**, **Edit member** and
+- The member list is a table of **Name**, **Email**, **Link to Resource**, optional **Signed in**, **Edit member** and
   **Member settings**, with the role visible beneath the name. The caller's own row is marked and
   rows are ordered by join date and then by name. Both action columns stay separated and
   right-aligned after the optional **Signed in** column.

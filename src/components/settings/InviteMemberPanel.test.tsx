@@ -92,7 +92,7 @@ describe("InviteMemberPanel creation guidance", () => {
 
     expect(screen.getByTestId("invite-person")).toHaveValue("");
     await userEvent.click(screen.getByTestId("invite-person"));
-    expect(screen.getByRole("option", { name: "Not on the schedule" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "No Resource linked" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Bruce Wayne" })).toBeInTheDocument();
   });
 

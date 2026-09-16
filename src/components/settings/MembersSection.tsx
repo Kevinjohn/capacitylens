@@ -14,8 +14,8 @@ import { useMembersOrchestration } from "./useMembersOrchestration";
 import type { TeamMember } from "../../account/teamAccessClient";
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
-// Owner/Admin list members in a table (name / email / optional sign-in confirmation), change a member's role through the
-// row's pencil, reach the rarer lifecycle actions through the row's gear, and invite people from a
+// Owner/Admin list members in a compact managed-row table (name / email / optional sign-in confirmation), change a member's role through the
+// row's pencil, reach the rarer lifecycle actions and Resource link through the centered member-actions dialog, and invite people from a
 // SEPARATE card below (#175). Ownership transfer is deliberately absent: it is not a per-row action
 // and returns as its own owner-only section under a follow-up ticket. The CLIENT
 // gate is courtesy only — the SAME pure guards (canEditAnyMemberRole / canRemoveMember) hide controls
@@ -167,7 +167,7 @@ function MembersTable({
     allMembers.flatMap((candidate) => (candidate.resourceLink ? [candidate.resourceLink.resourceId] : [])),
   );
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto rounded-md border bg-card">
       <table className="w-full text-sm" data-testid={testId}>
         <thead>
           <tr className="border-b text-left text-xs font-medium text-muted-foreground">

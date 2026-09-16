@@ -18,6 +18,7 @@ import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
 import type { WorkspaceReadiness } from "./ssoReadiness";
+import { useResourceListModel } from "../resources/useResourceListModel";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
 
@@ -315,7 +316,17 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
     if (offline.readOnly || unauthorized) resetInviteDraft();
   }, [directoryState.directory, offline.readOnly, resetInviteDraft]);
-  const resourceCandidates = directoryState.resourceCandidates;
+  // The server supplies the account-authorized candidate IDs. Re-project them through the same
+  // active person ordering as Resources so selectors cannot drift from the management list and
+  // never expose placeholders, external resources, or inactive rows.
+  const resourceListModel = useResourceListModel();
+  const authorizedCandidates = new Map(
+    directoryState.resourceCandidates.map((candidate) => [candidate.resourceId, candidate]),
+  );
+  const resourceCandidates = resourceListModel.people.flatMap((resource) => {
+    const candidate = authorizedCandidates.get(resource.id);
+    return candidate ? [{ resourceId: candidate.resourceId, label: candidate.label }] : [];
+  });
   const linkedResourceIds = new Set(
     (directoryState.members ?? []).flatMap((member) => (member.resourceLink ? [member.resourceLink.resourceId] : [])),
   );

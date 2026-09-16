@@ -7,7 +7,7 @@ import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import type { TeamInvitation } from "../../account/teamAccessClient";
 import type { InvitationPersonOption } from "./useMemberInvites";
 import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
-import { resolveRoleSummary } from "../../lib/accessCopy";
+import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
 import { SelectField, TextField } from "../common/ui";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
@@ -291,7 +291,7 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitatio
   return (
     <div className="flex flex-col gap-1">
       <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
-      <ItemGroup>
+      <ItemGroup className="rounded-md border bg-card">
         {invites.map((invitation, index) => {
           const expired = Date.parse(invitation.expiresAt) <= renderedAt;
           const actionable = invitation.usedAt === null && !expired;
@@ -299,15 +299,17 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitatio
           return (
             <Fragment key={invitation.id}>
               {index > 0 && <ItemSeparator />}
-              <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="invite-row">
-                <ItemContent className="text-sm text-ink">
-                  <span className="capitalize">{invitation.role}</span>
-                  {invitation.preauthEmail
-                    ? m.settings_invite_suffix_email({ email: invitation.preauthEmail })
-                    : m.settings_invite_suffix_link()}
-                  {resolveInvitationStatus(invitation, expired)}
+              <Item size="sm" role="listitem" className="rounded-none" data-testid="invite-row">
+                <ItemContent className="flex-row flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink">
+                  <span className="font-medium">{resolveRoleLabel(invitation.role)}</span>
+                  <span className="text-muted-foreground">
+                    {invitation.preauthEmail
+                      ? m.settings_invite_suffix_email({ email: invitation.preauthEmail })
+                      : m.settings_invite_suffix_link()}
+                  </span>
+                  <span className="text-muted-foreground">{resolveInvitationStatus(invitation, expired)}</span>
                   {proposedPerson && (
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="basis-full text-xs text-muted-foreground">
                       {m.settings_invite_person_pending({ person: proposedPerson })}{" "}
                       {m.settings_invite_person_not_reserved()}
                     </span>

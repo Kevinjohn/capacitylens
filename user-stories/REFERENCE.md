@@ -1049,8 +1049,8 @@ The management section has four parts:
   (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
   (`data-testid="sso-remove-link"`).
 
-- **Members table** (`data-testid="members-table"`) — columns **Name**, **Email**, optional **Signed
-  in**, **Edit member** and **Member settings**, one row per member (`data-testid="member-row"`).
+- **Members table** (`data-testid="members-table"`) — columns **Name**, **Email**, **Link to Resource**,
+  optional **Signed in**, **Edit member** and **Member settings**, one row per member (`data-testid="member-row"`).
   The role stays visible beneath the member's name. The caller's own row is marked **(you)** and a
   non-active member's row carries a **Disabled** or **Archived** badge
   (`data-testid="member-status"`). Members are ordered by **join date, then name** (with the
@@ -1082,7 +1082,7 @@ The management section has four parts:
   (`data-testid="member-role-select"`) offering only Admin, Editor and Viewer, the chosen role's
   plain-language consequences (`data-testid="member-role-summary"`), and **Save role**
   (`data-testid="member-role-save"`) — and a gear
-  (`data-testid="member-menu"`) opening the **Member actions** menu: **Reset password**
+  (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Reset password**
   (`data-testid="member-reset-password"`), **Revoke sessions**
   (`data-testid="member-revoke-sessions"`), **Disable user** (`data-testid="member-disable"`),
   **Archive user** (`data-testid="member-archive"`) and **Remove**

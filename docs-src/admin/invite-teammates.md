@@ -1,6 +1,6 @@
 ---
 title: Invite teammates
-description: Give teammates a sign-in, choose their role, and optionally link them to a scheduled person.
+description: Give teammates a sign-in, choose their role, and optionally link them to a Resource.
 ---
 
 # Invite teammates
@@ -15,8 +15,8 @@ CapacityLens creates a one-time link; it does not send an email.
    planning changes, and Admin for people, access, and company administration.
 3. **Enter their work email when appropriate.** Company-login-only installations require
    it. An email-bound invitation can be accepted only by that address.
-4. **Choose a scheduled person when one already exists.** Otherwise leave **Not on the
-   schedule** selected. The invitation can be linked later.
+4. **Choose a Resource when one already exists.** Otherwise leave **No Resource linked**
+   selected. The invitation can be linked later.
 5. **Create the invitation.** Copy the one-time link immediately and send it privately.
 6. **Check the members list after acceptance.** The teammate appears with the chosen role.
 

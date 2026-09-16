@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from "../../test/fixtures";
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse, makeResourceDraft } from "../../test/fixtures";
 import { useStore } from "../../store/useStore";
 import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
@@ -457,5 +457,45 @@ describe("MembersSection — owner affordances", () => {
     // No pencil (the role is not editable) and no gear: nothing in it would be permitted.
     expect(within(soleOwnerRow).queryByTestId("member-edit")).not.toBeInTheDocument();
     expect(within(soleOwnerRow).queryByTestId("member-menu")).not.toBeInTheDocument();
+  });
+
+  it("opens member actions in a centered dialog that names the selected member", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      mockApi([
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", mayResetPassword: true },
+      ]),
+    );
+    renderSection();
+
+    const editorRow = await findMemberRow(/ed@x\.io/);
+    await user.click(within(editorRow).getByTestId("member-menu"));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog).toHaveTextContent("Member actions");
+    expect(dialog).toHaveTextContent("ed@x.io");
+    expect(within(dialog).getByTestId("member-reset-password")).toBeInTheDocument();
+  });
+
+  it("exposes the current Resource link and eligible choices from the member dialog", async () => {
+    const user = userEvent.setup();
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    vi.stubGlobal(
+      "fetch",
+      mockApi([
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", resourceLink: { resourceId: resource.id, revision: "rev-1" } },
+      ]),
+    );
+    renderSection();
+
+    const editorRow = await findMemberRow(/ed@x\.io/);
+    await user.click(within(editorRow).getByTestId("member-menu"));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByTestId("member-resource-status")).toHaveTextContent("Bruce Wayne");
+    expect(within(dialog).getByRole("button", { name: /remove Resource link/i })).toBeInTheDocument();
   });
 });
