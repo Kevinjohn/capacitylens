@@ -30,7 +30,7 @@ the schedule.
 5. Choose **Show totals** to reveal each group header's free, overbooked and unassigned-demand figures;
    **Hide totals** is the default.
 6. Choose **Bar** or **Bar & number** to see free and overbooked capacity as a fill in each cell,
-   proportioned against the company working days in that column; **Number** is the default.
+   proportioned against the company working days in that column; **Bar & number** is the default.
 7. Hover or focus a person's avatar to reveal an eye icon, then select it to open that person's
    read-only schedule drawer without leaving Overview.
 
@@ -49,11 +49,13 @@ the schedule.
 - ✅ Group summaries continue to cover all eligible people in that group when the row filter is on,
   including rows hidden by **Has availability**.
 - ✅ Group header totals are hidden by default; **Show totals** reveals them without changing the group name or collapse control.
-- ✅ Number is the default capacity display; Bar and Bar & number fill a person's cell from the
+- ✅ Bar & number is the default capacity display; Bar and Bar & number fill a person's cell from the
   bottom against the company working days in that column, green for free and red for overbooked,
   capped at a full cell, and use a subtle neutral grey when there is nothing to show. Number keeps
   its compact table spacing; Bar and Bar & number add 6px horizontal and vertical breathing room
-  between cells for easier scanning.
+  between cells for easier scanning. In 12-week mode, the boundary before Weeks 5–8 has about
+  double that ordinary inter-column spacing across the header and every row; Weeks 5–8 and Weeks
+  9–12 retain ordinary spacing.
 - ✅ The bar never applies to group header totals or unassigned-demand rows, and every mode keeps the underlying value available to assistive technology.
 - ✅ Blocks mode explains that the overview needs Hours or Days without showing capacity figures.
 - ✅ Owners and Admins can choose Owner/Admin, Owner/Admin/Editor or Everyone access in Settings; the default is Owner/Admin.

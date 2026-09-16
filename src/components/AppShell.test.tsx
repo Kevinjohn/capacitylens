@@ -546,19 +546,16 @@ function registerImportExportAbsenceTest(): void {
 }
 
 function registerSidebarSignOutTest(): void {
-  it("offers an avatar'd sign-out below Switch company", () => {
+  it("keeps the avatar-led Account row as the only sidebar session control", () => {
     renderAppShell();
 
     expect(screen.getByText("Test Co")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Switch company" })).toBeInTheDocument();
-    const signOut = screen.getByTestId("nav-sign-out");
-    expect(signOut).toHaveTextContent("Sign out");
-    expect(signOut).toHaveAttribute("title", "Signed in as Bruce Wayne");
-    expect(signOut.querySelector("[data-slot='avatar']")).not.toBeNull();
+    const account = screen.getByRole("link", { name: "Account" });
+    expect(account.querySelector("[data-slot='avatar']")).not.toBeNull();
+    expect(screen.queryByTestId("nav-sign-out")).not.toBeInTheDocument();
 
     expect(useStore.getState().fakeSignedIn).toBe(true);
-    fireEvent.click(signOut);
-    expect(useStore.getState().fakeSignedIn).toBe(false);
   });
 }
 

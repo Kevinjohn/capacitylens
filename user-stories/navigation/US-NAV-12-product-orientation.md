@@ -1,4 +1,4 @@
-# US-NAV-12 — Reopen a concise explanation of how CapacityLens works
+# US-NAV-12 — See a concise explanation of how CapacityLens works
 
 **Area:** Navigation & shell · **Persona:** Anyone entering a company or the personal Account page · **Linked coverage:** `src/components/ProductOrientation.test.tsx`, `src/components/AppShell.productOrientation.test.tsx`, `src/lib/productOrientation.test.ts`, `e2e/fake-signin.spec.ts`
 
@@ -10,7 +10,7 @@
 ## Goal
 
 Understand the schedule's basic language and CapacityLens's boundary without being blocked from
-the application, then reopen that explanation whenever it is useful.
+the application.
 
 ## Why
 
@@ -30,8 +30,8 @@ dismissal keys from local storage.
 3. Click **Got it**. The region closes without changing page.
 4. Reload and choose the same company. The explanation stays closed for this person, company and
    device.
-5. Choose **How CapacityLens works** in the sidebar. The region opens and its heading receives
-   focus. Click **Got it** and focus returns to the sidebar action.
+5. The explanation has no sidebar action. It appears automatically on eligible entry and can be
+   dismissed with **Got it** while the rest of the application remains usable.
 6. Repeat from the personal **Account** page with no active company. The same explanation remains
    available and its dismissal is stored independently from company dismissals.
 
@@ -47,8 +47,5 @@ dismissal keys from local storage.
   of company data or an export. The no-company state has its own stable scope.
 - A storage failure does not block the application: the region stays dismissed for the current
   mount and can return on a later load.
-- **How CapacityLens works** remains a permanent sidebar action. It opens the region, scrolls to
-  and focuses the heading, works in the collapsed keyboard-accessible sidebar, and closes the
-  mobile sidebar before moving focus.
-- Dismissing a manually reopened region returns focus to its trigger. Automatic background state
-  changes do not steal focus repeatedly.
+- The explanation has no product-orientation sidebar action in expanded, collapsed or mobile
+  navigation. Automatic background state changes do not steal focus repeatedly.

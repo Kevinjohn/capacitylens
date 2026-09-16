@@ -37,6 +37,12 @@ describe("CapacityOverviewView", () => {
     expect(screen.getByRole("columnheader", { name: "10 – 13 Sep" })).toBeInTheDocument();
   });
 
+  it("starts with Bar & number capacity display", () => {
+    renderOverview();
+
+    expect(screen.getByRole("radio", { name: "Bar & number" })).toHaveAttribute("aria-checked", "true");
+  });
+
   it("switches between the four-week and twelve-week horizons without resetting other controls", async () => {
     const user = userEvent.setup();
     renderOverview();

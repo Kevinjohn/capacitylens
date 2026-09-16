@@ -31,7 +31,7 @@ off). Start from a clean state (DevTools → Console → `localStorage.clear()` 
 3. Pick **Wayne Enterprises** → the scheduler loads as normal.
 4. Reload the tab → you skip the demo sign-in and land straight on the company picker (the
    "signed in" choice persists per-browser).
-5. From the picker (or the sidebar's **Sign out** once in the app), click **Sign out** → you are
+5. From the picker (or **Account** once in the app), click **Sign out** → you are
    back on the **Choose an account** screen, and a reload stays there.
 
 ## Acceptance criteria

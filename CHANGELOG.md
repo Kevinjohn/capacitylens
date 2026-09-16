@@ -9,6 +9,12 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Start Overview in **Bar & number** mode and give the 12-week table extra breathing room only at
+  the Week 4 to Weeks 5–8 strategic boundary (#1102).
+- Remove member-link guidance and entry points from Resources, and add a consistent pointer cursor
+  to enabled action controls across the resource and directory pages (#1103).
+- Consolidate the sidebar footer to one avatar-led **Account** row, move real and demo sign-out to
+  Account, and hide product-orientation navigation and unnecessary single-company context (#1105).
 - Reorganise the documentation into self-contained day-to-day, Owner, Admin, installation,
   and operations guides, each with its own task path and FAQ. Add a plain-language introduction,
   first-booking quick start, script-free narrow-screen guide navigation, and an open-source and

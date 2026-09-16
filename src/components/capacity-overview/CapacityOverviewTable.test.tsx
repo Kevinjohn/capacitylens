@@ -152,6 +152,7 @@ describe("CapacityOverviewTable content", () => {
     expect(within(table).getByRole("columnheader", { name: "Weeks 5–8, 29 Jun – 26 Jul" })).toBeInTheDocument();
     expect(within(table).getByRole("columnheader", { name: "Weeks 9–12, 27 Jul – 23 Aug" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Overview table" })).toHaveAttribute("tabindex", "0");
+    expect(screen.getAllByTestId("capacity-overview-break-start")).toHaveLength(3);
   });
 
   it("derives an empty strategic table span from the displayed period count", () => {

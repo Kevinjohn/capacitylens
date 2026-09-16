@@ -1,6 +1,6 @@
 # US-NAV-10 — Sign in before using the app (auth-gated deploy)
 
-**Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Account via the sidebar returns to the login screen", "the --create-owner-admin-admin bootstrap credential signs in through the real form"
+**Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Account returns to the login screen", "the --create-owner-admin-admin bootstrap credential signs in through the real form"
 
 > **Flag-gated; not reachable in the default deploy.** The login screen only exists when
 > the optional server runs with `CAPACITYLENS_AUTH=password` (or `sso`) — the controlled-demo
@@ -12,7 +12,7 @@
 ## Goal
 
 Be the only kind of visitor who can read or change data on an auth-enabled deploy: one
-who has signed in — and be able to sign out again from the sidebar.
+who has signed in — and be able to sign out again from Account.
 
 ## Why
 
@@ -38,7 +38,7 @@ self-registration closes automatically and only the Sign in form below is reacha
 3. Enter the correct **Email** and **Password**, press **Sign in** (or Enter).
 4. The app loads as normal: company picker → pick a company → scheduler.
 5. Go to **Account**. It shows the signed-in email and the available personal security controls.
-6. Click the sidebar's **Sign out** → you are back on the Sign in screen; reloading stays signed out.
+6. On **Account**, click **Sign out** → you are back on the Sign in screen; reloading stays signed out.
 
 ## Acceptance criteria
 
