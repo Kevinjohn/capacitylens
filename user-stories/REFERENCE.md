@@ -4,9 +4,8 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
-Resources offers **Manage team links** (`data-testid="resource-team-link"`) to authenticated
-Owners and Admins. It opens `/team` without a resource selection, mutation, or invitation draft.
-All member linking and invitations remain in **Team & access**.
+Member linking and invitations remain in **Team & access**. Resources does not contain a member-
+management entry point.
 
 Invitation administration may carry an optional `proposedResourceId` for an active person in the
 selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
@@ -33,7 +32,7 @@ accept responses never include it.
    (the **Bruce Wayne** account; heading `Choose an account`). It is **not** real auth and
    has **no** popup: click the single preview account to continue. It is shown only
    when real auth is off (the default) and is skipped once "signed in" (the choice persists
-   device-globally; "Sign out" on the picker/sidebar returns to it).
+   device-globally; "Sign out" on the picker or Account page returns to it).
 4. Then the **company picker**. The active company remains session-only and is never persisted.
    On a browser reload, a login with exactly one valid company opens that company automatically and
    keeps the requested route; first entry, an explicit **Switch company**, and every multi-company
@@ -110,8 +109,8 @@ accept responses never include it.
 5. The application opens with a non-blocking **How CapacityLens works** region
    (`data-testid="product-orientation"`) above the page. It explains the week-by-week people and
    work model and says CapacityLens does not manage tasks, tickets or deadlines. **Got it**
-   dismisses it for this person and company on this device. A permanent **How CapacityLens works**
-   sidebar action reopens it. The versioned preference is implemented by
+   dismisses it for this person and company on this device. It has no sidebar action for reopening.
+   The versioned preference is implemented by
    `src/lib/productOrientation.ts`; it is never in `AppData` or an export.
 6. On a company that still has a first-use outcome to complete, the schedule shows a floating
    **Getting started** card (`data-testid="getting-started"`) without shifting the toolbar or grid.
@@ -219,12 +218,12 @@ If the import may have committed but the reload cannot prove the resulting state
 blocked behind an explicit reload action; parked pre-import edits are never replayed over the
 replacement. File reads and confirmations remain bound to the company that was active when the file
 was selected, and export/import actions suppress duplicate in-flight requests.
-The account block —
-the active company name and role badge, a **Switch company** control (which returns to the company
-picker), an **Account** destination, and a **Sign out** row carrying the signed-in person's avatar — is pinned to the very
-**bottom** of the sidebar, below a divider beneath the administration group. (The company name used
-to sit at the top; pinning it to the bottom keeps the logo + collapse toggle as the first item in
-both the open menu and the collapsed rail, so the nav icons don't shift when the sidebar collapses.)
+The account block is pinned to the very **bottom** of the sidebar, below a divider beneath the
+administration group. It contains exactly one avatar-led **Account** destination. In real
+authentication, the active company name, role badge and **Switch company** control are shown only
+when two or more companies are accessible; with one accessible company they are hidden. Auth-off
+and demo builds retain their company context and switching exception. (Keeping the context at the
+bottom keeps the logo + collapse toggle as the first item in both the open menu and collapsed rail.)
 **Account** opens the signed-in person's identity and security page from every main app page. In
 password mode it shows password change, MFA status and active-session revocation; in SSO mode it
 shows the provider identity and active sessions without password controls. Demo and auth-off modes
@@ -884,7 +883,8 @@ stale authenticated shell with the sign-in wall before the user resumes work.
 The sign-in, mandatory MFA and session-verification failure walls set page-specific document titles;
 the failure detail is announced as an alert when it replaces the checking state.
 While signed in, the sidebar's **Account** destination shows who is signed in and the available
-personal security controls. The sidebar carries the single `Sign out` action. With auth off (the default everywhere) or in
+personal security controls. **Account** contains the single **Sign out** action for real and demo
+sessions. With auth off (the default everywhere) or in
 local mode, no login screen exists, Account explains that sign-in is off, and local mode makes **no**
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
@@ -1007,8 +1007,10 @@ active role in a plain-language summary sentence. The full allowed/not-allowed c
 schedule writes, member administration, time-off-note visibility and private client/project-name
 visibility — is collapsed behind a **See full capabilities** disclosure
 (`data-testid="capabilities-toggle"`, reporting its state through `aria-expanded`), so the page opens
-on the member table rather than on reference material. The sidebar company block also shows the
-resolved role (`data-testid="active-role"`); Viewer retains the explicit **View only** wording. Where
+on the member table rather than on reference material. On a deploy where the sidebar company block renders — auth off, or two or
+more accessible companies — that block also shows the resolved role (`data-testid="active-role"`)
+and Viewer retains the explicit **View only** wording; with access to a single company this panel is
+the only place the role is stated. Where
 there is no company directory to show, the page says plainly that Team & access lists the people who
 sign in, not the resources you schedule, and that adding a Resource does not create an app login;
 neither record implicitly creates the other.
@@ -1247,7 +1249,8 @@ to **viewer**, the whole app goes **read-only**:
 - **The toolbar hides the Draw-mode toggle and Undo/Redo** (nothing to draw/undo); navigation +
   filters (reads) stay.
 - A subtle **"View only" badge** (`data-testid="view-only"`) sits in the sidebar footer beside the
-  company name.
+  company name, on the deploys where that block renders at all (auth off, or two or more accessible
+  companies). A single-company viewer reads their role on **Settings → Team & access**.
   The **server 403** (the write tier is editor+; a viewer's write is rejected) is the AUTHORITATIVE
   backstop — the client gating is UX + defense-in-depth. As a second local guard, the store no-ops a
   viewer's `add*`/`update*`/`delete*`/`importData` — including company creation — and surfaces a
@@ -1273,7 +1276,7 @@ _"Choose an account"_ screen (heading `Choose an account`; the **Bruce Wayne** a
 picker, to preview a "log in first, then pick a company" flow. There is no password and no
 popup — the preview account advances. The signed-in state is a **device-global** flag
 (`capacitylens/fakeSignedIn`, default off; never in `AppData`/export), so it persists across reloads
-and is cleared by **Sign out** (on the picker and the sidebar footer). It is mounted only when
+and is cleared by **Sign out** (on the picker or Account page). It is mounted only when
 `authMode === 'off'`, so it never collides with the real login wall above. The persona lives in
 `src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
 
@@ -1281,8 +1284,8 @@ and is cleared by **Sign out** (on the picker and the sidebar footer). It is mou
 CapacityLens works** (`data-testid="product-orientation"`) for every role and for the no-company
 Account view. It does not hide navigation or page content. **Got it** dismisses it with a versioned,
 per-person and per-company device preference (`capacitylens/productOrientation/v1/...`); storage
-failure leaves it dismissed for the current mount. The permanent sidebar action with the same name
-reopens it and moves focus to the heading. Sources: `src/components/ProductOrientation.tsx`,
+failure leaves it dismissed for the current mount. There is no sidebar action for reopening it;
+eligible entry can show it again when its preference is absent. Sources: `src/components/ProductOrientation.tsx`,
 `src/components/useProductOrientation.ts`, `src/lib/productOrientation.ts`; coverage:
 `src/components/AppShell.productOrientation.test.tsx`, `src/components/ProductOrientation.test.tsx`,
 `src/lib/productOrientation.test.ts`, and `e2e/fake-signin.spec.ts`.
@@ -1373,7 +1376,8 @@ carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Se
 `archived-purge` — the **Permanently delete <name>** button, disabled with a locked hint until the
 30-day grace elapses, purge-tier/admin-only),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
-deploy; absent in the default OFF/local deploy and for any non-viewer role),
+deploy that also renders the company block, which needs two or more accessible companies; absent for
+any non-viewer role and wherever the company block is hidden),
 `persistence-diagnostics` (Settings → Build details disclosure; server mode), `copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings → Build details mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries

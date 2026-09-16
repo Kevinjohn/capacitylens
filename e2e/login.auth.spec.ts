@@ -84,11 +84,11 @@ function registerSuiteScenario2() {
     await page.getByRole("button", { name: "Got it" }).click();
     await expect(page.getByRole("link", { name: "Settings", exact: true })).toBeVisible();
 
-    // Personal identity lives on Account; the sidebar carries the one sign-out action.
+    // Personal identity and the one sign-out action live on Account.
     await page.getByRole("link", { name: "Account", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
     await expect(page.getByText(email, { exact: true })).toBeVisible();
-    await page.getByTestId("nav-sign-out").click();
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
 
     // Session gone: back behind the wall, and a reload stays there.
     await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();

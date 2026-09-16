@@ -88,6 +88,14 @@ function strategicLabel(key: string): string | undefined {
   return undefined;
 }
 
+function isStrategicBreak(index: number, periodCount: number): boolean {
+  return periodCount > 4 && index === 4;
+}
+
+function strategicBreakProps(index: number, periodCount: number): { "data-testid"?: string } {
+  return isStrategicBreak(index, periodCount) ? { "data-testid": "capacity-overview-break-start" } : {};
+}
+
 function PeriodHeading({ start, end, keyName }: { start: string; end: string; keyName: string }) {
   const label = strategicLabel(keyName);
   if (!label) return <>{formatWeekColumnRange(start, end)}</>;
@@ -136,7 +144,11 @@ function GroupHeader({
         </Button>
       </TableHead>
       {periods.map((result, index) => (
-        <TableCell key={index} className="text-center text-xs">
+        <TableCell
+          key={index}
+          {...strategicBreakProps(index, periods.length)}
+          className={`text-center text-xs ${isStrategicBreak(index, periods.length) ? "pl-6" : ""}`}
+        >
           {!collapsed && showTotals && <SummaryValues result={result} peopleCount={group.summary.peopleCount} />}
         </TableCell>
       ))}
@@ -174,13 +186,18 @@ function PersonIdentity({
 function PeriodValuesCell({
   result,
   capacityDisplayMode,
+  strategicBreak,
 }: {
   result: CapacityOverviewPeriodResult;
   capacityDisplayMode: CapacityDisplayMode;
+  strategicBreak: boolean;
 }) {
   const showBar = capacityDisplayMode !== "number" && result.state !== "unassigned";
   return (
-    <TableCell className="relative whitespace-normal px-2 text-center">
+    <TableCell
+      {...(strategicBreak ? { "data-testid": "capacity-overview-break-start" } : {})}
+      className={`relative whitespace-normal px-2 text-center ${strategicBreak ? "pl-6" : ""}`}
+    >
       {showBar && (
         <CapacityBarFillLayer
           fill={computeCapacityBarFill({
@@ -189,6 +206,7 @@ function PeriodValuesCell({
             overHours: result.overHours,
           })}
           context={capacityDisplayMode}
+          strategicBreak={strategicBreak}
         />
       )}
       <div className="relative z-10">
@@ -244,11 +262,12 @@ function CapacityTableBody({
                         onViewSchedule={onViewSchedule}
                       />
                     </TableHead>
-                    {rowPeriods.map((result) => (
+                    {rowPeriods.map((result, index) => (
                       <PeriodValuesCell
                         key={result.period.key}
                         result={result}
                         capacityDisplayMode={capacityDisplayMode}
+                        strategicBreak={isStrategicBreak(index, rowPeriods.length)}
                       />
                     ))}
                   </TableRow>
@@ -315,10 +334,11 @@ export function CapacityTable({
         <TableHeader className="bg-scheduler-header">
           <TableRow className="hover:bg-transparent">
             <TableHead className="px-4">{m.capacity_overview_person()}</TableHead>
-            {periods.map((period) => (
+            {periods.map((period, index) => (
               <TableHead
                 key={period.key}
-                className="whitespace-normal px-2 text-center"
+                {...strategicBreakProps(index, periods.length)}
+                className={`whitespace-normal px-2 text-center ${isStrategicBreak(index, periods.length) ? "pl-6" : ""}`}
                 {...(strategicLabel(period.key)
                   ? { "aria-label": `${strategicLabel(period.key)}, ${formatDayMonthRange(period.start, period.end)}` }
                   : {})}

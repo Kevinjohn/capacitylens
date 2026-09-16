@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router-dom";
 import { ResourceList } from "./ResourceList";
 import { useStore } from "../../store/useStore";
 import {
@@ -48,6 +49,19 @@ const freelancerDraft = (name: string) => ({
 });
 
 describe("ResourceList display", () => {
+  it("does not direct resource management to Team & access", () => {
+    render(
+      <PermissionContext.Provider value={{ role: "owner", status: "resolved" }}>
+        <MemoryRouter>
+          <ResourceList />
+        </MemoryRouter>
+      </PermissionContext.Provider>,
+    );
+
+    expect(screen.queryByTestId("resource-team-link")).not.toBeInTheDocument();
+    expect(screen.queryByText(/manage team links/i)).not.toBeInTheDocument();
+  });
+
   it("sorts each visible section by displayed name without changing stored resource order", () => {
     setExternalEnabled(true);
     useStore.getState().addResource(personDraft("Zulu"));

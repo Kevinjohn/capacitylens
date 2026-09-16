@@ -19,11 +19,8 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 
 ## Link a person to a member
 
-Owners and Admins on a signed-in server can select **Manage team links** on Resources
-to open **Team & access**. This opens the existing member directory; it does not select
-a person or change a link.
-
-![Resources with the Manage team links entry point above the scheduled people](../screenshots/flows/resources_team_links.png)
+Owners and Admins on a signed-in server can open **Team & access** directly to manage member
+links. This opens the existing member directory; it does not select a person or change a link.
 
 In the member's **Scheduled person** column, choose **Link** and select an available
 person. Use **Change** to choose another person or **Remove** to unlink them. Each member

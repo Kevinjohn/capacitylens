@@ -133,7 +133,7 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   await expect
     .poll(async () => readRoles(request, owner.cookie, accountId, [admin.userId, owner.userId]))
     .toEqual(["owner", "admin"]);
-  await expect(ownerPage.getByTestId("active-role")).toContainText("Admin");
+  await expect(ownerPage.getByTestId("current-access")).toContainText("Admin");
   await adminPage.reload();
   await expect(adminPage.getByTestId("current-access")).toContainText("Owner");
   // The new Owner now holds the ceremony themselves: their card offers a nomination rather than a

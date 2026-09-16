@@ -45,14 +45,16 @@ test.describe("member masquerade", () => {
     await expect(banner).toHaveAttribute("role", "status");
     await expect(banner).toContainText("Masquerading as");
     await expect(banner.getByRole("button", { name: "End now" })).toBeVisible();
-    await expect(page.getByTestId("view-only")).toBeVisible();
+    await expect(page.getByTestId("current-access")).toContainText("Viewer");
     await expect(page.getByTestId("members-section")).toHaveCount(0);
 
     await banner.getByRole("button", { name: "End now" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
     await expect(page.getByTestId("masquerade-banner")).toHaveCount(0);
-    await expect(page.getByTestId("view-only")).toHaveCount(0);
     await expect(page.getByTestId("getting-started")).toBeVisible();
+    await page.getByRole("link", { name: "Team & access" }).click();
+    await expect(page.getByTestId("current-access")).toContainText("Owner");
+    await expect(page.getByTestId("members-section")).toBeVisible();
   });
 });

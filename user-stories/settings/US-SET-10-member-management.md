@@ -14,9 +14,9 @@ owner-only operations. Ownership transfer is not part of this story: it has no p
 
 **Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md)
 
-From Resources, an Owner or Admin can choose **Manage team links** to open Team & access.
-Linking, changing or removing a scheduled-person association and creating invitations happen
-only here. Navigation does not submit a command or carry a resource or invitation selection.
+An Owner or Admin can open **Team & access** directly to manage member links. Linking, changing or
+removing a scheduled-person association and creating invitations happen only here. Navigation does
+not submit a command or carry a resource or invitation selection.
 
 ## Why
 

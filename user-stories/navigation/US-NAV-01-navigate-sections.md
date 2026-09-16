@@ -21,8 +21,9 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 
 1. Confirm the sidebar shows, in order: **Overview**, **Schedule**, **Resources**, **Disciplines**, **Clients**,
    **Projects**, **Activities**, **Time off**, then — below a divider, pinned to the bottom of the
-   list as the administration group — **Team & access** and **Settings**. Below those sits the
-   account block (company name, **Switch company**, **Account**, and the avatar'd **Sign out** row).
+   list as the administration group — **Team & access** and **Settings**. At the very bottom sits
+   one avatar-led **Account** row. Real auth shows the company name, role and **Switch company** only
+   when two or more companies are accessible; auth-off/demo retains the company context and switch.
 2. Click **Overview**. The URL is `/overview` and its four-week table renders.
 3. Click **Schedule**. The URL is `/` and the timeline grid (`scheduler-grid`) renders.
 4. Click **Resources**. The URL is `/resources` and the Resource list shows
@@ -53,6 +54,8 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
   `/disciplines`, `/clients`, `/projects`, `/activities`, `/timeoff`, `/team`, `/settings`, `/account`.
 - ✅ **Team & access** and **Settings** are the last two links, in that order, below the divider —
   they never appear among the working destinations above it.
+- ✅ The sidebar has exactly one avatar-led **Account** row at the bottom and no separate **Sign out**
+  row. Real and demo sign-out is on **Account**; auth-off/local has no sign-out action.
 - ✅ **Schedule** renders the scheduler grid (`data-testid="scheduler-grid"`).
 - ✅ Each available destination renders its screen with at least the seeded rows /
   fields visible (e.g. _Bruce Wayne_ on Resources, _Queen Consolidated_ on Clients, the
