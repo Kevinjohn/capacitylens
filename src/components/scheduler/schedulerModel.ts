@@ -1,5 +1,5 @@
 import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "../../lib/capacity";
-import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { eachDayISO, rangesOverlap } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "../../lib/metadata";
@@ -13,6 +13,7 @@ import {
   type Weekday,
 } from "@capacitylens/shared/types/entities";
 import { NEUTRAL_COLOR } from "../../lib/palette";
+import { packLanes, resolveLaneTop, resolveRowHeightForLanes, type LaneLayout } from "../../lib/lanePacking";
 import { laneLayout as compactLaneLayout } from "./layout";
 import {
   createDisplayNameComparator,
@@ -40,6 +41,7 @@ interface ApplyVisibleUtilizationInput {
   end: ISODate;
   accountWorkingDays: Weekday[];
   blocksMode?: boolean | undefined;
+  laneLayout?: LaneLayout | undefined;
 }
 
 interface BuildResourceGroupsInput {
@@ -91,8 +93,37 @@ function includeRenderableDateRange<T extends { id: string; startDate: ISODate; 
 // these live here and the presentational components import them from the model —
 // not the other way round.
 
-/** Recompute only the visible-window percentage while retaining the expensive bar, lane and
- * timeline-day model. Horizontal scrolling changes this projection, not the static schedule. */
+function projectVisibleLanes({
+  row,
+  start,
+  end,
+  layout,
+}: {
+  row: GroupModel["rows"][number];
+  start: ISODate;
+  end: ISODate;
+  layout: LaneLayout;
+}) {
+  const visibleBars = row.bars.filter(({ allocation }) =>
+    rangesOverlap(allocation.startDate, allocation.endDate, start, end),
+  );
+  const { lanes, laneCount } = packLanes(visibleBars.map(({ allocation }) => allocation));
+  const laneById = new Map(lanes.map(({ id, lane }) => [id, lane]));
+  const bars = row.bars.map((bar) => {
+    const top = resolveLaneTop(laneById.get(bar.allocation.id) ?? 0, layout);
+    if (top === bar.top) return bar;
+    return { ...bar, top };
+  });
+  const rowHeight = resolveRowHeightForLanes(laneCount, layout);
+  return {
+    bars: bars.some((bar, index) => bar !== row.bars[index]) ? bars : row.bars,
+    rowHeight,
+  };
+}
+
+/** Recompute the visible-window percentage and lane layout while retaining the expensive bar
+ * geometry and timeline-day model. Horizontal scrolling changes this projection, not the static
+ * schedule. Off-screen overlaps must not make the row taller than the work currently in view. */
 export function applyVisibleUtilization({
   model,
   data,
@@ -100,6 +131,7 @@ export function applyVisibleUtilization({
   end,
   accountWorkingDays,
   blocksMode = false,
+  laneLayout = compactLaneLayout,
 }: ApplyVisibleUtilizationInput): GroupModel[] {
   const days = eachDayISO(start, end);
   const allocations = groupByResourceId(data.allocations, { include: includeRenderableDateRange });
@@ -107,11 +139,14 @@ export function applyVisibleUtilization({
   const closuresByDate = bucketByCoveredDate(data.closures.filter(includeRenderableDateRange), days);
   return model.map((group) => {
     const rows = group.rows.map((row) => {
+      const visibleLanes = projectVisibleLanes({ row, start, end, layout: laneLayout });
       // External / 3rd-party rows carry no capacity, so their 0 can never change (the same
       // starvation contract the build's capacity seam states).
       if (isExternalResource(row.resource)) {
-        if (row.utilization === 0) return row;
-        return { ...row, utilization: 0 };
+        if (row.utilization === 0 && visibleLanes.bars === row.bars && visibleLanes.rowHeight === row.rowHeight) {
+          return row;
+        }
+        return { ...row, ...visibleLanes, utilization: 0 };
       }
       const resourceAllocations = applyCapacityMode({
         allocations: allocations.get(row.resource.id) ?? [],
@@ -137,8 +172,10 @@ export function applyVisibleUtilization({
           }),
         ),
       );
-      if (next === row.utilization) return row;
-      return { ...row, utilization: next };
+      if (next === row.utilization && visibleLanes.bars === row.bars && visibleLanes.rowHeight === row.rowHeight) {
+        return row;
+      }
+      return { ...row, ...visibleLanes, utilization: next };
     });
     return rows.some((row, index) => row !== group.rows[index]) ? { ...group, rows } : group;
   });
