@@ -272,7 +272,9 @@ Open **Account** at the bottom of the sidebar to review your identity and the se
 available for your sign-in method. Real and demo sessions can also **Sign out** from that page.
 With one accessible company, real authentication hides the company context and switch; with two
 or more, the sidebar retains them. These are personal controls, separate from the company settings
-on this page.
+on this page. Your identity picture is also personal. When your identity provider supplies one,
+the **Account** page shows it; a company administrator does not set it while creating or editing a
+resource.
 
 If a selected company cannot be loaded, a recovery screen hides the previously open company's
 data. **Retry** loads the selected company again without changing your selection, or you can choose

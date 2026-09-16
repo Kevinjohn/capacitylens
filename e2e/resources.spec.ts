@@ -3,7 +3,7 @@ import { dismissLandscapeHint, goToSeedWeek, openApp, selectShadOption, setZoom,
 
 async function expectWorkingDaysGeometry(dialog: Locator) {
   const compactFields = dialog.locator('[data-product-layout="label-control"]');
-  await expect(compactFields).toHaveCount(7);
+  await expect(compactFields).toHaveCount(4);
   const fieldGroupBox = await dialog.locator('[data-slot="field-group"]').boundingBox();
   const workingDays = dialog.getByRole("group", { name: "Working days" });
   await expect(workingDays.getByRole("radio")).toHaveCount(21);
@@ -16,6 +16,53 @@ async function expectWorkingDaysGeometry(dialog: Locator) {
   expect(Math.abs(fieldGroupBox!.width - workingDaysBox!.width)).toBeLessThanOrEqual(2);
   expect(Math.abs(tableBox!.x - workingDaysBox!.x)).toBeLessThanOrEqual(2);
   expect(Math.abs(tableBox!.width - workingDaysBox!.width)).toBeLessThanOrEqual(2);
+}
+
+async function expectAvailabilitySeparatorSpacing(dialog: Locator) {
+  const dateRow = dialog.locator("[data-resource-availability-date-row]");
+  const separators = dialog.locator('[data-slot="separator"]');
+  await expect
+    .poll(async () => {
+      const dateRowBox = await dateRow.boundingBox();
+      const separatorBox = await separators.nth(0).boundingBox();
+      return dateRowBox && separatorBox ? dateRowBox.y - (separatorBox.y + separatorBox.height) : -1;
+    })
+    .toBeGreaterThanOrEqual(16);
+  await expect
+    .poll(async () => {
+      const dateRowBox = await dateRow.boundingBox();
+      const separatorBox = await separators.nth(1).boundingBox();
+      return dateRowBox && separatorBox ? separatorBox.y - (dateRowBox.y + dateRowBox.height) : -1;
+    })
+    .toBeGreaterThanOrEqual(16);
+}
+
+async function expectAvailabilityDateGeometry(dialog: Locator) {
+  await expect(dialog.getByLabel("Avatar URL")).toHaveCount(0);
+  const dateRow = dialog.locator("[data-resource-availability-date-row]");
+  const startDateBox = await dialog.getByLabel("Start date").boundingBox();
+  const endDateBox = await dialog.getByLabel("End date").boundingBox();
+  const dateRowBox = await dateRow.boundingBox();
+  expect(startDateBox).not.toBeNull();
+  expect(endDateBox).not.toBeNull();
+  expect(dateRowBox).not.toBeNull();
+  expect(Math.abs(startDateBox!.y - endDateBox!.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(startDateBox!.x - dateRowBox!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(endDateBox!.x + endDateBox!.width - (dateRowBox!.x + dateRowBox!.width))).toBeLessThanOrEqual(1);
+  await expectAvailabilitySeparatorSpacing(dialog);
+}
+
+async function expectNarrowAvailabilityDateGeometry(dialog: Locator) {
+  const dateRowBox = await dialog.locator("[data-resource-availability-date-row]").boundingBox();
+  const startDateBox = await dialog.getByLabel("Start date").boundingBox();
+  const endDateBox = await dialog.getByLabel("End date").boundingBox();
+  expect(dateRowBox).not.toBeNull();
+  expect(startDateBox).not.toBeNull();
+  expect(endDateBox).not.toBeNull();
+  expect(endDateBox!.y).toBeGreaterThanOrEqual(startDateBox!.y + startDateBox!.height);
+  expect(Math.abs(startDateBox!.x - dateRowBox!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(endDateBox!.x - dateRowBox!.x)).toBeLessThanOrEqual(1);
+  await expectAvailabilitySeparatorSpacing(dialog);
 }
 
 // Covers US-RES-01..10 (Resources area). Each test starts from the seeded app
@@ -46,8 +93,9 @@ test("keeps resource details compact and the working-days table aligned without 
   const workingDays = dialog.getByRole("group", { name: "Working days" });
   const workingDaysTable = workingDays.getByRole("table");
   await expectWorkingDaysGeometry(dialog);
+  await expectAvailabilityDateGeometry(dialog);
 
-  for (const label of ["Name", "Role", "Avatar URL", "Discipline", "Engagement"]) {
+  for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
     const control = dialog.getByLabel(label, { exact: true });
     const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
     const fieldBox = await field.boundingBox();
@@ -64,7 +112,8 @@ test("keeps resource details compact and the working-days table aligned without 
 
   await dismissLandscapeHint(page);
   await expect(dialog).toBeVisible();
-  for (const label of ["Name", "Role", "Avatar URL", "Discipline", "Engagement"]) {
+  await expectNarrowAvailabilityDateGeometry(dialog);
+  for (const label of ["Name", "Role", "Discipline", "Engagement"]) {
     const control = dialog.getByLabel(label, { exact: true });
     const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');
     const labelBox = await field.locator(":scope > :first-child").boundingBox();

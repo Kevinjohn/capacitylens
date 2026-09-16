@@ -371,7 +371,7 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline` (when disciplines are
-enabled and at least one exists), `Engagement`, `Avatar URL`, `Start date`, `End date` (for Studio and
+enabled and at least one exists), `Engagement`, `Start date`, `End date` (for Studio and
 Supplementary people only), `Bound project`, `Working days` (for people only: a
 full-width Monday–Sunday radio grid aligned with the field label whose `Full day`, `Half day` and
 `Not working` column headings appear once; every cell's native radio is labelled by both its weekday
@@ -1008,8 +1008,10 @@ active role in a plain-language summary sentence. The full allowed/not-allowed c
 schedule writes, member administration, time-off-note visibility and private client/project-name
 visibility — is collapsed behind a **See full capabilities** disclosure
 (`data-testid="capabilities-toggle"`, reporting its state through `aria-expanded`), so the page opens
-on the member table rather than on reference material. The sidebar company block also shows the
-resolved role (`data-testid="active-role"`); Viewer retains the explicit **View only** wording. Where
+on the member table rather than on reference material. On a deploy where the sidebar company block renders — auth off, or two or
+more accessible companies — that block also shows the resolved role (`data-testid="active-role"`)
+and Viewer retains the explicit **View only** wording; with access to a single company this panel is
+the only place the role is stated. Where
 there is no company directory to show, the page says plainly that Team & access lists the people who
 sign in, not the resources you schedule, and that adding a Resource does not create an app login;
 neither record implicitly creates the other.
@@ -1248,7 +1250,8 @@ to **viewer**, the whole app goes **read-only**:
 - **The toolbar hides the Draw-mode toggle and Undo/Redo** (nothing to draw/undo); navigation +
   filters (reads) stay.
 - A subtle **"View only" badge** (`data-testid="view-only"`) sits in the sidebar footer beside the
-  company name.
+  company name, on the deploys where that block renders at all (auth off, or two or more accessible
+  companies). A single-company viewer reads their role on **Settings → Team & access**.
   The **server 403** (the write tier is editor+; a viewer's write is rejected) is the AUTHORITATIVE
   backstop — the client gating is UX + defense-in-depth. As a second local guard, the store no-ops a
   viewer's `add*`/`update*`/`delete*`/`importData` — including company creation — and surfaces a
@@ -1374,7 +1377,8 @@ carries a **Restore <name>** + **Delete <name>** button), `archived-section` (Se
 `archived-purge` — the **Permanently delete <name>** button, disabled with a locked hint until the
 30-day grace elapses, purge-tier/admin-only),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
-deploy; absent in the default OFF/local deploy and for any non-viewer role),
+deploy that also renders the company block, which needs two or more accessible companies; absent for
+any non-viewer role and wherever the company block is hidden),
 `persistence-diagnostics` (Settings → Build details disclosure; server mode), `copy-diagnostics` (Settings diagnostics copy action; server and demo modes), `settings-build-details` (Settings → Data and support → Build details row), `build-stamp` (Settings → Build details; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings → Build details mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
@@ -1612,7 +1616,8 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
 - **Optional availability dates apply to capacity-tracked people.** Studio and Supplementary
   people may have an inclusive **Start date** and **End date**. Leaving either
   field blank leaves that side unbounded; the same date in both fields is valid, while an End date
-  before the Start date is rejected. Placeholders and External / 3rd party resources keep their
+  before the Start date is rejected. The two controls share one row at normal modal widths and
+  stack on narrow screens. Placeholders and External / 3rd party resources keep their
   existing company-wide or literal behaviour and never show these controls. Outside a person's
   availability range, their capacity is zero but any already-stored allocation remains visible and
   its allocated load is retained. Existing allocations that conflict with a newly narrowed range
