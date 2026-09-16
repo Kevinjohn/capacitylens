@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Keep profile-picture ownership with each person's Account by removing Avatar URL from the resource
   modal, and place Start date and End date together on one responsive row (#1108).
+- Centre allocation detail popovers over the visible segment of a schedule bar when horizontal
+  scrolling clips the bar (#1107).
 - Size schedule rows for overlapping allocations in the visible date window, so historical
   overlaps do not leave otherwise single-lane rows unnecessarily tall (#858).
 

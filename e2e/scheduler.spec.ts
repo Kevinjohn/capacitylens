@@ -393,6 +393,54 @@ function registerSuiteScenario10() {
     await expect(pop).toContainText("Metropolis Rebrand"); // project name in the popover
     await expect(pop).not.toContainText("Confirmed");
   });
+
+  test("centres allocation details over the visible part of a clipped bar (US-SCH-15)", async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+    await goToSeedWeek(page);
+
+    const grid = page.getByTestId("scheduler-grid");
+    const resourceHeader = page.getByTestId("scheduler-resource-header");
+    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
+    const initialBar = await box(bar);
+    const timeline = await box(resourceHeader);
+
+    await grid.evaluate((element, clippedWidth) => {
+      element.scrollLeft += clippedWidth;
+      element.dispatchEvent(new Event("scroll"));
+    }, initialBar.width / 2);
+
+    await expect.poll(async () => (await box(bar)).x).toBeLessThan(timeline.x + timeline.width);
+
+    const clippedBar = await box(bar);
+    const gridBox = await box(grid);
+    const visibleLeft = Math.max(clippedBar.x, timeline.x + timeline.width);
+    const visibleRight = Math.min(clippedBar.x + clippedBar.width, gridBox.x + gridBox.width);
+    const anchorBox = await box(bar.getByTestId("allocation-popover-anchor"));
+    expect(Math.abs(anchorBox.x + anchorBox.width / 2 - (visibleLeft + visibleRight) / 2)).toBeLessThanOrEqual(2);
+
+    await page.mouse.move((visibleLeft + visibleRight) / 2, clippedBar.y + clippedBar.height / 2);
+
+    const popover = page.getByTestId("allocation-popover");
+    await expect(popover).toBeVisible();
+  });
+
+  test("anchors allocation details to the visible part of a right-clipped bar (US-SCH-15)", async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+    await goToSeedWeek(page);
+    await page.setViewportSize({ width: 320, height: 720 });
+
+    const grid = page.getByTestId("scheduler-grid");
+    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
+    const barBox = await box(bar);
+    const gridBox = await box(grid);
+    const visibleRight = gridBox.x + gridBox.width;
+    expect(barBox.x + barBox.width).toBeGreaterThan(visibleRight);
+
+    const anchorBox = await box(bar.getByTestId("allocation-popover-anchor"));
+    expect(Math.abs(anchorBox.x + anchorBox.width / 2 - (barBox.x + visibleRight) / 2)).toBeLessThanOrEqual(2);
+  });
 }
 
 function registerSuiteScenario11() {
