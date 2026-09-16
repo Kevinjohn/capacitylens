@@ -1,8 +1,8 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { carriesHourlyLoad, emptyAppData, isCapacityTracked } from "@capacitylens/shared/types/entities";
-import { buildLaneLayout, buildSchedulerDensity } from "./layout";
+import { buildLaneLayout, buildSchedulerDensity, LAYOUT } from "./layout";
 import { buildSchedulerModel, applyVisibleUtilization } from "./schedulerModel";
 import { useCalendarToday } from "./useCalendarToday";
 import { buildVisibleSpanLabels, resolveVisibleWindow } from "./visibleSpan";
@@ -25,7 +25,10 @@ import { addDaysISO } from "@capacitylens/shared/lib/dateMath";
 import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
 
 type GridPreferences = ReturnType<typeof useSchedulerGridPreferences>;
-type GridViewport = Pick<ReturnType<typeof useSchedulerViewport>, "days" | "leftEdgeIdx" | "start" | "end" | "geom">;
+type GridViewport = Pick<
+  ReturnType<typeof useSchedulerViewport>,
+  "days" | "leftEdgeIdx" | "start" | "end" | "geom" | "scrollRef" | "timelineWidth"
+>;
 
 interface SchedulerModelProjectionInput {
   preferences: GridPreferences;
@@ -35,6 +38,68 @@ interface SchedulerModelProjectionInput {
   visibleStart: string;
   visibleEnd: string;
   rowLaneLayout: ReturnType<typeof buildLaneLayout>;
+  partiallyExposesNextColumn: boolean;
+}
+
+export function partiallyExposesNextColumn({
+  geometry,
+  days,
+  scrollLeft,
+  timelineWidth,
+  zoom,
+}: {
+  geometry: GridViewport["geom"];
+  days: GridViewport["days"];
+  scrollLeft: number;
+  timelineWidth: number;
+  zoom: number;
+}) {
+  const viewportWidth = timelineWidth - LAYOUT.leftColWidth;
+  const leftEdgeIndex = geometry.indexAtScroll(scrollLeft);
+  const endIndex = Math.min(leftEdgeIndex + zoom * 7 - 1, days.length - 1);
+  return viewportWidth > 0 && endIndex < days.length - 1 && scrollLeft + viewportWidth > geometry.x(endIndex + 1);
+}
+
+function usePartiallyExposedNextColumn(viewport: GridViewport, zoom: number) {
+  const { scrollRef, geom: geometry, days, timelineWidth } = viewport;
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const element = scrollRef.current;
+      if (!element) return () => undefined;
+      element.addEventListener("scroll", onStoreChange);
+      return () => element.removeEventListener("scroll", onStoreChange);
+    },
+    [scrollRef],
+  );
+  const getSnapshot = useCallback(
+    () =>
+      partiallyExposesNextColumn({
+        geometry,
+        days,
+        scrollLeft: scrollRef.current?.scrollLeft ?? 0,
+        timelineWidth,
+        zoom,
+      }),
+    [days, geometry, scrollRef, timelineWidth, zoom],
+  );
+  return useSyncExternalStore(subscribe, getSnapshot, () => false);
+}
+
+function buildModelPreferences(
+  accountPrefs: GridPreferences["accountPrefs"],
+  accountWorkingDays: GridPreferences["accountWorkingDays"],
+) {
+  return {
+    disciplinesEnabled: accountPrefs.disciplinesEnabled,
+    placeholdersEnabled: accountPrefs.placeholdersEnabled,
+    externalEnabled: accountPrefs.externalEnabled,
+    accountWorkingDays,
+    groupResourcesByEngagement: accountPrefs.groupResourcesByEngagement,
+    blocksMode: accountPrefs.blocksMode,
+    internalColourMode: accountPrefs.internalColourMode,
+    showInternalProjects: accountPrefs.showInternalProjects,
+    showInternalActivities: accountPrefs.showInternalActivities,
+  };
 }
 
 function useSchedulerModelProjection({
@@ -45,19 +110,10 @@ function useSchedulerModelProjection({
   visibleStart,
   visibleEnd,
   rowLaneLayout,
+  partiallyExposesNextColumn,
 }: SchedulerModelProjectionInput) {
   const modelPreferences = useMemo(
-    () => ({
-      disciplinesEnabled: accountPrefs.disciplinesEnabled,
-      placeholdersEnabled: accountPrefs.placeholdersEnabled,
-      externalEnabled: accountPrefs.externalEnabled,
-      accountWorkingDays,
-      groupResourcesByEngagement: accountPrefs.groupResourcesByEngagement,
-      blocksMode: accountPrefs.blocksMode,
-      internalColourMode: accountPrefs.internalColourMode,
-      showInternalProjects: accountPrefs.showInternalProjects,
-      showInternalActivities: accountPrefs.showInternalActivities,
-    }),
+    () => buildModelPreferences(accountPrefs, accountWorkingDays),
     [accountPrefs, accountWorkingDays],
   );
   const staticModel = useMemo(
@@ -84,8 +140,18 @@ function useSchedulerModelProjection({
         accountWorkingDays,
         blocksMode: accountPrefs.blocksMode,
         laneLayout: rowLaneLayout,
+        partiallyExposesNextColumn,
       }),
-    [staticModel, data, visibleStart, visibleEnd, accountWorkingDays, accountPrefs.blocksMode, rowLaneLayout],
+    [
+      staticModel,
+      data,
+      visibleStart,
+      visibleEnd,
+      accountWorkingDays,
+      accountPrefs.blocksMode,
+      rowLaneLayout,
+      partiallyExposesNextColumn,
+    ],
   );
 }
 
@@ -156,6 +222,7 @@ export function useSchedulerGridPreferences() {
 export function useSchedulerGridModel(preferences: GridPreferences, viewport: GridViewport) {
   const { accountPrefs: accountPreferences, ui } = preferences;
   const { days, leftEdgeIdx: leftEdgeIndex, start, end, geom: geometry } = viewport;
+  const partiallyExposesNextColumnState = usePartiallyExposedNextColumn(viewport, ui.zoom);
   const { calendarTimeZone } = accountPreferences;
   const today = useCalendarToday(calendarTimeZone);
   // FIXED forward window from today (overStart..overEnd): drives ONLY the `overSoon` red flag — a
@@ -203,6 +270,7 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
     visibleStart,
     visibleEnd,
     rowLaneLayout,
+    partiallyExposesNextColumn: partiallyExposesNextColumnState,
   });
 
   const todayX = today >= start && today <= end ? geometry.xForDateInGeom(today) : null;
