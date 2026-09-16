@@ -83,8 +83,9 @@ function useSchedulerModelProjection({
         end: visibleEnd,
         accountWorkingDays,
         blocksMode: accountPrefs.blocksMode,
+        laneLayout: rowLaneLayout,
       }),
-    [staticModel, data, visibleStart, visibleEnd, accountWorkingDays, accountPrefs.blocksMode],
+    [staticModel, data, visibleStart, visibleEnd, accountWorkingDays, accountPrefs.blocksMode, rowLaneLayout],
   );
 }
 

@@ -1,3 +1,8 @@
+---
+title: Find capacity across four or twelve weeks
+description: Use Overview to compare available and overbooked capacity across tactical and strategic planning horizons.
+---
+
 # Find capacity across four or twelve weeks
 
 Overview shows who can take work during the remainder of this week and the next three
@@ -6,9 +11,9 @@ the same working patterns, time off and company closures as the Schedule.
 
 ## Open the overview
 
-Choose **Overview** immediately above **Schedule** in the sidebar. The table shows active
-Studio and Supplementary people in the same order and groups as the Schedule. External resources
-and archived or deleted people are excluded.
+Choose **Overview** immediately above **Schedule** in the sidebar. The table shows active people
+in the same order and groups as the Schedule. External resources and archived or deleted people
+are excluded.
 
 Each displayed period can show:
 

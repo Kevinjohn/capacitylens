@@ -38,7 +38,7 @@ const usingSidebar = [
       { text: "Schedule work", link: "/using/schedule-work" },
       { text: "Change or remove work", link: "/using/change-work" },
       { text: "Record time off", link: "/using/record-time-off" },
-      { text: "Application page tour", link: "/guide/application-pages" },
+      { text: "Overview", link: "/guide/capacity-overview" },
       { text: "Day-to-day FAQ", link: "/using/faq" },
     ],
   },

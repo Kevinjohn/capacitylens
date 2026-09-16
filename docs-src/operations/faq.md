@@ -42,4 +42,4 @@ and the last known good state. Do not copy bearer tokens or private customer dat
 
 ## What's next
 
-Return to [Self-hosted operations](/operations/) or [choose another guide](/#choose-your-guide).
+Return to [Self-hosted operations](/operations/).

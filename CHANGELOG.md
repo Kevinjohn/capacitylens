@@ -7,6 +7,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Size schedule rows for overlapping allocations in the visible date window, so historical
+  overlaps do not leave otherwise single-lane rows unnecessarily tall (#858).
+
 ### Changed
 
 - Start Overview in **Bar & number** mode and give the 12-week table extra breathing room only at
@@ -15,6 +20,9 @@ new features and **patch** versions carry fixes.
   to enabled action controls across the resource and directory pages (#1103).
 - Consolidate the sidebar footer to one avatar-led **Account** row, move real and demo sign-out to
   Account, and hide product-orientation navigation and unnecessary single-company context (#1105).
+- Make the documentation home easier to scan, replace the day-to-day application tour entry with
+  the task-focused Overview guide, and keep the current page marked in the static sidebar and
+  narrow-screen guide menu.
 - Reorganise the documentation into self-contained day-to-day, Owner, Admin, installation,
   and operations guides, each with its own task path and FAQ. Add a plain-language introduction,
   first-booking quick start, script-free narrow-screen guide navigation, and an open-source and

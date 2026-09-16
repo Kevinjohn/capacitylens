@@ -1,13 +1,13 @@
 import { test, expect } from "./fixtures";
-import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showPlaceholders } from "./helpers";
+import { goToSeedWeek, openApp, resetSchedulerScroll, selectShadOption, setZoom, showPlaceholders } from "./helpers";
 
 // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
-// clicking a bar. Seed bars live in June 2026 and are visible at 4w with scroll reset.
+// clicking a bar. Seed bars live in June 2026, so each test explicitly opens that visible week.
 function registerSuiteScenario1() {
   test.beforeEach(async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await resetSchedulerScroll(page);
+    await goToSeedWeek(page);
   });
 }
 
