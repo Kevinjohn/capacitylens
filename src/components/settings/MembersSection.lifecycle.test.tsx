@@ -103,11 +103,13 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    expect(within(row).getByText("Schedule link needs attention")).toBeInTheDocument();
-    expect(within(row).getByText("That scheduled person is no longer available.")).toBeInTheDocument();
+    expect(row).toHaveTextContent("Resource link needs attention");
+    expect(row).toHaveTextContent("That Resource is no longer available.");
 
-    await user.click(within(row).getByRole("button", { name: "Choose another person" }));
-    const select = within(row).getByRole("combobox", { name: /choose scheduled person/i });
+    await user.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Choose another person" }));
+    const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
     expect(select).toHaveFocus();
     await user.selectOptions(select, resource.id);
     await waitFor(() =>
@@ -132,7 +134,9 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    await userEvent.click(within(row).getByRole("button", { name: "Dismiss" }));
+    await userEvent.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Dismiss" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/members/ed/resource-link-exception"),
@@ -156,11 +160,11 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(
-      /Linked to Bruce Wayne in the schedule/,
-    );
-    expect(within(row).queryByRole("button", { name: /change scheduled person/i })).not.toBeInTheDocument();
-    await userEvent.click(within(row).getByRole("button", { name: /remove scheduled-person link/i }));
+    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(/Linked to Resource: Bruce Wayne/);
+    expect(within(row).queryByRole("button", { name: /change Resource/i })).not.toBeInTheDocument();
+    await userEvent.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: /remove Resource link/i }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining(`/members/ed/resource-link`),
@@ -168,6 +172,59 @@ function registerMemberResourceLinkTests(): void {
       ),
     );
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/members"))).toHaveLength(2);
+  });
+
+  // The server authorizes candidates; the Resources list only orders them. A candidate the client
+  // store has not loaded yet (a person created in another session, or a poll that has not landed)
+  // must still be offered, and a live link to one must not be reported as inactive.
+  it("offers a server candidate the Resources store has not loaded and orders the rest by Resources", async () => {
+    const diana = useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince" }));
+    const bruce = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const fetchMock = mockApi(
+      [
+        { userId: "me", role: "owner", isSelf: true },
+        {
+          userId: "ed",
+          role: "editor",
+          resourceLink: { resourceId: "r-server-only", resourceName: "Barry Allen", revision: "rev-1" },
+        },
+      ],
+      {
+        "GET /members": () =>
+          jsonResponse({
+            signInTrackingEnabled: false,
+            members: [
+              rawMember({ userId: "me", role: "owner", isSelf: true }),
+              rawMember({
+                userId: "ed",
+                role: "editor",
+                resourceLink: { resourceId: "r-server-only", resourceName: "Barry Allen", revision: "rev-1" },
+              }),
+            ],
+            // Deliberately unsorted, and carrying a person the store does not have.
+            resourceCandidates: [
+              { resourceId: "r-server-only", label: "Barry Allen" },
+              { resourceId: diana.id, label: "Diana Prince" },
+              { resourceId: bruce.id, label: "Bruce Wayne" },
+            ],
+          }),
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const row = await findMemberRow(/ed@x\.io/);
+    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(/Linked to Resource: Barry Allen/);
+    expect(within(row).queryByText(/inactive — unlink only/)).not.toBeInTheDocument();
+    await userEvent.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: /change Resource/i }));
+    const selector = within(dialog).getByTestId("member-resource-link");
+    expect([...selector.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
+      m.settings_member_resource_unlinked(),
+      "Bruce Wayne",
+      "Diana Prince",
+      "Barry Allen",
+    ]);
   });
 
   it("focuses the selector on open and restores focus after cancel and completion", async () => {
@@ -185,19 +242,21 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    const link = within(row).getByRole("button", { name: /link scheduled person/i });
+    await user.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    const link = within(dialog).getByRole("button", { name: /link Resource/i });
     await user.click(link);
-    const select = within(row).getByRole("combobox", { name: /choose scheduled person/i });
+    const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
     expect(select).toHaveFocus();
-    await user.click(within(row).getByRole("button", { name: /cancel/i }));
-    expect(within(row).getByTestId("member-resource-status")).toHaveFocus();
+    await user.click(within(dialog).getByRole("button", { name: /cancel/i }));
+    expect(within(dialog).getByTestId("member-resource-status")).toHaveFocus();
 
-    await user.click(within(row).getByRole("button", { name: /link scheduled person/i }));
-    await user.selectOptions(within(row).getByRole("combobox"), resource.id);
+    await user.click(within(dialog).getByRole("button", { name: /link Resource/i }));
+    await user.selectOptions(within(dialog).getByRole("combobox"), resource.id);
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
     );
-    await waitFor(() => expect(within(row).getByTestId("member-resource-status")).toHaveFocus());
+    await waitFor(() => expect(within(dialog).getByTestId("member-resource-status")).toHaveFocus());
   });
 }
 

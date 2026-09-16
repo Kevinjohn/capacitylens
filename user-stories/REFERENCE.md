@@ -4,8 +4,9 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
-Member linking and invitations remain in **Team & access**. Resources does not contain a member-
-management entry point.
+All member linking and invitations are managed in **Team & access**. Owners and Admins open the
+member's actions there to link, change, or remove an eligible person Resource; the Resources page
+does not provide a separate team-link workflow.
 
 Invitation administration may carry an optional `proposedResourceId` for an active person in the
 selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
@@ -997,11 +998,11 @@ request. The link page is `src/components/invites/InviteAccept.tsx`; the create 
 section below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
-Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Scheduled
-person** controls to see **Linked to [person] in the schedule** or **Not linked to the schedule**,
-then link, change, or remove one active person per member. This association changes neither
-permissions nor schedule ownership. A validated sign-in picture supplies the linked person's
-avatar when no legacy explicit resource avatar is stored; inactive endpoints suppress the derived picture while retaining the
+Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Link to
+Resource** controls to see **Linked to [person]** or **No Resource linked**, then link, change,
+or remove one active person per member. This association changes neither
+permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
+validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
 association. Its **Your access** panel (`data-testid="current-access"`) shows the
 active role in a plain-language summary sentence. The full allowed/not-allowed capability list —
 schedule writes, member administration, time-off-note visibility and private client/project-name
@@ -1053,8 +1054,8 @@ The management section has four parts:
   (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
   (`data-testid="sso-remove-link"`).
 
-- **Members table** (`data-testid="members-table"`) — columns **Name**, **Email**, optional **Signed
-  in**, **Edit member** and **Member settings**, one row per member (`data-testid="member-row"`).
+- **Members table** (`data-testid="members-table"`) — columns **Name**, **Email**, **Link to Resource**,
+  optional **Signed in**, **Edit member** and **Member settings**, one row per member (`data-testid="member-row"`).
   The role stays visible beneath the member's name. The caller's own row is marked **(you)** and a
   non-active member's row carries a **Disabled** or **Archived** badge
   (`data-testid="member-status"`). Members are ordered by **join date, then name** (with the
@@ -1086,7 +1087,7 @@ The management section has four parts:
   (`data-testid="member-role-select"`) offering only Admin, Editor and Viewer, the chosen role's
   plain-language consequences (`data-testid="member-role-summary"`), and **Save role**
   (`data-testid="member-role-save"`) — and a gear
-  (`data-testid="member-menu"`) opening the **Member actions** menu: **Reset password**
+  (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Reset password**
   (`data-testid="member-reset-password"`), **Revoke sessions**
   (`data-testid="member-revoke-sessions"`), **Disable user** (`data-testid="member-disable"`),
   **Archive user** (`data-testid="member-archive"`) and **Remove**

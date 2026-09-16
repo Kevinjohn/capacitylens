@@ -11,11 +11,11 @@ import type { TeamMember } from "../../account/teamAccessClient";
 import { resolveRoleLabel } from "../../lib/accessCopy";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Eye, Pencil, Settings } from "lucide-react";
+import { Eye, Pencil } from "lucide-react";
 import type { MemberRoleEdit } from "./MemberConfirmations";
 import { resolveMemberLabel, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { MemberResourceLink } from "./MemberResourceLink";
+import { MemberActionsDialog } from "./MemberActionsDialog";
 
 /**
  * Which of a row's controls the viewer may see. Pure and shared by both member tables, so the
@@ -59,9 +59,9 @@ function buildMemberAffordances(
   };
 }
 
-/** One row of the gear popover. A plain button, not a Radix menu item: the popover holds four
- *  actions at most and each one opens a confirmation, so the extra roving-focus machinery of a
- *  full menu would buy nothing. */
+/** One row of the member-actions dialog. A plain button keeps the short action list keyboard
+ * accessible without introducing a second roving-focus model; destructive actions still open
+ * their existing confirmation dialogs. */
 function MemberMenuItem({
   label,
   ariaLabel,
@@ -256,60 +256,7 @@ function MemberSettingsMenuItems({
   );
 }
 
-interface MemberSettingsMenuProps {
-  member: TeamMember;
-  memberLabel: string;
-  affordances: ReturnType<typeof buildMemberAffordances>;
-  busy: boolean;
-  openMenuFor: string | null;
-  setOpenMenuFor(value: string | null): void;
-  chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
-}
-
-function MemberSettingsMenu({
-  member,
-  memberLabel,
-  affordances,
-  busy,
-  openMenuFor,
-  setOpenMenuFor,
-  chooseMemberAction,
-}: MemberSettingsMenuProps) {
-  if (!affordances.hasMenu) return <td className="w-10 py-2 pl-2 text-right" />;
-  return (
-    <td className="w-10 py-2 pl-2 text-right">
-      <Popover
-        open={openMenuFor === member.userId}
-        onOpenChange={(open) => setOpenMenuFor(open ? member.userId : null)}
-      >
-        <PopoverTrigger asChild>
-          <Button
-            size="sm"
-            variant="ghost"
-            title={m.settings_member_settings_aria({ member: memberLabel })}
-            aria-label={m.settings_member_settings_aria({ member: memberLabel })}
-            data-testid="member-menu"
-            disabled={busy}
-          >
-            <Settings />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-56 p-1">
-          <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
-            {m.settings_member_settings_heading()}
-          </p>
-          <MemberSettingsMenuItems
-            member={member}
-            memberLabel={memberLabel}
-            affordances={affordances}
-            chooseMemberAction={chooseMemberAction}
-          />
-        </PopoverContent>
-      </Popover>
-    </td>
-  );
-}
-
+// eslint-disable-next-line max-lines-per-function -- the row keeps the table cells and shared dialog wiring together.
 export function MemberRow({
   member: member,
   myRole,
@@ -337,14 +284,17 @@ export function MemberRow({
   workspaceId: string | null;
   reload(): void;
 }) {
-  // One row renderer for both tables: the gear's actions, the pencil's gate and the status badge are
+  // One row renderer for both tables: the dialog's actions, the pencil's gate and the status badge are
   // identical wherever the row is drawn — only the grouping differs.
   // NB: the row var is `member`, NOT `m` — `m` is the imported i18n message catalogue
   // (P1.5.2); shadowing it would make `m.settings_*()` resolve against the Member.
   const affordances = buildMemberAffordances(myRole, member);
   const memberLabel = resolveMemberLabel(member);
   return (
-    <tr className="border-b last:border-b-0" data-testid="member-row">
+    <tr
+      className="border-b transition-colors last:border-b-0 hover:bg-accent/30 focus-within:bg-accent/30"
+      data-testid="member-row"
+    >
       <MemberIdentity member={member} />
       <td className="py-2 pr-3 text-muted-foreground" data-testid="member-email">
         {member.email ?? m.settings_member_email_missing()}
@@ -371,15 +321,45 @@ export function MemberRow({
         chooseMemberAction={chooseMemberAction}
         setRoleEdit={setRoleEdit}
       />
-      <MemberSettingsMenu
+      <MemberActionsDialog
         member={member}
         memberLabel={memberLabel}
-        affordances={affordances}
+        hasExistingActions={affordances.hasMenu}
+        hasResourceActions={
+          (myRole === "owner" || myRole === "admin") &&
+          (resourceCandidates.length > 0 || member.resourceLink !== null || member.resourceLinkException !== null)
+        }
         busy={busy}
-        openMenuFor={openMenuFor}
-        setOpenMenuFor={setOpenMenuFor}
-        chooseMemberAction={chooseMemberAction}
-      />
+        open={openMenuFor === member.userId}
+        onOpenChange={(open) => setOpenMenuFor(open ? member.userId : null)}
+      >
+        {affordances.mayTouch && (
+          <MemberMenuItem
+            testId="member-edit"
+            label={m.settings_member_edit_aria({ member: memberLabel })}
+            ariaLabel={m.settings_member_edit_aria({ member: memberLabel })}
+            onSelect={() => {
+              setOpenMenuFor(null);
+              setRoleEdit({ member, nextRole: member.role });
+            }}
+          />
+        )}
+        <MemberResourceLink
+          member={member}
+          myRole={myRole}
+          linkedResourceIds={linkedResourceIds}
+          resourceCandidates={resourceCandidates}
+          workspaceId={workspaceId}
+          reload={reload}
+          dialog
+        />
+        <MemberSettingsMenuItems
+          member={member}
+          memberLabel={memberLabel}
+          affordances={affordances}
+          chooseMemberAction={chooseMemberAction}
+        />
+      </MemberActionsDialog>
     </tr>
   );
 }

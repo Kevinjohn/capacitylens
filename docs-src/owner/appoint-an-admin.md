@@ -15,8 +15,8 @@ about a minute on your side, plus the time they need to accept the invitation.
    They cannot transfer ownership or delete the company.
 3. **Enter the Admin's work email when appropriate.** Company-login-only installations
    require it. An email-bound invitation can be accepted only by that address.
-4. **Leave Person in the schedule empty unless the Admin is already schedulable.** A
-   company member and a scheduled person are separate. You can link them later.
+4. **Leave Link to Resource empty unless the Admin is already schedulable.** A company
+   member and a Resource are separate. You can link them later.
 5. **Create and copy the invitation.** CapacityLens shows the one-time link once. Send it
    through your normal private communication channel.
 6. **Confirm acceptance.** The person moves from pending invitations into the members list

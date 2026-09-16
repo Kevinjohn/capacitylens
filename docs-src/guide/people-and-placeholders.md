@@ -19,20 +19,18 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 
 ## Link a person to a member
 
-Owners and Admins on a signed-in server can open **Team & access** directly to manage member
-links. This opens the existing member directory; it does not select a person or change a link.
-
-In the member's **Scheduled person** column, choose **Link** and select an available
-person. Use **Change** to choose another person or **Remove** to unlink them. Each member
-can have one scheduled person, and each person can have one member. The association does
+Open **Team & access** from the sidebar. In the member's row, open **More actions** and select
+an available person Resource in the centered dialog. Use **Change** to choose another Resource or
+**Remove** to unlink it. Each member can have one person Resource, and each person Resource can
+have one member. The association does
 not grant access or create schedule data.
 
 Only active members and active scheduled people can be new link targets. Existing links
-to inactive members or people can be removed. To move an occupied person's link to another
-member, remove the old link first, then link the new member.
+to inactive members or people can be removed from the centered dialog. To move an occupied person's
+link to another member, remove the old link first, then link the new member.
 
 To invite someone instead, use **Invite someone** on Team & access. Its optional
-**Person in the schedule** selector can propose an existing person. See
+**Link to Resource** selector can propose an existing person Resource. See
 [Invite your team](/getting-started/invite-your-team).
 
 ## Add a person

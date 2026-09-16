@@ -18,7 +18,7 @@ need a sign-in.
    Add start and end dates when their availability is time-limited.
 4. **Save the person.** They appear in Resources and as a row on Schedule.
 5. **Link their sign-in when appropriate.** Open **Team & access**, find the member, and
-   use the Scheduled person control. A linked member can be recognised consistently, but
+   use the Link to Resource control. A linked member can be recognised consistently, but
    linking does not change their role.
 
 ![The resource form showing details and a weekly working pattern](../screenshots/flows/resource_form.jpg)

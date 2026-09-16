@@ -18,6 +18,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Align Team & access member and outstanding-invite rows with the managed-resource list, move member
+  actions and Resource linking into centered dialogs, and rename the association controls to **Link
+  to Resource** (#1104).
+
 - Start Overview in **Bar & number** mode and give the 12-week table extra breathing room only at
   the Week 4 to Weeks 5–8 strategic boundary (#1102).
 - Remove member-link guidance and entry points from Resources, and add a consistent pointer cursor
