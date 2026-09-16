@@ -41,4 +41,4 @@ company login, give them the exact verified email that your provider reports.
 
 ## What's next
 
-Return to [Owner setup](/owner/) or [choose another guide](/#choose-your-guide).
+Return to [Owner setup](/owner/).

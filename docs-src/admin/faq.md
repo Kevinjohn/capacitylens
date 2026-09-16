@@ -41,4 +41,4 @@ the [Self-hosted operations guide](/operations/).
 
 ## What's next
 
-Return to [Admin and settings](/admin/) or [choose another guide](/#choose-your-guide).
+Return to [Admin and settings](/admin/).

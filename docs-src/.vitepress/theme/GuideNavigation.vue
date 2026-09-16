@@ -14,6 +14,8 @@ const href = (link: string) => withBase(/\/$|\.\w+$|^https?:/.test(link) ? link 
 
 const current = computed(() => "/" + page.value.relativePath.replace(/\.md$/, "").replace(/(^|\/)index$/, "$1"));
 
+const isCurrent = (link: string) => link.replace(/\/$/, "") === current.value.replace(/\/$/, "");
+
 const items = computed<SidebarItem[]>(() => {
   const configured = theme.value.sidebar;
   if (Array.isArray(configured)) return configured;
@@ -34,16 +36,23 @@ const guide = computed(() => items.value.find((item) => item.items?.length));
       <summary>In this guide: {{ guide.text }}</summary>
       <ul>
         <li v-for="item in guide.items" :key="item.text">
-          <a v-if="item.link" :href="href(item.link)">{{ item.text }}</a>
+          <a
+            v-if="item.link"
+            :href="href(item.link)"
+            :aria-current="isCurrent(item.link) ? 'page' : undefined"
+          >{{ item.text }}</a>
           <span v-else>{{ item.text }}</span>
           <ul v-if="item.items">
             <li v-for="child in item.items" :key="child.text">
-              <a v-if="child.link" :href="href(child.link)">{{ child.text }}</a>
+              <a
+                v-if="child.link"
+                :href="href(child.link)"
+                :aria-current="isCurrent(child.link) ? 'page' : undefined"
+              >{{ child.text }}</a>
             </li>
           </ul>
         </li>
       </ul>
     </details>
-    <a class="switch-guides" :href="withBase('/#choose-your-guide')">Choose another guide</a>
   </div>
 </template>
