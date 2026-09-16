@@ -44,7 +44,7 @@ async function assertPrivateNamesForMember(
     const dialog = page.getByRole("dialog", { name: "Edit client" });
     await expect(dialog.getByLabel("Name", { exact: true })).toBeDisabled();
     await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue('"Nightwing"');
-    await expect(dialog.getByRole("switch", { name: "Use a code name" })).toHaveCount(0);
+    await expect(dialog.getByRole("switch", { name: "Use code name" })).toHaveCount(0);
     await expect(dialog.getByLabel("Code name", { exact: true })).toHaveCount(0);
     await expect(dialog.getByText("Only an account owner can change this private name.")).toBeVisible();
     await expect(dialog.getByText(REAL_CLIENT, { exact: true })).toHaveCount(0);
@@ -62,7 +62,7 @@ async function assertPrivateNamesForMember(
     const dialog = page.getByRole("dialog", { name: "Edit project" });
     await expect(dialog.getByLabel("Name", { exact: true })).toBeDisabled();
     await expect(dialog.getByLabel("Name", { exact: true })).toHaveValue('"Aurora"');
-    await expect(dialog.getByRole("switch", { name: "Use a code name" })).toHaveCount(0);
+    await expect(dialog.getByRole("switch", { name: "Use code name" })).toHaveCount(0);
     await expect(dialog.getByLabel("Code name", { exact: true })).toHaveCount(0);
     await expect(dialog.getByText("Only an account owner can change this private name.")).toBeVisible();
     await expect(dialog.getByText(REAL_PROJECT, { exact: true })).toHaveCount(0);

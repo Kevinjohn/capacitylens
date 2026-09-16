@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Align labels with their controls in the Client and Project modals, and place the clearer code-name
+  privacy explanation beneath the conditional input (#1120).
 - Keep profile-picture ownership with each person's Account by removing Avatar URL from the resource
   modal, and place Start date and End date together on one responsive row (#1108).
 - Centre allocation detail popovers over the visible segment of a schedule bar when horizontal
