@@ -41,5 +41,8 @@ off that resource record.
 - ✅ If a self-hosted server rejects the save, the dialog stays open and shows the server error
   instead of implying that the person was saved.
 - ✅ At normal dialog widths, Name, Role, Discipline and Engagement use compact rows with roughly
-  one quarter for the label and three quarters for the control; on a narrow screen they stack
-  vertically, while Working days remains full width.
+  one quarter for the label and three quarters for the control. Start date and End date share one
+  full-width two-column row. On a narrow screen the fields stack vertically, while Working days
+  remains full width.
+- ✅ The form does not let a manager set another person's avatar. Personal identity pictures belong
+  to the person's Account and can appear on the schedule through the Team & access member link.

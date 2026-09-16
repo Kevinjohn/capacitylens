@@ -271,6 +271,8 @@ sidebar's **Account**, **Switch company** and **Sign out** controls.
 Open **Account** near **Switch company** and **Sign out** at the bottom of the sidebar to
 review your identity and the security controls available for your sign-in method. These are
 personal controls, separate from the company settings on this page.
+Your identity picture is also personal. When your identity provider supplies one, the **Account**
+page shows it; a company administrator does not set it while creating or editing a resource.
 
 If a selected company cannot be loaded, a recovery screen hides the previously open company's
 data. **Retry** loads the selected company again without changing your selection, or you can choose

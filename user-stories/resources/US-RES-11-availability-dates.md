@@ -34,7 +34,8 @@ capacity is zero outside the range, while existing allocated work remains visibl
   date controls and retain their existing behaviour.
 - ✅ Both dates are optional and inclusive. Blank **Start date** means available without a first
   date; blank **End date** means available without a last date. Setting both to the same date
-  is valid. A first date after the last date is rejected with an inline validation error.
+  is valid. A first date after the last date is rejected with an inline validation error. The two
+  controls share one row at normal modal widths and stack on narrow screens.
 - ✅ A person's capacity is zero outside their availability range. Allocated load remains visible,
   so narrowing a range does not delete, move or rewrite conflicting allocations.
 - ✅ Metadata edits remain allowed when existing allocations conflict with the new range.
