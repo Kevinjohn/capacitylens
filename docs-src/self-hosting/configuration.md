@@ -5,6 +5,8 @@ description: Every CapacityLens environment variable, grouped by what you're try
 
 # Configuration
 
+<!-- #region guide-content -->
+
 CapacityLens is configured entirely through environment variables, read from `.env` by
 Docker Compose or set directly for a bare-metal run. `.env.example` in the repository is
 the complete, authoritative register with defaults — this page groups the variables that
@@ -192,6 +194,8 @@ names above when you next touch your configuration — the aliases won't be remo
 at least two stable minor releases and 90 days have passed since the canonical names
 first shipped, so there's no rush, but new deployments should use the current names from
 the start.
+
+<!-- #endregion guide-content -->
 
 ## What's next
 

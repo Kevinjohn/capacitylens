@@ -16,7 +16,7 @@ management.
 
 ## What it does
 
-The whole product is one screen: [the schedule](/guide/the-schedule). It shows people
+The main planning view is [the schedule](/using/read-the-schedule). It shows people
 grouped by [discipline](/reference/glossary), with allocation bars, live utilisation
 percentages, and time off — holiday, sick, unpaid — all on the same canvas, zoomable from
 one to eight weeks. Work hangs off a simple clients → projects → activities shape, with a
@@ -56,20 +56,9 @@ refuse the wrong ones. If you need those tools, CapacityLens is built to sit hap
 beside them and stick to the one question it answers best: who's busy, who's free, and
 when.
 
-## The scaling ladder
-
-You never migrate to a "bigger edition" of CapacityLens — you flip the next switch when
-you get there. The same product runs at every size on this ladder:
-
-| Stage                      | What changes                                                                                                                                                      |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Just you, evaluating       | [Try the demo](/getting-started/try-the-demo) — one command, in-memory sample data, nothing installed beyond a copy of the code from GitHub.                      |
-| Your team, trusted network | Real persistence, no sign-in wall. Backups on by default.                                                                                                         |
-| Real sign-ins              | [Choose how to install CapacityLens](/getting-started/install) with password sign-in: one [Owner](/reference/glossary), invite links, four nested roles enforced on the server. |
-| Company-grade identity     | [Company login](/company-login/) (single sign-on) against your identity provider, with optional required multi-factor sign-in.                                    |
-| More than one company      | Each company fully isolated — [memberships](/reference/glossary), roles and data checked per company on every request.                                            |
-
 ## What's next
 
-[Try the demo](/getting-started/try-the-demo) to see the schedule in your browser in about
-two minutes, with no installation.
+<span id="the-scaling-ladder"></span>
+
+Use the [Quick start](/getting-started/quick-start) to make the first booking in an
+existing company, or [choose the guide for your job](/#choose-your-guide).

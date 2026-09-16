@@ -7,6 +7,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Reorganise the documentation into self-contained day-to-day, Owner, Admin, installation,
+  and operations guides, each with its own task path and FAQ. Add a plain-language introduction,
+  first-booking quick start, script-free narrow-screen guide navigation, and an open-source and
+  contributing page (#1099).
+
 ## [0.68.0-alpha.1] - 2026-09-15
 
 ### Changed

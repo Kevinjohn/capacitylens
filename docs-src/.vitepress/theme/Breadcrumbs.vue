@@ -52,7 +52,12 @@ const crumbs = computed<Crumb[]>(() => {
   if (current === "/") return [];
 
   const trail: Crumb[] = [{ text: "Home", link: withBase("/") }];
-  const sidebar = theme.value.sidebar;
+  const configured = theme.value.sidebar;
+  const sidebar = Array.isArray(configured)
+    ? configured
+    : Object.entries(configured ?? {})
+        .sort(([left], [right]) => right.length - left.length)
+        .find(([prefix]) => current.startsWith(prefix.replace(/\/$/, "")))?.[1];
   const found = Array.isArray(sidebar) ? pathTo(sidebar, current.replace(/\/$/, "")) : undefined;
   if (found) {
     // Everything but the last entry is a group; the last is the page itself.
