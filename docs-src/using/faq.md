@@ -15,8 +15,9 @@ If you are still missing, ask your Admin to check your [scheduled resource](/usi
 
 ## My work list looks empty.
 
-Check its fixed four-week range. Use Schedule for work outside that range, and ask whoever
-maintains your plan if an expected booking is missing.
+The list shows this week and the next three weeks. Use Schedule for work outside that range.
+
+Ask whoever maintains your plan if an expected booking is missing.
 
 ## Why does the work list differ from the grid?
 
@@ -61,8 +62,9 @@ read-only snapshot on that device. You cannot queue changes while offline.
 
 ## Where do clients, projects and activities come from?
 
-An Admin or Owner normally prepares them. See [Clients](/using/clients), [Projects](/using/projects)
-and [Activities](/using/activities) to recognise how they appear in the application.
+An Admin or Owner normally prepares them.
+
+[Clients](/using/clients) · [Projects](/using/projects) · [Activities](/using/activities)
 
 ## Is this a timesheet or a leave request?
 

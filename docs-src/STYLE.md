@@ -42,6 +42,62 @@ Number steps when order matters. Show the relevant screen before asking the read
 Explain important results and link to related help where useful. Do not force every page
 into an opening paragraph, steps and “What's next” template.
 
+## Applying this to each guide
+
+Most readers were sent here by their agency. They need enough information to use the
+software now, with somewhere to return for detail. Do not assume they chose it or want
+to study it.
+
+- Start with the reader's job and the screen they will use. Keep application page names
+  for page introductions; use action titles for procedures.
+- Explain unfamiliar application behaviour, not familiar agency concepts. Clients does
+  not need a definition of a client. A placeholder resource does need an explanation.
+- Put an image beside the instruction it supports, before the action. A second image
+  earns its place by revealing a changed view, a hidden control or a meaningful result.
+  Do not add another full-screen image merely because the next sentence mentions a control.
+- Keep related explanation together. Give a separate decision, exception or destination
+  its own paragraph. Do not turn every sentence into a bullet.
+- Make the next action locatable: name the page, control and useful result. Avoid generic
+  commands such as “open the schedule” without a location, or “read each bar”.
+- Keep essential information in the chosen guide. Reuse concise instructions where roles
+  overlap; link out for depth rather than sending readers to another role's onboarding.
+- State access restrictions where they affect an action. Explain what to do if access is
+  missing, without making every reader study the permission model.
+- Write FAQs around actual interruptions: a missing invitation, an unavailable control,
+  an unexpected result. Avoid repeating the introduction as questions and answers.
+
+### Owner, Admin and Settings
+
+An Owner needs to establish the company, invite an Admin and know what remains their
+responsibility. Make that handover a complete route; do not require ongoing administration
+as the next chapter.
+
+An Admin needs their own complete route for inviting teammates, assigning access, preparing
+scheduled people and work, and managing company settings. Do not assume they have read the
+Owner guide. Distinguish a sign-in invitation from a scheduled resource at the point where
+someone needs to create them.
+
+Settings guidance must distinguish personal display choices from company-wide changes.
+For each company setting, show where it is, explain its effect and who it affects, and
+include any consequence needed to make the decision. Avoid a catalogue that merely
+paraphrases each label.
+
+Each role guide has its own FAQ. Link to technical operations only when the task actually
+requires an operator.
+
+### Editorial acceptance check
+
+Before calling a page ready, check:
+
+- Can someone recognise the screen and locate the useful action without reading another guide?
+- Does each paragraph add information needed to act, interpret a result or recover?
+- Does each additional image teach something the preceding image cannot show?
+- Are unrelated instructions and links visually separate, with emphasis used sparingly?
+- Can the reader stop here and do something useful, with deeper help available when needed?
+
+A short page is complete when it answers the need. Do not add headings, images or summaries
+to make it look substantial.
+
 ## Rules
 
 - **Keep a clear focus.** A page introduction may cover several related interactions. Separate detailed procedures when they would obscure that introduction.

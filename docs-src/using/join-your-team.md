@@ -13,7 +13,9 @@ next: false
 
 Open the invitation your agency sent you. Use the invited email address.
 
-Choose Sign in if you already have an account, or Create account if you need one. If your agency uses company login, choose its provider instead.
+Choose Sign in if you already have an account, or Create account if you need one.
+
+If your agency uses company login, choose its provider instead.
 
 If the preview shows the wrong signed-in identity, select Use a different account.
 

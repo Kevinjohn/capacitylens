@@ -21,6 +21,8 @@ Choose 12 weeks to add the Weeks 5–8 and Weeks 9–12 totals.
 
 The avatar beside a name opens that person's [work list](/using/read-the-schedule#your-work-list).
 
-If Overview is missing from your menu, your company may restrict access. It does not show capacity figures in Blocks mode.
+If Overview is missing from your menu, your company may restrict access.
+
+Overview does not show capacity figures in Blocks mode.
 
 [Overview figures and filters](/guide/capacity-overview)

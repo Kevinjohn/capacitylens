@@ -11,10 +11,6 @@ next: false
 
 Each project shows its client alongside it.
 
-## Scheduled work
-
-![Placeholder: Schedule filtered to one project](https://placehold.co/686x385?text=Schedule+filtered+to+one+project%3A+active+project+filter)
-
 Open Schedule → Show filters and select the project to see its bookings.
 
 [More about Schedule filters](/guide/the-schedule#filtering-and-searching)
