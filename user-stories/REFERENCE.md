@@ -4,9 +4,9 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
-Resources offers **Manage team links** (`data-testid="resource-team-link"`) to authenticated
-Owners and Admins. It opens `/team` without a resource selection, mutation, or invitation draft.
-All member linking and invitations remain in **Team & access**.
+All member linking and invitations are managed in **Team & access**. Owners and Admins open the
+member's actions there to link, change, or remove an eligible person Resource; the Resources page
+does not provide a separate team-link workflow.
 
 Invitation administration may carry an optional `proposedResourceId` for an active person in the
 selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
@@ -995,9 +995,9 @@ request. The link page is `src/components/invites/InviteAccept.tsx`; the create 
 section below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
-Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Scheduled
-person** controls to see **Linked to [person] in the schedule** or **Not linked to the schedule**,
-then link, change, or remove one active person per member. This association changes neither
+Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Link to
+Resource** controls to see **Linked to [person]** or **No Resource linked**, then link, change,
+or remove one active person per member. This association changes neither
 permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
 validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
 association. Its **Your access** panel (`data-testid="current-access"`) shows the

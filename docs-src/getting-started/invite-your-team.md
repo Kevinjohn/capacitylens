@@ -32,7 +32,6 @@ permissions](/getting-started/roles-and-permissions) for why.
 
 1. Open **Team & access**. Your own access is summarised at the top of the page; select
    **See full capabilities** if you want the full list of what your role can and can't do.
-   You can also get here using **Manage team links** on Resources.
 
 2. Choose a role in the "Invite someone" panel. The consequences of that role are spelled
    out in plain language underneath it, and you can optionally pre-authorise a specific
@@ -45,12 +44,12 @@ permissions](/getting-started/roles-and-permissions) for why.
    member can still join; Team & access shows **Resource link needs attention**. Choose
    **Choose another person** or **Dismiss** there.
 
+   ![Invitation form with an optional Resource link and the current outstanding invite list](../screenshots/flows/invitation_created.png)
+
 4. Select **Create invite**, then **Copy** the one-time link. It's shown exactly once — the server keeps only a hash of it —
    so copy it now and send it to the [person](/reference/glossary). The confirmation stays beside
    the link. CapacityLens does not send it for you. If you lose it, revoke the invite and create
    another one.
-
-   ![Invitation form with an optional Resource link and the created link redacted for publication](../screenshots/flows/invitation_created.png)
 
 ## What the invitee sees
 

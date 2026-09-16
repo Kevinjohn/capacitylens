@@ -14,9 +14,9 @@ owner-only operations. Ownership transfer is not part of this story: it has no p
 
 **Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md)
 
-From Resources, an Owner or Admin can choose **Manage team links** to open Team & access.
-Linking, changing or removing a Resource association and creating invitations happen
-only here. Navigation does not submit a command or carry a resource or invitation selection.
+An Owner or Admin opens **Team & access** from the sidebar. Linking, changing or removing a
+Resource association and creating invitations happen only here. Navigation does not submit a
+command or carry a Resource or invitation selection.
 
 ## Why
 
@@ -42,7 +42,8 @@ no derived picture. Unlinking returns the person to their explicit avatar, or in
 When creating an invitation, an Owner or Admin may choose **Link to Resource** or leave the
 default **No Resource linked**. The choice is not reserved. On admission CapacityLens links the
 person if it is still available; otherwise the member directory shows **Resource link needs
-attention**, with **Choose another person** and **Dismiss** controls. Invitees never see the
+attention** in the member row, with **Choose another person** and **Dismiss** controls available
+from the centered member dialog. Invitees never see the
 proposal or exception.
 
 The **Members management section** is a server + auth-on feature only. With auth off or in the

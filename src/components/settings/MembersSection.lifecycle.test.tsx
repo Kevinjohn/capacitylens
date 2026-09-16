@@ -103,11 +103,13 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    expect(within(row).getByText("Resource link needs attention")).toBeInTheDocument();
-    expect(within(row).getByText("That Resource is no longer available.")).toBeInTheDocument();
+    expect(row).toHaveTextContent("Resource link needs attention");
+    expect(row).toHaveTextContent("That Resource is no longer available.");
 
-    await user.click(within(row).getByRole("button", { name: "Choose another person" }));
-    const select = within(row).getByRole("combobox", { name: /choose Resource/i });
+    await user.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Choose another person" }));
+    const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
     expect(select).toHaveFocus();
     await user.selectOptions(select, resource.id);
     await waitFor(() =>
@@ -132,7 +134,9 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    await userEvent.click(within(row).getByRole("button", { name: "Dismiss" }));
+    await userEvent.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Dismiss" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/members/ed/resource-link-exception"),
@@ -158,7 +162,9 @@ function registerMemberResourceLinkTests(): void {
     const row = await findMemberRow(/ed@x\.io/);
     expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(/Linked to Resource: Bruce Wayne/);
     expect(within(row).queryByRole("button", { name: /change Resource/i })).not.toBeInTheDocument();
-    await userEvent.click(within(row).getByRole("button", { name: /remove Resource link/i }));
+    await userEvent.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: /remove Resource link/i }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining(`/members/ed/resource-link`),
@@ -183,19 +189,21 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    const link = within(row).getByRole("button", { name: /link Resource/i });
+    await user.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    const link = within(dialog).getByRole("button", { name: /link Resource/i });
     await user.click(link);
-    const select = within(row).getByRole("combobox", { name: /choose Resource/i });
+    const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
     expect(select).toHaveFocus();
-    await user.click(within(row).getByRole("button", { name: /cancel/i }));
-    expect(within(row).getByTestId("member-resource-status")).toHaveFocus();
+    await user.click(within(dialog).getByRole("button", { name: /cancel/i }));
+    expect(within(dialog).getByTestId("member-resource-status")).toHaveFocus();
 
-    await user.click(within(row).getByRole("button", { name: /link Resource/i }));
-    await user.selectOptions(within(row).getByRole("combobox"), resource.id);
+    await user.click(within(dialog).getByRole("button", { name: /link Resource/i }));
+    await user.selectOptions(within(dialog).getByRole("combobox"), resource.id);
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
     );
-    await waitFor(() => expect(within(row).getByTestId("member-resource-status")).toHaveFocus());
+    await waitFor(() => expect(within(dialog).getByTestId("member-resource-status")).toHaveFocus());
   });
 }
 

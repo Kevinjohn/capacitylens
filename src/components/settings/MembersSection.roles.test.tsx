@@ -492,10 +492,14 @@ describe("MembersSection — owner affordances", () => {
     renderSection();
 
     const editorRow = await findMemberRow(/ed@x\.io/);
+    expect(within(editorRow).queryByRole("button", { name: /change Resource/i })).not.toBeInTheDocument();
+    expect(within(editorRow).queryByRole("button", { name: /remove Resource link/i })).not.toBeInTheDocument();
+    expect(within(editorRow).queryByRole("combobox", { name: /choose Resource/i })).not.toBeInTheDocument();
     await user.click(within(editorRow).getByTestId("member-menu"));
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByTestId("member-resource-status")).toHaveTextContent("Bruce Wayne");
+    expect(within(dialog).getByRole("button", { name: /change Resource/i })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: /remove Resource link/i })).toBeInTheDocument();
   });
 });

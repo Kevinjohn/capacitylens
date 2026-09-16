@@ -127,8 +127,31 @@ export function MemberResourceLink({
   else if (member.resourceLinkException?.reason === "member_already_linked")
     exceptionMessage = m.settings_member_resource_attention_member_linked();
   else if (member.resourceLinkException) exceptionMessage = m.settings_member_resource_attention_unavailable();
+  if (!dialog) {
+    return (
+      <td className="py-2 pr-3" data-testid="member-resource-cell">
+        <div className="flex flex-col items-start gap-1">
+          <span ref={statusRef} tabIndex={-1} aria-live="polite" data-testid="member-resource-status">
+            {member.resourceLink
+              ? m.settings_member_resource_linked({ name: currentPersonLabel })
+              : m.settings_member_resource_not_linked()}
+          </span>
+          {exceptionMessage && (
+            <span className="text-xs text-warn">
+              {m.settings_member_resource_attention_heading()}: {exceptionMessage}
+            </span>
+          )}
+          {member.resourceLink && currentPersonInactive && (
+            <span className="text-xs text-muted-foreground">
+              {m.settings_member_resource_inactive({ name: currentPersonLabel })}
+            </span>
+          )}
+        </div>
+      </td>
+    );
+  }
   const content = (
-    <div className={`flex flex-col items-start gap-1 ${dialog ? "rounded-md border bg-card p-3" : ""}`}>
+    <div className="flex flex-col items-start gap-1 rounded-md border bg-card p-3">
       <span ref={statusRef} tabIndex={-1} aria-live="polite" data-testid="member-resource-status">
         {member.resourceLink
           ? m.settings_member_resource_linked({ name: currentPersonLabel })
@@ -240,5 +263,5 @@ export function MemberResourceLink({
       )}
     </div>
   );
-  return dialog ? content : <td className="py-2 pr-3">{content}</td>;
+  return content;
 }

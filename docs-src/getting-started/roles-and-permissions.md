@@ -58,7 +58,7 @@ which stays closed until you open it. If a company somehow ends up with no Owner
 no Owner](/self-hosting/incidents#a-company-has-no-owner) — CapacityLens repairs that
 automatically in almost every case.
 
-![Members table showing scheduled-person links, the optional Signed in column and row controls](../screenshots/flows/team_access_members.png)
+![Members table showing Resource links, the optional Signed in column and row controls](../screenshots/flows/team_access_members.png)
 
 Owners can enable **Record member sign-ins** when they need a simple confirmation that an
 invite or access reset worked. It is off by default and records only **Yes** or **Not yet**

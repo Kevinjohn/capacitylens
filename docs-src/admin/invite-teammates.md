@@ -20,7 +20,7 @@ CapacityLens creates a one-time link; it does not send an email.
 5. **Create the invitation.** Copy the one-time link immediately and send it privately.
 6. **Check the members list after acceptance.** The teammate appears with the chosen role.
 
-![The invitation form and its one-time link, redacted for publication](../screenshots/flows/invitation_created.png)
+![The invitation form with an optional Resource link and the current outstanding invite list](../screenshots/flows/invitation_created.png)
 
 ## What's next
 
