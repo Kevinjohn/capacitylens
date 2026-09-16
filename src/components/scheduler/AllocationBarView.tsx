@@ -45,6 +45,8 @@ const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
 /** Constant per axis, so the clamp strings are built once rather than per bar per render. */
 const BAR_LABEL_INSETS = buildVisibleSpanInsets("x", "var(--bar-left)", "var(--bar-width)");
 
+const allocationPopoverId = (bar: BarLayout) => `allocation-popover-${bar.allocation.id}`;
+
 const gripClass = "group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center";
 const gripLine = (
   <span
@@ -105,44 +107,51 @@ function BarContents({
 function BarTrigger(props: AllocationBarViewProps) {
   const { bar, background, canEdit, dragging, ink, translateY } = props;
   return (
-    <TooltipTrigger asChild>
-      <div
-        data-testid="allocation-bar"
-        data-alloc-id={bar.allocation.id}
-        data-status={bar.allocation.status}
-        role={canEdit ? "button" : "img"}
-        tabIndex={0}
-        aria-label={props.ariaLabel}
-        onPointerDown={props.onPointerDown}
-        onMouseEnter={props.onMouseEnter}
-        onMouseLeave={props.onMouseLeave}
-        onFocus={props.onFocus}
-        onBlur={props.onBlur}
-        onKeyDown={props.onKeyDown}
-        className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md ${dragging ? "shadow-lg ring-black/10" : ""}`}
-        style={{
-          left: props.insetLeft,
-          width: props.insetWidth,
-          // Published for the label overlay's visible-portion clamp (see visibleSpanInsets).
-          ["--bar-left" as string]: `${props.insetLeft}px`,
-          ["--bar-width" as string]: `${props.insetWidth}px`,
-          top: bar.top,
-          height: LAYOUT.barHeight,
-          backgroundColor: background,
-          color: ink,
-          border: bar.allocation.status === "tentative" ? `1px dashed ${ink}` : undefined,
-          transform: translateY ? `translateY(${translateY}px)` : undefined,
-          zIndex: dragging ? "var(--z-index-drag)" : undefined,
-          // Reserve the measured sticky header and fixed utilisation column when focused.
-          scrollMarginTop: "var(--sched-sticky-top, 44px)",
-          scrollMarginLeft: LAYOUT.leftColWidth,
-          cursor: props.cursor,
-          touchAction: canEdit ? "none" : undefined,
-        }}
-      >
-        <BarContents {...props} />
-      </div>
-    </TooltipTrigger>
+    <div
+      data-testid="allocation-bar"
+      data-alloc-id={bar.allocation.id}
+      data-status={bar.allocation.status}
+      role={canEdit ? "button" : "img"}
+      tabIndex={0}
+      aria-label={props.ariaLabel}
+      aria-describedby={props.popoverOpen && !dragging ? allocationPopoverId(bar) : undefined}
+      onPointerDown={props.onPointerDown}
+      onMouseEnter={props.onMouseEnter}
+      onMouseLeave={props.onMouseLeave}
+      onFocus={props.onFocus}
+      onBlur={props.onBlur}
+      onKeyDown={props.onKeyDown}
+      className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md ${dragging ? "shadow-lg ring-black/10" : ""}`}
+      style={{
+        left: props.insetLeft,
+        width: props.insetWidth,
+        // Published for the label and popover anchor's visible-portion clamp (see visibleSpanInsets).
+        ["--bar-left" as string]: `${props.insetLeft}px`,
+        ["--bar-width" as string]: `${props.insetWidth}px`,
+        top: bar.top,
+        height: LAYOUT.barHeight,
+        backgroundColor: background,
+        color: ink,
+        border: bar.allocation.status === "tentative" ? `1px dashed ${ink}` : undefined,
+        transform: translateY ? `translateY(${translateY}px)` : undefined,
+        zIndex: dragging ? "var(--z-index-drag)" : undefined,
+        // Reserve the measured sticky header and fixed utilisation column when focused.
+        scrollMarginTop: "var(--sched-sticky-top, 44px)",
+        scrollMarginLeft: LAYOUT.leftColWidth,
+        cursor: props.cursor,
+        touchAction: canEdit ? "none" : undefined,
+      }}
+    >
+      <TooltipTrigger asChild>
+        <span
+          aria-hidden
+          data-testid="allocation-popover-anchor"
+          className="pointer-events-none absolute inset-y-0"
+          style={{ left: BAR_LABEL_INSETS.leading, right: BAR_LABEL_INSETS.trailing }}
+        />
+      </TooltipTrigger>
+      <BarContents {...props} />
+    </div>
   );
 }
 
@@ -157,10 +166,11 @@ function BarPopover({
   return (
     <TooltipContent
       side="bottom"
-      align="start"
+      align="center"
       sideOffset={6}
       showArrow={false}
       data-testid="allocation-popover"
+      id={allocationPopoverId(bar)}
       aria-hidden
       aria-label={popoverFooter}
       className="scheduler-alloc-popover pointer-events-none z-(--z-index-popover) w-60 rounded-lg p-3 font-normal"

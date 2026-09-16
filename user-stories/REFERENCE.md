@@ -752,8 +752,10 @@ and project parts are device-global toggles in Settings → My display → **All
 `Show client name` and `Show project name`, both **on** by default; a bar whose activity has no
 project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
 activity-first layout regardless of these toggles. Its visible card contains allocation details
-only; the retained drag/resize/reassign guidance is exposed as the popover's assistive label rather
-than as a footer over the schedule.
+only and is horizontally anchored to the centre of the currently visible segment of the bar, even
+when the bar continues behind the fixed resource column or beyond the viewport; normal collision
+handling keeps the card itself on-screen near a viewport edge. The retained drag/resize/reassign
+guidance is exposed as the popover's assistive label rather than as a footer over the schedule.
 
 **Individual schedule drawer.** Every visible resource row uses its avatar as the schedule button,
 named **View _name_'s schedule** (`data-testid="person-schedule-trigger"`). Initials (or the

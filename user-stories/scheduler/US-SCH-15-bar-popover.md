@@ -16,6 +16,9 @@ A bar can only show so much on its face, especially when narrow. The manager oft
 
 1. Hover the **Brand System** bar.
 2. A popover (`data-testid="allocation-popover"`) appears showing: the activity/label, **project · client** (e.g. _Metropolis Rebrand · LexCorp_), the **date range**, **Nh/day**, a **Tentative** or **Completed** annotation when applicable, and a note line if the allocation has one. A confirmed allocation omits the redundant **Confirmed** word.
+   The popover is horizontally anchored to the centre of the allocation bar's currently visible
+   segment, including when the bar continues behind the fixed resource column or beyond the right
+   edge; normal collision handling keeps the card itself on-screen near a viewport edge.
 3. Move the pointer off the bar — the popover hides.
 4. Now use the keyboard: **Tab** to focus an allocation bar. The same popover appears on focus,
    including in Viewer read-only mode where the bar remains a non-editable image.
@@ -27,6 +30,8 @@ A bar can only show so much on its face, especially when narrow. The manager oft
 ## Acceptance criteria
 
 - ✅ Hovering a bar shows the **allocation-popover** with the project/client and the date range.
+- ✅ The popover is horizontally anchored to the centre of the bar's currently visible segment
+  rather than its off-screen start or full unclipped width, while remaining on-screen near an edge.
 - ✅ The popover includes hours/day, a **Tentative** or **Completed** annotation when applicable, and (when present) the note; confirmed work has no redundant status word.
 - ✅ A linked repeat says **Series through <date>** in the popover and accessible name; an unlinked
   allocation has no series claim.
