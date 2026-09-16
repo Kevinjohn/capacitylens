@@ -97,9 +97,11 @@ function registerSuiteScenario1() {
     // pre-navigation sentinel because the invite preview deliberately shows it too.
     await expect(page).toHaveURL(/\/$/);
     await waitForAppLanding(page, page.locator("#main"));
-    // In the app, in the joined company — the shell shows its name, and no picker heading.
-    await expect(page.getByTitle(`Invite Studio ${STAMP}`, { exact: true })).toBeVisible();
+    // In the app, the joined company is active. Its single-company context is intentionally hidden
+    // from the sidebar, so verify the authoritative current-access card instead.
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Team & access" }).click();
+    await expect(page.getByTestId("current-access")).toContainText("Editor");
 
     // Single-use guarantee at the API layer: the browser accept already consumed the token, so a
     // second accept (B's API session) of the same token is 409.
@@ -137,9 +139,11 @@ function registerSuiteScenario2() {
 
     await expect(page).toHaveURL(/\/$/);
     await waitForAppLanding(page, page.locator("#main"));
-    await expect(page.getByTitle(`Signup Invite Studio ${STAMP}`, { exact: true })).toBeVisible();
+    // The joined company is active, while its single-company context is intentionally hidden from
+    // the sidebar. Team & access exposes the authoritative role projection.
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-    await expect(page.getByTestId("active-role")).toContainText("Viewer");
+    await page.getByRole("link", { name: "Team & access" }).click();
+    await expect(page.getByTestId("current-access")).toContainText("Viewer");
   });
 }
 
