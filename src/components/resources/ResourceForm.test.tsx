@@ -36,10 +36,20 @@ describe("ResourceForm layout", () => {
   it("shows simple availability dates with separators for people only", () => {
     const person = render(<ResourceForm kind="person" onClose={vi.fn()} />);
 
+    expect(screen.queryByLabelText("Avatar URL")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Start date")).toHaveAttribute("type", "date");
     expect(screen.getByLabelText("End date")).toHaveAttribute("type", "date");
+    const startField = screen.getByLabelText("Start date").closest('[data-slot="field"]');
+    const endField = screen.getByLabelText("End date").closest('[data-slot="field"]');
+    expect(startField).not.toHaveAttribute("data-product-layout");
+    expect(endField).not.toHaveAttribute("data-product-layout");
+    expect(startField?.parentElement).toBe(endField?.parentElement);
+    expect(startField?.parentElement).toHaveAttribute("data-resource-availability-date-row");
+    expect(startField?.parentElement).toHaveClass("grid", "min-w-0", "grid-cols-1", "gap-2", "sm:grid-cols-2");
     expect(screen.queryByText(/leave blank for no boundary/i)).not.toBeInTheDocument();
-    expect(document.body.querySelectorAll('[data-slot="separator"]')).toHaveLength(2);
+    const separators = document.body.querySelectorAll('[data-slot="separator"]');
+    expect(separators).toHaveLength(2);
+    for (const separator of separators) expect(separator).toHaveClass("my-4");
 
     person.unmount();
     const placeholder = render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
@@ -54,33 +64,31 @@ describe("ResourceForm layout", () => {
 });
 
 describe("ResourceForm availability dates", () => {
-  it("saves, edits and clears a normalised person avatar URL", async () => {
+  it("preserves an existing avatar URL when a manager edits resource metadata", async () => {
     const user = userEvent.setup();
-    const createView = render(<ResourceForm kind="person" onClose={vi.fn()} />);
-    await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
-    await user.type(screen.getByLabelText("Avatar URL"), "  https://images.example/barbara.png  ");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    const saved = requireValue(useStore.getState().data.resources[0], "saved resource");
-    expect(saved.avatarUrl).toBe("https://images.example/barbara.png");
+    const resource = useStore.getState().addResource({
+      kind: "person",
+      name: "Barbara Gordon",
+      role: "Designer",
+      avatarUrl: "https://images.example/barbara.png",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+    });
+    render(<ResourceForm resource={resource} onClose={vi.fn()} />);
 
-    createView.unmount();
-    render(<ResourceForm resource={saved} onClose={vi.fn()} />);
-    await user.clear(screen.getByLabelText("Avatar URL"));
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(useStore.getState().data.resources[0]).not.toHaveProperty("avatarUrl");
-  });
-
-  it("rejects an insecure avatar URL and omits the field for non-people", async () => {
-    const user = userEvent.setup();
-    const view = render(<ResourceForm kind="person" onClose={vi.fn()} />);
-    await user.type(screen.getByLabelText("Name"), "Barbara Gordon");
-    await user.type(screen.getByLabelText("Avatar URL"), "http://images.example/barbara.png");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(screen.getByRole("alert")).toHaveTextContent(/https url/i);
-    expect(screen.getByLabelText("Avatar URL")).toHaveAttribute("aria-invalid", "true");
-    view.unmount();
-    render(<ResourceForm kind="placeholder" onClose={vi.fn()} />);
     expect(screen.queryByLabelText("Avatar URL")).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Role"));
+    await user.type(screen.getByLabelText("Role"), "Design lead");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(useStore.getState().data.resources[0]).toMatchObject({
+      role: "Design lead",
+      avatarUrl: "https://images.example/barbara.png",
+    });
   });
 
   it("saves equal inclusive boundaries", async () => {

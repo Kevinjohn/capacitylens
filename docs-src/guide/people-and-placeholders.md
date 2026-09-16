@@ -48,9 +48,6 @@ vertically on a narrow screen, while the **Working days** grid remains full widt
 
 - **Name** — required.
 - **Role** — a free-text label, for example "Senior Designer". Optional.
-- **Avatar URL** — an optional absolute HTTPS address for an existing profile image. CapacityLens
-  loads it directly in each viewer's browser and keeps initials visible while it loads or if it fails.
-  The image host can therefore observe the viewer's IP address, although CapacityLens sends no referrer.
 - **Discipline** — which group this person shows under on the schedule, and where their
   colour comes from. Only shown if your company uses
   [disciplines](/reference/glossary), which is the default. Disciplines themselves are
@@ -96,14 +93,15 @@ utilisation figure you see after saving reflects their new working pattern.
 Existing working patterns are preserved after upgrading: a day that was selected remains
 a full day, and a day that was unselected remains not working.
 
-You can replace or clear **Avatar URL** at any time. CapacityLens does not upload, inspect, resize,
-proxy or cache the image, and saving does not check whether the remote host is reachable. Only people
-have avatars; placeholders and external parties keep their existing presentation.
+Profile pictures belong to each person's signed-in identity, not to the company resource form. A
+person reviews their own identity on **Account**. Owners and Admins can associate that identity with
+the corresponding scheduled person from **Team & access**; initials remain the fallback.
 
 ## Set availability dates
 
 Studio and Supplementary people can have optional date boundaries in the resource form. Use
 **Start date** for the first day they can contribute and **End date** for the last day.
+The two fields share one row at normal modal widths and stack on narrow screens.
 Both dates are inclusive. Leave either field blank when that side has no boundary. A person who is
 available for one day can use the same date in both fields; a first date after a last date is rejected
 and the form stays open so you can correct it.

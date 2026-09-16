@@ -370,7 +370,7 @@ so neighbouring labels cannot overlap.
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline` (when disciplines are
-enabled and at least one exists), `Engagement`, `Avatar URL`, `Start date`, `End date` (for Studio and
+enabled and at least one exists), `Engagement`, `Start date`, `End date` (for Studio and
 Supplementary people only), `Bound project`, `Working days` (for people only: a
 full-width Monday–Sunday radio grid aligned with the field label whose `Full day`, `Half day` and
 `Not working` column headings appear once; every cell's native radio is labelled by both its weekday
@@ -1000,8 +1000,8 @@ section below. Spec `e2e/invite.auth.spec.ts`.
 Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Scheduled
 person** controls to see **Linked to [person] in the schedule** or **Not linked to the schedule**,
 then link, change, or remove one active person per member. This association changes neither
-permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
-validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
+permissions nor schedule ownership. A validated sign-in picture supplies the linked person's
+avatar when no legacy explicit resource avatar is stored; inactive endpoints suppress the derived picture while retaining the
 association. Its **Your access** panel (`data-testid="current-access"`) shows the
 active role in a plain-language summary sentence. The full allowed/not-allowed capability list —
 schedule writes, member administration, time-off-note visibility and private client/project-name
@@ -1615,7 +1615,8 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
 - **Optional availability dates apply to capacity-tracked people.** Studio and Supplementary
   people may have an inclusive **Start date** and **End date**. Leaving either
   field blank leaves that side unbounded; the same date in both fields is valid, while an End date
-  before the Start date is rejected. Placeholders and External / 3rd party resources keep their
+  before the Start date is rejected. The two controls share one row at normal modal widths and
+  stack on narrow screens. Placeholders and External / 3rd party resources keep their
   existing company-wide or literal behaviour and never show these controls. Outside a person's
   availability range, their capacity is zero but any already-stored allocation remains visible and
   its allocated load is retained. Existing allocations that conflict with a newly narrowed range

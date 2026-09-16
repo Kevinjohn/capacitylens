@@ -201,80 +201,6 @@ function registerSuiteScenario7() {
   });
 }
 
-// The single browser journey deliberately proves the full save/reload/fallback/clear lifecycle.
-// eslint-disable-next-line max-lines-per-function
-function registerSuiteScenario8() {
-  // eslint-disable-next-line max-lines-per-function
-  test("person avatar save, reload, fallback and clear round-trip through the DB", async ({ page, request }) => {
-    const imageUrl = "https://images.example/bruce.png";
-    const brokenImageUrl = "https://images.example/broken.png";
-    await page.route(imageUrl, (route) =>
-      route.fulfill({
-        contentType: "image/png",
-        body: Buffer.from(
-          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
-          "base64",
-        ),
-      }),
-    );
-    await page.route(brokenImageUrl, (route) => route.fulfill({ status: 404, body: "missing" }));
-
-    await openApp(page);
-    await page.getByRole("link", { name: "Resources" }).click();
-    const bruce = page.getByTestId("resource-row").filter({ hasText: "Bruce Wayne" });
-    await bruce.getByRole("button", { name: "Edit Bruce Wayne" }).click();
-    await page.getByRole("dialog", { name: "Edit resource" }).getByLabel("Avatar URL").fill(imageUrl);
-    await page.getByRole("dialog", { name: "Edit resource" }).getByRole("button", { name: "Save" }).click();
-
-    await expect
-      .poll(
-        async () => stateRows(await serverState(request), "resources").find(({ id }) => id === "r-tyler")?.avatarUrl,
-        { timeout: 10_000 },
-      )
-      .toBe(imageUrl);
-
-    await openApp(page);
-    const trigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
-    await expect(trigger.locator("img")).toHaveAttribute("src", imageUrl);
-    await expect(trigger.locator("img")).toHaveAttribute("referrerpolicy", "no-referrer");
-
-    await page.getByRole("link", { name: "Resources" }).click();
-    await page
-      .getByTestId("resource-row")
-      .filter({ hasText: "Bruce Wayne" })
-      .getByRole("button", { name: "Edit Bruce Wayne" })
-      .click();
-    const dialog = page.getByRole("dialog", { name: "Edit resource" });
-    await dialog.getByLabel("Avatar URL").fill(brokenImageUrl);
-    await dialog.getByRole("button", { name: "Save" }).click();
-    await page.getByRole("link", { name: "Schedule" }).click();
-    const brokenTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
-    await expect(brokenTrigger.locator("img")).toHaveCount(0);
-    await expect(brokenTrigger).toContainText("BW");
-
-    await page.getByRole("link", { name: "Resources" }).click();
-    await page
-      .getByTestId("resource-row")
-      .filter({ hasText: "Bruce Wayne" })
-      .getByRole("button", { name: "Edit Bruce Wayne" })
-      .click();
-    const clearDialog = page.getByRole("dialog", { name: "Edit resource" });
-    await clearDialog.getByLabel("Avatar URL").clear();
-    await clearDialog.getByRole("button", { name: "Save" }).click();
-    await expect
-      .poll(
-        async () => stateRows(await serverState(request), "resources").find(({ id }) => id === "r-tyler")?.avatarUrl,
-        { timeout: 10_000 },
-      )
-      .toBeUndefined();
-
-    await openApp(page);
-    const clearedTrigger = page.getByRole("button", { name: "View Bruce Wayne's schedule" });
-    await expect(clearedTrigger.locator("img")).toHaveCount(0);
-    await expect(clearedTrigger).toContainText("BW");
-  });
-}
-
 test.describe("database-backed persistence", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
@@ -283,5 +209,4 @@ test.describe("database-backed persistence", () => {
   registerSuiteScenario5();
   registerSuiteScenario6();
   registerSuiteScenario7();
-  registerSuiteScenario8();
 });
