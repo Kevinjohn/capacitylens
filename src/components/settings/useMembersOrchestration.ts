@@ -316,17 +316,19 @@ export function useMembersOrchestration(activeAccountId: string | null) {
       (directoryState.directory.kind === "error" && directoryState.directory.content.kind === "unavailable");
     if (offline.readOnly || unauthorized) resetInviteDraft();
   }, [directoryState.directory, offline.readOnly, resetInviteDraft]);
-  // The server supplies the account-authorized candidate IDs. Re-project them through the same
-  // active person ordering as Resources so selectors cannot drift from the management list and
-  // never expose placeholders, external resources, or inactive rows.
+  // The server is the only authority on candidate eligibility. ORDER them the way Resources orders
+  // its active people so the selector cannot look different from the management list, but never
+  // FILTER by the store: the Resources model refreshes on a visible poll while the directory
+  // refetches after every mutation, so intersecting the two hides a candidate the server accepts
+  // and reports a live link as inactive until the poll catches up. Anything Resources has not
+  // listed yet keeps the server's own order behind the rows it has.
   const resourceListModel = useResourceListModel();
-  const authorizedCandidates = new Map(
-    directoryState.resourceCandidates.map((candidate) => [candidate.resourceId, candidate]),
+  const resourceOrder = new Map(resourceListModel.people.map((resource, index) => [resource.id, index]));
+  const resourceCandidates = [...directoryState.resourceCandidates].sort(
+    (left, right) =>
+      (resourceOrder.get(left.resourceId) ?? Number.POSITIVE_INFINITY) -
+      (resourceOrder.get(right.resourceId) ?? Number.POSITIVE_INFINITY),
   );
-  const resourceCandidates = resourceListModel.people.flatMap((resource) => {
-    const candidate = authorizedCandidates.get(resource.id);
-    return candidate ? [{ resourceId: candidate.resourceId, label: candidate.label }] : [];
-  });
   const linkedResourceIds = new Set(
     (directoryState.members ?? []).flatMap((member) => (member.resourceLink ? [member.resourceLink.resourceId] : [])),
   );

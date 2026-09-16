@@ -474,8 +474,10 @@ describe("MembersSection — owner affordances", () => {
     await user.click(within(editorRow).getByTestId("member-menu"));
 
     const dialog = await screen.findByRole("dialog");
-    expect(dialog).toHaveTextContent("Member actions");
-    expect(dialog).toHaveTextContent("ed@x.io");
+    expect(dialog).toHaveAccessibleName(m.settings_member_settings_heading());
+    // The description, not merely the presence of the address somewhere in the dialog: the "Edit
+    // ed@x.io" menu item satisfies a text-content assertion on its own.
+    expect(dialog).toHaveAccessibleDescription("ed@x.io");
     expect(within(dialog).getByTestId("member-reset-password")).toBeInTheDocument();
   });
 

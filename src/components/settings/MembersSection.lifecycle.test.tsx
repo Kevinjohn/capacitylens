@@ -174,6 +174,59 @@ function registerMemberResourceLinkTests(): void {
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/members"))).toHaveLength(2);
   });
 
+  // The server authorizes candidates; the Resources list only orders them. A candidate the client
+  // store has not loaded yet (a person created in another session, or a poll that has not landed)
+  // must still be offered, and a live link to one must not be reported as inactive.
+  it("offers a server candidate the Resources store has not loaded and orders the rest by Resources", async () => {
+    const diana = useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince" }));
+    const bruce = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const fetchMock = mockApi(
+      [
+        { userId: "me", role: "owner", isSelf: true },
+        {
+          userId: "ed",
+          role: "editor",
+          resourceLink: { resourceId: "r-server-only", resourceName: "Barry Allen", revision: "rev-1" },
+        },
+      ],
+      {
+        "GET /members": () =>
+          jsonResponse({
+            signInTrackingEnabled: false,
+            members: [
+              rawMember({ userId: "me", role: "owner", isSelf: true }),
+              rawMember({
+                userId: "ed",
+                role: "editor",
+                resourceLink: { resourceId: "r-server-only", resourceName: "Barry Allen", revision: "rev-1" },
+              }),
+            ],
+            // Deliberately unsorted, and carrying a person the store does not have.
+            resourceCandidates: [
+              { resourceId: "r-server-only", label: "Barry Allen" },
+              { resourceId: diana.id, label: "Diana Prince" },
+              { resourceId: bruce.id, label: "Bruce Wayne" },
+            ],
+          }),
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const row = await findMemberRow(/ed@x\.io/);
+    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(/Linked to Resource: Barry Allen/);
+    expect(within(row).queryByText(/inactive — unlink only/)).not.toBeInTheDocument();
+    await userEvent.click(within(row).getByTestId("member-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("button", { name: /change Resource/i }));
+    const selector = within(dialog).getByTestId("member-resource-link");
+    expect([...selector.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
+      m.settings_member_resource_unlinked(),
+      "Bruce Wayne",
+      "Diana Prince",
+      "Barry Allen",
+    ]);
+  });
+
   it("focuses the selector on open and restores focus after cancel and completion", async () => {
     const user = userEvent.setup();
     const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
