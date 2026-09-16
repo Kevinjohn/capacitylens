@@ -1,5 +1,5 @@
 import { applyCapacityMode, buildDayCapacity, resolveUtilizationFromCapacity } from "../../lib/capacity";
-import { eachDayISO, rangesOverlap } from "@capacitylens/shared/lib/dateMath";
+import { addDaysISO, eachDayISO, rangesOverlap } from "@capacitylens/shared/lib/dateMath";
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
 import { isValidISODate } from "@capacitylens/shared/lib/integrity";
 import { resolvePlaceholderDisplayName, resolveResourceDisplayName } from "../../lib/metadata";
@@ -42,6 +42,7 @@ interface ApplyVisibleUtilizationInput {
   accountWorkingDays: Weekday[];
   blocksMode?: boolean | undefined;
   laneLayout?: LaneLayout | undefined;
+  partiallyExposesNextColumn?: boolean | undefined;
 }
 
 interface BuildResourceGroupsInput {
@@ -98,14 +99,19 @@ function projectVisibleLanes({
   start,
   end,
   layout,
+  partiallyExposesNextColumn,
 }: {
   row: GroupModel["rows"][number];
   start: ISODate;
   end: ISODate;
   layout: LaneLayout;
+  partiallyExposesNextColumn: boolean;
 }) {
+  // The visible window is day-quantized, but a non-aligned scroll can expose the next column.
+  // Pack that partial column too so its bars cannot fall through to lane 0 over visible work.
+  const packingEnd = partiallyExposesNextColumn ? addDaysISO(end, 1) : end;
   const visibleBars = row.bars.filter(({ allocation }) =>
-    rangesOverlap(allocation.startDate, allocation.endDate, start, end),
+    rangesOverlap(allocation.startDate, allocation.endDate, start, packingEnd),
   );
   const { lanes, laneCount } = packLanes(visibleBars.map(({ allocation }) => allocation));
   const laneById = new Map(lanes.map(({ id, lane }) => [id, lane]));
@@ -132,6 +138,7 @@ export function applyVisibleUtilization({
   accountWorkingDays,
   blocksMode = false,
   laneLayout = compactLaneLayout,
+  partiallyExposesNextColumn = false,
 }: ApplyVisibleUtilizationInput): GroupModel[] {
   const days = eachDayISO(start, end);
   const allocations = groupByResourceId(data.allocations, { include: includeRenderableDateRange });
@@ -139,7 +146,13 @@ export function applyVisibleUtilization({
   const closuresByDate = bucketByCoveredDate(data.closures.filter(includeRenderableDateRange), days);
   return model.map((group) => {
     const rows = group.rows.map((row) => {
-      const visibleLanes = projectVisibleLanes({ row, start, end, layout: laneLayout });
+      const visibleLanes = projectVisibleLanes({
+        row,
+        start,
+        end,
+        layout: laneLayout,
+        partiallyExposesNextColumn,
+      });
       // External / 3rd-party rows carry no capacity, so their 0 can never change (the same
       // starvation contract the build's capacity seam states).
       if (isExternalResource(row.resource)) {
