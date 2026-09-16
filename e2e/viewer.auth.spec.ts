@@ -126,11 +126,9 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   // ── Browser as VIEWER: the read-only UI. ───────────────────────────────────────────────────────
   await signInAndOpen(page, VIEWER, `Viewer Studio ${STAMP}`);
 
-  // The role is visible in the sidebar footer, and Team & access remains available so a Viewer
-  // can understand the role without being shown the company directory or management controls.
+  // Team & access remains available so a Viewer can understand the role without being shown the
+  // company context, directory or management controls.
   await expect(page.getByTestId("getting-started")).toHaveCount(0);
-  await expect(page.getByTestId("view-only")).toBeVisible();
-  await expect(page.getByTestId("active-role")).toContainText("Viewer");
   await page.getByRole("link", { name: "Team & access" }).click();
   const currentAccess = page.getByTestId("current-access");
   await expect(currentAccess).toContainText("Viewer");
@@ -185,10 +183,11 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await context.clearCookies();
   await signInAndOpen(page, EDITOR, `Viewer Studio ${STAMP}`);
 
-  // No "View only" badge for an editor.
-  await expect(page.getByTestId("view-only")).toHaveCount(0);
   await expect(page.getByTestId("getting-started")).toBeVisible();
   await expect(page.getByRole("link", { name: "Invite your team" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Team & access" }).click();
+  await expect(page.getByTestId("current-access")).toContainText("Editor");
+  await expect(page.getByTestId("members-section")).toHaveCount(0);
 
   await page.getByRole("link", { name: "Clients" }).click();
   await expect(page.getByRole("heading", { name: "Clients" })).toBeVisible();
