@@ -20,9 +20,9 @@ be inferred from the client or allowed to weaken the rule that every project bel
 **Precondition:** Open the seeded demo at **Projects** (`/projects`). The trusted local/demo role is
 owner-equivalent; _Queen Consolidated_ and _LexCorp_ are available clients.
 
-1. Click **Add project** and confirm **Use a code name** is off and **Code name** is absent.
+1. Click **Add project** and confirm **Use code name** is off and **Code name** is absent.
 2. Enter **Name** = `Acquisition Launch`, choose **Client** = _Queen Consolidated_, and enable
-   **Use a code name**.
+   **Use code name**. Confirm the owner-visibility explanation appears below the **Code name** input.
 3. Try to save with `“”` as **Code name**; confirm the form rejects it.
 4. Enter `"Aurora"` and save.
 5. Confirm the owner-facing Projects list shows **Acquisition Launch** under _Queen Consolidated_, then reopen
@@ -33,7 +33,7 @@ owner-equivalent; _Queen Consolidated_ and _LexCorp_ are available clients.
 ## Acceptance criteria
 
 - ✅ **PRJ-PRIV-01 — Public default.** Project privacy is off by default and has the same owner-only switch, conditional required field,
-  placeholder, automatic-quotation hint and accessible validation as client privacy.
+  placeholder, owner-visibility explanation beneath the input and accessible validation as client privacy.
 - ✅ **PRJ-PRIV-02 — Required normalised identity.** Quote-only/blank code names are rejected before save; valid straight/curly outer quotes are
   normalised out of storage.
 - ✅ **PRJ-PRIV-03 — Full-fidelity storage.** A valid private project retains the real `name`, required `clientId`, colour, phases, activities

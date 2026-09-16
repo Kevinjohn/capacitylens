@@ -24,7 +24,7 @@ describe("ProjectForm", () => {
     render(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Secret Launch");
-    await user.click(screen.getByRole("switch", { name: "Use a code name" }));
+    await user.click(screen.getByRole("switch", { name: "Use code name" }));
     await user.type(screen.getByLabelText("Code name"), '"Aurora"');
     fireEvent.keyDown(screen.getByLabelText("Client"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: client.name }));
@@ -45,14 +45,14 @@ describe("ProjectForm", () => {
     render(<ProjectForm onClose={onClose} />);
 
     await user.type(screen.getByLabelText("Name"), "Secret Launch");
-    await user.click(screen.getByRole("switch", { name: "Use a code name" }));
+    await user.click(screen.getByRole("switch", { name: "Use code name" }));
     await user.type(screen.getByLabelText("Code name"), "“”");
     fireEvent.keyDown(screen.getByLabelText("Client"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: client.name }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     const codeName = screen.getByLabelText("Code name");
-    const hint = screen.getByText("Quotation marks are added automatically.");
+    const hint = screen.getByText("Only account owners can see real names. Everyone else sees the code name.");
     const alert = screen.getByRole("alert");
     expect(codeName).toHaveAttribute("aria-invalid", "true");
     expect(codeName.getAttribute("aria-describedby")?.split(" ")).toEqual(expect.arrayContaining([hint.id, alert.id]));
@@ -71,7 +71,7 @@ describe("ProjectForm", () => {
       </PermissionContext.Provider>,
     );
 
-    expect(screen.queryByRole("switch", { name: "Use a code name" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("switch", { name: "Use code name" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Name")).toBeDisabled();
     expect(screen.getByText("Only an account owner can change this private name.")).toBeInTheDocument();
   });

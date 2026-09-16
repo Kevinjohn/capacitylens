@@ -19,7 +19,7 @@ The same visual language should apply to the other common input dialogs.
 1. Open each add or edit dialog for **External party**, **Discipline**, **Client**, **Project**,
    **Activity** and **Time off**.
 2. At a normal desktop width, compare the label and control columns.
-3. In Client or Project, enable **Use a code name** and inspect the conditional **Code name** field.
+3. In Client or Project, enable **Use code name** and inspect the conditional **Code name** field and its helper row.
 4. In Activity, switch Kind and inspect the conditional **Project** field.
 5. Narrow the browser below the small-screen breakpoint.
 6. Submit one required form without its required value and inspect the error association.
@@ -29,6 +29,7 @@ The same visual language should apply to the other common input dialogs.
 - ✅ At normal modal widths, every visible field in the six named dialogs uses the same approximate
   25% label / 75% control row as the Resource form.
 - ✅ Conditional Activity and privacy controls retain that row when they appear.
+- ✅ Helper text occupies a separate row beneath its control, without shifting the label away from the control.
 - ✅ Below the small-screen breakpoint, each label stacks above its full-width control.
 - ✅ Long labels wrap within the label area without shifting the control column or widening the page.
 - ✅ Required markers, invalid styling and `aria-describedby` error association remain intact.

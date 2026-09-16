@@ -24,7 +24,7 @@ function registerSuiteScenario2() {
     await openApp(page, "Wayne Enterprises", "/clients");
     await page.getByRole("button", { name: "Add client" }).click();
     await page.getByRole("textbox", { name: "Name", exact: true }).fill("Embargoed Client Ltd");
-    await page.getByRole("switch", { name: "Use a code name" }).click();
+    await page.getByRole("switch", { name: "Use code name" }).click();
     await page.getByRole("textbox", { name: "Code name", exact: true }).fill('""');
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("alert")).toContainText(/name is required/i);
@@ -36,7 +36,7 @@ function registerSuiteScenario2() {
     const row = page.getByTestId("client-row").filter({ hasText: "Embargoed Client Ltd" });
     await expect(row).toBeVisible(); // trusted-local/demo is owner-equivalent and sees the real name.
     await row.getByRole("button", { name: /^Edit / }).click();
-    await expect(page.getByRole("switch", { name: "Use a code name" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("switch", { name: "Use code name" })).toHaveAttribute("aria-checked", "true");
     await expect(page.getByRole("textbox", { name: "Code name", exact: true })).toHaveValue("Nightwing");
   });
 }

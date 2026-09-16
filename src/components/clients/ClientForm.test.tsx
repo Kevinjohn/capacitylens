@@ -16,7 +16,7 @@ it("defaults privacy off and requires a code name when the owner enables it", as
   const user = userEvent.setup();
   render(<ClientForm onClose={vi.fn()} />);
 
-  const privacy = screen.getByRole("switch", { name: "Use a code name" });
+  const privacy = screen.getByRole("switch", { name: "Use code name" });
   expect(privacy).toHaveAttribute("aria-checked", "false");
   expect(screen.queryByLabelText("Code name")).not.toBeInTheDocument();
 
@@ -26,7 +26,7 @@ it("defaults privacy off and requires a code name when the owner enables it", as
   await user.click(screen.getByRole("button", { name: "Save" }));
 
   const codeName = screen.getByLabelText("Code name");
-  const hint = screen.getByText("Quotation marks are added automatically.");
+  const hint = screen.getByText("Only account owners can see real names. Everyone else sees the code name.");
   const alert = screen.getByRole("alert");
   expect(codeName).toHaveAttribute("aria-invalid", "true");
   expect(codeName.getAttribute("aria-describedby")?.split(" ")).toEqual(expect.arrayContaining([hint.id, alert.id]));
@@ -39,7 +39,7 @@ it("stores the real name and an unquoted code name when privacy is enabled", asy
   render(<ClientForm onClose={onClose} />);
 
   await user.type(screen.getByLabelText("Name"), "Real Client Ltd");
-  await user.click(screen.getByRole("switch", { name: "Use a code name" }));
+  await user.click(screen.getByRole("switch", { name: "Use code name" }));
   await user.type(screen.getByLabelText("Code name"), " “Nightwing” ");
   await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -57,7 +57,7 @@ it("rejects a code name that becomes empty after display quotes are removed", as
   render(<ClientForm onClose={onClose} />);
 
   await user.type(screen.getByLabelText("Name"), "Embargoed Client");
-  await user.click(screen.getByRole("switch", { name: "Use a code name" }));
+  await user.click(screen.getByRole("switch", { name: "Use code name" }));
   await user.type(screen.getByLabelText("Code name"), '""');
   await user.click(screen.getByRole("button", { name: "Save" }));
 
@@ -199,7 +199,7 @@ it("hides owner-only privacy controls and locks the redacted name for a non-owne
     </PermissionContext.Provider>,
   );
 
-  expect(screen.queryByRole("switch", { name: "Use a code name" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("switch", { name: "Use code name" })).not.toBeInTheDocument();
   expect(screen.getByLabelText("Name")).toBeDisabled();
   expect(screen.getByText("Only an account owner can change this private name.")).toBeInTheDocument();
 });

@@ -21,9 +21,9 @@ both identities and make the safe one unmistakable.
 **Precondition:** Open the seeded demo at **Clients** (`/clients`). The trusted local/demo role is
 owner-equivalent. For a real role check, use an auth-enabled server and sign in as the account owner.
 
-1. Click **Add client** and confirm **Use a code name** is off and no **Code name** field is shown.
-2. Enter **Name** = `Embargoed Client Ltd`, enable **Use a code name**, and read the owner-only
-   explanation and `Quotation marks are added automatically.` hint.
+1. Click **Add client** and confirm **Use code name** is off and no **Code name** field is shown.
+2. Enter **Name** = `Embargoed Client Ltd`, enable **Use code name**, and read
+   `Only account owners can see real names. Everyone else sees the code name.` below the **Code name** input.
 3. Enter `""` as **Code name** and click **Save**. Confirm the dialog remains open with a field error.
 4. Enter `“Nightwing”` and save again.
 5. Confirm the owner-facing list still reads **Embargoed Client Ltd**, then edit that row.
@@ -34,8 +34,9 @@ owner-equivalent. For a real role check, use an auth-enabled server and sign in 
 
 - ✅ **CLI-PRIV-01 — Public default.** New clients are public by default: `isPrivate` and `codeName` are absent until an owner enables
   the switch.
-- ✅ **CLI-PRIV-02 — Owner control.** Only an account owner (plus trusted local/auth-off owner-equivalent mode) is offered **Use a
-  code name**. Enabling it reveals a required **Code name** field with placeholder `e.g. Nightwing`.
+- ✅ **CLI-PRIV-02 — Owner control.** Only an account owner (plus trusted local/auth-off owner-equivalent mode) is offered **Use code
+  name**. Enabling it reveals a required **Code name** field with placeholder `e.g. Nightwing` and an owner-visibility explanation
+  on a separate row beneath the input.
 - ✅ **CLI-PRIV-03 — Required safe identity.** A missing, whitespace-only or quote-only code name is rejected, keeps the dialog open and marks
   **Code name** `aria-invalid`; the client is not created or partially saved.
 - ✅ **CLI-PRIV-04 — Normalised storage.** Straight/curly outer quotation marks and surrounding whitespace are removed before storage.

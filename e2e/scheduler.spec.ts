@@ -1,6 +1,7 @@
-import { test, expect, type Page } from "./fixtures";
+import { test, expect, type Locator, type Page } from "./fixtures";
 import {
   boundingBoxOrThrow as box,
+  dismissLandscapeHint,
   goToSeedWeek,
   openApp,
   probeSchedulerGeometry as probe,
@@ -382,6 +383,17 @@ function registerSuiteScenario9() {
   });
 }
 
+async function expectPopoverToTrackAnchor(page: Page, anchor: Locator, popover: Locator) {
+  const anchorBox = await box(anchor);
+  const popoverBox = await box(popover);
+  const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  const centredLeft = anchorBox.x + anchorBox.width / 2 - popoverBox.width / 2;
+  const expectedLeft = Math.min(Math.max(centredLeft, 0), viewportWidth - popoverBox.width);
+  expect(Math.abs(popoverBox.x - expectedLeft)).toBeLessThanOrEqual(2);
+  expect(popoverBox.x).toBeGreaterThanOrEqual(-1);
+  expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(viewportWidth + 1);
+}
+
 function registerSuiteScenario10() {
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
     await openApp(page);
@@ -423,23 +435,32 @@ function registerSuiteScenario10() {
 
     const popover = page.getByTestId("allocation-popover");
     await expect(popover).toBeVisible();
+    await expectPopoverToTrackAnchor(page, bar.getByTestId("allocation-popover-anchor"), popover);
   });
 
   test("anchors allocation details to the visible part of a right-clipped bar (US-SCH-15)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
     await goToSeedWeek(page);
+    await dismissLandscapeHint(page);
     await page.setViewportSize({ width: 320, height: 720 });
 
     const grid = page.getByTestId("scheduler-grid");
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
     const barBox = await box(bar);
     const gridBox = await box(grid);
+    const visibleLeft = barBox.x;
     const visibleRight = gridBox.x + gridBox.width;
     expect(barBox.x + barBox.width).toBeGreaterThan(visibleRight);
 
     const anchorBox = await box(bar.getByTestId("allocation-popover-anchor"));
-    expect(Math.abs(anchorBox.x + anchorBox.width / 2 - (barBox.x + visibleRight) / 2)).toBeLessThanOrEqual(2);
+    expect(Math.abs(anchorBox.x + anchorBox.width / 2 - (visibleLeft + visibleRight) / 2)).toBeLessThanOrEqual(2);
+
+    await page.mouse.move((visibleLeft + visibleRight) / 2, barBox.y + barBox.height / 2);
+
+    const popover = page.getByTestId("allocation-popover");
+    await expect(popover).toBeVisible();
+    await expectPopoverToTrackAnchor(page, bar.getByTestId("allocation-popover-anchor"), popover);
   });
 }
 
@@ -653,6 +674,11 @@ function registerSuiteScenario17() {
     await page.getByTestId("scheduler-grid").evaluate(
       (element, delta) => {
         element.scrollLeft += delta;
+        // Assigning scrollLeft moves the element's layout immediately but queues the scroll event,
+        // and the label's inset is published from that handler. A real scroll publishes it in the
+        // same frame it paints; a direct assignment can be measured in between, with the bar in its
+        // new position and the inset still on the old one. Dispatch it so the read is not a race.
+        element.dispatchEvent(new Event("scroll"));
       },
       Math.round(before.x - timelineLeft + before.width / 2),
     );
