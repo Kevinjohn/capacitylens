@@ -22,11 +22,11 @@ Select Save. They now have a row on Schedule; they do not need a sign-in.
 
 ## Connect their sign-in
 
-![Team & access: Link to Resource dialog with a person selected](../screenshots/flows/admin_add_people_2.png)
+![Team & access: Link to Resource dialog for a member without a linked person](../screenshots/flows/admin_add_people_2.png)
 
 If they also need access, [invite them](/admin/invite-teammates).
 
-In Team & access, use Link to Resource beside the member to select their scheduled person. Linking does not change their permissions.
+In Team & access, select the link icon beside the member to open **Link to Resource**, then choose their scheduled person. Linking does not change their permissions.
 
 ## Plan an unfilled role
 

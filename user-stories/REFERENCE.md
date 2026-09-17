@@ -1016,7 +1016,8 @@ section below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
 Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Link to
-Resource** controls to see **Linked to [person]** or **No Resource linked**, then link, change,
+Resource** column to see **Linked to [person]** or **None**, then use the row's separate link icon to
+link, change,
 or remove one active person per member. This association changes neither
 permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
 validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
@@ -1090,6 +1091,9 @@ The management section has four parts:
   first. Ending restores the real member's projection before writes resume and returns to `/`.
   Disabled, archived and self rows never offer the eye button; auth-off/demo mode never exposes it.
   The server enforces the read-only boundary even if a stale client attempts a write.
+  Each manageable active row also has a pencil for role editing, a link icon
+  (`data-testid="member-resource-menu"`) that opens a centered Resource-link dialog for Link, Change
+  and Remove, and a gear (`data-testid="member-menu"`) for the separate Member actions dialog.
   The
   owner-only **Record member sign-ins** switch (`data-testid="member-sign-in-tracking"`) is off by
   default. While it is on, the table adds **Signed in** (`data-testid="member-sign-in-confirmed"`),

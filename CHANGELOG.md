@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Align Team & access member actions as distinct masquerade, role-edit, Resource-link and settings
+  controls, and show **None** for members without a linked Resource (#1132).
 - Use Google's recognizable mark and exact **Sign in with Google** action copy across configured
   Google social sign-in, invitation and reauthentication buttons, including their disabled states (#1124).
 - Keep successful Google and other external sign-in handoffs in a neutral, accessible redirecting

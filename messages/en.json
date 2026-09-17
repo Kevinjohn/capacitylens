@@ -266,7 +266,7 @@
   "settings_member_resource_inactive": "{name} (inactive — unlink only)",
   "settings_member_resource_error": "The Resource link could not be changed. Reload and try again.",
   "settings_member_resource_linked": "Linked to Resource: {name}",
-  "settings_member_resource_not_linked": "No Resource linked",
+  "settings_member_resource_not_linked": "None",
   "settings_member_resource_default_person": "Resource",
   "settings_member_resource_choose_aria": "Choose Resource for {member}",
   "settings_member_resource_link": "Link",

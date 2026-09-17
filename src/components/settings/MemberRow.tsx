@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from "react";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { m } from "@/i18n";
 import {
   can,
@@ -14,7 +14,7 @@ import { Button } from "../ui/button";
 import { Eye, Pencil } from "lucide-react";
 import type { MemberRoleEdit } from "./MemberConfirmations";
 import { resolveMemberLabel, type MemberConfirmationAction } from "./memberConfirmationCopy";
-import { MemberResourceLink } from "./MemberResourceLink";
+import { MemberResourceDialog, MemberResourceLink } from "./MemberResourceLink";
 import { MemberActionsDialog } from "./MemberActionsDialog";
 
 /**
@@ -107,7 +107,7 @@ function MemberIdentity({ member }: { member: TeamMember }) {
   if (member.status === "archived") statusLabel = m.settings_member_status_archived();
 
   return (
-    <td className="py-2 pr-3">
+    <td className="py-2 px-4">
       <div className="flex flex-col items-start gap-1">
         <span className="text-ink">
           {name}
@@ -136,40 +136,45 @@ function MemberPrimaryActions({
   busy,
   chooseMemberAction,
   setRoleEdit,
+  resourceLink,
 }: MemberRowActions & {
   member: TeamMember;
   memberLabel: string;
   mayMasquerade: boolean;
   mayTouch: boolean;
+  resourceLink: ReactNode;
 }) {
   return (
-    <td className="w-10 py-2 pl-8 text-right">
-      {mayMasquerade && (
-        <Button
-          size="sm"
-          variant="ghost"
-          title={m.settings_masquerade_aria({ member: memberLabel })}
-          aria-label={m.settings_masquerade_aria({ member: memberLabel })}
-          data-testid="member-masquerade"
-          disabled={busy}
-          onClick={() => chooseMemberAction("masquerade", member)}
-        >
-          <Eye />
-        </Button>
-      )}
-      {mayTouch && (
-        <Button
-          size="sm"
-          variant="ghost"
-          title={m.settings_member_edit_aria({ member: memberLabel })}
-          aria-label={m.settings_member_edit_aria({ member: memberLabel })}
-          data-testid="member-edit"
-          disabled={busy}
-          onClick={() => setRoleEdit({ member: member, nextRole: member.role })}
-        >
-          <Pencil />
-        </Button>
-      )}
+    <td className="w-auto py-2 px-4 text-right whitespace-nowrap">
+      <div className="flex justify-end gap-1">
+        {mayMasquerade && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title={m.settings_masquerade_aria({ member: memberLabel })}
+            aria-label={m.settings_masquerade_aria({ member: memberLabel })}
+            data-testid="member-masquerade"
+            disabled={busy}
+            onClick={() => chooseMemberAction("masquerade", member)}
+          >
+            <Eye />
+          </Button>
+        )}
+        {mayTouch && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            title={m.settings_member_edit_aria({ member: memberLabel })}
+            aria-label={m.settings_member_edit_aria({ member: memberLabel })}
+            data-testid="member-edit"
+            disabled={busy}
+            onClick={() => setRoleEdit({ member: member, nextRole: member.role })}
+          >
+            <Pencil />
+          </Button>
+        )}
+        {resourceLink}
+      </div>
     </td>
   );
 }
@@ -296,7 +301,7 @@ export function MemberRow({
       data-testid="member-row"
     >
       <MemberIdentity member={member} />
-      <td className="py-2 pr-3 text-muted-foreground" data-testid="member-email">
+      <td className="py-2 px-4 text-muted-foreground" data-testid="member-email">
         {member.email ?? m.settings_member_email_missing()}
       </td>
       <MemberResourceLink
@@ -308,7 +313,7 @@ export function MemberRow({
         reload={reload}
       />
       {signInTrackingEnabled && (
-        <td className="py-2 pr-3 text-muted-foreground" data-testid="member-sign-in-confirmed">
+        <td className="py-2 px-4 text-muted-foreground" data-testid="member-sign-in-confirmed">
           {member.signInConfirmed ? m.settings_member_sign_in_confirmed() : m.settings_member_sign_in_not_confirmed()}
         </td>
       )}
@@ -320,15 +325,22 @@ export function MemberRow({
         busy={busy}
         chooseMemberAction={chooseMemberAction}
         setRoleEdit={setRoleEdit}
+        resourceLink={
+          <MemberResourceDialog
+            member={member}
+            myRole={myRole}
+            linkedResourceIds={linkedResourceIds}
+            resourceCandidates={resourceCandidates}
+            workspaceId={workspaceId}
+            reload={reload}
+            busy={busy}
+          />
+        }
       />
       <MemberActionsDialog
         member={member}
         memberLabel={memberLabel}
         hasExistingActions={affordances.hasMenu}
-        hasResourceActions={
-          (myRole === "owner" || myRole === "admin") &&
-          (resourceCandidates.length > 0 || member.resourceLink !== null || member.resourceLinkException !== null)
-        }
         busy={busy}
         open={openMenuFor === member.userId}
         onOpenChange={(open) => setOpenMenuFor(open ? member.userId : null)}
@@ -344,15 +356,6 @@ export function MemberRow({
             }}
           />
         )}
-        <MemberResourceLink
-          member={member}
-          myRole={myRole}
-          linkedResourceIds={linkedResourceIds}
-          resourceCandidates={resourceCandidates}
-          workspaceId={workspaceId}
-          reload={reload}
-          dialog
-        />
         <MemberSettingsMenuItems
           member={member}
           memberLabel={memberLabel}
