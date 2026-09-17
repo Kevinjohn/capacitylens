@@ -1052,6 +1052,7 @@
   "login_password": "Password",
   "login_failed": "Sign-in failed.",
   "login_network_error": "Could not reach the server. Check your connection and try again.",
+  "login_external_redirecting": "Redirecting to {provider}…",
   "login_sso_failed": "Single sign-on was not completed. Try again or contact your administrator.",
   "login_sso_verification_failed": "Your identity provider returned information that could not be verified. Ask your administrator to check the OIDC issuer, claims, and verified-email configuration.",
   "login_sso_account_link_conflict": "This identity-provider account is already connected to a different person. Ask an administrator to repair the existing link.",
