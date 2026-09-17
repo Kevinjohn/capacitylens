@@ -6,6 +6,7 @@ import { resolveAccountConfigKey } from "../accountConfig";
 import { createStrictOidcClient, isLoopbackHostname, StrictOidcVerificationError } from "../strictOidc";
 import type { AuthConfigError, AuthProviderInfo } from "../auth";
 import { adaptStrictOidcProfileForBetterAuth, persistLinkedExternalAvatar } from "./betterAuthProfileCompatibility";
+import { warnOnBrandIssuerMismatch, type WarnFn } from "./brandIssuerWarning";
 import { parseSocialProvidersFromEnvironment } from "./socialProviders";
 import type { AuthProviderBrand } from "./authTypes";
 
@@ -91,11 +92,13 @@ function buildExternalProviderInfo({
   genericProviderId,
   defaultProviderLabel,
   ErrorType,
+  warn,
 }: {
   environment: Env;
   genericProviderId: string | null;
   defaultProviderLabel: string;
   ErrorType: AuthConfigErrorConstructor;
+  warn: WarnFn;
 }): AuthProviderInfo[] {
   const providers: AuthProviderInfo[] = [];
   const addSocialProvider = (id: string, label: string, brand: AuthProviderBrand): void => {
@@ -112,6 +115,7 @@ function buildExternalProviderInfo({
   }
   if (genericProviderId) {
     const configuredBrand = parseProviderBrand(environment.CAPACITYLENS_SSO_BRAND, ErrorType);
+    warnOnBrandIssuerMismatch(configuredBrand, environment.CAPACITYLENS_SSO_ISSUER, warn);
     providers.push({
       id: genericProviderId,
       label: resolveNonEmptyValue(environment.CAPACITYLENS_SSO_LABEL?.trim(), defaultProviderLabel),
@@ -338,6 +342,7 @@ export function buildProviders({
   db,
   prepared,
   AuthConfigError,
+  warn = console.warn,
 }: {
   env: Env;
   defaultProviderLabel: string;
@@ -345,6 +350,8 @@ export function buildProviders({
   prepared: ReturnType<typeof prepareProviders>;
   AuthConfigError: AuthConfigErrorConstructor;
   db: Db;
+  /** Startup configuration warnings; the server's console by default. */
+  warn?: WarnFn;
 }) {
   // Resolve every remaining provider configuration before the first explicit database DDL below.
   // An invalid provider/URL must not leave a bootstrap-control table behind on an otherwise
@@ -355,6 +362,7 @@ export function buildProviders({
     genericProviderId: prepared.genericProviderId,
     defaultProviderLabel,
     ErrorType: AuthConfigError,
+    warn,
   });
   // Experimental social providers still receive a stable issuer namespace so identity
   // correlation is always (issuer, subject), never email or a mutable display label. Generic
