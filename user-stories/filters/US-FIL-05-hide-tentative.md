@@ -4,7 +4,7 @@
 
 ## Goal
 
-Hide tentative allocations with the **Hide tentative** toggle, while capacity cues still count them.
+Hide tentative allocations by turning the **Tentative** pill off, while capacity cues still count them.
 
 ## Why
 
@@ -14,11 +14,11 @@ When presenting a confirmed plan, the manager wants to drop the speculative book
 
 **Precondition:** Seeded app open at **Schedule** (`/`); set **Weeks visible** to **4 weeks**, click **Today**, then click **Show filters** so the seed bars and filter row are in view. At least one allocation has **Status** = _Tentative_ (set one via US-ALL-02 if needed; tentative bars render with a dashed/hatched style).
 
-1. Tick the **Hide tentative** checkbox.
+1. Turn the **Tentative** pill off.
 
 ## Acceptance criteria
 
-- ✅ Ticking **Hide tentative** removes every `data-status="tentative"` bar from view; confirmed and completed bars remain.
+- ✅ Turning **Tentative** off removes every `data-status="tentative"` bar from view; confirmed and completed bars remain.
 - ✅ Capacity stays truthful: **over-markers** (`over-marker`) and per-resource **utilisation %** (`utilization`) still account for the hidden tentative work.
-- ✅ Un-ticking the checkbox brings the tentative bars back.
-- ✅ While **Hide tentative** is on, the **Clear Filters** button is enabled.
+- ✅ Turning the pill back on brings the tentative bars back.
+- ✅ While **Tentative** is off, the **Clear Filters** button is enabled.

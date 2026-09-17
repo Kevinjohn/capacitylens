@@ -87,8 +87,13 @@ function registerSuiteScenario6() {
     await showScheduleFilters(page);
     await expect(page.getByTestId("allocation-bar")).toHaveCount(6);
     const before = await page.getByTestId("allocation-bar").count();
-    const tentativeVisibility = page.getByRole("radiogroup", { name: "Tentative visibility" });
-    await tentativeVisibility.getByRole("radio", { name: "Hide tentative" }).click();
+    // Scoped to the filter row: allocation bars are buttons whose accessible name says "Tentative".
+    const tentative = page
+      .getByTestId("scheduler-filter-controls")
+      .getByRole("button", { name: "Tentative", exact: true });
+    await expect(tentative).toHaveAttribute("aria-pressed", "true");
+    await tentative.click();
+    await expect(tentative).toHaveAttribute("aria-pressed", "false");
     await expect(page.getByTestId("allocation-bar")).toHaveCount(before - 1); // Bruce's tentative bar
     // Capacity is still truthful: Bruce's 3-4 June over-marker remains.
     await expect(page.getByTestId("over-marker").first()).toBeVisible();

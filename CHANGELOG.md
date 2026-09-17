@@ -20,6 +20,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Carry the Overview's control treatment into Schedule and Settings: segmented choices sit on a
+  recessed track with only the selected option lifted, and the Schedule's **Show tentative** /
+  **Hide tentative** pair becomes a single **Tentative** pill that is on by default (#1128).
 - Redesign the Overview page as a single capacity ledger: each week cell shows free days out of
   capacity with a colour-graded bar and a grey tentative hatch, an optional **Totals** header row
   reports each week's committed percentage and free days, a **Load curve** display shows shape only,

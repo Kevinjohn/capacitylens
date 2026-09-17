@@ -17,7 +17,7 @@ After narrowing the view several ways, getting back to the full schedule one con
 1. Type `Clark` in **Search people…**.
 2. Choose a **Filter by discipline** (e.g. _Development_).
 3. Choose a **Filter by client** and a **Filter by project**.
-4. Tick **Hide tentative**.
+4. Turn the **Tentative** pill off.
 5. Click **Clear Filters**.
 
 ## Acceptance criteria
@@ -25,5 +25,5 @@ After narrowing the view several ways, getting back to the full schedule one con
 - ✅ **Clear Filters** remains at the far right whenever the filter toolbar is open.
 - ✅ With no active filter it is visually quiet, has no bin icon and is disabled.
 - ✅ With any active filter it uses the red soft-danger style, shows a decorative bin icon and is enabled.
-- ✅ Clicking **Clear Filters** empties the **Search people…** box, returns every filter select to its "All …" option, and unticks **Hide tentative** and **Show unallocated**.
+- ✅ Clicking **Clear Filters** empties the **Search people…** box, returns every filter select to its "All …" option, and turns **Tentative** back on and unticks **Show unallocated**.
 - ✅ After clearing, the full schedule returns — all resource rows, all groups and all bars are visible again.

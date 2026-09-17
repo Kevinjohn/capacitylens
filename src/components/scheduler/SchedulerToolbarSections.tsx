@@ -3,7 +3,7 @@ import { m } from "@/i18n";
 import type { StoreState } from "../../store/useStore";
 import { hasLensFilter } from "../../store/useStore";
 import { buildRedoShortcut, buildUndoShortcut } from "../../lib/keyboardShortcuts";
-import { SegmentedControl } from "../common/ui";
+import { SegmentedControl, TogglePill } from "../common/ui";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Field, FieldLabel } from "../ui/field";
@@ -147,19 +147,16 @@ function EntityFilters(props: FiltersProps) {
 function ViewFilters(props: FiltersProps) {
   return (
     <>
-      <SegmentedControl
-        ariaLabel={m.scheduler_tentative_visibility_aria()}
-        geometry="gapped"
-        size="sm"
-        value={props.filters.hideTentative ? "hide" : "show"}
-        onChange={(visibility) => props.setToolbarFilters({ hideTentative: visibility === "hide" })}
-        options={[
-          { value: "show", label: m.scheduler_show_tentative() },
-          { value: "hide", label: m.scheduler_hide_tentative() },
-        ]}
-      />
+      {/* Pressed means tentative work is shown, so the stored filter is its inverse. */}
+      <TogglePill
+        pressed={!props.filters.hideTentative}
+        onPressedChange={(pressed) => props.setToolbarFilters({ hideTentative: !pressed })}
+      >
+        {m.scheduler_tentative()}
+      </TogglePill>
       {props.canEdit && (
         <SegmentedControl
+          variant="recessed"
           ariaLabel={m.scheduler_draw_mode_aria()}
           geometry="gapped"
           size="sm"
