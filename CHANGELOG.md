@@ -11,6 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Use Google's recognizable mark and exact **Sign in with Google** action copy across configured
   Google social sign-in, invitation and reauthentication buttons, including their disabled states (#1124).
+- Keep successful Google and other external sign-in handoffs in a neutral, accessible redirecting
+  state instead of showing a false failure (#1123).
 - Align labels with their controls in the Client and Project modals, and place the clearer code-name
   privacy explanation beneath the conditional input (#1120).
 - Keep profile-picture ownership with each person's Account by removing Avatar URL from the resource

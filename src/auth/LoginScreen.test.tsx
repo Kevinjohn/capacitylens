@@ -76,7 +76,7 @@ async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, ex
   await waitFor(() => expect(window.location.search).toBe(""));
 }
 
-async function suppliesMarkedFailureReturnToNamedSocialProvider() {
+async function keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider() {
   signInSocial.mockResolvedValue({ data: {}, error: null });
   window.history.replaceState({}, "", "/invite/token?source=mail");
   render(
@@ -96,10 +96,9 @@ async function suppliesMarkedFailureReturnToNamedSocialProvider() {
       errorCallbackURL: "http://localhost:3000/invite/token?source=mail&externalSignInError=1",
     }),
   );
-  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Single sign-on was not completed. Try again or contact your administrator.",
-  );
+  expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeDisabled();
 }
 
 describe("LoginScreen — external callback failures", () => {
@@ -118,7 +117,10 @@ describe("LoginScreen — external callback failures", () => {
     mapsApplicationOwnedCallbackCodeToActionableCopy,
   );
 
-  it("supplies a marked failure return to a named social provider", suppliesMarkedFailureReturnToNamedSocialProvider);
+  it(
+    "keeps the provider redirect pending after dispatching a named social provider",
+    keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider,
+  );
 });
 
 async function enterTotpChallenge(onSignedIn = vi.fn()) {
@@ -593,6 +595,48 @@ describe("LoginScreen — provider failures", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(expected);
     expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
+  });
+
+  it.each(["password", "sso"] as const)(
+    "announces a successful provider redirect instead of showing a failure in %s mode",
+    async (authMode) => {
+      let resolveProvider!: (value: { data: Record<string, never>; error: null }) => void;
+      const providerResponse = new Promise<{ data: Record<string, never>; error: null }>((resolve) => {
+        resolveProvider = resolve;
+      });
+      signInSocial.mockReturnValue(providerResponse);
+      render(<LoginScreen authMode={authMode} providers={[provider]} onSignedIn={vi.fn()} />);
+
+      const button = screen.getByRole("button", { name: "Sign in with Google" });
+      fireEvent.click(button);
+
+      expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(button).toBeDisabled();
+
+      resolveProvider({ data: {}, error: null });
+      await providerResponse;
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(button).toBeDisabled();
+      });
+    },
+  );
+
+  it("clears a prior provider error before announcing the redirect", async () => {
+    signInSocial.mockResolvedValueOnce({ data: null, error: { message: "Provider refused the request." } });
+    signInSocial.mockResolvedValueOnce({ data: {}, error: null });
+    render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
+
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
+    fireEvent.click(button);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Provider refused the request.");
+    expect(button).toBeEnabled();
+
+    fireEvent.click(button);
+    expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("surfaces a network error and clears busy when provider sign-in throws", async () => {

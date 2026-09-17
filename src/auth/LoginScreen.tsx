@@ -55,6 +55,7 @@ export function LoginScreen({
       : null,
   );
   const [busy, setBusy] = useState(false);
+  const [pendingProvider, setPendingProvider] = useState<AuthProviderInfo | null>(null);
   const secondFactor = useSecondFactor({ setError, setBusy, onSignedIn });
   const passwordSignIn = usePasswordSignIn({
     setError,
@@ -87,13 +88,14 @@ export function LoginScreen({
       degraded={degraded}
       hadUnsavedChanges={hadUnsavedChanges}
       busy={busy}
+      pendingProvider={pendingProvider}
       error={error}
       setError={setError}
       ids={ids}
       secondFactor={secondFactor}
       passwordSignIn={passwordSignIn}
       ownerSetup={ownerSetup}
-      signInWithProvider={createProviderSignIn(setBusy, setError)}
+      signInWithProvider={createProviderSignIn(setBusy, setError, setPendingProvider)}
     />
   );
 }
@@ -101,19 +103,25 @@ export function LoginScreen({
 function createProviderSignIn(
   setBusy: Dispatch<SetStateAction<boolean>>,
   setError: Dispatch<SetStateAction<string | null>>,
+  setPendingProvider: Dispatch<SetStateAction<AuthProviderInfo | null>>,
 ) {
   return async (provider: AuthProviderInfo) => {
     setBusy(true);
     setError(null);
+    setPendingProvider(provider);
     try {
       const result = await dispatchExternalProviderSignIn(provider);
-      if (result.error) setError(result.error.message ?? m.login_failed());
-      else setError(m.login_sso_failed());
+      if (result.error) {
+        setPendingProvider(null);
+        setError(result.error.message ?? m.login_failed());
+        setBusy(false);
+      }
     } catch (error) {
       console.error("LoginScreen: SSO sign-in request failed", error);
+      setPendingProvider(null);
       setError(m.login_network_error());
+      setBusy(false);
     }
-    setBusy(false);
   };
 }
 
@@ -124,6 +132,7 @@ type LoginViewProps = {
   degraded: boolean;
   hadUnsavedChanges: boolean;
   busy: boolean;
+  pendingProvider: AuthProviderInfo | null;
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
   ids: {
@@ -166,6 +175,7 @@ function LoginView(props: LoginViewProps) {
               setup={setup}
               providers={props.providers}
               busy={props.busy}
+              pendingProvider={props.pendingProvider}
               error={props.error}
               twoFactorPending={props.secondFactor.twoFactorPending}
               signInWithProvider={props.signInWithProvider}
@@ -208,7 +218,10 @@ function LoginNotices({ degraded, hadUnsavedChanges }: { degraded: boolean; hadU
   );
 }
 
-type ProviderButtonsProps = Pick<LoginViewProps, "authMode" | "providers" | "busy" | "error" | "signInWithProvider"> & {
+type ProviderButtonsProps = Pick<
+  LoginViewProps,
+  "authMode" | "providers" | "busy" | "pendingProvider" | "error" | "signInWithProvider"
+> & {
   setup: boolean;
   twoFactorPending: boolean;
 };
@@ -218,6 +231,7 @@ function ProviderButtons({
   setup,
   providers,
   busy,
+  pendingProvider,
   error,
   twoFactorPending,
   signInWithProvider,
@@ -235,6 +249,11 @@ function ProviderButtons({
         <p className="text-xs text-muted-foreground">{m.login_external_experimental()}</p>
       )}
       <FieldError>{authMode === "sso" ? error : null}</FieldError>
+      {pendingProvider && (
+        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+          {m.login_external_redirecting({ provider: pendingProvider.label })}
+        </p>
+      )}
       {providers.map((provider) => (
         <ExternalProviderButton
           size="sm"

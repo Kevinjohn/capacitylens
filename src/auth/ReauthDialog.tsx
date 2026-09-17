@@ -34,6 +34,8 @@ interface ReauthState {
   setCode: Dispatch<SetStateAction<string>>;
   useRecoveryCode: boolean;
   setUseRecoveryCode: Dispatch<SetStateAction<boolean>>;
+  pendingProvider: AuthProviderInfo | null;
+  setPendingProvider: Dispatch<SetStateAction<AuthProviderInfo | null>>;
   errorId: string;
 }
 
@@ -44,6 +46,7 @@ function useReauthState(): ReauthState {
   const [twoFactorPending, setTwoFactorPending] = useState(false);
   const [code, setCode] = useState("");
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const [pendingProvider, setPendingProvider] = useState<AuthProviderInfo | null>(null);
   return {
     password,
     setPassword,
@@ -57,6 +60,8 @@ function useReauthState(): ReauthState {
     setCode,
     useRecoveryCode,
     setUseRecoveryCode,
+    pendingProvider,
+    setPendingProvider,
     errorId: useId(),
   };
 }
@@ -120,12 +125,21 @@ async function reauthWithProvider(provider: AuthProviderInfo, state: ReauthState
   if (state.busy) return;
   state.setBusy(true);
   state.setError(null);
+  state.setPendingProvider(provider);
   try {
     const result = await dispatchExternalProviderSignIn(provider);
-    state.setError(result.error?.message ?? m.reauth_failed());
-    state.setBusy(false);
+    // A settled call WITHOUT an error means the provider accepted the hand-off and the browser is
+    // navigating away: the dialog stays busy and announces the redirect rather than reporting a
+    // failure it cannot know about. Only a returned error is a real failure, and only that path
+    // becomes retryable. Same contract as LoginScreen's provider sign-in.
+    if (result.error) {
+      state.setPendingProvider(null);
+      state.setError(result.error.message ?? m.reauth_failed());
+      state.setBusy(false);
+    }
   } catch (error) {
     console.error("ReauthDialog: SSO re-auth request failed", error);
+    state.setPendingProvider(null);
     state.setError(m.login_network_error());
     state.setBusy(false);
   }
@@ -178,6 +192,11 @@ function ProviderDialog({
     >
       <p className="text-sm text-muted-foreground">{m.reauth_body_sso()}</p>
       <FieldError>{state.error ?? (providers.length === 0 ? m.login_sso_unavailable() : null)}</FieldError>
+      {state.pendingProvider && (
+        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+          {m.login_external_redirecting({ provider: state.pendingProvider.label })}
+        </p>
+      )}
       {providers.length > 0 ? (
         <div className="flex flex-col gap-2">
           {providers.map((provider) => (
