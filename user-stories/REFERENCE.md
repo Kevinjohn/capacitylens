@@ -874,7 +874,9 @@ server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `CAPACIT
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
 and a `Sign in` button in password mode; a `Continue with SSO` button in sso mode; failures
-show an inline alert). If a mid-session 401 arrives while server writes are still unsaved, the
+show an inline alert. Starting an external sign-in clears an earlier provider error, announces
+**Redirecting to _provider_…** as a neutral status, and keeps the provider controls disabled while
+the browser hands off to the provider). If a mid-session 401 arrives while server writes are still unsaved, the
 sign-in wall also warns **Some changes could not be saved before your session expired. They will
 not be restored after you sign in again.** On a fresh server-mode boot, company persistence starts
 only after `/api/auth/me` has admitted the session: a signed-out visitor or an identity awaiting
@@ -890,6 +892,17 @@ sessions. With auth off (the default everywhere) or in
 local mode, no login screen exists, Account explains that sign-in is off, and local mode makes **no**
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
+
+**External provider action labels (login, invitation acceptance and reauthentication).** The
+configured Google social provider uses the exact branded action **Sign in with Google** and the
+recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
+reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
+providers retain **Continue with _provider_** and their caller-supplied accessible label.
+On a password-mode installation with Google configured, the sign-in wall puts that Google action
+first, followed by an explicit **or use your password** separator and the password form. SSO-only
+still omits password controls; password-only installations and installations without Google keep
+their existing order. If several providers are configured, the remaining provider actions stay
+available below the password fallback.
 
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
 character even though browser `maxlength` uses two UTF-16 code units. Email admission applies the
@@ -921,6 +934,8 @@ to the same page. The provider must assert `email_verified: true`, its email mus
 sign-in email, and its immutable subject must not belong to another principal. A successful callback
 shows **Connected to _provider_**. Raw provider link/unlink routes are unavailable. A federated
 session in mixed mode uses that same provider—not a password it may not have—for **Confirm it's you**.
+That provider hand-off announces **Redirecting to _provider_…** and keeps the dialog busy while the browser
+leaves, on the same contract as the sign-in screen; only a returned provider error is reported and retryable.
 
 **First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
@@ -943,8 +958,9 @@ production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2
 so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
 On a mixed password/OIDC deployment, every configured external provider remains available below
-the setup form as **Continue with _provider_**. A verified email on the OIDC bootstrap allow-list may
-therefore create the first owner directly; the operator does not need a temporary password identity.
+the setup form. Google uses the branded **Sign in with Google** action; other providers use
+**Continue with _provider_**. A verified email on the OIDC bootstrap allow-list may therefore
+create the first owner directly; the operator does not need a temporary password identity.
 
 **Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
 carries a pre-set Admin, Editor or Viewer role for one company; Owner is never invitational.
@@ -1000,7 +1016,8 @@ section below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
 Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Link to
-Resource** controls to see **Linked to [person]** or **No Resource linked**, then link, change,
+Resource** column to see **Linked to [person]** or **None**, then use the row's separate link icon to
+link, change,
 or remove one active person per member. This association changes neither
 permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
 validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
@@ -1074,6 +1091,9 @@ The management section has four parts:
   first. Ending restores the real member's projection before writes resume and returns to `/`.
   Disabled, archived and self rows never offer the eye button; auth-off/demo mode never exposes it.
   The server enforces the read-only boundary even if a stale client attempts a write.
+  Each manageable active row also has a pencil for role editing, a link icon
+  (`data-testid="member-resource-menu"`) that opens a centered Resource-link dialog for Link, Change
+  and Remove, and a gear (`data-testid="member-menu"`) for the separate Member actions dialog.
   The
   owner-only **Record member sign-ins** switch (`data-testid="member-sign-in-tracking"`) is off by
   default. While it is on, the table adds **Signed in** (`data-testid="member-sign-in-confirmed"`),

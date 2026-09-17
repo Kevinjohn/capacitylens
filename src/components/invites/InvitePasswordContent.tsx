@@ -6,6 +6,7 @@ import { m } from "@/i18n";
 import { TextField } from "../common/ui";
 import { Button } from "../ui/button";
 import { FieldError } from "../ui/field";
+import { ExternalProviderButton } from "../common/ExternalProviderButton";
 
 interface InvitePasswordContentProps {
   providers: readonly AuthProviderInfo[];
@@ -220,16 +221,17 @@ export function InviteProviderButtons({
   return (
     <div className="flex flex-col gap-2">
       {providers.map((provider) => (
-        <Button
+        <ExternalProviderButton
           size="sm"
           key={provider.id}
           type="button"
           className="w-full"
+          provider={provider}
+          label={m.invite_continue_provider({ provider: provider.label })}
+          googleLabel={m.login_sign_in_with_google()}
           disabled={busy}
           onClick={() => onSelect(provider)}
-        >
-          {m.invite_continue_provider({ provider: provider.label })}
-        </Button>
+        />
       ))}
     </div>
   );

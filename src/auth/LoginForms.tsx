@@ -23,6 +23,7 @@ type LoginIds = {
 type LoginFormProps = {
   authMode: "password" | "sso";
   setup: boolean;
+  passwordAutoFocus: boolean;
   busy: boolean;
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
@@ -75,7 +76,15 @@ export function LoginForm(props: LoginFormProps) {
     );
   }
   if (props.authMode === "password") {
-    return <PasswordForm busy={props.busy} error={props.error} ids={props.ids} passwordSignIn={props.passwordSignIn} />;
+    return (
+      <PasswordForm
+        autoFocus={props.passwordAutoFocus}
+        busy={props.busy}
+        error={props.error}
+        ids={props.ids}
+        passwordSignIn={props.passwordSignIn}
+      />
+    );
   }
   return null;
 }
@@ -205,9 +214,11 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
   );
 }
 
-type PasswordFormProps = Pick<LoginFormProps, "busy" | "error" | "ids" | "passwordSignIn">;
+type PasswordFormProps = Pick<LoginFormProps, "busy" | "error" | "ids" | "passwordSignIn"> & {
+  autoFocus: boolean;
+};
 
-function PasswordForm({ busy, error, ids, passwordSignIn }: PasswordFormProps) {
+function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordFormProps) {
   const describedBy = error ? ids.error : undefined;
   return (
     <form onSubmit={(event) => void passwordSignIn.signInWithPassword(event)} noValidate>
@@ -221,7 +232,7 @@ function PasswordForm({ busy, error, ids, passwordSignIn }: PasswordFormProps) {
           maxLength={MAX_EMAIL_LENGTH}
           onChange={(event) => passwordSignIn.setEmail(event.target.value)}
           aria-describedby={describedBy}
-          autoFocus
+          autoFocus={autoFocus}
         />
         <LoginField
           id={ids.password}
