@@ -132,7 +132,8 @@ snapshot reflects whatever that person could see the last time they were online:
 non-owner's snapshot uses code names, while an owner's may contain real private names —
 so protect an owner's device accordingly.
 
-## What's next
+<span id="what-s-next"></span>
 
-You've now covered sign-in, installing, first steps, invites and roles. Head to [The
-schedule](/guide/the-schedule) to start building out your team's week.
+[Owner responsibilities](/owner/responsibilities)
+
+[Invite teammates and manage access](/admin/invite-teammates)

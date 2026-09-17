@@ -33,13 +33,37 @@ const usingSidebar = [
     items: [
       { text: "Start here", link: "/using/" },
       { text: "Join your team", link: "/using/join-your-team" },
-      { text: "Read the schedule", link: "/using/read-the-schedule" },
-      { text: "Find available capacity", link: "/using/find-capacity" },
-      { text: "Schedule work", link: "/using/schedule-work" },
-      { text: "Change or remove work", link: "/using/change-work" },
-      { text: "Record time off", link: "/using/record-time-off" },
-      { text: "Overview", link: "/guide/capacity-overview" },
-      { text: "Day-to-day FAQ", link: "/using/faq" },
+      {
+        text: "Page guide",
+        items: [
+          { text: "Schedule", link: "/using/read-the-schedule" },
+          { text: "Overview", link: "/using/overview" },
+          { text: "Resources", link: "/using/resources" },
+          { text: "Disciplines", link: "/using/disciplines" },
+          { text: "Clients", link: "/using/clients" },
+          { text: "Projects", link: "/using/projects" },
+          { text: "Activities", link: "/using/activities" },
+          { text: "Time off", link: "/using/time-off" },
+        ],
+      },
+      {
+        text: "Scheduling tasks",
+        items: [
+          { text: "Find capacity", link: "/using/find-capacity" },
+          { text: "Schedule work", link: "/using/schedule-work" },
+          { text: "Change work", link: "/using/change-work" },
+          { text: "Record time off", link: "/using/record-time-off" },
+        ],
+      },
+      {
+        text: "When you need it",
+        items: [
+          { text: "Settings", link: "/using/settings" },
+          { text: "Account", link: "/using/account" },
+          { text: "Team & access", link: "/using/team-access" },
+          { text: "FAQ", link: "/using/faq" },
+        ],
+      },
     ],
   },
 ];
@@ -241,7 +265,6 @@ export default defineConfig({
 
     footer: {
       message: "CapacityLens is open source under AGPL-3.0.",
-      copyright: "Screenshots are captured from the running app — see docs-src/STYLE.md in the repository.",
     },
   },
 });

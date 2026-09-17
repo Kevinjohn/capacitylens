@@ -16,8 +16,8 @@ requiring you to add sample people or work first.
 
 ## 1. Claim the Owner account and create the company
 
-Follow [Create your company](/owner/create-your-company). Confirm the fixed week start,
-timezone, and language choices with your team before saving them.
+Follow [Create your company](/owner/create-your-company). Confirm the fixed week start
+and timezone choices with your team before saving them.
 
 ## 2. Prepare the schedule
 

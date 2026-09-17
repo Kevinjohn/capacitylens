@@ -1,25 +1,38 @@
 ---
 title: Change or remove scheduled work
 description: Move, resize, edit or remove a booking while keeping the schedule accurate.
+prev: false
+next: false
 ---
 
 # Change or remove scheduled work
 
-This task is for Editors, Admins, and Owners who need to correct an existing booking.
+![Schedule with James Gordon's booking focused](../screenshots/flows/using_change_work_1.png)
 
-## Steps
+<span id="steps"></span>
 
-1. **Open Schedule and find the booking.** Use filters when the schedule is busy.
-2. **Move the booking when only the dates or person changed.** Drag the bar to the new
-   place. CapacityLens keeps the same amount of working time. Reassigning it to someone
-   with a different working pattern can change the calendar span.
-3. **Resize the booking when its length changed.** Drag an end of the bar to the correct date.
-4. **Open the booking when other details changed.** Select it, edit the activity, amount,
-   dates, or status, then save.
-5. **Remove it when the work no longer belongs on the schedule.** Open the booking and use
-   its remove action. Use Undo immediately if you removed the wrong booking.
+Editors, Admins and Owners can change bookings. Open Schedule in the left menu.
 
-## What's next
+## Move or reassign a booking
 
-Return to [Find available capacity](/using/find-capacity), or see [Projects and
-allocations](/guide/projects-and-allocations) for detailed allocation rules.
+Drag the middle of the bar along the same row to move it earlier or later. Drag it onto another person's row to reassign the work.
+
+The booking keeps its working length, so a different working pattern can change the calendar dates it spans.
+
+## Change the date span
+
+Drag the left or right edge of the bar to change its start or end date.
+
+## Edit details or delete the booking
+
+![Edit allocation dialog with dates, activity, Days of work, Status, Note and Delete](../screenshots/flows/using_change_work_2.png)
+
+Click the bar to open Edit allocation. Change the assignee, project, activity, dates, amount, status, task, or note, then select Save.
+
+To remove the booking, open Edit allocation and select Delete.
+
+Use Undo in the toolbar, or Ctrl/Cmd+Z, if you remove or change the wrong booking.
+
+<span id="what-s-next"></span>
+
+[Find available capacity](/using/find-capacity), or read [Projects and allocations](/guide/projects-and-allocations#edit-move-and-remove-allocations) for the detailed move, resize, and repeat rules.

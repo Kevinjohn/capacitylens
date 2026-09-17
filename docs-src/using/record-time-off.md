@@ -1,24 +1,36 @@
 ---
 title: Record time off
 description: Put holiday, sickness or other absence onto a person's schedule.
+prev: false
+next: false
 ---
 
 # Record time off
 
-This task is for Editors, Admins, and Owners. It records absence so the schedule does not
-show unavailable time as free capacity.
+![Time off page with Personal time off, Add time off and an existing entry](../screenshots/flows/using_record_time_off_1.png)
 
-## Steps
+<span id="steps"></span>
 
-1. **Open Schedule and choose Time off.** The draw mode changes from work to absence.
-2. **Select the dates on the person's row.** Select one cell or drag across the absence.
-3. **Choose the type of time off.** Add an optional note when it will help other planners.
-4. **Save the entry.** The time-off bar appears and the person's available capacity changes.
-5. **Return to the work draw mode.** This prevents the next drag from creating another
-   absence by mistake.
+Editors, Admins, and Owners can record personal time off. Viewers can see the resulting absence but cannot add or change it.
 
-![The Schedule in Time off mode with an absence being drawn](../screenshots/flows/timeoff-draw.jpg)
+Open Time off from the left menu and select Add time off.
 
-## What's next
+![Add time off form with Resource, Start, End, Type, Repeat, Note and Save](../screenshots/flows/using_record_time_off_2.png)
 
-Read [Time off](/guide/time-off) for repeating absence, company closures, and conflicts.
+Choose Resource, Start, End and Type, then select Save.
+
+If you add a Note, only Admins and Owners can read it.
+
+The saved absence appears as a hatched block on the person's row and those dates have no available capacity.
+
+## Use the schedule as an alternative
+
+Open Schedule, select Show filters, and choose Time off beside Work. Click the plus button on a person's row or drag across the dates. The Add time off form opens with the person and dates preselected.
+
+External parties cannot have personal time off.
+
+Switch the draw mode back to Work after saving.
+
+<span id="what-s-next"></span>
+
+Read [Time off](/guide/time-off) for repeating absence, company closures, and conflicts with allocations.

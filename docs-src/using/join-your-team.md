@@ -1,27 +1,32 @@
 ---
 title: Join your team
 description: Accept an invitation, sign in with the right identity, and open your company's schedule.
+prev: false
+next: false
 ---
 
 # Join your team
 
-This task takes you from a private invitation link to your company's schedule. Allow
-about a minute. Ask an Owner or Admin for a new link if yours has expired or was already used.
+![Invitation preview with the company, invited email and sign-in choices](../screenshots/flows/using_join_your_team_1.png)
 
-## Steps
+<span id="steps"></span>
 
-1. **Open the invitation link.** Check the company name, proposed role, capabilities, and
-   expiry before continuing. Opening the preview does not join the company.
-2. **Choose your sign-in route.** If you already have a sign-in on this installation,
-   select **Sign in**. If you are new and password accounts are available, select **Create
-   account**. If your company uses company login, select its provider.
-3. **Use the intended email.** An email-bound invitation can be accepted only by that
-   address. Choose **Use a different account** if the preview shows the wrong signed-in identity.
-4. **Accept the invitation.** CapacityLens opens the company Schedule and shows the role
-   you were given.
+Open the invitation your agency sent you. Use the invited email address.
 
-![The invitation preview with its role and sign-in choices](../screenshots/flows/invitation_accept.png)
+Choose Sign in if you already have an account, or Create account if you need one.
 
-## What's next
+If your agency uses company login, choose its provider instead.
 
-[Read the schedule](/using/read-the-schedule).
+If the preview shows the wrong signed-in identity, select Use a different account.
+
+## Accept your invitation
+
+![Signed-in invitation with the company and acceptance action](../screenshots/flows/using_join_your_team_2.png)
+
+Accept the invitation to open your company's Schedule.
+
+If the link has expired or was already used, ask the sender for a replacement.
+
+<span id="what-s-next"></span>
+
+[Find your work on Schedule](/using/read-the-schedule)

@@ -12,32 +12,96 @@ five seconds whether it answers their question.
 
 ## The shape of a page
 
-Every task page follows the same skeleton:
+Choose the structure that helps someone use the screen or complete their task.
 
-1. **Title** — a verb phrase describing the task ("Invite your team"), never a noun dump
-   ("Team invitation management").
-2. **Opening paragraph** — one short paragraph saying what the reader will have when
-   they finish, who this page is for, and roughly how long it takes. No history, no
-   architecture, no throat-clearing.
-3. **Prerequisites** (only if there are any) — a short bulleted list with links.
-4. **Numbered steps** — each step starts with the action, in the imperative ("Click
-   **Settings**", "Run the command below"). One action per step. Show the result the
-   reader should see after the important steps: a screenshot, a terminal output block,
-   or a sentence ("The invite appears in the list with a _Pending_ tag").
-5. **What's next** — one or two links to the page a reader most likely needs after
-   this one.
+### Application page introductions
 
-Concept pages (the minority) drop the numbered steps and instead explain one idea in
-plain language, with a concrete example before any general rule.
+Readers understand agency work. They need to understand this interface.
 
-**Exception: long multi-stage pages.** A page covering several distinct stages, where
-each stage has its own sub-steps (for example, a full migration procedure), may number
-its own H2 stages (`## 1. …`, `## 2. …`) instead of a single `## Steps` list. Every
-other page uses the standard numbered-list-under-`## Steps` pattern.
+- Use the application's page name as the title.
+- Show the screen before explaining the useful controls or interactions.
+- Keep each paragraph on one subject. Separate navigation advice from explanations.
+- Remove obvious definitions and narration of what the image already makes clear.
+- Use lists when a list helps, not as a substitute for editing a paragraph.
+- Use bold selectively. Repeated bold lead-ins make emphasis ineffective.
+- Add another image when the view changes or a useful interaction needs highlighting.
+- Link to detailed guidance without requiring readers to follow a chapter sequence.
+
+"Why would someone open this page?" and "Where is the information they need?" are
+editorial questions, not required headings. Avoid learning-outcome summaries and commentary
+about reading the guide. There is no target paragraph count or page length: every section
+must provide value and remain easy to scan.
+
+Essential controls and outcomes must also be clear in text, so the guide works for people
+using assistive technology and for language models without access to the images.
+
+### Task instructions
+
+Use a short task title, necessary context and prerequisites, then the actions needed.
+Number steps when order matters. Show the relevant screen before asking the reader to act.
+Explain important results and link to related help where useful. Do not force every page
+into an opening paragraph, steps and "What's next" template.
+
+## Applying this to each guide
+
+Most readers were sent here by their agency. They need enough information to use the
+software now, with somewhere to return for detail. Do not assume they chose it or want
+to study it.
+
+- Start with the reader's job and the screen they will use. Keep application page names
+  for page introductions; use action titles for procedures.
+- Explain unfamiliar application behaviour, not familiar agency concepts. Clients does
+  not need a definition of a client. A placeholder resource does need an explanation.
+- Put an image beside the instruction it supports, before the action. A second image
+  earns its place by revealing a changed view, a hidden control or a meaningful result.
+  Do not add another full-screen image merely because the next sentence mentions a control.
+- Keep related explanation together. Give a separate decision, exception or destination
+  its own paragraph. Do not turn every sentence into a bullet.
+- Make the next action locatable: name the page, control and useful result. Avoid generic
+  commands such as "open the schedule" without a location, or "read each bar".
+- Keep essential information in the chosen guide. Reuse concise instructions where roles
+  overlap; link out for depth rather than sending readers to another role's onboarding.
+- State access restrictions where they affect an action. Explain what to do if access is
+  missing, without making every reader study the permission model.
+- Write FAQs around actual interruptions: a missing invitation, an unavailable control,
+  an unexpected result. Avoid repeating the introduction as questions and answers.
+  FAQs do not need an opening image; use one only when it helps answer a specific question.
+
+### Owner, Admin and Settings
+
+An Owner needs to establish the company, invite an Admin and know what remains their
+responsibility. Make that handover a complete route; do not require ongoing administration
+as the next chapter.
+
+An Admin needs their own complete route for inviting teammates, assigning access, preparing
+scheduled people and work, and managing company settings. Do not assume they have read the
+Owner guide. Distinguish a sign-in invitation from a scheduled resource at the point where
+someone needs to create them.
+
+Settings guidance must distinguish personal display choices from company-wide changes.
+For each company setting, show where it is, explain its effect and who it affects, and
+include any consequence needed to make the decision. Avoid a catalogue that merely
+paraphrases each label.
+
+Each role guide has its own FAQ. Link to technical operations only when the task actually
+requires an operator.
+
+### Editorial acceptance check
+
+Before calling a page ready, check:
+
+- Can someone recognise the screen and locate the useful action without reading another guide?
+- Does each paragraph add information needed to act, interpret a result or recover?
+- Does each additional image teach something the preceding image cannot show?
+- Are unrelated instructions and links visually separate, with emphasis used sparingly?
+- Can the reader stop here and do something useful, with deeper help available when needed?
+
+A short page is complete when it answers the need. Do not add headings, images or summaries
+to make it look substantial.
 
 ## Rules
 
-- **One task per page.** If a page needs two H1-worthy verbs, it is two pages.
+- **Keep a clear focus.** A page introduction may cover several related interactions. Separate detailed procedures when they would obscure that introduction.
 - **Plain language.** Prefer the everyday word: "sign in" not "authenticate", "company
   login" not "IdP-initiated SSO", "link" not "federate". The first use of any term in
   the [glossary](reference/glossary.md) links to it. Jargon that has no everyday
@@ -45,6 +109,9 @@ other page uses the standard numbered-list-under-`## Steps` pattern.
 - **Short sentences, active voice.** If a sentence needs a second comma, try splitting it.
 - **Time estimates are honest.** "Two minutes" means two minutes on a laptop with
   Docker already installed, and the page says so.
+- **Preview placeholders.** During an explicitly agreed content-review stage, use labelled
+  `https://placehold.co/686x385?text=...` images. Their text and alt text describe the
+  intended view. They are placeholders, never evidence of the application UI.
 - **Screenshots are real.** Every screenshot is captured from the running app (the
   access lab: `pnpm run dev:access`), lives in `docs-src/screenshots/`, and has alt text
   describing what it shows. Never mock up a screenshot. If the UI changes, recapture.
@@ -104,4 +171,4 @@ A docs change is done when:
 2. The page renders correctly in the built site — checked by eye, in the browser,
    including the sidebar position, breadcrumbs and "On this page" outline.
 3. Every new term is either everyday language or linked to the glossary.
-4. Screenshots show the current UI.
+4. Screenshots show the current UI, or an agreed preview clearly labels its temporary placeholders.

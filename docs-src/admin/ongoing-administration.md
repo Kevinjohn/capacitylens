@@ -1,33 +1,46 @@
 ---
 title: Handle ongoing administration
-description: Keep member access, scheduled people, company closures and settings accurate over time.
+description: Keep member access, scheduled people, time off, company closures and settings accurate as work changes.
+prev: false
+next: false
 ---
+
+<span id="regular-tasks"></span>
+<span id="owner-and-operator-handoffs"></span>
+<span id="what-s-next"></span>
 
 # Handle ongoing administration
 
-Use this checklist when the team or its working arrangements change.
+![Team & access: Member settings dialog](../screenshots/flows/admin_ongoing_administration_1.png)
 
-## Regular tasks
+## Change access
 
-- **Change a member's access:** open **Team & access**, use the pencil beside their name,
-  and choose the new role.
-- **Stop access:** use the member settings menu to disable, archive, or permanently remove
-  the member. Disable or archive keeps their history and can be reversed.
-- **Change a working pattern:** open **Resources**, edit the person, and update their
-  working days or availability dates.
-- **Add company closures:** open the time-off area and record dates when the whole company
-  is closed.
-- **Review settings:** revisit **Settings** when the team adopts a feature or changes who
-  may open Overview.
-- **Coordinate sign-in changes:** an Admin prepares members and checks access, while the
-  service operator changes password or company-login configuration.
+Open Team & access. Use the pencil beside a member to change their role.
 
-## Owner and operator handoffs
+Member settings contains Disable user, Archive user and Restore access. [Invite teammates and manage access](/admin/invite-teammates) explains these choices.
 
-Ask the Owner to handle ownership transfer, company deletion, or member sign-in recording.
-Ask the service operator to handle backups, upgrades, server configuration, and sign-in
-provider credentials.
+## Change working patterns
 
-## What's next
+Open Resources and edit the person. Update Working days or their Start date and End date, then Save.
 
-Use the [Admin FAQ](/admin/faq) or the detailed [Settings reference](/guide/settings).
+Archive a resource when they should leave active scheduling. Archived records are available at the bottom of Resources.
+
+## Add a company closure
+
+![Time off: Company closures with Add closure form](../screenshots/flows/admin_ongoing_administration_2.png)
+
+Open Time off in the left menu. Under Company closures, select Add closure.
+
+Enter the name, Start and End dates, then Save. The closure reduces availability across tracked people and placeholders.
+
+For one person's absence, use [Record time off](/using/record-time-off).
+
+## Settings and support
+
+[Company settings](/admin/company-settings) controls shared working days, optional features and Overview access.
+
+Ask the Owner about ownership transfer, company deletion or importing scheduling data.
+
+Ask the service operator about backups, upgrades and company-login configuration.
+
+[Admin FAQ](/admin/faq)

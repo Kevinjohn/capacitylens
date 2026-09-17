@@ -1,31 +1,46 @@
 ---
 title: Understand Owner responsibilities
-description: Know which sensitive company decisions stay with the single active Owner.
+description: Know which company decisions stay with the single active Owner.
+prev: false
+next: false
 ---
+
+<span id="what-stays-with-the-owner"></span>
+<span id="work-your-admin-can-own"></span>
+<span id="what-s-next"></span>
 
 # Understand Owner responsibilities
 
-This page explains the small set of decisions that remain with the Owner after an Admin
-takes over everyday setup.
+![Owner view of Team & access showing Members and Record member sign-ins](../screenshots/flows/owner_responsibilities_1.png)
 
-## What stays with the Owner
+Your Admin can run everyday setup. You keep the decisions that change company ownership, company data or member sign-in recording.
 
-- There is exactly one active Owner for a company.
-- Only the Owner can start and complete a transfer of ownership.
-- Only the Owner can delete the company.
-- Only the Owner can turn member sign-in recording on or off.
-- Some installation-wide problems still need the person who operates the server.
+## Transfer ownership
 
-Sensitive actions may ask you to confirm your sign-in again. This protects changes with
-large consequences even when your current session is still open.
+![Team & access showing Company ownership, Next Owner and Start transfer](../screenshots/flows/owner_appoint_an_admin_1.png)
 
-## Work your Admin can own
+Open Team & access and find Company ownership. Choose an active Admin in Next Owner, then select Start transfer.
 
-An Admin can invite and manage other members, choose their roles, add people and work,
-change most company settings, and keep the schedule ready for the team. The [Admin and
-settings guide](/admin/) covers that workflow from beginning to end.
+The nominee selects Agree to become Owner. After they agree, you return to Team & access and select Confirm the transfer.
 
-## What's next
+The transfer completes only after your confirmation. You become an Admin and the nominee becomes the Owner.
 
-See [Roles and permissions](/getting-started/roles-and-permissions) for the full role
-comparison, or [Owner FAQ](/owner/faq) for common handover questions.
+## Record member sign-ins
+
+In Team & access, use Record member sign-ins. This is an Owner-only control.
+
+When it is on, each member shows only Yes or Not yet under Signed in. No dates or activity history are kept.
+
+Turning it off deletes every confirmation.
+
+## Import or delete company data
+
+Only the Owner can import scheduling data in a signed-in installation. Import replaces existing scheduling records; it is not a way to add a few new items.
+
+[Import and export details](/guide/settings#import-and-export)
+
+Only the Owner can delete the company. This removes the company for everyone and is separate from stopping an individual member's access.
+
+[Roles and permissions](/getting-started/roles-and-permissions)
+
+[Owner FAQ](/owner/faq)

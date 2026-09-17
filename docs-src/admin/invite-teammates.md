@@ -1,28 +1,50 @@
 ---
-title: Invite teammates
-description: Give teammates a sign-in, choose their role, and optionally link them to a Resource.
+title: Invite teammates and manage access
+description: Create a one-time sign-in invite, set a member role, and connect an existing Resource when needed.
+prev: false
+next: false
 ---
 
-# Invite teammates
+<span id="invite-teammates"></span>
+<span id="steps"></span>
+<span id="what-s-next"></span>
 
-This task gives a teammate access to the company. It takes about a minute on your side.
-CapacityLens creates a one-time link; it does not send an email.
+# Invite teammates and manage access
 
-## Steps
+![Team & access: Invite someone with Role, email and Create invite](../screenshots/flows/admin_invite_teammates_1.png)
 
-1. **Open Team & access.** Your own role and capabilities appear at the top.
-2. **Choose the person's role.** Use Viewer for read-only access, Editor for schedule and
-   planning changes, and Admin for people, access, and company administration.
-3. **Enter their work email when appropriate.** Company-login-only installations require
-   it. An email-bound invitation can be accepted only by that address.
-4. **Choose a Resource when one already exists.** Otherwise leave **No Resource linked**
-   selected. The invitation can be linked later.
-5. **Create the invitation.** Copy the one-time link immediately and send it privately.
-6. **Check the members list after acceptance.** The teammate appears with the chosen role.
+Open Team & access in the left menu and find Invite someone.
 
-![The invitation form with an optional Resource link and the current outstanding invite list](../screenshots/flows/invitation_created.png)
+| Role   | Allows                                      |
+| ------ | ------------------------------------------- |
+| Viewer | Read the schedule                           |
+| Editor | Change the schedule and planning data       |
+| Admin  | Manage members and company settings as well |
 
-## What's next
+Choose the role and enter the teammate's email. An invitation tied to an email can only be accepted by that address.
 
-[Add people to the schedule](/admin/add-people), or read the detailed [Invite your team
-reference](/getting-started/invite-your-team).
+Leave No Resource linked selected unless their scheduled person already exists.
+
+Select Create invite, then Copy. Send the link privately; CapacityLens does not email it for you.
+
+The link is only displayed now. If you lose it, revoke it under Outstanding invites and create a replacement.
+
+## After they join
+
+![Team & access: accepted member with role, Edit member and Member settings](../screenshots/flows/admin_invite_teammates_2.png)
+
+The teammate appears in the members list after accepting. Send them the [day-to-day guide](/using/).
+
+Select the pencil beside their name to change their role, then Save role.
+
+Use Link to Resource to connect their sign-in to an existing scheduled person. This does not change their access.
+
+## Stop access
+
+Open Member settings beside the member. Disable user or Archive user stops access while keeping their history. Restore access reverses either choice.
+
+Remove deletes the membership; they need another invitation to return.
+
+[Invitation and access questions](/admin/faq)
+
+[Detailed invitation controls](/getting-started/invite-your-team)

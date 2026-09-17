@@ -20,6 +20,10 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Rework day-to-day, Admin and Owner documentation around visible screens and useful actions.
+  Prioritise personal scheduled work, complete Admin tasks and the Owner-to-Admin handover.
+  Add real application screenshots for each guide, including role-specific access and first-company setup.
+
 - Align Team & access member and outstanding-invite rows with the managed-resource list, move member
   actions and Resource linking into centered dialogs, and rename the association controls to **Link
   to Resource** (#1104).
