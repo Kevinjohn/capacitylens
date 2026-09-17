@@ -173,6 +173,7 @@ function LoginView(props: LoginViewProps) {
                 setup={setup}
                 providers={[promotedGoogle]}
                 busy={props.busy}
+                pendingProvider={props.pendingProvider}
                 error={props.error}
                 twoFactorPending={props.secondFactor.twoFactorPending}
                 signInWithProvider={props.signInWithProvider}
