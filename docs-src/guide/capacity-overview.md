@@ -8,6 +8,8 @@ description: Use Overview to compare free capacity, tentative work and overbooki
 Overview shows who can take work during the remainder of this week and the complete company
 weeks that follow. It uses the same working patterns, time off and company closures as the Schedule.
 
+![Overview ledger with the Totals row on, showing each person's free days out of capacity for four weeks, a red overbooked figure for Bruce Wayne and grey tentative hatches](../screenshots/flows/capacity_overview.jpg)
+
 ## Open the overview
 
 Choose **Overview** immediately above **Schedule** in the sidebar. The table shows active people
@@ -39,6 +41,8 @@ rather than the Overview's own columns, without changing the table's filters or 
 position — the same drawer as [the schedule](/guide/the-schedule).
 
 ## Choose Ledger or Load curve
+
+![Overview in Load curve display across twelve weeks with the Totals row on: each cell is a vertical fill showing the person's free share of the week](../screenshots/flows/using_overview_2.png)
 
 **Ledger** starts selected and shows the figures and bar in every cell. Choose **Load curve** to
 see only the shape: each cell becomes a vertical fill that rises with the person's free share of
