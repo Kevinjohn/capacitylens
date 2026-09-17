@@ -706,6 +706,7 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
 
 describe("LoginScreen — provider failures", () => {
   const provider = { id: "google", label: "Google", kind: "social", experimental: true } as const;
+  type ProviderResponse = { data: Record<string, never>; error: null };
 
   it.each([
     [{ message: "Provider refused the request." }, "Provider refused the request."],
@@ -723,20 +724,16 @@ describe("LoginScreen — provider failures", () => {
   it.each(["password", "sso"] as const)(
     "announces a successful provider redirect instead of showing a failure in %s mode",
     async (authMode) => {
-      let resolveProvider!: (value: { data: Record<string, never>; error: null }) => void;
-      const providerResponse = new Promise<{ data: Record<string, never>; error: null }>((resolve) => {
-        resolveProvider = resolve;
-      });
+      let resolveProvider!: (value: ProviderResponse) => void;
+      const providerResponse = new Promise<ProviderResponse>((resolve) => (resolveProvider = resolve));
       signInSocial.mockReturnValue(providerResponse);
       render(<LoginScreen authMode={authMode} providers={[provider]} onSignedIn={vi.fn()} />);
-
       const button = screen.getByRole("button", { name: "Sign in with Google" });
       fireEvent.click(button);
 
       expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       expect(button).toBeDisabled();
-
       resolveProvider({ data: {}, error: null });
       await providerResponse;
       await waitFor(() => {
