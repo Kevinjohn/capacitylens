@@ -245,6 +245,7 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
             <div>
               <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
               <SegmentedControl
+                variant="recessed"
                 ariaLabel={m.picker_week_start()}
                 ariaDescribedby={weekStartHelpId}
                 value={input.weekStartsOn}

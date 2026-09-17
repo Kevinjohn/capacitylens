@@ -8,7 +8,11 @@ export type SegmentedOption<T> = { value: T; label: ReactNode; title?: string };
 export type SegmentedGeometry = "gapped" | "connected";
 export type SegmentedSize = "sm" | "md" | "lg";
 export type SegmentedDensity = "default" | "compact";
-/** `outline` is the form-control treatment; `recessed` sinks the track and lifts only the selected item. */
+/**
+ * `recessed` sinks the track and lifts only the selected item; it is what every product surface
+ * uses. `outline` is the older bordered treatment, kept as the primitive's default so an embedder
+ * of this control opts into elevation deliberately.
+ */
 export type SegmentedVariant = "outline" | "recessed";
 
 interface SegmentedControlProps<T> {
@@ -103,7 +107,10 @@ function getSegmentClass({
     sizeClasses[size].item,
     density === "compact" && "px-1.5 tracking-tighter",
     variant === "recessed" ? recessedSegmentClass : selectedSegmentClass,
-    geometry === "connected" && connectedItemClass,
+    // Connected separators and their shadow reset belong to the outline treatment, where items
+    // carry real borders that would otherwise double up. On a recessed track the separators draw
+    // rules through a surface that has none, and the reset cancels the lift that carries selection.
+    geometry === "connected" && variant !== "recessed" && connectedItemClass,
     fullWidth && "flex-1 basis-0 min-w-0 justify-center truncate",
   );
 }
