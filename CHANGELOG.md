@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.69.0-alpha.1] - 2026-09-17
+
 ### Fixed
 
 - Align Team & access member actions as distinct masquerade, role-edit, Resource-link and settings
@@ -4510,7 +4512,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.69.0-alpha.1...HEAD
+[0.69.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.69.0-alpha.1
 [0.68.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.67.0-alpha.1...v0.68.0-alpha.1
 [0.67.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.66.0-alpha.1...v0.67.0-alpha.1
 [0.66.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.65.0-alpha.1...v0.66.0-alpha.1
