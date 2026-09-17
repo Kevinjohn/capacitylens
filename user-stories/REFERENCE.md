@@ -898,6 +898,11 @@ configured Google social provider uses the exact branded action **Sign in with G
 recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
 reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
 providers retain **Continue with _provider_** and their caller-supplied accessible label.
+On a password-mode installation with Google configured, the sign-in wall puts that Google action
+first, followed by an explicit **or use your password** separator and the password form. SSO-only
+still omits password controls; password-only installations and installations without Google keep
+their existing order. If several providers are configured, the remaining provider actions stay
+available below the password fallback.
 
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
 character even though browser `maxlength` uses two UTF-16 code units. Email admission applies the

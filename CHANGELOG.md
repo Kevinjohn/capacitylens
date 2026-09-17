@@ -24,6 +24,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Put a configured Google social sign-in action first in mixed password mode, with an explicit
+  **or use your password** fallback separator while keeping password and other provider doors available (#1125).
 - Rework day-to-day, Admin and Owner documentation around visible screens and useful actions.
   Prioritise personal scheduled work, complete Admin tasks and the Owner-to-Admin handover.
   Add real application screenshots for each guide, including role-specific access and first-company setup.

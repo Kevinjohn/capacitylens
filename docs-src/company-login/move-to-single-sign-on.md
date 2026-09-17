@@ -143,7 +143,10 @@ email and password form, and a button for your provider:
 ![The CapacityLens sign-in page in mixed mode, showing the email and password form above a Continue with Northwind Identity button](../screenshots/flows/sso-login-mixed.jpg)
 
 Mixed mode. Everyone keeps signing in exactly as they did yesterday — the new button is
-there for the linking ceremony, not for signing in yet.
+there for the linking ceremony, not for signing in yet. Company login is not promoted above the
+password form. If you also configured the experimental Google social provider, its **Sign in with
+Google** action appears first, followed by **or use your password** and the password form; the
+company-login button stays below that fallback.
 
 #### What if the server refuses to start?
 
