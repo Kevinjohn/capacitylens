@@ -16,9 +16,7 @@ import type {
   BuildCapacityOverviewModelInput,
   CapacityOverviewGroup,
   CapacityOverviewModel,
-  CapacityOverviewRow,
   CapacityOverviewState,
-  CapacityOverviewSummary,
   CapacityOverviewPeriodResult,
 } from "./capacityOverviewTypes";
 export type { CapacityOverviewHorizon, CapacityOverviewPeriod } from "./capacityOverviewDates";
@@ -28,13 +26,11 @@ export type {
   CapacityOverviewModel,
   CapacityOverviewRow,
   CapacityOverviewState,
-  CapacityOverviewSummary,
-  CapacityOverviewSummaryPeriod,
   CapacityOverviewPeriodResult,
 } from "./capacityOverviewTypes";
 
 const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
-const HOURS_PER_DISPLAY_DAY = 8;
+export const HOURS_PER_DISPLAY_DAY = 8;
 const QUARTER_DAY_HOURS = HOURS_PER_DISPLAY_DAY / 4;
 const ROUNDING_EPSILON_HOURS = 1e-9;
 
@@ -66,11 +62,13 @@ interface OverviewIndexes {
   timeOffByResource: Map<string, TimeOff[]>;
 }
 
-function roundDownQuarterDays(hours: number): number {
+/** Free capacity rounds down to the quarter-day so a printed figure never promises time that is not there. */
+export function roundDownQuarterDays(hours: number): number {
   return Math.max(0, Math.floor((hours + ROUNDING_EPSILON_HOURS) / QUARTER_DAY_HOURS) / 4);
 }
 
-function roundUpQuarterDays(hours: number): number {
+/** Demand and overload round up so a printed figure never hides a fraction of a booking. */
+export function roundUpQuarterDays(hours: number): number {
   return Math.max(0, Math.ceil((hours - ROUNDING_EPSILON_HOURS) / QUARTER_DAY_HOURS) / 4);
 }
 
@@ -133,45 +131,6 @@ function calculatePeriod({
     unassignedDemandHours,
     unassignedDemandDays: roundUpQuarterDays(unassignedDemandHours),
     state: isPlaceholderResource(resource) ? "unassigned" : resolvePersonState(availableHours, freeDays),
-  };
-}
-
-function sumPeriodField(
-  rows: CapacityOverviewRow[],
-  index: number,
-  field: "availableHours" | "freeHours" | "overHours" | "tentativeHours" | "unassignedDemandHours",
-): number {
-  return rows.reduce((sum, row) => sum + (row.periods[index]?.[field] ?? 0), 0);
-}
-
-function summarize(
-  rows: CapacityOverviewRow[],
-  overviewPeriods: CapacityOverviewPeriod[] = [],
-): CapacityOverviewSummary {
-  const people = rows.filter((row) => isCapacityTracked(row.resource) && !isPlaceholderResource(row.resource));
-  const placeholders = rows.filter((row) => isPlaceholderResource(row.resource));
-  const periods = (rows[0]?.periods ?? overviewPeriods).map((_period, index) => {
-    const freeHours = sumPeriodField(people, index, "freeHours");
-    const overHours = sumPeriodField(people, index, "overHours");
-    const tentativeHours = sumPeriodField(people, index, "tentativeHours");
-    const unassignedDemandHours = sumPeriodField(placeholders, index, "unassignedDemandHours");
-    return {
-      availableHours: sumPeriodField(people, index, "availableHours"),
-      freeHours,
-      overHours,
-      tentativeHours,
-      freeDays: roundDownQuarterDays(freeHours),
-      overDays: roundUpQuarterDays(overHours),
-      tentativeDays: roundDownQuarterDays(tentativeHours),
-      unassignedDemandHours,
-      unassignedDemandDays: roundUpQuarterDays(unassignedDemandHours),
-    };
-  });
-  return {
-    scope: "all-eligible-people",
-    peopleCount: people.length,
-    placeholderCount: placeholders.length,
-    periods,
   };
 }
 
@@ -323,7 +282,7 @@ function buildRows({
         );
         return { resource, periods: resourcePeriods };
       });
-    return { ...seed, rows, summary: summarize(rows, periods) };
+    return { ...seed, rows };
   });
 }
 
@@ -361,8 +320,7 @@ export function buildCapacityOverviewModel({
 }: BuildCapacityOverviewModelInput): CapacityOverviewModel {
   const periods = buildCapacityOverviewPeriods({ today, weekStartsOn, horizon });
   if (blocksMode) {
-    const summary = summarize([], periods);
-    return { measured: false, reason: "blocks-mode", periods, groups: [], summary };
+    return { measured: false, reason: "blocks-mode", periods, groups: [] };
   }
 
   const eligible = new Set(
@@ -379,11 +337,5 @@ export function buildCapacityOverviewModel({
     accountWorkingDays,
     groupResourcesByEngagement,
   });
-  const allRows = groups.flatMap((group) => group.rows);
-  return {
-    measured: true,
-    periods,
-    groups: applyAvailabilityFilter(groups, hasAvailability),
-    summary: summarize(allRows, periods),
-  };
+  return { measured: true, periods, groups: applyAvailabilityFilter(groups, hasAvailability) };
 }

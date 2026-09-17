@@ -8,7 +8,6 @@ import {
   buildCapacityOverviewModel,
   type CapacityOverviewModel,
   type CapacityOverviewPeriodResult,
-  type CapacityOverviewSummaryPeriod,
 } from "./capacityOverviewModel";
 import { CapacityOverviewTable } from "./CapacityOverviewTable";
 
@@ -57,32 +56,12 @@ function period(index: number, values: Partial<CapacityOverviewPeriodResult>): C
   };
 }
 
-const summaryPeriod = (values: Partial<CapacityOverviewSummaryPeriod> = {}): CapacityOverviewSummaryPeriod => ({
-  availableHours: 40,
-  freeHours: 40,
-  overHours: 0,
-  tentativeHours: 0,
-  freeDays: 5,
-  overDays: 0,
-  tentativeDays: 0,
-  unassignedDemandHours: 0,
-  unassignedDemandDays: 0,
-  ...values,
-});
-
 const clarkKent = { ...resource("Clark Kent"), avatarUrl: "https://images.example/clark.png" };
 const placeholderSlot = resource("slot", "placeholder");
 
 // Real (if minimal) AppData, matched by id to the model's rows above, so the person schedule
 // trigger resolves the real per-resource title instead of the fallback an empty dataset produces.
 const data: AppData = { ...emptyAppData(), resources: [clarkKent, placeholderSlot] };
-
-const summary = {
-  scope: "all-eligible-people" as const,
-  peopleCount: 1,
-  placeholderCount: 1,
-  periods: periods.map((_item, index) => summaryPeriod(index ? {} : { freeHours: 12, freeDays: 1.5 })),
-};
 
 const model: CapacityOverviewModel = {
   measured: true,
@@ -118,10 +97,8 @@ const model: CapacityOverviewModel = {
           ],
         },
       ],
-      summary,
     },
   ],
-  summary,
 };
 
 function renderTable(
@@ -309,10 +286,18 @@ describe("CapacityOverviewTable interactions", () => {
     const totalsRow = screen.getByTestId("capacity-overview-totals");
     const totalsCells = within(totalsRow).getAllByTestId("capacity-overview-totals-cell");
     expect(totalsCells).toHaveLength(4);
-    // Clark: 40h capacity, 12h free, 8h tentative → 20h committed (50%), 20% tentative, 1.5d free.
+    // Clark: 40h capacity, 12h free, 8h tentative → 20h committed (50%), 20% tentative, 1.5d free,
+    // and 2h overbooked: the overbooked days replace the free figure and the track is hatched.
     expect(within(totalsCells[0] as HTMLElement).getByText("50%")).toHaveClass("text-muted-foreground");
-    expect(within(totalsCells[0] as HTMLElement).getByText("1.5d")).toBeInTheDocument();
-    expect(totalsCells[0]).toHaveAttribute("title", "10 – 13 Sep · 2.5d committed of 5d · 1d tentative");
+    expect(within(totalsCells[0] as HTMLElement).queryByText("1.5d")).not.toBeInTheDocument();
+    expect(within(totalsCells[0] as HTMLElement).getByText("+0.25d")).toHaveClass("text-danger");
+    expect(within(totalsCells[0] as HTMLElement).getByTestId("capacity-overbooked-hatch")).toBeInTheDocument();
+    expect(within(totalsCells[3] as HTMLElement).getByText("4d")).toBeInTheDocument();
+    expect(within(totalsCells[3] as HTMLElement).queryByTestId("capacity-overbooked-hatch")).not.toBeInTheDocument();
+    expect(totalsCells[0]).toHaveAttribute(
+      "title",
+      "10 – 13 Sep · 2.5d committed of 5d · 1d tentative · 0.25d overbooked",
+    );
     expect(within(totalsCells[0] as HTMLElement).getByTestId("capacity-totals-committed")).toHaveStyle({
       width: "50%",
     });
@@ -371,7 +356,7 @@ describe("CapacityOverviewTable interactions", () => {
     expect(within(cells[0] as HTMLElement).getByTestId("capacity-bar-tentative")).toHaveStyle({ width: "0%" });
     expect(cells[0]).toHaveAttribute("title", "10 – 13 Sep · 1.5d free of 5d · 0.25d overbooked");
     const totalsCell = screen.getAllByTestId("capacity-overview-totals-cell")[0] as HTMLElement;
-    expect(totalsCell).toHaveAttribute("title", "10 – 13 Sep · 3.5d committed of 5d");
+    expect(totalsCell).toHaveAttribute("title", "10 – 13 Sep · 3.5d committed of 5d · 0.25d overbooked");
     expect(screen.getByRole("button", { name: "Tentative" })).toHaveAttribute("aria-pressed", "false");
   });
 

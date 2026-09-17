@@ -1,4 +1,5 @@
 import { m } from "@/i18n";
+import { HOURS_PER_DISPLAY_DAY, roundDownQuarterDays, roundUpQuarterDays } from "./capacityOverviewModel";
 import type { CapacityOverviewGroup, CapacityOverviewPeriodResult } from "./capacityOverviewTypes";
 
 /** The two ways a week cell can present a person's capacity. */
@@ -15,7 +16,6 @@ export interface CapacityCellFill {
   tone: CapacityTone;
 }
 
-const HOURS_PER_DISPLAY_DAY = 8;
 const OK_FREE_SHARE = 0.8;
 const WARN_FREE_SHARE = 0.4;
 
@@ -45,15 +45,22 @@ export function resolveCapacityTone(freeHours: number, availableHours: number): 
   return "danger";
 }
 
-/** Pure fraction helper for a person-week bar, using the model's precise hours. */
+/**
+ * Pure fraction helper for a person-week bar. It reads the rounded day figures the cell prints, not
+ * the precise hours, so a "—" never sits beside a painted sliver and the tone matches the number.
+ */
 export function computeCapacityCellFill({
   availableHours,
-  freeHours,
-  tentativeHours,
-}: Pick<CapacityOverviewPeriodResult, "availableHours" | "freeHours" | "tentativeHours">): CapacityCellFill {
+  freeDays,
+  tentativeDays,
+}: Pick<CapacityOverviewPeriodResult, "availableHours" | "freeDays" | "tentativeDays">): CapacityCellFill {
   if (availableHours <= 0) return { freeFraction: 0, tentativeFraction: 0, tone: "danger" };
-  const freeFraction = Math.min(Math.max(freeHours, 0) / availableHours, 1);
-  const tentativeFraction = Math.min(Math.max(tentativeHours, 0) / availableHours, 1 - freeFraction);
+  const freeHours = Math.max(freeDays, 0) * HOURS_PER_DISPLAY_DAY;
+  const freeFraction = Math.min(freeHours / availableHours, 1);
+  const tentativeFraction = Math.min(
+    (Math.max(tentativeDays, 0) * HOURS_PER_DISPLAY_DAY) / availableHours,
+    1 - freeFraction,
+  );
   return { freeFraction, tentativeFraction, tone: resolveCapacityTone(freeHours, availableHours) };
 }
 
@@ -69,14 +76,6 @@ export interface CapacityPeriodTotals {
   committedPct: number;
   tentativePct: number;
   tone: CapacityTotalsTone;
-}
-
-function roundDownQuarterDays(hours: number): number {
-  return Math.max(0, Math.floor((hours + 1e-9) / (HOURS_PER_DISPLAY_DAY / 4)) / 4);
-}
-
-function roundUpQuarterDays(hours: number): number {
-  return Math.max(0, Math.ceil((hours - 1e-9) / (HOURS_PER_DISPLAY_DAY / 4)) / 4);
 }
 
 function resolveTotalsTone(committedPct: number, tentativePct: number): CapacityTotalsTone {
@@ -123,11 +122,6 @@ export function formatDayFigure(days: number): string {
   return String(Math.round(days * 100) / 100);
 }
 
-/** Whole display days of capacity for a person-week; halves survive as fractions. */
-export function capacityDaysOf(result: Pick<CapacityOverviewPeriodResult, "availableHours">): number {
-  return result.availableHours / HOURS_PER_DISPLAY_DAY;
-}
-
 export function formatDays(days: number, kind: "capacity" | "overbooked" | "unassigned" | "tentative"): string {
   const figure = formatDayFigure(days);
   if (kind === "capacity") return m.capacity_overview_days({ days: figure });
@@ -142,7 +136,7 @@ export function describePeriod(result: CapacityOverviewPeriodResult, rangeLabel:
     m.capacity_overview_cell_title({
       range: rangeLabel,
       free: formatDayFigure(result.freeDays),
-      capacity: formatDayFigure(capacityDaysOf(result)),
+      capacity: formatDayFigure(result.availableHours / HOURS_PER_DISPLAY_DAY),
     }),
   ];
   if (result.tentativeDays > 0) parts.push(formatDays(result.tentativeDays, "tentative"));
@@ -159,5 +153,6 @@ export function describeTotals(totals: CapacityPeriodTotals, rangeLabel: string)
     }),
   ];
   if (totals.tentativeDays > 0) parts.push(formatDays(totals.tentativeDays, "tentative"));
+  if (totals.overDays > 0) parts.push(formatDays(totals.overDays, "overbooked"));
   return parts.join(" · ");
 }

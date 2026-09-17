@@ -28,11 +28,11 @@ const HORIZON_WEEKS: Record<CapacityOverviewHorizon, number> = {
 };
 
 /** Number of week columns a horizon displays. */
-export function horizonWeekCount(horizon: CapacityOverviewHorizon): number {
+export function resolveHorizonWeekCount(horizon: CapacityOverviewHorizon): number {
   return HORIZON_WEEKS[horizon];
 }
 
-function periodKey(index: number): CapacityOverviewPeriodKey {
+function buildPeriodKey(index: number): CapacityOverviewPeriodKey {
   if (index === 0) return "this-week";
   if (index === 1) return "next-week";
   return `week-${index + 1}`;
@@ -46,9 +46,9 @@ export function buildCapacityOverviewPeriods({
 }: BuildCapacityOverviewPeriodsInput): CapacityOverviewPeriod[] {
   const currentWeekStart = startOfWeekISO(today, weekStartsOn);
   const currentWeekEnd = addDaysISO(currentWeekStart, 6);
-  return Array.from({ length: horizonWeekCount(horizon) }, (_unused, index) => {
+  return Array.from({ length: resolveHorizonWeekCount(horizon) }, (_unused, index) => {
     const start = index === 0 ? today : addDaysISO(currentWeekEnd, 1 + (index - 1) * 7);
     const end = index === 0 ? currentWeekEnd : addDaysISO(start, 6);
-    return { index, key: periodKey(index), start, end, partial: index === 0 };
+    return { index, key: buildPeriodKey(index), start, end, partial: index === 0 };
   });
 }

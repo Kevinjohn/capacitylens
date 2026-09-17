@@ -49,17 +49,10 @@ function resource(id: string, kind: Resource["kind"] = "person"): Resource {
 }
 
 function group(rows: { id: string; kind?: Resource["kind"]; periods: CapacityOverviewPeriodResult[] }[]) {
-  const summary = {
-    scope: "all-eligible-people" as const,
-    peopleCount: rows.length,
-    placeholderCount: 0,
-    periods: [],
-  };
   return {
     key: "group",
     title: "Group",
     rows: rows.map((row) => ({ resource: resource(row.id, row.kind), periods: row.periods })),
-    summary,
   } satisfies CapacityOverviewGroup;
 }
 
@@ -84,25 +77,33 @@ describe("resolveCapacityTone", () => {
 
 describe("computeCapacityCellFill", () => {
   it("proportions free and tentative time against the person's available hours", () => {
-    expect(computeCapacityCellFill({ availableHours: 40, freeHours: 16, tentativeHours: 8 })).toEqual({
+    expect(computeCapacityCellFill({ availableHours: 40, freeDays: 2, tentativeDays: 1 })).toEqual({
       freeFraction: 0.4,
       tentativeFraction: 0.2,
       tone: "warn",
     });
   });
 
+  it("follows the printed quarter-day figure, so a dash never sits beside a painted sliver", () => {
+    expect(computeCapacityCellFill({ availableHours: 40, freeDays: 0, tentativeDays: 0 })).toEqual({
+      freeFraction: 0,
+      tentativeFraction: 0,
+      tone: "danger",
+    });
+  });
+
   it("clamps the tentative band so free plus tentative never exceeds the track", () => {
-    const clamped = computeCapacityCellFill({ availableHours: 40, freeHours: 32, tentativeHours: 16 });
+    const clamped = computeCapacityCellFill({ availableHours: 40, freeDays: 4, tentativeDays: 2 });
     expect(clamped.freeFraction).toBe(0.8);
     expect(clamped.tentativeFraction).toBeCloseTo(0.2);
-    expect(computeCapacityCellFill({ availableHours: 40, freeHours: 48, tentativeHours: 8 })).toMatchObject({
+    expect(computeCapacityCellFill({ availableHours: 40, freeDays: 6, tentativeDays: 1 })).toMatchObject({
       freeFraction: 1,
       tentativeFraction: 0,
     });
   });
 
   it("renders an empty track when the person has no available hours", () => {
-    expect(computeCapacityCellFill({ availableHours: 0, freeHours: 0, tentativeHours: 0 })).toEqual({
+    expect(computeCapacityCellFill({ availableHours: 0, freeDays: 0, tentativeDays: 0 })).toEqual({
       freeFraction: 0,
       tentativeFraction: 0,
       tone: "danger",

@@ -200,11 +200,10 @@ describe("buildCapacityOverviewModel", () => {
       confirmedSlot.id,
       tentativeSlot.id,
     ]);
-    expect(twelveWeekResult.summary.periods[4]).toMatchObject({
+    expect(period(twelveWeekResult, confirmedSlot.id, 4)).toMatchObject({
       unassignedDemandHours: 1,
       unassignedDemandDays: 0.25,
     });
-    expect(twelveWeekResult.summary.periods[5]).toMatchObject({ unassignedDemandHours: 1 });
     expect(fourWeekResult.groups).toHaveLength(0);
     expect(hiddenTentativeResult.groups).toHaveLength(0);
   });
@@ -403,7 +402,6 @@ describe("buildCapacityOverviewModel", () => {
       tentativeDays: 2,
       overHours: 4,
     });
-    expect(included.summary.periods[0]).toMatchObject({ tentativeHours: 16, tentativeDays: 2 });
     expect(period(excluded, resource.id, 0)).toMatchObject({ freeHours: 32, tentativeHours: 0, overHours: 0 });
   });
 
@@ -441,11 +439,9 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
     const slotPeriod = period(result, slot.id, 0);
-    const summary = result.summary;
 
     expect(slotPeriod).toMatchObject({ freeDays: 0, overDays: 0, unassignedDemandHours: 16, unassignedDemandDays: 2 });
-    expect(summary).toMatchObject({ peopleCount: 1 });
-    expect(summary.periods[0]).toMatchObject({ freeDays: 5, unassignedDemandDays: 2 });
+    expect(period(result, real.id, 0)).toMatchObject({ freeDays: 5 });
   });
 
   it("keeps disabled-discipline fallback groups and placeholder demand visibly separate", () => {
@@ -475,8 +471,6 @@ describe("buildCapacityOverviewModel", () => {
       "placeholders",
     ]);
     expect(ungrouped.groups.map((group) => group.key)).toEqual(["overall", "placeholders"]);
-    expect(grouped.summary.peopleCount).toBe(2);
-    expect(grouped.summary.placeholderCount).toBe(1);
   });
 
   it("keeps placeholder demand separate from discipline groups", () => {
@@ -522,7 +516,7 @@ describe("buildCapacityOverviewModel", () => {
     const visible = result.groups.flatMap((group) => group.rows).map((row) => row.resource.id);
 
     expect(visible).toEqual([available.id, slot.id]);
-    expect(result.groups[0]?.summary.peopleCount).toBe(2);
+    expect(result.groups.map((group) => group.rows.length)).toEqual([1, 1]);
   });
 
   it("follows discipline and engagement ordering while excluding external and archived resources", () => {
@@ -547,7 +541,7 @@ describe("buildCapacityOverviewModel", () => {
     expect(result.groups[0]?.rows.map((row) => row.resource.id)).toEqual([second.id, first.id]);
   });
 
-  it("retains exact summary totals when row display values are rounded", () => {
+  it("keeps exact hours on every row so totals can sum before rounding", () => {
     const first = person("first");
     const second = person("second");
     const result = buildCapacityOverviewModel({
@@ -574,12 +568,10 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    const summary = result.summary;
-    expect(period(result, first.id, 0).freeDays).toBe(4);
-    expect(period(result, second.id, 0).freeDays).toBe(4);
-    expect(summary).toMatchObject({ peopleCount: 2 });
-    expect(summary.periods[0]).toMatchObject({ freeHours: 66, freeDays: 8.25 });
-    expect(summary.periods[1]).toMatchObject({ availableHours: 72, freeHours: 64, overHours: 2 });
+    expect(period(result, first.id, 0)).toMatchObject({ freeHours: 33, freeDays: 4 });
+    expect(period(result, second.id, 0)).toMatchObject({ freeHours: 33, freeDays: 4 });
+    expect(period(result, first.id, 1)).toMatchObject({ availableHours: 32, freeHours: 24, overHours: 2 });
+    expect(period(result, second.id, 1)).toMatchObject({ availableHours: 40, freeHours: 40, overHours: 0 });
   });
 
   it("returns a measured-capacity explanation in Blocks mode", () => {
@@ -590,11 +582,5 @@ describe("buildCapacityOverviewModel", () => {
     });
 
     expect(result).toMatchObject({ measured: false, reason: "blocks-mode", groups: [] });
-  });
-
-  it("keeps four summary period slots when no eligible rows remain", () => {
-    const result = buildCapacityOverviewModel({ data: data([]), today: "2026-06-01" });
-
-    expect(result.summary.periods).toHaveLength(4);
   });
 });

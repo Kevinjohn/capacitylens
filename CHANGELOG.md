@@ -23,7 +23,9 @@ new features and **patch** versions carry fixes.
 - Redesign the Overview page as a single capacity ledger: each week cell shows free days out of
   capacity with a colour-graded bar and a grey tentative hatch, an optional **Totals** header row
   reports each week's committed percentage and free days, a **Load curve** display shows shape only,
-  and the horizon offers 4, 8 or 12 single weeks. Boolean toolbar choices become single pills (#1130).
+  and the horizon offers 4, 8 or 12 single weeks. Boolean toolbar choices become single pills. The
+  per-group totals rows, including the combined unassigned-demand figure, are removed: totals cover
+  the people shown and placeholder rows carry their own demand (#1130).
 - Rework day-to-day, Admin and Owner documentation around visible screens and useful actions.
   Prioritise personal scheduled work, complete Admin tasks and the Owner-to-Admin handover.
   Add real application screenshots for each guide, including role-specific access and first-company setup.

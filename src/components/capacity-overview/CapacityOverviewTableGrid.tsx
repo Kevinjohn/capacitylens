@@ -5,6 +5,7 @@ import { Fragment, useState } from "react";
 import { m } from "@/i18n";
 import { formatWeekColumnRange } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
+import { useStore } from "../../store/useStore";
 import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
 import { buildPeriodTotals } from "./capacityOverviewBar";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
@@ -22,7 +23,7 @@ export interface PersonScheduleTriggerHandlers {
 // cell paints an opaque background of its own row's surface for that reason.
 const STICKY_CLASS = "sticky left-0 z-10 min-w-[230px] text-left";
 
-function peopleCount(count: number): string {
+function formatPeopleCount(count: number): string {
   return count === 1
     ? m.capacity_overview_people_one({ count: String(count) })
     : m.capacity_overview_people_other({ count: String(count) });
@@ -47,7 +48,7 @@ function GroupRow({
           type="button"
           onClick={onToggle}
           aria-expanded={!collapsed}
-          className="flex w-full cursor-pointer items-center gap-[9px] px-[18px] py-[9px] text-[11px] font-semibold uppercase tracking-[.09em] text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
+          className="flex w-full cursor-pointer items-center gap-[9px] px-[18px] py-[9px] text-[11px] [[data-compact]_&]:py-1 font-semibold uppercase tracking-[.09em] text-muted-foreground outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:ring-inset"
         >
           {collapsed ? (
             <ChevronRight aria-hidden="true" className="size-3.5 text-faint" />
@@ -62,7 +63,7 @@ function GroupRow({
           <span className="min-w-0 truncate">{group.title}</span>
           {people > 0 ? (
             <span className="shrink-0 font-mono text-[11.5px] font-normal tracking-normal normal-case whitespace-nowrap text-faint">
-              {peopleCount(people)}
+              {formatPeopleCount(people)}
             </span>
           ) : null}
         </button>
@@ -83,7 +84,10 @@ function PersonCell({
   const { resource } = row;
   const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
   return (
-    <th scope="row" className={`${STICKY_CLASS} border-b border-line-soft bg-surface px-[18px] py-2 font-normal`}>
+    <th
+      scope="row"
+      className={`${STICKY_CLASS} border-b border-line-soft bg-surface px-[18px] py-2 font-normal [[data-compact]_&]:py-1`}
+    >
       <div className="flex min-w-0 items-center gap-[11px]">
         <PersonScheduleTrigger
           resourceId={resource.id}
@@ -233,9 +237,11 @@ export function CapacityTable({
       else next.add(key);
       return next;
     });
+  const compact = useStore((state) => state.compactView);
   return (
     <div
       data-testid="capacity-overview-table-region"
+      data-compact={compact || undefined}
       role="region"
       aria-label={m.capacity_overview_table_region()}
       tabIndex={0}

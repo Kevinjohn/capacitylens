@@ -21,26 +21,6 @@ export interface CapacityOverviewPeriodResult {
   state: CapacityOverviewState;
 }
 
-export interface CapacityOverviewSummaryPeriod {
-  availableHours: number;
-  freeHours: number;
-  overHours: number;
-  tentativeHours: number;
-  freeDays: number;
-  overDays: number;
-  tentativeDays: number;
-  unassignedDemandHours: number;
-  unassignedDemandDays: number;
-}
-
-export interface CapacityOverviewSummary {
-  /** Summary values include every eligible person, even when rows are filtered from the table. */
-  scope: "all-eligible-people";
-  peopleCount: number;
-  placeholderCount: number;
-  periods: CapacityOverviewSummaryPeriod[];
-}
-
 export interface CapacityOverviewRow {
   resource: Resource;
   periods: CapacityOverviewPeriodResult[];
@@ -51,7 +31,6 @@ export interface CapacityOverviewGroup {
   title: string;
   color?: string;
   rows: CapacityOverviewRow[];
-  summary: CapacityOverviewSummary;
 }
 
 export interface CapacityOverviewModel {
@@ -59,7 +38,6 @@ export interface CapacityOverviewModel {
   reason?: "blocks-mode";
   periods: CapacityOverviewPeriod[];
   groups: CapacityOverviewGroup[];
-  summary: CapacityOverviewSummary;
 }
 
 export interface BuildCapacityOverviewModelInput {
