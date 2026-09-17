@@ -167,7 +167,7 @@ describe("SchedulerToolbar filter ordering", () => {
       screen.getByRole("combobox", { name: "Filter by client" }),
       screen.getByRole("combobox", { name: "Filter by project" }),
       screen.getByRole("combobox", { name: "Filter by activity" }),
-      screen.getByRole("radiogroup", { name: "Tentative visibility" }),
+      screen.getByRole("button", { name: "Tentative" }),
       screen.getByRole("radiogroup", { name: "Draw mode" }),
       screen.getByRole("checkbox", { name: "Show unallocated" }),
       screen.getByRole("button", { name: "Clear Filters" }),
@@ -380,24 +380,21 @@ describe("SchedulerToolbar project option presentation", () => {
 });
 
 describe("SchedulerToolbar tentative visibility", () => {
-  it("maps Show and Hide tentative segments to the existing boolean filter", async () => {
+  it("maps the Tentative pill to the inverse of the stored hideTentative filter", async () => {
     const user = userEvent.setup();
     render(<SchedulerToolbar />);
     showFilters();
 
-    const group = screen.getByRole("radiogroup", { name: "Tentative visibility" });
-    const show = within(group).getByRole("radio", { name: "Show tentative" });
-    const hide = within(group).getByRole("radio", { name: "Hide tentative" });
-    expect(show).toHaveAttribute("aria-checked", "true");
-    expect(hide).toHaveAttribute("aria-checked", "false");
+    const pill = screen.getByRole("button", { name: "Tentative" });
+    expect(pill).toHaveAttribute("aria-pressed", "true");
 
-    await user.click(hide);
+    await user.click(pill);
     expect(useStore.getState().ui.filters.hideTentative).toBe(true);
-    expect(hide).toHaveAttribute("aria-checked", "true");
+    expect(pill).toHaveAttribute("aria-pressed", "false");
 
-    await user.click(show);
+    await user.click(pill);
     expect(useStore.getState().ui.filters.hideTentative).toBe(false);
-    expect(show).toHaveAttribute("aria-checked", "true");
+    expect(pill).toHaveAttribute("aria-pressed", "true");
   });
 });
 

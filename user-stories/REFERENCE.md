@@ -611,8 +611,8 @@ clears the client/project filter and vice-versa. Selecting a client narrows `Fil
 that client's eligible projects while retaining `All projects`; clearing the client restores the
 full eligible project list and resets the project filter to `All projects`. If the selected project
 belongs to the newly selected client it remains selected; otherwise the project filter resets to
-`All projects`. The `Tentative visibility` radiogroup offers
-`Show tentative`/`Hide tentative` (radios using `aria-checked`), followed by the draw-mode radiogroup
+`All projects`. The `Tentative` pill (a button using `aria-pressed`,
+pressed meaning tentative work is shown), followed by the draw-mode radiogroup
 `Work`/`Time off` (note "Time off" here is the _toggle_, distinct from the "Time off" _nav link_), then `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
 resources with no matching work in the displayed timeline; ticking it brings them back

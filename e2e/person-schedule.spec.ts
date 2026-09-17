@@ -48,7 +48,11 @@ async function assertGridPreserved(
   expect((await probeSchedulerGeometry(page)).leftDate).toBe(before.leftDate);
   await expect(page.getByLabel("Search people")).toHaveValue("Bruce");
   await expect(page.getByLabel("Filter by project")).toHaveText("All projects");
-  await expect(page.getByRole("radio", { name: "Hide tentative", includeHidden: true })).toBeChecked();
+  await expect(
+    page
+      .getByTestId("scheduler-filter-controls")
+      .getByRole("button", { name: "Tentative", exact: true, includeHidden: true }),
+  ).toHaveAttribute("aria-pressed", "false");
 }
 
 async function prepareFilteredGrid(page: import("@playwright/test").Page) {
@@ -62,7 +66,7 @@ async function prepareFilteredGrid(page: import("@playwright/test").Page) {
   await setZoom(page, 4);
   await goToSeedWeek(page);
   await showScheduleFilters(page);
-  await page.getByRole("radio", { name: "Hide tentative" }).click();
+  await page.getByTestId("scheduler-filter-controls").getByRole("button", { name: "Tentative", exact: true }).click();
   await page.getByLabel("Search people").fill("Bruce");
   await resetSchedulerScroll(page);
   await nudgeScheduler(page, 5);

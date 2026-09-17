@@ -53,6 +53,7 @@ function CapacityOverviewAccessSection({
       help={m.settings_capacity_overview_access_intro()}
     >
       <SegmentedControl
+        variant="recessed"
         ariaLabel={m.settings_capacity_overview_access_aria()}
         value={capacityOverviewAccess}
         onChange={(value) => updateSetting({ capacityOverviewAccess: value })}
@@ -92,6 +93,7 @@ function SchedulingModeSection({
   return (
     <SettingsSection title={m.settings_scheduling_heading()} help={help}>
       <SegmentedControl
+        variant="recessed"
         ariaLabel={m.settings_scheduling_aria()}
         value={schedulingMode}
         onChange={(value) => updateSetting({ schedulingMode: value })}
@@ -168,6 +170,7 @@ function InternalColourSection({
   return (
     <SettingsSection title={m.settings_internal_colours_heading()} help={m.settings_internal_colours_intro()}>
       <SegmentedControl
+        variant="recessed"
         ariaLabel={m.settings_internal_colours_aria()}
         value={internalColourMode}
         onChange={(value) => updateSetting({ internalColourMode: value })}

@@ -27,6 +27,7 @@ export function SettingsDateFormatSection({
   return (
     <SettingsSection title={m.settings_date_style_heading()} help={m.settings_date_style_intro()}>
       <SegmentedControl
+        variant="recessed"
         ariaLabel={m.settings_date_style_aria()}
         value={dateStyle}
         onChange={onChange}
