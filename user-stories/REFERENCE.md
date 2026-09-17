@@ -874,7 +874,9 @@ server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `CAPACIT
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
 and a `Sign in` button in password mode; a `Continue with SSO` button in sso mode; failures
-show an inline alert). If a mid-session 401 arrives while server writes are still unsaved, the
+show an inline alert. Starting an external sign-in clears an earlier provider error, announces
+**Redirecting to _provider_…** as a neutral status, and keeps the provider controls disabled while
+the browser hands off to the provider). If a mid-session 401 arrives while server writes are still unsaved, the
 sign-in wall also warns **Some changes could not be saved before your session expired. They will
 not be restored after you sign in again.** On a fresh server-mode boot, company persistence starts
 only after `/api/auth/me` has admitted the session: a signed-out visitor or an identity awaiting
@@ -921,6 +923,8 @@ to the same page. The provider must assert `email_verified: true`, its email mus
 sign-in email, and its immutable subject must not belong to another principal. A successful callback
 shows **Connected to _provider_**. Raw provider link/unlink routes are unavailable. A federated
 session in mixed mode uses that same provider—not a password it may not have—for **Confirm it's you**.
+That provider hand-off announces **Redirecting to _provider_…** and keeps the dialog busy while the browser
+leaves, on the same contract as the sign-in screen; only a returned provider error is reported and retryable.
 
 **First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
