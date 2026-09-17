@@ -27,8 +27,8 @@ the schedule.
    only the free share, so overbooking never paints it.
 3. Choose **Load curve** to replace each cell's figures with a vertical fill of the same shares,
    hovering a cell for its figures. Choose **Ledger** to return.
-4. Choose **8 weeks** or **12 weeks** to add complete company weeks, one column each; the table
-   scrolls horizontally with the person column fixed.
+4. Choose **8 weeks** or **12 weeks** to add complete company weeks, one column each; scroll the
+   table horizontally to reach the added columns.
 5. Turn **Tentative** off to recalculate capacity and unassigned demand from confirmed work only
    across every displayed week; the hatch disappears everywhere.
 6. Turn **Has availability** on to keep people with at least 0.25 displayed free days in any shown

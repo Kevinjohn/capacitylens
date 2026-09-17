@@ -22,7 +22,7 @@ Open Projects and select Add project. Enter the project name, choose its Client 
 
 ## Add an activity
 
-![Activities: Add activity form with Kind and Project](../screenshots/flows/admin_prepare_work_3.png)
+![Activities: Add activity form for Design review with Project-specific selected and LexCorp / Metropolis Rebrand chosen](../screenshots/flows/admin_prepare_work_3.png)
 
 Open Activities and select Add activity. Enter its name and choose Kind:
 

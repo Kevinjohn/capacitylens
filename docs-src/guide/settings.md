@@ -20,7 +20,7 @@ Each row has a question-mark button labelled **About &lt;section&gt;**: hover it
 for that short label, or activate it to open the fuller explanation without keeping that
 text on the page.
 
-![Settings with the Company setup group, compact rows and company-wide scope explanation](../screenshots/flows/settings_overview.jpg)
+![Settings with the Company setup group, compact rows and company-wide scope explanation](../screenshots/flows/settings_overview.png)
 
 ## Company setup
 
@@ -40,7 +40,7 @@ day of the company's configured week. New companies select the first five days. 
 combination, but at least one day must stay checked: when only one remains, its checkbox is
 disabled with an explanation until another day is selected.
 
-![Company-wide working days in Settings with Monday as the only selected day and an explanation that at least one working day must remain](../screenshots/flows/settings_working_days_guard.jpg)
+![Company-wide working days in Settings with Monday as the only selected day and an explanation that at least one working day must remain](../screenshots/flows/settings_working_days_guard.png)
 
 Each person works the days that are ticked here **and** in their own working pattern. Days outside
 that combination hold no capacity: allocations skip them, they count for nothing in utilisation,
@@ -104,7 +104,7 @@ by default; favourites stay first inside each engagement group. See [People and 
 Overview is limited to Owners and Admins by default. An Owner or Admin can choose
 **Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Overview
 access**. The setting controls both the sidebar link and direct access to the page. See
-[Find capacity across four or twelve weeks](/guide/capacity-overview).
+[Find capacity across four, eight or twelve weeks](/guide/capacity-overview).
 
 ## Scheduling features
 
@@ -179,7 +179,7 @@ travel with an export:
 - **Compact view** reduces the vertical spacing so more people fit on screen. It changes
   no allocations or capacity.
 
-![The My display group with Schedule on this device, allocation labels, utilisation figures and appearance preferences](../screenshots/flows/settings_schedule_device.jpg)
+![The My display group with Schedule on this device, allocation labels, utilisation figures and appearance preferences](../screenshots/flows/settings_schedule_device.png)
 
 ### Allocation labels on this device
 
@@ -261,7 +261,7 @@ The Diagnostics row records the **Snapshot observed** time when the server respo
 when its failure is observed. **Copy diagnostics** copies that same snapshot and does not request a
 fresh report, so the support note describes one clear observation rather than a live stream.
 
-![Data and support with closed Device data, Deleted items and Import and export disclosures, read-only Company details, and Diagnostics](../screenshots/flows/settings_account_disclosures.jpg)
+![Appearance preferences above Data and support, with Device data and Import and export closed](../screenshots/flows/settings_account_disclosures.png)
 
 ## Your personal account
 

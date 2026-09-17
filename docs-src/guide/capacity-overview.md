@@ -6,15 +6,16 @@ description: Use Overview to compare free capacity, tentative work and overbooki
 # Find capacity across four, eight or twelve weeks
 
 Overview shows who can take work during the remainder of this week and the complete company
-weeks that follow. It uses the same working patterns, time off and company closures as the Schedule.
+weeks that follow. The four-, eight- and twelve-week choices each show one column per week. It
+uses the same working patterns, time off and company closures as the Schedule.
 
-![Overview ledger with the Totals row on, showing each person's free days out of capacity for four weeks, a red overbooked figure for Bruce Wayne and grey tentative hatches](../screenshots/flows/capacity_overview.jpg)
+![Overview ledger with the Totals row on, showing each person's free days out of capacity for four weeks, a red overbooked figure and grey tentative hatches](../screenshots/flows/capacity_overview.png)
 
 ## Open the overview
 
 Choose **Overview** immediately above **Schedule** in the sidebar. The table shows active people
-in the same order and groups as the Schedule, with each group's row naming its group and how many
-people it contains. External resources and archived or deleted people are excluded.
+in the same order and groups as the Schedule. Each group row names its group and people count;
+external resources and archived or deleted people are excluded.
 
 Each week cell shows a person's free days out of their capacity for that week, for example
 **2d / 5d**. Beneath the figures, a bar fills with the share of capacity still free:
@@ -40,24 +41,27 @@ read-only schedule drawer, covering the current company week and the following t
 rather than the Overview's own columns, without changing the table's filters or scroll
 position — the same drawer as [the schedule](/guide/the-schedule).
 
-## Choose Ledger or Load curve
+## Choose a cell display
 
 ![Overview in Load curve display across twelve weeks with the Totals row on: each cell is a vertical fill showing the person's free share of the week](../screenshots/flows/using_overview_2.png)
 
-**Ledger** starts selected and shows the figures and bar in every cell. Choose **Load curve** to
-see only the shape: each cell becomes a vertical fill that rises with the person's free share of
-the week, with the tentative hatch on top of it. Load curve shows no figures; hover a cell to read
-them, or return to **Ledger**.
+**Ledger** starts selected and shows the figures and a horizontal bar in every cell.
+
+Choose **Load curve** for a vertical fill that rises with the person's free share of the week.
+The tentative hatch sits above it.
+
+Hover a cell to read its figures, or return to **Ledger**.
 
 Switching between the two changes only the inside of each week cell. The header, group rows and
 column widths stay exactly where they are.
 
 ## Choose a planning horizon
 
-The **Overview horizon** control starts at **4 weeks**: the remainder of the current company week
-followed by the next three complete company weeks. Choose **8 weeks** or **12 weeks** to add more
-complete company weeks, one column each. The subtitle under the page title states the horizon in
-use.
+The horizon control starts at **4 weeks**: the remainder of the current company week followed by
+the next three complete company weeks. Choose **8 weeks** or **12 weeks** to add complete company
+weeks, one column each. Scroll horizontally to reach the later weeks.
+
+The subtitle under the page title states the horizon in use.
 
 Every horizon follows the company's Monday or Sunday week start. Column headings show each week's
 date range, so a range crossing a calendar year reads in context without repeating the year.
@@ -79,7 +83,7 @@ week. Placeholders remain when they have displayed demand.
 **Totals** starts off. Turn it on to add a second header row above the table with, for each week
 across the people currently shown:
 
-- the percentage of their combined capacity that is committed to confirmed work;
+- the percentage of their combined capacity committed to confirmed work;
 - their combined free days;
 - a bar with the committed share in blue and the tentative share as a grey hatch.
 
@@ -92,19 +96,14 @@ Hours or Days in **Settings** to use the overview.
 
 ## Control access
 
-Overview is available to Owners and Admins by default. An Owner or Admin can open
-**Settings**, find **Overview access**, and choose:
-
-- **Owner and Admin only**;
-- **Owner, Admin, and Editors**; or
-- **Everyone**.
+Overview is available to Owners and Admins by default. An Owner or Admin can open **Settings**,
+find **Overview access**, and choose **Owner and Admin only**, **Owner, Admin, and Editors**, or
+**Everyone**.
 
 The chosen access applies to both the sidebar link and the direct `/overview` route.
 
 This setting controls who can open the page, not the underlying data: everyone with sign-in
 access to the company already receives the same allocations and resources through the schedule.
-
-## What's next
 
 [The schedule](/guide/the-schedule) explains daily planning and allocation editing. [Settings](/guide/settings)
 covers the rest of the company and device options.
