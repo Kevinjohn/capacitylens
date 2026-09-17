@@ -2,10 +2,10 @@ import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { useEffect, useId, useState, type Dispatch, type SetStateAction } from "react";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { FieldError } from "../components/ui/field";
 import { Separator } from "../components/ui/separator";
+import { ExternalProviderButton } from "../components/common/ExternalProviderButton";
 import type { AuthProviderInfo } from "./authContext";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import {
@@ -55,6 +55,7 @@ export function LoginScreen({
       : null,
   );
   const [busy, setBusy] = useState(false);
+  const [pendingProvider, setPendingProvider] = useState<AuthProviderInfo | null>(null);
   const secondFactor = useSecondFactor({ setError, setBusy, onSignedIn });
   const passwordSignIn = usePasswordSignIn({
     setError,
@@ -87,13 +88,14 @@ export function LoginScreen({
       degraded={degraded}
       hadUnsavedChanges={hadUnsavedChanges}
       busy={busy}
+      pendingProvider={pendingProvider}
       error={error}
       setError={setError}
       ids={ids}
       secondFactor={secondFactor}
       passwordSignIn={passwordSignIn}
       ownerSetup={ownerSetup}
-      signInWithProvider={createProviderSignIn(setBusy, setError)}
+      signInWithProvider={createProviderSignIn(setBusy, setError, setPendingProvider)}
     />
   );
 }
@@ -101,19 +103,25 @@ export function LoginScreen({
 function createProviderSignIn(
   setBusy: Dispatch<SetStateAction<boolean>>,
   setError: Dispatch<SetStateAction<string | null>>,
+  setPendingProvider: Dispatch<SetStateAction<AuthProviderInfo | null>>,
 ) {
   return async (provider: AuthProviderInfo) => {
     setBusy(true);
     setError(null);
+    setPendingProvider(provider);
     try {
       const result = await dispatchExternalProviderSignIn(provider);
-      if (result.error) setError(result.error.message ?? m.login_failed());
-      else setError(m.login_sso_failed());
+      if (result.error) {
+        setPendingProvider(null);
+        setError(result.error.message ?? m.login_failed());
+        setBusy(false);
+      }
     } catch (error) {
       console.error("LoginScreen: SSO sign-in request failed", error);
+      setPendingProvider(null);
       setError(m.login_network_error());
+      setBusy(false);
     }
-    setBusy(false);
   };
 }
 
@@ -124,6 +132,7 @@ type LoginViewProps = {
   degraded: boolean;
   hadUnsavedChanges: boolean;
   busy: boolean;
+  pendingProvider: AuthProviderInfo | null;
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
   ids: {
@@ -143,6 +152,14 @@ type LoginViewProps = {
 
 function LoginView(props: LoginViewProps) {
   const setup = props.authMode === "password" && props.needsSetup && !props.ownerSetup.setupClosed;
+  const promotedGoogle =
+    !setup && props.authMode === "password"
+      ? props.providers.find((provider) => provider.kind === "social" && provider.id === "google")
+      : undefined;
+  const trailingProviders = promotedGoogle
+    ? props.providers.filter((provider) => provider !== promotedGoogle)
+    : props.providers;
+  const showPromotedGoogle = promotedGoogle !== undefined && !props.secondFactor.twoFactorPending;
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
@@ -150,9 +167,24 @@ function LoginView(props: LoginViewProps) {
         <Card className="gap-4 py-4">
           <CardContent className="px-4">
             <LoginNotices degraded={props.degraded} hadUnsavedChanges={props.hadUnsavedChanges} />
+            {showPromotedGoogle && (
+              <ProviderButtons
+                authMode={props.authMode}
+                setup={setup}
+                providers={[promotedGoogle]}
+                busy={props.busy}
+                pendingProvider={props.pendingProvider}
+                error={props.error}
+                twoFactorPending={props.secondFactor.twoFactorPending}
+                signInWithProvider={props.signInWithProvider}
+                showSeparator={false}
+              />
+            )}
+            {showPromotedGoogle && <PasswordFallbackSeparator />}
             <LoginForm
               authMode={props.authMode}
               setup={setup}
+              passwordAutoFocus={!showPromotedGoogle}
               busy={props.busy}
               error={props.error}
               setError={props.setError}
@@ -164,8 +196,9 @@ function LoginView(props: LoginViewProps) {
             <ProviderButtons
               authMode={props.authMode}
               setup={setup}
-              providers={props.providers}
+              providers={trailingProviders}
               busy={props.busy}
+              pendingProvider={props.pendingProvider}
               error={props.error}
               twoFactorPending={props.secondFactor.twoFactorPending}
               signInWithProvider={props.signInWithProvider}
@@ -208,9 +241,13 @@ function LoginNotices({ degraded, hadUnsavedChanges }: { degraded: boolean; hadU
   );
 }
 
-type ProviderButtonsProps = Pick<LoginViewProps, "authMode" | "providers" | "busy" | "error" | "signInWithProvider"> & {
+type ProviderButtonsProps = Pick<
+  LoginViewProps,
+  "authMode" | "providers" | "busy" | "pendingProvider" | "error" | "signInWithProvider"
+> & {
   setup: boolean;
   twoFactorPending: boolean;
+  showSeparator?: boolean;
 };
 
 function ProviderButtons({
@@ -218,16 +255,18 @@ function ProviderButtons({
   setup,
   providers,
   busy,
+  pendingProvider,
   error,
   twoFactorPending,
   signInWithProvider,
+  showSeparator = true,
 }: ProviderButtonsProps) {
   if (twoFactorPending) return null;
   if (providers.length === 0)
     return !setup && authMode === "sso" ? <FieldError>{m.login_sso_unavailable()}</FieldError> : null;
   return (
     <div className="mt-4 flex flex-col gap-3">
-      <Separator />
+      {showSeparator && <Separator />}
       {setup && providers.some((provider) => provider.kind === "oidc") && (
         <p className="text-xs text-muted-foreground">{m.login_setup_external_hint()}</p>
       )}
@@ -235,18 +274,34 @@ function ProviderButtons({
         <p className="text-xs text-muted-foreground">{m.login_external_experimental()}</p>
       )}
       <FieldError>{authMode === "sso" ? error : null}</FieldError>
+      {pendingProvider && (
+        <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+          {m.login_external_redirecting({ provider: pendingProvider.label })}
+        </p>
+      )}
       {providers.map((provider) => (
-        <Button
+        <ExternalProviderButton
           size="sm"
           type="button"
           key={`${provider.kind}:${provider.id}`}
           variant="outline"
+          provider={provider}
+          label={m.login_continue_with({ provider: provider.label })}
+          googleLabel={m.login_sign_in_with_google()}
           onClick={() => void signInWithProvider(provider)}
           disabled={busy}
-        >
-          {m.login_continue_with({ provider: provider.label })}
-        </Button>
+        />
       ))}
+    </div>
+  );
+}
+
+function PasswordFallbackSeparator() {
+  return (
+    <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+      <Separator className="min-w-0 flex-1 shrink data-[orientation=horizontal]:w-auto" />
+      <span className="shrink-0">{m.login_or_use_password()}</span>
+      <Separator className="min-w-0 flex-1 shrink data-[orientation=horizontal]:w-auto" />
     </div>
   );
 }

@@ -85,6 +85,40 @@ describe("MembersSection — member lifecycle", () => {
 });
 
 function registerMemberResourceLinkTests(): void {
+  it("keeps member actions distinct and opens Resource linking from its own icon", async () => {
+    const user = userEvent.setup();
+    useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    vi.stubGlobal(
+      "fetch",
+      mockApi([
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", mayResetPassword: true, mayRevokeSessions: true },
+      ]),
+    );
+    renderSection();
+
+    const row = await findMemberRow(/ed@x\.io/);
+    expect(within(row).getByTestId("member-masquerade")).toBeInTheDocument();
+    expect(within(row).getByTestId("member-edit")).toBeInTheDocument();
+    expect(within(row).getByTestId("member-resource-menu")).toBeInTheDocument();
+    expect(within(row).getByTestId("member-menu")).toBeInTheDocument();
+    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent("None");
+    const actionCell = requireValue(within(row).getAllByRole("cell")[3], "the action cell");
+    expect(actionCell).toHaveClass("px-4", "text-right", "whitespace-nowrap");
+    expect(actionCell.firstElementChild).toHaveClass("flex", "justify-end", "gap-1");
+
+    await user.click(within(row).getByTestId("member-resource-menu"));
+    const resourceDialog = await screen.findByRole("dialog");
+    expect(resourceDialog).toHaveAccessibleName(m.settings_member_col_scheduled_person());
+    await user.click(within(resourceDialog).getByRole("button", { name: /link Resource/i }));
+    expect(within(resourceDialog).getByTestId("member-resource-link")).toBeInTheDocument();
+    await user.click(within(resourceDialog).getByRole("button", { name: /close/i }));
+
+    await user.click(within(row).getByTestId("member-menu"));
+    const settingsDialog = await screen.findByRole("dialog");
+    expect(within(settingsDialog).queryByTestId("member-resource-status")).not.toBeInTheDocument();
+  });
+
   it("shows schedule attention and clears it through choose-another-person", async () => {
     const user = userEvent.setup();
     const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
@@ -106,7 +140,7 @@ function registerMemberResourceLinkTests(): void {
     expect(row).toHaveTextContent("Resource link needs attention");
     expect(row).toHaveTextContent("That Resource is no longer available.");
 
-    await user.click(within(row).getByTestId("member-menu"));
+    await user.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Choose another person" }));
     const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
@@ -134,7 +168,7 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    await userEvent.click(within(row).getByTestId("member-menu"));
+    await userEvent.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: "Dismiss" }));
     await waitFor(() =>
@@ -162,7 +196,7 @@ function registerMemberResourceLinkTests(): void {
     const row = await findMemberRow(/ed@x\.io/);
     expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(/Linked to Resource: Bruce Wayne/);
     expect(within(row).queryByRole("button", { name: /change Resource/i })).not.toBeInTheDocument();
-    await userEvent.click(within(row).getByTestId("member-menu"));
+    await userEvent.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: /remove Resource link/i }));
     await waitFor(() =>
@@ -215,7 +249,7 @@ function registerMemberResourceLinkTests(): void {
     const row = await findMemberRow(/ed@x\.io/);
     expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(/Linked to Resource: Barry Allen/);
     expect(within(row).queryByText(/inactive — unlink only/)).not.toBeInTheDocument();
-    await userEvent.click(within(row).getByTestId("member-menu"));
+    await userEvent.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
     await userEvent.click(within(dialog).getByRole("button", { name: /change Resource/i }));
     const selector = within(dialog).getByTestId("member-resource-link");
@@ -242,7 +276,7 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    await user.click(within(row).getByTestId("member-menu"));
+    await user.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
     const link = within(dialog).getByRole("button", { name: /link Resource/i });
     await user.click(link);
