@@ -893,12 +893,15 @@ local mode, no login screen exists, Account explains that sign-in is off, and lo
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
-**External provider action labels (login, invitation acceptance and reauthentication).** The
-configured Google social provider uses the exact branded action **Sign in with Google** and the
+**External provider action labels (login, invitation acceptance and reauthentication).** A
+configured Google social provider or strict OIDC provider explicitly branded as Google uses the
+exact branded action **Sign in with Google** and the
 recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
 reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
 providers retain **Continue with _provider_** and their caller-supplied accessible label.
-On a password-mode installation with Google configured, the sign-in wall puts that Google action
+Brand is server-owned presentation metadata and is never inferred from the editable provider label;
+an unbranded strict OIDC provider remains generic. On a password-mode installation with Google
+configured, the sign-in wall puts that Google action
 first, followed by an explicit **or use your password** separator and the password form. SSO-only
 still omits password controls; password-only installations and installations without Google keep
 their existing order. If several providers are configured, the remaining provider actions stay

@@ -40,6 +40,17 @@ async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance
 }
 
 function registerSsoClosedRouteTests(): void {
+  it("publishes the configured strict OIDC presentation brand to signed-out clients", async () => {
+    const app = await appWithAuth({ ...SSO_ENV, CAPACITYLENS_SSO_BRAND: "google" });
+    const response = await call(app, { method: "GET", url: "/api/auth/me" });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      providers: [{ id: "sso", label: "Single sign-on", kind: "oidc", brand: "google", experimental: false }],
+    });
+    await app.close();
+  });
+
   it("keeps password mutation and invitation password signup closed", async () => {
     const app = await appWithAuth(SSO_ENV);
     expect(

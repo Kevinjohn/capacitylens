@@ -515,20 +515,13 @@ registerInviteAcceptTest(() =>
       ...signedInAuth,
       authMode: "sso",
       user: null,
-      providers: [
-        {
-          id: "sso",
-          label: "Single sign-on",
-          kind: "oidc",
-          experimental: false,
-        },
-      ],
+      providers: [{ id: "sso", label: "Google", kind: "oidc", brand: "google", experimental: false }],
     });
 
     await screen.findByTestId("invite-preview");
     await user.click(
       screen.getByRole("button", {
-        name: m.invite_continue_provider({ provider: "Single sign-on" }),
+        name: "Sign in with Google",
       }),
     );
     window.dispatchEvent(new Event("pagehide"));

@@ -260,6 +260,12 @@ SMALLSASS_ACCOUNT_OIDC_LABEL=Northwind Identity
 name they'd recognise: "Google", "Company login", "Northwind Identity". Keep the client
 secret wherever you keep your other secrets — not in a file you commit.
 
+If this strict OIDC connection is Google Workspace, also set
+`SMALLSASS_ACCOUNT_OIDC_BRAND=google`. The brand selects the Google button presentation;
+CapacityLens never guesses it from `LABEL`. Other strict OIDC connections default to the
+generic presentation. The `microsoft` value reserves Microsoft presentation metadata for
+supported Microsoft styling without changing the OIDC sign-in flow.
+
 ::: warning Use these settings, not the separate Google or Microsoft buttons
 CapacityLens also has stand-alone `..._GOOGLE_...` and `..._MICROSOFT_...` settings for
 people who want a social sign-in button. They're a different door, and connections made

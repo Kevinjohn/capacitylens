@@ -131,6 +131,11 @@ SMALLSASS_ACCOUNT_OIDC_LABEL=Northwind Identity
 `LABEL` is just the words on the button your people will click, so use the name they'd
 recognise — "Northwind Identity", "Google", "Company login".
 
+For Google Workspace, set `SMALLSASS_ACCOUNT_OIDC_BRAND=google` as well. This selects the
+Google presentation without changing the strict OIDC authentication flow. CapacityLens does
+not infer presentation from the editable label; all other providers remain generic unless a
+supported brand is configured explicitly.
+
 ::: warning Get the [issuer](/reference/glossary#issuer) line right first time, then leave it alone
 The first successful start ties this installation to that one company login, and every
 connection your people make afterwards is filed against it. Changing the issuer later

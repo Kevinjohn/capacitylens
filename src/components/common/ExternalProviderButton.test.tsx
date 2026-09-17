@@ -53,6 +53,22 @@ describe("ExternalProviderButton", () => {
     );
   });
 
+  it("uses Google presentation for a branded strict OIDC provider", () => {
+    render(
+      <ExternalProviderButton
+        provider={{ id: "sso", kind: "oidc", brand: "google" }}
+        label="Continue with Google"
+        googleLabel="Sign in with Google"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toHaveClass(
+      "outline-solid",
+      "outline-[#747775]",
+    );
+    expect(screen.getByTestId("google-mark-light")).toBeInTheDocument();
+  });
+
   it("keeps configured copy and caller labels for other providers", () => {
     render(
       <ExternalProviderButton
