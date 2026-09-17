@@ -266,6 +266,11 @@ CapacityLens never guesses it from `LABEL`. Other strict OIDC connections defaul
 generic presentation. The `microsoft` value reserves Microsoft presentation metadata for
 supported Microsoft styling without changing the OIDC sign-in flow.
 
+A branded button tells people which company they are about to sign in to, so the issuer should
+be that company. If you set `google` or `microsoft` against an issuer that is not theirs, the
+server prints a configuration warning at startup and still starts — it does not assume the
+pairing is a mistake.
+
 ::: warning Use these settings, not the separate Google or Microsoft buttons
 CapacityLens also has stand-alone `..._GOOGLE_...` and `..._MICROSOFT_...` settings for
 people who want a social sign-in button. They're a different door, and connections made

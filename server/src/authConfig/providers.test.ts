@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAuthFromEnvironment } from "../auth";
 import { openDb } from "../db";
 import { PASSWORD_ENV } from "../testHelpers";
@@ -24,6 +24,10 @@ function configuredProviders(environment: Record<string, string>) {
 }
 
 describe("provider presentation metadata", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("publishes explicit brands without changing provider mechanisms", () => {
     expect(
       configuredProviders({
@@ -38,6 +42,36 @@ describe("provider presentation metadata", () => {
       { id: "google", label: "Google", kind: "social", brand: "google", experimental: true },
       { id: "company-sso", label: "Single sign-on", kind: "oidc", brand: "google", experimental: false },
     ]);
+  });
+
+  it("warns when a branded provider points somewhere other than that brand's issuer", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    configuredProviders({ ...SSO_ENV, CAPACITYLENS_SSO_BRAND: "google" });
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("idp.test"));
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("accounts.google.com"));
+  });
+
+  it("stays quiet when the branded provider is that brand's own issuer", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    configuredProviders({
+      ...SSO_ENV,
+      CAPACITYLENS_SSO_BRAND: "google",
+      CAPACITYLENS_SSO_ISSUER: "https://accounts.google.com",
+      CAPACITYLENS_SSO_DISCOVERY_URL: "https://accounts.google.com/.well-known/openid-configuration",
+    });
+
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("stays quiet for a generic provider whatever its issuer", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    configuredProviders(SSO_ENV);
+
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it("defaults strict OIDC to generic and rejects unknown brands", () => {
