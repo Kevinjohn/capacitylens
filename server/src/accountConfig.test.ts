@@ -24,6 +24,7 @@ function expectHostedConfigError(override: Record<string, string | undefined>, m
 it("keeps adapter compatibility keys out of operator-facing configuration errors", () => {
   expect(resolveAccountConfigKey("BETTER_AUTH_SECRET")).toBe("SMALLSASS_ACCOUNT_SECRET");
   expect(resolveAccountConfigKey("CAPACITYLENS_SSO_DISCOVERY_URL")).toBe("SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL");
+  expect(resolveAccountConfigKey("CAPACITYLENS_SSO_BRAND")).toBe("SMALLSASS_ACCOUNT_OIDC_BRAND");
   expect(resolveAccountConfigKey("CAPACITYLENS_RATE_LIMIT")).toBe("CAPACITYLENS_RATE_LIMIT");
 });
 
@@ -151,7 +152,10 @@ it.each(["SMALLSASS_ACCOUNT_MODE", "CAPACITYLENS_AUTH"] as const)(
 );
 
 it("accepts a complete hosted OIDC-only discovery configuration", () => {
-  const resolved = resolveAccountEnvironment(hosted, { warn: () => {} });
+  const resolved = resolveAccountEnvironment(
+    { ...hosted, SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS: "owner@example.com" },
+    { warn: () => {} },
+  );
   expect(resolved.profile).toBe("hosted-oidc-only");
   expect(resolved.env.CAPACITYLENS_AUTH).toBe("sso");
 });

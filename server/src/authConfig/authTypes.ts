@@ -8,6 +8,8 @@ export type { AccountMode } from "@capacitylens/shared/account/types";
 /** @deprecated Prefer the provider-neutral AccountMode outside the identity adapter. */
 export type AuthMode = AccountMode;
 
+export type AuthProviderBrand = "generic" | "google" | "microsoft";
+
 /** Public, non-secret provider metadata exposed by `/api/auth/me` so the login screen never
  * hardcodes a provider id or advertises a provider the server did not configure. Every external
  * named social providers remain experimental; the strict generic OIDC path is first-class. */
@@ -15,6 +17,7 @@ export interface AuthProviderInfo {
   id: string;
   label: string;
   kind: "social" | "oidc";
+  brand?: AuthProviderBrand;
   experimental: boolean;
 }
 

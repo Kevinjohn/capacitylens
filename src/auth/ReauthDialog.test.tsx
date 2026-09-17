@@ -349,6 +349,24 @@ describe("ReauthDialog social-provider step-up", () => {
     );
   });
 
+  it("uses Google presentation while preserving strict OIDC re-authentication", async () => {
+    signInOauth2.mockResolvedValue({ data: {}, error: null });
+    render(
+      <Harness
+        authMode="sso"
+        user={user}
+        providers={[{ id: "sso", label: "Google", kind: "oidc", brand: "google", experimental: false }]}
+      />,
+    );
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
+
+    await waitFor(() => expect(signInOauth2).toHaveBeenCalledWith(expect.objectContaining({ providerId: "sso" })));
+    expect(signInSocial).not.toHaveBeenCalled();
+  });
+
   it("preserves the product route and supplies a marked social-provider failure return", async () => {
     signInSocial.mockResolvedValue({ data: {}, error: null });
     window.history.replaceState({}, "", "/team?tab=access");

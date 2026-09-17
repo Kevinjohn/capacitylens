@@ -7,6 +7,7 @@ import { createStrictOidcClient, isLoopbackHostname, StrictOidcVerificationError
 import type { AuthConfigError, AuthProviderInfo } from "../auth";
 import { adaptStrictOidcProfileForBetterAuth, persistLinkedExternalAvatar } from "./betterAuthProfileCompatibility";
 import { parseSocialProvidersFromEnvironment } from "./socialProviders";
+import type { AuthProviderBrand } from "./authTypes";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
@@ -75,29 +76,47 @@ function parseSecureProviderUrl(
 // routing. Keep this list aligned with social-provider parsing and plugin assembly below.
 const RESERVED_IDS = new Set(["credential", "generic-oauth", "two-factor", "google", "microsoft", "github"]);
 
-function buildExternalProviderInfo(
-  environment: Env,
-  genericProviderId: string | null,
-  defaultProviderLabel: string,
-): AuthProviderInfo[] {
+function hasCredentialPair(environment: Env, idKey: string, secretKey: string): boolean {
+  return Boolean(environment[idKey] && environment[secretKey]);
+}
+
+function parseProviderBrand(value: string | undefined, ErrorType: AuthConfigErrorConstructor): AuthProviderBrand {
+  const brand = value?.trim() ?? "generic";
+  if (brand === "generic" || brand === "google" || brand === "microsoft") return brand;
+  throw new ErrorType(`${resolveAccountConfigKey("CAPACITYLENS_SSO_BRAND")} must be google, microsoft, or generic.`);
+}
+
+function buildExternalProviderInfo({
+  environment,
+  genericProviderId,
+  defaultProviderLabel,
+  ErrorType,
+}: {
+  environment: Env;
+  genericProviderId: string | null;
+  defaultProviderLabel: string;
+  ErrorType: AuthConfigErrorConstructor;
+}): AuthProviderInfo[] {
   const providers: AuthProviderInfo[] = [];
-  const addSocialProvider = (id: string, label: string): void => {
-    providers.push({ id, label, kind: "social", experimental: true });
+  const addSocialProvider = (id: string, label: string, brand: AuthProviderBrand): void => {
+    providers.push({ id, label, kind: "social", brand, experimental: true });
   };
-  if (environment.CAPACITYLENS_GOOGLE_CLIENT_ID && environment.CAPACITYLENS_GOOGLE_CLIENT_SECRET) {
-    addSocialProvider("google", "Google");
+  if (hasCredentialPair(environment, "CAPACITYLENS_GOOGLE_CLIENT_ID", "CAPACITYLENS_GOOGLE_CLIENT_SECRET")) {
+    addSocialProvider("google", "Google", "google");
   }
-  if (environment.CAPACITYLENS_MICROSOFT_CLIENT_ID && environment.CAPACITYLENS_MICROSOFT_CLIENT_SECRET) {
-    addSocialProvider("microsoft", "Microsoft");
+  if (hasCredentialPair(environment, "CAPACITYLENS_MICROSOFT_CLIENT_ID", "CAPACITYLENS_MICROSOFT_CLIENT_SECRET")) {
+    addSocialProvider("microsoft", "Microsoft", "microsoft");
   }
-  if (environment.CAPACITYLENS_GITHUB_CLIENT_ID && environment.CAPACITYLENS_GITHUB_CLIENT_SECRET) {
-    addSocialProvider("github", "GitHub");
+  if (hasCredentialPair(environment, "CAPACITYLENS_GITHUB_CLIENT_ID", "CAPACITYLENS_GITHUB_CLIENT_SECRET")) {
+    addSocialProvider("github", "GitHub", "generic");
   }
   if (genericProviderId) {
+    const configuredBrand = parseProviderBrand(environment.CAPACITYLENS_SSO_BRAND, ErrorType);
     providers.push({
       id: genericProviderId,
       label: resolveNonEmptyValue(environment.CAPACITYLENS_SSO_LABEL?.trim(), defaultProviderLabel),
       kind: "oidc",
+      brand: configuredBrand,
       experimental: false,
     });
   }
@@ -331,7 +350,12 @@ export function buildProviders({
   // An invalid provider/URL must not leave a bootstrap-control table behind on an otherwise
   // untouched database merely because validation happened in an unfortunate order.
   const configuredSocialProviders = parseSocialProvidersFromEnvironment(env, AuthConfigError, db);
-  const configuredProviderInfo = buildExternalProviderInfo(env, prepared.genericProviderId, defaultProviderLabel);
+  const configuredProviderInfo = buildExternalProviderInfo({
+    environment: env,
+    genericProviderId: prepared.genericProviderId,
+    defaultProviderLabel,
+    ErrorType: AuthConfigError,
+  });
   // Experimental social providers still receive a stable issuer namespace so identity
   // correlation is always (issuer, subject), never email or a mutable display label. Generic
   // OIDC uses its actual issuer URL and remains the first-class path.

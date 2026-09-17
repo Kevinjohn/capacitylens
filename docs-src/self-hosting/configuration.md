@@ -74,11 +74,12 @@ configure the strict [OIDC](/reference/glossary) provider CapacityLens supports.
 | `SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS`                                   | Comma-separated verified emails allowed to create the first company-login identity. Every identity after that needs a pre-authorised invitation instead.                                       |
 | `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID`                                        | Optional id used in the sign-in route. Defaults to `sso`. Can't be a name CapacityLens already uses internally (`credential`, `generic-oauth`, `two-factor`, `google`, `microsoft`, `github`). |
 | `SMALLSASS_ACCOUNT_OIDC_LABEL`                                              | Optional button label. Defaults to "Single sign-on".                                                                                                                                           |
+| `SMALLSASS_ACCOUNT_OIDC_BRAND`                                              | Optional presentation brand: `google`, `microsoft` or `generic` (default). It changes presentation only; strict OIDC remains the authentication mechanism.                                    |
 | `SMALLSASS_ACCOUNT_OIDC_SCOPES`                                             | Space-separated scopes. Defaults to `openid profile email`, all of which are required.                                                                                                         |
 | `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED`                                        | An attestation that your company login provider requires multi-factor sign-in for every admitted identity. Set it only after testing that policy.                                              |
 
 Strict OIDC needs four provider values: the client ID, client secret, discovery URL and
-issuer. The provider id, button label and scopes are optional settings around those four
+issuer. The provider id, button label, presentation brand and scopes are optional settings around those four
 values. The default provider id is `sso`, so the callback URI is
 `https://your-capacitylens-address/api/auth/oauth2/callback/sso`. If you set
 `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID`, replace the final `sso` in the provider's callback

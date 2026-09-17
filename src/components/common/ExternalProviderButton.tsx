@@ -1,21 +1,17 @@
 import type { ComponentProps } from "react";
-import type { AuthProviderInfo } from "../../auth/authContext";
+import { hasGoogleProviderBrand, type AuthProviderInfo } from "../../auth/authContext";
 import { cn } from "@/lib/utils";
 import googleSignInDark from "../../assets/google-sign-in-dark.png";
 import googleSignInLight from "../../assets/google-sign-in-light.png";
 import { Button } from "../ui/button";
 
 type ExternalProviderButtonProps = Omit<ComponentProps<typeof Button>, "children"> & {
-  provider: Pick<AuthProviderInfo, "id" | "kind">;
+  provider: Pick<AuthProviderInfo, "id" | "kind" | "brand">;
   /** The provider-specific label used for non-Google providers. */
   label: string;
   /** The localized Google action label, which is also the accessible name. */
   googleLabel: string;
 };
-
-function isGoogleSocialProvider(provider: Pick<AuthProviderInfo, "id" | "kind">): boolean {
-  return provider.kind === "social" && provider.id === "google";
-}
 
 /**
  * Renders external sign-in actions with Google's recognisable mark and approved high-contrast
@@ -31,7 +27,7 @@ export function ExternalProviderButton({
   "aria-label": ariaLabel,
   ...buttonProps
 }: ExternalProviderButtonProps) {
-  const google = isGoogleSocialProvider(provider);
+  const google = hasGoogleProviderBrand(provider);
   return (
     <Button
       {...buttonProps}

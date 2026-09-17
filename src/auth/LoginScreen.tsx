@@ -6,7 +6,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { FieldError } from "../components/ui/field";
 import { Separator } from "../components/ui/separator";
 import { ExternalProviderButton } from "../components/common/ExternalProviderButton";
-import type { AuthProviderInfo } from "./authContext";
+import { hasGoogleProviderBrand, type AuthProviderInfo } from "./authContext";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import {
   clearExternalSignInError,
@@ -153,9 +153,7 @@ type LoginViewProps = {
 function LoginView(props: LoginViewProps) {
   const setup = props.authMode === "password" && props.needsSetup && !props.ownerSetup.setupClosed;
   const promotedGoogle =
-    !setup && props.authMode === "password"
-      ? props.providers.find((provider) => provider.kind === "social" && provider.id === "google")
-      : undefined;
+    !setup && props.authMode === "password" ? props.providers.find(hasGoogleProviderBrand) : undefined;
   const trailingProviders = promotedGoogle
     ? props.providers.filter((provider) => provider !== promotedGoogle)
     : props.providers;
