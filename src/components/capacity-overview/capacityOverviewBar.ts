@@ -103,11 +103,15 @@ export function buildPeriodTotals(groups: CapacityOverviewGroup[], periodCount: 
       availableHours > 0 ? Math.round((tentativeHours / availableHours) * 100) : 0,
       100 - committedPct,
     );
+    const capacityDays = availableHours / HOURS_PER_DISPLAY_DAY;
     return {
-      capacityDays: availableHours / HOURS_PER_DISPLAY_DAY,
+      capacityDays,
       freeDays: roundDownQuarterDays(freeHours),
       tentativeDays: roundDownQuarterDays(tentativeHours),
-      committedDays: roundUpQuarterDays(committedHours),
+      // Committed days round up, capacity is exact, so a week of 7.5-hour days booked to the hour
+      // would otherwise print more days committed than the week holds. Capacity is the ceiling:
+      // overbooking is reported separately and never inflates this figure.
+      committedDays: Math.min(roundUpQuarterDays(committedHours), capacityDays),
       overDays: roundUpQuarterDays(overHours),
       committedPct,
       tentativePct,

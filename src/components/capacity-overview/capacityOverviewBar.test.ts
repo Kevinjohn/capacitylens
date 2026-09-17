@@ -135,6 +135,19 @@ describe("buildPeriodTotals", () => {
     ]);
   });
 
+  it("never prints more committed days than the week holds", () => {
+    // A five-day week of 7.5-hour days booked to the hour: 37.5 committed hours round up to 4.75
+    // display days against 4.6875 days of capacity. The printed figure stays at the capacity.
+    const totals = buildPeriodTotals(
+      [group([{ id: "a", periods: [result({ availableHours: 37.5, freeHours: 0, freeDays: 0 })] }])],
+      1,
+    );
+
+    expect(totals[0]?.committedDays).toBe(37.5 / 8);
+    expect(totals[0]?.committedDays).toBeLessThanOrEqual(totals[0]?.capacityDays ?? 0);
+    expect(totals[0]?.overDays).toBe(0);
+  });
+
   it("ignores placeholder rows, which carry demand rather than capacity", () => {
     const totals = buildPeriodTotals(
       [
