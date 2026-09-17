@@ -1,88 +1,161 @@
-import type { CapacityOverviewPeriodResult } from "./capacityOverviewTypes";
+import { m } from "@/i18n";
+import { HOURS_PER_DISPLAY_DAY, roundDownQuarterDays, roundUpQuarterDays } from "./capacityOverviewModel";
+import type { CapacityOverviewGroup, CapacityOverviewPeriodResult } from "./capacityOverviewTypes";
 
-/** The three ways a week cell can present a person's capacity. */
-export type CapacityDisplayMode = "bar" | "bar-number" | "number";
+/** The two ways a week cell can present a person's capacity. */
+export type CapacityDisplayMode = "ledger" | "load-curve";
 
-export type CapacityBarFillKind = "free" | "over" | "none";
+/** Availability health of a person-week, derived from the share of their capacity still free. */
+export type CapacityTone = "ok" | "warn" | "danger";
 
-export interface CapacityBarFill {
-  kind: CapacityBarFillKind;
-  /** 0..1 proportion of the company working capacity, already capped at 1 for overbooking. */
-  fraction: number;
+export interface CapacityCellFill {
+  /** 0..1 share of the person's available capacity still free. */
+  freeFraction: number;
+  /** 0..1 share of the person's available capacity held by tentative work; free + tentative ≤ 1. */
+  tentativeFraction: number;
+  tone: CapacityTone;
+}
+
+const OK_FREE_SHARE = 0.8;
+const WARN_FREE_SHARE = 0.4;
+
+/** Tentative work is always a neutral grey hatch: amber is reserved for low availability. */
+export function buildTentativeHatch(stripe: number): string {
+  return `repeating-linear-gradient(45deg, var(--color-faint) 0 ${stripe}px, transparent ${stripe}px ${stripe * 2}px)`;
+}
+export const TENTATIVE_HATCH = buildTentativeHatch(3);
+
+export const TONE_FILL: Record<CapacityTone, string> = {
+  ok: "var(--color-ok)",
+  warn: "var(--color-warn)",
+  danger: "var(--color-danger)",
+};
+
+/**
+ * Availability tone from the share of capacity still free: at least 80% free reads healthy, at
+ * least 40% reads as a warning, anything less reads as danger. Shares, not fixed day counts, keep a
+ * three-day person and a partial first week on the same scale as a full five-day week.
+ */
+export function resolveCapacityTone(freeHours: number, availableHours: number): CapacityTone {
+  if (availableHours <= 0 || freeHours <= 0) return "danger";
+  const share = freeHours / availableHours;
+  if (share >= OK_FREE_SHARE) return "ok";
+  if (share >= WARN_FREE_SHARE) return "warn";
+  return "danger";
 }
 
 /**
- * Pure fraction helper for the Overview bar fill. Uses the model's precise hours (not the
- * quarter-day rounded display values) and the company working capacity in the displayed range.
- * This keeps people comparable: a fully free four-day person fills 80% of a five-day company week.
+ * Pure fraction helper for a person-week bar. It reads the rounded day figures the cell prints, not
+ * the precise hours, so a "—" never sits beside a painted sliver and the tone matches the number.
  */
-export function computeCapacityBarFill({
-  companyWorkingHours,
-  freeHours,
-  overHours,
-}: {
-  companyWorkingHours: number;
-  freeHours: number;
-  overHours: number;
-}): CapacityBarFill {
-  if (companyWorkingHours <= 0) return { kind: "none", fraction: 0 };
-  if (overHours > 0) return { kind: "over", fraction: Math.min(overHours / companyWorkingHours, 1) };
-  if (freeHours > 0) return { kind: "free", fraction: Math.min(freeHours / companyWorkingHours, 1) };
-  return { kind: "none", fraction: 0 };
+export function computeCapacityCellFill({
+  availableHours,
+  freeDays,
+  tentativeDays,
+}: Pick<CapacityOverviewPeriodResult, "availableHours" | "freeDays" | "tentativeDays">): CapacityCellFill {
+  if (availableHours <= 0) return { freeFraction: 0, tentativeFraction: 0, tone: "danger" };
+  const freeHours = Math.max(freeDays, 0) * HOURS_PER_DISPLAY_DAY;
+  const freeFraction = Math.min(freeHours / availableHours, 1);
+  const tentativeFraction = Math.min(
+    (Math.max(tentativeDays, 0) * HOURS_PER_DISPLAY_DAY) / availableHours,
+    1 - freeFraction,
+  );
+  return { freeFraction, tentativeFraction, tone: resolveCapacityTone(freeHours, availableHours) };
 }
 
-// Accessibility fix (2026-09, round 2): a full-saturation `--color-ok` / `--color-destructive`
-// fill made the week-cell text unreadable on top of it (WCAG 1.4.3). Round 1 fixed that by
-// softening the fill via `color-mix(in oklab, <token> N%, var(--color-surface))`, but the N
-// required to keep `text-destructive` (the SAME hue as the fill) legible was so small (~2%) the
-// "red fill" stopped reading as red at all — defeating the feature.
-//
-// The fix is the pattern src/index.css already uses for exactly this split, twice
-// (`--c-danger-cell` for a saturated NO-text fill; `--c-danger-soft` / `--c-danger-soft-ink` for a
-// tinted fill WITH text on it) — not a third invented scheme:
-//   - "bar" mode's number is `sr-only` (not painted): nothing needs AA against the fill, so it
-//     uses the "-cell" pair (`--color-ok-cell` / `--color-danger-cell`), which reads clearly green
-//     or red at a glance in both themes.
-//   - "bar-number" mode paints the number on top of the fill: it uses the "-soft" pair
-//     (`--color-ok-soft` / `--color-danger-soft`), and the caller must render the overbooked label
-//     in `text-danger-soft-ink` (not `text-destructive`) so it clears AA on its own fill — that is
-//     what `--c-danger-soft-ink` ("a step darker than --c-danger to clear AA on the tint") exists
-//     for. `--color-ink` and `text-muted-foreground` already clear AA on both "-soft" fills without
-//     any change, pinned in capacityOverviewBar.test.ts.
-export type CapacityBarFillContext = "bar" | "bar-number";
+/** Ink for a week's committed percentage: danger once tentative work would push it to 90%. */
+export type CapacityTotalsTone = "danger" | "ink" | "muted";
 
-// WCAG 1.4.1 (Use of Color) fix for pure Bar mode: with the number hidden (`sr-only`), hue alone
-// distinguished free from overbooked for a sighted colour-blind viewer. A diagonal hatch — the same
-// treatment ClosureBand already uses for a non-colour "this is a special band" cue — gives the
-// overbooked fill a texture that survives colour-blindness simulation and greyscale. Bar mode has
-// no visible text to protect, so the hatch can freely sit on the vivid `--color-danger-cell`.
-//
-// The hatch is intentionally NOT applied in "bar-number" mode: there, the printed "Nd overbooked"
-// text already satisfies SC 1.4.1 (a non-colour cue is visible), and the hatch's stronger colour
-// stripes would sit under that same-hue label, re-introducing an SC 1.4.3 failure.
-const OVERBOOKED_HATCH = `repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-destructive) 35%, transparent) 0 3px, transparent 3px 9px)`;
+export interface CapacityPeriodTotals {
+  capacityDays: number;
+  freeDays: number;
+  tentativeDays: number;
+  committedDays: number;
+  overDays: number;
+  committedPct: number;
+  tentativePct: number;
+  tone: CapacityTotalsTone;
+}
+
+function resolveTotalsTone(committedPct: number, tentativePct: number): CapacityTotalsTone {
+  if (committedPct + tentativePct >= 90) return "danger";
+  if (committedPct >= 60) return "ink";
+  return "muted";
+}
 
 /**
- * Background for the filled portion of a week cell, sized by the caller to `fraction * 100%` and
- * anchored to the bottom of the cell. `context: "bar"` uses the saturated, text-free "-cell" pair
- * plus the overbooked hatch; `context: "bar-number"` uses the AA-paired "-soft" pair (the caller
- * must also switch the overbooked label to `text-danger-soft-ink` in that context).
+ * Per-week totals over the people currently shown (placeholders carry demand, not capacity).
+ * Committed load is what is neither free nor tentative, so the header bar's committed segment plus
+ * its tentative hatch never exceeds the track.
  */
-export function capacityBarFillStyle(fill: CapacityBarFill, context: CapacityBarFillContext): { background: string } {
-  if (fill.kind === "none") return { background: "var(--color-line-soft)" };
-  const tokenSuffix = context === "bar" ? "cell" : "soft";
-  const fillColor = fill.kind === "free" ? `var(--color-ok-${tokenSuffix})` : `var(--color-danger-${tokenSuffix})`;
-  if (fill.kind === "over" && context === "bar") return { background: `${OVERBOOKED_HATCH}, ${fillColor}` };
-  return { background: fillColor };
+export function buildPeriodTotals(groups: CapacityOverviewGroup[], periodCount: number): CapacityPeriodTotals[] {
+  const rows = groups.flatMap((group) => group.rows).filter((row) => row.resource.kind !== "placeholder");
+  return Array.from({ length: periodCount }, (_unused, index) => {
+    const periods = rows.map((row) => row.periods[index]).filter((period) => period !== undefined);
+    const availableHours = periods.reduce((sum, period) => sum + period.availableHours, 0);
+    const freeHours = periods.reduce((sum, period) => sum + period.freeHours, 0);
+    const tentativeHours = periods.reduce((sum, period) => sum + period.tentativeHours, 0);
+    const overHours = periods.reduce((sum, period) => sum + period.overHours, 0);
+    const committedHours = Math.max(availableHours - freeHours - tentativeHours, 0);
+    const committedPct = availableHours > 0 ? Math.round((committedHours / availableHours) * 100) : 0;
+    // Rounded independently the two shares can reach 101%; the bar and the tone read them as one.
+    const tentativePct = Math.min(
+      availableHours > 0 ? Math.round((tentativeHours / availableHours) * 100) : 0,
+      100 - committedPct,
+    );
+    const capacityDays = availableHours / HOURS_PER_DISPLAY_DAY;
+    return {
+      capacityDays,
+      freeDays: roundDownQuarterDays(freeHours),
+      tentativeDays: roundDownQuarterDays(tentativeHours),
+      // Committed days round up, capacity is exact, so a week of 7.5-hour days booked to the hour
+      // would otherwise print more days committed than the week holds. Capacity is the ceiling:
+      // overbooking is reported separately and never inflates this figure.
+      committedDays: Math.min(roundUpQuarterDays(committedHours), capacityDays),
+      overDays: roundUpQuarterDays(overHours),
+      committedPct,
+      tentativePct,
+      tone: resolveTotalsTone(committedPct, tentativePct),
+    };
+  });
 }
 
-/** Same text the Number mode prints for a week result, reused as the Bar-mode accessible label. */
-export function formatWeekValueText(
-  result: Pick<CapacityOverviewPeriodResult, "state" | "freeDays" | "overDays">,
-  formatDays: (days: number, kind: "capacity" | "overbooked") => string,
-  dash: string,
-): string {
-  const parts: string[] = [result.state === "available" ? formatDays(result.freeDays, "capacity") : dash];
+/** Day figures print bare integers and trimmed fractions: 5 → "5", 1.5 → "1.5", 1.25 → "1.25". */
+export function formatDayFigure(days: number): string {
+  return String(Math.round(days * 100) / 100);
+}
+
+export function formatDays(days: number, kind: "capacity" | "overbooked" | "unassigned" | "tentative"): string {
+  const figure = formatDayFigure(days);
+  if (kind === "capacity") return m.capacity_overview_days({ days: figure });
+  if (kind === "overbooked") return m.capacity_overview_days_overbooked({ days: figure });
+  if (kind === "tentative") return m.capacity_overview_tentative_days({ days: figure });
+  return m.capacity_overview_days_unassigned({ days: figure });
+}
+
+/** "16 – 20 Sep · 2d free of 5d · 1d tentative · 0.25d overbooked": the hover and screen-reader text. */
+export function describePeriod(result: CapacityOverviewPeriodResult, rangeLabel: string): string {
+  const parts: string[] = [
+    m.capacity_overview_cell_title({
+      range: rangeLabel,
+      free: formatDayFigure(result.freeDays),
+      capacity: formatDayFigure(result.availableHours / HOURS_PER_DISPLAY_DAY),
+    }),
+  ];
+  if (result.tentativeDays > 0) parts.push(formatDays(result.tentativeDays, "tentative"));
   if (result.overDays > 0) parts.push(formatDays(result.overDays, "overbooked"));
-  return parts.join(", ");
+  return parts.join(" · ");
+}
+
+export function describeTotals(totals: CapacityPeriodTotals, rangeLabel: string): string {
+  const parts: string[] = [
+    m.capacity_overview_totals_title({
+      range: rangeLabel,
+      committed: formatDayFigure(totals.committedDays),
+      capacity: formatDayFigure(totals.capacityDays),
+    }),
+  ];
+  if (totals.tentativeDays > 0) parts.push(formatDays(totals.tentativeDays, "tentative"));
+  if (totals.overDays > 0) parts.push(formatDays(totals.overDays, "overbooked"));
+  return parts.join(" · ");
 }

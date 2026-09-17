@@ -1,12 +1,12 @@
-# US-CAP-01 — Review four- or twelve-week capacity
+# US-CAP-01 — Review four-, eight- or twelve-week capacity
 
 **Area:** Overview · **Persona:** Studio manager · **Linked E2E:** `e2e/capacity-overview.spec.ts` and `e2e/capacity-overview.auth.spec.ts`
 
 ## Goal
 
 See which active Studio and Supplementary people have capacity during the remainder of this week
-and the next three full weeks, with an optional strategic view of weeks 5–12, while keeping
-overload and unassigned demand visible.
+and the complete weeks that follow, week by week, while keeping tentative work, overload and
+unassigned demand visible.
 
 ## Why
 
@@ -17,50 +17,56 @@ the schedule.
 
 **Precondition:** A company using Hours or Days mode is open and your role can view Overview.
 
-1. Open **Overview** from immediately above **Schedule** in the sidebar. **4 weeks** is selected
-   in the **Overview horizon** control by default.
-2. Read the four tactical week columns and each group's summary. Choose **12 weeks** to keep
-   those columns and add the complete **Weeks 5–8** and **Weeks 9–12** periods. The twelve-week
-   range is the remainder of the current company week plus eleven complete company weeks, not
-   twelve full weeks from today.
-3. Choose **Hide tentative** to recalculate capacity and unassigned demand from confirmed work only
-   across every displayed period.
-4. Choose **Has availability** to keep people with at least 0.25 displayed free days in any shown
-   period and placeholders with demand.
-5. Choose **Show totals** to reveal each group header's free, overbooked and unassigned-demand figures;
-   **Hide totals** is the default.
-6. Choose **Bar** or **Bar & number** to see free and overbooked capacity as a fill in each cell,
-   proportioned against the company working days in that column; **Bar & number** is the default.
-7. Hover or focus a person's avatar to reveal an eye icon, then select it to open that person's
+1. Open **Overview** from immediately above **Schedule** in the sidebar. The page is one card
+   holding one table; the subtitle states the horizon in use. **Ledger**, **4 weeks** and
+   **Tentative** are selected by default; **Has availability** and **Totals** are off.
+2. Read each person's week cells: free days out of capacity (**2d / 5d**), a bar filled with the
+   share of capacity still free (green at 80% or more, amber at 40% or more, red below), and a grey
+   hatch for the free time that tentative work holds. A muted dash marks a week with nothing free.
+   An overbooked week prints the overbooked days in red beside the value; its bar keeps showing
+   only the free share, so overbooking never paints it.
+3. Choose **Load curve** to replace each cell's figures with a vertical fill of the same shares,
+   hovering a cell for its figures. Choose **Ledger** to return.
+4. Choose **8 weeks** or **12 weeks** to add complete company weeks, one column each; the table
+   scrolls horizontally with the person column fixed.
+5. Turn **Tentative** off to recalculate capacity and unassigned demand from confirmed work only
+   across every displayed week; the hatch disappears everywhere.
+6. Turn **Has availability** on to keep people with at least 0.25 displayed free days in any shown
+   week and placeholders with demand.
+7. Turn **Totals** on to add a header row with each week's committed percentage, free days and a
+   committed-plus-tentative bar across the people currently shown.
+8. Hover or focus a person's avatar to reveal an eye icon, then select it to open that person's
    read-only schedule drawer without leaving Overview.
 
 ## Acceptance criteria
 
-- ✅ The first column runs from today through the company's week end; three full weeks follow.
-- ✅ **4 weeks** is the default. **12 weeks** adds exactly **Weeks 5–8** and **Weeks 9–12**, each
-  covering four complete company weeks after the four tactical columns.
-- ✅ The horizon uses the company's Monday or Sunday week start, and strategic headings show their
-  period label with the actual localized date range, including year context at a rollover.
+- ✅ The first column runs from today through the company's week end; complete company weeks
+  follow to the chosen horizon: four, eight or twelve columns in total.
+- ✅ **4 weeks** is the default. The horizon uses the company's Monday or Sunday week start, and
+  every column heading shows its date range.
 - ✅ Reopening or reloading Overview returns to **4 weeks**. Switching horizons preserves the other
   Overview controls and collapsed groups, and the horizon is not stored as company or device data.
-- ✅ Active Studio and Supplementary people appear in Schedule order; external and inactive people do not.
-- ✅ Fully booked and unavailable periods appear as muted dashes so available capacity is easy to scan.
-- ✅ Placeholder allocations appear as separate unassigned demand when placeholders are enabled.
-- ✅ Group summaries continue to cover all eligible people in that group when the row filter is on,
-  including rows hidden by **Has availability**.
-- ✅ Group header totals are hidden by default; **Show totals** reveals them without changing the group name or collapse control.
-- ✅ Bar & number is the default capacity display; Bar and Bar & number fill a person's cell from the
-  bottom against the company working days in that column, green for free and red for overbooked,
-  capped at a full cell, and use a subtle neutral grey when there is nothing to show. Number keeps
-  its compact table spacing; Bar and Bar & number add 6px horizontal and vertical breathing room
-  between cells for easier scanning. In 12-week mode, the boundary before Weeks 5–8 has about
-  double that ordinary inter-column spacing across the header and every row; Weeks 5–8 and Weeks
-  9–12 retain ordinary spacing.
-- ✅ The bar never applies to group header totals or unassigned-demand rows, and every mode keeps the underlying value available to assistive technology.
+- ✅ Active Studio and Supplementary people appear in Schedule order; external and inactive people do
+  not. Each group row names the group and its number of people and collapses on selection.
+- ✅ A person's capacity for a week is their own available days; the free share, tentative share
+  and colour thresholds scale to it, so a three-day person and a partial first week read on the
+  same scale as a five-day week.
+- ✅ Tentative work appears only as the grey hatch, clamped so free plus tentative never exceeds the
+  bar. Amber only ever means low availability.
+- ✅ Fully booked and unavailable weeks show a muted dash. An overbooked week prints its overbooked
+  days in red (Ledger) and repeats the figures in hover and screen-reader text; the bar never
+  paints overbooking.
+- ✅ Placeholder allocations appear as separate unassigned demand when placeholders are enabled and
+  never carry a bar.
+- ✅ **Totals** is off by default. Turning it on adds a header tier whose person cell stays empty,
+  so no column width changes; its figures cover only the people shown after **Has availability**.
+  The committed percentage turns red once committed plus tentative reaches 90%.
+- ✅ Switching **Ledger** and **Load curve** changes only the inside of week cells: header, group
+  rows and column widths are untouched, and every figure remains available to assistive technology.
 - ✅ Blocks mode explains that the overview needs Hours or Days without showing capacity figures.
 - ✅ Owners and Admins can choose Owner/Admin, Owner/Admin/Editor or Everyone access in Settings; the default is Owner/Admin.
 - ✅ Selecting a person's avatar opens their read-only schedule drawer over the fixed 28-day window
-  from its own start date, the same trigger and drawer used by the Schedule; choosing **12 weeks**
-  does not expand the drawer.
+  from its own start date, the same trigger and drawer used by the Schedule; the horizon does not
+  change the drawer.
 
-See [Find capacity across four or twelve weeks](/guide/capacity-overview) for the user guide.
+See [Find capacity across four, eight or twelve weeks](/guide/capacity-overview) for the user guide.

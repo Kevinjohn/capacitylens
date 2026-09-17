@@ -5,35 +5,17 @@ export type CapacityOverviewState = "available" | "fully-booked" | "unavailable"
 
 export interface CapacityOverviewPeriodResult {
   period: CapacityOverviewPeriod;
-  /** Eight hours for each company working day in this column's date range. */
-  companyWorkingHours: number;
   availableHours: number;
-  allocatedHours: number;
   freeHours: number;
   overHours: number;
+  /** Free hours that tentative allocations consume; zero when tentative work is excluded. */
+  tentativeHours: number;
   freeDays: number;
   overDays: number;
+  tentativeDays: number;
   unassignedDemandHours: number;
   unassignedDemandDays: number;
   state: CapacityOverviewState;
-}
-
-export interface CapacityOverviewSummaryPeriod {
-  availableHours: number;
-  freeHours: number;
-  overHours: number;
-  freeDays: number;
-  overDays: number;
-  unassignedDemandHours: number;
-  unassignedDemandDays: number;
-}
-
-export interface CapacityOverviewSummary {
-  /** Summary values include every eligible person, even when rows are filtered from the table. */
-  scope: "all-eligible-people";
-  peopleCount: number;
-  placeholderCount: number;
-  periods: CapacityOverviewSummaryPeriod[];
 }
 
 export interface CapacityOverviewRow {
@@ -46,7 +28,6 @@ export interface CapacityOverviewGroup {
   title: string;
   color?: string;
   rows: CapacityOverviewRow[];
-  summary: CapacityOverviewSummary;
 }
 
 export interface CapacityOverviewModel {
@@ -54,7 +35,6 @@ export interface CapacityOverviewModel {
   reason?: "blocks-mode";
   periods: CapacityOverviewPeriod[];
   groups: CapacityOverviewGroup[];
-  summary: CapacityOverviewSummary;
 }
 
 export interface BuildCapacityOverviewModelInput {

@@ -195,8 +195,8 @@ visible capacity or over-capacity presentation changes.
 **Start:** `src/components/capacity-overview/CapacityOverviewView.tsx` connects active scoped data,
 calendar settings and the Overview toolbar controls, including the selected horizon, to the table.
 
-**Follow through:** `capacityOverviewDates.ts` owns the partial-plus-three-full-week tactical window
-and the optional strategic periods; `capacityOverviewModel.ts` owns eligibility, precise period
+**Follow through:** `capacityOverviewDates.ts` owns the four-, eight- or twelve-week horizon of
+single weeks, the first cut to the remainder of the current week; `capacityOverviewModel.ts` owns eligibility, precise period
 aggregation, display rounding, grouping and filtering. Access policy is shared in
 `shared/src/domain/access.ts`, while `src/auth/capacityOverviewAccess.ts` gates the sidebar and
 direct route.

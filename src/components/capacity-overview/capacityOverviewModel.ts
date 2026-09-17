@@ -1,5 +1,5 @@
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { countWorkingDays, eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { isCapacityTracked, isExternalResource, isPlaceholderResource } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Closure, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 import {
@@ -16,9 +16,7 @@ import type {
   BuildCapacityOverviewModelInput,
   CapacityOverviewGroup,
   CapacityOverviewModel,
-  CapacityOverviewRow,
   CapacityOverviewState,
-  CapacityOverviewSummary,
   CapacityOverviewPeriodResult,
 } from "./capacityOverviewTypes";
 export type { CapacityOverviewHorizon, CapacityOverviewPeriod } from "./capacityOverviewDates";
@@ -28,13 +26,11 @@ export type {
   CapacityOverviewModel,
   CapacityOverviewRow,
   CapacityOverviewState,
-  CapacityOverviewSummary,
-  CapacityOverviewSummaryPeriod,
   CapacityOverviewPeriodResult,
 } from "./capacityOverviewTypes";
 
 const DEFAULT_ACCOUNT_WORKING_DAYS: Weekday[] = [1, 2, 3, 4, 5];
-const HOURS_PER_DISPLAY_DAY = 8;
+export const HOURS_PER_DISPLAY_DAY = 8;
 const QUARTER_DAY_HOURS = HOURS_PER_DISPLAY_DAY / 4;
 const ROUNDING_EPSILON_HOURS = 1e-9;
 
@@ -66,11 +62,13 @@ interface OverviewIndexes {
   timeOffByResource: Map<string, TimeOff[]>;
 }
 
-function roundDownQuarterDays(hours: number): number {
+/** Free capacity rounds down to the quarter-day so a printed figure never promises time that is not there. */
+export function roundDownQuarterDays(hours: number): number {
   return Math.max(0, Math.floor((hours + ROUNDING_EPSILON_HOURS) / QUARTER_DAY_HOURS) / 4);
 }
 
-function roundUpQuarterDays(hours: number): number {
+/** Demand and overload round up so a printed figure never hides a fraction of a booking. */
+export function roundUpQuarterDays(hours: number): number {
   return Math.max(0, Math.ceil((hours - ROUNDING_EPSILON_HOURS) / QUARTER_DAY_HOURS) / 4);
 }
 
@@ -88,85 +86,46 @@ function calculatePeriod({
   accountWorkingDays,
 }: CalculatePeriodInput): CapacityOverviewPeriodResult {
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
-  const companyWorkingHours = countWorkingDays(period.start, period.end, accountWorkingDays) * HOURS_PER_DISPLAY_DAY;
+  // Tentative work is measured as the free time it consumes: the difference between the free
+  // hours with confirmed work only and the free hours with every included allocation. That keeps
+  // it clamped to the person's real spare capacity, so free + tentative never exceeds available.
+  const confirmedAllocations = allocations.filter((allocation) => allocation.status !== "tentative");
+  const hasTentative = confirmedAllocations.length !== allocations.length;
   let availableHours = 0;
-  let allocatedHours = 0;
   let freeHours = 0;
   let overHours = 0;
+  let tentativeHours = 0;
   let unassignedDemandHours = 0;
   for (const date of eachDayISO(period.start, period.end)) {
-    const day = buildDayCapacity({
-      resource,
-      date,
-      allocations,
-      timeOff,
-      effectiveWeek,
-      closures,
-    });
-    allocatedHours += day.allocated;
+    const dayInput = { resource, date, timeOff, effectiveWeek, closures };
+    const day = buildDayCapacity({ ...dayInput, allocations });
     if (isPlaceholderResource(resource)) {
       unassignedDemandHours += day.allocated;
       continue;
     }
+    const dayFree = Math.max(day.available - day.allocated, 0);
     availableHours += day.available;
-    freeHours += Math.max(day.available - day.allocated, 0);
+    freeHours += dayFree;
     overHours += Math.max(day.allocated - day.available, 0);
+    if (hasTentative) {
+      const confirmed = buildDayCapacity({ ...dayInput, allocations: confirmedAllocations });
+      tentativeHours += Math.max(Math.max(confirmed.available - confirmed.allocated, 0) - dayFree, 0);
+    }
   }
   const freeDays = roundDownQuarterDays(freeHours);
   const overDays = roundUpQuarterDays(overHours);
   return {
     period,
-    companyWorkingHours,
     availableHours,
-    allocatedHours,
     freeHours,
     overHours,
+    tentativeHours,
     freeDays,
     overDays,
+    tentativeDays: roundDownQuarterDays(tentativeHours),
     unassignedDemandHours,
     unassignedDemandDays: roundUpQuarterDays(unassignedDemandHours),
     state: isPlaceholderResource(resource) ? "unassigned" : resolvePersonState(availableHours, freeDays),
-  };
-}
-
-function summarize(
-  rows: CapacityOverviewRow[],
-  overviewPeriods: CapacityOverviewPeriod[] = [],
-): CapacityOverviewSummary {
-  const people = rows.filter((row) => isCapacityTracked(row.resource) && !isPlaceholderResource(row.resource));
-  const placeholders = rows.filter((row) => isPlaceholderResource(row.resource));
-  const periods = (rows[0]?.periods ?? overviewPeriods).map((_period, index) => {
-    const availableHours = people.reduce((sum, row) => {
-      const period = row.periods[index];
-      return sum + (period?.availableHours ?? 0);
-    }, 0);
-    const freeHours = people.reduce((sum, row) => {
-      const period = row.periods[index];
-      return sum + (period?.freeHours ?? 0);
-    }, 0);
-    const overHours = people.reduce((sum, row) => {
-      const period = row.periods[index];
-      return sum + (period?.overHours ?? 0);
-    }, 0);
-    const unassignedDemandHours = placeholders.reduce((sum, row) => {
-      const period = row.periods[index];
-      return sum + (period?.unassignedDemandHours ?? 0);
-    }, 0);
-    return {
-      availableHours,
-      freeHours,
-      overHours,
-      freeDays: roundDownQuarterDays(freeHours),
-      overDays: roundUpQuarterDays(overHours),
-      unassignedDemandHours,
-      unassignedDemandDays: roundUpQuarterDays(unassignedDemandHours),
-    };
-  });
-  return {
-    scope: "all-eligible-people",
-    peopleCount: people.length,
-    placeholderCount: placeholders.length,
-    periods,
   };
 }
 
@@ -318,7 +277,7 @@ function buildRows({
         );
         return { resource, periods: resourcePeriods };
       });
-    return { ...seed, rows, summary: summarize(rows, periods) };
+    return { ...seed, rows };
   });
 }
 
@@ -356,8 +315,7 @@ export function buildCapacityOverviewModel({
 }: BuildCapacityOverviewModelInput): CapacityOverviewModel {
   const periods = buildCapacityOverviewPeriods({ today, weekStartsOn, horizon });
   if (blocksMode) {
-    const summary = summarize([], periods);
-    return { measured: false, reason: "blocks-mode", periods, groups: [], summary };
+    return { measured: false, reason: "blocks-mode", periods, groups: [] };
   }
 
   const eligible = new Set(
@@ -374,11 +332,5 @@ export function buildCapacityOverviewModel({
     accountWorkingDays,
     groupResourcesByEngagement,
   });
-  const allRows = groups.flatMap((group) => group.rows);
-  return {
-    measured: true,
-    periods,
-    groups: applyAvailabilityFilter(groups, hasAvailability),
-    summary: summarize(allRows, periods),
-  };
+  return { measured: true, periods, groups: applyAvailabilityFilter(groups, hasAvailability) };
 }

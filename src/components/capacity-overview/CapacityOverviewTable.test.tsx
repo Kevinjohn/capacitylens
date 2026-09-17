@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { AppData, Resource } from "@capacitylens/shared/types/entities";
+import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import {
   buildCapacityOverviewModel,
   type CapacityOverviewModel,
@@ -17,7 +18,7 @@ const resource = (id: string, kind: Resource["kind"] = "person"): Resource => ({
   updatedAt: "2026-01-01T00:00:00.000Z",
   kind,
   name: kind === "placeholder" ? "" : id,
-  role: kind === "placeholder" ? "Designer" : "Designer",
+  role: "Designer",
   employmentType: "permanent",
   engagement: "studio",
   workingHoursPerDay: 8,
@@ -39,13 +40,13 @@ function period(index: number, values: Partial<CapacityOverviewPeriodResult>): C
   if (!overviewPeriod) throw new Error(`Missing test period ${index}`);
   return {
     period: overviewPeriod,
-    companyWorkingHours: 40,
     availableHours: 40,
-    allocatedHours: 0,
     freeHours: 40,
     overHours: 0,
+    tentativeHours: 0,
     freeDays: 5,
     overDays: 0,
+    tentativeDays: 0,
     unassignedDemandHours: 0,
     unassignedDemandDays: 0,
     state: "available",
@@ -71,9 +72,14 @@ const model: CapacityOverviewModel = {
         {
           resource: clarkKent,
           periods: [
-            // Hours are set (not just the rounded display days) so the bar-fill kind computed from
-            // them matches what "over" days imply: overHours > 0 always wins the fill kind.
-            period(0, { freeHours: 12, freeDays: 1.5, overHours: 2, overDays: 0.25 }),
+            period(0, {
+              freeHours: 12,
+              freeDays: 1.5,
+              tentativeHours: 8,
+              tentativeDays: 1,
+              overHours: 2,
+              overDays: 0.25,
+            }),
             period(1, { state: "fully-booked", freeHours: 0, freeDays: 0 }),
             period(2, { state: "unavailable", availableHours: 0, freeHours: 0, freeDays: 0 }),
             period(3, { availableHours: 32, freeHours: 32, freeDays: 4 }),
@@ -89,40 +95,46 @@ const model: CapacityOverviewModel = {
           ],
         },
       ],
-      summary: {
-        scope: "all-eligible-people",
-        peopleCount: 1,
-        placeholderCount: 1,
-        periods: periods.map((_item, index) => ({
-          availableHours: 40,
-          freeHours: index ? 40 : 12,
-          overHours: index ? 0 : 2,
-          freeDays: index ? 5 : 1.5,
-          overDays: index ? 0 : 0.25,
-          unassignedDemandHours: index ? 0 : 16,
-          unassignedDemandDays: index ? 0 : 2,
-        })),
-      },
     },
   ],
-  summary: {
-    scope: "all-eligible-people",
-    peopleCount: 1,
-    placeholderCount: 1,
-    periods: periods.map((_item, index) => ({
-      availableHours: 40,
-      freeHours: index ? 40 : 12,
-      overHours: index ? 0 : 2,
-      freeDays: index ? 5 : 1.5,
-      overDays: index ? 0 : 0.25,
-      unassignedDemandHours: index ? 0 : 16,
-      unassignedDemandDays: index ? 0 : 2,
-    })),
-  },
 };
 
+function renderTable(
+  overrides: Partial<{
+    model: CapacityOverviewModel;
+    showTotals: boolean;
+    capacityDisplayMode: CapacityDisplayMode;
+    includeTentative: boolean;
+    onIncludeTentativeChange: (checked: boolean) => void;
+    onHasAvailabilityChange: (checked: boolean) => void;
+    onShowTotalsChange: (checked: boolean) => void;
+    onCapacityDisplayModeChange: (mode: CapacityDisplayMode) => void;
+  }> = {},
+) {
+  const props = {
+    model,
+    horizon: "4-weeks" as const,
+    data,
+    includeTentative: true,
+    hasAvailability: false,
+    showTotals: false,
+    capacityDisplayMode: "ledger" as const,
+    onHorizonChange: vi.fn(),
+    onIncludeTentativeChange: vi.fn(),
+    onHasAvailabilityChange: vi.fn(),
+    onShowTotalsChange: vi.fn(),
+    onCapacityDisplayModeChange: vi.fn(),
+    ...overrides,
+  };
+  const view = render(<CapacityOverviewTable {...props} />);
+  return {
+    ...view,
+    rerender: (next: typeof overrides) => view.rerender(<CapacityOverviewTable {...props} {...next} />),
+  };
+}
+
 describe("CapacityOverviewTable content", () => {
-  it("renders six aligned periods with labelled strategic headings and a keyboard scroll region", () => {
+  it("renders twelve aligned week columns and a keyboard scroll region", () => {
     const twelveWeekModel = buildCapacityOverviewModel({
       data,
       today: "2026-06-03",
@@ -130,58 +142,27 @@ describe("CapacityOverviewTable content", () => {
       disciplinesEnabled: false,
     });
 
-    render(
-      <CapacityOverviewTable
-        model={twelveWeekModel}
-        horizon="12-weeks"
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="number"
-        onHorizonChange={vi.fn()}
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+    renderTable({ model: twelveWeekModel });
 
     const table = screen.getByRole("table", { name: "Overview" });
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(7);
-    expect(within(table).getByRole("columnheader", { name: "Weeks 5–8, 29 Jun – 26 Jul" })).toBeInTheDocument();
-    expect(within(table).getByRole("columnheader", { name: "Weeks 9–12, 27 Jul – 23 Aug" })).toBeInTheDocument();
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(13);
+    expect(within(table).getByRole("columnheader", { name: "3 – 7 Jun" })).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: "17 – 23 Aug" })).toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Overview table" })).toHaveAttribute("tabindex", "0");
-    expect(screen.getAllByTestId("capacity-overview-break-start")).toHaveLength(3);
   });
 
-  it("derives an empty strategic table span from the displayed period count", () => {
+  it("derives an empty table span from the displayed week count", () => {
     const twelveWeekModel = buildCapacityOverviewModel({
       data: { ...emptyAppData(), resources: [] },
       today: "2026-06-03",
       horizon: "12-weeks",
     });
-    render(
-      <CapacityOverviewTable
-        model={twelveWeekModel}
-        horizon="12-weeks"
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="number"
-        onHorizonChange={vi.fn()}
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+    renderTable({ model: twelveWeekModel });
 
-    expect(screen.getByText("No people match this view.")).toHaveAttribute("colspan", "7");
+    expect(screen.getByText("No people match this view.")).toHaveAttribute("colspan", "13");
   });
 
-  it("renders weekly capacity, overbooking, states, demand, and all-eligible summaries", () => {
+  it("renders the ledger: free days out of capacity, overbooking, dashes and unassigned demand", () => {
     class LoadedImage {
       complete = true;
       naturalWidth = 1;
@@ -193,62 +174,59 @@ describe("CapacityOverviewTable content", () => {
     }
     vi.stubGlobal("Image", LoadedImage);
     try {
-      const { container } = render(
-        <CapacityOverviewTable
-          model={model}
-          horizon="4-weeks"
-          onHorizonChange={vi.fn()}
-          data={data}
-          includeTentative
-          hasAvailability={false}
-          showTotals
-          capacityDisplayMode="number"
-          onIncludeTentativeChange={vi.fn()}
-          onHasAvailabilityChange={vi.fn()}
-          onShowTotalsChange={vi.fn()}
-          onCapacityDisplayModeChange={vi.fn()}
-        />,
-      );
+      const { container } = renderTable();
 
       expect(screen.getByRole("columnheader", { name: "10 – 13 Sep" })).not.toHaveTextContent("2026");
       expect(screen.getByRole("columnheader", { name: "28 Sep – 4 Oct" })).toBeInTheDocument();
-      expect(screen.queryByText(/This week|Next week|Week 3|Week 4/)).not.toBeInTheDocument();
       const person = screen.getByRole("row", { name: /Clark Kent/ });
       const avatar = container.querySelector('button[aria-label="View Clark Kent\'s schedule"] img');
       expect(avatar).toHaveAttribute("src", "https://images.example/clark.png");
       expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
-      expect(within(person).getByText("1.5d")).toBeInTheDocument();
-      expect(within(person).getByText("0.25d overbooked")).toBeInTheDocument();
+      const cells = within(person).getAllByRole("cell");
+      expect(within(cells[0] as HTMLElement).getByText("1.5d")).toHaveClass("text-ink");
+      // The overbooked days replace the capacity figure in red; the track shows free time only.
+      expect(within(cells[0] as HTMLElement).queryByText("/ 5d")).not.toBeInTheDocument();
+      expect(within(cells[0] as HTMLElement).getByText("+0.25d")).toHaveClass("text-danger");
+      const overbookedBar = within(cells[0] as HTMLElement).getByTestId("capacity-ledger-bar");
+      expect(overbookedBar.children).toHaveLength(2);
+      expect(within(cells[3] as HTMLElement).getByText("/ 4d")).toHaveClass("text-faint");
+      expect(
+        within(cells[0] as HTMLElement).getByText("10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked"),
+      ).toHaveClass("sr-only");
+      expect(cells[0]).toHaveAttribute("title", "10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked");
       const emptyCapacity = within(person).getAllByText("—");
       expect(emptyCapacity).toHaveLength(2);
-      expect(emptyCapacity.every((value) => value.classList.contains("text-muted-foreground"))).toBe(true);
-      expect(within(person).queryByText("Fully booked")).not.toBeInTheDocument();
-      expect(within(person).queryByText("Unavailable")).not.toBeInTheDocument();
+      expect(emptyCapacity.every((value) => value.classList.contains("text-faint"))).toBe(true);
+      expect(within(cells[2] as HTMLElement).getByText("/ 0d")).toBeInTheDocument();
+      expect(within(cells[3] as HTMLElement).getByText("/ 4d")).toBeInTheDocument();
       const placeholder = screen.getByRole("row", { name: /Placeholder.*Designer/ });
       expect(within(placeholder).getByText("2d unassigned")).toBeInTheDocument();
-      expect(screen.queryByRole("row", { name: /All eligible people/ })).not.toBeInTheDocument();
+      expect(within(placeholder).queryByTestId("capacity-ledger-bar")).not.toBeInTheDocument();
+      expect(within(screen.getByTestId("capacity-overview-group")).getByText("1 person")).toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
     }
   });
 
+  it("colours the ledger bar by the share of capacity still free and hatches tentative time", () => {
+    renderTable();
+
+    const cells = within(screen.getByRole("row", { name: /Clark Kent/ })).getAllByRole("cell");
+    const firstFree = within(cells[0] as HTMLElement).getByTestId("capacity-bar-free");
+    expect(firstFree).toHaveAttribute("data-tone", "danger");
+    expect(firstFree).toHaveStyle({ width: "30%" });
+    const firstTentative = within(cells[0] as HTMLElement).getByTestId("capacity-bar-tentative");
+    expect(firstTentative).toHaveStyle({ width: "20%" });
+    expect(firstTentative.style.background).toContain("repeating-linear-gradient");
+    expect(firstTentative.style.background).toContain("var(--color-faint)");
+    expect(within(cells[1] as HTMLElement).getByTestId("capacity-bar-free")).toHaveStyle({ width: "0%" });
+    const fourthFree = within(cells[3] as HTMLElement).getByTestId("capacity-bar-free");
+    expect(fourthFree).toHaveAttribute("data-tone", "ok");
+    expect(fourthFree).toHaveStyle({ width: "100%" });
+  });
+
   it("names a placeholder's trigger from its role, not the generic placeholder fallback", () => {
-    render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="number"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+    renderTable();
 
     // Without a real resource behind it, the trigger's title degrades to the generic
     // "View Placeholder's schedule" instead of naming the role — the case a defaulted-to-empty
@@ -259,270 +237,133 @@ describe("CapacityOverviewTable content", () => {
 });
 
 describe("CapacityOverviewTable interactions", () => {
-  it("updates both overview controls", async () => {
+  it("toggles the tentative and availability pills", async () => {
     const user = userEvent.setup();
     const onIncludeTentativeChange = vi.fn();
     const onHasAvailabilityChange = vi.fn();
-    render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="number"
-        onIncludeTentativeChange={onIncludeTentativeChange}
-        onHasAvailabilityChange={onHasAvailabilityChange}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+    renderTable({ onIncludeTentativeChange, onHasAvailabilityChange });
 
-    await user.click(screen.getByRole("radio", { name: "Hide tentative" }));
-    await user.click(screen.getByRole("radio", { name: "Has availability" }));
+    const tentative = screen.getByRole("button", { name: "Tentative" });
+    expect(tentative).toHaveAttribute("aria-pressed", "true");
+    await user.click(tentative);
     expect(onIncludeTentativeChange).toHaveBeenCalledWith(false);
+    const availability = screen.getByRole("button", { name: "Has availability" });
+    expect(availability).toHaveAttribute("aria-pressed", "false");
+    await user.click(availability);
     expect(onHasAvailabilityChange).toHaveBeenCalledWith(true);
   });
 
-  it("switches the capacity display mode", async () => {
+  it("switches between Ledger and Load curve", async () => {
     const user = userEvent.setup();
     const onCapacityDisplayModeChange = vi.fn();
-    render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="number"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={onCapacityDisplayModeChange}
-      />,
-    );
+    renderTable({ onCapacityDisplayModeChange });
 
-    await user.click(screen.getByRole("radio", { name: /^Bar$/ }));
-    expect(onCapacityDisplayModeChange).toHaveBeenCalledWith("bar");
-    await user.click(screen.getByRole("radio", { name: "Bar & number" }));
-    expect(onCapacityDisplayModeChange).toHaveBeenCalledWith("bar-number");
+    expect(screen.getByRole("radio", { name: "Ledger" })).toHaveAttribute("aria-checked", "true");
+    await user.click(screen.getByRole("radio", { name: "Load curve" }));
+    expect(onCapacityDisplayModeChange).toHaveBeenCalledWith("load-curve");
   });
 
-  it("hides group totals by default and shows them when toggled on", async () => {
+  it("hides the totals tier by default and shows visible-people totals when toggled on", async () => {
     const user = userEvent.setup();
     const onShowTotalsChange = vi.fn();
-    const { rerender } = render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="number"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={onShowTotalsChange}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+    const { rerender } = renderTable({ onShowTotalsChange });
 
-    expect(screen.getByRole("radio", { name: "Hide totals" })).toHaveAttribute("aria-checked", "true");
-    const groupRow = screen.getByTestId("capacity-overview-group");
-    expect(within(groupRow).queryByText("1.5d")).not.toBeInTheDocument();
-    expect(within(groupRow).queryByText("0.25d overbooked")).not.toBeInTheDocument();
-    expect(within(groupRow).queryByText("2d unassigned")).not.toBeInTheDocument();
+    const totals = screen.getByRole("button", { name: "Totals" });
+    expect(totals).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByTestId("capacity-overview-totals")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("table")).getAllByRole("columnheader")).toHaveLength(5);
 
-    await user.click(screen.getByRole("radio", { name: "Show totals" }));
+    await user.click(totals);
     expect(onShowTotalsChange).toHaveBeenCalledWith(true);
 
-    rerender(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals
-        capacityDisplayMode="number"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={onShowTotalsChange}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
+    rerender({ showTotals: true });
+    const totalsRow = screen.getByTestId("capacity-overview-totals");
+    const totalsCells = within(totalsRow).getAllByTestId("capacity-overview-totals-cell");
+    expect(totalsCells).toHaveLength(4);
+    // Clark: 40h capacity, 12h free, 8h tentative → 20h committed (50%), 20% tentative, 1.5d free,
+    // and 2h overbooked: the overbooked days replace the free figure.
+    expect(within(totalsCells[0] as HTMLElement).getByText("50%")).toHaveClass("text-muted-foreground");
+    expect(within(totalsCells[0] as HTMLElement).queryByText("1.5d")).not.toBeInTheDocument();
+    expect(within(totalsCells[0] as HTMLElement).getByText("+0.25d")).toHaveClass("text-danger");
+    expect(within(totalsCells[3] as HTMLElement).getByText("4d")).toBeInTheDocument();
+    expect(totalsCells[0]).toHaveAttribute(
+      "title",
+      "10 – 13 Sep · 2.5d committed of 5d · 1d tentative · 0.25d overbooked",
     );
-
-    const groupRowWithTotals = screen.getByTestId("capacity-overview-group");
-    expect(within(groupRowWithTotals).getByText("1.5d")).toBeInTheDocument();
-    expect(within(groupRowWithTotals).getByText("0.25d overbooked")).toBeInTheDocument();
-    expect(within(groupRowWithTotals).getByText("2d unassigned")).toBeInTheDocument();
+    expect(within(totalsCells[0] as HTMLElement).getByTestId("capacity-totals-committed")).toHaveStyle({
+      width: "50%",
+    });
+    expect(within(totalsCells[0] as HTMLElement).getByTestId("capacity-totals-tentative")).toHaveStyle({
+      width: "20%",
+    });
+    // Fully booked: 100% committed reads as danger; unavailable weeks have no capacity at all.
+    expect(within(totalsCells[1] as HTMLElement).getByText("100%")).toHaveClass("text-danger");
+    expect(totalsCells[2]).toHaveAttribute("title", "21 – 27 Sep · 0d committed of 0d");
+    // The tier adds no column header and its person cell stays empty, so nothing shifts.
+    expect(within(screen.getByRole("table")).getAllByRole("columnheader")).toHaveLength(5);
+    expect(totalsRow.firstElementChild).toBeEmptyDOMElement();
+    expect(within(screen.getByTestId("capacity-overview-group")).queryByText(/committed/)).not.toBeInTheDocument();
   });
 
-  it("renders Number mode with visible figures and no bar background", () => {
-    render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="number"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
-
-    const person = screen.getByRole("row", { name: /Clark Kent/ });
-    expect(within(person).getByText("1.5d")).toBeInTheDocument();
-    const firstWeekCell = within(person).getByText("1.5d").closest("td");
-    expect(within(firstWeekCell as HTMLElement).queryByTestId("capacity-bar-fill")).not.toBeInTheDocument();
-
-    // Number mode never renders a fill layer at all (asserted above), so there is no cell-gap
-    // wrapper to check for absence here — the fill wrapper only exists in Bar/Bar & number modes.
-  });
-
-  it("renders Bar mode with a fill background and no visible number, keeping the value accessible", () => {
-    render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="bar"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+  it("renders Load curve with shape only, keeping the figures for assistive technology", () => {
+    renderTable({ capacityDisplayMode: "load-curve" });
 
     const person = screen.getByRole("row", { name: /Clark Kent/ });
     expect(within(person).queryByText("1.5d")).not.toBeInTheDocument();
-    const accessibleValue = within(person).getByText("1.5d, 0.25d overbooked");
+    expect(within(person).queryByText("/ 5d")).not.toBeInTheDocument();
+    const accessibleValue = within(person).getByText("10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked");
     expect(accessibleValue).toHaveClass("sr-only");
+    expect(within(person).queryByTestId("capacity-ledger-bar")).not.toBeInTheDocument();
     const firstWeekCell = accessibleValue.closest("td") as HTMLElement;
-    const fill = within(firstWeekCell).getByTestId("capacity-bar-fill");
-    // Overbooked (overHours > 0 wins the fill kind) and, in pure Bar mode, carries the diagonal
-    // hatch — the non-colour cue for WCAG 1.4.1 since the number above is not visually rendered.
-    expect(fill).toHaveAttribute("data-bar-kind", "over");
-    expect(fill.style.background).toContain("repeating-linear-gradient");
-    // Bar mode uses the saturated, no-text "-cell" pair (not the AA-softened "-soft" pair used by
-    // Bar & number) — the number here is `sr-only`, so nothing needs to clear AA on this fill.
-    expect(fill.style.background).toContain("var(--color-danger-cell)");
+    const curve = within(firstWeekCell).getByTestId("capacity-load-curve");
+    // The overbooked week carries no extra overlay: the curve shows free and tentative time only.
+    expect(curve.children).toHaveLength(2);
+    expect(within(curve).getByTestId("capacity-bar-free")).toHaveStyle({ height: "30%" });
+    expect(within(curve).getByTestId("capacity-bar-tentative")).toHaveStyle({ height: "20%" });
 
-    // The fill wrapper is inset 3px from the cell on every side (6px between adjacent bars, both
-    // directions) rather than the table gaining `border-spacing` — see the comment on
-    // CapacityBarFillLayer for why cell-level insets, not a table-wide spacing gutter.
-    expect(fill.parentElement).toHaveAttribute("data-testid", "capacity-bar-fill-layer");
-    expect(fill.parentElement).toHaveClass("inset-[3px]");
-
-    // A free (available) fill never carries the hatch — it needs no non-colour cue, since it
-    // reads the same regardless of colour vision.
-    const rowCells = within(person).getAllByRole("cell");
-    const fourthWeekFill = within(rowCells[3] as HTMLElement).getByTestId("capacity-bar-fill");
-    expect(fourthWeekFill).toHaveAttribute("data-bar-kind", "free");
-    expect(fourthWeekFill).toHaveStyle({ height: "80%" });
-    expect(fourthWeekFill.style.background).not.toContain("repeating-linear-gradient");
-    expect(fourthWeekFill.style.background).toBe("var(--color-ok-cell)");
+    const cells = within(person).getAllByRole("cell");
+    const fourthCurve = within(cells[3] as HTMLElement).getByTestId("capacity-load-curve");
+    expect(within(fourthCurve).getByTestId("capacity-bar-free")).toHaveStyle({ height: "100%" });
+    expect(within(fourthCurve).getByTestId("capacity-bar-free")).toHaveAttribute("data-tone", "ok");
+    expect(within(fourthCurve).getByTestId("capacity-bar-free").style.background).toBe("var(--color-ok)");
   });
 
-  it("renders Bar & number mode with both the fill and the visible number", () => {
-    render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="bar-number"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+  it("drops the tentative band when tentative work is excluded", () => {
+    const withoutTentative: CapacityOverviewModel = {
+      ...model,
+      groups: model.groups.map((group) => ({
+        ...group,
+        rows: group.rows.map((row) => ({
+          ...row,
+          periods: row.periods.map((result) => ({ ...result, tentativeHours: 0, tentativeDays: 0 })),
+        })),
+      })),
+    };
+    renderTable({ model: withoutTentative, includeTentative: false, showTotals: true });
 
-    const person = screen.getByRole("row", { name: /Clark Kent/ });
-    const value = within(person).getByText("1.5d");
-    expect(value).toBeInTheDocument();
-    // The overbooked label is also visible here (unlike pure Bar mode) — SC 1.4.1 is already
-    // satisfied by that printed text, so the hatch (which would sit under the same-hue label and
-    // re-fail SC 1.4.3) is intentionally NOT applied in this mode.
-    const overLabel = within(person).getByText("0.25d overbooked");
-    // The label sits on the danger-soft fill here, so it must use the ink that fill is paired
-    // with — NOT text-destructive, which shares the fill's hue and fails WCAG 1.4.3 on it.
-    expect(overLabel).toHaveClass("text-danger-soft-ink");
-    expect(overLabel).not.toHaveClass("text-destructive");
-    const firstWeekCell = value.closest("td") as HTMLElement;
-    const fill = within(firstWeekCell).getByTestId("capacity-bar-fill");
-    expect(fill).toHaveAttribute("data-bar-kind", "over");
-    expect(fill.style.background).toBe("var(--color-danger-soft)");
-    expect(fill.style.background).not.toContain("repeating-linear-gradient");
-
-    const rowCells = within(person).getAllByRole("cell");
-    const fourthWeekFill = within(rowCells[3] as HTMLElement).getByTestId("capacity-bar-fill");
-    expect(fourthWeekFill).toHaveStyle({ height: "80%" });
+    const cells = within(screen.getByRole("row", { name: /Clark Kent/ })).getAllByRole("cell");
+    expect(within(cells[0] as HTMLElement).getByTestId("capacity-bar-tentative")).toHaveStyle({ width: "0%" });
+    expect(cells[0]).toHaveAttribute("title", "10 – 13 Sep · 1.5d free of 5d · 0.25d overbooked");
+    const totalsCell = screen.getAllByTestId("capacity-overview-totals-cell")[0] as HTMLElement;
+    expect(totalsCell).toHaveAttribute("title", "10 – 13 Sep · 3.5d committed of 5d · 0.25d overbooked");
+    expect(screen.getByRole("button", { name: "Tentative" })).toHaveAttribute("aria-pressed", "false");
   });
 
-  it("never renders a bar for unassigned-demand rows", () => {
-    render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="bar"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+  it("never renders a bar for unassigned-demand rows in either mode", () => {
+    const { rerender } = renderTable({ capacityDisplayMode: "load-curve" });
 
     const placeholder = screen.getByRole("row", { name: /Placeholder.*Designer/ });
-    const value = within(placeholder).getByText("2d unassigned");
-    const cell = value.closest("td") as HTMLElement;
-    expect(within(cell).queryByTestId("capacity-bar-fill")).not.toBeInTheDocument();
+    expect(within(placeholder).getByText("2d unassigned")).toBeInTheDocument();
+    expect(within(placeholder).queryByTestId("capacity-load-curve")).not.toBeInTheDocument();
+    rerender({ capacityDisplayMode: "ledger" });
+    expect(within(placeholder).queryByTestId("capacity-ledger-bar")).not.toBeInTheDocument();
   });
 
   it("collapses and expands discipline rows", async () => {
     const user = userEvent.setup();
-    render(
-      <CapacityOverviewTable
-        model={model}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="number"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+    renderTable();
 
-    const groupToggle = screen.getByRole("button", { name: "Design" });
+    const groupToggle = screen.getByRole("button", { name: /^Design/ });
     expect(groupToggle).toHaveAttribute("aria-expanded", "true");
     await user.click(groupToggle);
     expect(groupToggle).toHaveAttribute("aria-expanded", "false");
@@ -532,24 +373,10 @@ describe("CapacityOverviewTable interactions", () => {
   });
 
   it("shows an explanation instead of figures in Blocks mode", () => {
-    render(
-      <CapacityOverviewTable
-        model={{ ...model, measured: false, reason: "blocks-mode", groups: [] }}
-        horizon="4-weeks"
-        onHorizonChange={vi.fn()}
-        data={data}
-        includeTentative
-        hasAvailability={false}
-        showTotals={false}
-        capacityDisplayMode="number"
-        onIncludeTentativeChange={vi.fn()}
-        onHasAvailabilityChange={vi.fn()}
-        onShowTotalsChange={vi.fn()}
-        onCapacityDisplayModeChange={vi.fn()}
-      />,
-    );
+    renderTable({ model: { ...model, measured: false, reason: "blocks-mode", groups: [] } });
 
     expect(screen.getByRole("heading", { name: "Overview needs measured capacity" })).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("capacity-overview-legend")).not.toBeInTheDocument();
   });
 });

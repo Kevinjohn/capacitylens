@@ -37,13 +37,17 @@ describe("CapacityOverviewView", () => {
     expect(screen.getByRole("columnheader", { name: "10 – 13 Sep" })).toBeInTheDocument();
   });
 
-  it("starts with Bar & number capacity display", () => {
+  it("starts on the Ledger with tentative work shown and totals hidden", () => {
     renderOverview();
 
-    expect(screen.getByRole("radio", { name: "Bar & number" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "Ledger" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: "Tentative" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Has availability" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Totals" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("Capacity across the next 4 weeks")).toBeInTheDocument();
   });
 
-  it("switches between the four-week and twelve-week horizons without resetting other controls", async () => {
+  it("switches between the four-, eight- and twelve-week horizons without resetting other controls", async () => {
     const user = userEvent.setup();
     renderOverview();
 
@@ -53,18 +57,20 @@ describe("CapacityOverviewView", () => {
 
     await user.click(screen.getByRole("radio", { name: "12 weeks" }));
 
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(7);
-    expect(screen.getByRole("columnheader", { name: /Weeks 5–8.*5 Oct – 1 Nov/ })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /Weeks 9–12.*2 – 29 Nov/ })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "12 weeks" })).toHaveAttribute("aria-checked", "true");
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(13);
+    expect(screen.getByRole("columnheader", { name: "5 – 11 Oct" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "23 – 29 Nov" })).toBeInTheDocument();
+    expect(screen.getByText("Capacity across the next 12 weeks")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("radio", { name: "Hide tentative" }));
-    await user.click(screen.getByRole("radio", { name: "Show totals" }));
-    await user.click(screen.getByRole("radio", { name: "4 weeks" }));
+    await user.click(screen.getByRole("button", { name: "Tentative" }));
+    await user.click(screen.getByRole("button", { name: "Totals" }));
+    await user.click(screen.getByRole("radio", { name: "8 weeks" }));
 
-    expect(within(table).getAllByRole("columnheader")).toHaveLength(5);
-    expect(screen.getByRole("radio", { name: "Hide tentative" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("radio", { name: "Show totals" })).toHaveAttribute("aria-checked", "true");
+    expect(within(table).getAllByRole("columnheader")).toHaveLength(9);
+    expect(screen.getByText("Capacity across the next 8 weeks")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tentative" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Totals" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByTestId("capacity-overview-totals-cell")).toHaveLength(8);
   });
 
   it("resets the horizon when Overview is remounted", async () => {
@@ -83,7 +89,7 @@ describe("CapacityOverviewView", () => {
     const user = userEvent.setup();
     renderOverview();
 
-    const groupToggle = screen.getByRole("button", { name: "Studio" });
+    const groupToggle = screen.getByRole("button", { name: /Studio/ });
     await user.click(groupToggle);
     await user.click(screen.getByRole("radio", { name: "12 weeks" }));
 

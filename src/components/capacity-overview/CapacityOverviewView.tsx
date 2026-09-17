@@ -20,7 +20,7 @@ export function CapacityOverviewView() {
   const [includeTentative, setIncludeTentative] = useState(true);
   const [hasAvailability, setHasAvailability] = useState(false);
   const [showTotals, setShowTotals] = useState(false);
-  const [capacityDisplayMode, setCapacityDisplayMode] = useState<CapacityDisplayMode>("bar-number");
+  const [capacityDisplayMode, setCapacityDisplayMode] = useState<CapacityDisplayMode>("ledger");
   const [horizon, setHorizon] = useState<CapacityOverviewHorizon>("4-weeks");
   const data = useStore((state) => state.data);
   const activeAccountId = useStore((state) => state.activeAccountId);

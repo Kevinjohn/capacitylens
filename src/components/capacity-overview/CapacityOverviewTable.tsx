@@ -8,6 +8,7 @@ import { usePersonScheduleDrawer } from "../person-schedule/usePersonScheduleDra
 import type { CapacityOverviewHorizon } from "./capacityOverviewDates";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import { CapacityTable } from "./CapacityOverviewTableGrid";
+import { OverviewLegend } from "./OverviewLegend";
 import { OverviewToolbar } from "./OverviewToolbar";
 import type { PersonScheduleTriggerHandlers } from "./CapacityOverviewTableGrid";
 import type { CapacityOverviewModel } from "./capacityOverviewModel";
@@ -55,23 +56,24 @@ export function CapacityOverviewTable(props: CapacityOverviewTableWithSchedulePr
         onShowTotalsChange={props.onShowTotalsChange}
         onCapacityDisplayModeChange={props.onCapacityDisplayModeChange}
       />
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-canvas px-[26px] pt-[22px] pb-[60px]">
         {!props.model.measured ? (
-          <div className="p-6">
-            <Alert>
-              <AlertTitle>
-                <h2>{m.capacity_overview_blocks_heading()}</h2>
-              </AlertTitle>
-              <AlertDescription>{m.capacity_overview_blocks_body()}</AlertDescription>
-            </Alert>
-          </div>
+          <Alert>
+            <AlertTitle>
+              <h2>{m.capacity_overview_blocks_heading()}</h2>
+            </AlertTitle>
+            <AlertDescription>{m.capacity_overview_blocks_body()}</AlertDescription>
+          </Alert>
         ) : (
-          <CapacityTable
-            model={props.model}
-            showTotals={props.showTotals}
-            capacityDisplayMode={props.capacityDisplayMode}
-            {...triggerHandlers}
-          />
+          <section className="overflow-hidden rounded-[14px] border border-line bg-surface shadow-[0_1px_2px_rgba(20,22,26,0.05),0_8px_24px_-16px_rgba(20,22,26,0.18)]">
+            <CapacityTable
+              model={props.model}
+              showTotals={props.showTotals}
+              capacityDisplayMode={props.capacityDisplayMode}
+              {...triggerHandlers}
+            />
+            <OverviewLegend />
+          </section>
         )}
       </div>
       <PersonScheduleSheet
