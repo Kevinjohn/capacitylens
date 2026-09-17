@@ -24,6 +24,9 @@ new features and **patch** versions carry fixes.
   Prioritise personal scheduled work, complete Admin tasks and the Owner-to-Admin handover.
   Add real application screenshots for each guide, including role-specific access and first-company setup.
 
+- Clarify the first-booking, installation and operations journeys with visual stages,
+  route-specific navigation and safer verification and recovery guidance (#1100).
+
 - Align Team & access member and outstanding-invite rows with the managed-resource list, move member
   actions and Resource linking into centered dialogs, and rename the association controls to **Link
   to Resource** (#1104).

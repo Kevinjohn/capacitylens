@@ -1,6 +1,9 @@
 ---
 title: Configure the service
 description: Set every CapacityLens environment variable needed for the installation and its sign-in route.
+prev:
+  text: Choose how to install
+  link: /getting-started/install
 ---
 
 # Configure the service

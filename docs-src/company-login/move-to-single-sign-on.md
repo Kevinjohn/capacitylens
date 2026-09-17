@@ -53,21 +53,21 @@ again. Nobody has to change anything on the company login side.
 
 | You need                          | Why                                                                                                | Where it comes from                                                                                                 |
 | --------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| A database backup                 | Your undo button. Take it before [step 1](#step-1) and again at [step 7](#step-7).                 | All your data lives in one file, `capacitylens.db`. Copy it while the app is stopped.                               |
+| A recovery bundle                | Your undo button. Take it before [step 1](#step-1) and again at [step 7](#step-7).                 | Preserve the stopped database, sidecars and both audit-log generations, then copy the bundle off-host.              |
 | A way back to today's version     | If you change your mind, you want to start exactly what you're running right now.                  | Don't delete or overwrite whatever you installed from — the download, or the version tag if you run it in Docker.   |
 | A login app in your company login | This is what lets CapacityLens hand people over to Google (or Microsoft, or Okta) and back.        | Ten minutes in your provider's admin screens. See [Set up your company login](/company-login/set-up-company-login). |
-| Three values from it              | The app's own ID and password, plus the address CapacityLens fetches the rest of the details from. | Shown when you create the login app. Keep the secret one somewhere safe.                                            |
+| Four values from it               | The client ID, client secret, discovery URL and issuer.                                            | Shown when you create the login app. Keep the secret in protected storage.                                          |
 | One address pasted back in        | Where your provider sends people after they've signed in. Without it, the very first click fails.  | `https://your-capacitylens-address/api/auth/oauth2/callback/sso`                                                    |
 | A quiet hour                      | [Steps 7–9](#step-7) are the disruptive window; [step 8](#step-8) signs everybody out, once.       | Friday evening is traditional.                                                                                      |
 
 ### Do the company login part first
 
-Three of the things in that table come out of the system your staff already sign into
+Four of the things in that table come out of the system your staff already sign into
 for their email — Google Workspace, Microsoft 365, Okta, whatever yours is. Setting
 that up is a ten-minute job of clicking through admin screens, and it has nothing to do
 with the move itself, so it's written up on its own page: [Set up your company
 login](/company-login/set-up-company-login). Pick your provider, follow the clicks, and
-come back with three values.
+come back with four values.
 
 Come back here when you have them. If someone has already set that up for you, you can
 skip straight on.
@@ -86,21 +86,21 @@ those permissions. One step is for everybody.
 
 _5 minutes · Operator_
 
-Stop the app, copy its data file somewhere safe, and label the copy "before SSO".
-Everything CapacityLens knows — every person, company and scheduled hour — lives in
-that one file. Also keep hold of whatever you installed the current version from: going
-back means starting yesterday's version again, so don't throw yesterday away.
+Stop the app and label a complete recovery bundle "before SSO". Also keep the exact
+release you are running: going back means starting that release again.
 
 ```bash
-# with the server stopped
-cp /var/lib/capacitylens/capacitylens.db \
-   /var/lib/capacitylens/backups/before-sso-$(date +%F).db
+sudo systemctl stop capacitylens
+bundle="/var/lib/capacitylens/backups/before-sso-$(date -u +%Y%m%dT%H%M%SZ)"
+sudo install -d -m 700 -o capacitylens -g capacitylens "$bundle"
+sudo -u capacitylens cp -p /var/lib/capacitylens/capacitylens.db* /var/lib/capacitylens/capacitylens-audit.jsonl* "$bundle/"
 ```
 
-::: warning
-Copy the file while the server is **stopped**. A live copy can miss recent writes that
-are still sitting in a temporary side-file next to it.
-:::
+Copy that directory to protected off-host storage before restarting. If your paths differ,
+use the configured database and audit paths. For Compose, run only the preservation step
+in the [named-volume procedure](/self-hosting/backups-and-restore#preserve-compose-files),
+then copy its `manual-restore-*` directory from the backups volume to protected off-host
+storage. Do not continue to the replacement steps.
 
 ### 2. Open the second door {#step-2}
 
@@ -150,7 +150,7 @@ there for the linking ceremony, not for signing in yet.
 Good — that's the point. It checks your provider settings before it accepts a single
 request. The usual causes: the discovery URL doesn't resolve, the issuer in the
 discovery document doesn't exactly match `SMALLSASS_ACCOUNT_OIDC_ISSUER`, one of the
-three things it asks for is missing, or your provider is set to the weak way of signing
+four values it asks for is missing, or your provider is set to the weak way of signing
 (HS256) instead of the normal one. Fix the setting it names and start again. Nothing has
 changed in the database yet.
 
@@ -343,14 +343,19 @@ is locking your entire agency out of its own planning tool on a Friday night.
 
 _5 minutes · Operator_
 
-Stop CapacityLens and stop traffic reaching it. Take a **second** backup and label it
-"cutover point". This is the snapshot you'd restore to if something truly
-surprising happens — the step-1 backup is now hours or weeks out of date.
+Stop CapacityLens and stop traffic reaching it. Create a **second complete recovery
+bundle** and label it "cutover point"; the step-1 bundle may now be hours or weeks out of
+date.
 
 ```bash
-cp /var/lib/capacitylens/capacitylens.db \
-   /var/lib/capacitylens/backups/cutover-point-$(date +%F).db
+sudo systemctl stop capacitylens
+bundle="/var/lib/capacitylens/backups/cutover-point-$(date -u +%Y%m%dT%H%M%SZ)"
+sudo install -d -m 700 -o capacitylens -g capacitylens "$bundle"
+sudo -u capacitylens cp -p /var/lib/capacitylens/capacitylens.db* /var/lib/capacitylens/capacitylens-audit.jsonl* "$bundle/"
 ```
+
+Copy the bundle off-host before changing the sign-in mode. Compose operators repeat the
+preservation-only procedure linked in step 1 and copy that bundle off-host.
 
 ### 8. Close the password door {#step-8}
 
