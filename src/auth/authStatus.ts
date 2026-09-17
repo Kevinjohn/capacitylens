@@ -77,11 +77,15 @@ function isAuthProvider(value: unknown): value is AuthProviderCandidate {
   );
 }
 
+const SOCIAL_PROVIDER_BRANDS: Record<string, AuthProviderBrand> = { google: "google", microsoft: "microsoft" };
+
 function parseProviderBrand(provider: AuthProviderCandidate): AuthProviderBrand {
+  // A social provider's presentation follows the id the click dispatches, so no payload can brand
+  // one social provider as another; only the strict OIDC provider carries configurable branding.
+  if (provider.kind === "social") return SOCIAL_PROVIDER_BRANDS[provider.id] ?? "generic";
   if (provider.brand === "google" || provider.brand === "microsoft" || provider.brand === "generic") {
     return provider.brand;
   }
-  if (provider.brand === undefined && provider.kind === "social" && provider.id === "google") return "google";
   return "generic";
 }
 
