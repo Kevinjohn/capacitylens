@@ -163,6 +163,64 @@ Without Docker, run the API bound to loopback and terminate public HTTPS at ngin
 - Overwrite both `X-Forwarded-For` and `X-Forwarded-Proto` the way the packaged
   `nginx.conf` does, and reuse its security headers.
 
+The public nginx site for the direct Node installation should have an HTTPS server and
+an HTTP redirect. Use the certificate paths provided by your ACME client:
+
+```nginx
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name capacity.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/capacity.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/capacity.example.com/privkey.pem;
+
+    root /opt/capacitylens/dist;
+    index index.html;
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name capacity.example.com;
+    return 301 https://$host$request_uri;
+}
+```
+
+Set `CAPACITYLENS_HTTPS=1` only after this public HTTPS route works. Check the config and
+reload nginx only after the certificate files exist:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Then verify both the loopback API and the public route:
+
+```bash
+curl -fsS http://127.0.0.1:8787/api/health
+```
+
+```bash
+curl -fsS https://capacity.example.com/api/health
+```
+
+Both responses should start with `{"ok":true,...}`. Also open a nested app route and
+refresh it, confirm the browser stays on HTTPS, and check that the certificate renewal
+job preserves the same hostname and callback origin.
+
 For defense in depth on the internal hop, create your own internal CA-signed service
 certificate, set both `CAPACITYLENS_INTERNAL_TLS_CERT` and
 `CAPACITYLENS_INTERNAL_TLS_KEY`, then switch nginx to

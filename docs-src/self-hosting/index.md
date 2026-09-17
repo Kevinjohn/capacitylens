@@ -65,6 +65,13 @@ Don't duplicate the steps here — follow
 **How do I uninstall completely?** For a Docker Compose install, stop the stack and
 remove its containers and named volumes:
 
+::: warning This permanently deletes the installation data
+The volume removal below destroys the database, audit log, scheduled backups and the
+internal certificate. Confirm that you have a readable off-host backup and no restore
+drill or incident still depends on these volumes before continuing. This data cannot be
+recovered from Docker after the volumes are removed.
+:::
+
 ```bash
 docker compose down
 docker volume rm capacitylens_capacitylens-db capacitylens_capacitylens-backups capacitylens_capacitylens-internal-tls

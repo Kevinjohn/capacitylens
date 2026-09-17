@@ -159,3 +159,25 @@ All 46 placeholder placements are replaced by 40 captures. The Owner transfer se
 - [x] Desktop and narrow-screen documentation previews are checked.
 - [x] Run `pnpm run docs:build` using the worktree’s `.nvmrc` runtime and commit regenerated `docs/`.
 - [x] Remove the draft-placeholder footer once no planned placeholders remain.
+
+## Quick start follow-up — 17 September 2026
+
+Eight additional captures show one coherent example in a new, empty Wayne Studio company.
+They were captured from the native in-memory demo at revision `15c5a50a`, with full demo
+editing access. They illustrate scheduling controls, not sign-in or role enforcement.
+
+| Capture                          | Visible state                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------- |
+| `quick_start_client.png`         | Add client with Queen Consolidated entered.                                  |
+| `quick_start_project.png`        | Add project with Project Watchtower and Queen Consolidated selected.         |
+| `quick_start_resource.png`       | Add resource with Bruce Wayne and the default Monday–Friday working pattern. |
+| `quick_start_activity.png`       | Add activity with Design, Project-specific and Project Watchtower selected.  |
+| `quick_start_empty_schedule.png` | Bruce Wayne's row before any booking exists.                                 |
+| `quick_start_booking_form.png`   | New allocation for Design, with two days of work over 14–15 September.       |
+| `quick_start_booking_saved.png`  | The saved booking on 14–15 September.                                        |
+| `quick_start_booking_moved.png`  | The same booking after dragging it to 16–17 September.                       |
+
+All eight captures are used in [Quick start](../docs-src/getting-started/quick-start.md).
+Each was opened and reviewed for readable controls, consistent fictional data and absence
+of credentials. The captured flow verified creation, saving, drag/drop and Undo. A separate
+single-cell click also opened the one-day booking form. No Docker commands were run.

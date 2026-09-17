@@ -19,18 +19,19 @@ server. Running them with `docker compose exec api ...` or `docker compose run a
 fails because the tools aren't there.
 
 The supported path for a Docker installation is to run these commands from a git
-checkout on the host, mounting the same named data volume, with the stack stopped:
+checkout on the host, mounting the same named data and backup volumes, with the stack stopped:
 
 1. Stop the stack so nothing else writes to the database while you work:
    `docker compose stop`.
 2. From a checkout of the release currently running (matching tag or commit — these
    scripts assume the schema that release produces), start a throwaway container that
-   has Node and pnpm — not the stripped-down `api` image — with the checkout and the
-   named data volume both mounted:
+   has Node and pnpm — not the stripped-down `api` image — with the checkout and both
+   named volumes mounted:
 
    ```bash
    docker run --rm -it \
      -v capacitylens_capacitylens-db:/data \
+     -v capacitylens_capacitylens-backups:/backups \
      -v "$PWD":/workspace -w /workspace \
      node:24-bookworm-slim bash
    ```
@@ -40,11 +41,15 @@ checkout on the host, mounting the same named data volume, with the stack stoppe
    you're not sure it's `capacitylens_capacitylens-db`.)
 
 3. Inside that container, install dependencies once (`corepack enable && pnpm install
---frozen-lockfile`) and run the documented command against `/data/capacitylens.db`,
+   --frozen-lockfile`) and run the documented command against `/data/capacitylens.db`,
    for example `pnpm --filter capacitylens-server recover:audit-outbox -- inspect
-/data/capacitylens.db`. A procedure that uses the `sqlite3` command-line tool directly
-   needs it installed in the same container first: `apt-get update && apt-get install -y
-sqlite3`.
+   /data/capacitylens.db`. Preserve `/data/capacitylens.db-wal`,
+   `/data/capacitylens.db-shm`, `/data/capacitylens-audit.jsonl` and its `.1` rotation
+   alongside the database before investigating. Scheduled snapshots live under
+   `/backups`; use the [named-volume restore procedure](/self-hosting/backups-and-restore#docker-compose-named-volume-procedure)
+   when a verified snapshot is needed. A procedure that uses the `sqlite3` command-line
+   tool directly needs it installed in the same container first: `apt-get update &&
+   apt-get install -y sqlite3`.
 4. Exit the container and restart the stack with `docker compose up -d` once you've
    confirmed the fix.
    :::
@@ -57,14 +62,18 @@ account or session is no longer trustworthy.
 **Fix**:
 
 1. Restrict public access at the proxy.
-2. Preserve the database, the `0600`-mode audit files, forwarded security events and
-   relevant proxy logs, without altering the originals.
+2. Preserve the database with its `-wal`/`-shm` sidecars, the `0600`-mode current and
+   rotated audit files, forwarded security events and relevant proxy logs, without
+   altering the originals. For Docker Compose, use the [stopped-volume preservation
+   step](/self-hosting/backups-and-restore#preserve-compose-files), mount the
+   installation's actual database and backup volumes, and write the evidence to a
+   separate protected destination; do not copy a host path or only the database file.
 3. Use the member/session revocation control in Team & access for a contained identity
    incident. Rotate provider credentials and `SMALLSASS_ACCOUNT_SECRET` only when every
    local session must be invalidated at once — that rotation signs everyone out.
 4. Review memberships, invitations, session-revocation and audit events.
-5. Patch or upgrade, restore from backup only if data integrity actually requires it,
-   then re-enable access.
+5. Keep access restricted until the integrity review is complete. Record the recovery
+   decision against the preserved evidence before re-enabling access.
 6. Follow your organisation's notification and disclosure obligations.
 
 ## A leaver or compromised company-login (OIDC) identity
@@ -118,7 +127,7 @@ session revocation — and never writes a credential directly.
    `SMALLSASS_ACCOUNT_SECRET`, `SMALLSASS_ACCOUNT_PUBLIC_URL`), run:
 
    ```bash
-   pnpm --filter capacitylens-server reset:owner-password -- <database> <owner-email> --confirm-server-stopped
+   pnpm --filter capacitylens-server reset:owner-password -- /absolute/path/to/capacitylens.db owner@example.com --confirm-server-stopped
    ```
 
 4. The tool refuses to run for: a missing or ambiguous identity at that address; a target
@@ -178,7 +187,7 @@ being skipped.
 2. Inspect the oldest row without printing its raw payload:
 
    ```sh
-   pnpm --filter capacitylens-server recover:audit-outbox -- inspect <database>
+   pnpm --filter capacitylens-server recover:audit-outbox -- inspect /absolute/path/to/capacitylens.db
    ```
 
 3. If it reports `valid`, don't quarantine it — investigate the audit sink instead. An
@@ -188,7 +197,7 @@ being skipped.
 4. With explicit approval, quarantine only that still-current malformed head:
 
    ```sh
-   pnpm --filter capacitylens-server recover:audit-outbox -- quarantine <database> <expected-head-id> <evidence-file>
+   pnpm --filter capacitylens-server recover:audit-outbox -- quarantine /absolute/path/to/capacitylens.db expected-head-id /absolute/path/to/evidence.json
    ```
 
    This refuses a valid or already-changed head, and refuses to overwrite an existing
@@ -222,7 +231,7 @@ untouched and won't fabricate missing coordinates.
    release that most recently started the database, close the repaired record with:
 
    ```sh
-   pnpm --filter capacitylens-server exec tsx scripts/reconcile-account-command.ts <database> <application-id> <command-id> <operator-reference>
+   pnpm --filter capacitylens-server exec tsx scripts/reconcile-account-command.ts /absolute/path/to/capacitylens.db application-id command-id operator-reference
    ```
 
    This stores only a SHA-256 digest of your operator reference, refuses records that
@@ -246,9 +255,16 @@ genuinely SQL `NULL`, which is the explicit generic-review case.
 a row belonging to, another company.
 
 **Fix**: treat this as an integrity incident. Stop the application, preserve a copy of
-the database, identify the reported parent/child edge, and repair the account labels or
-relationship against an authoritative source before retrying. Don't disable foreign-key
-enforcement or delete the reported child row just to make erasure pass.
+the database with its `-wal`/`-shm` sidecars and both audit-log generations, and write it
+to a separate protected destination if the host is under pressure. Identify the reported
+parent/child edge and send a private incident report containing only redacted metadata
+(ids, table/relationship names, timestamps and checksums) through your approved incident
+tracker or restricted operator evidence store. Repair the account labels or relationship
+only against an authoritative source. Don't disable foreign-key enforcement, edit the
+database with ad hoc SQL or delete the reported child row just to make erasure pass. If
+a verified snapshot contains the correct edge and the later writes you would lose are
+understood, use the [restore procedure](/self-hosting/backups-and-restore) instead of
+guessing at a repair.
 
 ## A company has no Owner
 
@@ -286,9 +302,28 @@ like this emits a structured security event so an operator can review it.
 
 ## Disk-full or a failed snapshot
 
-Stop write traffic before attempting any cleanup. Never delete the only known-good
-backup snapshot — see [Backups and restore](/self-hosting/backups-and-restore) for what a
-failed snapshot attempt does and doesn't affect.
+**Symptom**: the API reports `SQLITE_FULL`, a snapshot is logged as `backup FAILED`,
+deep health stays `degraded` or `pending`, or the host reports no free blocks or inodes.
+
+**Fix**:
+
+1. Stop write traffic before attempting any cleanup. For Compose, stop the API before
+   touching its named volumes; for a direct install, stop the systemd service.
+2. Preserve the database with its `-wal`/`-shm` sidecars, the current and rotated audit
+   logs, and the latest known-good snapshot to separate protected or off-host storage.
+   If the host is already full, do not try to create another local copy. Record `df -h`
+   and `df -i` output and the exact health/log messages. Never delete the only known-good
+   snapshot or truncate an audit log to make room.
+3. Free space only from disposable material that is already retained elsewhere, such as
+   an old release directory or a verified off-host copy of an older snapshot. Keep the
+   configured retention policy; the storage-encryption setting is an advisory attestation,
+   not a substitute for preserving evidence.
+4. Confirm the database, audit and backup paths are writable, then restart the service and
+   recheck deep health. Wait for one complete scheduled snapshot. If the next snapshot
+   fails, the database reports an integrity error, or SQLite cannot reopen the database,
+   stop the service and escalate as a data-integrity incident. Do not keep retrying writes
+   or run ad hoc SQLite repairs; follow [Backups and restore](/self-hosting/backups-and-restore)
+   and use a verified snapshot only after the data loss boundary is understood.
 
 ## What's next
 
