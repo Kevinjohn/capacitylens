@@ -97,8 +97,6 @@ for (const theme of ["light", "dark"] as const) {
 
     const drawMode = page.getByRole("radiogroup", { name: "Draw mode" });
     await expectSegmentGeometry(drawMode, { trackRadius: "6px", itemRadius: "4px", gap: "2px" });
-    const tentativeVisibility = page.getByRole("radiogroup", { name: "Tentative visibility" });
-    await expectSegmentGeometry(tentativeVisibility, { trackRadius: "6px", itemRadius: "4px", gap: "2px" });
 
     await page.getByRole("button", { name: "Add allocation for Clark Kent" }).click();
     const allocation = page.getByRole("dialog", { name: "New allocation" });

@@ -9,6 +9,12 @@ new features and **patch** versions carry fixes.
 
 ## [0.70.0-alpha.1] - 2026-09-17
 
+### Fixed
+
+- Keep selected and keyboard-focused recessed segments above their neighbours, and keep allocation
+  detail popovers centred on the visible portion of a bar after horizontal schedule scrolling
+  (#1145).
+
 ### Changed
 
 - Carry the same control treatment into dialogs and forms: the allocation **Status**, activity
