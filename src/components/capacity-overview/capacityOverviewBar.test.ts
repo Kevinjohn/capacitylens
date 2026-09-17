@@ -165,6 +165,14 @@ describe("buildPeriodTotals", () => {
     expect(buildPeriodTotals(rows(20, 0), 1)[0]).toMatchObject({ committedPct: 50, tone: "muted" });
   });
 
+  it("never lets the two rounded shares exceed 100%", () => {
+    const totals = buildPeriodTotals(
+      [group([{ id: "a", periods: [result({ freeHours: 0, tentativeHours: 19 })] }])],
+      1,
+    );
+    expect(totals[0]).toMatchObject({ committedPct: 53, tentativePct: 47, tone: "danger" });
+  });
+
   it("keeps a zero-capacity week at 0% rather than dividing by zero", () => {
     const totals = buildPeriodTotals([group([{ id: "a", periods: [result({ availableHours: 0, freeHours: 0 })] }])], 2);
     expect(totals).toHaveLength(2);

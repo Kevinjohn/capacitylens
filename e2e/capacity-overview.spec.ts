@@ -78,7 +78,8 @@ test("shows twelve single weeks in a focusable table region without toolbar over
   expect(regionBox).not.toBeNull();
   expect(finalColumnBox).not.toBeNull();
   expect(finalColumnBox!.x).toBeGreaterThanOrEqual(regionBox!.x);
-  expect(finalColumnBox!.x + finalColumnBox!.width).toBeLessThanOrEqual(regionBox!.x + regionBox!.width);
+  // Sub-pixel table layout can round the last edge a fraction past the region; allow one pixel.
+  expect(finalColumnBox!.x + finalColumnBox!.width).toBeLessThanOrEqual(regionBox!.x + regionBox!.width + 1);
 });
 
 test.describe("Overview layout stability", () => {

@@ -100,7 +100,11 @@ export function buildPeriodTotals(groups: CapacityOverviewGroup[], periodCount: 
     const overHours = periods.reduce((sum, period) => sum + period.overHours, 0);
     const committedHours = Math.max(availableHours - freeHours - tentativeHours, 0);
     const committedPct = availableHours > 0 ? Math.round((committedHours / availableHours) * 100) : 0;
-    const tentativePct = availableHours > 0 ? Math.round((tentativeHours / availableHours) * 100) : 0;
+    // Rounded independently the two shares can reach 101%; the bar and the tone read them as one.
+    const tentativePct = Math.min(
+      availableHours > 0 ? Math.round((tentativeHours / availableHours) * 100) : 0,
+      100 - committedPct,
+    );
     return {
       capacityDays: availableHours / HOURS_PER_DISPLAY_DAY,
       freeDays: roundDownQuarterDays(freeHours),

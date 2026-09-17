@@ -209,14 +209,15 @@ describe("CapacityOverviewTable content", () => {
       expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
       const cells = within(person).getAllByRole("cell");
       expect(within(cells[0] as HTMLElement).getByText("1.5d")).toHaveClass("text-ink");
-      expect(within(cells[0] as HTMLElement).getByText("/ 5d")).toBeInTheDocument();
-      // Overbooking never prints inside the cell (it would wrap in narrow twelve-week columns): the
-      // track carries a red hatch and the figure lives in the hover text and the sr-only label.
-      expect(within(cells[0] as HTMLElement).queryByText("0.25d overbooked")).not.toBeInTheDocument();
-      expect(within(cells[0] as HTMLElement).getByTestId("capacity-ledger-bar")).toHaveAttribute("data-over", "true");
-      expect(within(cells[0] as HTMLElement).getByTestId("capacity-ledger-bar").style.background).toContain(
-        "var(--color-danger)",
-      );
+      // The overbooked days replace the capacity figure in red; the track carries the hatch above
+      // its fills so a full free bar cannot hide it.
+      expect(within(cells[0] as HTMLElement).queryByText("/ 5d")).not.toBeInTheDocument();
+      expect(within(cells[0] as HTMLElement).getByText("+0.25d")).toHaveClass("text-danger");
+      const overbookedBar = within(cells[0] as HTMLElement).getByTestId("capacity-ledger-bar");
+      expect(overbookedBar).toHaveAttribute("data-over", "true");
+      expect(overbookedBar.lastElementChild).toBe(within(overbookedBar).getByTestId("capacity-overbooked-hatch"));
+      expect(within(cells[3] as HTMLElement).getByText("/ 4d")).toHaveClass("text-faint");
+      expect(within(cells[3] as HTMLElement).queryByTestId("capacity-overbooked-hatch")).not.toBeInTheDocument();
       expect(
         within(cells[0] as HTMLElement).getByText("10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked"),
       ).toHaveClass("sr-only");
@@ -230,7 +231,7 @@ describe("CapacityOverviewTable content", () => {
       const placeholder = screen.getByRole("row", { name: /Placeholder.*Designer/ });
       expect(within(placeholder).getByText("2d unassigned")).toBeInTheDocument();
       expect(within(placeholder).queryByTestId("capacity-ledger-bar")).not.toBeInTheDocument();
-      expect(within(screen.getByTestId("capacity-overview-group")).getByText("2 people")).toBeInTheDocument();
+      expect(within(screen.getByTestId("capacity-overview-group")).getByText("1 person")).toBeInTheDocument();
     } finally {
       vi.unstubAllGlobals();
     }
@@ -340,13 +341,14 @@ describe("CapacityOverviewTable interactions", () => {
     const curve = within(firstWeekCell).getByTestId("capacity-load-curve");
     // Overbooked weeks keep a red hatch on the track as the non-colour cue (WCAG 1.4.1).
     expect(curve).toHaveAttribute("data-over", "true");
-    expect(curve.style.background).toContain("repeating-linear-gradient");
+    expect(curve.lastElementChild).toBe(within(curve).getByTestId("capacity-overbooked-hatch"));
     expect(within(curve).getByTestId("capacity-bar-free")).toHaveStyle({ height: "30%" });
     expect(within(curve).getByTestId("capacity-bar-tentative")).toHaveStyle({ height: "20%" });
 
     const cells = within(person).getAllByRole("cell");
     const fourthCurve = within(cells[3] as HTMLElement).getByTestId("capacity-load-curve");
     expect(fourthCurve).not.toHaveAttribute("data-over");
+    expect(within(fourthCurve).queryByTestId("capacity-overbooked-hatch")).not.toBeInTheDocument();
     expect(within(fourthCurve).getByTestId("capacity-bar-free")).toHaveStyle({ height: "100%" });
     expect(within(fourthCurve).getByTestId("capacity-bar-free")).toHaveAttribute("data-tone", "ok");
     expect(within(fourthCurve).getByTestId("capacity-bar-free").style.background).toBe("var(--color-ok)");

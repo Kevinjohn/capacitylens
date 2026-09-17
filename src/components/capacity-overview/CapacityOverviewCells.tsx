@@ -15,7 +15,19 @@ import type { CapacityOverviewPeriodResult } from "./capacityOverviewTypes";
 
 const WEEK_CELL_CLASS = "border-b border-l border-line-soft p-0 align-middle";
 const MONO_VALUE_CLASS = "font-mono text-[12.5px] font-medium tabular-nums";
-const MONO_DETAIL_CLASS = "font-mono text-[10.5px] tabular-nums text-faint";
+const MONO_DETAIL_CLASS = "font-mono text-[10.5px] tabular-nums whitespace-nowrap";
+
+/** Red hatch painted above the fills so a full free bar cannot hide an overbooked week. */
+function OverbookedHatch() {
+  return (
+    <div
+      aria-hidden="true"
+      data-testid="capacity-overbooked-hatch"
+      className="pointer-events-none absolute inset-0"
+      style={{ background: OVERBOOKED_HATCH }}
+    />
+  );
+}
 
 const TOTALS_TONE_CLASS: Record<CapacityTotalsTone, string> = {
   danger: "text-danger",
@@ -43,23 +55,28 @@ function ledgerValueInk(result: CapacityOverviewPeriodResult): string {
 function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; label: string }) {
   const fill = computeCapacityCellFill(result);
   const over = result.overDays > 0;
-  // Overbooking is a cue on the track (red hatch, WCAG 1.4.1) plus the figure in the hover text and
-  // for assistive technology: a printed label would wrap inside narrow twelve-week cells.
+  // An overbooked week swaps the capacity figure for the overbooked days in red (the long
+  // "overbooked" label wrapped inside twelve-week cells) and hatches the track (WCAG 1.4.1).
   return (
     <div className="flex flex-col gap-[5px] px-3.5 py-[9px]">
       <div className="flex items-baseline justify-between gap-1.5">
         <span className={`${MONO_VALUE_CLASS} ${ledgerValueInk(result)}`}>
           {result.freeDays > 0 ? formatDays(result.freeDays, "capacity") : "—"}
         </span>
-        <span className={MONO_DETAIL_CLASS}>
-          {m.capacity_overview_capacity_days({ days: formatDayFigure(capacityDaysOf(result)) })}
-        </span>
+        {over ? (
+          <span className={`${MONO_DETAIL_CLASS} text-danger`}>
+            {m.capacity_overview_over_short({ days: formatDayFigure(result.overDays) })}
+          </span>
+        ) : (
+          <span className={`${MONO_DETAIL_CLASS} text-faint`}>
+            {m.capacity_overview_capacity_days({ days: formatDayFigure(capacityDaysOf(result)) })}
+          </span>
+        )}
       </div>
       <div
-        className="flex h-[5px] overflow-hidden rounded-full bg-line-soft"
+        className="relative flex h-[5px] overflow-hidden rounded-full bg-line-soft"
         data-testid="capacity-ledger-bar"
         data-over={over ? "true" : undefined}
-        style={over ? { background: `${OVERBOOKED_HATCH}, var(--color-line-soft)` } : undefined}
       >
         <div
           data-testid="capacity-bar-free"
@@ -70,6 +87,7 @@ function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; 
           data-testid="capacity-bar-tentative"
           style={{ width: `${fill.tentativeFraction * 100}%`, background: TENTATIVE_HATCH }}
         />
+        {over ? <OverbookedHatch /> : null}
       </div>
       <span className="sr-only">{label}</span>
     </div>
@@ -84,8 +102,7 @@ function LoadCurveValue({ result, label }: { result: CapacityOverviewPeriodResul
       <div
         data-testid="capacity-load-curve"
         data-over={over ? "true" : undefined}
-        className="flex h-[34px] flex-col justify-end overflow-hidden rounded-[5px] bg-line-soft"
-        style={over ? { background: `${OVERBOOKED_HATCH}, var(--color-line-soft)` } : undefined}
+        className="relative flex h-[34px] flex-col justify-end overflow-hidden rounded-[5px] bg-line-soft"
       >
         <div
           data-testid="capacity-bar-tentative"
@@ -96,6 +113,7 @@ function LoadCurveValue({ result, label }: { result: CapacityOverviewPeriodResul
           data-tone={fill.tone}
           style={{ height: `${fill.freeFraction * 100}%`, background: TONE_FILL[fill.tone] }}
         />
+        {over ? <OverbookedHatch /> : null}
       </div>
       <span className="sr-only">{label}</span>
     </div>
@@ -142,7 +160,7 @@ export function TotalsCell({ totals, rangeLabel }: { totals: CapacityPeriodTotal
         <span className={`${MONO_VALUE_CLASS} whitespace-nowrap ${TOTALS_TONE_CLASS[totals.tone]}`}>
           {m.capacity_overview_percent({ pct: String(totals.committedPct) })}
         </span>
-        <span className={`${MONO_DETAIL_CLASS} whitespace-nowrap`}>{formatDays(totals.freeDays, "capacity")}</span>
+        <span className={`${MONO_DETAIL_CLASS} text-faint`}>{formatDays(totals.freeDays, "capacity")}</span>
       </div>
       <div className="mt-[5px] flex h-1 overflow-hidden rounded-full bg-line-soft">
         <div

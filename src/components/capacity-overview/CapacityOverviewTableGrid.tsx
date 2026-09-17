@@ -39,6 +39,7 @@ function GroupRow({
   onToggle: () => void;
   periodCount: number;
 }) {
+  const people = group.rows.filter((row) => row.resource.kind !== "placeholder").length;
   return (
     <tr data-testid="capacity-overview-group" className={SURFACE_2_CLASS}>
       <th scope="row" className={`${STICKY_CLASS} ${SURFACE_2_CLASS} border-b border-line-soft p-0 font-normal`}>
@@ -59,9 +60,11 @@ function GroupRow({
             style={{ backgroundColor: group.color ?? "var(--color-faint)" }}
           />
           <span className="min-w-0 truncate">{group.title}</span>
-          <span className="shrink-0 font-mono text-[11.5px] font-normal tracking-normal normal-case whitespace-nowrap text-faint">
-            {peopleCount(group.rows.length)}
-          </span>
+          {people > 0 ? (
+            <span className="shrink-0 font-mono text-[11.5px] font-normal tracking-normal normal-case whitespace-nowrap text-faint">
+              {peopleCount(people)}
+            </span>
+          ) : null}
         </button>
       </th>
       {Array.from({ length: periodCount }, (_unused, index) => (

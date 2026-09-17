@@ -23,7 +23,7 @@ the schedule.
 2. Read each person's week cells: free days out of capacity (**2d / 5d**), a bar filled with the
    share of capacity still free (green at 80% or more, amber at 40% or more, red below), and a grey
    hatch for the free time that tentative work holds. A muted dash marks a week with nothing free.
-   An overbooked week carries a red hatch on its track and states the overbooked days on hover.
+   An overbooked week prints the overbooked days in red beside the value and hatches its track.
 3. Choose **Load curve** to replace each cell's figures with a vertical fill of the same shares,
    hovering a cell for its figures. Choose **Ledger** to return.
 4. Choose **8 weeks** or **12 weeks** to add complete company weeks, one column each; the table
@@ -52,8 +52,9 @@ the schedule.
   same scale as a five-day week.
 - ✅ Tentative work appears only as the grey hatch, clamped so free plus tentative never exceeds the
   bar. Amber only ever means low availability.
-- ✅ Fully booked and unavailable weeks show a muted dash. Overbooking never prints inside the cell;
-  it shows as a red hatch on the track and as figures in the cell's hover and screen-reader text.
+- ✅ Fully booked and unavailable weeks show a muted dash. An overbooked week prints its overbooked
+  days in red (Ledger), hatches the track in both modes and repeats the figures in hover and
+  screen-reader text.
 - ✅ Placeholder allocations appear as separate unassigned demand when placeholders are enabled and
   never carry a bar.
 - ✅ **Totals** is off by default. Turning it on adds a header tier whose person cell stays empty,
