@@ -77,9 +77,16 @@ configure the strict [OIDC](/reference/glossary) provider CapacityLens supports.
 | `SMALLSASS_ACCOUNT_OIDC_SCOPES`                                             | Space-separated scopes. Defaults to `openid profile email`, all of which are required.                                                                                                         |
 | `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED`                                        | An attestation that your company login provider requires multi-factor sign-in for every admitted identity. Set it only after testing that policy.                                              |
 
-Once the first successful startup has happened, the provider id and issuer are locked
-together — changing either refuses startup, to protect existing sign-in records. See
-[Move to single sign-on](/company-login/move-to-single-sign-on) for converting an
+Strict OIDC needs four provider values: the client ID, client secret, discovery URL and
+issuer. The provider id, button label and scopes are optional settings around those four
+values. The default provider id is `sso`, so the callback URI is
+`https://your-capacitylens-address/api/auth/oauth2/callback/sso`. If you set
+`SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID`, replace the final `sso` in the provider's callback
+URI with that exact id before restarting. The id is part of the route and is locked to the
+issuer after the first successful startup. Choose it before that first startup; changing
+it later refuses startup, so do not edit stored provider ids or attempt an ad hoc repair.
+
+See [Move to single sign-on](/company-login/move-to-single-sign-on) for converting an
 existing password installation.
 
 Google, Microsoft and GitHub sign-in buttons are available and experimental through
@@ -160,6 +167,7 @@ or admin.
 | `CAPACITYLENS_HEALTH_DEEP`             | Set `1` to make `/api/health` run a readiness query and report audit, backup and certificate status. Compose sets this by default. |
 | `CAPACITYLENS_RATE_LIMIT`              | Requests per minute per IP across rate-limited routes. Accepts integers 1–1,000,000. Production refuses missing, zero or invalid values. `/api/health` is exempt.                          |
 | `CAPACITYLENS_AUDIT_STDOUT`            | Set `1` to also write each audit record to stdout as JSON, for a container log collector. Compose defaults this on.                |
+| `CAPACITYLENS_STORAGE_ENCRYPTED`       | Set `1` only after you have verified that the database, audit log and backup storage are encrypted at rest. This is an operator attestation; it does not encrypt storage itself. |
 | `CAPACITYLENS_SECURITY_LOG_FORWARDING` | An attestation that you're forwarding audit and security events to a separate collector. Doesn't create the collector itself.      |
 
 Without structured logging, the server prints its startup line and reports server errors
@@ -179,9 +187,9 @@ See [Monitoring and health checks](/self-hosting/monitoring) for what to do with
 | `VITE_CAPACITYLENS_BUILD_SHA`       | Optional build identifier shown in Settings, typically the git commit.                                                                                                                            |
 | `VITE_CAPACITYLENS_FEEDBACK_MAILTO` | Optional email address for the in-app feedback link. Leave empty to hide the link.                                                                                                                |
 
-Any of these needs a rebuild (`docker compose build web`, or `build web-client` for the
-client-only image) to take effect — setting them in a running container's environment
-does nothing.
+Any of these needs a rebuild to take effect. Use `docker compose build web` for the
+packaged production stack, or `pnpm run build` for a direct Node installation, then
+redeploy the rebuilt web files. Setting them only in a running process does nothing.
 
 ## Older variable names
 

@@ -12,7 +12,9 @@ live installation. Allow about ten minutes when your source-control account is a
 ## Prerequisites
 
 - Permission to read the public CapacityLens project.
-- Permission to create a private project if you want operational separation.
+- Permission to create and write to a private project if you want operational separation.
+- If you use a pinned branch in the public project, permission to create and advance that
+  branch. The managed platform itself only needs read access to the selected project.
 - A published CapacityLens release or an exact commit that you have chosen to run.
 
 ## 1. Choose a source pattern
@@ -28,10 +30,16 @@ neutral deployment branches such as `production-01`.
 The private project is not a fork where customer features develop. Do not commit secrets,
 customer data, environment files or installation-specific patches to it.
 
+The person who promotes a release needs write access to this private project so they can
+advance `production-01`. Give the managed platform a separate read-only connection when
+the platform supports that distinction.
+
 ### A pinned branch in the public project
 
 This is simpler, but branch names and activity are public. Use a neutral name and point it at a
 released commit. Do not put a customer's name, domain or operational details in the branch.
+The operator needs write access to the public project to create and advance the pinned branch;
+the managed platform only needs read access to fetch it.
 
 ### A release tag selected directly
 

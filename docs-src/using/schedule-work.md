@@ -16,7 +16,8 @@ Editors, Admins and Owners can add bookings. You need a person in Resources and 
 
 Open Schedule in the left menu and select the plus button on the person's row.
 
-To choose dates on the grid, drag across an empty part of their row. A single click on an empty cell does not open the form.
+To choose dates on the grid, drag across an empty part of their row. Select one empty cell
+for a one-day booking; a single click opens the form for that day.
 
 ![New allocation form with Project, Activity, dates, amount and Status](../screenshots/flows/using_schedule_work_2.png)
 
