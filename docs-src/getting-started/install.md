@@ -11,8 +11,8 @@ directly if you manage Node and nginx yourself, or adapt the direct installation
 managed VPS platform.
 
 Every route gives you the same persistent CapacityLens app, SQLite database and sign-in
-options. Each also takes you through creating the first [Owner](/reference/glossary)
-account. The difference is how the app and API run on your host.
+options. The installer verifies the service, then gives the first [Owner](/reference/glossary)
+the address and private setup route. The difference is how the app and API run on your host.
 
 ::: tip
 Just want to look around first? [Try the demo](/getting-started/try-the-demo) instead —
@@ -45,10 +45,10 @@ on your server. CapacityLens still runs directly on Node; the platform replaces 
 systemd and hand-written site-management steps.
 
 You will need a managed Linux server with Node 24, Corepack, an isolated site user and a
-public HTTPS domain. Allow about an hour for the first installation and its operational
+public HTTPS domain. Allow about 90 minutes for the first installation and its operational
 checks.
 
 ## What's next
 
-After completing a route, follow [Make your first schedule useful](/getting-started/first-steps)
-to create the first Owner, company and allocation.
+After completing a route, [configure the service](/installation/configure-the-service),
+[secure the connection](/installation/secure-the-connection), then [verify and hand over](/installation/verify-and-hand-over).

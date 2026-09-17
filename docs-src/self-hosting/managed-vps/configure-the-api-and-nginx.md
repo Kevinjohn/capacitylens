@@ -70,6 +70,10 @@ Confirm the platform stores one environment file outside the versioned release d
 links or exposes it to every release as `.env`. A new release must not silently receive a fresh,
 empty environment.
 
+Set `CAPACITYLENS_STORAGE_ENCRYPTED=1` only after verifying that the database, audit log and
+backup directory use encrypted storage at rest. The variable records that operator
+attestation; it does not encrypt the host or filesystem.
+
 Leave these settings unset for this single-company, non-demo installation:
 
 ```text
@@ -82,7 +86,7 @@ SMALLSASS_ACCOUNT_REQUIRE_MFA
 ```
 
 Unset is different from `0` for some environment parsers. Remove the lines unless the
-[Configuration](/self-hosting/configuration) page specifically says that an empty value has meaning.
+[Configure the service](/installation/configure-the-service) page specifically says that an empty value has meaning.
 
 If the platform already emits an HSTS header, leave `CAPACITYLENS_HTTPS` unset to avoid duplicate
 headers. The public origin must still use HTTPS.
@@ -92,7 +96,7 @@ automatically trusts the `X-Forwarded-For` and `X-Forwarded-Proto` headers that 
 next page, so rate limiting and audit records show the real visitor address rather than the proxy's.
 Keep the API on loopback. If you ever bind it to another address, you must also set
 `CAPACITYLENS_TRUST_PROXY_HEADERS=1`, and only when the API accepts connections from your proxy
-alone — see [Configuration](/self-hosting/configuration).
+alone — see [Configure the service](/installation/configure-the-service).
 
 ## 3. Create the background process
 

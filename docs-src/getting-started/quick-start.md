@@ -7,46 +7,58 @@ description: Add a client, project, person and activity, then place the first pi
 
 <span id="get-started-quickly"></span>
 
-This quick start takes an Editor, Admin, or Owner from an empty company to one visible
-booking, then shows how to move it. Allow about five minutes. Your company must already
-exist. If you have Viewer access, start with [Read the schedule](/using/read-the-schedule).
+Use this guide when your company already exists and you have Editor, Admin or Owner access.
+It takes about five minutes.
 
-## Steps
+With Viewer access, start with [Read the schedule](/using/read-the-schedule).
 
-1. **Add a client.** Open **Clients**, select **Add client**, enter the client's name, and
-   save it. The client appears in the Clients list.
+## Client
 
-2. **Add a project.** Open **Projects**, select **Add project**, choose the client, enter
-   the project name, and save it. The project appears under that client.
+![Add client form for Queen Consolidated](../screenshots/flows/quick_start_client.png)
 
-3. **Add a person.** Open **Resources**, select **Add resource**, then choose **Person**.
-   Enter their name and role, choose their engagement and discipline when available, then
-   set each working day to **Full day**, **Half day**, or **Not working**. Save the person.
-   They appear on the Schedule.
+Open **Clients**, select **Add client**, enter the name and save.
 
-   Adding a person makes them schedulable. It does not give them a sign-in. An Owner or
-   Admin can [invite them separately](/admin/invite-teammates).
+## Project
 
-4. **Add an activity.** Open **Activities**, select **Add activity**, choose
-   **Project-specific**, then select the project. Give the activity a clear name such as
-   “Design” and save it.
+![Add project form for Project Watchtower under Queen Consolidated](../screenshots/flows/quick_start_project.png)
 
-5. **Open the Schedule.** Find the person's row and the date when the work should begin.
+Open **Projects**, select **Add project**, choose the client, enter the project name and save.
 
-6. **Drag across the working days.** Start in an empty cell and drag to the final day of
-   the booking. You can also select a single empty cell for one day.
+## Resource
 
-7. **Choose the project and activity, then save.** Choose the real project first, then
-   select the project-specific activity you created. The new allocation appears as a bar across the
-   person's row. Its length, working-day total, and utilisation update immediately.
+![Add resource form for Bruce Wayne](../screenshots/flows/quick_start_resource.png)
 
-8. **Move the booking.** Drag the saved bar to another date or person, then check its new
-   position. Use **Undo** if you want to put it back.
+Open **Resources** and select **Add resource**. Enter the person's details and working
+pattern, then save.
 
-![The Schedule with people, allocation bars and utilisation percentages](../screenshots/flows/schedule.jpg)
+Adding a person makes them schedulable. It does not give them a sign-in. An Owner or
+Admin can [invite them separately](/admin/invite-teammates).
 
-You now have the basic CapacityLens shape: a client has a project, the project has work,
-and that work is allocated to a person on the schedule.
+## Activity
+
+![Add activity form for Design under Project Watchtower](../screenshots/flows/quick_start_activity.png)
+
+Open **Activities**, select **Add activity**, choose **Project-specific**, select the project,
+enter the activity name and save.
+
+## First booking
+
+![Empty Schedule with Bruce Wayne ready for a first booking](../screenshots/flows/quick_start_empty_schedule.png)
+
+Open **Schedule**. Drag across empty working days in the person's row, or select one empty
+cell for a one-day booking.
+
+![New allocation form for Project Watchtower and Design](../screenshots/flows/quick_start_booking_form.png)
+
+Choose the project and activity, then save.
+
+![Schedule after the first booking has been saved](../screenshots/flows/quick_start_booking_saved.png)
+
+## Move the booking
+
+![Schedule after the booking has been moved](../screenshots/flows/quick_start_booking_moved.png)
+
+Drag the saved bar to another date or person. Use **Undo** to put it back.
 
 ## What's next
 
