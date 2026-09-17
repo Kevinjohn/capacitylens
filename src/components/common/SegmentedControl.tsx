@@ -60,7 +60,7 @@ function encodeValue(value: string | number): string {
 const selectedSegmentClass = [
   "data-[state=on]:bg-brand-soft data-[state=on]:text-brand-soft-ink",
   "data-[state=on]:hover:bg-brand-soft data-[state=on]:hover:text-brand-soft-ink",
-  "data-[state=on]:relative data-[state=on]:z-10 data-[state=on]:border-brand",
+  "data-[state=on]:border-brand",
 ].join(" ");
 
 // Nested-radius contract: padding is ALWAYS 2px; the item radius is therefore exactly the track
@@ -103,7 +103,7 @@ function getSegmentClass({
   variant,
 }: Pick<Required<SegmentedControlProps<string>>, "size" | "density" | "geometry" | "fullWidth" | "variant">) {
   return cn(
-    "min-w-0 shrink-0 rounded-(--segment-radius) border border-transparent leading-none shadow-none",
+    "min-w-0 shrink-0 rounded-(--segment-radius) border border-transparent leading-none shadow-none data-[state=on]:relative data-[state=on]:z-10",
     sizeClasses[size].item,
     density === "compact" && "px-1.5 tracking-tighter",
     variant === "recessed" ? recessedSegmentClass : selectedSegmentClass,

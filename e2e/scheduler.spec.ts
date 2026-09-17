@@ -394,6 +394,15 @@ async function expectPopoverToTrackAnchor(page: Page, anchor: Locator, popover: 
   expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(viewportWidth + 1);
 }
 
+async function expectAnchorCenteredOverVisibleSpan(anchor: Locator, visibleLeft: number, visibleRight: number) {
+  await expect
+    .poll(async () => {
+      const anchorBox = await box(anchor);
+      return Math.abs(anchorBox.x + anchorBox.width / 2 - (visibleLeft + visibleRight) / 2);
+    })
+    .toBeLessThanOrEqual(2);
+}
+
 function registerSuiteScenario10() {
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
     await openApp(page);
@@ -428,14 +437,14 @@ function registerSuiteScenario10() {
     const gridBox = await box(grid);
     const visibleLeft = Math.max(clippedBar.x, timeline.x + timeline.width);
     const visibleRight = Math.min(clippedBar.x + clippedBar.width, gridBox.x + gridBox.width);
-    const anchorBox = await box(bar.getByTestId("allocation-popover-anchor"));
-    expect(Math.abs(anchorBox.x + anchorBox.width / 2 - (visibleLeft + visibleRight) / 2)).toBeLessThanOrEqual(2);
+    const anchor = bar.getByTestId("allocation-popover-anchor");
+    await expectAnchorCenteredOverVisibleSpan(anchor, visibleLeft, visibleRight);
 
     await page.mouse.move((visibleLeft + visibleRight) / 2, clippedBar.y + clippedBar.height / 2);
 
     const popover = page.getByTestId("allocation-popover");
     await expect(popover).toBeVisible();
-    await expectPopoverToTrackAnchor(page, bar.getByTestId("allocation-popover-anchor"), popover);
+    await expectPopoverToTrackAnchor(page, anchor, popover);
   });
 
   test("anchors allocation details to the visible part of a right-clipped bar (US-SCH-15)", async ({ page }) => {
