@@ -1354,7 +1354,7 @@ stay silent — they give sighted feedback),
 `capacity-overview-table-region`, `capacity-overview-group`, `capacity-overview-totals` (the optional
 header tier), `capacity-overview-totals-cell`, `capacity-totals-committed`, `capacity-totals-tentative`,
 `capacity-ledger-bar`, `capacity-load-curve` (the two week-cell treatments), `capacity-bar-free`,
-`capacity-bar-tentative`, `capacity-overbooked-hatch`, `capacity-overview-legend`, `timeoff-row`, `company-closures-section`,
+`capacity-bar-tentative`, `capacity-overview-legend`, `timeoff-row`, `company-closures-section`,
 `company-closures-empty`, `company-closure-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `import-busy` (the server-mode "Importing data…" blocking dialog's status text —
 shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),

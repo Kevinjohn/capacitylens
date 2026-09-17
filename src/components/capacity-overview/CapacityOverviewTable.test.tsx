@@ -184,20 +184,16 @@ describe("CapacityOverviewTable content", () => {
       expect(avatar).toHaveAttribute("referrerpolicy", "no-referrer");
       const cells = within(person).getAllByRole("cell");
       expect(within(cells[0] as HTMLElement).getByText("1.5d")).toHaveClass("text-ink");
-      // The overbooked days replace the capacity figure in red; the track carries the hatch above
-      // its fills so a full free bar cannot hide it.
+      // The overbooked days replace the capacity figure in red; the track shows free time only.
       expect(within(cells[0] as HTMLElement).queryByText("/ 5d")).not.toBeInTheDocument();
       expect(within(cells[0] as HTMLElement).getByText("+0.25d")).toHaveClass("text-danger");
       const overbookedBar = within(cells[0] as HTMLElement).getByTestId("capacity-ledger-bar");
-      expect(overbookedBar).toHaveAttribute("data-over", "true");
-      expect(overbookedBar.lastElementChild).toBe(within(overbookedBar).getByTestId("capacity-overbooked-hatch"));
+      expect(overbookedBar.children).toHaveLength(2);
       expect(within(cells[3] as HTMLElement).getByText("/ 4d")).toHaveClass("text-faint");
-      expect(within(cells[3] as HTMLElement).queryByTestId("capacity-overbooked-hatch")).not.toBeInTheDocument();
       expect(
         within(cells[0] as HTMLElement).getByText("10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked"),
       ).toHaveClass("sr-only");
       expect(cells[0]).toHaveAttribute("title", "10 – 13 Sep · 1.5d free of 5d · 1d tentative · 0.25d overbooked");
-      expect(within(cells[1] as HTMLElement).getByTestId("capacity-ledger-bar")).not.toHaveAttribute("data-over");
       const emptyCapacity = within(person).getAllByText("—");
       expect(emptyCapacity).toHaveLength(2);
       expect(emptyCapacity.every((value) => value.classList.contains("text-faint"))).toBe(true);
@@ -285,13 +281,11 @@ describe("CapacityOverviewTable interactions", () => {
     const totalsCells = within(totalsRow).getAllByTestId("capacity-overview-totals-cell");
     expect(totalsCells).toHaveLength(4);
     // Clark: 40h capacity, 12h free, 8h tentative → 20h committed (50%), 20% tentative, 1.5d free,
-    // and 2h overbooked: the overbooked days replace the free figure and the track is hatched.
+    // and 2h overbooked: the overbooked days replace the free figure.
     expect(within(totalsCells[0] as HTMLElement).getByText("50%")).toHaveClass("text-muted-foreground");
     expect(within(totalsCells[0] as HTMLElement).queryByText("1.5d")).not.toBeInTheDocument();
     expect(within(totalsCells[0] as HTMLElement).getByText("+0.25d")).toHaveClass("text-danger");
-    expect(within(totalsCells[0] as HTMLElement).getByTestId("capacity-overbooked-hatch")).toBeInTheDocument();
     expect(within(totalsCells[3] as HTMLElement).getByText("4d")).toBeInTheDocument();
-    expect(within(totalsCells[3] as HTMLElement).queryByTestId("capacity-overbooked-hatch")).not.toBeInTheDocument();
     expect(totalsCells[0]).toHaveAttribute(
       "title",
       "10 – 13 Sep · 2.5d committed of 5d · 1d tentative · 0.25d overbooked",
@@ -322,16 +316,13 @@ describe("CapacityOverviewTable interactions", () => {
     expect(within(person).queryByTestId("capacity-ledger-bar")).not.toBeInTheDocument();
     const firstWeekCell = accessibleValue.closest("td") as HTMLElement;
     const curve = within(firstWeekCell).getByTestId("capacity-load-curve");
-    // Overbooked weeks keep a red hatch on the track as the non-colour cue (WCAG 1.4.1).
-    expect(curve).toHaveAttribute("data-over", "true");
-    expect(curve.lastElementChild).toBe(within(curve).getByTestId("capacity-overbooked-hatch"));
+    // The overbooked week carries no extra overlay: the curve shows free and tentative time only.
+    expect(curve.children).toHaveLength(2);
     expect(within(curve).getByTestId("capacity-bar-free")).toHaveStyle({ height: "30%" });
     expect(within(curve).getByTestId("capacity-bar-tentative")).toHaveStyle({ height: "20%" });
 
     const cells = within(person).getAllByRole("cell");
     const fourthCurve = within(cells[3] as HTMLElement).getByTestId("capacity-load-curve");
-    expect(fourthCurve).not.toHaveAttribute("data-over");
-    expect(within(fourthCurve).queryByTestId("capacity-overbooked-hatch")).not.toBeInTheDocument();
     expect(within(fourthCurve).getByTestId("capacity-bar-free")).toHaveStyle({ height: "100%" });
     expect(within(fourthCurve).getByTestId("capacity-bar-free")).toHaveAttribute("data-tone", "ok");
     expect(within(fourthCurve).getByTestId("capacity-bar-free").style.background).toBe("var(--color-ok)");

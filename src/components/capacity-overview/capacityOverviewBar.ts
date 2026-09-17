@@ -25,10 +25,6 @@ export function buildTentativeHatch(stripe: number): string {
 }
 export const TENTATIVE_HATCH = buildTentativeHatch(3);
 
-/** Overbooked person-weeks keep a red hatch on the track as a non-colour cue (WCAG 1.4.1). */
-export const OVERBOOKED_HATCH =
-  "repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-danger) 35%, transparent) 0 3px, transparent 3px 9px)";
-
 export const TONE_FILL: Record<CapacityTone, string> = {
   ok: "var(--color-ok)",
   warn: "var(--color-warn)",

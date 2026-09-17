@@ -5,7 +5,6 @@ import {
   describeTotals,
   formatDayFigure,
   formatDays,
-  OVERBOOKED_HATCH,
   TENTATIVE_HATCH,
   TONE_FILL,
 } from "./capacityOverviewBar";
@@ -18,18 +17,6 @@ const MONO_VALUE_CLASS = "font-mono text-[12.5px] font-medium tabular-nums";
 const MONO_DETAIL_CLASS = "font-mono text-[10.5px] tabular-nums whitespace-nowrap";
 // The per-device Compact view preference tightens every row, as it does on the schedule.
 const COMPACT_ROW_CLASS = "[[data-compact]_&]:py-1";
-
-/** Red hatch painted above the fills so a full free bar cannot hide an overbooked week. */
-function OverbookedHatch() {
-  return (
-    <div
-      aria-hidden="true"
-      data-testid="capacity-overbooked-hatch"
-      className="pointer-events-none absolute inset-0"
-      style={{ background: OVERBOOKED_HATCH }}
-    />
-  );
-}
 
 const TOTALS_TONE_CLASS: Record<CapacityTotalsTone, string> = {
   danger: "text-danger",
@@ -54,7 +41,7 @@ function resolveLedgerValueInk(result: CapacityOverviewPeriodResult): string {
   return result.overDays > 0 ? "text-danger" : "text-faint";
 }
 
-/** The free and tentative fills plus the overbooked hatch, laid along one axis. */
+/** The free and tentative fills laid along one axis: full when nothing is booked, empty when nothing is free. */
 function CapacityTrack({
   result,
   axis,
@@ -67,7 +54,6 @@ function CapacityTrack({
   testId: string;
 }) {
   const fill = computeCapacityCellFill(result);
-  const over = result.overDays > 0;
   const free = (
     <div
       data-testid="capacity-bar-free"
@@ -82,14 +68,9 @@ function CapacityTrack({
     />
   );
   return (
-    <div
-      data-testid={testId}
-      data-over={over ? "true" : undefined}
-      className={`relative flex overflow-hidden bg-line-soft ${className}`}
-    >
+    <div data-testid={testId} className={`flex overflow-hidden bg-line-soft ${className}`}>
       {axis === "width" ? free : tentative}
       {axis === "width" ? tentative : free}
-      {over ? <OverbookedHatch /> : null}
     </div>
   );
 }
@@ -97,7 +78,7 @@ function CapacityTrack({
 function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; label: string }) {
   const over = result.overDays > 0;
   // An overbooked week swaps the capacity figure for the overbooked days in red (the long
-  // "overbooked" label wrapped inside twelve-week cells) and hatches the track (WCAG 1.4.1).
+  // "overbooked" label wrapped inside twelve-week cells); the track itself only ever shows free time.
   return (
     <div className={`flex flex-col gap-[5px] px-3.5 py-[9px] ${COMPACT_ROW_CLASS}`}>
       <div className="flex items-baseline justify-between gap-1.5">
@@ -184,7 +165,7 @@ export function TotalsCell({ totals, rangeLabel }: { totals: CapacityPeriodTotal
           <span className={`${MONO_DETAIL_CLASS} text-faint`}>{formatDays(totals.freeDays, "capacity")}</span>
         )}
       </div>
-      <div className="relative mt-[5px] flex h-1 overflow-hidden rounded-full bg-line-soft">
+      <div className="mt-[5px] flex h-1 overflow-hidden rounded-full bg-line-soft">
         <div
           data-testid="capacity-totals-committed"
           className="bg-brand"
@@ -194,7 +175,6 @@ export function TotalsCell({ totals, rangeLabel }: { totals: CapacityPeriodTotal
           data-testid="capacity-totals-tentative"
           style={{ width: `${totals.tentativePct}%`, background: TENTATIVE_HATCH }}
         />
-        {totals.overDays > 0 ? <OverbookedHatch /> : null}
       </div>
     </td>
   );
