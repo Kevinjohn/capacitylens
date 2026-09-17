@@ -10,7 +10,7 @@ next: false
 
 # Choose company settings
 
-![Settings: Company setup controls and Overview access](../screenshots/flows/admin_company_settings_1.png)
+![Settings: Company setup with Hours selected and Overview access set to Everyone](../screenshots/flows/admin_company_settings_1.png)
 
 Open Settings near the bottom of the left menu. Company setup and Scheduling features affect everyone.
 
@@ -31,7 +31,7 @@ Editors can change most company settings. Only Owners and Admins can change Over
 
 ## Scheduling features
 
-![Settings: Scheduling features switches](../screenshots/flows/admin_company_settings_2.png)
+![Settings: Scheduling features with Internal work colours set to Grey and feature switches visible](../screenshots/flows/admin_company_settings_2.png)
 
 | Setting                                           | What it changes                                                           |
 | ------------------------------------------------- | ------------------------------------------------------------------------- |

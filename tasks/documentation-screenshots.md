@@ -2,6 +2,9 @@
 
 The labelled placeholders in the day-to-day, Admin and Owner guides have been replaced. This is the completed capture checklist for [issue #1100](https://github.com/Kevinjohn/capacitylens/issues/1100); it does not close the wider documentation follow-up.
 
+The refresh for issues #1143 and #1144 is tracked separately below. Its replacement captures and
+the documentation build remain pending until the new images are integrated and inspected.
+
 All 46 placeholder placements are replaced by 40 captures. The Owner transfer section reuses an existing capture, giving 47 image placements. Reuse a capture only when its role, state and visible controls fit every listed page.
 
 ## Capture setup
@@ -47,10 +50,10 @@ All 46 placeholder placements are replaced by 40 captures. The Owner transfer se
 - [x] `using_join_your_team_2.png` — Signed-in invitation with the company and acceptance action.
   - Role/state: Invitee; local sign-in environment.
   - Replace: [using/join-your-team, image 2](../docs-src/using/join-your-team.md).
-- [x] `using_overview_1.png` — Overview showing free days, overbooked days and the planning horizon.
+- [x] `using_overview_1.png` — Overview Ledger showing free days, overbooked days and four individual weekly columns.
   - Role/state: Viewer with Overview access enabled.
   - Replace: [using/overview, image 1](../docs-src/using/overview.md).
-- [x] `using_overview_2.png` — Overview with Weeks 5–8 and Weeks 9–12 visible.
+- [x] `using_overview_2.png` — Overview Load curve with twelve individual weekly columns and the optional Totals row.
   - Role/state: Viewer with Overview access enabled.
   - Replace: [using/overview, image 2](../docs-src/using/overview.md).
 - [x] `using_projects_1.png` — Projects showing project names with their supporting client names.
@@ -98,10 +101,10 @@ All 46 placeholder placements are replaced by 40 captures. The Owner transfer se
 - [x] `admin_add_people_2.png` — Team & access: Link to Resource dialog with a person selected.
   - Role/state: Admin; local sign-in environment.
   - Replace: [admin/add-people, image 2](../docs-src/admin/add-people.md).
-- [x] `admin_company_settings_1.png` — Settings: Company setup controls and Overview access.
+- [x] `admin_company_settings_1.png` — Settings: Company setup with Hours selected and Overview access set to Everyone.
   - Role/state: Admin.
   - Replace: [admin/company-settings, image 1](../docs-src/admin/company-settings.md).
-- [x] `admin_company_settings_2.png` — Settings: Scheduling features switches.
+- [x] `admin_company_settings_2.png` — Settings: Scheduling features with Internal work colours set to Grey and feature switches visible.
   - Role/state: Admin.
   - Replace: [admin/company-settings, image 2](../docs-src/admin/company-settings.md).
 - [x] `admin_invite_teammates_1.png` — Team & access: Invite someone with Role, email and Create invite.
@@ -122,7 +125,7 @@ All 46 placeholder placements are replaced by 40 captures. The Owner transfer se
 - [x] `admin_prepare_work_2.png` — Projects: Add project form with Client selected.
   - Role/state: Admin.
   - Replace: [admin/prepare-work, image 2](../docs-src/admin/prepare-work.md).
-- [x] `admin_prepare_work_3.png` — Activities: Add activity form with Kind and Project.
+- [x] `admin_prepare_work_3.png` — Activities: Add activity for Design review with Project-specific and LexCorp / Metropolis Rebrand selected.
   - Role/state: Admin.
   - Replace: [admin/prepare-work, image 3](../docs-src/admin/prepare-work.md).
 - [x] `owner_appoint_an_admin_1.png` — Team & access showing Invite someone with Admin, email, No Resource linked and Create invite.
@@ -138,11 +141,38 @@ All 46 placeholder placements are replaced by 40 captures. The Owner transfer se
   - Role/state: Owner; local sign-in environment.
   - Replace: [owner/responsibilities, image 1](../docs-src/owner/responsibilities.md).
 
+## Control refresh — issues #1143 and #1144
+
+The affected Overview, Schedule filter, Settings, resource, activity, allocation and company-creation
+captures were refreshed against revision `4c55fc60`. Legacy JPEG references now use PNG captures.
+
+- Overview shows four-week Ledger and twelve-week Load curve views, both with weekly totals.
+  Each column represents one week; the later columns scroll horizontally.
+- Schedule filters show project filtering, dimmed unallocated people and the current Tentative
+  button. The personal search example is captured as a Viewer.
+- Settings captures cover company rules, the last-working-day guard, scheduling features, display
+  preferences and data disclosures. Company examples use Hours and Everyone for Overview access.
+- Resource examples show Studio, Supplementary and half-day working patterns. Activity examples
+  show Project-specific work; allocation examples show status, repeat, project/activity choices
+  and non-working-day validation.
+- Quick start retains Bruce Wayne, Queen Consolidated and Project Watchtower in an empty Wayne
+  Studio company. Its booking example remains two days over 14–15 September.
+- The company-creation image shows only the form. It illustrates the controls, not a tested
+  first-sign-in journey.
+
+The general and role-specific captures use the native local access fixture with fictional data.
+Quick start and company creation use the native in-memory demo. No Docker commands were run.
+
+All 32 refreshed image files were inspected at full size. The documentation build passed on
+Node 24.19.0: 91 pages built, 68 sidebar-linked pages checked, 23 image-enlargement tests passed,
+and all 13 sensitive screenshot publication pins passed. The rebuilt desktop pages and refreshed
+image enlargement were also checked in the browser. No application behaviour changed.
+
 ## State preparation
 
 - Schedule/work list: give the featured person current and upcoming bookings, personal time off and readable project/activity details. Show the avatar control, then the open four-week drawer.
 - Booking details: open the hover or keyboard-focus detail view. For edit/create forms, use the default Days mode unless the text explicitly demonstrates another unit.
-- Capacity: include both available and overbooked people. Capture the four-week view and the 12-week grouped totals separately.
+- Capacity: include both available and overbooked people. Capture the four-week Ledger and twelve-week Load curve views separately, with one column per week.
 - Resources: include a named person with working days and a project-bound placeholder. Enable disciplines and placeholders for the illustrations that show them.
 - Activities: include Internal, All projects and Project-specific groups; make the project and client relationship visible.
 - Time off: use the same absence in the list and Schedule captures. Notes must only appear in the permitted Admin/Owner capture.

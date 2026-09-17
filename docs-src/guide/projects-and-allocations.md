@@ -36,12 +36,12 @@ When you create an allocation, choose its context from **Project** first:
 - Choose a real project to use either a shared **All projects** activity or one of that
   project's **Project-specific** activities.
 
-![The allocation Project picker with Internal and No specific project before the available client projects](../screenshots/flows/allocation_project_scopes.jpg)
+![The allocation Project picker with Internal and No specific project before the available client projects](../screenshots/flows/allocation_project_scopes.png)
 
 After you choose a real project, the **Activity** picker separates reusable **All projects**
 activities from the activities in that project's **Project-specific** group.
 
-![The allocation Activity picker for Project Watchtower with separate All projects and Project-specific groups](../screenshots/flows/allocation_activity_scopes.jpg)
+![The allocation Activity picker with separate All projects and Project-specific groups](../screenshots/flows/allocation_activity_scopes.png)
 
 ## Clients and projects
 
@@ -83,7 +83,7 @@ it comes in three kinds:
   against any project, like general account management.
 - **Project-specific** — belongs to one project.
 
-![The Add activity form with equal-width Internal, All projects and Project-specific choices](../screenshots/flows/activity_form.jpg)
+![The Add activity form with Internal, All projects and Project-specific choices](../screenshots/flows/activity_form.png)
 
 Internal and All-projects activities are alphabetical. Project-specific activities are
 grouped in client, project and then activity order, with each client and project name
@@ -99,7 +99,7 @@ There are two ways to book a person's time on the schedule:
    with the visible week.
 2. Draw it directly: click and drag across the days you want on that person's row.
 
-![The New allocation form for Clark Kent with Hours / day set to 4 h - half day, Weekly repeat details and the remaining controls aligned beneath](../screenshots/flows/allocation-form.jpg)
+![The New allocation form with Hours / day set to 8 h - full day, Weekly repeat details and the remaining controls aligned beneath](../screenshots/flows/allocation_form.png)
 
 Either way, choose **Internal**, **No specific project**, or a real project. Internal
 shows only internal activities. No specific project shows only
@@ -141,7 +141,7 @@ date range, the placement must also stay within that inclusive range. **Ignore w
 not bypass those date boundaries. Existing bookings that become outside the range stay visible, and
 metadata edits remain possible; only a new or placement-changing date/assignee edit is blocked.
 
-![The New allocation form showing a rejected Saturday start date and the message that new allocations must begin on a company and personal working day](../screenshots/flows/allocation_non_working_day_rejected.jpg)
+![The New allocation form showing a rejected non-working-day start date and the message that new allocations must begin on a company and personal working day](../screenshots/flows/allocation_non_working_day_rejected.png)
 
 External-party allocations already use literal calendar spans, so they do not show this checkbox.
 On a regular-width screen, the form keeps its labels in a narrow left column and aligns the controls
@@ -184,7 +184,7 @@ project brings those bookings back with their attribution intact. Permanently de
 the project removes its project-specific work, but a shared All-projects booking remains
 and becomes unattributed.
 
-![The Edit allocation form for an existing bar, with its assignee, project, activity, dates and status aligned in label and control columns](../screenshots/flows/allocation-open.jpg)
+![The Edit allocation form for an existing bar, with its assignee, project, activity, dates and status aligned in label and control columns](../screenshots/flows/allocation_open.png)
 
 ## How allocation granularity works
 

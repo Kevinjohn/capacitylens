@@ -164,7 +164,7 @@ Use **Show filters** at the right of the toolbar, after Undo and Redo, to open t
 row. Select **Hide filters** when you want the extra vertical space back. Hiding the row
 does not clear an active filter.
 
-![The open schedule filter row with person search on the left and the filter, visibility, draw-mode and Clear Filters controls grouped on the right](../screenshots/flows/schedule_filters_open.jpg)
+![The open schedule filter row with person search on the left and the filter, visibility, draw-mode and Clear Filters controls grouped on the right](../screenshots/flows/schedule_filters_open.png)
 
 Person search stays on the left. The discipline, client, project and activity filters sit
 in a group on the right, followed by the **Tentative** pill and the
@@ -183,13 +183,13 @@ client or project narrows the bars and rows to that work. The active value stays
 **Clear Filters** turns red so the filtered state cannot be mistaken for the complete
 schedule.
 
-![The Schedule filtered to Queen Consolidated and Project Watchtower, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.jpg)
+![The Schedule filtered to a project, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.png)
 
 After selecting a client, project or activity, turn on **Show unallocated** to bring
 people with no matching work back into the result. Their rows are dimmed, which makes
 them useful candidates to staff without implying they are already booked to the filter.
 
-![The Project Watchtower filter with Show unallocated selected and Diana Prince shown dimmed as available capacity](../screenshots/flows/schedule_filter_unallocated.jpg)
+![A project filter with Show unallocated selected and Diana Prince shown dimmed](../screenshots/flows/schedule_filter_unallocated.png)
 
 **Clear Filters** stays at the far right of the open row. It is quiet and disabled when
 nothing is filtered, then turns red with a bin icon when a filter is active. One click

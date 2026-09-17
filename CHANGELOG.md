@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Update the Overview guide for individual week columns and the Ledger and Load curve displays.
+  Refresh screenshots of Overview, Schedule filters, Settings and forms to match the current
+  controls (#1143, #1144).
+
 ## [0.70.0-alpha.1] - 2026-09-17
 
 ### Changed

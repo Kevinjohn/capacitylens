@@ -39,7 +39,7 @@ To invite someone instead, use **Invite someone** on Team & access. Its optional
 2. Click **Add resource**.
 3. Fill in the fields below and save.
 
-![The Add resource form with optional Start date and End date fields separated from a seven-day working-pattern grid](../screenshots/flows/resource_form.jpg)
+![The Add resource form with optional Start date and End date fields separated from a seven-day working-pattern grid](../screenshots/flows/resource_form.png)
 
 At normal dialog widths, the resource details use compact label-and-control rows. They stack
 vertically on a narrow screen, while the **Working days** grid remains full width.
@@ -71,7 +71,7 @@ the change, the dialog stays open and shows the returned error so you can correc
 The current **Engagement** choice has a selected state. Saving **Supplementary** moves the person
 into that section immediately; it does not change their discipline, role or working days.
 
-![The Add resource form with the always-visible Engagement choices and Supplementary selected](../screenshots/flows/resource_engagement_choice.jpg)
+![The Add resource form with the always-visible Engagement choices and Supplementary selected](../screenshots/flows/resource_engagement_choice.png)
 
 The new row appears on the schedule immediately, ready for allocations and time off.
 There's no account to create and nothing for the person to sign in to.
@@ -86,7 +86,7 @@ For example, if someone goes part-time, open their row and change the relevant d
 **Half day** or **Not working**. Existing allocations aren't rewritten, but every
 utilisation figure you see after saving reflects their new working pattern.
 
-![The Edit resource form with Wednesday set to Half day in Bruce Wayne's seven-row working pattern](../screenshots/flows/resource_half_day.jpg)
+![The Edit resource form with Wednesday set to Half day in a person's seven-row working pattern](../screenshots/flows/resource_half_day.png)
 
 Existing working patterns are preserved after upgrading: a day that was selected remains
 a full day, and a day that was unselected remains not working.

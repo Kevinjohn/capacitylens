@@ -10,10 +10,10 @@ to recognise the page you need before you start planning work.
 
 ## Overview
 
-**Overview** compares each person's remaining capacity across four tactical company weeks, with
+**Overview** compares each person's remaining capacity across four company weeks by default, with
 optional eight- and twelve-week horizons that add complete weeks, one column each.
 
-![The Overview page showing each person's free days out of capacity per week for the Wayne Enterprises team](../screenshots/flows/capacity_overview.jpg)
+![The Overview page showing each person's free days out of capacity per week](../screenshots/flows/capacity_overview.png)
 
 ## Schedule
 
@@ -67,7 +67,7 @@ optional eight- and twelve-week horizons that add complete weeks, one column eac
 
 **Settings** contains company-wide planning rules and device preferences.
 
-![The Settings page showing scheduling, overview access, working days and schedule preferences](../screenshots/flows/settings_page.jpg)
+![The Settings page showing allocation units, working days, date format and Overview access](../screenshots/flows/settings_page.png)
 
 ## Account
 
