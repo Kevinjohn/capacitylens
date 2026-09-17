@@ -372,6 +372,26 @@ describe("ReauthDialog provider failures", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
   });
 
+  it("announces a successful re-auth redirect instead of reporting a failure", async () => {
+    signInOauth2.mockResolvedValue({ data: {}, error: null });
+    render(
+      <Harness
+        authMode="sso"
+        user={user}
+        providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      />,
+    );
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    const button = screen.getByRole("button", { name: "Continue with Single sign-on" });
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Single sign-on…");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(button).toBeDisabled();
+  });
+
   it("surfaces a network error and clears busy when SSO re-auth throws", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     signInOauth2.mockRejectedValue(new TypeError("offline"));

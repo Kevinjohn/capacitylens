@@ -923,6 +923,8 @@ to the same page. The provider must assert `email_verified: true`, its email mus
 sign-in email, and its immutable subject must not belong to another principal. A successful callback
 shows **Connected to _provider_**. Raw provider link/unlink routes are unavailable. A federated
 session in mixed mode uses that same provider—not a password it may not have—for **Confirm it's you**.
+That provider hand-off announces **Redirecting to _provider_…** and keeps the dialog busy while the browser
+leaves, on the same contract as the sign-in screen; only a returned provider error is reported and retryable.
 
 **First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
