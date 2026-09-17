@@ -1,5 +1,5 @@
 import { effectiveWorkingWeek } from "@capacitylens/shared/lib/effectiveWorkingWeek";
-import { countWorkingDays, eachDayISO } from "@capacitylens/shared/lib/dateMath";
+import { eachDayISO } from "@capacitylens/shared/lib/dateMath";
 import { isCapacityTracked, isExternalResource, isPlaceholderResource } from "@capacitylens/shared/types/entities";
 import type { Allocation, AppData, Closure, Resource, TimeOff, Weekday } from "@capacitylens/shared/types/entities";
 import {
@@ -86,14 +86,12 @@ function calculatePeriod({
   accountWorkingDays,
 }: CalculatePeriodInput): CapacityOverviewPeriodResult {
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
-  const companyWorkingHours = countWorkingDays(period.start, period.end, accountWorkingDays) * HOURS_PER_DISPLAY_DAY;
   // Tentative work is measured as the free time it consumes: the difference between the free
   // hours with confirmed work only and the free hours with every included allocation. That keeps
   // it clamped to the person's real spare capacity, so free + tentative never exceeds available.
   const confirmedAllocations = allocations.filter((allocation) => allocation.status !== "tentative");
   const hasTentative = confirmedAllocations.length !== allocations.length;
   let availableHours = 0;
-  let allocatedHours = 0;
   let freeHours = 0;
   let overHours = 0;
   let tentativeHours = 0;
@@ -101,7 +99,6 @@ function calculatePeriod({
   for (const date of eachDayISO(period.start, period.end)) {
     const dayInput = { resource, date, timeOff, effectiveWeek, closures };
     const day = buildDayCapacity({ ...dayInput, allocations });
-    allocatedHours += day.allocated;
     if (isPlaceholderResource(resource)) {
       unassignedDemandHours += day.allocated;
       continue;
@@ -119,9 +116,7 @@ function calculatePeriod({
   const overDays = roundUpQuarterDays(overHours);
   return {
     period,
-    companyWorkingHours,
     availableHours,
-    allocatedHours,
     freeHours,
     overHours,
     tentativeHours,

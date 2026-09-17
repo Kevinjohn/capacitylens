@@ -13,9 +13,7 @@ const period = { index: 0, key: "this-week", start: "2026-06-01", end: "2026-06-
 function result(values: Partial<CapacityOverviewPeriodResult>): CapacityOverviewPeriodResult {
   return {
     period,
-    companyWorkingHours: 40,
     availableHours: 40,
-    allocatedHours: 0,
     freeHours: 40,
     overHours: 0,
     tentativeHours: 0,

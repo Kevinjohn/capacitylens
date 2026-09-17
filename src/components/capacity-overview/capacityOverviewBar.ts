@@ -20,7 +20,10 @@ const OK_FREE_SHARE = 0.8;
 const WARN_FREE_SHARE = 0.4;
 
 /** Tentative work is always a neutral grey hatch: amber is reserved for low availability. */
-export const TENTATIVE_HATCH = "repeating-linear-gradient(45deg, var(--color-faint) 0 3px, transparent 3px 6px)";
+export function buildTentativeHatch(stripe: number): string {
+  return `repeating-linear-gradient(45deg, var(--color-faint) 0 ${stripe}px, transparent ${stripe}px ${stripe * 2}px)`;
+}
+export const TENTATIVE_HATCH = buildTentativeHatch(3);
 
 /** Overbooked person-weeks keep a red hatch on the track as a non-colour cue (WCAG 1.4.1). */
 export const OVERBOOKED_HATCH =

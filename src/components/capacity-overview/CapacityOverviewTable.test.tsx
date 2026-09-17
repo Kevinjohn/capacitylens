@@ -40,9 +40,7 @@ function period(index: number, values: Partial<CapacityOverviewPeriodResult>): C
   if (!overviewPeriod) throw new Error(`Missing test period ${index}`);
   return {
     period: overviewPeriod,
-    companyWorkingHours: 40,
     availableHours: 40,
-    allocatedHours: 0,
     freeHours: 40,
     overHours: 0,
     tentativeHours: 0,

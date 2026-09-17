@@ -1,9 +1,10 @@
 import { m } from "@/i18n";
+import { buildTentativeHatch } from "./capacityOverviewBar";
 
 /** Group rows and the legend strip sit a step below the card surface in both themes. */
 export const SURFACE_2_CLASS = "bg-[color-mix(in_oklab,var(--color-ink)_4%,var(--color-surface))]";
 
-const SWATCH_HATCH = "repeating-linear-gradient(45deg, var(--color-faint) 0 2px, transparent 2px 4px)";
+const SWATCH_HATCH = buildTentativeHatch(2);
 
 /** The tentative hatch at swatch size, shared by the toolbar pill and the legend. */
 export function TentativeSwatch({ size }: { size: 8 | 9 }) {

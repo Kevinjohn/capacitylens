@@ -1,7 +1,7 @@
 import { isPlaceholderResource } from "@capacitylens/shared/types/entities";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { m } from "@/i18n";
 import { formatWeekColumnRange } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
@@ -111,9 +111,11 @@ function PersonCell({
 
 function CapacityTableHead({
   periods,
+  rangeLabels,
   totals,
 }: {
   periods: CapacityOverviewPeriod[];
+  rangeLabels: string[];
   totals: ReturnType<typeof buildPeriodTotals> | undefined;
 }) {
   // The bottom rule belongs to the last header tier, so toggling Totals never changes the header's
@@ -128,13 +130,13 @@ function CapacityTableHead({
         >
           {m.capacity_overview_person()}
         </th>
-        {periods.map((period) => (
+        {periods.map((period, index) => (
           <th
             key={period.key}
             scope="col"
             className={`whitespace-nowrap border-l border-line-soft px-3.5 pt-3 text-center text-[11.5px] font-medium text-muted-foreground ${labelRule}`}
           >
-            {formatWeekColumnRange(period.start, period.end)}
+            {rangeLabels[index]}
           </th>
         ))}
       </tr>
@@ -144,11 +146,7 @@ function CapacityTableHead({
           {periods.map((period, index) => {
             const periodTotals = totals[index];
             return periodTotals ? (
-              <TotalsCell
-                key={period.key}
-                totals={periodTotals}
-                rangeLabel={formatWeekColumnRange(period.start, period.end)}
-              />
+              <TotalsCell key={period.key} totals={periodTotals} rangeLabel={rangeLabels[index] ?? ""} />
             ) : null;
           })}
         </tr>
@@ -159,6 +157,7 @@ function CapacityTableHead({
 
 function CapacityTableBody({
   model,
+  rangeLabels,
   collapsedGroups,
   toggleGroup,
   capacityDisplayMode,
@@ -166,6 +165,7 @@ function CapacityTableBody({
   onViewSchedule,
 }: {
   model: CapacityOverviewModel;
+  rangeLabels: string[];
   collapsedGroups: Set<string>;
   toggleGroup: (key: string) => void;
   capacityDisplayMode: CapacityDisplayMode;
@@ -197,7 +197,7 @@ function CapacityTableBody({
                       key={result.period.key}
                       result={result}
                       capacityDisplayMode={capacityDisplayMode}
-                      rangeLabel={formatWeekColumnRange(result.period.start, result.period.end)}
+                      rangeLabel={rangeLabels[result.period.index] ?? ""}
                     />
                   ))}
                 </tr>
@@ -229,7 +229,14 @@ export function CapacityTable({
 } & PersonScheduleTriggerHandlers) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const periods = model.periods;
-  const totals = showTotals ? buildPeriodTotals(model.groups, periods.length) : undefined;
+  const rangeLabels = useMemo(
+    () => periods.map((period) => formatWeekColumnRange(period.start, period.end)),
+    [periods],
+  );
+  const totals = useMemo(
+    () => (showTotals ? buildPeriodTotals(model.groups, periods.length) : undefined),
+    [showTotals, model.groups, periods.length],
+  );
   const toggleGroup = (key: string) =>
     setCollapsedGroups((current) => {
       const next = new Set(current);
@@ -259,9 +266,10 @@ export function CapacityTable({
             <col key={period.key} style={{ width: `${(78 / periods.length).toFixed(3)}%` }} />
           ))}
         </colgroup>
-        <CapacityTableHead periods={periods} totals={totals} />
+        <CapacityTableHead periods={periods} rangeLabels={rangeLabels} totals={totals} />
         <CapacityTableBody
           model={model}
+          rangeLabels={rangeLabels}
           collapsedGroups={collapsedGroups}
           toggleGroup={toggleGroup}
           capacityDisplayMode={capacityDisplayMode}

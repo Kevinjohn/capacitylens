@@ -142,7 +142,7 @@ describe("buildCapacityOverviewModel", () => {
 
     const row = twelveWeekResult.groups[0]?.rows[0];
     expect(row?.periods).toHaveLength(12);
-    expect(row?.periods[4]).toMatchObject({ companyWorkingHours: 8, freeHours: 2, freeDays: 0.25, state: "available" });
+    expect(row?.periods[4]).toMatchObject({ freeHours: 2, freeDays: 0.25, state: "available" });
     expect(row?.periods[5]).toMatchObject({ freeHours: 8, freeDays: 1 });
     expect(fourWeekResult.groups).toHaveLength(0);
   });
@@ -227,7 +227,7 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(period(result, resource.id, 4)).toMatchObject({ companyWorkingHours: 40, freeHours: 32, freeDays: 4 });
+    expect(period(result, resource.id, 4)).toMatchObject({ freeHours: 32, freeDays: 4 });
   });
 
   it("keeps daily spare and overload separate before quarter-day rounding", () => {
@@ -331,13 +331,12 @@ describe("buildCapacityOverviewModel", () => {
     });
 
     expect(period(result, resource.id, 0)).toMatchObject({
-      companyWorkingHours: 40,
       availableHours: 32,
       freeDays: 4,
     });
   });
 
-  it("derives the bar baseline from company working days in each displayed range", () => {
+  it("measures capacity from the person's own working days, not the company's", () => {
     const resource = person("person-1", { workingDays: [1, 2, 3] });
     const result = buildCapacityOverviewModel({
       data: data([resource]),
@@ -347,8 +346,8 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(period(result, resource.id, 0)).toMatchObject({ companyWorkingHours: 16, freeHours: 8 });
-    expect(period(result, resource.id, 1)).toMatchObject({ companyWorkingHours: 32, freeHours: 24 });
+    expect(period(result, resource.id, 0)).toMatchObject({ availableHours: 8, freeHours: 8, freeDays: 1 });
+    expect(period(result, resource.id, 1)).toMatchObject({ availableHours: 24, freeHours: 24, freeDays: 3 });
   });
 
   it("excludes tentative load when requested and recalculates capacity", () => {

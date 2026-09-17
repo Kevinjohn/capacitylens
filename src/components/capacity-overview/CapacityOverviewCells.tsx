@@ -54,8 +54,47 @@ function resolveLedgerValueInk(result: CapacityOverviewPeriodResult): string {
   return result.overDays > 0 ? "text-danger" : "text-faint";
 }
 
-function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; label: string }) {
+/** The free and tentative fills plus the overbooked hatch, laid along one axis. */
+function CapacityTrack({
+  result,
+  axis,
+  className,
+  testId,
+}: {
+  result: CapacityOverviewPeriodResult;
+  axis: "width" | "height";
+  className: string;
+  testId: string;
+}) {
   const fill = computeCapacityCellFill(result);
+  const over = result.overDays > 0;
+  const free = (
+    <div
+      data-testid="capacity-bar-free"
+      data-tone={fill.tone}
+      style={{ [axis]: `${fill.freeFraction * 100}%`, background: TONE_FILL[fill.tone] }}
+    />
+  );
+  const tentative = (
+    <div
+      data-testid="capacity-bar-tentative"
+      style={{ [axis]: `${fill.tentativeFraction * 100}%`, background: TENTATIVE_HATCH }}
+    />
+  );
+  return (
+    <div
+      data-testid={testId}
+      data-over={over ? "true" : undefined}
+      className={`relative flex overflow-hidden bg-line-soft ${className}`}
+    >
+      {axis === "width" ? free : tentative}
+      {axis === "width" ? tentative : free}
+      {over ? <OverbookedHatch /> : null}
+    </div>
+  );
+}
+
+function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; label: string }) {
   const over = result.overDays > 0;
   // An overbooked week swaps the capacity figure for the overbooked days in red (the long
   // "overbooked" label wrapped inside twelve-week cells) and hatches the track (WCAG 1.4.1).
@@ -77,48 +116,21 @@ function LedgerValue({ result, label }: { result: CapacityOverviewPeriodResult; 
           </span>
         )}
       </div>
-      <div
-        className="relative flex h-[5px] overflow-hidden rounded-full bg-line-soft"
-        data-testid="capacity-ledger-bar"
-        data-over={over ? "true" : undefined}
-      >
-        <div
-          data-testid="capacity-bar-free"
-          data-tone={fill.tone}
-          style={{ width: `${fill.freeFraction * 100}%`, background: TONE_FILL[fill.tone] }}
-        />
-        <div
-          data-testid="capacity-bar-tentative"
-          style={{ width: `${fill.tentativeFraction * 100}%`, background: TENTATIVE_HATCH }}
-        />
-        {over ? <OverbookedHatch /> : null}
-      </div>
+      <CapacityTrack result={result} axis="width" testId="capacity-ledger-bar" className="h-[5px] rounded-full" />
       <span className="sr-only">{label}</span>
     </div>
   );
 }
 
 function LoadCurveValue({ result, label }: { result: CapacityOverviewPeriodResult; label: string }) {
-  const fill = computeCapacityCellFill(result);
-  const over = result.overDays > 0;
   return (
     <div className={`px-3.5 py-2.5 ${COMPACT_ROW_CLASS}`}>
-      <div
-        data-testid="capacity-load-curve"
-        data-over={over ? "true" : undefined}
-        className="relative flex h-[34px] flex-col justify-end overflow-hidden rounded-[5px] bg-line-soft [[data-compact]_&]:h-5"
-      >
-        <div
-          data-testid="capacity-bar-tentative"
-          style={{ height: `${fill.tentativeFraction * 100}%`, background: TENTATIVE_HATCH }}
-        />
-        <div
-          data-testid="capacity-bar-free"
-          data-tone={fill.tone}
-          style={{ height: `${fill.freeFraction * 100}%`, background: TONE_FILL[fill.tone] }}
-        />
-        {over ? <OverbookedHatch /> : null}
-      </div>
+      <CapacityTrack
+        result={result}
+        axis="height"
+        testId="capacity-load-curve"
+        className="h-[34px] flex-col justify-end rounded-[5px] [[data-compact]_&]:h-5"
+      />
       <span className="sr-only">{label}</span>
     </div>
   );

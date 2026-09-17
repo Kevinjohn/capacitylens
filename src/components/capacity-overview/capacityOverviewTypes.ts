@@ -5,10 +5,7 @@ export type CapacityOverviewState = "available" | "fully-booked" | "unavailable"
 
 export interface CapacityOverviewPeriodResult {
   period: CapacityOverviewPeriod;
-  /** Eight hours for each company working day in this column's date range. */
-  companyWorkingHours: number;
   availableHours: number;
-  allocatedHours: number;
   freeHours: number;
   overHours: number;
   /** Free hours that tentative allocations consume; zero when tentative work is excluded. */
