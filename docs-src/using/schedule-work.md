@@ -7,7 +7,7 @@ next: false
 
 # Schedule work
 
-![Placeholder: Schedule with a person's empty lane, row plus button and a two-day draw area highlighted](https://placehold.co/686x385?text=Schedule%3A+person+row+plus+button+and+empty%0Adraw+area)
+![Schedule with the Add allocation plus button on James Gordon's row focused](../screenshots/flows/using_schedule_work_1.png)
 
 <span id="prerequisites"></span>
 <span id="steps"></span>
@@ -18,7 +18,7 @@ Open Schedule in the left menu and select the plus button on the person's row.
 
 To choose dates on the grid, drag across an empty part of their row. A single click on an empty cell does not open the form.
 
-![Placeholder: New allocation form with Project, Activity, dates, amount and Status highlighted](https://placehold.co/686x385?text=New+allocation%3A+project+activity+dates%0Aamount+and+status)
+![New allocation form with Project, Activity, dates, amount and Status](../screenshots/flows/using_schedule_work_2.png)
 
 Choose Project, then Activity. Use Internal or No specific project when the work has no project.
 

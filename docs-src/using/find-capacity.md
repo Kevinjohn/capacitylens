@@ -7,7 +7,7 @@ next: false
 
 # Find available capacity
 
-![Placeholder: Schedule with Weeks visible, Today, Show filters and utilisation highlighted](https://placehold.co/686x385?text=Schedule%3A+Weeks+visible+Today+filters+and%0Autilisation)
+![Schedule with Weeks visible, Today, Show filters and utilisation](../screenshots/flows/using_find_capacity_1.png)
 
 <span id="steps"></span>
 

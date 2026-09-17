@@ -11,7 +11,7 @@ next: false
 
 # Handle ongoing administration
 
-![Placeholder: Team & access: Member settings dialog](https://placehold.co/686x385?text=Team+%26+access%3A+Member+settings+dialog)
+![Team & access: Member settings dialog](../screenshots/flows/admin_ongoing_administration_1.png)
 
 ## Change access
 
@@ -27,7 +27,7 @@ Archive a resource when they should leave active scheduling. Archived records ar
 
 ## Add a company closure
 
-![Placeholder: Time off: Company closures with Add closure form](https://placehold.co/686x385?text=Time+off%3A+Company+closures+with+Add%0Aclosure+form)
+![Time off: Company closures with Add closure form](../screenshots/flows/admin_ongoing_administration_2.png)
 
 Open Time off in the left menu. Under Company closures, select Add closure.
 

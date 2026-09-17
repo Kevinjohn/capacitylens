@@ -7,7 +7,7 @@ next: false
 
 # Resources
 
-![Placeholder: Resources showing names, roles, disciplines and placeholders](https://placehold.co/686x385?text=Resources%3A+names+roles+disciplines+and%0Aplaceholders)
+![Resources showing names, roles, disciplines and placeholders](../screenshots/flows/using_resources_1.png)
 
 Each person's role and discipline appear beside their name, where supplied.
 

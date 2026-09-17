@@ -265,7 +265,6 @@ export default defineConfig({
 
     footer: {
       message: "CapacityLens is open source under AGPL-3.0.",
-      copyright: "Labelled placeholders identify screenshots planned for this documentation draft.",
     },
   },
 });

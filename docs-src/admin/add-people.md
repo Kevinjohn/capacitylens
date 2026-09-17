@@ -10,7 +10,7 @@ next: false
 
 # Add people to the schedule
 
-![Placeholder: Resources: Add resource and the person form with Working days](https://placehold.co/686x385?text=Resources%3A+Add+resource+and+the+person%0Aform+with+Working+days)
+![Resources: Add resource and the person form with Working days](../screenshots/flows/admin_add_people_1.png)
 
 Open Resources in the left menu and select Add resource.
 
@@ -22,7 +22,7 @@ Select Save. They now have a row on Schedule; they do not need a sign-in.
 
 ## Connect their sign-in
 
-![Placeholder: Team & access: Link to Resource dialog with a person selected](https://placehold.co/686x385?text=Team+%26+access%3A+Link+to+Resource+dialog%0Awith+a+person+selected)
+![Team & access: Link to Resource dialog with a person selected](../screenshots/flows/admin_add_people_2.png)
 
 If they also need access, [invite them](/admin/invite-teammates).
 

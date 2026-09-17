@@ -11,7 +11,7 @@ next: false
 
 # Schedule
 
-![Placeholder: Schedule with Schedule menu item, your row and avatar/eye button highlighted](https://placehold.co/686x385?text=Schedule%3A+menu+your+row+and+avatar+eye%0Abutton)
+![Schedule with Schedule menu item, James Gordon's row and avatar button](../screenshots/flows/using_read_the_schedule_1.png)
 
 Open Schedule in the left menu. Select the avatar beside your name to open your work list.
 
@@ -19,7 +19,7 @@ Hover over the avatar or move keyboard focus to it to reveal the eye icon.
 
 ## Your work list
 
-![Placeholder: Personal schedule drawer with date range, activity, project, client and notes highlighted](https://placehold.co/686x385?text=Your+work+list%3A+dates+activity+project%0Aclient+and+notes)
+![James Gordon's four-week schedule drawer showing bookings and holiday](../screenshots/flows/using_read_the_schedule_2.png)
 
 The list covers the current company week and the following three weeks.
 
@@ -29,7 +29,7 @@ Changing the main Schedule's dates or filters does not change this four-week ran
 
 ## Booking details
 
-![Placeholder: One booking with its hover or keyboard-focus details visible](https://placehold.co/686x385?text=Booking+details+shown+on+hover+or+keyboard%0Afocus)
+![One booking with its hover or keyboard-focus details visible](../screenshots/flows/using_read_the_schedule_3.png)
 
 Hover over a booking, or focus it with the keyboard, to see its details.
 
@@ -37,7 +37,7 @@ If your role allows editing, click the booking to open its editing form.
 
 ## When the work you expect is missing
 
-![Placeholder: Schedule filters open with person search, Clear Filters and Today highlighted](https://placehold.co/686x385?text=Schedule+filters%3A+person+search+Clear%0AFilters+and+Today)
+![Schedule filters open with person search, Clear Filters and Today](../screenshots/flows/using_read_the_schedule_4.png)
 
 Select Show filters to search for your name or narrow the schedule with a client, project,
 or activity filter.

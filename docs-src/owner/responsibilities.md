@@ -11,11 +11,13 @@ next: false
 
 # Understand Owner responsibilities
 
-![Placeholder: Team & access showing Members, Record member sign-ins and Company ownership](https://placehold.co/686x385?text=Team+%26+access%3A+Record+member+sign-ins+and%0ACompany+ownership)
+![Owner view of Team & access showing Members and Record member sign-ins](../screenshots/flows/owner_responsibilities_1.png)
 
 Your Admin can run everyday setup. You keep the decisions that change company ownership, company data or member sign-in recording.
 
 ## Transfer ownership
+
+![Team & access showing Company ownership, Next Owner and Start transfer](../screenshots/flows/owner_appoint_an_admin_1.png)
 
 Open Team & access and find Company ownership. Choose an active Admin in Next Owner, then select Start transfer.
 

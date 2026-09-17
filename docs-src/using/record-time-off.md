@@ -7,7 +7,7 @@ next: false
 
 # Record time off
 
-![Placeholder: Time off page with Personal time off, Add time off and an existing entry highlighted](https://placehold.co/686x385?text=Time+off%3A+Personal+time+off+Add+time+off%0Aand+an+entry)
+![Time off page with Personal time off, Add time off and an existing entry](../screenshots/flows/using_record_time_off_1.png)
 
 <span id="steps"></span>
 
@@ -15,7 +15,7 @@ Editors, Admins, and Owners can record personal time off. Viewers can see the re
 
 Open Time off from the left menu and select Add time off.
 
-![Placeholder: Add time off form with Resource, Start, End, Type, Repeat, Note and Save highlighted](https://placehold.co/686x385?text=Add+time+off%3A+resource+dates+type+repeat%0Anote+and+save)
+![Add time off form with Resource, Start, End, Type, Repeat, Note and Save](../screenshots/flows/using_record_time_off_2.png)
 
 Choose Resource, Start, End and Type, then select Save.
 

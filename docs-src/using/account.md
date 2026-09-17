@@ -7,7 +7,7 @@ next: false
 
 # Account
 
-![Placeholder: Account showing the menu location, signed-in identity and account controls](https://placehold.co/686x385?text=Account%3A+menu+location+identity+and+sign-%0Ain+controls)
+![Account showing the menu location, signed-in identity and account controls](../screenshots/flows/using_account_1.png)
 
 Open Account at the bottom of the left menu.
 

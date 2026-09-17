@@ -7,7 +7,7 @@ next: false
 
 # Projects
 
-![Placeholder: Projects showing project names with their supporting client names](https://placehold.co/686x385?text=Projects%3A+project+name+and+its+client)
+![Projects showing project names with their supporting client names](../screenshots/flows/using_projects_1.png)
 
 Each project shows its client alongside it.
 

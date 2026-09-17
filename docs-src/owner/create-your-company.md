@@ -11,7 +11,7 @@ next: false
 
 # Create your company
 
-![Placeholder: First Owner sign-in: local setup form and company login option](https://placehold.co/686x385?text=First+Owner+sign-in%3A+local+setup+form+and%0Acompany+login+option)
+![First Owner password setup with name, email, password and empty setup-token field](../screenshots/flows/owner_create_your_company_1.png)
 
 Open the CapacityLens address supplied by your installer.
 
@@ -21,7 +21,7 @@ For company login, choose the configured provider and use the verified email app
 
 ## Create the company
 
-![Placeholder: Company form: Company name, Week starts on, Timezone and Create company](https://placehold.co/686x385?text=Company+form%3A+Company+name%2C+Week+starts%0Aon%2C+Timezone+and+Create+company)
+![Company form: Company name, Week starts on, Timezone and Create company](../screenshots/flows/owner_create_your_company_2.png)
 
 The first-company form opens after sign-in. Enter the Company name.
 

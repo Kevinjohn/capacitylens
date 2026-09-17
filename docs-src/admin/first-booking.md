@@ -11,7 +11,7 @@ next: false
 
 # Make the first booking
 
-![Placeholder: Schedule: person row with Add allocation plus button and drag area](https://placehold.co/686x385?text=Schedule%3A+person+row+with+Add+allocation%0Aplus+button+and+drag+area)
+![Schedule: person row with Add allocation plus button and drag area](../screenshots/flows/using_schedule_work_1.png)
 
 You need a [scheduled person](/admin/add-people) and an [activity](/admin/prepare-work).
 
@@ -19,7 +19,7 @@ Open Schedule in the left menu. Select the plus button on the person's row, or d
 
 ## Save the booking
 
-![Placeholder: New allocation: Assignee, Project, Activity, dates, amount and Save](https://placehold.co/686x385?text=New+allocation%3A+Assignee%2C+Project%2C%0AActivity%2C+dates%2C+amount+and+Save)
+![New allocation for James Gordon: Project, Activity, dates, Days of work and Save](../screenshots/flows/using_schedule_work_2.png)
 
 Choose Project, then Activity. Use Internal or No specific project for work without a project.
 

@@ -7,7 +7,7 @@ next: false
 
 # Team & access
 
-![Placeholder: Team and access showing a Viewer's access explanation](https://placehold.co/686x385?text=Team+and+access%3A+Viewer+access+explanation)
+![Team and access showing a Viewer's access explanation](../screenshots/flows/using_team_access_1.png)
 
 Open Team & access near the bottom of the left menu. Your access shows your role.
 

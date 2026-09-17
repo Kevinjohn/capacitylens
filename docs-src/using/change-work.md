@@ -7,7 +7,7 @@ next: false
 
 # Change or remove scheduled work
 
-![Placeholder: Schedule with an allocation bar, its body and both resize edges highlighted](https://placehold.co/686x385?text=Schedule%3A+allocation+bar+body+and+resize%0Aedges)
+![Schedule with James Gordon's booking focused](../screenshots/flows/using_change_work_1.png)
 
 <span id="steps"></span>
 
@@ -25,7 +25,7 @@ Drag the left or right edge of the bar to change its start or end date.
 
 ## Edit details or delete the booking
 
-![Placeholder: Edit allocation dialog with dates, activity, hours, Status, Note and Delete highlighted](https://placehold.co/686x385?text=Edit+allocation%3A+dates+activity+hours%0Astatus+note+and+delete)
+![Edit allocation dialog with dates, activity, Days of work, Status, Note and Delete](../screenshots/flows/using_change_work_2.png)
 
 Click the bar to open Edit allocation. Change the assignee, project, activity, dates, amount, status, task, or note, then select Save.
 

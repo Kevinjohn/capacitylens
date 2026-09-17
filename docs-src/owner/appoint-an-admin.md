@@ -10,7 +10,7 @@ next: false
 
 # Appoint an Admin
 
-![Placeholder: Team & access showing Invite someone with Admin, email, No Resource linked and Create invite](https://placehold.co/686x385?text=Team+%26+access%3A+Invite+someone%2C+Admin%2C%0Aemail%2C+Create+invite)
+![Team & access showing Invite someone with Admin, email, No Resource linked and Create invite](../screenshots/flows/owner_appoint_an_admin_1.png)
 
 Open Team & access in the left menu and find Invite someone.
 
@@ -20,7 +20,7 @@ Select Create invite, then Copy. Send the link privately; CapacityLens does not 
 
 ## Hand over
 
-![Placeholder: Team & access: accepted member showing Admin role](https://placehold.co/686x385?text=Team+%26+access%3A+accepted+member+showing%0AAdmin+role)
+![Team & access: accepted member showing Admin role](../screenshots/flows/admin_invite_teammates_2.png)
 
 After they accept, check that the members list shows their Admin role.
 

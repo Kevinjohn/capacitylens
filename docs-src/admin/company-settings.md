@@ -10,20 +10,20 @@ next: false
 
 # Choose company settings
 
-![Placeholder: Settings: Company setup controls and Overview access](https://placehold.co/686x385?text=Settings%3A+Company+setup+controls+and%0AOverview+access)
+![Settings: Company setup controls and Overview access](../screenshots/flows/admin_company_settings_1.png)
 
 Open Settings near the bottom of the left menu. Company setup and Scheduling features affect everyone.
 
 ## Company setup
 
-| Setting | What it changes |
-| --- | --- |
-| Allocation units | Enter work in Hours, Days or Blocks. Days is the default. |
-| Company-wide working days | Set the shared working week. A person's own working pattern also applies. |
-| Date format | Change how planning dates appear for everyone. |
-| Use disciplines | Group people by discipline. Create the names and colours on Disciplines. |
-| Group resources by engagement | Separate Studio and Supplementary people. |
-| Overview access | Choose who can open the capacity summary. Owners and Admins only is the default. |
+| Setting                       | What it changes                                                                  |
+| ----------------------------- | -------------------------------------------------------------------------------- |
+| Allocation units              | Enter work in Hours, Days or Blocks. Days is the default.                        |
+| Company-wide working days     | Set the shared working week. A person's own working pattern also applies.        |
+| Date format                   | Change how planning dates appear for everyone.                                   |
+| Use disciplines               | Group people by discipline. Create the names and colours on Disciplines.         |
+| Group resources by engagement | Separate Studio and Supplementary people.                                        |
+| Overview access               | Choose who can open the capacity summary. Owners and Admins only is the default. |
 
 Changing working days recalculates capacity for existing work; it does not move booking dates.
 
@@ -31,16 +31,16 @@ Editors can change most company settings. Only Owners and Admins can change Over
 
 ## Scheduling features
 
-![Placeholder: Settings: Scheduling features switches](https://placehold.co/686x385?text=Settings%3A+Scheduling+features+switches)
+![Settings: Scheduling features switches](../screenshots/flows/admin_company_settings_2.png)
 
-| Setting | What it changes |
-| --- | --- |
-| Show placeholders | Plan unfilled project roles. |
-| Show external resources | Track work assigned outside your team. |
-| Internal work colours | Use grey bars or the saved colour palette. |
+| Setting                                           | What it changes                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------- |
+| Show placeholders                                 | Plan unfilled project roles.                                              |
+| Show external resources                           | Track work assigned outside your team.                                    |
+| Internal work colours                             | Use grey bars or the saved colour palette.                                |
 | Show internal projects / Show internal activities | Show or hide internal work. Hidden work still counts towards utilisation. |
-| Inline activity creation | Add activities while making a booking. |
-| Show task field in schedule | Add a short task description to bookings. |
+| Inline activity creation                          | Add activities while making a booking.                                    |
+| Show task field in schedule                       | Add a short task description to bookings.                                 |
 
 Turning a visibility option off hides existing information; it does not delete it.
 

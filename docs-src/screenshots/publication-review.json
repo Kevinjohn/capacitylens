@@ -2,5 +2,53 @@
   {
     "path": "docs-src/screenshots/flows/invitation_created.png",
     "sha256": "47bc36bd90464c188558a0ea84ccafef8d01b694c1fed40e9e702abfec6d38cc"
+  },
+  {
+    "path": "docs-src/screenshots/flows/using_account_1.png",
+    "sha256": "83138d751e3b036830ab4bd2c02e551501f6a95a8fe9ec482243c8aaf90c6a7e"
+  },
+  {
+    "path": "docs-src/screenshots/flows/using_join_your_team_1.png",
+    "sha256": "e81e19d0bdc9fc37551ace0e7403cb113cdf30f3393e2d1729bc676b66cd1364"
+  },
+  {
+    "path": "docs-src/screenshots/flows/using_join_your_team_2.png",
+    "sha256": "3cbaf4363d27b1d990a5e1d5c4943d9cc8a6f6e16c0c90d189e55162f2407f76"
+  },
+  {
+    "path": "docs-src/screenshots/flows/using_team_access_1.png",
+    "sha256": "258e16bf0ca800fe0a70054db8a79b40933e6c2ce650eb74fd643a797df424ca"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_add_people_2.png",
+    "sha256": "655e9a1801cd6c2b2f0507dd8c2ece24835f52ad057bbbe85c524e38c5c67217"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_invite_teammates_1.png",
+    "sha256": "2275228a0649de020d29dc01322ec976296e3868299101b58acabf41242a0bfb"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_invite_teammates_2.png",
+    "sha256": "f453aee6af321074ca304c5d4b85a7835e8ee96a80bc1f0d6821b089eb4a62e1"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_ongoing_administration_1.png",
+    "sha256": "7bda88fc1d3cb6244fd820ea06926a4152fd2b994b4fe074055aee8b1e7bffdb"
+  },
+  {
+    "path": "docs-src/screenshots/flows/owner_appoint_an_admin_1.png",
+    "sha256": "03acd9001fd219505fb5b31fa2bc64fb58b2c825d72a1d1010eb5572f28b5f7c"
+  },
+  {
+    "path": "docs-src/screenshots/flows/owner_create_your_company_1.png",
+    "sha256": "9bcadc399059b97681fd435e7e6a584fc0936aa89bf1f4f3bd63db0fefae400d"
+  },
+  {
+    "path": "docs-src/screenshots/flows/owner_create_your_company_2.png",
+    "sha256": "c0886bfebacd300eaff94d3c7337fabee8b23ce3aecc58e8381eddf7b00997af"
+  },
+  {
+    "path": "docs-src/screenshots/flows/owner_responsibilities_1.png",
+    "sha256": "7db312250b81039a2fc3c0189d82a80f76df767bcbbe1d5619052c9a0e1c45ea"
   }
 ]

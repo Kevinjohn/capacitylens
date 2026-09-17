@@ -7,7 +7,7 @@ next: false
 
 # Settings
 
-![Placeholder: Settings showing My display and this-browser preferences](https://placehold.co/686x385?text=Settings%3A+My+display+and+this-browser%0Apreferences)
+![Settings showing My display and this-browser preferences](../screenshots/flows/using_settings_1.png)
 
 Open Settings near the bottom of the left menu and find My display.
 

@@ -7,7 +7,7 @@ next: false
 
 # Clients
 
-![Placeholder: Clients showing client names and the Internal entry](https://placehold.co/686x385?text=Clients%3A+client+names+and+Internal+work)
+![Clients showing LexCorp and Queen Consolidated](../screenshots/flows/using_clients_1.png)
 
 To see a client's scheduled work, open Schedule → Show filters and select the client.
 

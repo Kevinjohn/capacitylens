@@ -12,7 +12,7 @@ next: false
 
 # Administer your company
 
-![Placeholder: Team & access: members and Invite someone](https://placehold.co/686x385?text=Team+%26+access%3A+members+and+Invite+someone)
+![Team & access: members and Invite someone](../screenshots/flows/admin_invite_teammates_1.png)
 
 Invite your team, prepare the schedule and manage company settings.
 

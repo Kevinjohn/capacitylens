@@ -10,27 +10,27 @@ next: false
 
 # Prepare clients and work
 
-![Placeholder: Clients: Add client form](https://placehold.co/686x385?text=Clients%3A+Add+client+form)
+![Clients: Add client form](../screenshots/flows/admin_prepare_work_1.png)
 
 Open Clients in the left menu. Select Add client, enter the name and Save.
 
 ## Add the project
 
-![Placeholder: Projects: Add project form with Client selected](https://placehold.co/686x385?text=Projects%3A+Add+project+form+with+Client%0Aselected)
+![Projects: Add project form with Client selected](../screenshots/flows/admin_prepare_work_2.png)
 
 Open Projects and select Add project. Enter the project name, choose its Client and Save.
 
 ## Add an activity
 
-![Placeholder: Activities: Add activity form with Kind and Project](https://placehold.co/686x385?text=Activities%3A+Add+activity+form+with+Kind%0Aand+Project)
+![Activities: Add activity form with Kind and Project](../screenshots/flows/admin_prepare_work_3.png)
 
 Open Activities and select Add activity. Enter its name and choose Kind:
 
-| Kind | Use |
-| --- | --- |
+| Kind             | Use                                         |
+| ---------------- | ------------------------------------------- |
 | Project-specific | Choose the project this activity belongs to |
-| All projects | Reuse the activity across projects |
-| Internal | Schedule work without a project |
+| All projects     | Reuse the activity across projects          |
+| Internal         | Schedule work without a project             |
 
 Select Save. The activity is ready to book.
 

@@ -11,7 +11,7 @@ next: false
 
 # Set up your company as the Owner
 
-![Placeholder: New company form with company name, week start, timezone and English language](https://placehold.co/686x385?text=New+company%3A+name%2C+week+start%2C+timezone%0Aand+English)
+![New company form with company name, week start, timezone and English language](../screenshots/flows/owner_create_your_company_2.png)
 
 Create the company, appoint an Admin, and hand everyday setup to them.
 

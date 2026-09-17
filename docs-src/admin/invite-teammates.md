@@ -11,15 +11,15 @@ next: false
 
 # Invite teammates and manage access
 
-![Placeholder: Team & access: Invite someone with Role, email and Create invite](https://placehold.co/686x385?text=Team+%26+access%3A+Invite+someone+with+Role%2C%0Aemail+and+Create+invite)
+![Team & access: Invite someone with Role, email and Create invite](../screenshots/flows/admin_invite_teammates_1.png)
 
 Open Team & access in the left menu and find Invite someone.
 
-| Role | Allows |
-| --- | --- |
-| Viewer | Read the schedule |
-| Editor | Change the schedule and planning data |
-| Admin | Manage members and company settings as well |
+| Role   | Allows                                      |
+| ------ | ------------------------------------------- |
+| Viewer | Read the schedule                           |
+| Editor | Change the schedule and planning data       |
+| Admin  | Manage members and company settings as well |
 
 Choose the role and enter the teammate's email. An invitation tied to an email can only be accepted by that address.
 
@@ -31,7 +31,7 @@ The link is only displayed now. If you lose it, revoke it under Outstanding invi
 
 ## After they join
 
-![Placeholder: Team & access: accepted member with role, Edit member and Member settings](https://placehold.co/686x385?text=Team+%26+access%3A+accepted+member+with+role%2C%0AEdit+member+and+Member+settings)
+![Team & access: accepted member with role, Edit member and Member settings](../screenshots/flows/admin_invite_teammates_2.png)
 
 The teammate appears in the members list after accepting. Send them the [day-to-day guide](/using/).
 

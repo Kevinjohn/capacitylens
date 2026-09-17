@@ -12,7 +12,7 @@ next: false
 
 # Welcome
 
-![Placeholder: Schedule with the left menu and your work highlighted](https://placehold.co/686x385?text=Schedule+with+left+menu+and+your+work%0Ahighlighted)
+![Schedule with the left menu and James Gordon's work](../screenshots/flows/using_read_the_schedule_1.png)
 
 CapacityLens shows your team's planned work and availability.
 
