@@ -23,7 +23,8 @@ the schedule.
 2. Read each person's week cells: free days out of capacity (**2d / 5d**), a bar filled with the
    share of capacity still free (green at 80% or more, amber at 40% or more, red below), and a grey
    hatch for the free time that tentative work holds. A muted dash marks a week with nothing free.
-   An overbooked week prints the overbooked days in red beside the value; its bar stays empty.
+   An overbooked week prints the overbooked days in red beside the value; its bar keeps showing
+   only the free share, so overbooking never paints it.
 3. Choose **Load curve** to replace each cell's figures with a vertical fill of the same shares,
    hovering a cell for its figures. Choose **Ledger** to return.
 4. Choose **8 weeks** or **12 weeks** to add complete company weeks, one column each; the table

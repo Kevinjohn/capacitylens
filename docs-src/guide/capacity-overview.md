@@ -26,7 +26,7 @@ Each week cell shows a person's free days out of their capacity for that week, f
 Tentative work appears as a grey hatch after the free portion of the bar. A muted dash replaces
 the figure when the person has no free time, whether fully booked or unavailable. An overbooked
 week prints the overbooked days in red in place of the capacity figure; the bar itself only ever
-shows free time, so it stays empty. Hover the cell to read the full breakdown.
+shows free time, so overbooking never paints it. Hover the cell to read the full breakdown.
 
 Free capacity is rounded down to the nearest quarter-day. Overbooking is rounded up. Weekly totals
 calculate from exact values before rounding.
