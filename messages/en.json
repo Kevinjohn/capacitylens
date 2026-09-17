@@ -1063,6 +1063,7 @@
   "login_sso": "Continue with SSO",
   "login_external_experimental": "Experimental sign-in provider — verify it in a test instance before relying on it.",
   "login_sign_in_with_google": "Sign in with Google",
+  "login_or_use_password": "or use your password",
   "login_continue_with": "Continue with {provider}",
   "login_sso_unavailable": "No external sign-in provider is configured.",
   "login_setup_heading": "Set up the first Owner",

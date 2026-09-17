@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // Mock the Better Auth client so the forms can submit without a real server. signIn.email /
 // signUp.email return the library's FAILURE shape ({ error }) so each form sets its inline error
@@ -119,6 +120,128 @@ describe("LoginScreen — external callback failures", () => {
   );
 
   it("supplies a marked failure return to a named social provider", suppliesMarkedFailureReturnToNamedSocialProvider);
+});
+
+describe("LoginScreen — mixed-mode Google hierarchy", () => {
+  const google = { id: "google", label: "Google", kind: "social", experimental: true } as const;
+  const companySso = { id: "sso", label: "Company SSO", kind: "oidc", experimental: false } as const;
+
+  it("puts Google before the password fallback with explicit wording", () => {
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    const email = screen.getByLabelText("Email");
+    const password = screen.getByLabelText("Password");
+    const signIn = screen.getByRole("button", { name: "Sign in" });
+
+    expect(googleButton.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(email.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(password.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("or use your password")).toBeInTheDocument();
+  });
+
+  it("starts keyboard focus on Google, then reaches the password email field", async () => {
+    const user = userEvent.setup();
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    const email = screen.getByLabelText("Email");
+    expect(email).not.toHaveFocus();
+
+    await user.tab();
+    expect(googleButton).toHaveFocus();
+    await user.tab();
+    expect(email).toHaveFocus();
+  });
+
+  it("keeps password email autofocus when Google is not configured", () => {
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+
+    expect(screen.getByLabelText("Email")).toHaveFocus();
+  });
+
+  it("keeps the owner name autofocus during first-owner setup", () => {
+    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+
+    expect(screen.getByLabelText("Your name")).toHaveFocus();
+  });
+
+  it("lets the fallback separator rails share the remaining row width", () => {
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    const rails = screen.getAllByRole("none").filter((element) => element.getAttribute("data-slot") === "separator");
+    expect(rails).toHaveLength(2);
+    for (const rail of rails) {
+      expect(rail).toHaveClass("min-w-0", "flex-1", "shrink", "data-[orientation=horizontal]:w-auto");
+    }
+  });
+
+  it("keeps other configured providers after the password fallback", () => {
+    render(<LoginScreen authMode="password" providers={[google, companySso]} onSignedIn={vi.fn()} />);
+
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    const signIn = screen.getByRole("button", { name: "Sign in" });
+    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+
+    expect(googleButton.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(signIn.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("does not promote providers in SSO-only mode", () => {
+    render(<LoginScreen authMode="sso" providers={[google]} onSignedIn={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("keeps password-first behavior when Google is not configured", () => {
+    render(<LoginScreen authMode="password" providers={[companySso]} onSignedIn={vi.fn()} />);
+
+    const email = screen.getByLabelText("Email");
+    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+    expect(email.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("keeps first-owner setup ahead of the promoted provider", () => {
+    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+
+    const name = screen.getByLabelText("Your name");
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    expect(name.compareDocumentPosition(googleButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("hides the promoted action and fallback while password MFA is pending", async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    const code = await screen.findByLabelText("Authentication code");
+    expect(code).toBeInTheDocument();
+    expect(code).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("keeps password errors associated with both controls after Google promotion", async () => {
+    signInEmail.mockResolvedValue({ error: { message: "Invalid email or password." } });
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    const alert = await screen.findByRole("alert");
+    const errorId = alert.getAttribute("id");
+    expect(errorId).toBeTruthy();
+    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-describedby", errorId);
+    expect(screen.getByLabelText("Password")).toHaveAttribute("aria-describedby", errorId);
+  });
 });
 
 async function enterTotpChallenge(onSignedIn = vi.fn()) {
