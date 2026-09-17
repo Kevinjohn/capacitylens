@@ -171,24 +171,24 @@ function MembersTable({
       <table className="w-full text-sm" data-testid={testId}>
         <thead>
           <tr className="border-b text-left text-xs font-medium text-muted-foreground">
-            <th scope="col" className="py-2 pr-3 font-medium">
+            <th scope="col" className="py-2 px-4 font-medium">
               {m.settings_member_col_name()}
             </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
+            <th scope="col" className="py-2 px-4 font-medium">
               {m.settings_member_col_email()}
             </th>
-            <th scope="col" className="py-2 pr-3 font-medium">
+            <th scope="col" className="py-2 px-4 font-medium">
               {m.settings_member_col_scheduled_person()}
             </th>
             {signInTrackingEnabled && (
-              <th scope="col" className="py-2 pr-3 font-medium">
+              <th scope="col" className="py-2 px-4 font-medium">
                 {m.settings_member_col_sign_in_confirmed()}
               </th>
             )}
-            <th scope="col" className="w-10 py-2 pl-8 text-right font-medium">
+            <th scope="col" className="w-auto py-2 px-4 text-right font-medium">
               <span className="sr-only">{m.settings_member_col_edit()}</span>
             </th>
-            <th scope="col" className="w-10 py-2 pl-2 text-right font-medium">
+            <th scope="col" className="w-10 py-2 px-4 text-right font-medium">
               <span className="sr-only">{m.settings_member_col_settings()}</span>
             </th>
           </tr>

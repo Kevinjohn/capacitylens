@@ -7,8 +7,25 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Redesign the Overview page as a single capacity ledger: each week cell shows free days out of
+  capacity with a colour-graded bar and a grey tentative hatch, an optional **Totals** header row
+  reports each week's committed percentage and free days, a **Load curve** display shows shape only,
+  and the horizon offers 4, 8 or 12 single weeks. Boolean toolbar choices become single pills. The
+  per-group totals rows, including the combined unassigned-demand figure, are removed: totals cover
+  the people shown and placeholder rows carry their own demand (#1130).
+
+## [0.69.0-alpha.1] - 2026-09-17
+
 ### Fixed
 
+- Align Team & access member actions as distinct masquerade, role-edit, Resource-link and settings
+  controls, and show **None** for members without a linked Resource (#1132).
+- Use Google's recognizable mark and exact **Sign in with Google** action copy across configured
+  Google social sign-in, invitation and reauthentication buttons, including their disabled states (#1124).
+- Keep successful Google and other external sign-in handoffs in a neutral, accessible redirecting
+  state instead of showing a false failure (#1123).
 - Align labels with their controls in the Client and Project modals, and place the clearer code-name
   privacy explanation beneath the conditional input (#1120).
 - Keep profile-picture ownership with each person's Account by removing Avatar URL from the resource
@@ -20,12 +37,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
-- Redesign the Overview page as a single capacity ledger: each week cell shows free days out of
-  capacity with a colour-graded bar and a grey tentative hatch, an optional **Totals** header row
-  reports each week's committed percentage and free days, a **Load curve** display shows shape only,
-  and the horizon offers 4, 8 or 12 single weeks. Boolean toolbar choices become single pills. The
-  per-group totals rows, including the combined unassigned-demand figure, are removed: totals cover
-  the people shown and placeholder rows carry their own demand (#1130).
+- Put a configured Google social sign-in action first in mixed password mode, with an explicit
+  **or use your password** fallback separator while keeping password and other provider doors available (#1125).
 - Rework day-to-day, Admin and Owner documentation around visible screens and useful actions.
   Prioritise personal scheduled work, complete Admin tasks and the Owner-to-Admin handover.
   Add real application screenshots for each guide, including role-specific access and first-company setup.
@@ -4508,7 +4521,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.69.0-alpha.1...HEAD
+[0.69.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.69.0-alpha.1
 [0.68.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.67.0-alpha.1...v0.68.0-alpha.1
 [0.67.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.66.0-alpha.1...v0.67.0-alpha.1
 [0.66.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.65.0-alpha.1...v0.66.0-alpha.1

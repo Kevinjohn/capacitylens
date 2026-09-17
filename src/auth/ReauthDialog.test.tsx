@@ -323,6 +323,32 @@ describe("ReauthDialog provider step-up", () => {
 });
 
 describe("ReauthDialog social-provider step-up", () => {
+  it("uses the exact Google action copy and mark for social re-authentication", async () => {
+    signInSocial.mockResolvedValue({ data: {}, error: null });
+    window.history.replaceState({}, "", "/team?tab=access");
+    render(
+      <Harness
+        authMode="sso"
+        user={user}
+        providers={[{ id: "google", label: "Google", kind: "social", experimental: true }]}
+      />,
+    );
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
+    expect(button.querySelector("img")).toHaveAttribute("aria-hidden", "true");
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(signInSocial).toHaveBeenCalledWith({
+        provider: "google",
+        callbackURL: "http://localhost:3000/team?tab=access",
+        errorCallbackURL: "http://localhost:3000/team?tab=access&externalSignInError=1",
+      }),
+    );
+  });
+
   it("preserves the product route and supplies a marked social-provider failure return", async () => {
     signInSocial.mockResolvedValue({ data: {}, error: null });
     window.history.replaceState({}, "", "/team?tab=access");
@@ -370,6 +396,26 @@ describe("ReauthDialog provider failures", () => {
     expect(screen.getByRole("heading", { name: "Confirm it's you" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue with Single sign-on" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Cancel" })).toBeEnabled();
+  });
+
+  it("announces a successful re-auth redirect instead of reporting a failure", async () => {
+    signInOauth2.mockResolvedValue({ data: {}, error: null });
+    render(
+      <Harness
+        authMode="sso"
+        user={user}
+        providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      />,
+    );
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    const button = screen.getByRole("button", { name: "Continue with Single sign-on" });
+    fireEvent.click(button);
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Single sign-on…");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(button).toBeDisabled();
   });
 
   it("surfaces a network error and clears busy when SSO re-auth throws", async () => {

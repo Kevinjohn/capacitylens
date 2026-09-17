@@ -558,7 +558,7 @@ registerInviteAcceptTest(() =>
 
     await screen.findByTestId("invite-preview");
     vi.useFakeTimers();
-    const button = screen.getByRole("button", { name: m.invite_continue_provider({ provider: "Google" }) });
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
     fireEvent.click(button);
     await act(async () => {
       await Promise.resolve();
@@ -593,7 +593,7 @@ registerInviteAcceptTest(() =>
     });
 
     const button = await screen.findByRole("button", {
-      name: m.invite_continue_provider({ provider: "Google" }),
+      name: "Sign in with Google",
     });
     await user.click(button);
     window.dispatchEvent(new Event("pagehide"));

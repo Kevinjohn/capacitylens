@@ -17,7 +17,7 @@ next: false
 
 Open Team & access. Use the pencil beside a member to change their role.
 
-Member settings contains Disable user, Archive user and Restore access. [Invite teammates and manage access](/admin/invite-teammates) explains these choices.
+Use the link icon beside a member to open **Link to Resource** and associate, change or remove their scheduled person. Member settings contains Disable user, Archive user and Restore access. [Invite teammates and manage access](/admin/invite-teammates) explains these choices.
 
 ## Change working patterns
 
