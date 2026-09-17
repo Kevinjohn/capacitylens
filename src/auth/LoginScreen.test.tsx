@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // Mock the Better Auth client so the forms can submit without a real server. signIn.email /
 // signUp.email return the library's FAILURE shape ({ error }) so each form sets its inline error
@@ -76,7 +77,7 @@ async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, ex
   await waitFor(() => expect(window.location.search).toBe(""));
 }
 
-async function suppliesMarkedFailureReturnToNamedSocialProvider() {
+async function keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider() {
   signInSocial.mockResolvedValue({ data: {}, error: null });
   window.history.replaceState({}, "", "/invite/token?source=mail");
   render(
@@ -87,7 +88,7 @@ async function suppliesMarkedFailureReturnToNamedSocialProvider() {
     />,
   );
 
-  fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
   await waitFor(() =>
     expect(signInSocial).toHaveBeenCalledWith({
@@ -96,10 +97,9 @@ async function suppliesMarkedFailureReturnToNamedSocialProvider() {
       errorCallbackURL: "http://localhost:3000/invite/token?source=mail&externalSignInError=1",
     }),
   );
-  expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Single sign-on was not completed. Try again or contact your administrator.",
-  );
+  expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeDisabled();
 }
 
 describe("LoginScreen — external callback failures", () => {
@@ -118,7 +118,132 @@ describe("LoginScreen — external callback failures", () => {
     mapsApplicationOwnedCallbackCodeToActionableCopy,
   );
 
-  it("supplies a marked failure return to a named social provider", suppliesMarkedFailureReturnToNamedSocialProvider);
+  it(
+    "keeps the provider redirect pending after dispatching a named social provider",
+    keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider,
+  );
+});
+
+describe("LoginScreen — mixed-mode Google hierarchy", () => {
+  const google = { id: "google", label: "Google", kind: "social", experimental: true } as const;
+  const companySso = { id: "sso", label: "Company SSO", kind: "oidc", experimental: false } as const;
+
+  it("puts Google before the password fallback with explicit wording", () => {
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    const email = screen.getByLabelText("Email");
+    const password = screen.getByLabelText("Password");
+    const signIn = screen.getByRole("button", { name: "Sign in" });
+
+    expect(googleButton.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(email.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(password.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("or use your password")).toBeInTheDocument();
+  });
+
+  it("starts keyboard focus on Google, then reaches the password email field", async () => {
+    const user = userEvent.setup();
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    const email = screen.getByLabelText("Email");
+    expect(email).not.toHaveFocus();
+
+    await user.tab();
+    expect(googleButton).toHaveFocus();
+    await user.tab();
+    expect(email).toHaveFocus();
+  });
+
+  it("keeps password email autofocus when Google is not configured", () => {
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+
+    expect(screen.getByLabelText("Email")).toHaveFocus();
+  });
+
+  it("keeps the owner name autofocus during first-owner setup", () => {
+    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+
+    expect(screen.getByLabelText("Your name")).toHaveFocus();
+  });
+
+  it("lets the fallback separator rails share the remaining row width", () => {
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    const rails = screen.getAllByRole("none").filter((element) => element.getAttribute("data-slot") === "separator");
+    expect(rails).toHaveLength(2);
+    for (const rail of rails) {
+      expect(rail).toHaveClass("min-w-0", "flex-1", "shrink", "data-[orientation=horizontal]:w-auto");
+    }
+  });
+
+  it("keeps other configured providers after the password fallback", () => {
+    render(<LoginScreen authMode="password" providers={[google, companySso]} onSignedIn={vi.fn()} />);
+
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    const signIn = screen.getByRole("button", { name: "Sign in" });
+    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+
+    expect(googleButton.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(signIn.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("does not promote providers in SSO-only mode", () => {
+    render(<LoginScreen authMode="sso" providers={[google]} onSignedIn={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("keeps password-first behavior when Google is not configured", () => {
+    render(<LoginScreen authMode="password" providers={[companySso]} onSignedIn={vi.fn()} />);
+
+    const email = screen.getByLabelText("Email");
+    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+    expect(email.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("keeps first-owner setup ahead of the promoted provider", () => {
+    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+
+    const name = screen.getByLabelText("Your name");
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    expect(name.compareDocumentPosition(googleButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("hides the promoted action and fallback while password MFA is pending", async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    const code = await screen.findByLabelText("Authentication code");
+    expect(code).toBeInTheDocument();
+    expect(code).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("keeps password errors associated with both controls after Google promotion", async () => {
+    signInEmail.mockResolvedValue({ error: { message: "Invalid email or password." } });
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    const alert = await screen.findByRole("alert");
+    const errorId = alert.getAttribute("id");
+    expect(errorId).toBeTruthy();
+    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-describedby", errorId);
+    expect(screen.getByLabelText("Password")).toHaveAttribute("aria-describedby", errorId);
+  });
 });
 
 async function enterTotpChallenge(onSignedIn = vi.fn()) {
@@ -581,6 +706,7 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
 
 describe("LoginScreen — provider failures", () => {
   const provider = { id: "google", label: "Google", kind: "social", experimental: true } as const;
+  type ProviderResponse = { data: Record<string, never>; error: null };
 
   it.each([
     [{ message: "Provider refused the request." }, "Provider refused the request."],
@@ -589,10 +715,48 @@ describe("LoginScreen — provider failures", () => {
     signInSocial.mockResolvedValue({ data: null, error });
     render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(expected);
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
+  });
+
+  it.each(["password", "sso"] as const)(
+    "announces a successful provider redirect instead of showing a failure in %s mode",
+    async (authMode) => {
+      let resolveProvider!: (value: ProviderResponse) => void;
+      const providerResponse = new Promise<ProviderResponse>((resolve) => (resolveProvider = resolve));
+      signInSocial.mockReturnValue(providerResponse);
+      render(<LoginScreen authMode={authMode} providers={[provider]} onSignedIn={vi.fn()} />);
+      const button = screen.getByRole("button", { name: "Sign in with Google" });
+      fireEvent.click(button);
+
+      expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(button).toBeDisabled();
+      resolveProvider({ data: {}, error: null });
+      await providerResponse;
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(button).toBeDisabled();
+      });
+    },
+  );
+
+  it("clears a prior provider error before announcing the redirect", async () => {
+    signInSocial.mockResolvedValueOnce({ data: null, error: { message: "Provider refused the request." } });
+    signInSocial.mockResolvedValueOnce({ data: {}, error: null });
+    render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
+
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
+    fireEvent.click(button);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Provider refused the request.");
+    expect(button).toBeEnabled();
+
+    fireEvent.click(button);
+    expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("surfaces a network error and clears busy when provider sign-in throws", async () => {
@@ -600,10 +764,10 @@ describe("LoginScreen — provider failures", () => {
     signInSocial.mockRejectedValue(new TypeError("offline"));
     render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
   });
 });
 

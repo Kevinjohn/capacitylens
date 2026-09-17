@@ -11,6 +11,10 @@ new features and **patch** versions carry fixes.
 
 - Align Team & access member actions as distinct masquerade, role-edit, Resource-link and settings
   controls, and show **None** for members without a linked Resource (#1132).
+- Use Google's recognizable mark and exact **Sign in with Google** action copy across configured
+  Google social sign-in, invitation and reauthentication buttons, including their disabled states (#1124).
+- Keep successful Google and other external sign-in handoffs in a neutral, accessible redirecting
+  state instead of showing a false failure (#1123).
 - Align labels with their controls in the Client and Project modals, and place the clearer code-name
   privacy explanation beneath the conditional input (#1120).
 - Keep profile-picture ownership with each person's Account by removing Avatar URL from the resource
@@ -22,6 +26,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Put a configured Google social sign-in action first in mixed password mode, with an explicit
+  **or use your password** fallback separator while keeping password and other provider doors available (#1125).
 - Rework day-to-day, Admin and Owner documentation around visible screens and useful actions.
   Prioritise personal scheduled work, complete Admin tasks and the Owner-to-Admin handover.
   Add real application screenshots for each guide, including role-specific access and first-company setup.
