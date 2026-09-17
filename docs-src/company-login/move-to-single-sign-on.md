@@ -618,7 +618,9 @@ You can skip running it yourself, but you can't skip it — the server runs the 
 check at startup and refuses to proceed. There's no override. Better to see the refusal
 in a terminal at your own pace than in a failed deploy.
 
-### What about the "Continue with Google/Microsoft/GitHub" style buttons?
+<a id="what-about-the-continue-with-google-microsoft-github-style-buttons"></a>
+
+### What about the "Sign in with Google/Continue with Microsoft/GitHub" style buttons?
 
 Those are separate, experimental, named social providers. After cutover they can let an
 existing person sign in, but they can't create anyone new, and invitations always

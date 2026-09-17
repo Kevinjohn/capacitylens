@@ -2,10 +2,10 @@ import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { useEffect, useId, useState, type Dispatch, type SetStateAction } from "react";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { FieldError } from "../components/ui/field";
 import { Separator } from "../components/ui/separator";
+import { ExternalProviderButton } from "../components/common/ExternalProviderButton";
 import type { AuthProviderInfo } from "./authContext";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import {
@@ -236,16 +236,17 @@ function ProviderButtons({
       )}
       <FieldError>{authMode === "sso" ? error : null}</FieldError>
       {providers.map((provider) => (
-        <Button
+        <ExternalProviderButton
           size="sm"
           type="button"
           key={`${provider.kind}:${provider.id}`}
           variant="outline"
+          provider={provider}
+          label={m.login_continue_with({ provider: provider.label })}
+          googleLabel={m.login_sign_in_with_google()}
           onClick={() => void signInWithProvider(provider)}
           disabled={busy}
-        >
-          {m.login_continue_with({ provider: provider.label })}
-        </Button>
+        />
       ))}
     </div>
   );

@@ -87,7 +87,7 @@ async function suppliesMarkedFailureReturnToNamedSocialProvider() {
     />,
   );
 
-  fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
   await waitFor(() =>
     expect(signInSocial).toHaveBeenCalledWith({
@@ -96,7 +96,7 @@ async function suppliesMarkedFailureReturnToNamedSocialProvider() {
       errorCallbackURL: "http://localhost:3000/invite/token?source=mail&externalSignInError=1",
     }),
   );
-  expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
   expect(screen.getByRole("alert")).toHaveTextContent(
     "Single sign-on was not completed. Try again or contact your administrator.",
   );
@@ -589,10 +589,10 @@ describe("LoginScreen — provider failures", () => {
     signInSocial.mockResolvedValue({ data: null, error });
     render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(expected);
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
   });
 
   it("surfaces a network error and clears busy when provider sign-in throws", async () => {
@@ -600,10 +600,10 @@ describe("LoginScreen — provider failures", () => {
     signInSocial.mockRejectedValue(new TypeError("offline"));
     render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
   });
 });
 

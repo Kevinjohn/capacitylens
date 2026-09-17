@@ -323,6 +323,32 @@ describe("ReauthDialog provider step-up", () => {
 });
 
 describe("ReauthDialog social-provider step-up", () => {
+  it("uses the exact Google action copy and mark for social re-authentication", async () => {
+    signInSocial.mockResolvedValue({ data: {}, error: null });
+    window.history.replaceState({}, "", "/team?tab=access");
+    render(
+      <Harness
+        authMode="sso"
+        user={user}
+        providers={[{ id: "google", label: "Google", kind: "social", experimental: true }]}
+      />,
+    );
+    void requestReauth();
+    await screen.findByRole("heading", { name: "Confirm it's you" });
+
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
+    expect(button.querySelector("img")).toHaveAttribute("aria-hidden", "true");
+    fireEvent.click(button);
+
+    await waitFor(() =>
+      expect(signInSocial).toHaveBeenCalledWith({
+        provider: "google",
+        callbackURL: "http://localhost:3000/team?tab=access",
+        errorCallbackURL: "http://localhost:3000/team?tab=access&externalSignInError=1",
+      }),
+    );
+  });
+
   it("preserves the product route and supplies a marked social-provider failure return", async () => {
     signInSocial.mockResolvedValue({ data: {}, error: null });
     window.history.replaceState({}, "", "/team?tab=access");

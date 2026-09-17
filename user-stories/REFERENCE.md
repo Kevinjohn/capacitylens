@@ -891,6 +891,12 @@ local mode, no login screen exists, Account explains that sign-in is off, and lo
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
+**External provider action labels (login, invitation acceptance and reauthentication).** The
+configured Google social provider uses the exact branded action **Sign in with Google** and the
+recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
+reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
+providers retain **Continue with _provider_** and their caller-supplied accessible label.
+
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
 character even though browser `maxlength` uses two UTF-16 code units. Email admission applies the
 254 limit to UTF-8 bytes. Passwords independently use the documented 15–128 Unicode-code-point
@@ -943,8 +949,9 @@ production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2
 so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
 On a mixed password/OIDC deployment, every configured external provider remains available below
-the setup form as **Continue with _provider_**. A verified email on the OIDC bootstrap allow-list may
-therefore create the first owner directly; the operator does not need a temporary password identity.
+the setup form. Google uses the branded **Sign in with Google** action; other providers use
+**Continue with _provider_**. A verified email on the OIDC bootstrap allow-list may therefore
+create the first owner directly; the operator does not need a temporary password identity.
 
 **Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
 carries a pre-set Admin, Editor or Viewer role for one company; Owner is never invitational.
