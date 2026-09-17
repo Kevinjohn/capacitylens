@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Carry the same control treatment into dialogs and forms: the allocation **Status**, activity
+  **Kind**, resource **Engagement** and company **Week starts on** choices sit on the recessed
+  track, so no control in the product still marks its selection with a blue border (#1128).
 - Carry the Overview's control treatment into Schedule and Settings: segmented choices sit on a
   recessed track with only the selected option lifted, and the Schedule's **Show tentative** /
   **Hide tentative** pair becomes a single **Tentative** pill that is on by default (#1128).

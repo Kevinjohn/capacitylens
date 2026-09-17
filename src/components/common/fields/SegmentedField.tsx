@@ -6,6 +6,7 @@ import {
   type SegmentedGeometry,
   type SegmentedOption,
   type SegmentedSize,
+  type SegmentedVariant,
 } from "../SegmentedControl";
 import { buildProductFieldLayoutProps } from "./buildProductFieldLayoutProps";
 import type { ProductFieldLayout } from "./fieldTypes";
@@ -24,6 +25,7 @@ export function SegmentedField<T extends string | number>({
   density = "default",
   disabled = false,
   layout = "stacked",
+  variant = "recessed",
 }: {
   label: string;
   value: T;
@@ -45,6 +47,8 @@ export function SegmentedField<T extends string | number>({
   disabled?: boolean;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
+  /** Visual treatment of the track and its selected item. Fields are recessed by default. */
+  variant?: SegmentedVariant;
 }) {
   const labelId = useId();
   return (
@@ -61,6 +65,7 @@ export function SegmentedField<T extends string | number>({
         size={size}
         density={density}
         disabled={disabled}
+        variant={variant}
       />
     </Field>
   );
