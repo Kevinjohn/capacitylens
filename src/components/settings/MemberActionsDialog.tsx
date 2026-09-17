@@ -9,7 +9,6 @@ export function MemberActionsDialog({
   member,
   memberLabel,
   hasExistingActions,
-  hasResourceActions,
   busy,
   open,
   onOpenChange,
@@ -18,19 +17,18 @@ export function MemberActionsDialog({
   member: TeamMember;
   memberLabel: string;
   hasExistingActions: boolean;
-  hasResourceActions: boolean;
   busy: boolean;
   open: boolean;
   onOpenChange(open: boolean): void;
   children: ReactNode;
 }) {
-  if (!hasExistingActions && !hasResourceActions) return <td className="w-10 py-2 pl-2 text-right" />;
+  if (!hasExistingActions) return <td className="w-10 py-2 px-4 text-right" />;
   return (
-    <td className="w-10 py-2 pl-2 text-right">
+    <td className="w-10 py-2 px-4 text-right">
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogTrigger asChild>
           <Button
-            size="sm"
+            size="icon-sm"
             variant="ghost"
             title={m.settings_member_settings_aria({ member: memberLabel })}
             aria-label={m.settings_member_settings_aria({ member: memberLabel })}

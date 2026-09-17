@@ -481,7 +481,7 @@ describe("MembersSection — owner affordances", () => {
     expect(within(dialog).getByTestId("member-reset-password")).toBeInTheDocument();
   });
 
-  it("exposes the current Resource link and eligible choices from the member dialog", async () => {
+  it("exposes the current Resource link and eligible choices from its resource dialog", async () => {
     const user = userEvent.setup();
     const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
     vi.stubGlobal(
@@ -497,7 +497,7 @@ describe("MembersSection — owner affordances", () => {
     expect(within(editorRow).queryByRole("button", { name: /change Resource/i })).not.toBeInTheDocument();
     expect(within(editorRow).queryByRole("button", { name: /remove Resource link/i })).not.toBeInTheDocument();
     expect(within(editorRow).queryByRole("combobox", { name: /choose Resource/i })).not.toBeInTheDocument();
-    await user.click(within(editorRow).getByTestId("member-menu"));
+    await user.click(within(editorRow).getByTestId("member-resource-menu"));
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByTestId("member-resource-status")).toHaveTextContent("Bruce Wayne");
