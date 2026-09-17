@@ -77,15 +77,18 @@ const connectedItemClass = [
 ].join(" ");
 
 // Recessed treatment: the track is the recessed surface, so selection is carried by elevation (a
-// lifted surface-coloured item with a hairline inset and a soft drop shadow) rather than a tinted
-// fill and a coloured border. Unselected items are borderless muted text on the track.
+// lifted surface-coloured item with a soft drop shadow) rather than a tinted fill and a coloured
+// border. Its hairline is the item's own border, not an inset shadow: an inset paints inside the
+// border box, and the 1px transparent border every variant reserves for stable sizing shows the
+// item's white background, so the two together read as a white ring around the hairline.
+// Unselected items are borderless muted text on the track.
 // Only colours change: size, density and geometry keep their meaning on both variants.
 const recessedTrackClass = "border-line bg-muted shadow-none";
 const recessedSegmentClass = [
   "font-medium text-muted-foreground hover:bg-transparent hover:text-ink",
-  "data-[state=on]:bg-surface data-[state=on]:text-brand-soft-ink data-[state=on]:border-transparent",
+  "data-[state=on]:bg-surface data-[state=on]:text-brand-soft-ink data-[state=on]:border-line",
   "data-[state=on]:hover:bg-surface data-[state=on]:hover:text-brand-soft-ink",
-  "data-[state=on]:shadow-[0_1px_2px_rgba(20,22,26,0.10),inset_0_0_0_1px_var(--color-line)]",
+  "data-[state=on]:shadow-[0_1px_2px_rgba(20,22,26,0.10)]",
 ].join(" ");
 
 function getSegmentClass({
