@@ -167,8 +167,8 @@ does not clear an active filter.
 ![The open schedule filter row with person search on the left and the filter, visibility, draw-mode and Clear Filters controls grouped on the right](../screenshots/flows/schedule_filters_open.jpg)
 
 Person search stays on the left. The discipline, client, project and activity filters sit
-in a group on the right, followed by the **Show tentative** / **Hide tentative** and
-**Work** / **Time off** controls. The group wraps at narrower desktop widths without
+in a group on the right, followed by the **Tentative** pill and the
+**Work** / **Time off** control. The group wraps at narrower desktop widths without
 changing the keyboard order.
 
 The project menu keeps **All projects** first, then sorts projects by client and project.
@@ -193,8 +193,7 @@ them useful candidates to staff without implying they are already booked to the 
 
 **Clear Filters** stays at the far right of the open row. It is quiet and disabled when
 nothing is filtered, then turns red with a bin icon when a filter is active. One click
-resets the search, every dropdown and **Show unallocated**, and returns tentative work to
-**Show tentative**.
+resets the search, every dropdown and **Show unallocated**, and turns **Tentative** back on.
 
 An individual schedule is independent of this grid view. Its fixed four-week range does
 not change when you pan or zoom, and it includes the person's matching commitments even

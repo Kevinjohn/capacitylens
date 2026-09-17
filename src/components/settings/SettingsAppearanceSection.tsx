@@ -55,6 +55,7 @@ export function SettingsAppearanceSection({
 
       <SettingsSection title={m.settings_appearance_heading()} help={m.settings_appearance_intro()}>
         <SegmentedControl
+          variant="recessed"
           ariaLabel={m.settings_appearance_aria()}
           value={theme}
           onChange={setTheme}
