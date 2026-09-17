@@ -3,6 +3,9 @@ import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { resolveRejectionMessage, teamAccessClient, type TeamMember } from "../../account/teamAccessClient";
 import { invalidateResourceAvatars } from "../../account/useResourceAvatars";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Button } from "../ui/button";
+import { Link as LinkIcon } from "lucide-react";
 
 /** Account-admin control linking a login member to one eligible person Resource. */
 // The branches mirror the complete selector state machine: authorization, CAS create/update/unlink,
@@ -23,7 +26,7 @@ export function MemberResourceLink({
   resourceCandidates: readonly { resourceId: string; label: string }[];
   workspaceId: string | null;
   reload(): void;
-  /** Render inside the centered member-actions dialog instead of a table cell. */
+  /** Render inside the centered resource-link dialog instead of a table cell. */
   dialog?: boolean;
 }) {
   const [pending, setPending] = useState(false);
@@ -43,7 +46,7 @@ export function MemberResourceLink({
       statusRef.current?.focus();
     }
   }, [editing, pending]);
-  if (myRole !== "owner" && myRole !== "admin") return dialog ? <div /> : <td className="py-2 pr-3" />;
+  if (myRole !== "owner" && myRole !== "admin") return dialog ? <div /> : <td className="py-2 px-4" />;
   const currentPerson = resourceCandidates.find((resource) => resource.resourceId === member.resourceLink?.resourceId);
   const people = resourceCandidates
     .filter(
@@ -129,7 +132,7 @@ export function MemberResourceLink({
   else if (member.resourceLinkException) exceptionMessage = m.settings_member_resource_attention_unavailable();
   if (!dialog) {
     return (
-      <td className="py-2 pr-3" data-testid="member-resource-cell">
+      <td className="py-2 px-4" data-testid="member-resource-cell">
         <div className="flex flex-col items-start gap-1">
           <span ref={statusRef} tabIndex={-1} aria-live="polite" data-testid="member-resource-status">
             {member.resourceLink
@@ -264,4 +267,58 @@ export function MemberResourceLink({
     </div>
   );
   return content;
+}
+
+/** Row action that opens the resource-link editor without mixing it into lifecycle settings. */
+export function MemberResourceDialog({
+  member,
+  myRole,
+  linkedResourceIds,
+  resourceCandidates,
+  workspaceId,
+  reload,
+  busy,
+}: {
+  member: TeamMember;
+  myRole: Role | undefined;
+  linkedResourceIds: ReadonlySet<string>;
+  resourceCandidates: readonly { resourceId: string; label: string }[];
+  workspaceId: string | null;
+  reload(): void;
+  busy: boolean;
+}) {
+  if (myRole !== "owner" && myRole !== "admin") return null;
+  const memberLabel = member.name ?? member.email ?? member.userId;
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          title={m.settings_member_resource_link_aria({ member: memberLabel })}
+          aria-label={m.settings_member_resource_link_aria({ member: memberLabel })}
+          data-testid="member-resource-menu"
+          disabled={busy}
+        >
+          <LinkIcon />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md" aria-describedby={`member-resource-description-${member.userId}`}>
+        <DialogHeader>
+          <DialogTitle>{m.settings_member_col_scheduled_person()}</DialogTitle>
+          <DialogDescription id={`member-resource-description-${member.userId}`}>{memberLabel}</DialogDescription>
+        </DialogHeader>
+        <MemberResourceLink
+          member={member}
+          myRole={myRole}
+          linkedResourceIds={linkedResourceIds}
+          resourceCandidates={resourceCandidates}
+          workspaceId={workspaceId}
+          reload={reload}
+          dialog
+        />
+      </DialogContent>
+    </Dialog>
+  );
 }

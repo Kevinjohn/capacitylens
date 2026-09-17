@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Align Team & access member actions as distinct masquerade, role-edit, Resource-link and settings
+  controls, and show **None** for members without a linked Resource (#1132).
 - Align labels with their controls in the Client and Project modals, and place the clearer code-name
   privacy explanation beneath the conditional input (#1120).
 - Keep profile-picture ownership with each person's Account by removing Avatar URL from the resource

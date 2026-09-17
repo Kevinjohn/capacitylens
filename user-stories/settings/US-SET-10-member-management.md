@@ -32,8 +32,8 @@ one-way hash, and never read back, so listing or revoking invites can never leak
 link.
 
 An Owner or Admin can also associate one active member with one active person Resource. Team & access
-states this explicitly as **Linked to Resource: [person]** or **No Resource linked** and
-offers separate Link, Change, and Remove actions through the centered member-actions dialog. The association does not grant access or create
+states this explicitly as **Linked to Resource: [person]** or **None** and offers a separate link icon
+that opens a centered Resource-link dialog with Link, Change, and Remove actions. The association does not grant access or create
 schedule data. Archived or disabled members and Resources retain an existing association for
 status and removal, but cannot be new or changed targets. When the member has a validated sign-in
 picture, the schedule uses it only if the person has no explicit avatar URL; inactive endpoints show
@@ -77,10 +77,11 @@ the non-blocking product orientation if it is open.
    behind a collapsed **No longer active (_count_)** disclosure
    (`data-testid="members-inactive-toggle"`) that reveals a second table
    (`data-testid="members-inactive-table"`) whose rows carry a **Disabled**/**Archived** badge.
-3. Each row ends in two controls, both naming their member for screen readers: a pencil
-   (`data-testid="member-edit"`) that opens the **Change member role** dialog, and a more-actions button
-   (`data-testid="member-menu"`) that opens the centered **Member actions** dialog naming the selected
-   member. Both are disabled while any
+3. Each manageable row ends in distinct controls, each naming their member for screen readers: an eye for
+   masquerade (`data-testid="member-masquerade"`), a pencil (`data-testid="member-edit"`) that opens the
+   **Change member role** dialog, a link icon (`data-testid="member-resource-menu"`) that opens the centered
+   Resource-link dialog, and a settings icon (`data-testid="member-menu"`) that opens the centered **Member
+   actions** dialog. All row controls are disabled while any
    member mutation is in flight.
 4. B clicks **C**'s pencil, chooses Viewer in the dialog's role select
    (`data-testid="member-role-select"`), reads the plain-language summary of what Viewer can and
@@ -127,7 +128,7 @@ the non-blocking product orientation if it is open.
   renders only in server + auth-on mode for an Owner/Admin; a Viewer/Editor sees their role
   explanation but no member directory or controls.
 - The member list is a table of **Name**, **Email**, **Link to Resource**, optional **Signed in**, **Edit member** and
-  **Member settings**, with the role visible beneath the name. The caller's own row is marked and
+  **Member settings**, with the role visible beneath the name. An unlinked resource displays **None**. The caller's own row is marked and
   rows are ordered by join date and then by name. Both action columns stay separated and
   right-aligned after the optional **Signed in** column.
 - **Record member sign-ins** is Owner-only and off by default. Enabling it starts a fresh window,
