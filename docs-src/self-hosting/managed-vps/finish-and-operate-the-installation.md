@@ -1,42 +1,26 @@
 ---
 title: Finish and operate the managed installation
-description: Claim the first Owner, move to the final domain, configure company login safely and maintain a managed CapacityLens installation.
+description: Verify the managed service, hand it to the first Owner, and establish its operating routine.
+next:
+  text: Configure the service
+  link: /installation/configure-the-service
 ---
 
 # Finish and operate the managed installation
 
-This page completes the installation and gives you a repeatable operating routine. You will claim
-the first [Owner](/reference/glossary), move from a temporary platform domain when necessary, and
-verify backups and monitoring. Allow about fifteen minutes without a domain change; DNS and certificate issuance may
-take longer.
+This page completes the technical installation and gives you a repeatable operating routine. You
+will verify the service, hand the private setup route to the first [Owner](/reference/glossary),
+move from a temporary platform domain when necessary, and verify backups and monitoring. Allow
+about fifteen minutes without a domain change; DNS and certificate issuance may take longer.
 
 ## Prerequisites
 
 - Complete [Deploy and upgrade safely](/self-hosting/managed-vps/deploy-and-upgrade-safely).
-- Have the one-time Owner setup token in a password manager.
+- Have the one-time Owner setup token ready to transfer privately to the intended Owner.
 - Have access to DNS and the platform's domain and certificate settings.
 - Keep [company login](/reference/glossary) disabled until the final public origin is stable.
 
-## 1. Claim the first Owner
-
-Open the exact HTTPS origin in a private browser window. The empty installation asks for your name,
-email, password and setup token.
-
-Enter the one-time `SMALLSASS_ACCOUNT_SETUP_TOKEN` and create the first Owner. Then:
-
-1. Sign out.
-2. Sign in again with the new Owner credentials.
-3. Confirm the Owner can open Settings.
-4. Import the intended JSON file, if this installation starts from an export.
-5. Confirm the imported people, projects and allocations belong to the expected company.
-
-Do not enable demo seeding before an import. A new non-demo database starts empty.
-
-After the Owner exists, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from the environment and restart the
-API. Keep the original value only in your private deployment record if your recovery policy
-requires it; it cannot be used to create a second first Owner.
-
-## 2. Add the final domain
+## 1. Add the final domain
 
 Skip this step if the installation already uses its final domain.
 
@@ -48,7 +32,7 @@ changing CapacityLens.
 
 Keep the temporary platform domain enabled until the final-domain verification below succeeds.
 
-## 3. Change the exact public origin
+## 2. Change the exact public origin
 
 Change this environment value to the final origin:
 
@@ -69,7 +53,7 @@ Deploy manually so the runtime setting changes and health runs against the new o
 Existing browser sessions are tied to the old secure origin. Expect to sign in again on the final
 domain.
 
-## 4. Verify and retire the temporary domain
+## 3. Verify the final public origin
 
 Run:
 
@@ -77,16 +61,42 @@ Run:
 curl -fsS https://capacity.example.com/api/health
 ```
 
-Then sign in through the final domain and confirm one safe read and write. Inspect the response
-headers and certificate in the browser.
+Inspect the response headers and certificate in the browser. Resolve certificate, proxy or health
+errors before handover.
+
+## 4. Hand over to the first Owner
+
+Send the intended Owner three things through a private channel:
+
+- the final CapacityLens address;
+- the one-time `SMALLSASS_ACCOUNT_SETUP_TOKEN`; and
+- the [Owner setup guide](/owner/).
+
+The Owner creates their own credentials and company. Do not enter the token or create the Owner on
+their behalf. Do not enable demo seeding on this production installation.
+
+After the Owner confirms they can sign in, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from the
+environment and restart the API. Confirm health again, then destroy the transferred copy unless
+your recovery policy requires a protected record; it cannot create a second first Owner.
+
+## 5. Verify sign-in and retire the temporary domain
+
+Ask the Owner to sign in through the final domain and confirm one safe read and write.
 
 Only after those checks pass should you disable the temporary platform domain. If you keep it as a
 redirect, make it redirect to the final origin rather than serving a second usable copy of the app.
 
-## 5. Add company login when required
+## 6. Add company login when required
 
 Password sign-in and company login are configured independently for each CapacityLens installation.
 One installation enabling company login does not change another installation on the same server.
+
+Before changing sign-in settings, take a fresh snapshot and preserve a complete recovery
+bundle: the stopped database with its `-wal`/`-shm` sidecars, the current and rotated audit
+logs, and an off-server copy of the snapshot. For Docker Compose, run only the
+[preservation step](/self-hosting/backups-and-restore#preserve-compose-files) against the actual
+volumes, then copy the resulting bundle off-server. Do not continue to the restore steps. A
+database file copied by itself is not a complete SSO recovery point.
 
 Complete [Set up your company login](/company-login/set-up-company-login) only after the
 final public origin is stable. Register this exact [redirect URI](/reference/glossary) with the
@@ -96,14 +106,17 @@ company login provider:
 https://capacity.example.com/api/auth/oauth2/callback/sso
 ```
 
-The origin must match `SMALLSASS_ACCOUNT_PUBLIC_URL` character for character. Provider ids and
-issuers become linked to stored identities after first use, so read the complete company-login
-cutover guide before changing them.
+The origin must match `SMALLSASS_ACCOUNT_PUBLIC_URL` character for character. The final
+`sso` segment is the default `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID`; if you configured a
+different provider id, replace that segment with the exact configured value. Strict OIDC
+also needs the client id, client secret, discovery URL and issuer. Provider ids and
+issuers become linked to stored identities after first use, so read the complete
+company-login cutover guide before changing them.
 
 Company login does not make the two installations share sessions, identities, queues, secrets or
 databases. They remain separate processes on separate loopback ports.
 
-## 6. Configure routine checks
+## 7. Configure routine checks
 
 At minimum:
 
@@ -118,7 +131,7 @@ At minimum:
 
 Read [Monitoring and health checks](/self-hosting/monitoring) for every health field and alert condition.
 
-## 7. Watch shared-server resources
+## 8. Watch shared-server resources
 
 CapacityLens is a small Node API and static web app, but each installation has its own Node process.
 On a shared server, watch:
@@ -141,7 +154,7 @@ own checkout even though both read the same branch.
 If one installation can exhaust resources needed by another, move it to a separate server. Site
 users isolate files and permissions, not CPU, memory or the operating-system kernel.
 
-## 8. Keep an operations record
+## 9. Keep an operations record
 
 For each installation, privately record:
 
@@ -173,5 +186,7 @@ The installation is complete when:
 
 ## What's next
 
+- Return to [Configure the service](/installation/configure-the-service) for the
+  installation track.
 - Read [Monitoring and health checks](/self-hosting/monitoring) for the regular operating routine.
 - Keep [When something goes wrong](/self-hosting/incidents) available to the person on call.
