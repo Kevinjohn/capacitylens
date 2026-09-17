@@ -28,7 +28,8 @@ async function expectSelectedTreatment(segment: Locator) {
   const treatment = await selectedTreatment(segment);
   expect(treatment.borderWidths).toEqual(["1px", "1px", "1px", "1px"]);
   expect(treatment.zIndex).toBe("10");
-  expect(treatment.boxShadow).not.toMatch(/[1-9]\d*px/);
+  expect(treatment.boxShadow).toContain("0px 1px 2px");
+  expect(treatment.boxShadow).not.toContain("inset");
 }
 
 test("segmented controls keep an even selected outline at every position", async ({ page }) => {
