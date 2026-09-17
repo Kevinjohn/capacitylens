@@ -16,14 +16,10 @@ describe("ExternalProviderButton", () => {
     const button = screen.getByRole("button", { name: "Sign in with Google" });
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent("Sign in with Google");
-    expect(button).toHaveClass(
-      "h-10",
-      "min-h-10",
-      "outline-solid",
-      "outline-1",
-      "outline-[#747775]",
-      "dark:outline-[#8e918f]",
-    );
+    expect(button).toHaveClass("h-10", "min-h-10");
+    for (const outlineClass of ["outline-solid", "outline-1", "outline-[#747775]", "dark:outline-[#8e918f]"]) {
+      expect(button).not.toHaveClass(outlineClass);
+    }
 
     for (const markTestId of ["google-mark-light", "google-mark-dark"]) {
       const mark = screen.getByTestId(markTestId);
@@ -35,7 +31,7 @@ describe("ExternalProviderButton", () => {
     }
   });
 
-  it("always keeps the Google stroke when callers use the default variant", () => {
+  it("does not add an outer stroke when callers use the default variant", () => {
     render(
       <ExternalProviderButton
         provider={{ id: "google", kind: "social" }}
@@ -45,12 +41,11 @@ describe("ExternalProviderButton", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Sign in with Google" })).toHaveClass(
-      "w-full",
-      "outline-solid",
-      "outline-1",
-      "outline-[#747775]",
-    );
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
+    expect(button).toHaveClass("w-full");
+    for (const outlineClass of ["outline-solid", "outline-1", "outline-[#747775]"]) {
+      expect(button).not.toHaveClass(outlineClass);
+    }
   });
 
   it("uses Google presentation for a branded strict OIDC provider", () => {
@@ -62,10 +57,9 @@ describe("ExternalProviderButton", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Sign in with Google" })).toHaveClass(
-      "outline-solid",
-      "outline-[#747775]",
-    );
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
+    expect(button).not.toHaveClass("outline-solid");
+    expect(button).not.toHaveClass("outline-[#747775]");
     expect(screen.getByTestId("google-mark-light")).toBeInTheDocument();
   });
 

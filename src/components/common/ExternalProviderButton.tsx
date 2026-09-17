@@ -32,8 +32,7 @@ export function ExternalProviderButton({
     <Button
       {...buttonProps}
       className={cn(
-        google &&
-          "h-10 min-h-10 rounded-[4px] border-0 bg-transparent p-0 outline-solid outline-1 outline-[#747775] focus-visible:ring-0 dark:outline-[#8e918f]",
+        google && "h-10 min-h-10 rounded-[4px] border-0 bg-transparent p-0 focus-visible:ring-0",
         className,
       )}
       style={style}
