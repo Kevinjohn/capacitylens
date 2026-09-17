@@ -11,8 +11,11 @@ export interface CapacityOverviewPeriodResult {
   allocatedHours: number;
   freeHours: number;
   overHours: number;
+  /** Free hours that tentative allocations consume; zero when tentative work is excluded. */
+  tentativeHours: number;
   freeDays: number;
   overDays: number;
+  tentativeDays: number;
   unassignedDemandHours: number;
   unassignedDemandDays: number;
   state: CapacityOverviewState;
@@ -22,8 +25,10 @@ export interface CapacityOverviewSummaryPeriod {
   availableHours: number;
   freeHours: number;
   overHours: number;
+  tentativeHours: number;
   freeDays: number;
   overDays: number;
+  tentativeDays: number;
   unassignedDemandHours: number;
   unassignedDemandDays: number;
 }

@@ -143,19 +143,19 @@ accept responses never include it.
 
 The sidebar links, in order, route to:
 
-| Link label    | Route          | Screen                                                                                                                         |
-| ------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Overview      | `/overview`    | Four- or twelve-week free capacity, overload and unassigned demand table; visible only to roles allowed by the company setting |
-| Schedule      | `/`            | Timeline scheduler                                                                                                             |
-| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                    |
-| Disciplines   | `/disciplines` | Discipline list                                                                                                                |
-| Clients       | `/clients`     | Client list                                                                                                                    |
-| Projects      | `/projects`    | Project list                                                                                                                   |
-| Activities    | `/activities`  | Activity list                                                                                                                  |
-| Time off      | `/timeoff`     | Time-off list                                                                                                                  |
-| Team & access | `/team`        | Current role, capability summary and app-member access management                                                              |
-| Settings      | `/settings`    | Settings (Company setup, Scheduling features, My display, Data and support)                                                    |
-| Account       | `/account`     | Signed-in identity and personal security controls                                                                              |
+| Link label    | Route          | Screen                                                                                                                                                     |
+| ------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview      | `/overview`    | Four-, eight- or twelve-week ledger of free capacity, tentative work, overload and unassigned demand; visible only to roles allowed by the company setting |
+| Schedule      | `/`            | Timeline scheduler                                                                                                                                         |
+| Resources     | `/resources`   | Resource list (incl. the **External** section when enabled)                                                                                                |
+| Disciplines   | `/disciplines` | Discipline list                                                                                                                                            |
+| Clients       | `/clients`     | Client list                                                                                                                                                |
+| Projects      | `/projects`    | Project list                                                                                                                                               |
+| Activities    | `/activities`  | Activity list                                                                                                                                              |
+| Time off      | `/timeoff`     | Time-off list                                                                                                                                              |
+| Team & access | `/team`        | Current role, capability summary and app-member access management                                                                                          |
+| Settings      | `/settings`    | Settings (Company setup, Scheduling features, My display, Data and support)                                                                                |
+| Account       | `/account`     | Signed-in identity and personal security controls                                                                                                          |
 
 **Team & access** and **Settings** form a separate **administration group** pinned
 to the **bottom** of the nav list, below a divider and separated from the working destinations
@@ -1350,8 +1350,9 @@ WCAG 4.1.3; announces the recomputed over-capacity outcome for a resource AFTER 
 on one of its bars, e.g. "Ty now over capacity on 1 day." or "Ty: no capacity conflicts." Pointer drags
 stay silent — they give sighted feedback),
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
-`scheduler-empty`, `scheduler-closure-band`, `scheduler-closure-label`, `capacity-bar-fill-layer` (the
-measured Capacity Overview bar's outer layer used for geometry checks), `timeoff-row`, `company-closures-section`,
+`scheduler-empty`, `scheduler-closure-band`, `scheduler-closure-label`, `capacity-overview-totals-cell`,
+`capacity-ledger-bar`, `capacity-load-curve` (the Overview's weekly totals cell and its two week-cell
+treatments), `timeoff-row`, `company-closures-section`,
 `company-closures-empty`, `company-closure-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `import-busy` (the server-mode "Importing data…" blocking dialog's status text —
 shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),

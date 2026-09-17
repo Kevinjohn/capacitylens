@@ -1,7 +1,7 @@
 import { expect, test } from "./fixtures";
 import { openApp } from "./helpers";
 
-test("reviews the fixed four-week capacity window and filters available rows", async ({ page }) => {
+test("reviews the four-week capacity ledger and filters available rows", async ({ page }) => {
   await openApp(page, "Wayne Enterprises");
 
   const capacityLink = page.getByRole("link", { name: "Overview" });
@@ -10,6 +10,7 @@ test("reviews the fixed four-week capacity window and filters available rows", a
   await capacityLink.click();
 
   await expect(page.getByRole("heading", { name: "Overview" })).toBeVisible();
+  await expect(page.getByText("Capacity across the next 4 weeks")).toBeVisible();
   const table = page.getByRole("table", { name: "Overview" });
   await expect(table.getByRole("columnheader")).toHaveCount(5);
   await expect(table.getByRole("columnheader", { name: "3 – 7 Jun" })).toBeVisible();
@@ -17,34 +18,34 @@ test("reviews the fixed four-week capacity window and filters available rows", a
   await expect(table.getByRole("columnheader", { name: "15 – 21 Jun" })).toBeVisible();
   await expect(table.getByRole("columnheader", { name: "22 – 28 Jun" })).toBeVisible();
 
-  await expect(table.getByRole("row", { name: /All eligible people/ })).toHaveCount(0);
-  await expect(table.getByText("Fully booked")).toHaveCount(0);
-  await expect(table.getByText("Unavailable")).toHaveCount(0);
-  await expect(page.getByRole("radio", { name: "Show tentative" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("radio", { name: "Everyone" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("radio", { name: "Hide totals" })).toHaveAttribute("aria-checked", "true");
-  await page.getByRole("radio", { name: "Hide tentative" }).click();
-  await page.getByRole("radio", { name: "Has availability" }).click();
-  await expect(page.getByRole("radio", { name: "Hide tentative" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("radio", { name: "Has availability" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("radio", { name: "Ledger" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("button", { name: "Tentative" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: "Has availability" })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "Totals" })).toHaveAttribute("aria-pressed", "false");
+  await page.getByRole("button", { name: "Tentative" }).click();
+  await page.getByRole("button", { name: "Has availability" }).click();
+  await expect(page.getByRole("button", { name: "Tentative" })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "Has availability" })).toHaveAttribute("aria-pressed", "true");
 
-  await page.getByRole("radio", { name: "Show totals" }).click();
-  await expect(page.getByRole("radio", { name: "Show totals" })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("button", { name: "Totals" }).click();
+  await expect(page.getByRole("button", { name: "Totals" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByTestId("capacity-overview-totals-cell")).toHaveCount(4);
 
-  await expect(page.getByRole("radio", { name: "Bar & number", exact: true })).toHaveAttribute("aria-checked", "true");
-  await page.getByRole("radio", { name: "Bar", exact: true }).click();
-  await expect(page.getByRole("radio", { name: "Bar", exact: true })).toHaveAttribute("aria-checked", "true");
+  await page.getByRole("radio", { name: "Load curve" }).click();
+  await expect(page.getByRole("radio", { name: "Load curve" })).toHaveAttribute("aria-checked", "true");
+  await expect(table.getByTestId("capacity-load-curve").first()).toBeVisible();
 
   await table.getByRole("button", { name: "View Bruce Wayne's schedule" }).click();
   await expect(page.getByRole("dialog", { name: "Bruce Wayne's schedule" })).toBeVisible();
   await expect(page.getByTestId("person-schedule-sheet")).toHaveCount(1);
 });
 
-test("shows strategic periods in a focusable table region without toolbar overflow", async ({ page }) => {
+test("shows twelve single weeks in a focusable table region without toolbar overflow", async ({ page }) => {
   await page.addInitScript(() => sessionStorage.setItem("capacitylens/rotateHintDismissed", "1"));
   await page.setViewportSize({ width: 320, height: 640 });
   await openApp(page, "Wayne Enterprises", "/overview");
   await page.getByRole("radio", { name: "12 weeks" }).click();
+  await expect(page.getByText("Capacity across the next 12 weeks")).toBeVisible();
 
   const toolbar = page.getByTestId("capacity-overview-toolbar");
   const toolbarOverflow = await toolbar.evaluate((element) => ({
@@ -55,9 +56,9 @@ test("shows strategic periods in a focusable table region without toolbar overfl
 
   const region = page.getByTestId("capacity-overview-table-region");
   await expect(region).toHaveAttribute("tabindex", "0");
-  await expect(region.getByRole("columnheader")).toHaveCount(7);
-  await expect(region.getByRole("columnheader", { name: "Weeks 5–8, 29 Jun – 26 Jul" })).toBeVisible();
-  await expect(region.getByRole("columnheader", { name: "Weeks 9–12, 27 Jul – 23 Aug" })).toBeVisible();
+  await expect(region.getByRole("columnheader")).toHaveCount(13);
+  await expect(region.getByRole("columnheader", { name: "29 Jun – 5 Jul" })).toBeAttached();
+  await expect(region.getByRole("columnheader", { name: "17 – 23 Aug" })).toBeAttached();
 
   const regionOverflow = await region.evaluate((element) => ({
     clientWidth: element.clientWidth,
@@ -71,8 +72,8 @@ test("shows strategic periods in a focusable table region without toolbar overfl
   await region.press("ArrowRight");
   await expect.poll(() => region.evaluate((element) => element.scrollLeft)).toBeGreaterThan(initialScrollLeft);
 
-  for (let press = 0; press < 20; press += 1) await region.press("ArrowRight");
-  const finalColumn = region.getByRole("columnheader", { name: "Weeks 9–12, 27 Jul – 23 Aug" });
+  for (let press = 0; press < 40; press += 1) await region.press("ArrowRight");
+  const finalColumn = region.getByRole("columnheader", { name: "17 – 23 Aug" });
   const [regionBox, finalColumnBox] = await Promise.all([region.boundingBox(), finalColumn.boundingBox()]);
   expect(regionBox).not.toBeNull();
   expect(finalColumnBox).not.toBeNull();
@@ -80,72 +81,34 @@ test("shows strategic periods in a focusable table region without toolbar overfl
   expect(finalColumnBox!.x + finalColumnBox!.width).toBeLessThanOrEqual(regionBox!.x + regionBox!.width);
 });
 
-test.describe("Overview bar geometry", () => {
+test.describe("Overview layout stability", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
-  const GEOMETRY_TOLERANCE_PX = 0.01;
-  const expectGeometry = (actual: number, expected: number) => {
-    expect(Math.abs(actual - expected)).toBeLessThanOrEqual(GEOMETRY_TOLERANCE_PX);
-  };
 
-  test("keeps each bar inset by 3px with 6px gaps between adjacent bars", async ({ page }) => {
-    await openApp(page, "Wayne Enterprises");
-    await page.getByRole("link", { name: "Overview" }).click();
+  const columnWidths = (page: import("@playwright/test").Page) =>
+    page
+      .getByRole("table", { name: "Overview" })
+      .getByRole("columnheader")
+      .evaluateAll((headers) => headers.map((header) => header.getBoundingClientRect().width));
 
+  test("keeps every column width when Totals and the cell mode change", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/overview");
     const table = page.getByRole("table", { name: "Overview" });
     await expect(table).toBeVisible();
-    await page.getByRole("radio", { name: "Bar", exact: true }).click();
+    const baseline = await columnWidths(page);
+    expect(baseline[0]).toBeGreaterThanOrEqual(230);
 
-    const geometry = await table.getByTestId("capacity-bar-fill-layer").evaluateAll((elements) =>
-      elements.map((element) => {
-        const cell = element.closest("td");
-        const row = element.closest("tr");
-        if (!cell || !row) throw new Error("Expected every bar wrapper to belong to a table cell and row");
-        const wrapper = element.getBoundingClientRect();
-        const cellBounds = cell.getBoundingClientRect();
-        return {
-          left: wrapper.left,
-          right: wrapper.right,
-          top: wrapper.top,
-          bottom: wrapper.bottom,
-          leftInset: wrapper.left - cellBounds.left,
-          rightInset: cellBounds.right - wrapper.right,
-          topInset: wrapper.top - cellBounds.top,
-          bottomInset: cellBounds.bottom - wrapper.bottom,
-          rowIndex: Array.from(row.parentElement?.children ?? []).indexOf(row),
-          cellIndex: Array.from(row.cells).indexOf(cell),
-          rowBorderBottom: Number.parseFloat(getComputedStyle(row).borderBottomWidth),
-        };
-      }),
-    );
+    await page.getByRole("button", { name: "Totals" }).click();
+    await expect(page.getByTestId("capacity-overview-totals-cell")).toHaveCount(4);
+    expect(await columnWidths(page)).toEqual(baseline);
 
-    expect(geometry.length).toBeGreaterThan(0);
-    for (const bar of geometry) {
-      expectGeometry(bar.leftInset, 3);
-      expectGeometry(bar.rightInset, 3);
-      // Collapsed table borders contribute half a pixel to the cell's bounding rect, so the
-      // browser-measured vertical inset is 3px or 3.5px while the CSS inset remains 3px.
-      expect(bar.topInset).toBeGreaterThanOrEqual(3 - GEOMETRY_TOLERANCE_PX);
-      expect(bar.topInset).toBeLessThanOrEqual(3.5 + GEOMETRY_TOLERANCE_PX);
-      expect(bar.bottomInset).toBeGreaterThanOrEqual(3 - GEOMETRY_TOLERANCE_PX);
-      expect(bar.bottomInset).toBeLessThanOrEqual(3.5 + GEOMETRY_TOLERANCE_PX);
-    }
+    await page.getByRole("radio", { name: "Load curve" }).click();
+    await expect(table.getByTestId("capacity-load-curve").first()).toBeVisible();
+    expect(await columnWidths(page)).toEqual(baseline);
 
-    const firstRowIndex = geometry[0]?.rowIndex;
-    const firstRowBars = geometry.filter(({ rowIndex }) => rowIndex === firstRowIndex);
-    expect(firstRowBars.length).toBeGreaterThan(1);
-    for (let index = 1; index < firstRowBars.length; index += 1) {
-      expectGeometry(firstRowBars[index]!.left - firstRowBars[index - 1]!.right, 6);
-    }
-
-    const adjacentRows = geometry.find((bar) =>
-      geometry.some((nextBar) => nextBar.rowIndex === bar.rowIndex + 1 && nextBar.cellIndex === bar.cellIndex),
-    );
-    if (!adjacentRows) throw new Error("Expected two adjacent table rows with capacity bars");
-    const nextRowBar = geometry.find(
-      (bar) => bar.rowIndex === adjacentRows.rowIndex + 1 && bar.cellIndex === adjacentRows.cellIndex,
-    );
-    if (!nextRowBar) throw new Error("Expected the adjacent row to contain a matching capacity bar");
-    // The collapsed row divider is separate from the breathing room between bars.
-    expectGeometry(nextRowBar.top - adjacentRows.bottom - adjacentRows.rowBorderBottom, 6);
+    // Every totals cell shares one height: no figure wraps at this width.
+    const totalsHeights = await page
+      .getByTestId("capacity-overview-totals-cell")
+      .evaluateAll((cells) => cells.map((cell) => cell.getBoundingClientRect().height));
+    expect(new Set(totalsHeights).size).toBe(1);
   });
 });

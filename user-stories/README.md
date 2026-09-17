@@ -50,9 +50,9 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Overview — `capacity-overview/`
 
-| Story                                                                 | Title                                | Automated coverage                                                     |
-| --------------------------------------------------------------------- | ------------------------------------ | ---------------------------------------------------------------------- |
-| [US-CAP-01](capacity-overview/US-CAP-01-review-four-week-capacity.md) | Review four- or twelve-week capacity | `e2e/capacity-overview.spec.ts` + `e2e/capacity-overview.auth.spec.ts` |
+| Story                                                                 | Title                                        | Automated coverage                                                     |
+| --------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
+| [US-CAP-01](capacity-overview/US-CAP-01-review-four-week-capacity.md) | Review four-, eight- or twelve-week capacity | `e2e/capacity-overview.spec.ts` + `e2e/capacity-overview.auth.spec.ts` |
 
 ## Resources — `resources/`
 

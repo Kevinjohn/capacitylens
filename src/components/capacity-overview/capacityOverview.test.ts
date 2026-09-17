@@ -87,48 +87,43 @@ describe("buildCapacityOverviewPeriods", () => {
     });
   });
 
-  it("adds two complete four-week strategic periods for the twelve-week horizon", () => {
-    expect(buildCapacityOverviewPeriods({ today: "2026-06-03", weekStartsOn: 1, horizon: "12-weeks" })).toEqual([
-      { index: 0, key: "this-week", start: "2026-06-03", end: "2026-06-07", partial: true },
-      { index: 1, key: "next-week", start: "2026-06-08", end: "2026-06-14", partial: false },
-      { index: 2, key: "week-3", start: "2026-06-15", end: "2026-06-21", partial: false },
-      { index: 3, key: "week-4", start: "2026-06-22", end: "2026-06-28", partial: false },
-      { index: 4, key: "weeks-5-8", start: "2026-06-29", end: "2026-07-26", partial: false },
-      { index: 5, key: "weeks-9-12", start: "2026-07-27", end: "2026-08-23", partial: false },
-    ]);
+  it("adds complete single weeks for the eight- and twelve-week horizons", () => {
+    const eight = buildCapacityOverviewPeriods({ today: "2026-06-03", weekStartsOn: 1, horizon: "8-weeks" });
+    const twelve = buildCapacityOverviewPeriods({ today: "2026-06-03", weekStartsOn: 1, horizon: "12-weeks" });
+
+    expect(eight).toHaveLength(8);
+    expect(twelve).toHaveLength(12);
+    expect(twelve.slice(0, 8)).toEqual(eight);
+    expect(twelve[4]).toEqual({ index: 4, key: "week-5", start: "2026-06-29", end: "2026-07-05", partial: false });
+    expect(twelve[11]).toEqual({ index: 11, key: "week-12", start: "2026-08-17", end: "2026-08-23", partial: false });
   });
 
-  it("keeps strategic periods contiguous across Sunday-start and year boundaries", () => {
+  it("keeps later weeks contiguous across Sunday-start and year boundaries", () => {
     const periods = buildCapacityOverviewPeriods({ today: "2026-12-30", weekStartsOn: 0, horizon: "12-weeks" });
 
-    expect(periods.map(({ key, start, end }) => ({ key, start, end }))).toEqual([
+    expect(periods.slice(0, 5).map(({ key, start, end }) => ({ key, start, end }))).toEqual([
       { key: "this-week", start: "2026-12-30", end: "2027-01-02" },
       { key: "next-week", start: "2027-01-03", end: "2027-01-09" },
       { key: "week-3", start: "2027-01-10", end: "2027-01-16" },
       { key: "week-4", start: "2027-01-17", end: "2027-01-23" },
-      { key: "weeks-5-8", start: "2027-01-24", end: "2027-02-20" },
-      { key: "weeks-9-12", start: "2027-02-21", end: "2027-03-20" },
+      { key: "week-5", start: "2027-01-24", end: "2027-01-30" },
     ]);
+    expect(periods[11]).toMatchObject({ key: "week-12", start: "2027-03-14", end: "2027-03-20" });
   });
 });
 
 describe("buildCapacityOverviewModel", () => {
-  it("filters a person by exact strategic-period aggregation, not tactical availability", () => {
-    const resource = person("strategic", { workingDays: [1] });
+  it("filters a person by availability in any displayed week, including later horizon weeks", () => {
+    const resource = person("later", { workingDays: [1] });
     const tacticalAllocations = [
       allocation("tactical-1", resource.id, "2026-06-01", "2026-06-01", 8),
       allocation("tactical-2", resource.id, "2026-06-08", "2026-06-08", 8),
       allocation("tactical-3", resource.id, "2026-06-15", "2026-06-15", 8),
       allocation("tactical-4", resource.id, "2026-06-22", "2026-06-22", 8),
     ];
-    const strategicAllocations = [
-      allocation("week-5", resource.id, "2026-06-29", "2026-06-29", 7.5),
-      allocation("week-6", resource.id, "2026-07-06", "2026-07-06", 7.5),
-      allocation("week-7", resource.id, "2026-07-13", "2026-07-13", 7.5),
-      allocation("week-8", resource.id, "2026-07-20", "2026-07-20", 7.5),
-    ];
+    const laterAllocations = [allocation("week-5", resource.id, "2026-06-29", "2026-06-29", 6)];
     const twelveWeekResult = buildCapacityOverviewModel({
-      data: data([resource], [...tacticalAllocations, ...strategicAllocations]),
+      data: data([resource], [...tacticalAllocations, ...laterAllocations]),
       today: "2026-06-01",
       weekStartsOn: 1,
       accountWorkingDays: [1],
@@ -137,7 +132,7 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
     const fourWeekResult = buildCapacityOverviewModel({
-      data: data([resource], [...tacticalAllocations, ...strategicAllocations]),
+      data: data([resource], [...tacticalAllocations, ...laterAllocations]),
       today: "2026-06-01",
       weekStartsOn: 1,
       accountWorkingDays: [1],
@@ -146,15 +141,13 @@ describe("buildCapacityOverviewModel", () => {
     });
 
     const row = twelveWeekResult.groups[0]?.rows[0];
-    expect(row?.periods).toHaveLength(6);
-    expect(row?.periods[4]).toMatchObject({ freeHours: 2, freeDays: 0.25, state: "available" });
-    expect(
-      twelveWeekResult.groups.flatMap((group) => group.rows).map(({ resource: rowResource }) => rowResource.id),
-    ).toEqual([resource.id]);
+    expect(row?.periods).toHaveLength(12);
+    expect(row?.periods[4]).toMatchObject({ companyWorkingHours: 8, freeHours: 2, freeDays: 0.25, state: "available" });
+    expect(row?.periods[5]).toMatchObject({ freeHours: 8, freeDays: 1 });
     expect(fourWeekResult.groups).toHaveLength(0);
   });
 
-  it("includes placeholder demand only in a displayed strategic period and excludes tentative demand", () => {
+  it("includes placeholder demand only in a displayed week and excludes tentative demand", () => {
     const confirmedSlot = placeholder("confirmed-slot");
     const tentativeSlot = placeholder("tentative-slot");
     const twelveWeekResult = buildCapacityOverviewModel({
@@ -208,14 +201,15 @@ describe("buildCapacityOverviewModel", () => {
       tentativeSlot.id,
     ]);
     expect(twelveWeekResult.summary.periods[4]).toMatchObject({
-      unassignedDemandHours: 2,
+      unassignedDemandHours: 1,
       unassignedDemandDays: 0.25,
     });
+    expect(twelveWeekResult.summary.periods[5]).toMatchObject({ unassignedDemandHours: 1 });
     expect(fourWeekResult.groups).toHaveLength(0);
     expect(hiddenTentativeResult.groups).toHaveLength(0);
   });
 
-  it("keeps the configured company-working-day denominator for complete strategic periods", () => {
+  it("keeps the configured company-working-day denominator for later complete weeks", () => {
     const resource = person("strategic");
     const result = buildCapacityOverviewModel({
       data: data([resource]),
@@ -234,7 +228,7 @@ describe("buildCapacityOverviewModel", () => {
       disciplinesEnabled: false,
     });
 
-    expect(period(result, resource.id, 4)).toMatchObject({ companyWorkingHours: 160, freeHours: 152, freeDays: 19 });
+    expect(period(result, resource.id, 4)).toMatchObject({ companyWorkingHours: 40, freeHours: 32, freeDays: 4 });
   });
 
   it("keeps daily spare and overload separate before quarter-day rounding", () => {
@@ -377,6 +371,40 @@ describe("buildCapacityOverviewModel", () => {
 
     expect(period(included, resource.id, 0).freeDays).toBe(0);
     expect(period(excluded, resource.id, 0).freeDays).toBe(5);
+  });
+
+  it("measures tentative work as the free time it consumes, clamped to real spare capacity", () => {
+    const resource = person("person-1");
+    const allocations = [
+      allocation("confirmed", resource.id, "2026-06-01", "2026-06-01", 8),
+      allocation("tentative", resource.id, "2026-06-02", "2026-06-03", 8, { status: "tentative" }),
+      allocation("tentative-over", resource.id, "2026-06-01", "2026-06-01", 4, { status: "tentative" }),
+    ];
+    const included = buildCapacityOverviewModel({
+      data: data([resource], allocations),
+      today: "2026-06-01",
+      accountWorkingDays: WEEKDAYS,
+      disciplinesEnabled: false,
+    });
+    const excluded = buildCapacityOverviewModel({
+      data: data([resource], allocations),
+      today: "2026-06-01",
+      accountWorkingDays: WEEKDAYS,
+      includeTentative: false,
+      disciplinesEnabled: false,
+    });
+
+    // Monday is already full with confirmed work, so its tentative 4h is overload, not tentative
+    // free time; Tuesday and Wednesday's 16h are free time held tentatively.
+    expect(period(included, resource.id, 0)).toMatchObject({
+      freeHours: 16,
+      freeDays: 2,
+      tentativeHours: 16,
+      tentativeDays: 2,
+      overHours: 4,
+    });
+    expect(included.summary.periods[0]).toMatchObject({ tentativeHours: 16, tentativeDays: 2 });
+    expect(period(excluded, resource.id, 0)).toMatchObject({ freeHours: 32, tentativeHours: 0, overHours: 0 });
   });
 
   it("excludes tentative placeholder demand when requested", () => {

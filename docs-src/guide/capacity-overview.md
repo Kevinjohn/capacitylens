@@ -1,51 +1,62 @@
 ---
-title: Find capacity across four or twelve weeks
-description: Use Overview to compare available and overbooked capacity across tactical and strategic planning horizons.
+title: Find capacity across four, eight or twelve weeks
+description: Use Overview to compare free capacity, tentative work and overbooking week by week across the planning horizon you choose.
 ---
 
-# Find capacity across four or twelve weeks
+# Find capacity across four, eight or twelve weeks
 
-Overview shows who can take work during the remainder of this week and the next three
-full company weeks. Choose **12 weeks** when you also need two strategic four-week totals. It uses
-the same working patterns, time off and company closures as the Schedule.
+Overview shows who can take work during the remainder of this week and the complete company
+weeks that follow. It uses the same working patterns, time off and company closures as the Schedule.
 
 ## Open the overview
 
 Choose **Overview** immediately above **Schedule** in the sidebar. The table shows active people
-in the same order and groups as the Schedule. External resources and archived or deleted people
-are excluded.
+in the same order and groups as the Schedule, with each group's row naming its group and how many
+people it contains. External resources and archived or deleted people are excluded.
 
-Each displayed period can show:
+Each week cell shows a person's free days out of their capacity for that week, for example
+**2d / 5d**. Beneath the figures, a bar fills with the share of capacity still free:
 
-- days free;
-- days overbooked, kept separate from free capacity;
-- a muted dash when the person is fully booked or unavailable.
+- green when at least 80% of the week is free;
+- amber when at least 40% is free;
+- red when less than 40% is free.
 
-Capacity is rounded down to the nearest quarter-day. Overbooking is rounded up. Each group summary
-calculates from exact values before rounding.
+Tentative work appears as a grey hatch after the free portion of the bar. A muted dash replaces
+the figure when the person has no free time, whether fully booked or unavailable. An overbooked
+week keeps a red hatch across its track; hover the cell to read the overbooked days alongside the
+free days and capacity.
+
+Free capacity is rounded down to the nearest quarter-day. Overbooking is rounded up. Weekly totals
+calculate from exact values before rounding.
 
 If placeholders are enabled, their allocations appear separately as **Unassigned demand**. This
-demand is rounded up to the nearest quarter-day and is not counted as people capacity.
+demand is rounded up to the nearest quarter-day, is not counted as people capacity, and never
+carries a bar.
 
 Hover or focus a person's avatar to reveal an eye icon. Selecting it opens that person's
 read-only schedule drawer, covering the current company week and the following three weeks
 rather than the Overview's own columns, without changing the table's filters or scroll
 position — the same drawer as [the schedule](/guide/the-schedule).
 
+## Choose Ledger or Load curve
+
+**Ledger** starts selected and shows the figures and bar in every cell. Choose **Load curve** to
+see only the shape: each cell becomes a vertical fill that rises with the person's free share of
+the week, with the tentative hatch on top of it. Load curve shows no figures; hover a cell to read
+them, or return to **Ledger**.
+
+Switching between the two changes only the inside of each week cell. The header, group rows and
+column widths stay exactly where they are.
+
 ## Choose a planning horizon
 
-The **Overview horizon** control starts at **4 weeks**. This shows the remainder of the current
-company week followed by the next three complete company weeks.
+The **Overview horizon** control starts at **4 weeks**: the remainder of the current company week
+followed by the next three complete company weeks. Choose **8 weeks** or **12 weeks** to add more
+complete company weeks, one column each. The subtitle under the page title states the horizon in
+use.
 
-Choose **12 weeks** to keep those four tactical columns and add two complete strategic periods:
-
-- **Weeks 5–8**, covering four consecutive complete company weeks;
-- **Weeks 9–12**, covering the next four complete company weeks.
-
-The **12 weeks** label is shorthand for the remainder of the current company week plus eleven
-complete company weeks. It does not mean twelve full weeks from today. Both horizons follow the
-company's Monday or Sunday week start. Strategic headings show the period label and its actual
-localized date range, including the year when the range crosses a calendar year.
+Every horizon follows the company's Monday or Sunday week start. Column headings show each week's
+date range, so a range crossing a calendar year reads in context without repeating the year.
 
 The choice resets to **4 weeks** when you reopen Overview or reload the page. It is temporary page
 state, not a company or device preference. Switching it keeps your tentative-work, availability,
@@ -53,35 +64,24 @@ totals and display-mode choices, as well as collapsed groups.
 
 ## Filter the table
 
-**Show tentative** starts selected. Choose **Hide tentative** to recalculate both people's capacity
-and unassigned demand from confirmed allocations only.
+**Tentative** starts on. Turn it off to recalculate people's capacity and unassigned demand from
+confirmed allocations only; the tentative hatch disappears from every bar and total.
 
-Choose **Has availability** to show only people with at least 0.25 displayed free days in any period.
-With **12 weeks** selected, the strategic periods count too, after their exact values are
-aggregated and rounded for display. Placeholders remain when they have displayed demand. Each group
-summary still covers all eligible people in that group, including rows hidden by this filter.
+Turn on **Has availability** to show only people with at least 0.25 free days in any displayed
+week. Placeholders remain when they have displayed demand.
 
-**Hide totals** starts selected and keeps group header rows to just the group name and its collapse
-control. Choose **Show totals** to reveal each group's free, overbooked and unassigned-demand
-figures for every displayed period, including the two four-week strategic totals in **12 weeks** mode.
+## Show weekly totals
 
-## Choose a capacity display
+**Totals** starts off. Turn it on to add a second header row above the table with, for each week
+across the people currently shown:
 
-**Bar & number** starts selected and shows each period's fill and figures together. Switch to
-**Bar** to see a person's free capacity as a fill that grows from the bottom of the cell,
-proportioned against the company working days in that column. For a five-day company week, four
-free days fill 80% of the cell and 1.5 free days fill 30%. This makes people with different working
-patterns directly comparable: a fully free three-day person fills 60%, not the whole cell. The
-first column uses only the company working days remaining between today and the week end.
+- the percentage of their combined capacity that is committed to confirmed work;
+- their combined free days;
+- a bar with the committed share in blue and the tentative share as a grey hatch.
 
-Green fill shows free capacity; red fill shows overbooking, capped at a full cell. A person with
-nothing to show, including someone fully booked or with no availability that week, keeps a subtle
-neutral-grey cell. Bar modes use 6px horizontal and vertical gaps between cells so adjacent periods
-and rows stay easy to distinguish. In **12 weeks** mode, the boundary between Week 4 and Weeks 5–8
-has approximately double that ordinary inter-column breathing room across the header and every row.
-The Weeks 5–8 to Weeks 9–12 boundary keeps the ordinary spacing. The underlying value stays available to
-assistive technology in every mode. Group header totals and unassigned-demand rows always show
-figures only; the bar never applies to them.
+The percentage turns red once committed and tentative work together reach 90% of the week. Hover
+a total to read the committed days, capacity and tentative days behind it. Adding or removing the
+totals row never moves the columns.
 
 Companies using Blocks mode see an explanation because Blocks do not measure capacity. Switch to
 Hours or Days in **Settings** to use the overview.

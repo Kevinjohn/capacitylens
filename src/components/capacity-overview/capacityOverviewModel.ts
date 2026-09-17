@@ -89,28 +89,33 @@ function calculatePeriod({
 }: CalculatePeriodInput): CapacityOverviewPeriodResult {
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
   const companyWorkingHours = countWorkingDays(period.start, period.end, accountWorkingDays) * HOURS_PER_DISPLAY_DAY;
+  // Tentative work is measured as the free time it consumes: the difference between the free
+  // hours with confirmed work only and the free hours with every included allocation. That keeps
+  // it clamped to the person's real spare capacity, so free + tentative never exceeds available.
+  const confirmedAllocations = allocations.filter((allocation) => allocation.status !== "tentative");
+  const hasTentative = confirmedAllocations.length !== allocations.length;
   let availableHours = 0;
   let allocatedHours = 0;
   let freeHours = 0;
   let overHours = 0;
+  let tentativeHours = 0;
   let unassignedDemandHours = 0;
   for (const date of eachDayISO(period.start, period.end)) {
-    const day = buildDayCapacity({
-      resource,
-      date,
-      allocations,
-      timeOff,
-      effectiveWeek,
-      closures,
-    });
+    const dayInput = { resource, date, timeOff, effectiveWeek, closures };
+    const day = buildDayCapacity({ ...dayInput, allocations });
     allocatedHours += day.allocated;
     if (isPlaceholderResource(resource)) {
       unassignedDemandHours += day.allocated;
       continue;
     }
+    const dayFree = Math.max(day.available - day.allocated, 0);
     availableHours += day.available;
-    freeHours += Math.max(day.available - day.allocated, 0);
+    freeHours += dayFree;
     overHours += Math.max(day.allocated - day.available, 0);
+    if (hasTentative) {
+      const confirmed = buildDayCapacity({ ...dayInput, allocations: confirmedAllocations });
+      tentativeHours += Math.max(Math.max(confirmed.available - confirmed.allocated, 0) - dayFree, 0);
+    }
   }
   const freeDays = roundDownQuarterDays(freeHours);
   const overDays = roundUpQuarterDays(overHours);
@@ -121,12 +126,22 @@ function calculatePeriod({
     allocatedHours,
     freeHours,
     overHours,
+    tentativeHours,
     freeDays,
     overDays,
+    tentativeDays: roundDownQuarterDays(tentativeHours),
     unassignedDemandHours,
     unassignedDemandDays: roundUpQuarterDays(unassignedDemandHours),
     state: isPlaceholderResource(resource) ? "unassigned" : resolvePersonState(availableHours, freeDays),
   };
+}
+
+function sumPeriodField(
+  rows: CapacityOverviewRow[],
+  index: number,
+  field: "availableHours" | "freeHours" | "overHours" | "tentativeHours" | "unassignedDemandHours",
+): number {
+  return rows.reduce((sum, row) => sum + (row.periods[index]?.[field] ?? 0), 0);
 }
 
 function summarize(
@@ -136,28 +151,18 @@ function summarize(
   const people = rows.filter((row) => isCapacityTracked(row.resource) && !isPlaceholderResource(row.resource));
   const placeholders = rows.filter((row) => isPlaceholderResource(row.resource));
   const periods = (rows[0]?.periods ?? overviewPeriods).map((_period, index) => {
-    const availableHours = people.reduce((sum, row) => {
-      const period = row.periods[index];
-      return sum + (period?.availableHours ?? 0);
-    }, 0);
-    const freeHours = people.reduce((sum, row) => {
-      const period = row.periods[index];
-      return sum + (period?.freeHours ?? 0);
-    }, 0);
-    const overHours = people.reduce((sum, row) => {
-      const period = row.periods[index];
-      return sum + (period?.overHours ?? 0);
-    }, 0);
-    const unassignedDemandHours = placeholders.reduce((sum, row) => {
-      const period = row.periods[index];
-      return sum + (period?.unassignedDemandHours ?? 0);
-    }, 0);
+    const freeHours = sumPeriodField(people, index, "freeHours");
+    const overHours = sumPeriodField(people, index, "overHours");
+    const tentativeHours = sumPeriodField(people, index, "tentativeHours");
+    const unassignedDemandHours = sumPeriodField(placeholders, index, "unassignedDemandHours");
     return {
-      availableHours,
+      availableHours: sumPeriodField(people, index, "availableHours"),
       freeHours,
       overHours,
+      tentativeHours,
       freeDays: roundDownQuarterDays(freeHours),
       overDays: roundUpQuarterDays(overHours),
+      tentativeDays: roundDownQuarterDays(tentativeHours),
       unassignedDemandHours,
       unassignedDemandDays: roundUpQuarterDays(unassignedDemandHours),
     };

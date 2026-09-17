@@ -18,5 +18,6 @@ export * from "./dialogs";
 export * from "./fields";
 export * from "./badges";
 export * from "./SegmentedControl";
+export * from "./TogglePill";
 export * from "./SectionHelp";
 export * from "./FormActions";
