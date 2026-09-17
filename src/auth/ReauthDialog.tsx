@@ -10,6 +10,7 @@ import type { AuthProviderInfo, AuthUser } from "./authContext";
 import { completeReauth } from "./reauthCoordinator";
 import type { ReauthAction } from "./reauthCoordinator";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
+import { ExternalProviderButton } from "../components/common/ExternalProviderButton";
 
 interface ReauthDialogProps {
   authMode: "password" | "sso";
@@ -199,15 +200,16 @@ function ProviderDialog({
       {providers.length > 0 ? (
         <div className="flex flex-col gap-2">
           {providers.map((provider) => (
-            <Button
+            <ExternalProviderButton
               size="sm"
               key={`${provider.kind}:${provider.id}`}
               variant="outline"
+              provider={provider}
+              label={m.login_continue_with({ provider: provider.label })}
+              googleLabel={m.login_sign_in_with_google()}
               onClick={() => void reauthWithProvider(provider, state)}
               disabled={state.busy}
-            >
-              {m.login_continue_with({ provider: provider.label })}
-            </Button>
+            />
           ))}
         </div>
       ) : null}

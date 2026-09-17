@@ -87,7 +87,7 @@ async function keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider()
     />,
   );
 
-  fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
   await waitFor(() =>
     expect(signInSocial).toHaveBeenCalledWith({
@@ -98,7 +98,7 @@ async function keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider()
   );
   expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Continue with Google" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeDisabled();
 }
 
 describe("LoginScreen — external callback failures", () => {
@@ -591,10 +591,10 @@ describe("LoginScreen — provider failures", () => {
     signInSocial.mockResolvedValue({ data: null, error });
     render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(expected);
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
   });
 
   it.each(["password", "sso"] as const)(
@@ -607,7 +607,7 @@ describe("LoginScreen — provider failures", () => {
       signInSocial.mockReturnValue(providerResponse);
       render(<LoginScreen authMode={authMode} providers={[provider]} onSignedIn={vi.fn()} />);
 
-      const button = screen.getByRole("button", { name: "Continue with Google" });
+      const button = screen.getByRole("button", { name: "Sign in with Google" });
       fireEvent.click(button);
 
       expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
@@ -629,7 +629,7 @@ describe("LoginScreen — provider failures", () => {
     signInSocial.mockResolvedValueOnce({ data: {}, error: null });
     render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
 
-    const button = screen.getByRole("button", { name: "Continue with Google" });
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
     fireEvent.click(button);
     expect(await screen.findByRole("alert")).toHaveTextContent("Provider refused the request.");
     expect(button).toBeEnabled();
@@ -644,10 +644,10 @@ describe("LoginScreen — provider failures", () => {
     signInSocial.mockRejectedValue(new TypeError("offline"));
     render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
   });
 });
 

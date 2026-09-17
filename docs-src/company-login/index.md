@@ -21,14 +21,14 @@ self-hosted install, the first person in signs up with a one-time setup token; e
 after that needs an invitation. This is the fastest way to start, and it's the default
 for a new installation.
 
-**Social sign-in.** A "Continue with Google" or "Continue with Microsoft" style button.
+**Social sign-in.** A branded "Sign in with Google" or "Continue with Microsoft" style button.
 These are marked **experimental** in CapacityLens: they work, but they're a lighter-weight
 option than company login. A self-hosted company-login-only installation may keep configured
 social buttons as sign-in doors for existing people, but they cannot create a new identity or
 accept an invitation. The hosted company-login-only profile refuses social-provider settings.
 Treat social buttons as a convenience, not as your main door. To make company login the only door,
 remove every named social provider's client-id and client-secret pair, restart CapacityLens, and
-check that the buttons are gone. See the [cutover FAQ](/company-login/move-to-single-sign-on#what-about-the-continue-with-google-microsoft-github-style-buttons)
+check that the buttons are gone. See the [cutover FAQ](/company-login/move-to-single-sign-on#what-about-the-sign-in-with-google-continue-with-microsoft-github-style-buttons)
 and [Configuration](/self-hosting/configuration#company-login) for the exact settings.
 
 **Company login.** Also called single sign-on, or SSO. The person clicks "Continue with

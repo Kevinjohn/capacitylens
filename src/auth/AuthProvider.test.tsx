@@ -432,7 +432,7 @@ function registerServerModeTest10() {
       </AuthProvider>,
     );
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
     // A well-formed SSO body is a real signal too — no degraded notice.
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
