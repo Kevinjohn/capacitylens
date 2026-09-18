@@ -51,8 +51,8 @@ export function AccountView() {
           {(demo || auth.authMode !== "off") && (
             <Button
               type="button"
-              variant="outline"
-              className="self-start"
+              variant="danger-soft"
+              className="self-end"
               onClick={() => {
                 if (demo) signOutDemo();
                 else void auth.signOut();
