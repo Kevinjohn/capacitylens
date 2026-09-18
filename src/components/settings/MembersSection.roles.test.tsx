@@ -64,6 +64,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function openInviteDialog(): Promise<void> {
+  await screen.findByTestId("invite-open");
+  fireEvent.click(screen.getByTestId("invite-open"));
+  await screen.findByRole("dialog", { name: "Invite someone" });
+}
+
 describe("MembersSection — admin affordances", () => {
   const members: RawMember[] = [
     { userId: "me", role: "admin", isSelf: true },
@@ -86,6 +92,7 @@ function registerAdminInviteTests(members: RawMember[]): void {
     vi.stubGlobal("fetch", mockApi(members));
     renderSection();
     await screen.findByTestId("members-section");
+    await openInviteDialog();
 
     fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
     expect(screen.getByRole("option", { name: "Admin" })).toBeInTheDocument();
@@ -98,6 +105,7 @@ function registerAdminInviteTests(members: RawMember[]): void {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", mockApi(members));
     renderSection();
+    await openInviteDialog();
     const email = await screen.findByTestId("invite-preauth");
 
     await user.type(email, "not-an-email");
@@ -116,6 +124,7 @@ function registerAdminInviteTests(members: RawMember[]): void {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", mockApi(members));
     renderSection();
+    await openInviteDialog();
     const email = await screen.findByTestId("invite-preauth");
 
     await user.type(email, "a​🙂@example.com");
@@ -154,6 +163,7 @@ function registerAdminInviteLinkTests(members: RawMember[]): void {
     });
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
+    await openInviteDialog();
 
     await user.click(await screen.findByTestId("invite-submit"));
     const link = await screen.findByTestId("invite-link");
@@ -435,10 +445,14 @@ describe("MembersSection — owner affordances", () => {
     vi.stubGlobal("fetch", mockApi(soleOwnerAndEditor));
     renderSection();
     await screen.findByTestId("members-section");
+    await openInviteDialog();
 
     fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
     expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Close" }),
+    );
 
     const editorRow = await findMemberRow(/ed@x\.io/);
     await user.click(within(editorRow).getByTestId("member-edit"));
@@ -475,10 +489,15 @@ describe("MembersSection — owner affordances", () => {
 
     const dialog = await screen.findByRole("dialog");
     expect(dialog).toHaveAccessibleName(m.settings_member_settings_heading());
-    // The description, not merely the presence of the address somewhere in the dialog: the "Edit
-    // ed@x.io" menu item satisfies a text-content assertion on its own.
+    // The description, not merely the presence of the address somewhere in the dialog: the
+    // labeled action buttons satisfy a text-content assertion on their own.
     expect(dialog).toHaveAccessibleDescription("ed@x.io");
-    expect(within(dialog).getByTestId("member-reset-password")).toBeInTheDocument();
+    expect(within(dialog).getByTestId("member-actions-list")).toHaveAttribute("role", "group");
+    const resetPassword = within(dialog).getByTestId("member-reset-password");
+    expect(resetPassword).toHaveAttribute("data-slot", "button");
+    expect(resetPassword).toHaveAttribute("data-variant", "outline");
+    expect(resetPassword).toHaveClass("w-full", "justify-start");
+    expect(dialog.querySelector('[data-slot="dropdown-menu-content"]')).not.toBeInTheDocument();
   });
 
   it("exposes the current Resource link and eligible choices from its resource dialog", async () => {
@@ -501,7 +520,7 @@ describe("MembersSection — owner affordances", () => {
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByTestId("member-resource-status")).toHaveTextContent("Bruce Wayne");
-    expect(within(dialog).getByRole("button", { name: /change Resource/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("combobox", { name: /choose Resource/i })).toHaveValue(resource.id);
     expect(within(dialog).getByRole("button", { name: /remove Resource link/i })).toBeInTheDocument();
   });
 });

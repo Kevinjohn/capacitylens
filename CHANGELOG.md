@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Rework Team & access so invitations open in a centered dialog, member and invitation tables use
+  standalone frames, SSO cutover readiness has its own section, and Resource/member actions open
+  their intended controls directly in consistent dialogs.
 - Update the Overview guide for individual week columns and the Ledger and Load curve displays.
   Refresh screenshots of Overview, Schedule filters, Settings and forms to match the current
   controls (#1143, #1144).

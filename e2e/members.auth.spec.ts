@@ -73,6 +73,31 @@ async function setupMembersApi(request: APIRequestContext) {
   return { owner, admin, editor, accountId };
 }
 
+async function createViewerInvite(page: Page): Promise<string> {
+  await page.getByTestId("invite-open").click();
+  const dialog = page.getByRole("dialog", { name: "Invite someone" });
+  await selectShadOption(dialog.getByTestId("invite-role"), "viewer");
+  await dialog.getByTestId("invite-submit").click();
+  await expect(dialog.getByTestId("invite-link")).toContainText("/invite/");
+  const link = (await dialog.getByTestId("invite-link").textContent()) ?? "";
+  await dialog.getByRole("button", { name: "Close" }).click();
+  return link;
+}
+
+async function revokeViewerInvite(page: Page, mintedLink: string): Promise<void> {
+  await page.getByTestId("invite-open").click();
+  const dialog = page.getByRole("dialog", { name: "Invite someone" });
+  await expect(dialog.getByTestId("invite-link")).toHaveText(mintedLink);
+  await dialog.getByRole("button", { name: "Close" }).click();
+  const inviteRows = page.getByTestId("invite-row");
+  await expect(inviteRows).toHaveCount(3);
+  await inviteRows.first().getByTestId("invite-revoke").click();
+  await expect(inviteRows).toHaveCount(2);
+  await page.getByTestId("invite-open").click();
+  await expect(dialog.getByTestId("invite-link")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Close" }).click();
+}
+
 async function manageAdminMembers(
   page: Page,
   request: APIRequestContext,
@@ -116,19 +141,11 @@ async function manageAdminMembers(
       return members.find((member) => member.userId === editor.userId)?.role;
     })
     .toBe("viewer");
-  await selectShadOption(page.getByTestId("invite-role"), "viewer");
-  await page.getByTestId("invite-submit").click();
-  await expect(page.getByTestId("invite-link")).toContainText("/invite/");
-  const mintedInviteLink = await page.getByTestId("invite-link").textContent();
+  const mintedInviteLink = await createViewerInvite(page);
   await editorRow.getByTestId("member-edit").click();
   await selectShadOption(page.getByRole("dialog").getByTestId("member-role-select").getByRole("combobox"), "editor");
   await page.getByRole("dialog").getByTestId("member-role-save").click();
-  await expect(page.getByTestId("invite-link")).toHaveText(mintedInviteLink ?? "");
-  const inviteRows = page.getByTestId("invite-row");
-  await expect(inviteRows).toHaveCount(3);
-  await inviteRows.first().getByTestId("invite-revoke").click();
-  await expect(inviteRows).toHaveCount(2);
-  await expect(page.getByTestId("invite-link")).toHaveCount(0);
+  await revokeViewerInvite(page, mintedInviteLink);
 }
 
 /** Ownership never moves from the member table. The per-row control is gone (#175) and the single

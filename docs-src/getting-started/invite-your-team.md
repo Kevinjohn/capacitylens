@@ -33,8 +33,8 @@ permissions](/getting-started/roles-and-permissions) for why.
 1. Open **Team & access**. Your own access is summarised at the top of the page; select
    **See full capabilities** if you want the full list of what your role can and can't do.
 
-2. Choose a role in the "Invite someone" panel. The consequences of that role are spelled
-   out in plain language underneath it, and you can optionally pre-authorise a specific
+2. Select **Invite someone** to open the centered invite dialog. Choose a role in the dialog.
+   The consequences of that role are spelled out in plain language underneath it, and you can optionally pre-authorise a specific
    email address. That restricts acceptance to that address. Leave it empty for a single-use
    link that another recipient can use. Company-login-only installs require an email address.
 
@@ -80,7 +80,7 @@ Either way, they land directly on your schedule with their role visible.
 ## Pending invites
 
 Invites that haven't been accepted yet stay listed on **Team & access** as pending, in
-their own panel below your members. Owners and Admins can see this list; other roles only
+their own bordered section below your members. Owners and Admins can see this list; other roles only
 see their own access.
 
 ## Managing someone who already joined
@@ -95,9 +95,9 @@ their name. Two controls sit at the end of each row:
 - **More actions** opens a centered dialog with the remaining permitted actions: reset their
   password, sign them out everywhere, disable or archive them, or remove them from the company.
 
-The **Link to Resource** column shows the member's association. Open **More actions** for a
-member to see the current Resource and, when permitted, **Link**, **Change** and **Remove**
-controls. See [Link a person to a member](/guide/people-and-placeholders#link-a-person-to-a-member).
+The **Link to Resource** column shows the member's association. Select the member's link icon
+to open the centered Resource form directly; when permitted it offers **Link**, **Change** and
+**Remove** controls. See [Link a person to a member](/guide/people-and-placeholders#link-a-person-to-a-member).
 
 **Disable** and **archive** both stop someone opening the company immediately while
 keeping their role and history — use them when someone leaves, goes on long-term leave, or

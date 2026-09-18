@@ -42,7 +42,14 @@ export function MemberActionsDialog({
           <DialogTitle>{m.settings_member_settings_heading()}</DialogTitle>
           <DialogDescription id={`member-actions-description-${member.userId}`}>{memberLabel}</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-col gap-1">{children}</div>
+        <div
+          data-testid="member-actions-list"
+          role="group"
+          aria-label={m.settings_member_settings_heading()}
+          className="flex flex-col gap-2"
+        >
+          {children}
+        </div>
       </DialogContent>
     </Dialog>
   );

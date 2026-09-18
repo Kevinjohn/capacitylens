@@ -331,6 +331,7 @@
   "settings_role_editor": "Editor",
   "settings_role_viewer": "Viewer",
   "settings_invite_heading": "Invite someone",
+  "settings_invite_open": "Invite someone",
   "settings_invite_role_label": "Role",
   "settings_invite_role_aria": "Invite role",
   "settings_invite_preauth_label": "Pre-authorise email (optional)",

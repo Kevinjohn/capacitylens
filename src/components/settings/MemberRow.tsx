@@ -59,9 +59,9 @@ function buildMemberAffordances(
   };
 }
 
-/** One row of the member-actions dialog. A plain button keeps the short action list keyboard
- * accessible without introducing a second roving-focus model; destructive actions still open
- * their existing confirmation dialogs. */
+/** A full-width action in the member-actions dialog. Keeping these as ordinary buttons avoids a
+ * second menu/focus model inside the dialog; destructive actions still open their existing
+ * confirmation dialogs. */
 function MemberMenuItem({
   label,
   ariaLabel,
@@ -76,15 +76,17 @@ function MemberMenuItem({
   onSelect: () => void;
 }) {
   return (
-    <button
+    <Button
       type="button"
+      variant={danger ? "danger-soft" : "outline"}
+      size="default"
       aria-label={ariaLabel}
       data-testid={testId}
-      className={`flex w-full items-center rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent ${danger ? "text-danger" : "text-ink"}`}
+      className="w-full justify-start"
       onClick={onSelect}
     >
       {label}
-    </button>
+    </Button>
   );
 }
 

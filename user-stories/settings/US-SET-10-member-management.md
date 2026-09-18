@@ -33,7 +33,7 @@ link.
 
 An Owner or Admin can also associate one active member with one active person Resource. Team & access
 states this explicitly as **Linked to Resource: [person]** or **None** and offers a separate link icon
-that opens a centered Resource-link dialog with Link, Change, and Remove actions. The association does not grant access or create
+that opens a centered Resource-link dialog with the Link/Change selector ready, plus Remove. The association does not grant access or create
 schedule data. Archived or disabled members and Resources retain an existing association for
 status and removal, but cannot be new or changed targets. When the member has a validated sign-in
 picture, the schedule uses it only if the person has no explicit avatar URL; inactive endpoints show
@@ -93,7 +93,7 @@ the non-blocking product orientation if it is open.
    (`data-testid="member-restore"`) in place of disable/archive. C stays listed there, so the
    operation is visible and reversible, but every read C attempts against the company is refused by
    the server.
-6. In the separate **Invite someone** card, B picks a role (`data-testid="invite-role"`), optionally fills the
+6. B selects the primary **Invite someone** button to open a centered dialog, then picks a role (`data-testid="invite-role"`), optionally fills the
    **pre-authorise email** (`data-testid="invite-preauth"`), checks the selected role's visible
    capability summary, and clicks **Create invite**
    (`data-testid="invite-submit"`). The full link `<origin>/invite/<token>` appears **once**
