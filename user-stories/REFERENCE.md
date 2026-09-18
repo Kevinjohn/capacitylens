@@ -1075,8 +1075,11 @@ The management section has four parts:
   (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
   (`data-testid="sso-remove-link"`).
 
-- **Members table** (`data-testid="members-table"`) — columns **Name**, **Email**, **Link to Resource**,
-  optional **Signed in**, **Edit member** and **Member settings**, one row per member (`data-testid="member-row"`).
+- **Members table** (`data-testid="members-table"`) — a standalone bordered table outside a card,
+  with columns **Name**, **Email**, **Link to Resource**, optional **Signed in**, and **Actions**, one
+  row per member (`data-testid="member-row"`). The email uses secondary small text, while every
+  available row action is grouped at the right in the same outlined-button treatment as the
+  Resources list.
   The role stays visible beneath the member's name. The caller's own row is marked **(you)** and a
   non-active member's row carries a **Disabled** or **Archived** badge
   (`data-testid="member-status"`). Members are ordered by **join date, then name** (with the

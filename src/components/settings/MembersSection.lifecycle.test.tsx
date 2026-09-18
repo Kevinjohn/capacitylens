@@ -506,7 +506,7 @@ function registerLifecycleTrackingTests(): void {
     expect(screen.queryByText(/2026|unknown/i)).not.toBeInTheDocument();
   });
 
-  it("lets only the owner opt in and keeps edit then settings in separate right-hand columns", async () => {
+  it("lets only the owner opt in and groups outlined row actions in one right-hand column", async () => {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", makeSignInTrackingApi());
     renderSection();
@@ -530,8 +530,7 @@ function registerLifecycleTrackingTests(): void {
       m.settings_member_col_email(),
       m.settings_member_col_scheduled_person(),
       m.settings_member_col_sign_in_confirmed(),
-      m.settings_member_col_edit(),
-      m.settings_member_col_settings(),
+      m.settings_member_col_actions(),
     ]);
     const editorRow = requireValue(
       within(table)
@@ -540,9 +539,14 @@ function registerLifecycleTrackingTests(): void {
       "the Clark Kent row in the members table",
     );
     const cells = within(editorRow).getAllByRole("cell");
-    expect(cells).toHaveLength(6);
-    expect(within(requireValue(cells[4], "the edit cell")).getByTestId("member-edit")).toBeInTheDocument();
-    expect(within(requireValue(cells[5], "the settings cell")).getByTestId("member-menu")).toBeInTheDocument();
+    expect(cells).toHaveLength(5);
+    const actionCell = requireValue(cells[4], "the actions cell");
+    expect(within(actionCell).getByTestId("member-masquerade")).toHaveAttribute("data-variant", "outline");
+    expect(within(actionCell).getByTestId("member-edit")).toHaveAttribute("data-variant", "outline");
+    expect(within(actionCell).getByTestId("member-resource-menu")).toHaveAttribute("data-variant", "outline");
+    expect(within(actionCell).getByTestId("member-menu")).toHaveAttribute("data-variant", "outline");
+    expect(within(editorRow).getByTestId("member-email")).toHaveClass("text-xs");
+    expect(screen.getByTestId("members-section")).not.toHaveAttribute("data-slot", "card");
   });
 }
 

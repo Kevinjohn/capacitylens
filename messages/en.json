@@ -259,6 +259,7 @@
   "settings_member_col_name": "Name",
   "settings_member_col_email": "Email",
   "settings_member_col_sign_in_confirmed": "Signed in",
+  "settings_member_col_actions": "Actions",
   "settings_member_col_edit": "Edit member",
   "settings_member_col_settings": "Member settings",
   "settings_member_col_scheduled_person": "Link to Resource",

@@ -1,7 +1,7 @@
 import { m } from "@/i18n";
 import { formatInstant } from "../../lib/dateDisplay";
 import { useStore } from "../../store/useStore";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from "../ui/field";
 import { Switch } from "../ui/switch";
@@ -52,7 +52,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   const { invites } = orchestration.directory.snapshot;
   return (
     <>
-      <MembersCard members={orchestration} setActionStatusElement={setActionStatusElement} />
+      <MembersDirectorySection members={orchestration} setActionStatusElement={setActionStatusElement} />
       {/* Inviting someone is its own job, not a footnote to the member table (#175): it lives in a
           separate card together with the invites that are still outstanding. */}
       {orchestration.mayManageInvites && (
@@ -127,7 +127,7 @@ type ReadinessCapabilities = Pick<
 type DirectoryCapabilities = MemberTableCapabilities &
   Pick<MembersOrchestration, "activeMembers" | "inactiveMembers" | "inactiveOpen" | "setInactiveOpen">;
 type ResetLinkCapabilities = Pick<MembersOrchestration, "resetLink" | "copyLink">;
-type MembersCardCapabilities = DirectoryCapabilities &
+type MembersDirectoryCapabilities = DirectoryCapabilities &
   ReadinessCapabilities &
   ResetLinkCapabilities &
   Pick<MembersOrchestration, "directory" | "mayManageSignInTracking" | "changeSignInTracking">;
@@ -186,10 +186,7 @@ function MembersTable({
               </th>
             )}
             <th scope="col" className="w-auto py-2 px-4 text-right font-medium">
-              <span className="sr-only">{m.settings_member_col_edit()}</span>
-            </th>
-            <th scope="col" className="w-10 py-2 px-4 text-right font-medium">
-              <span className="sr-only">{m.settings_member_col_settings()}</span>
+              <span className="sr-only">{m.settings_member_col_actions()}</span>
             </th>
           </tr>
         </thead>
@@ -326,24 +323,22 @@ function ResetLink({ reset }: { reset: ResetLinkCapabilities }) {
   );
 }
 
-function MembersCard({
+function MembersDirectorySection({
   members,
   setActionStatusElement,
 }: {
-  members: MembersCardCapabilities;
+  members: MembersDirectoryCapabilities;
   setActionStatusElement(element: HTMLParagraphElement | null): void;
 }) {
   if (members.directory.kind !== "ready") return null;
   const { members: memberRows, signInTrackingEnabled } = members.directory.snapshot;
   return (
-    <Card data-testid="members-section" aria-busy={members.busyAction !== null}>
-      <CardHeader>
-        <CardTitle>
-          <h2>{m.settings_members_heading()}</h2>
-        </CardTitle>
-        <CardDescription>{m.settings_members_intro()}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
+    <section data-testid="members-section" aria-busy={members.busyAction !== null} className="flex flex-col gap-4">
+      <header className="flex flex-col gap-2">
+        <h2 className="font-semibold">{m.settings_members_heading()}</h2>
+        <p className="text-sm text-muted-foreground">{m.settings_members_intro()}</p>
+      </header>
+      <div className="flex flex-col gap-4">
         <p ref={setActionStatusElement} role="status" aria-live="polite" tabIndex={-1} className="sr-only">
           {members.busyAction ? m.settings_members_updating() : ""}
         </p>
@@ -366,7 +361,7 @@ function MembersCard({
         )}
         <MemberDirectory directory={members} members={memberRows} signInTrackingEnabled={signInTrackingEnabled} />
         <ResetLink reset={members} />
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
