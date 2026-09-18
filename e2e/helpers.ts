@@ -187,6 +187,7 @@ export async function goToSeedWeek(page: Page): Promise<void> {
 export async function resetSchedulerScroll(page: Page): Promise<void> {
   await page.getByTestId("scheduler-grid").evaluate((el) => {
     (el as HTMLElement).scrollLeft = 0;
+    el.dispatchEvent(new Event("scroll"));
   });
 }
 

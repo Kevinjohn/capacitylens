@@ -403,6 +403,24 @@ async function expectAnchorCenteredOverVisibleSpan(anchor: Locator, visibleLeft:
     .toBeLessThanOrEqual(2);
 }
 
+async function scrollSchedulerForwardOneWeek(page: Page, grid: Locator) {
+  const dayTier = page.getByTestId("scheduler-day-tier");
+  const firstWeek = await box(dayTier.locator('[data-date="2026-06-01"]'));
+  const secondWeek = await box(dayTier.locator('[data-date="2026-06-08"]'));
+  await grid.evaluate((element, weekWidth) => {
+    element.scrollLeft += weekWidth;
+    element.dispatchEvent(new Event("scroll"));
+  }, secondWeek.x - firstWeek.x);
+  await waitForWeekSnap(page);
+  await expect
+    .poll(async () => {
+      const timeline = await box(page.getByTestId("scheduler-resource-header"));
+      const week = await box(dayTier.locator('[data-date="2026-06-08"]'));
+      return Math.abs(week.x - (timeline.x + timeline.width));
+    })
+    .toBeLessThanOrEqual(2);
+}
+
 function registerSuiteScenario10() {
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
     await openApp(page);
@@ -423,20 +441,15 @@ function registerSuiteScenario10() {
     const grid = page.getByTestId("scheduler-grid");
     const resourceHeader = page.getByTestId("scheduler-resource-header");
     const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
-    const initialBar = await box(bar);
     const timeline = await box(resourceHeader);
-
-    await grid.evaluate((element, clippedWidth) => {
-      element.scrollLeft += clippedWidth;
-      element.dispatchEvent(new Event("scroll"));
-    }, initialBar.width / 2);
-
-    await expect.poll(async () => (await box(bar)).x).toBeLessThan(timeline.x + timeline.width);
+    await scrollSchedulerForwardOneWeek(page, grid);
 
     const clippedBar = await box(bar);
     const gridBox = await box(grid);
     const visibleLeft = Math.max(clippedBar.x, timeline.x + timeline.width);
     const visibleRight = Math.min(clippedBar.x + clippedBar.width, gridBox.x + gridBox.width);
+    expect(clippedBar.x).toBeLessThan(timeline.x + timeline.width);
+    expect(visibleRight).toBeGreaterThan(visibleLeft);
     const anchor = bar.getByTestId("allocation-popover-anchor");
     await expectAnchorCenteredOverVisibleSpan(anchor, visibleLeft, visibleRight);
 
