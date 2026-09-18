@@ -1055,7 +1055,8 @@ the requested change.
 
 The management section has four parts:
 
-- **SSO cutover readiness** (`data-testid="sso-readiness"`, mixed mode with strict OIDC only) shows
+- **SSO cutover readiness** (`data-testid="sso-readiness-section"` containing
+  `data-testid="sso-readiness"`, mixed mode with strict OIDC only) is its own section beside Members and shows
   whether every active member of the company has one verified link to the required provider. It
   names each member and role, highlights Owner and integrity blockers, and includes installation-wide
   blockers such as unsupported providers, unverified strict-provider links held by non-members,
@@ -1098,8 +1099,8 @@ The management section has four parts:
   Disabled, archived and self rows never offer the eye button; auth-off/demo mode never exposes it.
   The server enforces the read-only boundary even if a stale client attempts a write.
   Each manageable active row also has a pencil for role editing, a link icon
-  (`data-testid="member-resource-menu"`) that opens a centered Resource-link dialog for Link, Change
-  and Remove, and a gear (`data-testid="member-menu"`) for the separate Member actions dialog.
+  (`data-testid="member-resource-menu"`) that opens a centered Resource-link dialog with the Link/Change
+  selector ready, plus Remove, and a gear (`data-testid="member-menu"`) for the separate Member actions dialog.
   The
   owner-only **Record member sign-ins** switch (`data-testid="member-sign-in-tracking"`) is off by
   default. While it is on, the table adds **Signed in** (`data-testid="member-sign-in-confirmed"`),
@@ -1142,8 +1143,8 @@ The management section has four parts:
   account-takeover capability; only an Owner may reset an Owner — the server 403s regardless). The
   action is absent in `sso` mode (the IdP owns credentials). **Revoke sessions** uses the same
   cross-account authority rule as password reset.
-- **Invite form** — a card of its own (`data-testid="invites-section"`), separate from the members
-  table since #175 so inviting someone is not mixed into the list of people who already joined. An
+- **Invite form** — a primary **Invite someone** button (`data-testid="invite-open"`) opens a centered
+  Dialog, separate from the members table since #175 so inviting someone is not mixed into the list of people who already joined. An
   Admin/Editor/Viewer **role** picker (`data-testid="invite-role"`) with the
   selected role's plain-language consequences visible below it, plus an optional **pre-authorise
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
@@ -1163,7 +1164,7 @@ The management section has four parts:
   only a successfully decoded terminal rejection permits a later retry to mint a new identity.
   In SSO-only mode the pre-authorised email is required by both the UI and server because a
   bearer-only invitation cannot admit a brand-new external identity.
-- **Outstanding invites** — a row per invite (`data-testid="invite-row"`) with role / preauth-email
+- **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) with a row per invite (`data-testid="invite-row"`) with role / preauth-email
   or "link" / expiry-or-used and a **Revoke** button (`data-testid="invite-revoke"`). The list never
   carries the secret token. When an invite expires while this page remains open, its row updates to
   **Expired** and the unusable Revoke action disappears without requiring navigation or reload.

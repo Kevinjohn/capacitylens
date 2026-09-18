@@ -10,7 +10,7 @@ import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
 import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
 import { SelectField, TextField } from "../common/ui";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { FieldError, FieldSet } from "../ui/field";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 
@@ -88,24 +88,37 @@ export function InviteMemberPanel(props: {
   setInvitationResourceId(value: string): void;
 }) {
   return (
-    <Card data-testid="invites-section" aria-busy={props.busy}>
-      <InviteHeader />
-      <CardContent className="flex flex-col gap-4">
-        <InviteForm {...props} />
-        <OutstandingInvites {...props} />
-      </CardContent>
-    </Card>
+    <section data-testid="invites-section" aria-busy={props.busy} className="flex flex-col gap-4">
+      <Dialog>
+        <InviteHeader />
+        <DialogContent className="max-w-2xl" aria-describedby="invite-dialog-description">
+          <DialogHeader>
+            <DialogTitle>{m.settings_invite_heading()}</DialogTitle>
+            <DialogDescription id="invite-dialog-description">
+              {m.settings_invite_intro({ app: APP_NAME })}
+            </DialogDescription>
+          </DialogHeader>
+          <InviteForm {...props} />
+        </DialogContent>
+      </Dialog>
+      <OutstandingInvites {...props} />
+    </section>
   );
 }
 
 function InviteHeader() {
   return (
-    <CardHeader>
-      <CardTitle>
-        <h2>{m.settings_invite_heading()}</h2>
-      </CardTitle>
-      <CardDescription>{m.settings_invite_intro({ app: APP_NAME })}</CardDescription>
-    </CardHeader>
+    <header className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-semibold">{m.settings_invite_heading()}</h2>
+        <p className="max-w-2xl text-sm text-muted-foreground">{m.settings_invite_intro({ app: APP_NAME })}</p>
+      </div>
+      <DialogTrigger asChild>
+        <Button type="button" data-testid="invite-open">
+          {m.settings_invite_open()}
+        </Button>
+      </DialogTrigger>
+    </header>
   );
 }
 
@@ -289,9 +302,9 @@ function resolveInvitationPerson(invitation: TeamInvitation, people: readonly In
 function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitationPeople }: OutstandingInvitesProps) {
   if (invites.length === 0) return null;
   return (
-    <div className="flex flex-col gap-1">
-      <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
-      <ItemGroup className="rounded-md border bg-card">
+    <section data-testid="outstanding-invites" className="flex flex-col gap-2 rounded-md border bg-card p-3">
+      <h3 className="text-sm font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
+      <ItemGroup>
         {invites.map((invitation, index) => {
           const expired = Date.parse(invitation.expiresAt) <= renderedAt;
           const actionable = invitation.usedAt === null && !expired;
@@ -333,6 +346,6 @@ function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitatio
           );
         })}
       </ItemGroup>
-    </div>
+    </section>
   );
 }

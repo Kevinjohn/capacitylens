@@ -12,7 +12,7 @@ next: false
 
 # Administer your company
 
-![Team & access: members and Invite someone](../screenshots/flows/admin_invite_teammates_1.png)
+![Team & access: Invite someone dialog](../screenshots/flows/admin_invite_teammates_1.png)
 
 Invite your team, prepare the schedule and manage company settings.
 

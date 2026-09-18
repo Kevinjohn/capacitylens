@@ -135,10 +135,12 @@ function registerSsoDraftTests(directory: RawMember[]): void {
     );
     renderSection();
 
+    fireEvent.click(await screen.findByTestId("invite-open"));
     const inviteEmail = await screen.findByTestId("invite-preauth");
     await user.type(inviteEmail, "draft@example.com");
     fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
+    await user.click(screen.getByRole("button", { name: "Close" }));
 
     const targetRow = await findMemberRow(/target@x\.io/);
     await user.click(within(targetRow).getByTestId("member-edit"));
@@ -155,9 +157,13 @@ function registerSsoDraftTests(directory: RawMember[]): void {
 
     await user.click(screen.getByRole("button", { name: m.settings_members_retry() }));
 
+    fireEvent.click(await screen.findByTestId("invite-open"));
     expect(await screen.findByTestId("invite-preauth")).toHaveValue("");
     expect(screen.getByTestId("invite-role")).toHaveTextContent("Viewer");
-    expect(within(await screen.findByRole("dialog")).getByRole("combobox")).toHaveTextContent("Editor");
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Close" }),
+    );
+    expect(within(screen.getByTestId("member-role-select")).getByRole("combobox")).toHaveTextContent("Editor");
   });
 }
 
@@ -188,6 +194,8 @@ function registerSsoReadinessRefreshTests<T>(
 
     await waitFor(() => expect(readinessReads).toBeGreaterThanOrEqual(2));
     expect(screen.getByTestId("sso-readiness")).toBeInTheDocument();
+    expect(screen.getByTestId("sso-readiness-section")).toBeInTheDocument();
+    expect(screen.getByTestId("members-section")).not.toContainElement(screen.getByTestId("sso-readiness-section"));
     expect(screen.queryByTestId("sso-readiness-error")).not.toBeInTheDocument();
 
     await act(async () => {

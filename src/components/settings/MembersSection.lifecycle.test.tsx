@@ -110,7 +110,6 @@ function registerMemberResourceLinkTests(): void {
     await user.click(within(row).getByTestId("member-resource-menu"));
     const resourceDialog = await screen.findByRole("dialog");
     expect(resourceDialog).toHaveAccessibleName(m.settings_member_col_scheduled_person());
-    await user.click(within(resourceDialog).getByRole("button", { name: /link Resource/i }));
     expect(within(resourceDialog).getByTestId("member-resource-link")).toBeInTheDocument();
     await user.click(within(resourceDialog).getByRole("button", { name: /close/i }));
 
@@ -142,7 +141,6 @@ function registerMemberResourceLinkTests(): void {
 
     await user.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Choose another person" }));
     const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
     expect(select).toHaveFocus();
     await user.selectOptions(select, resource.id);
@@ -251,7 +249,6 @@ function registerMemberResourceLinkTests(): void {
     expect(within(row).queryByText(/inactive — unlink only/)).not.toBeInTheDocument();
     await userEvent.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: /change Resource/i }));
     const selector = within(dialog).getByTestId("member-resource-link");
     expect([...selector.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
       m.settings_member_resource_unlinked(),
@@ -278,8 +275,6 @@ function registerMemberResourceLinkTests(): void {
     const row = await findMemberRow(/ed@x\.io/);
     await user.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
-    const link = within(dialog).getByRole("button", { name: /link Resource/i });
-    await user.click(link);
     const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
     expect(select).toHaveFocus();
     await user.click(within(dialog).getByRole("button", { name: /cancel/i }));

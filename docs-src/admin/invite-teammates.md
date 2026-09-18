@@ -11,9 +11,10 @@ next: false
 
 # Invite teammates and manage access
 
-![Team & access: Invite someone with Role, email and Create invite](../screenshots/flows/admin_invite_teammates_1.png)
+![Team & access: Invite someone](../screenshots/flows/admin_invite_teammates_1.png)
 
-Open Team & access in the left menu and find Invite someone.
+Open Team & access in the left menu and select the primary **Invite someone** button. The
+role, email and optional Resource fields open in a centered dialog.
 
 | Role   | Allows                                      |
 | ------ | ------------------------------------------- |
@@ -21,7 +22,7 @@ Open Team & access in the left menu and find Invite someone.
 | Editor | Change the schedule and planning data       |
 | Admin  | Manage members and company settings as well |
 
-Choose the role and enter the teammate's email. An invitation tied to an email can only be accepted by that address.
+Choose the role and enter the teammate's email in the dialog. An invitation tied to an email can only be accepted by that address.
 
 Leave No Resource linked selected unless their scheduled person already exists.
 

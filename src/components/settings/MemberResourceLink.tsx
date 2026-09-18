@@ -31,7 +31,9 @@ export function MemberResourceLink({
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
+  // The row icon opens the editor directly. The non-dialog cell remains a compact status-only
+  // view, while the centered dialog starts with its selector ready for the requested change.
+  const [editing, setEditing] = useState(dialog);
   const selectorRef = useRef<HTMLSelectElement | null>(null);
   const statusRef = useRef<HTMLSpanElement | null>(null);
   const restoreFocusRef = useRef(false);
@@ -154,7 +156,7 @@ export function MemberResourceLink({
     );
   }
   const content = (
-    <div className="flex flex-col items-start gap-1 rounded-md border bg-card p-3">
+    <div className="flex flex-col items-start gap-2">
       <span ref={statusRef} tabIndex={-1} aria-live="polite" data-testid="member-resource-status">
         {member.resourceLink
           ? m.settings_member_resource_linked({ name: currentPersonLabel })

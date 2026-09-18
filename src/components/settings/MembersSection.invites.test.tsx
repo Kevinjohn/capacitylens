@@ -77,6 +77,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function renderInviteSection(): Promise<void> {
+  renderSection();
+  await screen.findByTestId("invite-open");
+  fireEvent.click(screen.getByTestId("invite-open"));
+  await screen.findByRole("dialog", { name: "Invite someone" });
+}
+
+function closeInviteDialog(): void {
+  fireEvent.click(
+    within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Close" }),
+  );
+}
+
 describe("MembersSection — invite mint", () => {
   registerInviteCopyControlTests();
   registerInviteMintTests();
@@ -95,7 +108,7 @@ describe("MembersSection — invite mint", () => {
 });
 
 function registerInviteCopyControlTests(): void {
-  it("distinguishes reset-link and invitation-link copy controls when both are visible", async () => {
+  it("keeps reset-link and invitation-link copy controls clearly labeled", async () => {
     const user = userEvent.setup();
     const members: RawMember[] = [
       { userId: "me", role: "owner", isSelf: true },
@@ -107,9 +120,10 @@ function registerInviteCopyControlTests(): void {
       "POST /api/invites": () => jsonResponse({ token: "invite/part?x#y" }, 201),
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderSection();
+    await renderInviteSection();
 
     const editorRow = await findMemberRow(/editor@x\.io/);
+    closeInviteDialog();
     await chooseMemberAction(user, editorRow, "member-reset-password");
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
@@ -118,12 +132,17 @@ function registerInviteCopyControlTests(): void {
     );
     expect(await screen.findByTestId("reset-link")).toHaveTextContent("/reset-password/reset%2Fpart%3Fx%23y");
 
+    fireEvent.click(screen.getByTestId("invite-open"));
     await user.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/invite%2Fpart%3Fx%23y");
 
-    expect(screen.getByRole("button", { name: "Copy reset link for editor@x.io" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Copy invitation link" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Copy" })).not.toBeInTheDocument();
+
+    // The invite is a modal, so the background reset block is intentionally inert while it is
+    // open. Once the invite dialog closes, its own copy control remains independently labeled.
+    closeInviteDialog();
+    expect(screen.getByRole("button", { name: "Copy reset link for editor@x.io" })).toBeInTheDocument();
 
     await chooseMemberAction(user, editorRow, "member-remove");
     await user.click(
@@ -132,12 +151,13 @@ function registerInviteCopyControlTests(): void {
       }),
     );
     await waitFor(() => expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("invite-open"));
     expect(screen.getByTestId("invite-link")).toBeInTheDocument();
   });
 
   it("shows the selected invite role consequences before creating the link", async () => {
     vi.stubGlobal("fetch", mockApi([{ userId: "me", role: "owner", isSelf: true }]));
-    renderSection();
+    await renderInviteSection();
     await screen.findByTestId("members-section");
 
     expect(screen.getByTestId("invite-role-summary")).toHaveTextContent(/Can edit scheduling data/);
@@ -177,7 +197,7 @@ function registerInviteMintTests(): void {
       },
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderSection();
+    await renderInviteSection();
     await screen.findByTestId("members-section");
 
     await user.click(screen.getByTestId("invite-submit"));
@@ -226,7 +246,7 @@ function registerInviteAccountTransitionTests(): void {
       throw new Error(`Unexpected request: ${target}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderSection();
+    await renderInviteSection();
     await screen.findByTestId("members-section");
 
     fireEvent.click(screen.getByTestId("invite-submit"));
@@ -275,7 +295,7 @@ function registerInviteClipboardTransitionTests(): void {
       throw new Error(`Unexpected request: ${target}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderSection();
+    await renderInviteSection();
     await screen.findByTestId("members-section");
 
     fireEvent.click(screen.getByTestId("invite-submit"));
@@ -313,7 +333,7 @@ function registerInviteDeadlineTests(): void {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    renderSection();
+    await renderInviteSection();
 
     expect(await screen.findByText(/expires LOCAL INVITE DATE/)).toBeInTheDocument();
     expect(localDate).toHaveBeenCalledOnce();
@@ -346,6 +366,7 @@ function registerInviteDeadlineTests(): void {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
+    fireEvent.click(screen.getByTestId("invite-open"));
     expect(screen.getByTestId("invite-revoke")).toBeInTheDocument();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(expiryDelay + 1);
@@ -376,7 +397,7 @@ function registerInviteReloadTests(): void {
       "POST /api/invites": () => jsonResponse({ id: "inv-new", token: "TOK123" }, 201),
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderSection();
+    await renderInviteSection();
     expect(await screen.findByText(/existing@example\.test/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId("invite-submit"));
@@ -414,7 +435,7 @@ function registerInviteMutationTransitionTests(): void {
       throw new Error(`Unexpected request: ${target}`);
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderSection();
+    await renderInviteSection();
     await screen.findByTestId("members-section");
 
     fireEvent.click(screen.getByTestId("invite-submit"));
@@ -456,11 +477,12 @@ function registerInviteReconciliationTests(): void {
       "GET /invites": () => jsonResponse({ invites }),
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderSection();
+    await renderInviteSection();
     await screen.findByTestId("members-section");
 
     await user.click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
+    closeInviteDialog();
     await user.click(await screen.findByTestId("invite-revoke"));
 
     await waitFor(() => expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument());
@@ -473,7 +495,7 @@ function registerInviteValidationTests(): void {
       "POST /api/invites": () => jsonResponse({ role: "editor" }, 201),
     });
     vi.stubGlobal("fetch", fetchMock);
-    renderSection();
+    await renderInviteSection();
     await screen.findByTestId("members-section");
 
     fireEvent.click(screen.getByTestId("invite-submit"));
@@ -486,6 +508,8 @@ function registerInviteValidationTests(): void {
     const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
     vi.stubGlobal("fetch", fetchMock);
     renderSection({ authMode: "sso" });
+    await screen.findByTestId("invite-open");
+    fireEvent.click(screen.getByTestId("invite-open"));
 
     await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
@@ -510,7 +534,7 @@ function registerInviteCreationFailureTests(): void {
           "POST /api/invites": () => jsonResponse(body, status),
         }),
       );
-      renderSection();
+      await renderInviteSection();
 
       await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
@@ -532,7 +556,7 @@ function registerInviteCreationFailureTests(): void {
         "POST /api/invites": () => Promise.reject(new Error("invite transport lost")),
       }),
     );
-    renderSection();
+    await renderInviteSection();
 
     await userEvent.setup().click(await screen.findByTestId("invite-submit"));
 
@@ -567,7 +591,8 @@ function registerInviteRevokeFailureTests(): void {
           "DELETE /invites/inv-existing": () => jsonResponse(body, status),
         }),
       );
-      renderSection();
+      await renderInviteSection();
+      closeInviteDialog();
 
       await userEvent.setup().click(await screen.findByTestId("invite-revoke"));
 
@@ -598,8 +623,9 @@ function registerInviteRevokeFailureTests(): void {
         "DELETE /invites/inv-existing": () => Promise.reject(new Error("revoke transport lost")),
       }),
     );
-    renderSection();
+    await renderInviteSection();
 
+    closeInviteDialog();
     await userEvent.setup().click(await screen.findByTestId("invite-revoke"));
 
     await expectNotice(/unknown outcome.*revoke transport lost.*reloaded/i);
@@ -633,15 +659,17 @@ function registerInviteLinkReconciliationTests(): void {
         },
       }),
     );
-    renderSection();
+    await renderInviteSection();
     await screen.findByText(/b@example\.test/);
 
     await userEvent.setup().click(screen.getByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
+    closeInviteDialog();
     const revokeButtons = await screen.findAllByTestId("invite-revoke");
     await userEvent.setup().click(requireValue(revokeButtons[1], "the second invitation revoke button"));
 
     await waitFor(() => expect(screen.queryByText(/b@example\.test/)).not.toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("invite-open"));
     expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
   });
 }
@@ -673,10 +701,11 @@ function registerInviteMissingLinkReconciliationTests(): void {
         "PATCH /members/ed": () => jsonResponse({}, 503),
       }),
     );
-    renderSection();
+    await renderInviteSection();
     await userEvent.setup().click(await screen.findByTestId("invite-submit"));
     expect(await screen.findByTestId("invite-link")).toBeInTheDocument();
 
+    closeInviteDialog();
     await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
 
     await waitFor(() => expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument());
@@ -699,7 +728,7 @@ function registerInviteClipboardFailureTests(): void {
         "POST /api/invites": () => jsonResponse({ token: "TOKEN" }, 201),
       }),
     );
-    renderSection();
+    await renderInviteSection();
     await user.click(await screen.findByTestId("invite-submit"));
 
     await user.click(await screen.findByRole("button", { name: "Copy invitation link" }));

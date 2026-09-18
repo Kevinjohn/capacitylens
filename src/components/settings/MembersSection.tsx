@@ -16,7 +16,7 @@ import type { TeamMember } from "../../account/teamAccessClient";
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members in a compact managed-row table (name / email / optional sign-in confirmation), change a member's role through the
 // row's pencil, reach the rarer lifecycle actions and Resource link through the centered member-actions dialog, and invite people from a
-// SEPARATE card below (#175). Ownership transfer is deliberately absent: it is not a per-row action
+// separate dialog below. Ownership transfer is deliberately absent: it is not a per-row action
 // and returns as its own owner-only section under a follow-up ticket. The CLIENT
 // gate is courtesy only — the SAME pure guards (canEditAnyMemberRole / canRemoveMember) hide controls
 // the user can't use, but the SERVER is the backstop (every route is gated server-side; a 403 on the
@@ -53,8 +53,9 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   return (
     <>
       <MembersDirectorySection members={orchestration} setActionStatusElement={setActionStatusElement} />
-      {/* Inviting someone is its own job, not a footnote to the member table (#175): it lives in a
-          separate card together with the invites that are still outstanding. */}
+      <SsoReadinessSection readiness={orchestration} />
+      {/* Inviting someone is its own job, not a footnote to the member table (#175): the form opens
+          in a centered dialog and outstanding invites stay in their own bordered section. */}
       {orchestration.mayManageInvites && (
         <InviteMemberPanel
           authMode={orchestration.authMode}
@@ -108,6 +109,9 @@ type MemberTableCapabilities = Pick<
   | "reload"
   | "activeAccountId"
   | "resourceCandidates"
+  | "error"
+  | "errorField"
+  | "errorId"
 >;
 type ReadinessCapabilities = Pick<
   MembersOrchestration,
@@ -128,7 +132,6 @@ type DirectoryCapabilities = MemberTableCapabilities &
   Pick<MembersOrchestration, "activeMembers" | "inactiveMembers" | "inactiveOpen" | "setInactiveOpen">;
 type ResetLinkCapabilities = Pick<MembersOrchestration, "resetLink" | "copyLink">;
 type MembersDirectoryCapabilities = DirectoryCapabilities &
-  ReadinessCapabilities &
   ResetLinkCapabilities &
   Pick<MembersOrchestration, "directory" | "mayManageSignInTracking" | "changeSignInTracking">;
 
@@ -245,6 +248,15 @@ function ReadinessPanels({ readiness }: { readiness: ReadinessCapabilities }) {
   );
 }
 
+function SsoReadinessSection({ readiness }: { readiness: ReadinessCapabilities }) {
+  if (!readiness.readinessApplies) return null;
+  return (
+    <section data-testid="sso-readiness-section" className="flex flex-col gap-3">
+      <ReadinessPanels readiness={readiness} />
+    </section>
+  );
+}
+
 function MemberDirectory({
   directory,
   members,
@@ -343,7 +355,6 @@ function MembersDirectorySection({
           {members.busyAction ? m.settings_members_updating() : ""}
         </p>
         <FieldError id={members.errorId}>{members.errorField === null ? members.error : null}</FieldError>
-        <ReadinessPanels readiness={members} />
         {members.mayManageSignInTracking && (
           <Field orientation="horizontal" data-disabled={members.busyAction !== null || undefined}>
             <FieldContent>

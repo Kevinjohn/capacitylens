@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
@@ -33,8 +33,43 @@ function renderInvite(overrides: Partial<React.ComponentProps<typeof InviteMembe
 }
 
 describe("InviteMemberPanel creation guidance", () => {
+  it("keeps the invite form closed until the primary invite button is activated", async () => {
+    const user = userEvent.setup();
+    renderInvite();
+
+    expect(screen.getByTestId("invite-open")).toBeInTheDocument();
+    expect(screen.queryByTestId("invite-preauth")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("invite-open"));
+
+    expect(screen.getByRole("dialog")).toHaveAccessibleName("Invite someone");
+    expect(screen.getByTestId("invite-preauth")).toBeInTheDocument();
+  });
+
+  it("renders outstanding invites in their own bordered section outside the invite dialog", () => {
+    renderInvite({
+      invites: [
+        {
+          id: "invite-1",
+          role: "editor",
+          preauthEmail: null,
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          usedAt: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    const section = screen.getByTestId("outstanding-invites");
+    expect(section).toHaveTextContent("Outstanding invites");
+    expect(section).toHaveClass("border");
+    expect(section).not.toHaveAttribute("data-slot", "card");
+    expect(screen.queryByTestId("invite-preauth")).not.toBeInTheDocument();
+  });
+
   it("explains that CapacityLens does not send invitation emails and describes generic versus restricted links", () => {
     renderInvite();
+    fireEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByTestId("invites-section")).toHaveTextContent(
       "CapacityLens does not send invitation emails. After creating an invite, copy the link and send it yourself.",
@@ -49,6 +84,7 @@ describe("InviteMemberPanel creation guidance", () => {
 
   it("marks the pre-authorised email as required for SSO invitations", () => {
     renderInvite({ authMode: "sso" });
+    fireEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-required", "true");
     expect(screen.getByText("The invitee must use this email with their verified company login.")).toBeInTheDocument();
@@ -62,12 +98,14 @@ describe("InviteMemberPanel creation guidance", () => {
     ["sso", "The invitee must use this email with their verified company login."],
   ] as const)("describes a valid %s pre-authorised email field persistently", (authMode, description) => {
     renderInvite({ authMode });
+    fireEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByTestId("invite-preauth")).toHaveAccessibleDescription(description);
   });
 
   it("keeps the persistent helper alongside the conditional error description", () => {
     renderInvite({ error: "Enter a valid email address.", errorField: "invite" });
+    fireEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByTestId("invite-preauth")).toHaveAttribute(
       "aria-describedby",
@@ -79,6 +117,7 @@ describe("InviteMemberPanel creation guidance", () => {
     renderInvite({
       mintedLink: { inviteId: "invite-1", link: "https://app.example/invite/secret" },
     });
+    fireEvent.click(screen.getByTestId("invite-open"));
 
     const status = screen.getByTestId("invite-created-status");
     expect(status).toHaveAttribute("role", "status");
@@ -89,6 +128,7 @@ describe("InviteMemberPanel creation guidance", () => {
 
   it("defaults the private schedule-person proposal to not on the schedule", async () => {
     renderInvite({ invitationPeople: [{ id: "r1", label: "Bruce Wayne" }] });
+    await userEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByTestId("invite-person")).toHaveValue("");
     await userEvent.click(screen.getByTestId("invite-person"));
@@ -111,6 +151,7 @@ describe("InviteMemberPanel creation guidance", () => {
         },
       ],
     });
+    fireEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByTestId("invite-row")).toHaveTextContent("Intended person: Bruce Wayne.");
     expect(screen.getByTestId("invite-row")).toHaveTextContent(
