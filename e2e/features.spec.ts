@@ -7,6 +7,7 @@ import {
   setZoom,
   showPlaceholders,
   showScheduleFilters,
+  waitForWeekSnap,
 } from "./helpers";
 
 function registerSuiteScenario1() {
@@ -200,15 +201,24 @@ function registerSuiteScenario8() {
     await page.getByRole("link", { name: "Schedule" }).click();
     await setZoom(page, 4);
     await resetSchedulerScroll(page);
+    await waitForWeekSnap(page);
 
     // The seeded placeholder is bound to p-acme — select it by id, not position.
     const lane = page.locator('[data-resource-id="r-ph-designer"]');
     const b = await box(lane);
     const y = b.y + b.height / 2;
-    // A short left-to-right draw near the lane origin (distance isn't load-bearing — it just opens the create modal).
-    await page.mouse.move(b.x + 8, y);
+    // Start on an empty working day inside the reset window instead of the lane origin, which sits
+    // underneath the sticky resource column.
+    const monday = await box(page.getByTestId("scheduler-day-tier").locator('[data-date="2026-05-11"]'));
+    const timeline = await box(page.getByTestId("scheduler-resource-header"));
+    const grid = await box(page.getByTestId("scheduler-grid"));
+    const x0 = monday.x + monday.width / 2;
+    const x1 = x0 + monday.width;
+    expect(x0).toBeGreaterThan(timeline.x + timeline.width);
+    expect(x1).toBeLessThan(grid.x + grid.width);
+    await page.mouse.move(x0, y);
     await page.mouse.down();
-    await page.mouse.move(b.x + 48, y, { steps: 6 });
+    await page.mouse.move(x1, y, { steps: 6 });
     await page.mouse.up();
 
     await expect(page.getByRole("dialog", { name: "New allocation" })).toBeVisible();
