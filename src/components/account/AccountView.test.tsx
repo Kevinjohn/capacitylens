@@ -31,7 +31,8 @@ describe("AccountView", () => {
     expect(screen.getByText("Diana Prince")).toBeInTheDocument();
     expect(screen.getByText("diana@example.test")).toBeInTheDocument();
     expect(screen.getByText("Personal security")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign out" })).toHaveAttribute("data-variant", "danger-soft");
+    expect(screen.getByRole("button", { name: "Sign out" })).toHaveClass("self-end");
   });
 
   it("accurately describes auth-off mode without credential controls", () => {

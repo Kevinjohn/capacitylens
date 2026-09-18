@@ -62,5 +62,6 @@ self-registration closes automatically and only the Sign in form below is reacha
   **Owner setup token**, shows the password length requirement, and explains that teammates can be
   invited later. It distinguishes the personal sign-in and installation setup from the company
   created afterward; a company-login installation uses its provider route instead.
-- Sign out invalidates the session (subsequent loads show Sign in again).
+- Account presents Sign out as a red action aligned to the right of the identity card; using it
+  invalidates the session (subsequent loads show Sign in again).
 - The Sign in screen passes an axe accessibility audit (no serious/critical violations).
