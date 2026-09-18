@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Align the Team & access member table with the Resources list by grouping its outlined actions,
+  reducing email text size, and removing the table's outer card (#1150).
 - Present the Account page's **Sign out** action in red and align it to the right (#1151).
 - Apply Google sign-in presentation and mixed-mode ordering to strict OIDC providers explicitly
   configured with the Google brand, without changing their authentication mechanism (#1152).

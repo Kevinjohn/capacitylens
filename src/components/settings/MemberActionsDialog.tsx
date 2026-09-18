@@ -22,30 +22,28 @@ export function MemberActionsDialog({
   onOpenChange(open: boolean): void;
   children: ReactNode;
 }) {
-  if (!hasExistingActions) return <td className="w-10 py-2 px-4 text-right" />;
+  if (!hasExistingActions) return null;
   return (
-    <td className="w-10 py-2 px-4 text-right">
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogTrigger asChild>
-          <Button
-            size="icon-sm"
-            variant="ghost"
-            title={m.settings_member_settings_aria({ member: memberLabel })}
-            aria-label={m.settings_member_settings_aria({ member: memberLabel })}
-            data-testid="member-menu"
-            disabled={busy}
-          >
-            <Settings />
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="max-w-md" aria-describedby={`member-actions-description-${member.userId}`}>
-          <DialogHeader>
-            <DialogTitle>{m.settings_member_settings_heading()}</DialogTitle>
-            <DialogDescription id={`member-actions-description-${member.userId}`}>{memberLabel}</DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-1">{children}</div>
-        </DialogContent>
-      </Dialog>
-    </td>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogTrigger asChild>
+        <Button
+          size="icon-sm"
+          variant="outline"
+          title={m.settings_member_settings_aria({ member: memberLabel })}
+          aria-label={m.settings_member_settings_aria({ member: memberLabel })}
+          data-testid="member-menu"
+          disabled={busy}
+        >
+          <Settings />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-md" aria-describedby={`member-actions-description-${member.userId}`}>
+        <DialogHeader>
+          <DialogTitle>{m.settings_member_settings_heading()}</DialogTitle>
+          <DialogDescription id={`member-actions-description-${member.userId}`}>{memberLabel}</DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-1">{children}</div>
+      </DialogContent>
+    </Dialog>
   );
 }

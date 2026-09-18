@@ -137,12 +137,14 @@ function MemberPrimaryActions({
   chooseMemberAction,
   setRoleEdit,
   resourceLink,
+  settingsMenu,
 }: MemberRowActions & {
   member: TeamMember;
   memberLabel: string;
   mayMasquerade: boolean;
   mayTouch: boolean;
   resourceLink: ReactNode;
+  settingsMenu: ReactNode;
 }) {
   return (
     <td className="w-auto py-2 px-4 text-right whitespace-nowrap">
@@ -150,7 +152,7 @@ function MemberPrimaryActions({
         {mayMasquerade && (
           <Button
             size="icon-sm"
-            variant="ghost"
+            variant="outline"
             title={m.settings_masquerade_aria({ member: memberLabel })}
             aria-label={m.settings_masquerade_aria({ member: memberLabel })}
             data-testid="member-masquerade"
@@ -163,7 +165,7 @@ function MemberPrimaryActions({
         {mayTouch && (
           <Button
             size="icon-sm"
-            variant="ghost"
+            variant="outline"
             title={m.settings_member_edit_aria({ member: memberLabel })}
             aria-label={m.settings_member_edit_aria({ member: memberLabel })}
             data-testid="member-edit"
@@ -174,6 +176,7 @@ function MemberPrimaryActions({
           </Button>
         )}
         {resourceLink}
+        {settingsMenu}
       </div>
     </td>
   );
@@ -301,7 +304,7 @@ export function MemberRow({
       data-testid="member-row"
     >
       <MemberIdentity member={member} />
-      <td className="py-2 px-4 text-muted-foreground" data-testid="member-email">
+      <td className="py-2 px-4 text-xs text-muted-foreground" data-testid="member-email">
         {member.email ?? m.settings_member_email_missing()}
       </td>
       <MemberResourceLink
@@ -336,33 +339,35 @@ export function MemberRow({
             busy={busy}
           />
         }
+        settingsMenu={
+          <MemberActionsDialog
+            member={member}
+            memberLabel={memberLabel}
+            hasExistingActions={affordances.hasMenu}
+            busy={busy}
+            open={openMenuFor === member.userId}
+            onOpenChange={(open) => setOpenMenuFor(open ? member.userId : null)}
+          >
+            {affordances.mayTouch && (
+              <MemberMenuItem
+                testId="member-edit"
+                label={m.settings_member_edit_aria({ member: memberLabel })}
+                ariaLabel={m.settings_member_edit_aria({ member: memberLabel })}
+                onSelect={() => {
+                  setOpenMenuFor(null);
+                  setRoleEdit({ member, nextRole: member.role });
+                }}
+              />
+            )}
+            <MemberSettingsMenuItems
+              member={member}
+              memberLabel={memberLabel}
+              affordances={affordances}
+              chooseMemberAction={chooseMemberAction}
+            />
+          </MemberActionsDialog>
+        }
       />
-      <MemberActionsDialog
-        member={member}
-        memberLabel={memberLabel}
-        hasExistingActions={affordances.hasMenu}
-        busy={busy}
-        open={openMenuFor === member.userId}
-        onOpenChange={(open) => setOpenMenuFor(open ? member.userId : null)}
-      >
-        {affordances.mayTouch && (
-          <MemberMenuItem
-            testId="member-edit"
-            label={m.settings_member_edit_aria({ member: memberLabel })}
-            ariaLabel={m.settings_member_edit_aria({ member: memberLabel })}
-            onSelect={() => {
-              setOpenMenuFor(null);
-              setRoleEdit({ member, nextRole: member.role });
-            }}
-          />
-        )}
-        <MemberSettingsMenuItems
-          member={member}
-          memberLabel={memberLabel}
-          affordances={affordances}
-          chooseMemberAction={chooseMemberAction}
-        />
-      </MemberActionsDialog>
     </tr>
   );
 }

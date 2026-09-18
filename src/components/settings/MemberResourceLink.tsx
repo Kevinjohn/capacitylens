@@ -295,7 +295,7 @@ export function MemberResourceDialog({
         <Button
           type="button"
           size="icon-sm"
-          variant="ghost"
+          variant="outline"
           title={m.settings_member_resource_link_aria({ member: memberLabel })}
           aria-label={m.settings_member_resource_link_aria({ member: memberLabel })}
           data-testid="member-resource-menu"
