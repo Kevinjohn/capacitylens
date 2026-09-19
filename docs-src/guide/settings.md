@@ -192,6 +192,8 @@ Choose which utilisation figures appear on this browser's schedule: total, per-d
 ### Appearance on this device
 
 Choose **Light**, **Dark** or **Match system** for this browser's colour scheme.
+For a quick explicit switch between light and dark, use the moon or sun button directly below
+**Settings** in the sidebar. The button remains available when the sidebar is collapsed.
 
 ## Data and support
 

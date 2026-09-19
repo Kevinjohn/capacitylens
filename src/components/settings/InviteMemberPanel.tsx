@@ -1,4 +1,4 @@
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -8,9 +8,8 @@ import type { TeamInvitation } from "../../account/teamAccessClient";
 import type { InvitationPersonOption } from "./useMemberInvites";
 import { formatInviteExpiryDate } from "@/components/invites/inviteExpiry";
 import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
-import { SelectField, TextField } from "../common/ui";
+import { Modal, SelectField, TextField } from "../common/ui";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
 import { FieldError, FieldSet } from "../ui/field";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 
@@ -87,37 +86,45 @@ export function InviteMemberPanel(props: {
   invitationResourceId: string;
   setInvitationResourceId(value: string): void;
 }) {
+  const [open, setOpen] = useState(false);
   return (
     <section data-testid="invites-section" aria-busy={props.busy} className="flex flex-col gap-4">
-      <Dialog>
-        <InviteHeader />
-        <DialogContent className="max-w-2xl" aria-describedby="invite-dialog-description">
-          <DialogHeader>
-            <DialogTitle>{m.settings_invite_heading()}</DialogTitle>
-            <DialogDescription id="invite-dialog-description">
-              {m.settings_invite_intro({ app: APP_NAME })}
-            </DialogDescription>
-          </DialogHeader>
+      <InviteHeader onOpen={() => setOpen(true)} />
+      {open && (
+        <Modal
+          title={m.settings_invite_heading()}
+          description={m.settings_invite_intro({ app: APP_NAME })}
+          onClose={() => setOpen(false)}
+          onSubmit={() => void props.submitInvite()}
+          footer={
+            <>
+              <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+                {m.form_cancel()}
+              </Button>
+              <Button type="submit" size="sm" data-testid="invite-submit" disabled={props.busy}>
+                {m.settings_invite_submit()}
+              </Button>
+            </>
+          }
+        >
           <InviteForm {...props} />
-        </DialogContent>
-      </Dialog>
+        </Modal>
+      )}
       <OutstandingInvites {...props} />
     </section>
   );
 }
 
-function InviteHeader() {
+function InviteHeader({ onOpen }: { onOpen: () => void }) {
   return (
     <header className="flex flex-wrap items-start justify-between gap-3">
       <div className="flex flex-col gap-1">
         <h2 className="font-semibold">{m.settings_invite_heading()}</h2>
         <p className="max-w-2xl text-sm text-muted-foreground">{m.settings_invite_intro({ app: APP_NAME })}</p>
       </div>
-      <DialogTrigger asChild>
-        <Button type="button" data-testid="invite-open">
-          {m.settings_invite_open()}
-        </Button>
-      </DialogTrigger>
+      <Button type="button" data-testid="invite-open" onClick={onOpen}>
+        {m.settings_invite_open()}
+      </Button>
     </header>
   );
 }
@@ -136,7 +143,6 @@ type InviteFormProps = Pick<
   | "clear"
   | "mintedLink"
   | "copyLink"
-  | "submitInvite"
   | "roleOptions"
   | "invitationPeople"
   | "invitationResourceId"
@@ -157,61 +163,61 @@ function InviteForm(props: InviteFormProps) {
     clear,
     mintedLink,
     copyLink,
-    submitInvite,
     roleOptions,
     invitationPeople,
     invitationResourceId,
     setInvitationResourceId,
   } = props;
   return (
-    <FieldSet className="gap-2">
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="min-w-40">
-          <SelectField
-            label={m.settings_invite_role_label()}
-            ariaLabel={m.settings_invite_role_aria()}
-            value={inviteRole}
-            onChange={(value) => setInviteRole(value as InvitationRole)}
-            disabled={busy}
-            options={roleOptions}
-            testId="invite-role"
-          />
-        </div>
-        <InviteEmailField
-          {...{
-            authMode,
-            busy,
-            invitationPreauthorizedEmail,
-            setInvitationPreauthorizedEmail,
-            errorField,
-            errorId,
-            clear,
-          }}
-        />
-        <div className="min-w-48 flex-1">
-          <SelectField
-            label={m.settings_invite_person_label()}
-            ariaLabel={m.settings_invite_person_aria()}
-            value={invitationResourceId}
-            onChange={setInvitationResourceId}
-            disabled={busy}
-            options={[
-              { value: "", label: m.settings_invite_person_none() },
-              ...invitationPeople.map((person) => ({ value: person.id, label: person.label })),
-            ]}
-            testId="invite-person"
-          />
-        </div>
-        <Button size="sm" data-testid="invite-submit" disabled={busy} onClick={() => void submitInvite()}>
-          {m.settings_invite_submit()}
-        </Button>
+    <FieldSet className="gap-3">
+      <SelectField
+        label={m.settings_invite_role_label()}
+        ariaLabel={m.settings_invite_role_aria()}
+        value={inviteRole}
+        onChange={(value) => setInviteRole(value as InvitationRole)}
+        disabled={busy}
+        options={roleOptions}
+        layout="label-control"
+        testId="invite-role"
+      />
+      <div className="sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:gap-3">
+        <p
+          className="text-xs text-muted-foreground sm:col-start-2"
+          data-testid="invite-role-summary"
+          aria-live="polite"
+        >
+          {resolveRoleSummary(inviteRole)}
+        </p>
       </div>
-      <p id={`${errorId}-email-help`} className="text-xs text-muted-foreground">
-        {authMode === "sso" ? m.settings_invite_preauth_description_sso() : m.settings_invite_preauth_description()}
-      </p>
-      <p className="text-xs text-muted-foreground" data-testid="invite-role-summary" aria-live="polite">
-        {resolveRoleSummary(inviteRole)}
-      </p>
+      <InviteEmailField
+        {...{
+          authMode,
+          busy,
+          invitationPreauthorizedEmail,
+          setInvitationPreauthorizedEmail,
+          errorField,
+          errorId,
+          clear,
+        }}
+      />
+      <div className="sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:gap-3">
+        <p id={`${errorId}-email-help`} className="text-xs text-muted-foreground sm:col-start-2">
+          {authMode === "sso" ? m.settings_invite_preauth_description_sso() : m.settings_invite_preauth_description()}
+        </p>
+      </div>
+      <SelectField
+        label={m.settings_invite_person_label()}
+        ariaLabel={m.settings_invite_person_aria()}
+        value={invitationResourceId}
+        onChange={setInvitationResourceId}
+        disabled={busy}
+        options={[
+          { value: "", label: m.settings_invite_person_none() },
+          ...invitationPeople.map((person) => ({ value: person.id, label: person.label })),
+        ]}
+        layout="label-control"
+        testId="invite-person"
+      />
       <FieldError id={errorId}>{errorField === "invite" ? error : null}</FieldError>
       <MintedInviteLink mintedLink={mintedLink} copyLink={copyLink} />
     </FieldSet>
@@ -255,26 +261,25 @@ function InviteEmailField(props: InviteEmailFieldProps) {
   const { authMode, busy, invitationPreauthorizedEmail, setInvitationPreauthorizedEmail, errorField, errorId, clear } =
     props;
   return (
-    <div className="min-w-48 flex-1">
-      <TextField
-        label={authMode === "sso" ? m.settings_invite_preauth_label_required() : m.settings_invite_preauth_label()}
-        ariaLabel={m.settings_invite_preauth_aria()}
-        type="email"
-        value={invitationPreauthorizedEmail}
-        maxLength={MAX_EMAIL_LENGTH}
-        onChange={(next) => {
-          setInvitationPreauthorizedEmail(next);
-          if (errorField === "invite") clear();
-        }}
-        disabled={busy}
-        invalid={errorField === "invite"}
-        required={authMode === "sso"}
-        externalDescriptionId={`${errorId}-email-help`}
-        describedById={errorId}
-        placeholder={m.settings_invite_preauth_placeholder()}
-        testId="invite-preauth"
-      />
-    </div>
+    <TextField
+      label={authMode === "sso" ? m.settings_invite_preauth_label_required() : m.settings_invite_preauth_label()}
+      ariaLabel={m.settings_invite_preauth_aria()}
+      type="email"
+      value={invitationPreauthorizedEmail}
+      maxLength={MAX_EMAIL_LENGTH}
+      onChange={(next) => {
+        setInvitationPreauthorizedEmail(next);
+        if (errorField === "invite") clear();
+      }}
+      disabled={busy}
+      invalid={errorField === "invite"}
+      layout="label-control"
+      required={authMode === "sso"}
+      externalDescriptionId={`${errorId}-email-help`}
+      describedById={errorId}
+      placeholder={m.settings_invite_preauth_placeholder()}
+      testId="invite-preauth"
+    />
   );
 }
 

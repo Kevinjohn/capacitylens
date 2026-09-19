@@ -8,7 +8,7 @@ runtime.
 - Source assets: <https://developers.google.com/static/identity/images/signin-assets.zip>
 - Branding guidance: <https://developers.google.com/identity/branding-guidelines>
 - Retrieved: 2026-09-17
-- Included variants: Android + Web, PNG @1x, Light and Dark themes, Show text=Yes, Shape=Square.
+- Included variants: Android + Web, PNG @2x, Light and Dark themes, Show text=Yes, Shape=Square.
 
 Use of the buttons remains subject to Google's Identity branding guidance, including its
 placement, sizing and accessible action-label requirements.

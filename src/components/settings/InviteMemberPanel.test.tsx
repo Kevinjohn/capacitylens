@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
@@ -42,7 +42,19 @@ describe("InviteMemberPanel creation guidance", () => {
 
     await user.click(screen.getByTestId("invite-open"));
 
-    expect(screen.getByRole("dialog")).toHaveAccessibleName("Invite someone");
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveAccessibleName("Invite someone");
+    expect(dialog).toHaveAccessibleDescription(/CapacityLens does not send invitation emails/);
+    expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass("border-b");
+    expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
+    expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
+    expect(dialog.querySelectorAll('[data-product-layout="label-control"]')).toHaveLength(3);
+    const roleField = within(dialog).getByTestId("invite-role").closest('[data-product-layout="label-control"]');
+    const emailField = within(dialog).getByTestId("invite-preauth").closest('[data-product-layout="label-control"]');
+    const personField = within(dialog).getByTestId("invite-person").closest('[data-product-layout="label-control"]');
+    expect(roleField?.parentElement).toBe(emailField?.parentElement);
+    expect(roleField?.parentElement).toBe(personField?.parentElement);
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
     expect(screen.getByTestId("invite-preauth")).toBeInTheDocument();
   });
 
