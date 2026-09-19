@@ -216,6 +216,10 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   appropriately redacted examples, and exclude live credentials and private customer information.
   This permission does not authorise unrelated uploads or change an explicit instruction to leave
   pull requests unmerged.
+- Every pull request that changes user-visible UI must include reviewed screenshot evidence in both
+  the pull-request body and the current task thread before asking for approval. Show enough affected
+  states to make the change assessable; one screenshot is sufficient only when it demonstrates the
+  complete visible change. Verify every published image renders successfully in both locations.
 - Documentation screenshots have no capture harness. Capture manually against the demo
   (`VITE_CAPACITYLENS_DEMO=1 pnpm exec vite --port 5199 --strictPort`) — never a lane port such as
   5173, which a concurrent E2E run may be using.
