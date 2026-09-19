@@ -1,5 +1,5 @@
-import { cp, mkdir, readdir, rm, stat } from "node:fs/promises";
-import { resolve, join, relative } from "node:path";
+import { cp, lstat, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { resolve, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -21,6 +21,7 @@ const forbiddenRuntimePackages = [
   "vitepress",
   "vitest",
 ];
+const generatedMarker = "CapacityLens generated production artifact\n";
 
 async function requireNonemptyFile(path, label) {
   const details = await stat(path).catch(() => undefined);
@@ -43,16 +44,27 @@ export async function inspectManagedRelease(root) {
   return { packageCount: packages.length };
 }
 
+export async function resetGeneratedOutput(output) {
+  const existing = await lstat(output).catch(() => undefined);
+  if (existing) {
+    if (!existing.isDirectory() || existing.isSymbolicLink()) {
+      throw new Error("Refusing to replace production/: it is not a generated directory.");
+    }
+    const marker = await readFile(join(output, ".capacitylens-generated-release"), "utf8").catch(() => undefined);
+    if (marker !== generatedMarker) {
+      throw new Error("Refusing to replace production/: it is not a CapacityLens-generated artifact.");
+    }
+    await rm(output, { recursive: true });
+  }
+  await mkdir(output, { recursive: true });
+  await writeFile(join(output, ".capacitylens-generated-release"), generatedMarker);
+}
+
 export async function packageManagedRelease(outputPath = "production") {
   const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
+  if (outputPath !== "production") throw new Error("Production output path must be exactly production/.");
   const output = resolve(repositoryRoot, outputPath);
-  const relativeOutput = relative(repositoryRoot, output);
-  if (relativeOutput.startsWith("..") || relativeOutput === "" || relativeOutput === ".") {
-    throw new Error("Production output must be a child of the repository root.");
-  }
-
-  await rm(output, { recursive: true, force: true });
-  await mkdir(output, { recursive: true });
+  await resetGeneratedOutput(output);
   await cp(join(repositoryRoot, "dist"), join(output, "dist"), { recursive: true });
 
   const deployed = spawnSync("pnpm", ["--filter", "capacitylens-server", "deploy", "--prod", join(output, "server")], {

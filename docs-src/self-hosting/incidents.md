@@ -54,6 +54,14 @@ checkout on the host, mounting the same named data and backup volumes, with the 
    confirmed the fix.
    :::
 
+::: warning Running these commands on a managed VPS
+The activated managed-VPS release also omits pnpm, `tsx` and development dependencies. Use the
+[separate maintenance checkout procedure](/self-hosting/managed-vps/deploy-and-upgrade-safely#keep-operator-tooling-in-a-separate-maintenance-checkout)
+at the exact active tag or commit. Keep that checkout outside release directories, stop the API
+before a repair, and target the persistent database and evidence paths explicitly. Do not reinstall
+development dependencies into `current/` or start another API from the maintenance checkout.
+:::
+
 ## Suspected account or session compromise
 
 **Symptom**: unexpected sign-ins, a leaked credential, or any reason to believe an

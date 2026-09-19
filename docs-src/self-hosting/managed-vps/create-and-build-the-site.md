@@ -52,8 +52,9 @@ Root directory: /
 Web or public directory: /production/dist
 ```
 
-The repository root contains the workspace and the frontend build. `pnpm run build` writes the
-static web app into `production/dist/`. The API runtime is packaged separately at
+The repository root contains the workspace and the frontend build. `pnpm run build` first writes
+the static web app to the temporary build directory `dist/`. `pnpm run package:managed-release`
+then copies it into `production/dist/` and packages the API at
 `production/server/dist/index.mjs` with production dependencies only.
 
 Leave shared-path controls empty. The database, audit log and backups will use absolute paths
