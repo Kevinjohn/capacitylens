@@ -80,7 +80,7 @@ async function createViewerInvite(page: Page): Promise<string> {
   await dialog.getByTestId("invite-submit").click();
   await expect(dialog.getByTestId("invite-link")).toContainText("/invite/");
   const link = (await dialog.getByTestId("invite-link").textContent()) ?? "";
-  await dialog.getByRole("button", { name: "Close" }).click();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
   return link;
 }
 
@@ -88,14 +88,14 @@ async function revokeViewerInvite(page: Page, mintedLink: string): Promise<void>
   await page.getByTestId("invite-open").click();
   const dialog = page.getByRole("dialog", { name: "Invite someone" });
   await expect(dialog.getByTestId("invite-link")).toHaveText(mintedLink);
-  await dialog.getByRole("button", { name: "Close" }).click();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
   const inviteRows = page.getByTestId("invite-row");
   await expect(inviteRows).toHaveCount(3);
   await inviteRows.first().getByTestId("invite-revoke").click();
   await expect(inviteRows).toHaveCount(2);
   await page.getByTestId("invite-open").click();
   await expect(dialog.getByTestId("invite-link")).toHaveCount(0);
-  await dialog.getByRole("button", { name: "Close" }).click();
+  await dialog.getByRole("button", { name: "Cancel" }).click();
 }
 
 async function manageAdminMembers(

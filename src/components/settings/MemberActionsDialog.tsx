@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
-import type { TeamMember } from "../../account/teamAccessClient";
 import { m } from "@/i18n";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Modal } from "../common/ui";
 import { Button } from "../ui/button";
 import { Settings } from "lucide-react";
 
 export function MemberActionsDialog({
-  member,
   memberLabel,
   hasExistingActions,
   busy,
@@ -14,7 +12,6 @@ export function MemberActionsDialog({
   onOpenChange,
   children,
 }: {
-  member: TeamMember;
   memberLabel: string;
   hasExistingActions: boolean;
   busy: boolean;
@@ -24,8 +21,8 @@ export function MemberActionsDialog({
 }) {
   if (!hasExistingActions) return null;
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogTrigger asChild>
+    <>
+      {!open && (
         <Button
           size="icon-sm"
           variant="outline"
@@ -33,24 +30,33 @@ export function MemberActionsDialog({
           aria-label={m.settings_member_settings_aria({ member: memberLabel })}
           data-testid="member-menu"
           disabled={busy}
+          onClick={() => onOpenChange(true)}
         >
           <Settings />
         </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md" aria-describedby={`member-actions-description-${member.userId}`}>
-        <DialogHeader>
-          <DialogTitle>{m.settings_member_settings_heading()}</DialogTitle>
-          <DialogDescription id={`member-actions-description-${member.userId}`}>{memberLabel}</DialogDescription>
-        </DialogHeader>
-        <div
-          data-testid="member-actions-list"
-          role="group"
-          aria-label={m.settings_member_settings_heading()}
-          className="flex flex-col gap-2"
+      )}
+      {open && (
+        <Modal
+          title={m.settings_member_settings_heading()}
+          description={memberLabel}
+          onClose={() => onOpenChange(false)}
+          guardDirty={false}
+          footer={
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+              {m.settings_help_close()}
+            </Button>
+          }
         >
-          {children}
-        </div>
-      </DialogContent>
-    </Dialog>
+          <div
+            data-testid="member-actions-list"
+            role="group"
+            aria-label={m.settings_member_settings_heading()}
+            className="flex flex-col gap-2"
+          >
+            {children}
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }

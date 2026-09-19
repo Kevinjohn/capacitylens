@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
 import { m } from "@/i18n";
 import { Pencil, Plus, Trash2, type LucideIcon } from "lucide-react";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
 import {
   AlertDialog,
@@ -100,6 +100,7 @@ export function DeleteButton({
 
 export function Modal({
   title,
+  description,
   onClose,
   onSubmit,
   children,
@@ -110,19 +111,15 @@ export function Modal({
   onEdit,
 }: {
   title: ReactNode;
+  description?: ReactNode;
   onClose: () => void;
-  /** When provided, wraps the body + footer in a <form> so pressing Enter in any
-   *  text input submits. Always rendered (even when undefined) so that implicit
-   *  form submission / page navigation is always suppressed. */
+  /** Wraps body and footer in a form; it always suppresses implicit page navigation. */
   onSubmit?: () => void;
   children: ReactNode;
   footer?: ReactNode;
-  /** When false, the unsaved-changes guard is disabled so Escape/backdrop always close.
-   *  Use for confirmation-only dialogs (e.g. delete-company), whose inputs are a gate,
-   *  not savable form data — guarding them only makes aborting harder. */
+  /** Disable for confirmation-only dialogs whose inputs are a gate, not savable form data. */
   guardDirty?: boolean;
-  /** Optional controlled dirty state. When omitted, Modal owns the flag and form controls signal it
-   * through FormDirtyProvider/native form events. */
+  /** Optional controlled dirty state; otherwise Modal owns it through form events. */
   dirty?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
   /** Called for every form edit, including edits after the form is already dirty. */
@@ -139,6 +136,7 @@ export function Modal({
   return (
     <ModalSurface
       title={title}
+      description={description}
       requestClose={requestClose}
       onSubmit={onSubmit}
       markDirty={markDirty}
@@ -204,6 +202,7 @@ function useModalController({
 
 function ModalSurface({
   title,
+  description,
   requestClose,
   onSubmit,
   children,
@@ -211,12 +210,14 @@ function ModalSurface({
   markDirty,
 }: {
   title: ReactNode;
+  description: ReactNode | undefined;
   requestClose: () => void;
   onSubmit: (() => void) | undefined;
   children: ReactNode;
   footer: ReactNode | undefined;
   markDirty: () => void;
 }) {
+  const descriptionId = useId();
   return (
     <Dialog
       open
@@ -227,7 +228,7 @@ function ModalSurface({
       <DialogContent
         showCloseButton={false}
         aria-modal="true"
-        aria-describedby={undefined}
+        aria-describedby={description ? descriptionId : undefined}
         className="max-h-[90dvh] max-w-md grid-cols-[minmax(0,1fr)] gap-0 overflow-y-auto p-0"
         onEscapeKeyDown={(event) => {
           event.preventDefault();
@@ -244,6 +245,7 @@ function ModalSurface({
       >
         <DialogHeader className="border-b px-4 py-3 text-left">
           <DialogTitle className="text-base">{title}</DialogTitle>
+          {description && <DialogDescription id={descriptionId}>{description}</DialogDescription>}
         </DialogHeader>
         <ModalForm onSubmit={onSubmit} markDirty={markDirty} footer={footer}>
           {children}

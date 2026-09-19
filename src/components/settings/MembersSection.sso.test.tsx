@@ -140,7 +140,7 @@ function registerSsoDraftTests(directory: RawMember[]): void {
     await user.type(inviteEmail, "draft@example.com");
     fireEvent.keyDown(screen.getByTestId("invite-role"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
-    await user.click(screen.getByRole("button", { name: "Close" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     const targetRow = await findMemberRow(/target@x\.io/);
     await user.click(within(targetRow).getByTestId("member-edit"));
@@ -161,7 +161,7 @@ function registerSsoDraftTests(directory: RawMember[]): void {
     expect(await screen.findByTestId("invite-preauth")).toHaveValue("");
     expect(screen.getByTestId("invite-role")).toHaveTextContent("Viewer");
     fireEvent.click(
-      within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Close" }),
+      within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Cancel" }),
     );
     expect(within(screen.getByTestId("member-role-select")).getByRole("combobox")).toHaveTextContent("Editor");
   });

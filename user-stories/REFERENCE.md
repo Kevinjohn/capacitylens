@@ -257,6 +257,11 @@ the account block until re-opened; the administration group stays as icons on th
 desktop and collapsed on small screens** (`(max-width: 767px), (max-height: 480px)` — phone
 portrait or phone landscape).
 
+An icon button directly below **Settings** switches between explicit light and dark modes without
+opening Settings. Its accessible name describes the next action (**Switch to dark mode** or
+**Switch to light mode**) and it remains available on the collapsed icon rail. The full
+**Light** / **Dark** / **Match system** choice remains in Settings.
+
 **Rotate hint (portrait phones only).** On a portrait viewport ≤ 767px wide, a dismissable
 dialog titled **Best in landscape** appears (over the company picker too, since that's a
 phone's first contact). **Got it** (or Escape / backdrop) dismisses it for the session
@@ -902,7 +907,8 @@ providers retain **Continue with _provider_** and their caller-supplied accessib
 Brand is server-owned presentation metadata and is never inferred from the editable provider label;
 an unbranded strict OIDC provider remains generic. On a password-mode installation with Google
 configured, the sign-in wall puts that Google action
-first, followed by an explicit **or use your password** separator and the password form. SSO-only
+first, rendered sharply on high-density displays without an outer wrapper shadow, followed by an
+explicit, clearly spaced **or use your password** separator and the password form. SSO-only
 still omits password controls; password-only installations and installations without Google keep
 their existing order. If several providers are configured, the remaining provider actions stay
 available below the password fallback.
@@ -1052,6 +1058,11 @@ ownership, resetting another member's password, revoking another member's sessio
 company, importing or purging data, and linking or repairing an SSO identity. Their **Confirm it's
 you** dialog names the requested action. Cancelling leaves the directory visible and does not apply
 the requested change.
+
+Team administration dialogs use the same bordered header, body and footer as other product modals.
+Form dialogs place explanatory labels in the left column and their controls in the wider right
+column on larger screens, stacking them on smaller screens; action-only dialogs keep their actions
+in the body and their close control in the footer.
 
 The management section has four parts:
 
