@@ -8,7 +8,7 @@ import { useOfflineState } from "../data/useOfflineState";
 import { readOfflineStateEpisode } from "../data/offlineCache";
 import { refreshAccountSummaries } from "./useAccountSummaries";
 import { masqueradeApi } from "./masqueradeApi";
-import { masqueradeController } from "./masqueradeController";
+import { adoptMasqueradeStatus } from "./accountTransition";
 
 type PermissionStatus = "not-applicable" | "pending" | "resolved" | "unavailable";
 
@@ -61,7 +61,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
     // writable frame under a masqueraded session.
     const masquerade = await masqueradeApi.status();
     if (!refresh.isCurrent()) return;
-    masqueradeController.adoptStatus(masquerade);
+    await adoptMasqueradeStatus(masquerade);
     // One validated request drives the picker list and permission projection while retaining their
     // distinct failure postures.
     const summaries = await refreshAccountSummaries({
