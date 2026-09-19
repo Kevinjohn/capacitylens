@@ -19,7 +19,7 @@ import { AppEntryGate } from "./AppEntryGate";
 import { useAppShellController } from "./useAppShellController";
 import { AppSidebar } from "./AppSidebar";
 import { SidebarProvider, SidebarTrigger, useSidebar } from "./ui/sidebar";
-import { masqueradeController } from "../auth/masqueradeController";
+import { endMasquerade, retryMasqueradeProjection } from "../auth/accountTransition";
 import { Button } from "./ui/button";
 import { ROUTE_CAPACITY_OVERVIEW } from "../lib/tourAnchors";
 import { retryActiveAccountLoad } from "../data/persist";
@@ -303,7 +303,7 @@ function MasqueradeBanner({
                 size="sm"
                 variant="outline"
                 className={masqueradeButtonClassName}
-                onClick={() => void masqueradeController.retryProjection()}
+                onClick={() => void retryMasqueradeProjection()}
               >
                 {m.app_masquerade_retry()}
               </Button>
@@ -312,7 +312,7 @@ function MasqueradeBanner({
               size="sm"
               variant="outline"
               className={masqueradeButtonClassName}
-              onClick={() => void masqueradeController.end("explicit", (to) => void navigate(to))}
+              onClick={() => void endMasquerade("explicit", (to) => void navigate(to))}
             >
               {banner.endLabel}
             </Button>

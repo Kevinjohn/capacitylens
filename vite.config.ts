@@ -10,7 +10,8 @@ import { parsePort } from "./scripts/port.mjs";
 import { ports, testShare } from "./scripts/ports.mjs";
 import { clientApiOrigin } from "./scripts/render-client-nginx.mjs";
 import { STATIC_SPA_ROUTES } from "./scripts/static-spa-routes.mjs";
-import { isAccountEmail } from "./shared/src/account/validation";
+import { ENTRY_RAW_LIMIT_KB } from "./scripts/bundle-budget.mjs";
+import { isAccountEmail } from "./shared/src/account/validation.ts";
 
 // Lane-derived ports (scripts/ports.mjs): lane 0 is the historical 5173/8787/4173, and a run
 // launched through scripts/with-lane.mjs gets its own lane so ten worktrees never collide.
@@ -80,6 +81,11 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    build: {
+      // The post-build checker also enforces the gzip limit. Sharing its raw boundary keeps Vite's
+      // generic chunk warning actionable instead of warning below the project's deliberate budget.
+      chunkSizeWarningLimit: ENTRY_RAW_LIMIT_KB,
+    },
     plugins: [
       react(),
       tailwindcss(),

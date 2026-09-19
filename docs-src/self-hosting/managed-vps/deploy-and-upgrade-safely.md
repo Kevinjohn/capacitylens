@@ -48,9 +48,13 @@ pnpm --version
 pnpm install --frozen-lockfile
 pnpm run build
 pnpm --filter capacitylens-server run build:runtime
+pnpm run package:managed-release
 
-test -f dist/index.html
-test -f server/dist/index.mjs
+test -f production/dist/index.html
+test -f production/server/dist/index.mjs
+test -f production/server/dist/importWorker.mjs
+
+rm -rf .corepack node_modules shared/node_modules server/node_modules
 
 install -d -m 700 "/home/$SITE_USER/data"
 install -d -m 700 "/home/$SITE_USER/backups"
@@ -76,6 +80,28 @@ before stopping the old process.
 A failure before `supervisorctl stop` leaves the old release serving traffic. A failure after the
 stop needs the recovery steps below; the script does not restart the old release automatically.
 
+### First transition to the production artifact paths
+
+Releases from before this change use `/dist` as the web directory and start
+`server/dist/index.mjs`. Do not change either saved path while such a release is still active: nginx
+or Supervisor would immediately point at files that do not exist there.
+
+Treat the first release containing `production/` as a coordinated maintenance-window cutover:
+
+1. Build the new release and confirm all three `production/` files checked by the script exist.
+2. Keep the old release active while you record its `/dist` web directory and
+   `server/dist/index.mjs` process command as the rollback values.
+3. Stop the old API. While it is stopped, change the saved process command to
+   `production/server/dist/index.mjs` and the site's web directory to `/production/dist`.
+4. Activate the new release, reload the platform's nginx configuration if it does not do so
+   automatically, then start the API and complete the health and smoke checks.
+
+If that first cutover fails and the database schema is still compatible, stop the API, restore the
+old `/dist` and `server/dist/index.mjs` settings, reactivate the old release, reload nginx and start
+the old API. For a schema-bearing release, restore its pre-release database snapshot as described
+under rollback below before starting old code. Once every retained rollback release contains
+`production/`, the ordinary deployment script can keep both saved paths unchanged.
+
 The first deployment is deliberately different from every later deployment. It activates the
 initial build without Supervisor commands. Create the background process from that active release,
 record its generated group name, then save the permanent script above. Run one rehearsal deployment
@@ -90,6 +116,28 @@ command exit or a missing build output.
 
 On a platform without Forge's release functions, preserve the same ordering with its checkout,
 activation and service-control commands.
+
+### Keep operator tooling in a separate maintenance checkout
+
+The activated release deliberately removes pnpm, `tsx` and development dependencies. Recovery,
+cutover and rehearsal commands therefore run from a separate private maintenance checkout, never
+from `current/`:
+
+1. Select the revision required by the operation. Recovery and repair commands use the exact tag or
+   commit currently serving production. A pre-upgrade migration rehearsal uses the intended target
+   release instead, because it must prove that target's migrations before deployment. Check out the
+   selected revision in a protected directory outside every release directory.
+2. Enable the pinned pnpm version there and run `pnpm install --frozen-lockfile`.
+3. Stop the API before any documented command that writes to the database. Pass the persistent
+   database, backup and evidence paths as absolute paths; do not copy them into the checkout.
+4. Run the documented `pnpm --filter capacitylens-server ...` command, complete its verification,
+   then restart and smoke-test the API.
+5. Remove the maintenance checkout and its dependency tree when the operation and evidence capture
+   are complete. Never point nginx or Supervisor at it.
+
+Use [When something goes wrong](/self-hosting/incidents) for the command-specific safeguards. The
+maintenance checkout is tooling, not another running release, and must never start a second API
+against the production database.
 
 ## 2. Give the deployment script permission to stop and start the process
 

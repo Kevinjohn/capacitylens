@@ -33,6 +33,8 @@
     "dev:demo": "node scripts/with-lane.mjs node scripts/run-preset.mjs dev-demo",
     "dev:access": "node scripts/dev-access-lab.mjs",
     "build": "pnpm run paraglide:compile && tsc -p tsconfig.build.json && vite build && pnpm run bundle:check",
+    "package:managed-release": "node scripts/package-managed-release.mjs",
+    "package:managed-release:test": "node --test scripts/package-managed-release.test.mjs",
     "bundle:check": "node scripts/check-bundle-budget.mjs && node scripts/check-offline-shell.mjs && node scripts/check-spa-route-documents.mjs",
     "security:crypto-inventory": "node scripts/check-crypto-inventory.mjs",
     "security:gitleaks-config": "node scripts/check-gitleaks-config.mjs",
