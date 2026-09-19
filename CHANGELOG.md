@@ -18,6 +18,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Pass strict OIDC presentation brand settings through Docker Compose so container installations
+  can use the documented Google, Microsoft or generic sign-in treatment (#1170).
 - Align the Team & access member table with the Resources list by grouping its outlined actions,
   reducing email text size, and removing the table's outer card (#1150).
 - Present the Account page's **Sign out** action in red and align it to the right (#1151).
