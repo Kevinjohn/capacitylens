@@ -902,8 +902,9 @@ providers retain **Continue with _provider_** and their caller-supplied accessib
 Brand is server-owned presentation metadata and is never inferred from the editable provider label;
 an unbranded strict OIDC provider remains generic. On a password-mode installation with Google
 configured, the sign-in wall puts that Google action
-first, rendered sharply on high-density displays without an outer wrapper shadow, followed by an
-explicit, clearly spaced **or use your password** separator and the password form. SSO-only
+first, rendered sharply on high-density displays without an outer wrapper shadow and with breathing
+room from helper copy above and the explicit **or use your password** separator below. The password
+form follows at the standard spacing. SSO-only
 still omits password controls; password-only installations and installations without Google keep
 their existing order. If several providers are configured, the remaining provider actions stay
 available below the password fallback.
