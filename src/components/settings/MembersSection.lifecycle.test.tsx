@@ -143,7 +143,8 @@ function registerMemberResourceLinkTests(): void {
     const dialog = await screen.findByRole("dialog");
     const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
     expect(select).toHaveFocus();
-    await user.selectOptions(select, resource.id);
+    await user.click(select);
+    await user.click(screen.getByRole("option", { name: "Bruce Wayne" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
     );
@@ -250,7 +251,8 @@ function registerMemberResourceLinkTests(): void {
     await userEvent.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
     const selector = within(dialog).getByTestId("member-resource-link");
-    expect([...selector.querySelectorAll("option")].map((option) => option.textContent)).toEqual([
+    await userEvent.click(selector);
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
       m.settings_member_resource_unlinked(),
       "Bruce Wayne",
       "Diana Prince",
@@ -281,7 +283,8 @@ function registerMemberResourceLinkTests(): void {
     expect(within(dialog).getByTestId("member-resource-status")).toHaveFocus();
 
     await user.click(within(dialog).getByRole("button", { name: /link Resource/i }));
-    await user.selectOptions(within(dialog).getByRole("combobox"), resource.id);
+    await user.click(within(dialog).getByRole("combobox"));
+    await user.click(screen.getByRole("option", { name: "Bruce Wayne" }));
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
     );

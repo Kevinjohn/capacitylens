@@ -343,7 +343,6 @@ export function MemberRow({
         }
         settingsMenu={
           <MemberActionsDialog
-            member={member}
             memberLabel={memberLabel}
             hasExistingActions={affordances.hasMenu}
             busy={busy}
