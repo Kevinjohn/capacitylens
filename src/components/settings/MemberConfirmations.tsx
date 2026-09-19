@@ -43,6 +43,7 @@ function MemberRoleEditDialog({
   return (
     <Modal
       title={m.settings_change_role_title()}
+      description={resolveMemberLabel(roleEdit.member)}
       onClose={() => setRoleEdit(null)}
       onSubmit={() => {
         setRoleEdit(null);
@@ -59,7 +60,6 @@ function MemberRoleEditDialog({
         </>
       }
     >
-      <p className="text-sm text-muted-foreground">{resolveMemberLabel(roleEdit.member)}</p>
       <span data-testid="member-role-select">
         <SelectField
           label={m.settings_member_role_label()}
@@ -68,11 +68,18 @@ function MemberRoleEditDialog({
           onChange={(value) => setRoleEdit((current) => (current ? { ...current, nextRole: value as Role } : current))}
           options={roleOptions}
           disabled={busy}
+          layout="label-control"
         />
       </span>
-      <p className="text-xs text-muted-foreground" aria-live="polite" data-testid="member-role-summary">
-        {resolveRoleSummary(roleEdit.nextRole)}
-      </p>
+      <div className="sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:gap-3">
+        <p
+          className="text-xs text-muted-foreground sm:col-start-2"
+          aria-live="polite"
+          data-testid="member-role-summary"
+        >
+          {resolveRoleSummary(roleEdit.nextRole)}
+        </p>
+      </div>
     </Modal>
   );
 }

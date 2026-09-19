@@ -3,7 +3,7 @@ import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { resolveRejectionMessage, teamAccessClient, type TeamMember } from "../../account/teamAccessClient";
 import { invalidateResourceAvatars } from "../../account/useResourceAvatars";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "../ui/dialog";
+import { Modal, SelectField } from "../common/ui";
 import { Button } from "../ui/button";
 import { Link as LinkIcon } from "lucide-react";
 
@@ -34,15 +34,11 @@ export function MemberResourceLink({
   // The row icon opens the editor directly. The non-dialog cell remains a compact status-only
   // view, while the centered dialog starts with its selector ready for the requested change.
   const [editing, setEditing] = useState(dialog);
-  const selectorRef = useRef<HTMLSelectElement | null>(null);
   const statusRef = useRef<HTMLSpanElement | null>(null);
   const restoreFocusRef = useRef(false);
   const requestGeneration = useRef(0);
   useEffect(() => {
-    if (editing) {
-      selectorRef.current?.focus();
-      return;
-    }
+    if (editing) return;
     if (!pending && restoreFocusRef.current) {
       restoreFocusRef.current = false;
       statusRef.current?.focus();
@@ -197,25 +193,23 @@ export function MemberResourceLink({
         </span>
       )}
       {editing && canEdit && (
-        <select
-          ref={selectorRef}
-          aria-label={m.settings_member_resource_choose_aria({ member: memberLabel })}
-          data-testid="member-resource-link"
-          className="max-w-48 rounded-md border border-input bg-background px-2 py-1 text-sm"
+        <SelectField
+          label={m.settings_member_col_scheduled_person()}
+          ariaLabel={m.settings_member_resource_choose_aria({ member: memberLabel })}
+          testId="member-resource-link"
+          autoFocus
+          layout="label-control"
           disabled={pending || !workspaceId}
           value={member.resourceLink?.resourceId ?? ""}
-          onChange={(event) => {
-            change(event.currentTarget.value);
+          options={[
+            { value: "", label: m.settings_member_resource_unlinked() },
+            ...people.map((person) => ({ value: person.id, label: person.name })),
+          ]}
+          onChange={(resourceId) => {
+            change(resourceId);
             setEditing(false);
           }}
-        >
-          <option value="">{m.settings_member_resource_unlinked()}</option>
-          {people.map((person) => (
-            <option key={person.id} value={person.id}>
-              {person.name}
-            </option>
-          ))}
-        </select>
+        />
       )}
       <div className="flex flex-wrap gap-2">
         {editing && canEdit && (
@@ -289,38 +283,46 @@ export function MemberResourceDialog({
   reload(): void;
   busy: boolean;
 }) {
+  const [open, setOpen] = useState(false);
   if (myRole !== "owner" && myRole !== "admin") return null;
   const memberLabel = member.name ?? member.email ?? member.userId;
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          size="icon-sm"
-          variant="outline"
-          title={m.settings_member_resource_link_aria({ member: memberLabel })}
-          aria-label={m.settings_member_resource_link_aria({ member: memberLabel })}
-          data-testid="member-resource-menu"
-          disabled={busy}
+    <>
+      <Button
+        type="button"
+        size="icon-sm"
+        variant="outline"
+        title={m.settings_member_resource_link_aria({ member: memberLabel })}
+        aria-label={m.settings_member_resource_link_aria({ member: memberLabel })}
+        data-testid="member-resource-menu"
+        disabled={busy}
+        onClick={() => setOpen(true)}
+      >
+        <LinkIcon />
+      </Button>
+      {open && (
+        <Modal
+          title={m.settings_member_col_scheduled_person()}
+          description={memberLabel}
+          onClose={() => setOpen(false)}
+          guardDirty={false}
+          footer={
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+              {m.settings_help_close()}
+            </Button>
+          }
         >
-          <LinkIcon />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-md" aria-describedby={`member-resource-description-${member.userId}`}>
-        <DialogHeader>
-          <DialogTitle>{m.settings_member_col_scheduled_person()}</DialogTitle>
-          <DialogDescription id={`member-resource-description-${member.userId}`}>{memberLabel}</DialogDescription>
-        </DialogHeader>
-        <MemberResourceLink
-          member={member}
-          myRole={myRole}
-          linkedResourceIds={linkedResourceIds}
-          resourceCandidates={resourceCandidates}
-          workspaceId={workspaceId}
-          reload={reload}
-          dialog
-        />
-      </DialogContent>
-    </Dialog>
+          <MemberResourceLink
+            member={member}
+            myRole={myRole}
+            linkedResourceIds={linkedResourceIds}
+            resourceCandidates={resourceCandidates}
+            workspaceId={workspaceId}
+            reload={reload}
+            dialog
+          />
+        </Modal>
+      )}
+    </>
   );
 }
