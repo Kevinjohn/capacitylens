@@ -113,7 +113,7 @@ Stop timeout: more than 10 seconds
 Use this command:
 
 ```bash
-/bin/bash -lc 'set -a; source .env; set +a; exec env NODE_ENV=production node server/dist/index.mjs'
+/bin/bash -lc 'set -a; source .env; set +a; exec env NODE_ENV=production node production/server/dist/index.mjs'
 ```
 
 The shell exports every value read from `.env`, then `exec env` starts the API with production mode

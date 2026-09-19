@@ -22,8 +22,8 @@ assumes only the result of the page before it, and every command is written out 
 
 One CapacityLens installation consists of:
 
-- static web files from `dist/`, served by the platform's nginx site;
-- one Node API process from `server/dist/index.mjs`, listening only on a loopback port;
+- static web files from `production/dist/`, served by the platform's nginx site;
+- one Node API process from `production/server/dist/index.mjs`, listening only on a loopback port;
 - one [SQLite database](/reference/glossary), audit log and backup directory outside every
   release directory;
 - one exact public origin, with nginx sending `/api/` to the API process; and
@@ -39,7 +39,7 @@ Browser
 Platform nginx
   |-- /api/* ----> 127.0.0.1:8788 ----> CapacityLens API
   |
-  `-- /* --------> current/dist --------> CapacityLens web app
+  `-- /* --------> current/production/dist --------> CapacityLens web app
 
 CapacityLens API
   |-- database --> /home/<site-user>/data/capacitylens.db
@@ -94,7 +94,7 @@ for the next page.
 | Static site plus Node API | **Other** site | Custom application |
 | Repository checkout | Repository and branch | Git source |
 | Stable active-release path | `current` symlink | Current release |
-| Static web root | Web directory `/dist` | Public directory |
+| Static web root | Web directory `/production/dist` | Public directory |
 | Long-running API | Background process | Supervisor service or worker |
 | Runtime settings | Environment | Environment variables or secrets |
 | Manual release | **Deploy** with push-to-deploy off | Manual deployment |

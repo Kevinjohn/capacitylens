@@ -13,6 +13,7 @@ const structuralChecks = [
   "policy:file-sizes:test",
   "policy:import-cycles",
   "policy:dependencies:test",
+  "package:managed-release:test",
   "security:screenshot-publication",
   "security:screenshot-publication:test",
 ].map((name) => ["run", name]);
