@@ -59,13 +59,15 @@ optional eight- and twelve-week horizons that add complete weeks, one column eac
 
 ## Team and access
 
-**Team & access** explains your access and, outside the demo, manages members and invitations.
+**Team & access** explains your access and, outside the demo, manages members and invitations in
+matching five-column tables ordered by role priority.
 
-![The Team and access page explaining demo access and the difference between members and resources](../screenshots/flows/team_access_page.jpg)
+![The Team and access page showing access details, members and outstanding invitations](../screenshots/flows/team_access_page.jpg)
 
 ## Settings
 
-**Settings** contains company-wide planning rules and device preferences.
+**Settings** contains company-wide planning rules, company-login cutover readiness and device
+preferences.
 
 ![The Settings page showing allocation units, working days, date format and Overview access](../screenshots/flows/settings_page.png)
 

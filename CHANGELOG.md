@@ -15,10 +15,10 @@ new features and **patch** versions carry fixes.
   reauthentication.
 - Add an icon button below Settings in the sidebar for quickly switching between light and dark
   modes, while retaining the full Match system preference in Settings (#1146).
-- Rework Team & access so invitations open in a centered dialog, member and invitation tables use
-  standalone frames, SSO cutover readiness has its own section, and Resource/member actions open
-  their intended controls directly in consistent dialogs. Align every Team dialog with the shared
-  bordered modal shell and the product's left-label/right-control form layout.
+- Rework Team & access into matching five-column member and invitation tables, keep row actions
+  stable while dialogs are open, simplify immediate Resource linking, move SSO cutover readiness to
+  Settings, and align every Team dialog with the shared bordered modal shell and the product's
+  left-label/right-control form layout (#1198).
 - Update the Overview guide for individual week columns and the Ledger and Load curve displays.
   Refresh screenshots of Overview, Schedule filters, Settings and forms to match the current
   controls (#1143, #1144).

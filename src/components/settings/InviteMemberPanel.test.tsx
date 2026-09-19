@@ -74,7 +74,7 @@ describe("InviteMemberPanel creation guidance", () => {
 
     const section = screen.getByTestId("outstanding-invites");
     expect(section).toHaveTextContent("Outstanding invites");
-    expect(section).toHaveClass("border");
+    expect(within(section).getByRole("table").parentElement).toHaveClass("border");
     expect(section).not.toHaveAttribute("data-slot", "card");
     expect(screen.queryByTestId("invite-preauth")).not.toBeInTheDocument();
   });
@@ -148,7 +148,7 @@ describe("InviteMemberPanel creation guidance", () => {
     expect(screen.getByRole("option", { name: "Bruce Wayne" })).toBeInTheDocument();
   });
 
-  it("renders a pending intended person with explicit non-reservation guidance", () => {
+  it("renders a proposed Resource as compact pending information", () => {
     renderInvite({
       invitationPeople: [{ id: "r1", label: "Bruce Wayne" }],
       invites: [
@@ -165,9 +165,78 @@ describe("InviteMemberPanel creation guidance", () => {
     });
     fireEvent.click(screen.getByTestId("invite-open"));
 
-    expect(screen.getByTestId("invite-row")).toHaveTextContent("Intended person: Bruce Wayne.");
-    expect(screen.getByTestId("invite-row")).toHaveTextContent(
-      "This person is not reserved until the invite is accepted.",
-    );
+    expect(screen.getByTestId("invite-row")).toHaveTextContent("Bruce Wayne Pending");
+  });
+
+  it("uses the five-column contract and deterministically orders invitation states", () => {
+    renderInvite({
+      renderedAt: Date.parse("2026-06-01T00:00:00.000Z"),
+      invitationPeople: [{ id: "r1", label: "Bruce Wayne" }],
+      invites: [
+        {
+          id: "viewer",
+          role: "viewer",
+          preauthEmail: null,
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          usedAt: null,
+          createdAt: "2026-01-03T00:00:00.000Z",
+        },
+        {
+          id: "editor-used",
+          role: "editor",
+          preauthEmail: "used@example.com",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          usedAt: "2026-02-01T00:00:00.000Z",
+          createdAt: "2026-01-02T00:00:00.000Z",
+        },
+        {
+          id: "admin-b",
+          role: "admin",
+          preauthEmail: "same@example.com",
+          expiresAt: "2026-01-01T00:00:00.000Z",
+          usedAt: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          proposedResourceId: "r1",
+        },
+        {
+          id: "admin-a",
+          role: "admin",
+          preauthEmail: "same@example.com",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          usedAt: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          proposedResourceId: "r1",
+        },
+      ],
+    });
+
+    const table = within(screen.getByTestId("outstanding-invites")).getByRole("table");
+    const headers = within(table).getAllByRole("columnheader");
+    expect(headers.map((header) => header.textContent)).toEqual([
+      "Name",
+      "Role",
+      "Email",
+      "Link to Resource",
+      "Actions",
+    ]);
+    expect(headers.every((header) => header.getAttribute("scope") === "col")).toBe(true);
+    const rows = within(table).getAllByTestId("invite-row");
+    expect(rows.map((row) => within(row).getAllByRole("cell")[2]?.textContent)).toEqual([
+      expect.stringContaining("same@example.com"),
+      expect.stringContaining("same@example.com"),
+      expect.stringContaining("used@example.com"),
+      expect.stringContaining("Invite link"),
+    ]);
+    expect(rows[0]).toHaveTextContent(/expires/i);
+    expect(rows[0]).toHaveTextContent("Bruce Wayne Pending");
+    expect(rows[1]).toHaveTextContent(/expired/i);
+    expect(rows[1]).toHaveTextContent("Bruce Wayne");
+    expect(rows[1]).not.toHaveTextContent("Pending");
+    expect(rows[2]).toHaveTextContent(/used/i);
+    expect(within(table).getAllByTestId("invite-revoke")).toHaveLength(2);
+    const [firstRow] = rows;
+    expect(firstRow).toBeDefined();
+    if (!firstRow) throw new Error("Expected at least one invitation row.");
+    expect(within(firstRow).getByText("same@example.com")).toHaveAttribute("title", "same@example.com");
   });
 });

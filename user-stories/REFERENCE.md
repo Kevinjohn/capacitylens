@@ -189,7 +189,29 @@ Settings is one page with four groups in order: **Company setup**, **Scheduling 
 **My display**, and **Data and support**. Compact rows stack their labels and controls on narrow
 screens. Group descriptions distinguish company-wide settings from preferences saved in this browser.
 Editors and above can change ordinary company settings; Owners and Admins manage Overview access.
-Everyone can adjust their device preferences. See [Settings](../docs-src/guide/settings.md).
+Everyone can adjust their device preferences. Company setup also contains the company-keyed **SSO
+cutover readiness** section when strict OIDC is configured; it owns readiness loading, errors, and
+the existing Owner/Admin repair and confirmation flows. See [Settings](../docs-src/guide/settings.md).
+
+**SSO cutover readiness** (`data-testid="sso-readiness-section"` containing
+`data-testid="sso-readiness"`, with strict OIDC configured) is a company-level Settings section.
+It shows whether every active member of the company has one verified link to the required provider.
+It names each member and role, highlights Owner and integrity blockers, and includes installation-wide
+blockers such as unsupported providers, unverified strict-provider links held by non-members,
+configured-social-only non-members, or providerless or credential-only orphan identities. Live reset
+ceremonies are reported as pending cutover revocations, but do not block the transaction that
+atomically revokes them. This is an advisory view; the operator CLI and SSO-only startup interlock
+independently evaluate every company. A failed or malformed readiness response remains visible as
+`data-testid="sso-readiness-error"`; it never silently removes the cutover warning. Admin-approved
+email correction and wrong-subject unlink repair are available only during mixed-mode staging,
+require a fresh identity-global administrative session, revoke the affected member's sessions and
+pending link/reset ceremonies, and are durably audited. Link repair is offered only for coordinates
+implicated by the reported blocker, supports both the required and alternative providers, confirms
+the exact provider row and subject, and refuses to remove a principal's only viable sign-in method.
+In SSO-only mode the readiness view remains visible, but repair controls are hidden. Its controls are **Correct email**
+(`data-testid="sso-correct-email"`), the correction input (`data-testid="sso-correct-email-input"`),
+**Save and revoke sessions** (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
+(`data-testid="sso-remove-link"`).
 
 The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
 in **Data and support**, below **Deleted items** and above the compact company-details
@@ -1026,8 +1048,7 @@ section below. Spec `e2e/invite.auth.spec.ts`.
 
 **Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
 Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory's **Link to
-Resource** column to see **Linked to [person]** or **None**, then use the row's separate link icon to
-link, change,
+Resource** column to see the resource name or **None**, then use the row's separate link icon to link, change,
 or remove one active person per member. This association changes neither
 permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
 validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
@@ -1051,57 +1072,41 @@ edit its companies. In an authenticated server deploy, Owner/Admin additionally 
 management section
 (heading `Members`, `data-testid="members-section"`). Editor/Viewer see their own access explanation
 but no company directory, invitations or management controls; the server's 403 remains the backstop.
-Owner/Admin can read the member directory, outstanding invites and SSO readiness — and carry out
+Owner/Admin can read the member directory and outstanding invites — and carry out
 ordinary member administration (inviting, revoking an invitation, changing a role or access state,
-removing a member, the sign-in-tracking switch and viewing as a member) — without a fresh
+removing a member and viewing as a member) — without a fresh
 authentication prompt. The high-impact actions still require fresh authentication: transferring
 ownership, resetting another member's password, revoking another member's sessions, deleting a
 company, importing or purging data, and linking or repairing an SSO identity. Their **Confirm it's
 you** dialog names the requested action. Cancelling leaves the directory visible and does not apply
 the requested change.
 
+Team & access does not fetch or render SSO cutover readiness; the company-keyed Settings section is
+the sole UI owner of readiness loading, display, and repair actions.
+
 Team administration dialogs use the same bordered header, body and footer as other product modals.
 Form dialogs place explanatory labels in the left column and their controls in the wider right
 column on larger screens, stacking them on smaller screens; action-only dialogs keep their actions
 in the body and their close control in the footer.
 
-The management section has four parts:
-
-- **SSO cutover readiness** (`data-testid="sso-readiness-section"` containing
-  `data-testid="sso-readiness"`, mixed mode with strict OIDC only) is its own section beside Members and shows
-  whether every active member of the company has one verified link to the required provider. It
-  names each member and role, highlights Owner and integrity blockers, and includes installation-wide
-  blockers such as unsupported providers, unverified strict-provider links held by non-members,
-  configured-social-only non-members, or providerless or credential-only orphan identities. Live
-  reset ceremonies are reported as pending cutover revocations, but do not block the transaction that
-  atomically revokes them. This is an advisory view; the operator CLI and SSO-only startup interlock independently
-  evaluate every company. A failed or malformed readiness response remains visible as
-  `data-testid="sso-readiness-error"`; it never silently removes the cutover warning. Admin-approved
-  email correction and wrong-subject unlink repair are
-  available only during mixed-mode staging, require a fresh identity-global administrative session,
-  revoke the affected member's sessions and pending link/reset ceremonies, and are durably audited.
-  Link repair is offered only for coordinates implicated by the reported blocker, supports both the
-  required and alternative providers, confirms the exact provider row and subject, and refuses to
-  remove a principal's only viable sign-in method. It is not rendered in SSO-only mode.
-  Their controls are **Correct email** (`data-testid="sso-correct-email"`), the correction input
-  (`data-testid="sso-correct-email-input"`), **Save and revoke sessions**
-  (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
-  (`data-testid="sso-remove-link"`).
+The management section has three parts:
 
 - **Members table** (`data-testid="members-table"`) — a standalone bordered table outside a card,
-  with columns **Name**, **Email**, **Link to Resource**, optional **Signed in**, and **Actions**, one
+  with exactly five columns **Name**, **Role**, **Email**, **Link to Resource**, and **Actions**, one
   row per member (`data-testid="member-row"`). The email uses secondary small text, while every
   available row action is grouped at the right in the same outlined-button treatment as the
   Resources list.
-  The role stays visible beneath the member's name. The caller's own row is marked **(you)** and a
+  The role has its own column. The caller's own row is marked **(you)** and a
   non-active member's row carries a **Disabled** or **Archived** badge
-  (`data-testid="member-status"`). Members are ordered by **join date, then name** (with the
-  principal id as a final tie-break so the listing is stable between reads). The table itself lists
-  only **active** members; disabled and archived memberships are grouped below it behind a
+  (`data-testid="member-status"`). Members are ordered by role priority **Owner**, **Admin**,
+  **Editor**, **Viewer**, then display name and stable member ID. The table itself lists only
+  **active** members; disabled and archived memberships are grouped below it behind a
   collapsed **No longer active (_count_)** disclosure (`data-testid="members-inactive-toggle"`,
-  reporting its state through `aria-expanded`) which reveals a second table of the same columns
+  reporting its state through `aria-expanded`) which reveals a second table with the same columns
   (`data-testid="members-inactive-table"`). The disclosure is absent when no membership is in that
-  state, and its rows carry the same badges, gear and confirmations as the main table. The
+  state, and its rows carry the same badges and action rules as the main table. Email cells retain
+  the complete address in the DOM and a native `title` while CSS truncates the visual text to the
+  available width; missing or malformed legacy values do not throw. The
   Owner/Admin also sees a **View the app as _member_** eye button on every other active member
   (`data-testid="member-masquerade"`). It opens a confirmation naming that member. Once confirmed,
   the app reloads the account through that member's read projection, hides every write affordance
@@ -1111,17 +1116,16 @@ The management section has four parts:
   Disabled, archived and self rows never offer the eye button; auth-off/demo mode never exposes it.
   The server enforces the read-only boundary even if a stale client attempts a write.
   Each manageable active row also has a pencil for role editing, a link icon
-  (`data-testid="member-resource-menu"`) that opens a centered Resource-link dialog with the Link/Change
-  selector ready, plus Remove, and a gear (`data-testid="member-menu"`) for the separate Member actions dialog.
-  The
-  owner-only **Record member sign-ins** switch (`data-testid="member-sign-in-tracking"`) is off by
-  default. While it is on, the table adds **Signed in** (`data-testid="member-sign-in-confirmed"`),
-  showing **Yes** or **Not yet** for a successful sign-in during the current observation window.
-  CapacityLens stores only this per-membership boolean: no sign-in date, enablement date, session
-  history or site activity. Enabling starts a fresh window and confirms the signed-in Owner;
-  disabling deletes every confirmation. Changing a membership's access state, issuing a new
-  password-reset link or revoking a person's sessions clears their confirmation until they next
-  sign in. An Admin may see the column when the Owner enables it but cannot change the setting. Each
+  (`data-testid="member-resource-menu"`) that opens a centered Resource-link dialog with the selector
+  ready, plus Remove, and a gear (`data-testid="member-menu"`) for the separate Member actions dialog.
+  The Resource-link dialog saves a changed selection immediately, has a proper **Remove link to
+  resource** button when linked, and keeps exceptional-state recovery actions as product buttons;
+  it has no separate Save, Change, or Cancel action. Both row triggers remain mounted while their
+  dialogs are open and the Actions cell keeps its width and alignment. Footer Close, Escape, and
+  backdrop dismissal explicitly restore focus to the invoking trigger; a confirmation opened from
+  Member actions receives focus rather than returning focus behind the dialog. Team & access never
+  renders the owner-only sign-in-tracking switch or **Signed in** column, even when the stored server
+  setting is enabled; the server API, storage, and audit behavior remain available for later use. Each
   manageable **active** row ends in a pencil
   (`data-testid="member-edit"`) opening the **Change member role** dialog — a role select
   (`data-testid="member-role-select"`) offering only Admin, Editor and Viewer, the chosen role's
@@ -1176,10 +1180,16 @@ The management section has four parts:
   only a successfully decoded terminal rejection permits a later retry to mint a new identity.
   In SSO-only mode the pre-authorised email is required by both the UI and server because a
   bearer-only invitation cannot admit a brand-new external identity.
-- **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) with a row per invite (`data-testid="invite-row"`) with role / preauth-email
-  or "link" / expiry-or-used and a **Revoke** button (`data-testid="invite-revoke"`). The list never
-  carries the secret token. When an invite expires while this page remains open, its row updates to
-  **Expired** and the unusable Revoke action disappears without requiring navigation or reload.
+- **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the
+  same five-column bordered table as Members, with a row per invite (`data-testid="invite-row"`).
+  **Name** is an em dash, **Role** is the invited role, **Email** is the pre-authorised address or
+  **Invite link**, **Link to Resource** is the proposed resource or **None** with a compact pending
+  indication, and **Actions** contains a **Revoke** button (`data-testid="invite-revoke"`) when the
+  invite remains revocable. Email cells retain the complete value in the DOM and a native `title`
+  while CSS truncates the display. Invitations are ordered by role priority, then email, creation
+  order, and invitation ID as deterministic fallbacks when no name exists. The list never carries
+  the secret token. When an invite expires while this page remains open, its row updates to **Expired**
+  and the unusable Revoke action disappears without requiring navigation or reload.
   Used rows are operational history: each company retains at most the newest 200 and never retains
   one for more than 365 days. Live unused invitations keep their existing expiry and explicit
   revocation lifecycle and are not removed by the used-history limit.

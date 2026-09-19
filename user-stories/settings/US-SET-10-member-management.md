@@ -6,9 +6,9 @@
 
 Let an Owner or Admin manage who can access their company from Team & access: see the member list, invite
 people (a link, optionally pre-authorised to one email), change a member's role, disable or restore a
-member's access, remove a member, and list/revoke outstanding invites. An Owner may also opt in to a
-coarse "has signed in" confirmation for each membership. An Admin manages members but cannot do
-owner-only operations. Ownership transfer is not part of this story: it has no per-row control
+member's access, remove a member, and list/revoke outstanding invites. An Admin manages members but
+cannot do owner-only operations. Sign-in tracking remains a server capability, but its controls and
+status column are unavailable in this UI. Ownership transfer is not part of this story: it has no per-row control
 (since #175) and now has its own three-step ceremony and section — see
 [US-SET-18](US-SET-18-ownership-transfer.md).
 
@@ -32,8 +32,9 @@ one-way hash, and never read back, so listing or revoking invites can never leak
 link.
 
 An Owner or Admin can also associate one active member with one active person Resource. Team & access
-states this explicitly as **Linked to Resource: [person]** or **None** and offers a separate link icon
-that opens a centered Resource-link dialog with the Link/Change selector ready, plus Remove. The association does not grant access or create
+shows the resource name or **None** and offers a separate link icon that opens a centered Resource-link
+dialog with the selector ready. A selection saves immediately, and a linked member has a
+**Remove link to resource** action. The association does not grant access or create
 schedule data. Archived or disabled members and Resources retain an existing association for
 status and removal, but cannot be new or changed targets. When the member has a validated sign-in
 picture, the schedule uses it only if the person has no explicit avatar URL; inactive endpoints show
@@ -64,25 +65,29 @@ the non-blocking product orientation if it is open.
    reference material. Below it sits the **Members** section (`data-testid="members-section"`,
    heading **Members**).
 
-   Loading the directory is a read-only operation: an Owner or Admin can review members, sign-in
-   confirmations and outstanding invites from an older session without a confirmation prompt. A
+   Loading the directory is a read-only operation: an Owner or Admin can review members and
+   outstanding invites from an older session without a confirmation prompt. A
    fresh identity confirmation appears only after starting a sensitive change, and its heading names
    that exact action. Cancelling the confirmation leaves this page and its loaded directory available.
 
-2. The **member list** is a table (`data-testid="members-table"`) with the columns **Name**,
-   **Email**, **Link to Resource**, **Edit member** and **Member settings**, one row per member
-   (`data-testid="member-row"`); the role sits beneath the name and B's own row is marked **(you)**.
-   The table lists the active members,
-   ordered by join date and then by name; disabled and archived memberships are grouped below it
+2. The **member list** is a table (`data-testid="members-table"`) with the five columns **Name**,
+   **Role**, **Email**, **Link to Resource**, and **Actions**, one row per member
+   (`data-testid="member-row"`); B's own row is marked **(you)**. Active and inactive tables use
+   the same columns. Rows are ordered by role priority **Owner**, **Admin**, **Editor**, **Viewer**,
+   then display name and stable member ID; disabled and archived memberships are grouped below it
    behind a collapsed **No longer active (_count_)** disclosure
    (`data-testid="members-inactive-toggle"`) that reveals a second table
    (`data-testid="members-inactive-table"`) whose rows carry a **Disabled**/**Archived** badge.
+   Email cells contain the complete address in the DOM and in a native `title`, while CSS truncates
+   the visual text to the available column width.
 3. Each manageable row ends in distinct controls, each naming their member for screen readers: an eye for
    masquerade (`data-testid="member-masquerade"`), a pencil (`data-testid="member-edit"`) that opens the
    **Change member role** dialog, a link icon (`data-testid="member-resource-menu"`) that opens the centered
    Resource-link dialog, and a settings icon (`data-testid="member-menu"`) that opens the centered **Member
-   actions** dialog. All row controls are disabled while any
-   member mutation is in flight.
+   actions** dialog. The invoking triggers remain mounted and the Actions column keeps its width while
+   either dialog is open. Closing by its footer action, Escape, or backdrop restores focus to that row
+   trigger; a confirmation opened from Member actions receives focus instead of returning focus behind it.
+   All row controls are disabled while any member mutation is in flight.
 4. B clicks **C**'s pencil, chooses Viewer in the dialog's role select
    (`data-testid="member-role-select"`), reads the plain-language summary of what Viewer can and
    cannot do, and clicks **Save role** (`data-testid="member-role-save"`).
@@ -101,10 +106,14 @@ the non-blocking product orientation if it is open.
    **Copy invitation link**. That write-once block disappears if the
    matching invite is revoked, or an authoritative refresh reports that it was used or is missing,
    so the UI never offers a dead bearer link.
-7. The invites list (`data-testid="invite-row"`) shows the new invite **and** the admin/editor
-   invites B and C already accepted — an accepted invite stays listed **marked used** (so an admin can
-   confirm it was taken; only an expired, unaccepted link is pruned). B clicks **Revoke**
-   (`data-testid="invite-revoke"`) on the newest and its row goes away.
+7. The outstanding invitations use the same five-column bordered table as Members: **Name** is an
+   em dash, **Role** is the invited role, **Email** is the pre-authorised address or **Invite link**,
+   **Link to Resource** is the proposed resource or **None** with compact pending state, and
+   **Actions** contains **Revoke** (`data-testid="invite-revoke"`) when allowed. Email cells retain
+   the complete value in the DOM and `title` while CSS truncates the display. The table shows the new
+   invite and the admin/editor invites B and C already accepted — an accepted invite stays listed
+   **marked used** (so an admin can confirm it was taken; only an expired, unaccepted link is pruned).
+   B clicks **Revoke** on the newest and its row goes away.
 8. B never sees an **Owner** option (neither in a role select nor the invite-role picker), no
    **Transfer ownership** button on any row — since #175 no row offers one to anyone — and owner A's
    row shows B neither a pencil nor a more-actions button (an Admin can't touch an owner). Signed in as A, that same
@@ -113,13 +122,9 @@ the non-blocking product orientation if it is open.
 9. **Ownership transfer** is not reachable from the member table at all. It lives in its own
    **Company ownership** section below, as a three-step ceremony the nominated Admin must agree to —
    see [US-SET-18](US-SET-18-ownership-transfer.md).
-10. Signed in as A, the Owner can turn on **Record member sign-ins**
-    (`data-testid="member-sign-in-tracking"`). This adds a **Signed in** column between **Link to Resource** and
-    the two right-aligned action columns. It shows only **Yes** or **Not yet** for a successful
-    sign-in while the setting is on. The setting is off by default, starts a fresh observation
-    window when enabled, and deletes every confirmation when disabled. CapacityLens stores no
-    sign-in date, enablement date or site-activity history for this feature. B can see the column
-    after A enables it but cannot see or operate the switch.
+10. Team & access does not render **Record member sign-ins** or a **Signed in** column, even when
+    the stored server setting is enabled. The server API, storage, and audit behavior remain
+    available for a later UI reconsideration; no sign-in status is exposed by this page.
 
 ## Acceptance criteria
 
@@ -127,22 +132,29 @@ the non-blocking product orientation if it is open.
   from a persisted auth-off server's **Open access** posture. The **Members** management section
   renders only in server + auth-on mode for an Owner/Admin; a Viewer/Editor sees their role
   explanation but no member directory or controls.
-- The member list is a table of **Name**, **Email**, **Link to Resource**, optional **Signed in**, **Edit member** and
-  **Member settings**, with the role visible beneath the name. An unlinked resource displays **None**. The caller's own row is marked and
-  rows are ordered by join date and then by name. Both action columns stay separated and
-  right-aligned after the optional **Signed in** column.
-- **Record member sign-ins** is Owner-only and off by default. Enabling it starts a fresh window,
-  confirms the Owner operating the switch and stores one nullable boolean per membership. A
-  successful sign-in changes **Not yet** to **Yes**. Changing that membership's access state,
-  revoking the person's sessions or issuing a new password-reset link clears the confirmation.
-  Disabling the setting erases all confirmations. No timestamp or site-activity event is recorded by
-  this feature.
+- The member and outstanding-invitation lists use the same five-column table: **Name**, **Role**,
+  **Email**, **Link to Resource**, and **Actions**. Active and inactive member tables share the
+  same structure and status treatment. Members sort by role priority **Owner**, **Admin**, **Editor**,
+  **Viewer**, then display name and stable member ID. Invitations use role priority followed by email,
+  creation order, and invitation ID as deterministic fallbacks. Unlinked resources display **None**.
+  Email cells retain the complete address in the DOM and a native `title` while CSS truncates the
+  visual text; missing or malformed legacy values do not throw.
+- Team & access never renders the sign-in-tracking switch or **Signed in** column, regardless of the
+  stored setting. The server routes, storage, and audit behavior remain intact for possible later use.
 - The main table lists only active members. Disabled and archived memberships appear under a
   **No longer active (_count_)** disclosure that is **collapsed by default**, reports its state
   through `aria-expanded`, badges each row **Disabled** or **Archived**, and is absent entirely when
   no membership is in either state.
 - The capability tick list is collapsed by default and toggles from a single control that reports its
   state through `aria-expanded`.
+- The Resource Link dialog opens with its selector ready and saves a changed selection immediately.
+  It presents a proper **Remove link to resource** button when linked, preserves exceptional-state
+  recovery actions, and does not add a separate Save action. Its row trigger remains mounted and
+  focus returns to that trigger when the dialog is dismissed.
+- The Member actions dialog keeps its row trigger mounted and the action-cell layout stable. Footer
+  Close, Escape, and backdrop dismissal restore focus to the trigger; confirmations receive focus
+  while they are open. Existing lifecycle actions, confirmations, permissions, and mutation behavior
+  remain unchanged.
 - Disable, archive and restore are offered only where `canChangeMemberStatus` allows them — never
   against the Owner and never against yourself — and the server refuses both cases with **403**
   independently of what the UI renders. A non-active membership authorizes nothing: the member's own
@@ -186,6 +198,9 @@ the non-blocking product orientation if it is open.
   **400**; touching or removing the Owner outside the ownership-transfer ceremony is **403**;
   revoking another account's invite is a no-op; and reading another
   account's members is **403** (no cross-tenant member leak).
+- SSO cutover readiness is not fetched or rendered on Team & access. It is presented under company-level
+  Settings, where its existing authorization, loading/error, repair confirmation, fresh-session,
+  provider/account switching, offline, reconciliation, and audit behavior remain unchanged.
 - API routes: `GET /api/accounts/:accountId/members` (returns
   `{members, signInTrackingEnabled}`; each member carries `status` and nullable
   `signInConfirmed`), `PUT …/member-sign-in-tracking {enabled}` (Owner only),

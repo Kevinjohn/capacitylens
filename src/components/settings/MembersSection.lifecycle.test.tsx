@@ -103,19 +103,24 @@ function registerMemberResourceLinkTests(): void {
     expect(within(row).getByTestId("member-resource-menu")).toBeInTheDocument();
     expect(within(row).getByTestId("member-menu")).toBeInTheDocument();
     expect(within(row).getByTestId("member-resource-status")).toHaveTextContent("None");
-    const actionCell = requireValue(within(row).getAllByRole("cell")[3], "the action cell");
+    const actionCell = requireValue(within(row).getAllByRole("cell")[4], "the action cell");
     expect(actionCell).toHaveClass("px-4", "text-right", "whitespace-nowrap");
     expect(actionCell.firstElementChild).toHaveClass("flex", "justify-end", "gap-1");
 
     await user.click(within(row).getByTestId("member-resource-menu"));
     const resourceDialog = await screen.findByRole("dialog");
+    expect(within(row).getByTestId("member-resource-menu")).toBeInTheDocument();
     expect(resourceDialog).toHaveAccessibleName(m.settings_member_col_scheduled_person());
     expect(within(resourceDialog).getByTestId("member-resource-link")).toBeInTheDocument();
     await user.click(within(resourceDialog).getByRole("button", { name: /close/i }));
 
-    await user.click(within(row).getByTestId("member-menu"));
+    const settingsTrigger = within(row).getByTestId("member-menu");
+    await user.click(settingsTrigger);
     const settingsDialog = await screen.findByRole("dialog");
+    expect(within(row).getByTestId("member-menu")).toBeInTheDocument();
     expect(within(settingsDialog).queryByTestId("member-resource-status")).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(settingsTrigger).toHaveFocus());
   });
 
   it("shows schedule attention and clears it through choose-another-person", async () => {
@@ -148,6 +153,45 @@ function registerMemberResourceLinkTests(): void {
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
     );
+  });
+
+  it("announces a completed Resource-link save inside the open dialog", async () => {
+    const user = userEvent.setup();
+    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    let linked = false;
+    const fetchMock = mockApi(
+      [
+        { userId: "me", role: "owner", isSelf: true },
+        { userId: "ed", role: "editor", name: "Clark Kent" },
+      ],
+      {
+        "GET /members": () =>
+          jsonResponse({
+            members: [
+              rawMember({ userId: "me", role: "owner", isSelf: true }),
+              rawMember({
+                userId: "ed",
+                role: "editor",
+                name: "Clark Kent",
+                resourceLink: linked ? { resourceId: resource.id, revision: "rev-2" } : null,
+              }),
+            ],
+            resourceCandidates: [{ resourceId: resource.id, label: "Bruce Wayne" }],
+          }),
+        "PUT /members/ed/resource-link": () => {
+          linked = true;
+          return jsonResponse({ resourceId: resource.id, revision: "rev-2" });
+        },
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderSection();
+    const row = await findMemberRow(/ed@x\.io/);
+    await user.click(within(row).getByTestId("member-resource-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: /choose Resource/i }));
+    await user.click(screen.getByRole("option", { name: "Bruce Wayne" }));
+    expect(await within(dialog).findByRole("status")).toHaveTextContent("Resource link updated.");
   });
 
   it("dismisses a schedule attention exception and refreshes the directory", async () => {
@@ -193,7 +237,7 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(/Linked to Resource: Bruce Wayne/);
+    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent("Bruce Wayne");
     expect(within(row).queryByRole("button", { name: /change Resource/i })).not.toBeInTheDocument();
     await userEvent.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
@@ -246,7 +290,7 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent(/Linked to Resource: Barry Allen/);
+    expect(within(row).getByTestId("member-resource-status")).toHaveTextContent("Barry Allen");
     expect(within(row).queryByText(/inactive — unlink only/)).not.toBeInTheDocument();
     await userEvent.click(within(row).getByTestId("member-resource-menu"));
     const dialog = await screen.findByRole("dialog");
@@ -260,7 +304,7 @@ function registerMemberResourceLinkTests(): void {
     ]);
   });
 
-  it("focuses the selector on open and restores focus after cancel and completion", async () => {
+  it("focuses the selector on open and restores focus to the trigger on close", async () => {
     const user = userEvent.setup();
     const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
     const fetchMock = mockApi(
@@ -275,20 +319,18 @@ function registerMemberResourceLinkTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
     const row = await findMemberRow(/ed@x\.io/);
-    await user.click(within(row).getByTestId("member-resource-menu"));
+    const trigger = within(row).getByTestId("member-resource-menu");
+    await user.click(trigger);
     const dialog = await screen.findByRole("dialog");
     const select = within(dialog).getByRole("combobox", { name: /choose Resource/i });
     expect(select).toHaveFocus();
-    await user.click(within(dialog).getByRole("button", { name: /cancel/i }));
-    expect(within(dialog).getByTestId("member-resource-status")).toHaveFocus();
+    await user.click(within(dialog).getByRole("button", { name: /close/i }));
+    await waitFor(() => expect(trigger).toHaveFocus());
 
-    await user.click(within(dialog).getByRole("button", { name: /link Resource/i }));
-    await user.click(within(dialog).getByRole("combobox"));
-    await user.click(screen.getByRole("option", { name: "Bruce Wayne" }));
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining("/members/ed/resource-link"), expect.anything()),
-    );
-    await waitFor(() => expect(within(dialog).getByTestId("member-resource-status")).toHaveFocus());
+    await user.click(trigger);
+    await screen.findByRole("dialog");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 }
 
@@ -412,6 +454,17 @@ function registerLifecycleDisclosureTests(): void {
     expect(screen.queryByTestId("members-inactive-table")).not.toBeInTheDocument();
 
     const inactiveTable = await openInactiveGroup(user);
+    const expectedColumns = ["Name", "Role", "Email", "Link to Resource", "Actions"];
+    expect(
+      within(mainTable)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(expectedColumns);
+    expect(
+      within(inactiveTable)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(expectedColumns);
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     // Both non-active states share one group; the per-row badge is what tells them apart.
     const badges = within(inactiveTable)
@@ -483,7 +536,25 @@ function registerLifecyclePermissionTests(lifecycleMembers: RawMember[]): void {
 }
 
 function registerLifecycleTrackingTests(): void {
-  it("renders only coarse sign-in confirmation when the owner has enabled it", async () => {
+  it("keeps complete legacy email values in the DOM and title without assuming they are valid", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockApi([
+        { userId: "me", role: "owner", isSelf: true, email: null },
+        { userId: "legacy", role: "viewer", email: "not an email value" },
+      ]),
+    );
+    renderSection();
+    const missing = within(await findMemberRow(/No email/i)).getByTestId("member-email");
+    expect(missing).toHaveTextContent(m.settings_member_email_missing());
+    expect(within(missing).getByText(m.settings_member_email_missing())).not.toHaveAttribute("title");
+    const malformed = within(await findMemberRow(/not an email value/i)).getByTestId("member-email");
+    const fullValue = within(malformed).getByText("not an email value");
+    expect(fullValue).toHaveClass("truncate");
+    expect(fullValue).toHaveAttribute("title", "not an email value");
+  });
+
+  it("keeps sign-in confirmation absent when the stored setting is enabled", async () => {
     vi.stubGlobal(
       "fetch",
       mockApi([
@@ -495,29 +566,21 @@ function registerLifecycleTrackingTests(): void {
     const selfRow = await findMemberRow(/me@x\.io/);
     const edRow = await findMemberRow(/ed@x\.io/);
 
-    expect(within(selfRow).getByTestId("member-sign-in-confirmed")).toHaveTextContent(
-      m.settings_member_sign_in_confirmed(),
-    );
-    expect(within(edRow).getByTestId("member-sign-in-confirmed")).toHaveTextContent(
-      m.settings_member_sign_in_not_confirmed(),
-    );
+    expect(within(selfRow).queryByTestId("member-sign-in-confirmed")).not.toBeInTheDocument();
+    expect(within(edRow).queryByTestId("member-sign-in-confirmed")).not.toBeInTheDocument();
     expect(screen.queryByText(/2026|unknown/i)).not.toBeInTheDocument();
   });
 
-  it("lets only the owner opt in and groups outlined row actions in one right-hand column", async () => {
-    const user = userEvent.setup();
+  it("hides sign-in tracking and uses the fixed five-column table", async () => {
     vi.stubGlobal("fetch", makeSignInTrackingApi());
     renderSection();
 
-    const tracking = await screen.findByTestId("member-sign-in-tracking");
-    expect(tracking).not.toBeChecked();
-    expect(screen.getByText(/no dates or activity history are kept/i)).toBeInTheDocument();
+    await screen.findByTestId("members-table");
+    expect(screen.queryByTestId("member-sign-in-tracking")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("columnheader", { name: m.settings_member_col_sign_in_confirmed() }),
     ).not.toBeInTheDocument();
 
-    await user.click(tracking);
-    await waitFor(() => expect(tracking).toBeChecked());
     const table = screen.getByTestId("members-table");
     expect(
       within(table)
@@ -525,9 +588,9 @@ function registerLifecycleTrackingTests(): void {
         .map((header) => header.textContent),
     ).toEqual([
       m.settings_member_col_name(),
+      m.settings_invite_role_label(),
       m.settings_member_col_email(),
       m.settings_member_col_scheduled_person(),
-      m.settings_member_col_sign_in_confirmed(),
       m.settings_member_col_actions(),
     ]);
     const editorRow = requireValue(

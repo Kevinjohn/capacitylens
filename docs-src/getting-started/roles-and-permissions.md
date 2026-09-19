@@ -58,13 +58,12 @@ which stays closed until you open it. If a company somehow ends up with no Owner
 no Owner](/self-hosting/incidents#a-company-has-no-owner) — CapacityLens repairs that
 automatically in almost every case.
 
-![Members table showing Resource links, the optional Signed in column and row controls](../screenshots/flows/team_access_members.png)
+![Members table showing roles, Resource links and row actions](../screenshots/flows/team_access_members.png)
 
-Owners can enable **Record member sign-ins** when they need a simple confirmation that an
-invite or access reset worked. It is off by default and records only **Yes** or **Not yet**
-for each company membership—never when someone signed in or what they did. Turning it off
-deletes the confirmations. See [Invite your team](/getting-started/invite-your-team#managing-someone-who-already-joined)
-for the member-management details.
+The member table groups people by role—Owner, Admin, Editor, then Viewer—and keeps disabled
+or archived memberships in the collapsed **No longer active** table. See
+[Invite your team](/getting-started/invite-your-team#managing-someone-who-already-joined) for the
+member-management details.
 
 ## Hand the company to someone else
 
