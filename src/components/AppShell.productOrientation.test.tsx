@@ -210,7 +210,7 @@ describe("AppShell product orientation", () => {
     renderShell("/", authenticatedAuth("viewer-user"));
 
     await waitFor(() => expect(screen.getByRole("region", { name: "How CapacityLens works" })).toBeInTheDocument());
-    expect(screen.queryByTestId("active-role")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByTestId("active-role")).not.toBeInTheDocument());
     expect(screen.queryByRole("button", { name: "How CapacityLens works" })).not.toBeInTheDocument();
   });
 
