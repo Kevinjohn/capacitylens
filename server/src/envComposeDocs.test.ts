@@ -28,6 +28,19 @@ const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
   return actions ? [...new Set(actions.split("|").map((value) => value.trim()))].sort() : [];
 };
 
+const registerOidcBrandComposeTest = (): void => {
+  it("passes the documented OIDC presentation brand settings into the API container", () => {
+    const apiService = compose.split("\n  api:\n")[1]?.split("\n  web:\n")[0];
+    expect(apiService).toBeDefined();
+    const apiLines = apiService?.split("\n").map((line) => line.trim());
+
+    for (const name of ["SMALLSASS_ACCOUNT_OIDC_BRAND", "CAPACITYLENS_SSO_BRAND"]) {
+      expect(envExample).toContain(name);
+      expect(apiLines).toContain(`${name}: ${"${"}${name}:-}`);
+    }
+  });
+};
+
 describe("Compose exceptions in the environment register", () => {
   it("documents runtime values that Compose pins to its private network and durable volume", () => {
     expect(envExample).toMatch(/Compose pins this to 8787[\s\S]*?PORT=8787/);
@@ -48,6 +61,8 @@ describe("Compose exceptions in the environment register", () => {
       expect(compose).not.toMatch(new RegExp(`^\\s+${name}:`, "m"));
     }
   });
+
+  registerOidcBrandComposeTest();
 
   it("keeps production mode out of Vite-loaded env files and sets it on the API process", () => {
     expect(envExample).toMatch(/Node environment is set on the API process for bare-metal runs/);
