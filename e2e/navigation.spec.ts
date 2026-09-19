@@ -241,6 +241,19 @@ function registerSuiteScenario10() {
   });
 }
 
+function registerSuiteScenario11() {
+  test("sidebar toggles between light and dark mode", async ({ page }) => {
+    await openApp(page);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+    await page.getByRole("button", { name: "Switch to dark mode" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+    await page.getByRole("button", { name: "Switch to light mode" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  });
+}
+
 test.describe("Navigation & shell", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
@@ -252,4 +265,5 @@ test.describe("Navigation & shell", () => {
   registerSuiteScenario8();
   registerSuiteScenario9();
   registerSuiteScenario10();
+  registerSuiteScenario11();
 });
