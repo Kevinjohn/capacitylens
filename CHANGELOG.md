@@ -24,6 +24,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Pass strict OIDC presentation brand settings through Docker Compose so container installations
+  can use the documented Google, Microsoft or generic sign-in treatment (#1170).
 - Render Google sign-in actions sharply on high-density displays, remove the transparent wrapper's
   full-width shadow, and add breathing room above and below the promoted action (#1164).
 - Align the Team & access member table with the Resources list by grouping its outlined actions,
