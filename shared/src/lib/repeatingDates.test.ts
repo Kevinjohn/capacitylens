@@ -1,5 +1,6 @@
+import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { weekdayOf } from "./dateMath";
+import { addDaysISO, daysInclusive, weekdayOf } from "./dateMath";
 import {
   GENERATED_ALLOCATION_LIMIT,
   TIME_OFF_REPEAT_POLICY,
@@ -40,6 +41,45 @@ const EXTENDED_MONTHLY_DATE_DATES = [
   "2026-11-30",
   "2026-12-31",
 ] as const;
+
+const weeklyRepeatInputs = fc.record({
+  year: fc.integer({ min: 2000, max: 2090 }),
+  month: fc.integer({ min: 1, max: 12 }),
+  day: fc.integer({ min: 1, max: 28 }),
+  interval: fc.constantFrom(1, 2, 3, 4),
+  extraDays: fc.integer({ min: 0, max: 160 }),
+});
+
+function assertWeeklyRepeatCadence({
+  year,
+  month,
+  day,
+  interval,
+  extraDays,
+}: {
+  year: number;
+  month: number;
+  day: number;
+  interval: 1 | 2 | 3 | 4;
+  extraDays: number;
+}): void {
+  const startDate =
+    `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` as const;
+  const repeatUntil = addDaysISO(startDate, interval * 7 + extraDays);
+  fc.pre(repeatUntil <= maximumRepeatUntilDate(startDate));
+
+  const result = generateRepeatingStartDates(startDate, repeatUntil, { kind: "weeks", interval });
+
+  expect(result.startDates[0]).toBe(startDate);
+  expect(result.startDates.every((date) => date <= repeatUntil)).toBe(true);
+  expect(result.startDates.every((date) => weekdayOf(date) === weekdayOf(startDate))).toBe(true);
+  expect(
+    result.startDates.every((date, index, dates) => {
+      const previous = dates[index - 1];
+      return previous === undefined || daysInclusive(previous, date) === interval * 7 + 1;
+    }),
+  ).toBe(true);
+}
 
 describe("defaultRepeatUntilDate", () => {
   it.each([
@@ -127,6 +167,10 @@ describe("generateRepeatingStartDates weekly", () => {
     expect(
       generateRepeatingStartDates("2028-01-01", "2028-07-01", { kind: "weeks", interval: 1 }).startDates,
     ).toHaveLength(27);
+  });
+
+  it("preserves the requested weekly cadence across generated calendar inputs", () => {
+    fc.assert(fc.property(weeklyRepeatInputs, assertWeeklyRepeatCadence));
   });
 
   it.each([0, 1.5, 5, Number.NaN])("rejects the unsupported runtime interval %s", (interval) => {
