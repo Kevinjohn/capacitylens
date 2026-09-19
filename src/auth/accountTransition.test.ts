@@ -44,6 +44,16 @@ describe("account transition boundary", () => {
     mocks.setActiveAccount.mockReset();
   });
 
+  it("rechecks refresh ownership after the controller finishes loading", async () => {
+    const isCurrent = vi.fn(() => mocks.controllerLoaded.mock.calls.length === 0);
+    const boundary = await import("./accountTransition");
+
+    await expect(boundary.adoptMasqueradeStatus({ active: false }, isCurrent)).resolves.toBe(false);
+    expect(mocks.controllerLoaded).toHaveBeenCalledOnce();
+    expect(isCurrent).toHaveBeenCalledOnce();
+    expect(mocks.adoptStatus).not.toHaveBeenCalled();
+  });
+
   it("delegates account changes to the masquerade transition boundary", async () => {
     mocks.transitionAccount.mockResolvedValue(true);
     const boundary = await import("./accountTransition");
@@ -85,15 +95,6 @@ describe("account transition boundary", () => {
     await expect(boundary.adoptMasqueradeStatus(status)).resolves.toBe(true);
 
     expect(mocks.adoptStatus).toHaveBeenCalledWith(status);
-  });
-
-  it("does not adopt server status when refresh ownership expired before adoption", async () => {
-    const isCurrent = vi.fn(() => false);
-    const boundary = await import("./accountTransition");
-
-    await expect(boundary.adoptMasqueradeStatus({ active: false }, isCurrent)).resolves.toBe(false);
-    expect(isCurrent).toHaveBeenCalledOnce();
-    expect(mocks.adoptStatus).not.toHaveBeenCalled();
   });
 
   it("retries projection through the lazy controller boundary", async () => {
