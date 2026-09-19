@@ -7,6 +7,9 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const shell = readFileSync(new URL("../../scripts/renew-internal-tls.sh", import.meta.url), "utf8");
+const serverPackage = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as {
+  files?: string[];
+};
 const verifierArgs = ["scripts/verify-tls-renewal.mjs"];
 const root = fileURLToPath(new URL("../", import.meta.url));
 const redirect = fileURLToPath(new URL("./__tests__/renewalProbeRedirect.mjs", import.meta.url));
@@ -174,6 +177,10 @@ function registerMarkerTests() {
 }
 
 describe("TLS renewal generation verification", () => {
+  it("includes the deployed verifier script in the production server package", () => {
+    expect(serverPackage.files).toContain("scripts/verify-tls-renewal.mjs");
+  });
+
   registerDeploymentTest();
   registerAcceptStatusTests();
   registerRejectStatusTests();
