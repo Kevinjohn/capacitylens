@@ -16,7 +16,7 @@ describe("ExternalProviderButton", () => {
     const button = screen.getByRole("button", { name: "Sign in with Google" });
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent("Sign in with Google");
-    expect(button).toHaveClass("h-10", "min-h-10");
+    expect(button).toHaveClass("h-10", "min-h-10", "shadow-none");
     for (const outlineClass of ["outline-solid", "outline-1", "outline-[#747775]", "dark:outline-[#8e918f]"]) {
       expect(button).not.toHaveClass(outlineClass);
     }
@@ -25,8 +25,8 @@ describe("ExternalProviderButton", () => {
       const mark = screen.getByTestId(markTestId);
       expect(mark).toHaveAttribute("alt", "");
       expect(mark).toHaveAttribute("aria-hidden", "true");
-      expect(mark).toHaveAttribute("width", "180");
-      expect(mark).toHaveAttribute("height", "40");
+      expect(mark).toHaveAttribute("width", "360");
+      expect(mark).toHaveAttribute("height", "80");
       expect(mark).toHaveClass("h-10", "w-[180px]", "max-w-full");
     }
   });

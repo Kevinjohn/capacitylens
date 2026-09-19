@@ -9,15 +9,20 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Add an icon button below Settings in the sidebar for quickly switching between light and dark
+  modes, while retaining the full Match system preference in Settings (#1146).
 - Rework Team & access so invitations open in a centered dialog, member and invitation tables use
   standalone frames, SSO cutover readiness has its own section, and Resource/member actions open
-  their intended controls directly in consistent dialogs.
+  their intended controls directly in consistent dialogs. Align every Team dialog with the shared
+  bordered modal shell and the product's left-label/right-control form layout.
 - Update the Overview guide for individual week columns and the Ledger and Load curve displays.
   Refresh screenshots of Overview, Schedule filters, Settings and forms to match the current
   controls (#1143, #1144).
 
 ### Fixed
 
+- Render Google sign-in actions sharply on high-density displays, remove the transparent wrapper's
+  full-width shadow, and add breathing room before the password fallback (#1164).
 - Align the Team & access member table with the Resources list by grouping its outlined actions,
   reducing email text size, and removing the table's outer card (#1150).
 - Present the Account page's **Sign out** action in red and align it to the right (#1151).
