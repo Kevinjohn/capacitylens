@@ -120,6 +120,7 @@ installed.
    Group=capacitylens
    WorkingDirectory=/opt/capacitylens/server
    EnvironmentFile=/opt/capacitylens/.env
+   Environment=NODE_ENV=production
    ExecStart=/opt/capacitylens/bin/node dist/index.mjs
    Restart=on-failure
    RestartSec=5
