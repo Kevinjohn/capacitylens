@@ -131,14 +131,15 @@ jobs:
     env:
       # Password auth ON plus the optional hardening a security-conscious operator enables:
       # required MFA, scheduled backups, and the storage/log-forwarding attestations.
-      # http:// is permitted for BETTER_AUTH_URL because localhost is a loopback origin
-      # (auth.ts refuses plaintext only for non-loopback production origins).
-      CAPACITYLENS_AUTH: password
-      CAPACITYLENS_REQUIRE_MFA: "1"
+      # http:// is permitted for the public URL because localhost is a loopback origin;
+      # production account configuration refuses plaintext for non-loopback origins.
+      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: self-hosted-password
+      SMALLSASS_ACCOUNT_MODE: password
+      SMALLSASS_ACCOUNT_REQUIRE_MFA: "1"
+      SMALLSASS_ACCOUNT_PUBLIC_URL: http://localhost:8080
       CAPACITYLENS_BACKUP_INTERVAL_MIN: "60"
       CAPACITYLENS_STORAGE_ENCRYPTED: "1"
       CAPACITYLENS_SECURITY_LOG_FORWARDING: "1"
-      BETTER_AUTH_URL: http://localhost:8080
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -153,8 +154,8 @@ jobs:
           setup_token="$(openssl rand -hex 32)"
           echo "::add-mask::$auth_secret"
           echo "::add-mask::$setup_token"
-          echo "BETTER_AUTH_SECRET=$auth_secret" >> "$GITHUB_ENV"
-          echo "CAPACITYLENS_SETUP_TOKEN=$setup_token" >> "$GITHUB_ENV"
+          echo "SMALLSASS_ACCOUNT_SECRET=$auth_secret" >> "$GITHUB_ENV"
+          echo "SMALLSASS_ACCOUNT_SETUP_TOKEN=$setup_token" >> "$GITHUB_ENV"
       - name: Start production stack
         run: docker compose up --build --detach
       - name: Wait for the proxied API

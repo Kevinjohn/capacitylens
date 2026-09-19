@@ -9,6 +9,7 @@ describe("ExternalProviderButton", () => {
         provider={{ id: "google", kind: "social" }}
         label="Continue with Google"
         googleLabel="Sign in with Google"
+        microsoftLabel="Sign in with Microsoft"
         disabled
       />,
     );
@@ -16,7 +17,7 @@ describe("ExternalProviderButton", () => {
     const button = screen.getByRole("button", { name: "Sign in with Google" });
     expect(button).toBeDisabled();
     expect(button).toHaveTextContent("Sign in with Google");
-    expect(button).toHaveClass("h-10", "min-h-10");
+    expect(button).toHaveClass("h-10", "min-h-10", "shadow-none");
     for (const outlineClass of ["outline-solid", "outline-1", "outline-[#747775]", "dark:outline-[#8e918f]"]) {
       expect(button).not.toHaveClass(outlineClass);
     }
@@ -25,8 +26,8 @@ describe("ExternalProviderButton", () => {
       const mark = screen.getByTestId(markTestId);
       expect(mark).toHaveAttribute("alt", "");
       expect(mark).toHaveAttribute("aria-hidden", "true");
-      expect(mark).toHaveAttribute("width", "180");
-      expect(mark).toHaveAttribute("height", "40");
+      expect(mark).toHaveAttribute("width", "360");
+      expect(mark).toHaveAttribute("height", "80");
       expect(mark).toHaveClass("h-10", "w-[180px]", "max-w-full");
     }
   });
@@ -37,6 +38,7 @@ describe("ExternalProviderButton", () => {
         provider={{ id: "google", kind: "social" }}
         label="Continue with Google"
         googleLabel="Sign in with Google"
+        microsoftLabel="Sign in with Microsoft"
         className="w-full"
       />,
     );
@@ -54,6 +56,7 @@ describe("ExternalProviderButton", () => {
         provider={{ id: "sso", kind: "oidc", brand: "google" }}
         label="Continue with Google"
         googleLabel="Sign in with Google"
+        microsoftLabel="Sign in with Microsoft"
       />,
     );
 
@@ -63,19 +66,63 @@ describe("ExternalProviderButton", () => {
     expect(screen.getByTestId("google-mark-light")).toBeInTheDocument();
   });
 
-  it("keeps configured copy and caller labels for other providers", () => {
+  it("uses Microsoft presentation for social and branded strict OIDC providers", () => {
+    const { rerender } = render(
+      <ExternalProviderButton
+        provider={{ id: "microsoft", kind: "social" }}
+        label="Continue with Microsoft"
+        googleLabel="Sign in with Google"
+        microsoftLabel="Sign in with Microsoft"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toHaveClass("w-[215px]");
+    expect(screen.getByTestId("microsoft-mark")).toBeInTheDocument();
+
+    rerender(
+      <ExternalProviderButton
+        provider={{ id: "sso", kind: "oidc", brand: "microsoft" }}
+        label="Continue with Microsoft"
+        googleLabel="Sign in with Google"
+        microsoftLabel="Sign in with Microsoft"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toHaveTextContent("Sign in with Microsoft");
+    expect(screen.getByTestId("microsoft-mark")).toBeInTheDocument();
+  });
+
+  it("uses GitHub's mark and configured copy for the supported GitHub provider", () => {
     render(
       <ExternalProviderButton
         provider={{ id: "github", kind: "social" }}
         label="Continue with GitHub"
         googleLabel="Sign in with Google"
+        microsoftLabel="Sign in with Microsoft"
         aria-label="Use GitHub"
       />,
     );
 
     const button = screen.getByRole("button", { name: "Use GitHub" });
     expect(button).toHaveTextContent("Continue with GitHub");
-    expect(button.querySelector("img")).toBeNull();
-    expect(button).not.toHaveClass("border-[#747775]");
+    expect(button).toHaveClass("w-[215px]", "bg-[#24292f]", "text-white");
+    expect(screen.getByTestId("github-mark")).toBeInTheDocument();
+  });
+
+  it("keeps configured copy and caller labels for generic OIDC providers", () => {
+    render(
+      <ExternalProviderButton
+        provider={{ id: "sso", kind: "oidc", brand: "generic" }}
+        label="Continue with Northwind Identity"
+        googleLabel="Sign in with Google"
+        microsoftLabel="Sign in with Microsoft"
+        aria-label="Use company SSO"
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Use company SSO" });
+    expect(button).toHaveTextContent("Continue with Northwind Identity");
+    expect(screen.queryByTestId("microsoft-mark")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("github-mark")).not.toBeInTheDocument();
   });
 });

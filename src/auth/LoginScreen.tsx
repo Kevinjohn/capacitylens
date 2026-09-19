@@ -176,6 +176,7 @@ function LoginView(props: LoginViewProps) {
                 twoFactorPending={props.secondFactor.twoFactorPending}
                 signInWithProvider={props.signInWithProvider}
                 showSeparator={false}
+                surroundButtons
               />
             )}
             {showPromotedGoogle && <PasswordFallbackSeparator />}
@@ -246,6 +247,7 @@ type ProviderButtonsProps = Pick<
   setup: boolean;
   twoFactorPending: boolean;
   showSeparator?: boolean;
+  surroundButtons?: boolean;
 };
 
 function ProviderButtons({
@@ -258,10 +260,18 @@ function ProviderButtons({
   twoFactorPending,
   signInWithProvider,
   showSeparator = true,
+  surroundButtons,
 }: ProviderButtonsProps) {
   if (twoFactorPending) return null;
   if (providers.length === 0)
     return !setup && authMode === "sso" ? <FieldError>{m.login_sso_unavailable()}</FieldError> : null;
+  const hasSupportingText = providerButtonsHaveSupportingText({
+    authMode,
+    error,
+    pendingProvider,
+    providers,
+    setup,
+  });
   return (
     <div className="mt-4 flex flex-col gap-3">
       {showSeparator && <Separator />}
@@ -286,11 +296,33 @@ function ProviderButtons({
           provider={provider}
           label={m.login_continue_with({ provider: provider.label })}
           googleLabel={m.login_sign_in_with_google()}
+          microsoftLabel={m.login_sign_in_with_microsoft()}
           onClick={() => void signInWithProvider(provider)}
           disabled={busy}
+          className={providerButtonSpacingClass(surroundButtons, hasSupportingText)}
         />
       ))}
     </div>
+  );
+}
+
+function providerButtonSpacingClass(surroundButtons: boolean | undefined, hasSupportingText: boolean) {
+  if (!surroundButtons) return undefined;
+  return hasSupportingText ? "mt-5 mb-4" : "mb-4";
+}
+
+function providerButtonsHaveSupportingText({
+  authMode,
+  error,
+  pendingProvider,
+  providers,
+  setup,
+}: Pick<ProviderButtonsProps, "authMode" | "error" | "pendingProvider" | "providers" | "setup">) {
+  return (
+    (setup && providers.some((provider) => provider.kind === "oidc")) ||
+    providers.some((provider) => provider.experimental) ||
+    (authMode === "sso" && Boolean(error)) ||
+    pendingProvider !== null
   );
 }
 
