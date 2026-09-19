@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Give every supported social sign-in provider a recognisable, consistently aligned button, with
+  Microsoft and GitHub joining the existing Google treatment across sign-in, invitations and
+  reauthentication.
 - Add an icon button below Settings in the sidebar for quickly switching between light and dark
   modes, while retaining the full Match system preference in Settings (#1146).
 - Rework Team & access so invitations open in a centered dialog, member and invitation tables use

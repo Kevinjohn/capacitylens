@@ -296,6 +296,7 @@ function ProviderButtons({
           provider={provider}
           label={m.login_continue_with({ provider: provider.label })}
           googleLabel={m.login_sign_in_with_google()}
+          microsoftLabel={m.login_sign_in_with_microsoft()}
           onClick={() => void signInWithProvider(provider)}
           disabled={busy}
           className={providerButtonSpacingClass(surroundButtons, hasSupportingText)}
