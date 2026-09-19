@@ -1,6 +1,8 @@
 ## What & why
 
 <!-- One or two sentences. Link the issue if there is one. -->
+<!-- Opening this PR does not authorise merging it. Leave it open until the maintainer explicitly
+authorises the merge of this specific PR. -->
 
 ## Checklist
 

@@ -37,11 +37,22 @@ establish that GitHub, CI, credentials, Git writes or a supported runtime are un
   worktree using the harness's supported working-directory mechanism. Start another session only
   if the current harness cannot safely target it. Do not implement in the primary checkout.
   These rules concern repository changes, not personal files outside the repository.
-- Keep one cohesive task per branch/PR. Link an existing issue when applicable; a new issue is
-  not a prerequisite unless requested. Group inseparable issues and explain the relationship.
-- A request to complete implementation authorises the normal signed commit, push, PR and merge
-  flow. Reviews and questions remain read-only unless implementation is requested. Do not ask
-  again for already-authorised steps; ask only for unresolved consequential choices or scope changes.
+- Keep one cohesive task per branch/PR. Link an existing issue when applicable. Group inseparable
+  issues and explain the relationship.
+- Record every new implementation, design or investigation plan as a GitHub issue. The issue body
+  is the canonical plan; keep later decisions and material revisions in the issue or its comments.
+  Do not create or extend repository Markdown files to hold plans or ideation.
+  Existing checked-in planning records may be consulted for context but must not receive new plan
+  content; move future decisions and revisions to the corresponding GitHub issue.
+- A request to complete implementation authorises the normal signed commit, push and GitHub pull
+  request flow. A request to create, open, prepare or deliver a pull request means creating the
+  actual pull request on GitHub, not merely drafting its text, and never authorises merging it.
+  Reviews and questions remain read-only unless implementation is requested. Do not ask again for
+  already-authorised steps; ask only for unresolved consequential choices or scope changes.
+- Never merge a pull request without separate, explicit authorisation for that specific pull
+  request. General requests to implement, finish, ship, deliver or create pull requests are not
+  merge authorisation. Leave every newly created pull request open unless the user subsequently
+  directs its merge.
 - Review the complete branch diff before submission. Fix correctness, security, regression and
   required-standard findings within scope. Report every finding, including optional improvements;
   cosmetic suggestions do not block delivery or automatically authorise another PR.
@@ -88,8 +99,8 @@ Use this workflow when triaging and delivering a checklist of open GitHub issues
 6. **Publish small, ordered pull requests.** Keep one cohesive issue or inseparable issue group per
    branch and pull request. State the merge predecessor explicitly, including `none` for independent
    work. Before pushing, inspect the complete diff, commit metadata and public text. Open ready PRs
-   only after their required review and local evidence pass; do not merge when a separate merge owner
-   is responsible for landing the batch.
+   only after their required review and local evidence pass. Leave them open until the user explicitly
+   authorises the merge of each specific pull request.
 7. **Report live state.** Take a fresh GitHub snapshot before the handoff. Distinguish implemented,
    locally verified, CI-verified and merged work; list the current merge order, investigations still
    awaiting evidence and fixes awaiting deployment verification.
@@ -327,7 +338,10 @@ validation failures.
 - After the review gate passes, push the feature branch and open a ready-for-review pull request into
   `main`. Link its issue with a closing keyword when applicable. Never push task commits directly to
   `main`.
-- Merge validated pull requests with a normal merge commit and delete the remote feature branch:
+- Creating or opening a pull request always means publishing it on GitHub and leaving it open. It
+  does not include merging, even when the implementation and checks are complete.
+- Merge only after the user gives separate, explicit authorisation for the specific pull request.
+  Once authorised, use a normal merge commit and delete the remote feature branch with
   `gh pr merge <number> --merge --delete-branch`. Respect dependency order and land one pull request
   at a time unless independent changes materially benefit from parallel validation.
 - Never squash, rebase or rewrite branch history unless the user explicitly requests it for that

@@ -756,8 +756,10 @@ local checks, and CI is the record.
 Two jobs used to depend on pull-request context and now read the pushed commit range
 (`github.event.before`..`github.sha`) instead: DCO sign-off and dependency review. Both
 skip when that range doesn't exist — branch creation and force pushes. Feature commits
-carry their own `Signed-off-by` trailers. Merge validated pull requests with a normal
-merge commit and delete the remote feature branch:
+carry their own `Signed-off-by` trailers. Creating a pull request means publishing it on GitHub and
+leaving it open for review; it never implies permission to merge. After the maintainer explicitly
+authorises the merge of that specific pull request, use a normal merge commit and delete the remote
+feature branch:
 
 ```bash
 gh pr merge <number> --merge --delete-branch
