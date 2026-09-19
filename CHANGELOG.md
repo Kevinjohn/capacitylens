@@ -10,6 +10,9 @@ new features and **patch** versions carry fixes.
 ### Changed
 
 - Managed-VPS builds now activate a production-only runtime artifact instead of retaining build and test dependencies in each release.
+- Give every supported social sign-in provider a recognisable, consistently aligned button, with
+  Microsoft and GitHub joining the existing Google treatment across sign-in, invitations and
+  reauthentication.
 - Add an icon button below Settings in the sidebar for quickly switching between light and dark
   modes, while retaining the full Match system preference in Settings (#1146).
 - Rework Team & access so invitations open in a centered dialog, member and invitation tables use
@@ -23,7 +26,7 @@ new features and **patch** versions carry fixes.
 ### Fixed
 
 - Render Google sign-in actions sharply on high-density displays, remove the transparent wrapper's
-  full-width shadow, and add breathing room before the password fallback (#1164).
+  full-width shadow, and add breathing room above and below the promoted action (#1164).
 - Align the Team & access member table with the Resources list by grouping its outlined actions,
   reducing email text size, and removing the table's outer card (#1150).
 - Present the Account page's **Sign out** action in red and align it to the right (#1151).

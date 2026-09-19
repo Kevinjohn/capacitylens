@@ -50,9 +50,10 @@ self-registration closes automatically and only the Sign in form below is reacha
   displays without an outer wrapper shadow, and is named exactly **Sign in with Google**
   (including while disabled during the provider hand-off).
 - In mixed password mode with Google configured, **Sign in with Google** is the first sign-in
-  action; the password form follows an explicit, clearly spaced **or use your password** separator.
-  SSO-only mode still omits password controls, while password-only mode and other providers retain
-  their existing order.
+  action, with breathing room from helper copy above and the explicit **or use your password**
+  separator below. The password form follows the separator at the standard form spacing. SSO-only
+  mode still omits password controls, while password-only mode and other providers retain their
+  existing order.
 - A strict OIDC label does not select presentation: an OIDC provider labelled Google remains generic
   unless its brand is explicitly set, and its sign-in continues through strict OIDC in either case.
 - A successful sign-in resumes the normal company flow: the picker lists the user's memberships;
