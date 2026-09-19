@@ -70,7 +70,7 @@ describe("Compose exceptions in the environment register", () => {
     expect(compose).not.toMatch(/^\s+NODE_ENV:/m);
     expect(dockerfile).toMatch(/^ENV NODE_ENV=production$/m);
     expect(managedConfigure).toMatch(
-      /source \.env; set \+a; exec env NODE_ENV=production node server\/dist\/index\.mjs/,
+      /source \.env; set \+a; exec env NODE_ENV=production node production\/server\/dist\/index\.mjs/,
     );
     expect(managedConfigure).not.toMatch(/^NODE_ENV=production$/m);
     expect(bareMetalInstall).toMatch(/^\s+Environment=NODE_ENV=production$/m);
