@@ -1054,6 +1054,11 @@ company, importing or purging data, and linking or repairing an SSO identity. Th
 you** dialog names the requested action. Cancelling leaves the directory visible and does not apply
 the requested change.
 
+Team administration dialogs use the same bordered header, body and footer as other product modals.
+Form dialogs place explanatory labels in the left column and their controls in the wider right
+column on larger screens, stacking them on smaller screens; action-only dialogs keep their actions
+in the body and their close control in the footer.
+
 The management section has four parts:
 
 - **SSO cutover readiness** (`data-testid="sso-readiness-section"` containing

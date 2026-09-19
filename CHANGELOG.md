@@ -11,7 +11,8 @@ new features and **patch** versions carry fixes.
 
 - Rework Team & access so invitations open in a centered dialog, member and invitation tables use
   standalone frames, SSO cutover readiness has its own section, and Resource/member actions open
-  their intended controls directly in consistent dialogs.
+  their intended controls directly in consistent dialogs. Align every Team dialog with the shared
+  bordered modal shell and the product's left-label/right-control form layout.
 - Update the Overview guide for individual week columns and the Ledger and Load curve displays.
   Refresh screenshots of Overview, Schedule filters, Settings and forms to match the current
   controls (#1143, #1144).
