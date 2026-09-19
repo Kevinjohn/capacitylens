@@ -108,10 +108,11 @@ record its generated group name, then save the permanent script above. Run one r
 of the same commit before relying on the workflow for an upgrade. The rehearsal must show the API
 stop, activation, start and successful public health check in that order.
 
-Vite may print a warning that `NODE_ENV=production` is not supported inside `.env`. CapacityLens
-still needs that value at API runtime, while Vite already makes a production build when `pnpm run
-build` runs. The warning is expected for a shared build-and-runtime environment file; it is not a
-failed build. Stop for an actual non-zero command exit or a missing build output.
+Keep `NODE_ENV=production` on the API process rather than in the shared `.env` file. Vite reads
+`.env` while building the browser app, and `pnpm run build` already selects production mode. The
+managed process command in the API configuration sets `NODE_ENV=production` directly, so a release
+build no longer emits a warning about the server runtime setting. Stop for an actual non-zero
+command exit or a missing build output.
 
 On a platform without Forge's release functions, preserve the same ordering with its checkout,
 activation and service-control commands.

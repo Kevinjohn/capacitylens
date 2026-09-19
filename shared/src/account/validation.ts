@@ -4,9 +4,9 @@ import {
   MAX_NAME_LENGTH,
   unicodeCharacterCount,
   utf8ByteLength,
-} from "../lib/strings";
-import { MAX_PASSWORD_LENGTH, passwordCharacterCount, passwordLengthFailure } from "../domain/password";
-import type { BoundApplication } from "./types";
+} from "../lib/strings.ts";
+import { MAX_PASSWORD_LENGTH, passwordCharacterCount, passwordLengthFailure } from "../domain/password.ts";
+import type { BoundApplication } from "./types.ts";
 
 /** Maximum number of application-specific terms screened from each password. */
 export const MAX_ACCOUNT_PASSWORD_CONTEXT_WORDS = 32;

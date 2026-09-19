@@ -500,8 +500,10 @@ The enforced coverage floors:
 The build also enforces a raw and gzip byte budget on the main JavaScript entry chunk;
 route-level lazy chunks stay separate so authentication and settings code don't inflate
 first load unnoticed. The checked constants live beside the checker in
-`scripts/check-bundle-budget.mjs` — treat that file, not this page, as the authoritative
-size limit. The checker requires exactly one JavaScript module entry in the built HTML and
+`scripts/bundle-budget.mjs` — treat that file, not this page, as the authoritative size
+limit. Vite's generic uncompressed chunk warning shares that raw boundary, while the
+post-build checker additionally enforces the gzip boundary. The checker requires exactly
+one JavaScript module entry in the built HTML and
 refuses to guess if another entry appears; attribute order and quoting don't affect
 discovery.
 
