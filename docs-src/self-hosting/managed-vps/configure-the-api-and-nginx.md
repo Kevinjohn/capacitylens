@@ -40,7 +40,6 @@ that happens, reveal the saved environment privately and copy only the setup-tok
 Open the platform's environment editor. Replace every placeholder below:
 
 ```dotenv
-NODE_ENV=production
 PORT=8788
 CAPACITYLENS_HOST=127.0.0.1
 
@@ -114,12 +113,14 @@ Stop timeout: more than 10 seconds
 Use this command:
 
 ```bash
-/bin/bash -lc 'set -a; source .env; set +a; exec node server/dist/index.mjs'
+/bin/bash -lc 'set -a; source .env; set +a; exec env NODE_ENV=production node server/dist/index.mjs'
 ```
 
-The shell exports every value read from `.env`, then `exec` replaces the shell with Node so the
-process supervisor sends shutdown signals directly to the API. CapacityLens needs more than ten
-seconds before a forced kill so in-flight requests and backup work can drain.
+The shell exports every value read from `.env`, then `exec env` starts the API with production mode
+set directly on its process. Keeping `NODE_ENV` out of `.env` prevents Vite from reading the server
+runtime setting during the browser build. `exec` replaces the shell so the process supervisor sends
+shutdown signals directly to the API. CapacityLens needs more than ten seconds before a forced kill
+so in-flight requests and backup work can drain.
 
 ::: warning `.env` is read as shell, so quote awkward values
 `source` runs the file as a shell script. A value containing a space, `#`, `$`, backtick, quote or
