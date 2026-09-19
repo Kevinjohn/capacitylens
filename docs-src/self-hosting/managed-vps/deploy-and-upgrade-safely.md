@@ -122,8 +122,10 @@ The activated release deliberately removes pnpm, `tsx` and development dependenc
 cutover and rehearsal commands therefore run from a separate private maintenance checkout, never
 from `current/`:
 
-1. Check out the exact tag or commit currently serving production in a protected directory outside
-   every release directory.
+1. Select the revision required by the operation. Recovery and repair commands use the exact tag or
+   commit currently serving production. A pre-upgrade migration rehearsal uses the intended target
+   release instead, because it must prove that target's migrations before deployment. Check out the
+   selected revision in a protected directory outside every release directory.
 2. Enable the pinned pnpm version there and run `pnpm install --frozen-lockfile`.
 3. Stop the API before any documented command that writes to the database. Pass the persistent
    database, backup and evidence paths as absolute paths; do not copy them into the checkout.
