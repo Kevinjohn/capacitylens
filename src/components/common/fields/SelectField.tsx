@@ -34,6 +34,7 @@ type SelectFieldProps = {
   describedById?: string;
   ariaLabel?: string;
   testId?: string;
+  autoFocus?: boolean;
   /** Opt-in compact row that stacks below the small viewport breakpoint. */
   layout?: ProductFieldLayout;
 };
@@ -91,6 +92,7 @@ export function SelectField({
   describedById,
   ariaLabel,
   testId,
+  autoFocus,
   layout = "stacked",
 }: SelectFieldProps) {
   const id = useId();
@@ -117,6 +119,8 @@ export function SelectField({
       >
         <SelectTrigger
           id={id}
+          autoFocus={autoFocus}
+          data-autofocus={autoFocus ? "" : undefined}
           className="w-full"
           aria-required={trueOrUndefined(required)}
           aria-invalid={trueOrUndefined(invalid)}

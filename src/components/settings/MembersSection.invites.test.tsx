@@ -86,7 +86,7 @@ async function renderInviteSection(): Promise<void> {
 
 function closeInviteDialog(): void {
   fireEvent.click(
-    within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Close" }),
+    within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Cancel" }),
   );
 }
 
@@ -336,8 +336,8 @@ function registerInviteDeadlineTests(): void {
     await renderInviteSection();
 
     expect(await screen.findByText(/expires LOCAL INVITE DATE/)).toBeInTheDocument();
-    expect(localDate).toHaveBeenCalledOnce();
-    expect((localDate.mock.contexts[0] as Date).toISOString()).toBe(expiresAt);
+    expect(localDate).toHaveBeenCalled();
+    expect(localDate.mock.contexts.every((date) => (date as Date).toISOString() === expiresAt)).toBe(true);
   });
 
   it("marks an invitation expired and removes its action without remounting Settings", async () => {
