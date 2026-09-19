@@ -25,6 +25,7 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Include the Docker internal-TLS renewal verifier in the production API image so Compose deployments can validate coordinated certificate renewal (#1192).
 - Pass strict OIDC presentation brand settings through Docker Compose so container installations
   can use the documented Google, Microsoft or generic sign-in treatment (#1170).
 - Render Google sign-in actions sharply on high-density displays, remove the transparent wrapper's
