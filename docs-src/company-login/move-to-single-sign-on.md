@@ -169,7 +169,7 @@ empty install with nobody in it. You already have people.
 
 _2 minutes · Owner / Admin_
 
-Sign in with your password as usual, and go to **Team & access**. There's a new panel:
+Sign in with your password as usual, and go to **Settings**. Under **Company setup** there is a section:
 **SSO cutover readiness**. Right now it will be a wall of "Not connected", and that's
 exactly what it should look like on day one.
 
@@ -179,8 +179,8 @@ Every active member of this company, and whether they've connected. The Owner is
 outlined in red and marked **Critical** — if the Owner can't get in after cutover,
 nobody can fix it from inside the app.
 
-This panel is your progress bar for the whole project. Check it whenever you like. It
-updates as people connect.
+This **Settings → Company setup** section is your progress bar for the whole project. Check it
+whenever you like. It updates as people connect.
 
 ### 4. Everyone connects their own account {#step-4}
 
@@ -207,12 +207,13 @@ Someone else already connected this exact company login account — usually a sh
 login, or a colleague who clicked Connect on the wrong CapacityLens profile. The member
 sees this on their own screen, word for word: _"This identity-provider account is
 already connected to a different person. Ask an administrator to repair the existing
-link."_ They can't fix it themselves. On your side, the readiness panel shows the same
+link."_ They can't fix it themselves. On your side, the **Settings → Company setup** readiness
+section shows the same
 problem as **Provider account claimed twice** against the person who connected first —
 see [step 5](#step-5) for how to work out which link is right and remove the other one.
 :::
 
-And the readiness panel ticks over:
+And the Settings readiness section ticks over:
 
 ![The readiness panel with the Owner row now green and marked Connected, and the remaining three members still Not connected](../screenshots/flows/sso-readiness-owner-linked.jpg)
 
@@ -235,19 +236,19 @@ Slack. The app runs completely normally throughout.
 
 _Varies · Owner / Admin_
 
-Some people won't go green on the first try, and the panel tells you why in plain
+Some people won't go green on the first try, and the Settings readiness section tells you why in plain
 words. Here's every message you can get and what to do about it:
 
-| The panel says                 | What actually happened                                                                 | What you do                                                                                                                          |
+| The readiness section says     | What actually happened                                                                 | What you do                                                                                                                          |
 | ------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Not connected                  | They haven't done [step 4](#step-4) yet.                                               | Nudge them. If their CapacityLens email is wrong or stale, use **Correct email**.                                                    |
-| Reconnect to verify            | Your company login didn't confirm that the email address is a real, verified one.      | Mark the address verified in your company login, then **Remove link** and have them connect again.                                   |
-| Multiple provider links        | Two identities are attached to one person — usually a half-finished earlier attempt.   | **Remove link** on the wrong one, keep the right one.                                                                                |
-| Provider account claimed twice | Two CapacityLens people connected to the same company account. Shared logins, usually. | Work out from your company login which person is which, **Remove link** from the wrong one, and have them connect their own account. |
-| Unsupported provider link      | They connected through a different provider (a social login), not the company one.     | **Remove link**, then have them connect the company provider.                                                                        |
+| Reconnect to verify            | Your company login didn't confirm that the email address is a real, verified one.      | Mark the address verified in your company login, then **Remove incorrect link** and have them connect again.                         |
+| Multiple provider links        | Two identities are attached to one person — usually a half-finished earlier attempt.   | **Remove incorrect link** on the wrong one, keep the right one.                                                                      |
+| Provider account claimed twice | Two CapacityLens people connected to the same company account. Shared logins, usually. | Work out from your company login which person is which, **Remove incorrect link** from the wrong one, and have them connect their own account. |
+| Unsupported provider link      | They connected through a different provider (a social login), not the company one.     | **Remove incorrect link**, then have them connect the company provider.                                                              |
 | Identity record missing        | A membership with no identity behind it. Rare, and not self-service.                   | See the repair commands in [When something goes wrong](/self-hosting/incidents).                                                     |
 
-**Correct email** is the button for the situation the whole cutover usually hinges on:
+In **Settings → Company setup**, **Correct email** is the button for the situation the whole cutover usually hinges on:
 someone signed up as `dave@agency.com` but the company login knows him as
 `david.smith@agency.co.uk`. Change the CapacityLens side to match, and he can connect.
 
@@ -275,8 +276,8 @@ Team & access and they stop blocking.
 
 _1 minute · Operator_
 
-The panel shows one company at a time. This command checks _everything_ — every
-company, plus integrity problems the panel can't show you. Run it with the server
+The Settings readiness section shows one company at a time. This command checks _everything_ — every
+company, plus integrity problems the section can't show you. Run it with the server
 still up, pointing at your database file.
 
 ```bash
@@ -499,7 +500,7 @@ something goes wrong](/self-hosting/incidents).
 
 Everything above is self-service, from inside the app. These four situations are not —
 they need the server stopped and one exact command, because by the time you need them
-you're past the point where a button in Team & access can safely make the change. All
+you're past the point where a button in Settings can safely make the change. All
 four take SQLite's exclusive lock, require `--confirm-server-stopped`, refuse to run if
 the situation they expect has changed underneath them, and record an operator audit
 event in the same transaction as the fix. Never edit the sign-in tables directly
@@ -530,7 +531,7 @@ pnpm --filter capacitylens-server cutover:repair -- \
 This requires the mixed profile, and requires one exact local email, provider id,
 subject and stored row to match before it changes anything — so it can remove one wrong row out
 of a multi-link mess, and it can repair a link to a named social provider even if that
-provider isn't enabled any more. Unlike the live Team & access repair, this
+provider isn't enabled any more. Unlike the live Settings repair, this
 explicitly-stopped-server command is allowed to remove an unusable _final_ provider row,
 so a critical readiness blocker stays recoverable — just make sure there's a password
 recovery path in mixed mode first (use the stopped-server Owner reset in [When something

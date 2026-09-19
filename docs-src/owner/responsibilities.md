@@ -11,9 +11,9 @@ next: false
 
 # Understand Owner responsibilities
 
-![Owner view of Team & access showing Members and Record member sign-ins](../screenshots/flows/owner_responsibilities_1.png)
+![Owner view of Team & access showing members and their actions](../screenshots/flows/owner_responsibilities_1.png)
 
-Your Admin can run everyday setup. You keep the decisions that change company ownership, company data or member sign-in recording.
+Your Admin can run everyday setup. You keep the decisions that change company ownership or company data.
 
 ## Transfer ownership
 
@@ -24,14 +24,6 @@ Open Team & access and find Company ownership. Choose an active Admin in Next Ow
 The nominee selects Agree to become Owner. After they agree, you return to Team & access and select Confirm the transfer.
 
 The transfer completes only after your confirmation. You become an Admin and the nominee becomes the Owner.
-
-## Record member sign-ins
-
-In Team & access, use Record member sign-ins. This is an Owner-only control.
-
-When it is on, each member shows only Yes or Not yet under Signed in. No dates or activity history are kept.
-
-Turning it off deletes every confirmation.
 
 ## Import or delete company data
 

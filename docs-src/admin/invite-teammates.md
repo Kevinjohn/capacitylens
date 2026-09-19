@@ -32,13 +32,13 @@ The link is only displayed now. If you lose it, revoke it under Outstanding invi
 
 ## After they join
 
-![Team & access: an accepted member's row showing their role, an unlinked Resource reading None, and the view-as, role, Link to Resource and Member settings controls](../screenshots/flows/admin_invite_teammates_2.png)
+![Team & access: an accepted member row showing role, email, Resource link and actions](../screenshots/flows/admin_invite_teammates_2.png)
 
 The teammate appears in the members list after accepting. Send them the [day-to-day guide](/using/).
 
 Select the pencil beside their name to change their role, then Save role.
 
-Use Link to Resource to connect their sign-in to an existing scheduled person. This does not change their access.
+Use Link to Resource to connect their sign-in to an existing scheduled person. Selecting a person saves immediately, and this does not change their access.
 
 ## Stop access
 

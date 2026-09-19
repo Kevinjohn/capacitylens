@@ -91,7 +91,9 @@ async function revokeViewerInvite(page: Page, mintedLink: string): Promise<void>
   await dialog.getByRole("button", { name: "Cancel" }).click();
   const inviteRows = page.getByTestId("invite-row");
   await expect(inviteRows).toHaveCount(3);
-  await inviteRows.first().getByTestId("invite-revoke").click();
+  const viewerInvite = inviteRows.filter({ hasText: "Viewer" });
+  await expect(viewerInvite).toContainText("expires");
+  await viewerInvite.getByTestId("invite-revoke").click();
   await expect(inviteRows).toHaveCount(2);
   await page.getByTestId("invite-open").click();
   await expect(dialog.getByTestId("invite-link")).toHaveCount(0);

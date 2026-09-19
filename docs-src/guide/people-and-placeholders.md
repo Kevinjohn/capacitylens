@@ -20,9 +20,9 @@ separate — see [Roles and permissions](/getting-started/roles-and-permissions)
 ## Link a person to a member
 
 Open **Team & access** from the sidebar. In the member's row, select the link icon to open the
-centered Resource dialog with its selector ready. Choose an available person Resource, choose a
-different Resource to change the link, or use **Remove** to unlink it. Each member can have one
-person Resource, and each person Resource can have one member. The association does
+centered Resource dialog with its selector ready. Choose an available person Resource; the choice
+saves immediately. Choose a different Resource to change the link, or use **Remove link to resource**
+to unlink it. Each member can have one person Resource, and each person Resource can have one member. The association does
 not grant access or create schedule data.
 
 Only active members and active scheduled people can be new link targets. Existing links

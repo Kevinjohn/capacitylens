@@ -1,13 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { act, render, renderHook, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { AuthContext } from "../../auth/authContext";
 
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID, jsonResponse } from "../../test/fixtures";
 import { useStore } from "../../store/useStore";
 import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
-import { m } from "@/i18n";
 import { MembersSection } from "./MembersSection";
 import { useTeamDirectory } from "./useTeamDirectory";
 import { authValue, mockApi, rawMember, renderSection } from "./MembersSection.testSupport";
@@ -82,35 +80,6 @@ describe("MembersSection — self-gate", () => {
     // Give the effect a tick to resolve the 403, then assert nothing rendered.
     await waitFor(() => expect(container.querySelector('[data-testid="members-section"]')).toBeNull());
     expect(screen.queryByRole("heading", { name: "Members" })).not.toBeInTheDocument();
-  });
-
-  it("surfaces and retries a 403 after the directory was already authorized", async () => {
-    const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
-    let memberReads = 0;
-    const fetchMock = mockApi([...members], {
-      "GET /members": () => {
-        memberReads += 1;
-        return memberReads === 2
-          ? jsonResponse({ error: "Forbidden" }, 403)
-          : jsonResponse({ signInTrackingEnabled: false, members: members.map((member) => rawMember(member)) });
-      },
-      "PUT /member-sign-in-tracking": () => jsonResponse({ enabled: true }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
-
-    renderSection();
-    expect(await screen.findByTestId("member-row")).toHaveTextContent("me@x.io");
-    // Any write that re-reads the DIRECTORY re-asks "may I still see this section?"; the toggle is
-    // the simplest one here (creating an invite re-reads only the invitations it can have changed).
-    await user.click(screen.getByTestId("member-sign-in-tracking"));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_members_err_access_changed());
-    expect(screen.queryByTestId("member-row")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: m.settings_members_retry() }));
-    expect(await screen.findByTestId("member-row")).toHaveTextContent("me@x.io");
-    expect(memberReads).toBe(3);
   });
 
   registerSelfGateDisplayTests();
@@ -191,33 +160,6 @@ describe("MembersSection — transient directory state", () => {
       accountId: DEFAULT_ACCOUNT_ID,
       content: { kind: "authorized", snapshot: readyDirectory.snapshot },
     });
-  });
-});
-
-describe("MembersSection — retained authorization behavior", () => {
-  it("retains authorization across a transient member refresh failure", async () => {
-    const members = [{ userId: "me", role: "owner", isSelf: true }] as const;
-    let memberReads = 0;
-    const fetchMock = mockApi([...members], {
-      "GET /members": () => {
-        memberReads += 1;
-        if (memberReads === 2) return jsonResponse({ error: "Unavailable" }, 503);
-        if (memberReads === 3) return jsonResponse({ error: "Forbidden" }, 403);
-        return jsonResponse({ signInTrackingEnabled: false, members: members.map((member) => rawMember(member)) });
-      },
-      "PUT /member-sign-in-tracking": () => jsonResponse({ enabled: true }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
-    const user = userEvent.setup();
-
-    renderSection();
-    expect(await screen.findByTestId("member-row")).toHaveTextContent("me@x.io");
-    await user.click(screen.getByTestId("member-sign-in-tracking"));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Unavailable");
-
-    await user.click(screen.getByRole("button", { name: m.settings_members_retry() }));
-    expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_members_err_access_changed());
-    expect(memberReads).toBe(3);
   });
 });
 

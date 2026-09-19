@@ -526,7 +526,7 @@ describe("MembersSection — owner affordances", () => {
     await user.click(within(editorRow).getByTestId("member-resource-menu"));
 
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByTestId("member-resource-status")).toHaveTextContent("Bruce Wayne");
+    expect(within(dialog).queryByTestId("member-resource-status")).not.toBeInTheDocument();
     expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass("border-b");
     expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
     expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
@@ -535,6 +535,7 @@ describe("MembersSection — owner affordances", () => {
     ).toBeInTheDocument();
     expect(within(dialog).getByTestId("member-resource-link")).toHaveAttribute("data-slot", "select-trigger");
     expect(within(dialog).getByRole("combobox", { name: /choose Resource/i })).toHaveTextContent("Bruce Wayne");
-    expect(within(dialog).getByRole("button", { name: /remove Resource link/i })).toBeInTheDocument();
+    const removeLink = within(dialog).getByRole("button", { name: /remove Resource link/i });
+    expect(removeLink).toHaveTextContent("Remove link to resource");
   });
 });

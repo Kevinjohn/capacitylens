@@ -7,6 +7,13 @@ import { Modal, SelectField } from "../common/ui";
 import { Button } from "../ui/button";
 import { Link as LinkIcon } from "lucide-react";
 
+function resolveResourceStatus(expectedResourceId: string | null | undefined, reconciled: boolean): string {
+  if (!reconciled) return "";
+  return expectedResourceId === null
+    ? m.settings_member_resource_remove_done()
+    : m.settings_member_resource_update_done();
+}
+
 /** Account-admin control linking a login member to one eligible person Resource. */
 // The branches mirror the complete selector state machine: authorization, CAS create/update/unlink,
 // retained inactive display, in-flight reconciliation and explicit error presentation.
@@ -31,19 +38,11 @@ export function MemberResourceLink({
 }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expectedResourceId, setExpectedResourceId] = useState<string | null | undefined>(undefined);
   // The row icon opens the editor directly. The non-dialog cell remains a compact status-only
   // view, while the centered dialog starts with its selector ready for the requested change.
-  const [editing, setEditing] = useState(dialog);
-  const statusRef = useRef<HTMLSpanElement | null>(null);
-  const restoreFocusRef = useRef(false);
   const requestGeneration = useRef(0);
-  useEffect(() => {
-    if (editing) return;
-    if (!pending && restoreFocusRef.current) {
-      restoreFocusRef.current = false;
-      statusRef.current?.focus();
-    }
-  }, [editing, pending]);
+  const selectorScopeRef = useRef<HTMLDivElement>(null);
   if (myRole !== "owner" && myRole !== "admin") return dialog ? <div /> : <td className="py-2 px-4" />;
   const currentPerson = resourceCandidates.find((resource) => resource.resourceId === member.resourceLink?.resourceId);
   const people = resourceCandidates
@@ -60,14 +59,13 @@ export function MemberResourceLink({
     member.resourceLink?.resourceStatus === "archived" ||
     member.resourceLink?.resourceStatus === "disabled";
   const canEdit = member.status === "active" && !currentPersonInactive && people.length > 0;
-  const hasException = member.resourceLinkException !== null && member.resourceLinkException !== undefined;
   const change = (resourceId: string) => {
-    restoreFocusRef.current = true;
     if (!workspaceId) return;
     const generation = ++requestGeneration.current;
     const current = () => generation === requestGeneration.current;
     setPending(true);
     setError(null);
+    setExpectedResourceId(undefined);
     let request;
     if (resourceId !== "")
       request = teamAccessClient.setMemberResourceLink({
@@ -83,7 +81,10 @@ export function MemberResourceLink({
       .then((result) => {
         if (!current()) return;
         if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
-        else invalidateResourceAvatars();
+        else {
+          setExpectedResourceId(resourceId === "" ? null : resourceId);
+          invalidateResourceAvatars();
+        }
       })
       .catch((cause: unknown) => {
         console.warn("Resource link request failed", cause);
@@ -101,7 +102,6 @@ export function MemberResourceLink({
     if (!workspaceId || !member.resourceLinkException) return;
     const generation = ++requestGeneration.current;
     const current = () => generation === requestGeneration.current;
-    restoreFocusRef.current = true;
     setPending(true);
     setError(null);
     void teamAccessClient
@@ -128,14 +128,15 @@ export function MemberResourceLink({
   else if (member.resourceLinkException?.reason === "member_already_linked")
     exceptionMessage = m.settings_member_resource_attention_member_linked();
   else if (member.resourceLinkException) exceptionMessage = m.settings_member_resource_attention_unavailable();
+  const resourceLinkReconciled =
+    !pending && expectedResourceId !== undefined && (member.resourceLink?.resourceId ?? null) === expectedResourceId;
+  const statusMessage = resolveResourceStatus(expectedResourceId, resourceLinkReconciled);
   if (!dialog) {
     return (
       <td className="py-2 px-4" data-testid="member-resource-cell">
         <div className="flex flex-col items-start gap-1">
-          <span ref={statusRef} tabIndex={-1} aria-live="polite" data-testid="member-resource-status">
-            {member.resourceLink
-              ? m.settings_member_resource_linked({ name: currentPersonLabel })
-              : m.settings_member_resource_not_linked()}
+          <span className="text-xs text-muted-foreground" aria-live="polite" data-testid="member-resource-status">
+            {member.resourceLink ? currentPersonLabel : m.settings_member_resource_not_linked()}
           </span>
           {exceptionMessage && (
             <span className="text-xs text-warn">
@@ -152,38 +153,34 @@ export function MemberResourceLink({
     );
   }
   const content = (
-    <div className="flex flex-col items-start gap-2">
-      <span ref={statusRef} tabIndex={-1} aria-live="polite" data-testid="member-resource-status">
-        {member.resourceLink
-          ? m.settings_member_resource_linked({ name: currentPersonLabel })
-          : m.settings_member_resource_not_linked()}
-      </span>
+    <div ref={selectorScopeRef} className="flex flex-col items-start gap-2">
       {exceptionMessage && (
         <div className="flex flex-col items-start gap-1 rounded border border-warn/40 bg-warn/5 p-2 text-xs">
           <strong className="font-medium text-ink">{m.settings_member_resource_attention_heading()}</strong>
           <span>{exceptionMessage}</span>
           <div className="flex flex-wrap gap-2">
-            {canEdit && !editing && (
-              <button
+            {canEdit && (
+              <Button
                 type="button"
-                className="font-medium text-primary underline"
+                size="sm"
+                variant="outline"
                 disabled={pending || !workspaceId}
-                onClick={() => {
-                  restoreFocusRef.current = true;
-                  setEditing(true);
-                }}
+                onClick={() =>
+                  selectorScopeRef.current?.querySelector<HTMLElement>('[data-testid="member-resource-link"]')?.focus()
+                }
               >
                 {m.settings_member_resource_choose_another()}
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               type="button"
-              className="font-medium text-muted-foreground underline"
+              size="sm"
+              variant="outline"
               disabled={pending || !workspaceId}
               onClick={dismissException}
             >
               {m.settings_member_resource_dismiss()}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -192,7 +189,7 @@ export function MemberResourceLink({
           {m.settings_member_resource_inactive({ name: currentPersonLabel })}
         </span>
       )}
-      {editing && canEdit && (
+      {canEdit && (
         <SelectField
           label={m.settings_member_col_scheduled_person()}
           ariaLabel={m.settings_member_resource_choose_aria({ member: memberLabel })}
@@ -207,54 +204,26 @@ export function MemberResourceLink({
           ]}
           onChange={(resourceId) => {
             change(resourceId);
-            setEditing(false);
           }}
         />
       )}
       <div className="flex flex-wrap gap-2">
-        {editing && canEdit && (
-          <button
-            type="button"
-            className="text-xs font-medium text-primary underline"
-            onClick={() => {
-              restoreFocusRef.current = true;
-              setEditing(false);
-            }}
-          >
-            {m.settings_member_resource_cancel()}
-          </button>
-        )}
-        {canEdit && !editing && !hasException && (
-          <button
-            type="button"
-            className="text-xs font-medium text-primary underline"
-            disabled={pending || !workspaceId}
-            aria-label={
-              member.resourceLink
-                ? m.settings_member_resource_change_aria({ member: memberLabel })
-                : m.settings_member_resource_link_aria({ member: memberLabel })
-            }
-            onClick={() => {
-              restoreFocusRef.current = true;
-              setEditing(true);
-            }}
-          >
-            {member.resourceLink ? m.settings_member_resource_change() : m.settings_member_resource_link()}
-          </button>
-        )}
         {member.resourceLink && (
-          <button
+          <Button
             type="button"
-            className="text-xs font-medium text-danger underline"
+            size="sm"
+            variant="danger-soft"
             disabled={pending || !workspaceId}
             aria-label={m.settings_member_resource_remove_aria({ member: memberLabel })}
             onClick={() => change("")}
           >
             {m.settings_member_resource_remove()}
-          </button>
+          </Button>
         )}
       </div>
-      <span className="text-xs text-muted-foreground">{m.settings_member_resource_explanation()}</span>
+      <span className="sr-only" role="status" aria-live="polite">
+        {pending ? m.settings_members_updating() : statusMessage}
+      </span>
       {error && (
         <p role="alert" className="mt-1 text-xs text-danger">
           {error}
@@ -284,11 +253,18 @@ export function MemberResourceDialog({
   busy: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) requestAnimationFrame(() => triggerRef.current?.focus());
+    wasOpen.current = open;
+  }, [open]);
   if (myRole !== "owner" && myRole !== "admin") return null;
   const memberLabel = member.name ?? member.email ?? member.userId;
   return (
     <>
       <Button
+        ref={triggerRef}
         type="button"
         size="icon-sm"
         variant="outline"

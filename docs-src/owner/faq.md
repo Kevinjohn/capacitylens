@@ -32,10 +32,6 @@ No. It gives the person sign-in access with the Admin role. Ownership changes on
 
 The Language field shows English and is read-only. You choose Week starts on and Timezone during creation, and those settings are fixed afterward.
 
-## What does Record member sign-ins show?
-
-The Owner can turn it on in Team & access. Each member then shows Yes or Not yet under Signed in; no dates or activity history are kept. Turning it off deletes all confirmations.
-
 ## Why is there no Admin to choose as Next Owner?
 
 Only another active Admin can be nominated. Use the Admin invitation flow first, then return to Team & access after they accept.

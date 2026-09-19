@@ -234,42 +234,6 @@ function registerThrownMutationTests(): void {
     expect(useStore.getState().activeAccountId).toBe(nextAccountId);
     expect(useStore.getState().notice).toBeNull();
   });
-
-  it.each([
-    ["rejected", () => jsonResponse({ error: "Tracking forbidden." }, 403), /Tracking forbidden\./],
-    ["transport", () => Promise.reject(new Error("tracking offline")), /Could not reach the server.*tracking offline/i],
-  ])("reloads the directory after a %s sign-in-tracking failure", async (_kind, response, expected) => {
-    let memberReads = 0;
-    vi.stubGlobal(
-      "fetch",
-      mockApi(
-        [
-          { userId: "me", role: "owner", isSelf: true, signInConfirmed: true },
-          { userId: "ed", role: "editor", signInConfirmed: false },
-        ],
-        {
-          "GET /members": () => {
-            memberReads += 1;
-            return jsonResponse({
-              signInTrackingEnabled: false,
-              members: [
-                rawMember({ userId: "me", role: "owner", isSelf: true, signInConfirmed: false }),
-                rawMember({ userId: "ed", role: "editor", signInConfirmed: false }),
-              ],
-            });
-          },
-          "PUT /member-sign-in-tracking": response,
-        },
-      ),
-    );
-    renderSection();
-
-    await userEvent.setup().click(await screen.findByTestId("member-sign-in-tracking"));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(expected);
-    await waitFor(() => expect(memberReads).toBeGreaterThanOrEqual(2));
-    expect(screen.getByTestId("member-sign-in-tracking")).not.toBeChecked();
-  });
 }
 
 function registerRoleFailureTests(): void {
