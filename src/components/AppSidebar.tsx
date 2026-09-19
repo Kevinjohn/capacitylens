@@ -1,4 +1,4 @@
-import { EyeIcon } from "lucide-react";
+import { EyeIcon, MoonIcon, SunIcon } from "lucide-react";
 import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/authContext";
 import { usePermissionStatus, useRole } from "../auth/permissionContext";
@@ -149,7 +149,9 @@ function SidebarNavigation({
           <SidebarGroup className="mt-auto">
             <SidebarSeparator className="mx-0 mb-1" />
             <SidebarGroupContent>
-              <NavMenu links={adminLinks} pathname={pathname} onNavigate={onNavigate} />
+              <NavMenu links={adminLinks} pathname={pathname} onNavigate={onNavigate}>
+                <ThemeToggleMenuItem />
+              </NavMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
@@ -209,10 +211,12 @@ function NavMenu({
   links,
   onNavigate,
   pathname,
+  children,
 }: {
   links: NavigationLinkDefinition[];
   onNavigate: () => void;
   pathname: string;
+  children?: React.ReactNode;
 }) {
   return (
     <SidebarMenu>
@@ -230,7 +234,33 @@ function NavMenu({
           </SidebarMenuItem>
         );
       })}
+      {children}
     </SidebarMenu>
+  );
+}
+
+/** Fast light/dark access beside the persistent administration destinations. Settings retains the
+ *  full three-way preference, including Match system; this button deliberately makes an explicit
+ *  light or dark choice rather than cycling through the three-way setting. */
+function ThemeToggleMenuItem() {
+  const theme = useStore((state) => state.theme);
+  const setTheme = useStore((state) => state.setTheme);
+  const dark = theme === "dark";
+  const label = dark ? m.nav_switch_to_light_mode() : m.nav_switch_to_dark_mode();
+  const ThemeIcon = dark ? SunIcon : MoonIcon;
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        type="button"
+        tooltip={label}
+        aria-label={label}
+        onClick={() => setTheme(dark ? "light" : "dark")}
+      >
+        <ThemeIcon aria-hidden="true" focusable="false" />
+        <span>{label}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }
 
