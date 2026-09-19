@@ -3,6 +3,11 @@ import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  assertEntryBundleWithinBudget,
+  ENTRY_GZIP_LIMIT_BYTES,
+  ENTRY_RAW_LIMIT_BYTES,
+} from "../scripts/bundle-budget.mjs";
 
 describe("bundle budget entry selection", () => {
   let directory: string | null = null;
@@ -20,6 +25,7 @@ describe("bundle budget entry selection", () => {
     directory = mkdtempSync(join(tmpdir(), "capacitylens-bundle-budget-"));
     mkdirSync(join(directory, "scripts"), { recursive: true });
     mkdirSync(join(directory, "dist/assets"), { recursive: true });
+    cpSync(resolve("scripts/bundle-budget.mjs"), join(directory, "scripts/bundle-budget.mjs"));
     cpSync(resolve("scripts/check-bundle-budget.mjs"), join(directory, "scripts/check-bundle-budget.mjs"));
     writeFileSync(join(directory, "dist/index.html"), html);
     writeFileSync(join(directory, "dist/assets/app.js"), "export const app = true\n");
@@ -48,5 +54,23 @@ describe("bundle budget entry selection", () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("expected exactly one JavaScript module entry");
     expect(result.stderr).toContain("found 2");
+  });
+});
+
+describe("bundle budget boundaries", () => {
+  it("accepts an entry at both boundaries", () => {
+    expect(() => assertEntryBundleWithinBudget(ENTRY_RAW_LIMIT_BYTES, ENTRY_GZIP_LIMIT_BYTES)).not.toThrow();
+  });
+
+  it("rejects an entry above the raw boundary", () => {
+    expect(() => assertEntryBundleWithinBudget(ENTRY_RAW_LIMIT_BYTES + 1, ENTRY_GZIP_LIMIT_BYTES)).toThrow(
+      /Bundle budget exceeded/,
+    );
+  });
+
+  it("rejects an entry above the gzip boundary", () => {
+    expect(() => assertEntryBundleWithinBudget(ENTRY_RAW_LIMIT_BYTES, ENTRY_GZIP_LIMIT_BYTES + 1)).toThrow(
+      /Bundle budget exceeded/,
+    );
   });
 });
