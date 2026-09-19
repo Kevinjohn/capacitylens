@@ -26,8 +26,14 @@ export async function startMasquerade(accountId: string, targetUserId: string): 
 }
 
 /** Adopt server status without pulling the server transition owner into the application entry chunk. */
-export async function adoptMasqueradeStatus(status: MasqueradeStatus): Promise<void> {
-  (await loadMasqueradeController()).adoptStatus(status);
+export async function adoptMasqueradeStatus(
+  status: MasqueradeStatus,
+  isCurrent: () => boolean = () => true,
+): Promise<boolean> {
+  const controller = await loadMasqueradeController();
+  if (!isCurrent()) return false;
+  controller.adoptStatus(status);
+  return true;
 }
 
 /** Retry the active read projection through the lazily loaded transition owner. */

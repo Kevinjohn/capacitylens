@@ -61,7 +61,7 @@ async function refreshPermission(refresh: PermissionRefresh) {
     // writable frame under a masqueraded session.
     const masquerade = await masqueradeApi.status();
     if (!refresh.isCurrent()) return;
-    await adoptMasqueradeStatus(masquerade);
+    if (!(await adoptMasqueradeStatus(masquerade, refresh.isCurrent))) return;
     // One validated request drives the picker list and permission projection while retaining their
     // distinct failure postures.
     const summaries = await refreshAccountSummaries({

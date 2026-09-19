@@ -82,9 +82,18 @@ describe("account transition boundary", () => {
     const status = { active: false as const };
     const boundary = await import("./accountTransition");
 
-    await boundary.adoptMasqueradeStatus(status);
+    await expect(boundary.adoptMasqueradeStatus(status)).resolves.toBe(true);
 
     expect(mocks.adoptStatus).toHaveBeenCalledWith(status);
+  });
+
+  it("does not adopt server status when refresh ownership expired before adoption", async () => {
+    const isCurrent = vi.fn(() => false);
+    const boundary = await import("./accountTransition");
+
+    await expect(boundary.adoptMasqueradeStatus({ active: false }, isCurrent)).resolves.toBe(false);
+    expect(isCurrent).toHaveBeenCalledOnce();
+    expect(mocks.adoptStatus).not.toHaveBeenCalled();
   });
 
   it("retries projection through the lazy controller boundary", async () => {
