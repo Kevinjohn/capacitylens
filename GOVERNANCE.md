@@ -16,9 +16,14 @@ security response. Decisions are guided by the documented product boundary, user
 maintainability and evidence from tests or real use. Discussion is welcome; merge authority remains
 with the maintainer while the community is small.
 
-Substantial changes should begin as an issue. A proposal should explain the user problem, why it
-fits the deliberate scope, migration and security impact, and the smallest viable implementation.
-Accepted architectural constraints are recorded in `DECISIONS.md`.
+Every implementation, design or investigation plan is documented as a GitHub issue rather than a
+standalone planning or ideation Markdown file in the repository. A proposal should explain the user
+problem, why it fits the deliberate scope, migration and security impact, and the smallest viable
+implementation. Accepted architectural constraints are recorded in `DECISIONS.md`.
+
+Opening a pull request proposes a change; it does not authorise the change to be merged. Every pull
+request remains open until the maintainer gives explicit merge authorisation for that specific pull
+request after reviewing the available evidence.
 
 Contributors who demonstrate sustained, constructive work may be invited to triage issues or review
 changes. Any future expansion of maintainer rights and the process for removing them will be
