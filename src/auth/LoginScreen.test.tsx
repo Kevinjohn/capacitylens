@@ -139,7 +139,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
     expect(googleButton.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(email.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(password.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("or use your password")).toBeInTheDocument();
+    expect(screen.getByText("or use your password").parentElement).toHaveClass("mt-4", "mb-8");
   });
 
   it("starts keyboard focus on Google, then reaches the password email field", async () => {

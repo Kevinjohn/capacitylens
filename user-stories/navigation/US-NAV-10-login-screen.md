@@ -46,12 +46,13 @@ self-registration closes automatically and only the Sign in form below is reacha
   no data; direct API reads (e.g. `GET /api/state`) return 401.
 - The form submits with Enter; a failed sign-in shows an inline alert and no navigation.
 - When either the experimental Google provider or a strict OIDC provider explicitly branded as
-  Google is configured, its action is visibly Google-branded and is
-  named exactly **Sign in with Google** (including while disabled during the provider hand-off).
+  Google is configured, its action is visibly Google-branded, remains sharp on high-density
+  displays without an outer wrapper shadow, and is named exactly **Sign in with Google**
+  (including while disabled during the provider hand-off).
 - In mixed password mode with Google configured, **Sign in with Google** is the first sign-in
-  action; the password form follows an explicit **or use your password** separator. SSO-only mode
-  still omits password controls, while password-only mode and other providers retain their existing
-  order.
+  action; the password form follows an explicit, clearly spaced **or use your password** separator.
+  SSO-only mode still omits password controls, while password-only mode and other providers retain
+  their existing order.
 - A strict OIDC label does not select presentation: an OIDC provider labelled Google remains generic
   unless its brand is explicitly set, and its sign-in continues through strict OIDC in either case.
 - A successful sign-in resumes the normal company flow: the picker lists the user's memberships;
