@@ -353,6 +353,9 @@ function registerAdminRoleChangeTests(members: RawMember[]): void {
     await user.click(within(editorRow).getByTestId("member-edit"));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText(/theeditor@x\.io/)).toBeInTheDocument();
+    expect(
+      within(dialog).getByTestId("member-role-select").querySelector('[data-product-layout="label-control"]'),
+    ).toBeInTheDocument();
     fireEvent.keyDown(within(dialog).getByRole("combobox"), { key: "ArrowDown" });
     fireEvent.click(screen.getByRole("option", { name: "Viewer" }));
     // The summary explains the consequence, and choosing a role is still only a DRAFT.
@@ -451,7 +454,7 @@ describe("MembersSection — owner affordances", () => {
     expect(screen.queryByRole("option", { name: "Owner" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
     fireEvent.click(
-      within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Close" }),
+      within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Cancel" }),
     );
 
     const editorRow = await findMemberRow(/ed@x\.io/);
@@ -493,6 +496,10 @@ describe("MembersSection — owner affordances", () => {
     // labeled action buttons satisfy a text-content assertion on their own.
     expect(dialog).toHaveAccessibleDescription("ed@x.io");
     expect(within(dialog).getByTestId("member-actions-list")).toHaveAttribute("role", "group");
+    expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass("border-b");
+    expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
+    expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
+    expect(within(dialog).getByRole("button", { name: "Close" })).toBeInTheDocument();
     const resetPassword = within(dialog).getByTestId("member-reset-password");
     expect(resetPassword).toHaveAttribute("data-slot", "button");
     expect(resetPassword).toHaveAttribute("data-variant", "outline");
@@ -520,7 +527,14 @@ describe("MembersSection — owner affordances", () => {
 
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByTestId("member-resource-status")).toHaveTextContent("Bruce Wayne");
-    expect(within(dialog).getByRole("combobox", { name: /choose Resource/i })).toHaveValue(resource.id);
+    expect(dialog.querySelector('[data-slot="dialog-header"]')).toHaveClass("border-b");
+    expect(dialog.querySelector("form > div.p-4")).toBeInTheDocument();
+    expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass("border-t");
+    expect(
+      within(dialog).getByTestId("member-resource-link").closest('[data-product-layout="label-control"]'),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByTestId("member-resource-link")).toHaveAttribute("data-slot", "select-trigger");
+    expect(within(dialog).getByRole("combobox", { name: /choose Resource/i })).toHaveTextContent("Bruce Wayne");
     expect(within(dialog).getByRole("button", { name: /remove Resource link/i })).toBeInTheDocument();
   });
 });
