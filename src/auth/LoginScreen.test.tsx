@@ -139,9 +139,9 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
     expect(googleButton.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(email.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(password.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("or use your password").parentElement).toHaveClass("mt-4", "mb-8");
+    expect(googleButton).toHaveClass("mt-5", "mb-4");
+    expect(screen.getByText("or use your password").parentElement).toHaveClass("my-4");
   });
-
   it("starts keyboard focus on Google, then reaches the password email field", async () => {
     const user = userEvent.setup();
     render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
