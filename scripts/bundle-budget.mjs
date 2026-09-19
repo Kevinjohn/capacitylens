@@ -1,6 +1,6 @@
 // The entry limit is a blowup detector, not a creep ratchet. It is intentionally far above the
 // measured ~744 kB raw / ~225 kB gzip entry so ordinary feature work does not churn the threshold,
-// while still catching a barrel import or dependency mistake that adds hundreds of kilobytes.
+// while still catching an exceptional multi-megabyte barrel import or dependency mistake.
 export const ENTRY_RAW_LIMIT_BYTES = 3_200_000;
 export const ENTRY_GZIP_LIMIT_BYTES = 1_000_000;
 
