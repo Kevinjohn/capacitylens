@@ -49,11 +49,12 @@ Use these values:
 
 ```text
 Root directory: /
-Web or public directory: /dist
+Web or public directory: /production/dist
 ```
 
 The repository root contains the workspace and the frontend build. `pnpm run build` writes the
-static web app to `dist/`. The API build is a separate file at `server/dist/index.mjs`.
+static web app into `production/dist/`. The API runtime is packaged separately at
+`production/server/dist/index.mjs` with production dependencies only.
 
 Leave shared-path controls empty. The database, audit log and backups will use absolute paths
 outside the release tree instead.
@@ -102,19 +103,26 @@ pnpm --version
 pnpm install --frozen-lockfile
 pnpm run build
 pnpm --filter capacitylens-server run build:runtime
+pnpm run package:managed-release
 
-test -f dist/index.html
-test -f server/dist/index.mjs
+test -f production/dist/index.html
+test -f production/server/dist/index.mjs
+test -f production/server/dist/importWorker.mjs
+
+# Build dependencies are no longer needed after the portable runtime is complete.
+rm -rf .corepack node_modules shared/node_modules server/node_modules
 ```
 
 `$FORGE_RELEASE_DIRECTORY` is Laravel Forge's new release path. On another platform, replace it
 with that platform's new-release variable or run the same commands from the checkout directory.
 
-Expected build outputs:
+The final activated artifact is:
 
 ```text
-dist/index.html
-server/dist/index.mjs
+production/dist/index.html
+production/server/dist/index.mjs
+production/server/dist/importWorker.mjs
+production/server/node_modules/
 ```
 
 The pnpm version must match the `packageManager` value in `package.json`. Stop if it does not.
@@ -132,7 +140,8 @@ install -d -m 700 "/home/$SITE_USER/backups"
 Run the deployment as that site user. Confirm the directories are owned by the same user that will
 run the API.
 
-Never put the database under the release directory, `current/`, `dist/` or `server/dist/`.
+Never put the database under the release directory, `current/`, `production/dist/` or
+`production/server/dist/`.
 Platforms routinely delete old releases.
 
 ## 7. Run the first build
@@ -165,17 +174,17 @@ installation until both build outputs exist and the deployment exits successfull
 Run these checks from the active release:
 
 ```bash
-test -f dist/index.html
+test -f production/dist/index.html
 ```
 
 ```bash
-test -f server/dist/index.mjs
+test -f production/server/dist/index.mjs
 ```
 
 Then confirm:
 
 - the site uses an isolated user;
-- nginx's web directory ends in `/dist`;
+- nginx's web directory ends in `/production/dist`;
 - the active release used Node 24 or newer;
 - the active release used the pinned pnpm version; and
 - `data/` and `backups/` exist outside the release tree with mode `700`.

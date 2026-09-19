@@ -36,9 +36,13 @@
 <span class="line"><span style="color:#B392F0;">pnpm</span><span style="color:#9ECBFF;"> install</span><span style="color:#79B8FF;"> --frozen-lockfile</span></span>
 <span class="line"><span style="color:#B392F0;">pnpm</span><span style="color:#9ECBFF;"> run</span><span style="color:#9ECBFF;"> build</span></span>
 <span class="line"><span style="color:#B392F0;">pnpm</span><span style="color:#79B8FF;"> --filter</span><span style="color:#9ECBFF;"> capacitylens-server</span><span style="color:#9ECBFF;"> run</span><span style="color:#9ECBFF;"> build:runtime</span></span>
+<span class="line"><span style="color:#B392F0;">pnpm</span><span style="color:#9ECBFF;"> run</span><span style="color:#9ECBFF;"> package:managed-release</span></span>
 <span class="line"></span>
-<span class="line"><span style="color:#79B8FF;">test</span><span style="color:#79B8FF;"> -f</span><span style="color:#9ECBFF;"> dist/index.html</span></span>
-<span class="line"><span style="color:#79B8FF;">test</span><span style="color:#79B8FF;"> -f</span><span style="color:#9ECBFF;"> server/dist/index.mjs</span></span>
+<span class="line"><span style="color:#79B8FF;">test</span><span style="color:#79B8FF;"> -f</span><span style="color:#9ECBFF;"> production/dist/index.html</span></span>
+<span class="line"><span style="color:#79B8FF;">test</span><span style="color:#79B8FF;"> -f</span><span style="color:#9ECBFF;"> production/server/dist/index.mjs</span></span>
+<span class="line"><span style="color:#79B8FF;">test</span><span style="color:#79B8FF;"> -f</span><span style="color:#9ECBFF;"> production/server/dist/importWorker.mjs</span></span>
+<span class="line"></span>
+<span class="line"><span style="color:#B392F0;">rm</span><span style="color:#79B8FF;"> -rf</span><span style="color:#9ECBFF;"> .corepack</span><span style="color:#9ECBFF;"> node_modules</span><span style="color:#9ECBFF;"> shared/node_modules</span><span style="color:#9ECBFF;"> server/node_modules</span></span>
 <span class="line"></span>
 <span class="line"><span style="color:#B392F0;">install</span><span style="color:#79B8FF;"> -d</span><span style="color:#79B8FF;"> -m</span><span style="color:#79B8FF;"> 700</span><span style="color:#9ECBFF;"> &quot;/home/</span><span style="color:#E1E4E8;">$SITE_USER</span><span style="color:#9ECBFF;">/data&quot;</span></span>
 <span class="line"><span style="color:#B392F0;">install</span><span style="color:#79B8FF;"> -d</span><span style="color:#79B8FF;"> -m</span><span style="color:#79B8FF;"> 700</span><span style="color:#9ECBFF;"> &quot;/home/</span><span style="color:#E1E4E8;">$SITE_USER</span><span style="color:#9ECBFF;">/backups&quot;</span></span>

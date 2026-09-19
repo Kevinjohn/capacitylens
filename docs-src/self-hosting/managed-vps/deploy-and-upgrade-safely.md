@@ -48,9 +48,13 @@ pnpm --version
 pnpm install --frozen-lockfile
 pnpm run build
 pnpm --filter capacitylens-server run build:runtime
+pnpm run package:managed-release
 
-test -f dist/index.html
-test -f server/dist/index.mjs
+test -f production/dist/index.html
+test -f production/server/dist/index.mjs
+test -f production/server/dist/importWorker.mjs
+
+rm -rf .corepack node_modules shared/node_modules server/node_modules
 
 install -d -m 700 "/home/$SITE_USER/data"
 install -d -m 700 "/home/$SITE_USER/backups"

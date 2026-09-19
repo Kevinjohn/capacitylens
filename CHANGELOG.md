@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Managed-VPS builds now activate a production-only runtime artifact instead of retaining build and test dependencies in each release.
 - Rework Team & access so invitations open in a centered dialog, member and invitation tables use
   standalone frames, SSO cutover readiness has its own section, and Resource/member actions open
   their intended controls directly in consistent dialogs.

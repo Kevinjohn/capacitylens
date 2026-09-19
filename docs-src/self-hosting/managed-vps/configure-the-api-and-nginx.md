@@ -114,7 +114,7 @@ Stop timeout: more than 10 seconds
 Use this command:
 
 ```bash
-/bin/bash -lc 'set -a; source .env; set +a; exec node server/dist/index.mjs'
+/bin/bash -lc 'set -a; source .env; set +a; exec node production/server/dist/index.mjs'
 ```
 
 The shell exports every value read from `.env`, then `exec` replaces the shell with Node so the
