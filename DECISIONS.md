@@ -381,8 +381,10 @@ This is the short, present-tense record of decisions that constrain future work.
   shrinks.
 - A new verb, abbreviation or result shape enters `docs-src/reference/conventions.md` in the same
   pull request as its first use, with a tree example, and is reviewed like code.
-- Debt a batch declines to fix is recorded in `tasks/conventions-audit.md` as `D` with a reason,
-  never dropped; issue #638 links to that record for untouched deviations.
+- Debt a batch declines to fix is recorded on the closing issue or pull request, never dropped.
+  For historical context, the last revision of the conventions audit ledger is
+  [`3b455884`](https://github.com/Kevinjohn/capacitylens/blob/3b455884/tasks/conventions-audit.md),
+  linked from issue #638 for the untouched deviations it recorded.
 
 ## Structural checks kept after the 2026-09 tooling removal
 
