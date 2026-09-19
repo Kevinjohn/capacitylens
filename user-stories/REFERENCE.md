@@ -257,6 +257,11 @@ the account block until re-opened; the administration group stays as icons on th
 desktop and collapsed on small screens** (`(max-width: 767px), (max-height: 480px)` — phone
 portrait or phone landscape).
 
+An icon button directly below **Settings** switches between explicit light and dark modes without
+opening Settings. Its accessible name describes the next action (**Switch to dark mode** or
+**Switch to light mode**) and it remains available on the collapsed icon rail. The full
+**Light** / **Dark** / **Match system** choice remains in Settings.
+
 **Rotate hint (portrait phones only).** On a portrait viewport ≤ 767px wide, a dismissable
 dialog titled **Best in landscape** appears (over the company picker too, since that's a
 phone's first contact). **Got it** (or Escape / backdrop) dismisses it for the session
