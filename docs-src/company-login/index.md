@@ -21,7 +21,9 @@ self-hosted install, the first person in signs up with a one-time setup token; e
 after that needs an invitation. This is the fastest way to start, and it's the default
 for a new installation.
 
-**Social sign-in.** A branded "Sign in with Google" or "Continue with Microsoft" style button.
+**Social sign-in.** A recognisable Google, Microsoft or GitHub button. Each configured provider
+uses the same branded treatment on the sign-in wall, invitation acceptance and identity
+confirmation prompts.
 These are marked **experimental** in CapacityLens: they work, but they're a lighter-weight
 option than company login. In mixed password mode, a configured Google action is shown first on
 the sign-in wall, followed by **or use your password** and the password form; other configured
@@ -32,6 +34,10 @@ To make company login the only door,
 remove every named social provider's client-id and client-secret pair, restart CapacityLens, and
 check that the buttons are gone. See the [cutover FAQ](/company-login/move-to-single-sign-on#what-about-the-sign-in-with-google-continue-with-microsoft-github-style-buttons)
 and [Configuration](/self-hosting/configuration#company-login) for the exact settings.
+
+![The CapacityLens sign-in page in light mode, showing branded Google, Microsoft and GitHub buttons](../screenshots/flows/social_provider_buttons_light.jpg)
+
+![The CapacityLens sign-in page in dark mode, showing branded Google, Microsoft and GitHub buttons](../screenshots/flows/social_provider_buttons_dark.jpg)
 
 **Company login.** Also called single sign-on, or SSO. The person clicks "Continue with
 [your company]" and is sent to the [identity provider](/reference/glossary) your
