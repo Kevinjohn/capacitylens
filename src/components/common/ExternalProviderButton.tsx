@@ -32,7 +32,7 @@ export function ExternalProviderButton({
     <Button
       {...buttonProps}
       className={cn(
-        google && "h-10 min-h-10 rounded-[4px] border-0 bg-transparent p-0 focus-visible:ring-0",
+        google && "h-10 min-h-10 rounded-[4px] border-0 bg-transparent p-0 shadow-none focus-visible:ring-0",
         className,
       )}
       style={style}
@@ -52,8 +52,8 @@ function GoogleMark() {
         alt=""
         aria-hidden="true"
         data-testid="google-mark-light"
-        width="180"
-        height="40"
+        width="360"
+        height="80"
         className="block h-10 w-[180px] max-w-full object-contain dark:hidden"
       />
       <img
@@ -61,8 +61,8 @@ function GoogleMark() {
         alt=""
         aria-hidden="true"
         data-testid="google-mark-dark"
-        width="180"
-        height="40"
+        width="360"
+        height="80"
         className="hidden h-10 w-[180px] max-w-full object-contain dark:block"
       />
     </>

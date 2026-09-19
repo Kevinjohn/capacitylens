@@ -296,7 +296,7 @@ function ProviderButtons({
 
 function PasswordFallbackSeparator() {
   return (
-    <div className="my-4 flex items-center gap-3 text-xs text-muted-foreground">
+    <div className="mt-4 mb-8 flex items-center gap-3 text-xs text-muted-foreground">
       <Separator className="min-w-0 flex-1 shrink data-[orientation=horizontal]:w-auto" />
       <span className="shrink-0">{m.login_or_use_password()}</span>
       <Separator className="min-w-0 flex-1 shrink data-[orientation=horizontal]:w-auto" />
