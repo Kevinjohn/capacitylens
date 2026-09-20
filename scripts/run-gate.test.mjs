@@ -50,9 +50,9 @@ function fixture(t, installCommand = true) {
   };
 }
 
-test("both gates execute their ordered commands once, from the repository, with inherited environment", (t) => {
+test("all gates execute their ordered commands once, from the repository, with inherited environment", (t) => {
   const fake = fixture(t);
-  for (const gate of ["app", "server"]) {
+  for (const gate of ["app", "server", "all"]) {
     const result = fake.run([gate]);
     assert.equal(result.status, 0, result.stderr);
     const entries = fake.entries();
@@ -68,7 +68,7 @@ test("both gates execute their ordered commands once, from the repository, with 
 
 test("a command failure keeps its exit code and prevents every later check", (t) => {
   const fake = fixture(t);
-  for (const gate of ["app", "server"]) {
+  for (const gate of ["app", "server", "all"]) {
     const commands = gateCommands(gate);
     const failing = commands.findIndex((args) => args.includes("policy:file-sizes"));
     assert.ok(failing > 0);
@@ -109,17 +109,51 @@ test("invalid modes and extra arguments fail before launching anything", (t) => 
   for (const args of [[], ["unknown"], ["constructor"], ["__proto__"], ["app", "extra"]]) {
     const result = fake.run(args);
     assert.equal(result.status, 2);
-    assert.match(result.stderr, /Expected app or server/);
+    assert.match(result.stderr, /Expected app, server, or all/);
     assert.deepEqual(fake.entries(), []);
   }
+});
+
+test("all mode runs shared checks once before the app-only and server-only checks", () => {
+  const app = gateCommands("app");
+  const server = gateCommands("server");
+  const all = gateCommands("all");
+  const key = (args) => JSON.stringify(args);
+  const appKeys = new Set(app.map(key));
+  const serverKeys = new Set(server.map(key));
+  const sharedKeys = new Set(app.filter((args) => serverKeys.has(key(args))).map(key));
+  const expectedKeys = new Set([...app, ...server].map(key));
+  const actualKeys = all.map(key);
+  const sharedPrefix = all.slice(0, sharedKeys.size);
+  const lastAppOnly = all.findLastIndex(
+    (args) => appKeys.has(key(args)) && !sharedKeys.has(key(args)),
+  );
+  const firstServerOnly = all.findIndex(
+    (args) => serverKeys.has(key(args)) && !sharedKeys.has(key(args)),
+  );
+
+  assert.deepEqual(new Set(actualKeys), expectedKeys);
+  assert.equal(new Set(actualKeys).size, actualKeys.length);
+  assert.ok(sharedPrefix.every((args) => sharedKeys.has(key(args))));
+  assert.ok(all.slice(sharedKeys.size).every((args) => !sharedKeys.has(key(args))));
+  assert.deepEqual(sharedPrefix, server.filter((args) => sharedKeys.has(key(args))));
+  assert.deepEqual(
+    all.filter((args) => appKeys.has(key(args)) && !sharedKeys.has(key(args))),
+    app.filter((args) => !sharedKeys.has(key(args))),
+  );
+  assert.deepEqual(
+    all.filter((args) => serverKeys.has(key(args)) && !sharedKeys.has(key(args))),
+    server.filter((args) => !sharedKeys.has(key(args))),
+  );
+  assert.ok(lastAppOnly >= 0 && firstServerOnly >= 0 && lastAppOnly < firstServerOnly);
 });
 
 test("mode selection returns independent argument arrays and includes the runner's regressions", () => {
   const first = gateCommands("app");
   first[0].push("mutated");
   assert.ok(!gateCommands("app")[0].includes("mutated"));
-  for (const mode of ["app", "server"]) {
+  for (const mode of ["app", "server", "all"]) {
     assert.ok(gateCommands(mode).some((args) => args.includes("policy:gate-runner:test")));
   }
-  assert.throws(() => gateCommands("unknown"), /Expected app or server/);
+  assert.throws(() => gateCommands("unknown"), /Expected app, server, or all/);
 });

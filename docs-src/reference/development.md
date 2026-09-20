@@ -427,8 +427,7 @@ Inside a module, function verbs, variable names, parameter style and result shap
 Run these before proposing a change:
 
 ```bash
-pnpm run gate
-pnpm run gate:server
+pnpm run gate:all
 pnpm run test:account-conformance
 pnpm run e2e
 pnpm run e2e:oidc
@@ -448,6 +447,10 @@ operation only when diagnosing a hook problem; pull-request checks remain author
 enforced coverage floors, rejects any new measured executable module with zero covered
 lines, and builds the SPA. A short exact-file allow-list records existing zero-coverage
 debt; broad patterns are forbidden so unrelated new files can't inherit an exception.
+
+Run `gate:all` for the combined app and server gate. It executes the checks shared by `gate`
+and `gate:server` once, then runs the app-only and server-only checks in their established
+order. The separate commands remain available when only one workspace needs validation.
 
 Lint also holds the typed packages to the mechanical rules of the code conventions page:
 identifier casing, no negated boolean names, and at most three parameters. Existing violations

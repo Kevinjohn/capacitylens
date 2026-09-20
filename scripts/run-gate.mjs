@@ -7,7 +7,7 @@ const root = fileURLToPath(new URL("../", import.meta.url));
 function main() {
   try {
     const [mode, ...extra] = process.argv.slice(2);
-    if (extra.length) throw new Error("Expected app or server with no extra arguments.");
+    if (extra.length) throw new Error("Expected app, server, or all with no extra arguments.");
     for (const args of gateCommands(mode)) {
       const label = `gate (${mode}): pnpm ${args.join(" ")}`;
       console.log(label);
