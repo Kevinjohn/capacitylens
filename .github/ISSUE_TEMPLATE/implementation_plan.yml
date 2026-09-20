@@ -1,0 +1,32 @@
+name: Implementation plan
+description: Document an implementation, design, or investigation plan
+labels: [ideation]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: Describe the user or operational outcome this plan should deliver.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: State what is included, what is deliberately excluded, and the affected areas.
+    validations:
+      required: true
+  - type: textarea
+    id: approach
+    attributes:
+      label: Approach
+      description: List the proposed increments, dependencies, risks, and acceptance evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Decisions and follow-up
+      description: Record consequential decisions here and add material revisions as issue comments.
+    validations:
+      required: false
