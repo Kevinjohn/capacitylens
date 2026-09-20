@@ -5,7 +5,7 @@ import { useAuth } from "../../auth/authContext";
 import { resolveAccessLabel, resolveAccessSummary } from "../../lib/accessCopy";
 import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
 import { useOfflineState } from "../../data/useOfflineState";
-import { MembersSection } from "../settings/MembersSection";
+import { MembersSection } from "./MembersSection";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
 import { Badge } from "../ui/badge";
 import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
