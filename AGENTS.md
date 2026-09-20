@@ -324,12 +324,6 @@ validation failures.
 - Other changes default to `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` before
   submission on Node >= 24. Cross-browser and mutation checks are documented in
   `docs-src/reference/development.md`; keep E2E specs browser-agnostic.
-- Programme exception, agreed 7 September 2026: only work explicitly governed by `tasks/plan.md`
-  follows its risk-based validation and programme-specific CI/release policy instead of the
-  defaults here. Owners run focused tests, applicable type/lint/format and size/baseline checks;
-  the coordinator owns the three full suites at a recorded integrated milestone before release.
-  Docker and mutation suites are excluded for that programme. Do not carry its skip-CI policy
-  into unrelated work. Current explicit user instructions supersede historical plan decisions.
 
 ## Git and GitHub flow
 
