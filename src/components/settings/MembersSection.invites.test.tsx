@@ -108,6 +108,15 @@ describe("MembersSection — invite mint", () => {
 });
 
 function registerInviteCopyControlTests(): void {
+  it("places Invite someone before the member table", async () => {
+    vi.stubGlobal("fetch", mockApi([{ userId: "me", role: "owner", isSelf: true }]));
+    renderSection();
+
+    const invites = await screen.findByTestId("invites-section");
+    const members = await screen.findByTestId("members-section");
+    expect(invites.compareDocumentPosition(members) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("keeps reset-link and invitation-link copy controls clearly labeled", async () => {
     const user = userEvent.setup();
     const members: RawMember[] = [

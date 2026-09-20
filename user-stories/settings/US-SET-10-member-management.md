@@ -61,9 +61,9 @@ the non-blocking product orientation if it is open.
 
 1. Open **Team & access** (sidebar). **Your access** summarises the caller's role in a sentence; the
    full capability tick list is collapsed behind **See full capabilities**
-   (`data-testid="capabilities-toggle"`), so the page opens on the member table rather than on
-   reference material. Below it sits the **Members** section (`data-testid="members-section"`,
-   heading **Members**).
+   (`data-testid="capabilities-toggle"`), so the page opens on management rather than on reference
+   material. Below it, **Invite someone** appears before the **Members** section
+   (`data-testid="members-section"`, heading **Members**).
 
    Loading the directory is a read-only operation: an Owner or Admin can review members and
    outstanding invites from an older session without a confirmation prompt. A
@@ -98,8 +98,9 @@ the non-blocking product orientation if it is open.
    (`data-testid="member-restore"`) in place of disable/archive. C stays listed there, so the
    operation is visible and reversible, but every read C attempts against the company is refused by
    the server.
-6. B selects the primary **Invite someone** button to open a centered dialog, then picks a role (`data-testid="invite-role"`), optionally fills the
-   **pre-authorise email** (`data-testid="invite-preauth"`), checks the selected role's visible
+6. B selects the primary **Invite someone** button above the member table to open a centered dialog,
+   then picks a role (`data-testid="invite-role"`), fills **Email** when needed
+   (`data-testid="invite-preauth"`), checks the selected role's visible
    capability summary, and clicks **Create invite**
    (`data-testid="invite-submit"`). The full link `<origin>/invite/<token>` appears **once**
    (`data-testid="invite-link"`) with a visible **Copy** button whose accessible name is
@@ -119,8 +120,8 @@ the non-blocking product orientation if it is open.
    row shows B neither a pencil nor a more-actions button (an Admin can't touch an owner). Signed in as A, that same
    row keeps a more-actions button holding only the self-service **Reset password** and **Revoke sessions**: nobody
    can disable an Owner, or themselves. See US-SET-13 for the reset-link flow itself.
-9. **Ownership transfer** is not reachable from the member table at all. It lives in its own
-   **Company ownership** section below, as a three-step ceremony the nominated Admin must agree to —
+9. **Ownership transfer** is not reachable from the member table at all. Its own **Company ownership**
+   section below opens the three-step ceremony in a modal the nominated Admin must agree to —
    see [US-SET-18](US-SET-18-ownership-transfer.md).
 10. Team & access does not render **Record member sign-ins** or a **Signed in** column, even when
     the stored server setting is enabled. The server API, storage, and audit behavior remain
@@ -183,8 +184,9 @@ the non-blocking product orientation if it is open.
     membership projections afterwards so the former Owner's role badge and affordances reflect the
     demotion.
 - Invitation creation explains that CapacityLens sends no email: the administrator must copy and
-  send the link. Email guidance is available to screen readers before validation and alongside
-  any error. Success and recovery instructions remain inline with the one-time link.
+  send the link. The field label is simply **Email**, with no explanatory helper copy; it remains
+  optional in password mode and required in SSO-only mode. Success and recovery instructions remain
+  inline with the one-time link.
 - Recipients can choose **Sign in** or **Create account** with equally prominent controls. Only the
   selected journey's fields appear. Existing users review and explicitly accept as the signed-in
   identity; changing identity preserves the invitation. New users create their sign-in and accept
@@ -198,8 +200,9 @@ the non-blocking product orientation if it is open.
   **400**; touching or removing the Owner outside the ownership-transfer ceremony is **403**;
   revoking another account's invite is a no-op; and reading another
   account's members is **403** (no cross-tenant member leak).
-- SSO cutover readiness is not fetched or rendered on Team & access. It is presented under company-level
-  Settings, where its existing authorization, loading/error, repair confirmation, fresh-session,
+- SSO cutover readiness is not fetched or rendered on Team & access. It is presented as its own
+  company-level Settings table with **Member**, **Role**, **Status**, and **Actions** columns, where
+  its existing authorization, loading/error, repair confirmation, fresh-session,
   provider/account switching, offline, reconciliation, and audit behavior remain unchanged.
 - API routes: `GET /api/accounts/:accountId/members` (returns
   `{members, signInTrackingEnabled}`; each member carries `status` and nullable

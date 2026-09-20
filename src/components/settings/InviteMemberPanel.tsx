@@ -200,11 +200,6 @@ function InviteForm(props: InviteFormProps) {
           clear,
         }}
       />
-      <div className="sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:gap-3">
-        <p id={`${errorId}-email-help`} className="text-xs text-muted-foreground sm:col-start-2">
-          {authMode === "sso" ? m.settings_invite_preauth_description_sso() : m.settings_invite_preauth_description()}
-        </p>
-      </div>
       <SelectField
         label={m.settings_invite_person_label()}
         ariaLabel={m.settings_invite_person_aria()}
@@ -262,7 +257,7 @@ function InviteEmailField(props: InviteEmailFieldProps) {
     props;
   return (
     <TextField
-      label={authMode === "sso" ? m.settings_invite_preauth_label_required() : m.settings_invite_preauth_label()}
+      label={m.settings_invite_preauth_label()}
       ariaLabel={m.settings_invite_preauth_aria()}
       type="email"
       value={invitationPreauthorizedEmail}
@@ -275,7 +270,6 @@ function InviteEmailField(props: InviteEmailFieldProps) {
       invalid={errorField === "invite"}
       layout="label-control"
       required={authMode === "sso"}
-      externalDescriptionId={`${errorId}-email-help`}
       describedById={errorId}
       placeholder={m.settings_invite_preauth_placeholder()}
       testId="invite-preauth"

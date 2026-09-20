@@ -38,15 +38,16 @@ every sensitive action.
 
 1. As **A**, open **Team & access**. Below member management sits **Company ownership**
    (`data-testid="ownership-transfer-card"`), explaining that ownership moves in three steps and
-   that nothing changes until all three have happened.
-2. A picks B from **Next Owner** (`data-testid="ownership-transfer-nominee"`) and chooses **Start
+   that nothing changes until all three have happened. A selects **Manage ownership**
+   (`data-testid="ownership-transfer-open"`) to open the ceremony in a modal.
+2. In the modal, A picks B from **Next Owner** (`data-testid="ownership-transfer-nominee"`) and chooses **Start
    transfer** (`data-testid="ownership-transfer-start"`). Only **active Admins** are offered.
-3. The card now shows the live request (`data-testid="ownership-transfer-state"`): waiting for B to
+3. The modal now shows the live request (`data-testid="ownership-transfer-state"`): waiting for B to
    agree, and the date the request expires. A keeps **Cancel the transfer**
    (`data-testid="ownership-transfer-cancel"`) and can nominate somebody else instead
    (`data-testid="ownership-transfer-replace"`), which replaces the standing request rather than
    opening a second one. **Confirm the transfer** is not offered yet.
-4. As **B**, the same card offers **Agree to become Owner**
+4. As **B**, the same Company ownership modal offers **Agree to become Owner**
    (`data-testid="ownership-transfer-accept"`) and **Decline**
    (`data-testid="ownership-transfer-decline"`) — and none of A's controls.
 5. B agrees. B's side now offers only **Withdraw my agreement**
@@ -54,7 +55,7 @@ every sensitive action.
    (`data-testid="ownership-transfer-complete"`).
 6. A confirms. B becomes the **Owner** and A becomes an **Admin** in one server call; the member
    list, A's own role badge and A's affordances all reflect the demotion immediately.
-7. Anyone who is neither participant sees no card at all, at any point.
+7. Anyone who is neither participant sees no Company ownership entry point at all, at any point.
 
 ## Acceptance criteria
 
@@ -76,9 +77,9 @@ every sensitive action.
   to be an active Admin, the initiator ceasing to be the Owner, a role change, a status change or a
   removal touching either participant. The request ends; the company keeps the Owner it had.
 - Both participants — and nobody else — can read the request. A viewer who is not a participant
-  reads an empty projection, so hiding the card is presentation, never the authorisation mechanism.
-- A participant who was away when a request ended sees **how** it ended (declined, cancelled,
-  replaced, expired, or ended because the people changed) rather than an empty card.
+  reads an empty projection, so hiding the entry point is presentation, never the authorisation mechanism.
+- A participant who was away when a request ended opens the modal and sees **how** it ended
+  (declined, cancelled, replaced, expired, or ended because the people changed) rather than an empty state.
 - Every step requires a fresh administrative assurance; **seeing** the request does not, so a
   participant who signed in hours ago can still read the nomination they are being asked to approve.
   Neither reading nor acting is available while viewing the company as somebody else (masquerade).

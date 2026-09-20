@@ -108,6 +108,20 @@ describe("Settings SSO readiness boundary", () => {
     expect(await screen.findByTestId("sso-readiness")).toBeInTheDocument();
   });
 
+  it("renders readiness as its own Settings group and member table", async () => {
+    vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => jsonResponse(readiness()) }));
+    renderReadiness();
+
+    const group = await screen.findByRole("region", { name: m.settings_sso_readiness_heading() });
+    const table = within(group).getByRole("table");
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((header) => header.textContent),
+    ).toEqual(["Member", "Role", "Status", "Actions"]);
+    expect(within(table).getByText("target@x.io")).toBeInTheDocument();
+  });
+
   it.each([
     ["failed", () => jsonResponse({ error: "Unavailable" }, 503)],
     [

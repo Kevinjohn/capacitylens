@@ -9,6 +9,7 @@ import { useStore } from "../../store/useStore";
 import { FieldError } from "../ui/field";
 import { Button } from "../ui/button";
 import { SsoUnlinkConfirmation } from "./MemberConfirmations";
+import { SettingsGroup } from "./SettingsGroup";
 import { SsoReadinessPanel } from "./SsoReadinessPanel";
 import { useTeamDirectory } from "./useTeamDirectory";
 import { useWorkspaceReadiness } from "./useWorkspaceReadiness";
@@ -37,12 +38,21 @@ function ReadinessDirectoryError({
   retry: () => void;
 }) {
   return (
-    <section data-testid="sso-readiness-section" className="flex flex-col items-start gap-3">
+    <section data-testid="sso-readiness-section" className="flex flex-col items-start gap-3 p-4 sm:p-6">
       <FieldError id={errorId}>{error}</FieldError>
       <Button type="button" size="sm" variant="outline" onClick={retry}>
         {m.settings_members_retry()}
       </Button>
     </section>
+  );
+}
+
+function ReadinessLoadError() {
+  return (
+    <div className="rounded-md border border-danger/40 bg-danger/5 p-3" role="alert" data-testid="sso-readiness-error">
+      <h3 className="text-sm font-medium text-danger">{m.settings_sso_readiness_heading()}</h3>
+      <p className="text-xs text-danger">{m.settings_sso_readiness_error()}</p>
+    </div>
   );
 }
 
@@ -106,8 +116,9 @@ function SettingsSsoReadinessController({
   });
 
   if (!eligible) return null;
+  let content;
   if (directory.directory.kind === "error") {
-    return (
+    content = (
       <ReadinessDirectoryError
         error={error}
         errorId={errorId}
@@ -117,41 +128,39 @@ function SettingsSsoReadinessController({
         }}
       />
     );
-  }
-  if (!readiness.readinessApplies) return null;
-  return (
-    <section data-testid="sso-readiness-section" className="flex flex-col gap-3">
-      {readiness.readinessState.kind === "error" && (
-        <div
-          className="rounded-md border border-danger/40 bg-danger/5 p-3"
-          role="alert"
-          data-testid="sso-readiness-error"
-        >
-          <h3 className="text-sm font-medium text-danger">{m.settings_sso_readiness_heading()}</h3>
-          <p className="text-xs text-danger">{m.settings_sso_readiness_error()}</p>
-        </div>
-      )}
-      {readiness.readinessState.kind === "ready" && (
-        <SsoReadinessPanel
-          authMode={authMode}
-          readiness={readiness.readinessState.readiness}
-          busy={busyAction !== null}
-          emailRepair={readiness.emailRepair}
-          setEmailRepair={readiness.setEmailRepair}
-          error={error}
-          errorField={errorField}
-          errorId={errorId}
-          onCorrectEmail={() => void readiness.correctSsoEmail()}
-          onRemoveLink={(member, link) => readiness.setUnlinkRepair({ member, link })}
+  } else if (!readiness.readinessApplies) {
+    return null;
+  } else {
+    content = (
+      <section data-testid="sso-readiness-section" className="flex flex-col gap-3 p-4 sm:p-6">
+        {readiness.readinessState.kind === "error" && <ReadinessLoadError />}
+        {readiness.readinessState.kind === "ready" && (
+          <SsoReadinessPanel
+            authMode={authMode}
+            readiness={readiness.readinessState.readiness}
+            busy={busyAction !== null}
+            emailRepair={readiness.emailRepair}
+            setEmailRepair={readiness.setEmailRepair}
+            error={error}
+            errorField={errorField}
+            errorId={errorId}
+            onCorrectEmail={() => void readiness.correctSsoEmail()}
+            onRemoveLink={(member, link) => readiness.setUnlinkRepair({ member, link })}
+          />
+        )}
+        <FieldError id={errorId}>{errorField === null ? error : null}</FieldError>
+        <SsoUnlinkConfirmation
+          unlinkRepair={readiness.unlinkRepair}
+          setUnlinkRepair={readiness.setUnlinkRepair}
+          removeIncorrectSsoLink={readiness.removeIncorrectSsoLink}
         />
-      )}
-      <FieldError id={errorId}>{errorField === null ? error : null}</FieldError>
-      <SsoUnlinkConfirmation
-        unlinkRepair={readiness.unlinkRepair}
-        setUnlinkRepair={readiness.setUnlinkRepair}
-        removeIncorrectSsoLink={readiness.removeIncorrectSsoLink}
-      />
-    </section>
+      </section>
+    );
+  }
+  return (
+    <SettingsGroup title={m.settings_sso_readiness_heading()} description={m.settings_sso_readiness_description()}>
+      {content}
+    </SettingsGroup>
   );
 }
 

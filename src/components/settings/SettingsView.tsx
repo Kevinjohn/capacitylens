@@ -86,8 +86,8 @@ export function SettingsView() {
             workingDaysMinimumId={controller.workingDaysMinimumId}
             updateSetting={controller.updateSetting}
           />
-          <SettingsSsoReadinessSection />
         </SettingsGroup>
+        <SettingsSsoReadinessSection />
         <SettingsGroup title={m.settings_features_heading()} description={m.settings_features_description()}>
           <SchedulingFeatureSections
             canEdit={controller.canEdit}

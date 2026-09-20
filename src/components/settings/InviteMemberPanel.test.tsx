@@ -79,50 +79,34 @@ describe("InviteMemberPanel creation guidance", () => {
     expect(screen.queryByTestId("invite-preauth")).not.toBeInTheDocument();
   });
 
-  it("explains that CapacityLens does not send invitation emails and describes generic versus restricted links", () => {
+  it("uses a plain Email label without field exposition", () => {
     renderInvite();
     fireEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByTestId("invites-section")).toHaveTextContent(
       "CapacityLens does not send invitation emails. After creating an invite, copy the link and send it yourself.",
     );
+    expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));
     expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-required");
-    expect(
-      screen.getByText(
-        "Supply an email to restrict this invite to that recipient. Leave it empty for a generic one-use link that can be shared with anyone.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/Supply an email to restrict this invite/)).not.toBeInTheDocument();
   });
 
-  it("marks the pre-authorised email as required for SSO invitations", () => {
+  it("marks Email as required for SSO invitations without adding helper copy", () => {
     renderInvite({ authMode: "sso" });
     fireEvent.click(screen.getByTestId("invite-open"));
 
+    expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));
     expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-required", "true");
-    expect(screen.getByText("The invitee must use this email with their verified company login.")).toBeInTheDocument();
+    expect(screen.getByTestId("invite-preauth")).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(/verified company login/)).not.toBeInTheDocument();
   });
 
-  it.each([
-    [
-      "password",
-      "Supply an email to restrict this invite to that recipient. Leave it empty for a generic one-use link that can be shared with anyone.",
-    ],
-    ["sso", "The invitee must use this email with their verified company login."],
-  ] as const)("describes a valid %s pre-authorised email field persistently", (authMode, description) => {
-    renderInvite({ authMode });
-    fireEvent.click(screen.getByTestId("invite-open"));
-
-    expect(screen.getByTestId("invite-preauth")).toHaveAccessibleDescription(description);
-  });
-
-  it("keeps the persistent helper alongside the conditional error description", () => {
+  it("associates only the conditional error with Email", () => {
     renderInvite({ error: "Enter a valid email address.", errorField: "invite" });
     fireEvent.click(screen.getByTestId("invite-open"));
 
-    expect(screen.getByTestId("invite-preauth")).toHaveAttribute(
-      "aria-describedby",
-      "invite-error-email-help invite-error",
-    );
+    expect(screen.getByTestId("invite-preauth")).toHaveAttribute("aria-describedby", "invite-error");
   });
 
   it("keeps the minted link and its recovery instructions in an inline status", () => {

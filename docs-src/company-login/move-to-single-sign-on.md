@@ -169,8 +169,8 @@ empty install with nobody in it. You already have people.
 
 _2 minutes · Owner / Admin_
 
-Sign in with your password as usual, and go to **Settings**. Under **Company setup** there is a section:
-**SSO cutover readiness**. Right now it will be a wall of "Not connected", and that's
+Sign in with your password as usual, and go to **Settings**. After **Company setup** there is a
+separate **SSO cutover readiness** group. Its member table will be a wall of "Not connected", and that's
 exactly what it should look like on day one.
 
 ![The SSO cutover readiness panel listing four members, all marked Not connected, with the Owner row highlighted in red and marked Critical](../screenshots/flows/sso-readiness-blocked.jpg)
@@ -179,7 +179,7 @@ Every active member of this company, and whether they've connected. The Owner is
 outlined in red and marked **Critical** — if the Owner can't get in after cutover,
 nobody can fix it from inside the app.
 
-This **Settings → Company setup** section is your progress bar for the whole project. Check it
+This **Settings → SSO cutover readiness** table is your progress bar for the whole project. Check it
 whenever you like. It updates as people connect.
 
 ### 4. Everyone connects their own account {#step-4}
@@ -207,8 +207,8 @@ Someone else already connected this exact company login account — usually a sh
 login, or a colleague who clicked Connect on the wrong CapacityLens profile. The member
 sees this on their own screen, word for word: _"This identity-provider account is
 already connected to a different person. Ask an administrator to repair the existing
-link."_ They can't fix it themselves. On your side, the **Settings → Company setup** readiness
-section shows the same
+link."_ They can't fix it themselves. On your side, the **Settings → SSO cutover readiness** table
+shows the same
 problem as **Provider account claimed twice** against the person who connected first —
 see [step 5](#step-5) for how to work out which link is right and remove the other one.
 :::
@@ -248,7 +248,7 @@ words. Here's every message you can get and what to do about it:
 | Unsupported provider link      | They connected through a different provider (a social login), not the company one.     | **Remove incorrect link**, then have them connect the company provider.                                                              |
 | Identity record missing        | A membership with no identity behind it. Rare, and not self-service.                   | See the repair commands in [When something goes wrong](/self-hosting/incidents).                                                     |
 
-In **Settings → Company setup**, **Correct email** is the button for the situation the whole cutover usually hinges on:
+In **Settings → SSO cutover readiness**, **Correct email** is the button for the situation the whole cutover usually hinges on:
 someone signed up as `dave@agency.com` but the company login knows him as
 `david.smith@agency.co.uk`. Change the CapacityLens side to match, and he can connect.
 

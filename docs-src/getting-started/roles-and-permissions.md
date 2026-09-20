@@ -69,8 +69,8 @@ member-management details.
 
 Ownership moves in three steps, and nothing changes until all three have happened:
 
-1. The **Owner nominates an Admin** in **Team & access → Company ownership**. Only active
-   Admins can be nominated: the new Owner is someone who already administers the company,
+1. The **Owner opens Manage ownership** in **Team & access → Company ownership**, then nominates an
+   Admin in the modal. Only active Admins can be nominated: the new Owner is someone who already administers the company,
    not a promotion of two steps on one person's say-so.
 2. The **nominated Admin agrees**. Nobody can agree on their behalf — not another Admin,
    and not the Owner who asked. They can decline instead, or take their agreement back
@@ -78,7 +78,7 @@ Ownership moves in three steps, and nothing changes until all three have happene
 3. The **same Owner confirms**. Only then do the two of you swap: they become the Owner,
    you become an Admin.
 
-Both people see the request in **Team & access**, and nobody else does — a transfer in
+Both people can open the request from **Team & access**, and nobody else sees that entry point — a transfer in
 progress, and who it names, isn't ordinary member information. Either side can stop it:
 the Owner can cancel, and the nominee can decline. The Owner can also nominate somebody
 else instead, which replaces the standing request rather than opening a second one.
@@ -86,7 +86,7 @@ else instead, which replaces the standing request rather than opening a second o
 A request expires seven days after it is made, whether or not the nominee has agreed. It
 also ends by itself if the people it names stop being the right people: if the nominee
 stops being an active Admin, or the Owner who asked stops being the Owner, the request
-ends and the card says so. In every case the company keeps the Owner it already had.
+ends and the modal says so. In every case the company keeps the Owner it already had.
 
 Both people need a recent sign-in confirmation for their step, the same as every other
 sensitive action. If a company somehow ends up with no Owner at all, see [A company has

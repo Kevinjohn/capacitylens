@@ -185,18 +185,20 @@ other directory shows the picker. Choosing from the picker keeps the requested U
 that section. Unknown extensionless URLs still reach the in-app
 **Page not found** screen; missing asset and API paths remain real HTTP errors.
 
-Settings is one page with four groups in order: **Company setup**, **Scheduling features**,
-**My display**, and **Data and support**. Compact rows stack their labels and controls on narrow
+Settings is one page with four permanent groups in order: **Company setup**, **Scheduling features**,
+**My display**, and **Data and support**. When strict OIDC is configured, **SSO cutover readiness**
+appears as its own group directly after Company setup. Compact rows stack their labels and controls on narrow
 screens. Group descriptions distinguish company-wide settings from preferences saved in this browser.
 Editors and above can change ordinary company settings; Owners and Admins manage Overview access.
-Everyone can adjust their device preferences. Company setup also contains the company-keyed **SSO
-cutover readiness** section when strict OIDC is configured; it owns readiness loading, errors, and
+Everyone can adjust their device preferences. The conditional company-keyed **SSO cutover
+readiness** group owns readiness loading, errors, and
 the existing Owner/Admin repair and confirmation flows. See [Settings](../docs-src/guide/settings.md).
 
 **SSO cutover readiness** (`data-testid="sso-readiness-section"` containing
 `data-testid="sso-readiness"`, with strict OIDC configured) is a company-level Settings section.
 It shows whether every active member of the company has one verified link to the required provider.
-It names each member and role, highlights Owner and integrity blockers, and includes installation-wide
+Its table has **Member**, **Role**, **Status**, and **Actions** columns. It names each member and role,
+highlights Owner and integrity blockers, and includes installation-wide
 blockers such as unsupported providers, unverified strict-provider links held by non-members,
 configured-social-only non-members, or providerless or credential-only orphan identities. Live reset
 ceremonies are reported as pending cutover revocations, but do not block the transaction that
@@ -1089,7 +1091,8 @@ Form dialogs place explanatory labels in the left column and their controls in t
 column on larger screens, stacking them on smaller screens; action-only dialogs keep their actions
 in the body and their close control in the footer.
 
-The management section has three parts:
+The management section has three parts. **Invite someone** and any outstanding invitations are
+presented before the member directory, matching the action-first pattern of the app's other tables:
 
 - **Members table** (`data-testid="members-table"`) — a standalone bordered table outside a card,
   with exactly five columns **Name**, **Role**, **Email**, **Link to Resource**, and **Actions**, one
@@ -1160,15 +1163,15 @@ The management section has three parts:
   action is absent in `sso` mode (the IdP owns credentials). **Revoke sessions** uses the same
   cross-account authority rule as password reset.
 - **Invite form** — a primary **Invite someone** button (`data-testid="invite-open"`) opens a centered
-  Dialog, separate from the members table since #175 so inviting someone is not mixed into the list of people who already joined. An
+  Dialog above the members table, separate from the list since #175 so inviting someone is not mixed into the people who already joined. An
   Admin/Editor/Viewer **role** picker (`data-testid="invite-role"`) with the
-  selected role's plain-language consequences visible below it, plus an optional **pre-authorise
-  email** field (`data-testid="invite-preauth"`) and a **Create invite** button
+  selected role's plain-language consequences visible below it, plus an **Email** field
+  (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
   shown again. The panel explicitly says CapacityLens does not send invitation emails: the creator
-  copies and sends the link. Email guidance is associated with the field before validation and
-  remains available alongside any validation error. Creation confirmation stays beside the link, with instructions to
+  copies and sends the link. The field has no explanatory helper copy; it is optional in password
+  mode and required in SSO-only mode. Creation confirmation stays beside the link, with instructions to
   revoke and recreate it if lost, rather than overlaying the panel in a toast.
   If any membership, invite or reset-token mutation loses its response after dispatch,
   the section reloads memberships, invites and authentication before enabling a retry. A lost invite
@@ -1178,7 +1181,7 @@ The management section has three parts:
   execution to record its actual completed, compensated or repair-required outcome first. An
   unreadable or unrecognised conflict response also keeps the original browser command identity;
   only a successfully decoded terminal rejection permits a later retry to mint a new identity.
-  In SSO-only mode the pre-authorised email is required by both the UI and server because a
+  In SSO-only mode **Email** is required by both the UI and server because a
   bearer-only invitation cannot admit a brand-new external identity.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the
   same five-column bordered table as Members, with a row per invite (`data-testid="invite-row"`).
@@ -1198,8 +1201,8 @@ The Owner row carries no pencil for anyone, and no gear for anyone but the Owner
 own row still offers the self-service Reset password and Revoke sessions): each company has exactly
 one Owner, ownership is changed only by explicit transfer, and the Owner can be neither demoted,
 removed nor disabled.
-Ownership transfer has no control in the member table at all: it is a three-step ceremony in its own
-**Company ownership** section (see below), and the swap itself is a single transaction that demotes
+Ownership transfer has no control in the member table at all: its own **Company ownership** section
+opens the three-step ceremony in a modal (see below), and the swap itself is a single transaction that demotes
 before it promotes. No generic
 role-change or invite endpoint can assign Owner, even for the current Owner. A partial unique SQLite
 index prevents multiple active owners for an account, and the server prevents removing/demoting the
@@ -1236,10 +1239,11 @@ mixed-mode-only and identity-global. The management UI is
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
 
-**Company ownership (Team & access; server mode, auth on).** The ownership-transfer ceremony sits
-below member management as `src/components/team/OwnershipTransferCard.tsx`
+**Company ownership (Team & access; server mode, auth on).** A compact entry point sits below member
+management as `src/components/team/OwnershipTransferCard.tsx`
 (`data-testid="ownership-transfer-card"`), driven by `src/components/team/useOwnershipTransfer.ts`
-and `src/account/ownershipTransferAccess.ts`. Ownership moves in three acts — the Owner nominates,
+and `src/account/ownershipTransferAccess.ts`. **Manage ownership**
+(`data-testid="ownership-transfer-open"`) opens the ceremony in a modal. Ownership moves in three acts — the Owner nominates,
 the nominated Admin agrees, the same Owner confirms — and nothing changes until all three have
 happened. Controls: **Next Owner** (`ownership-transfer-nominee`, active Admins only), **Start
 transfer** (`ownership-transfer-start`), **Nominate someone else instead**
@@ -1247,7 +1251,7 @@ transfer** (`ownership-transfer-start`), **Nominate someone else instead**
 transfer** (`ownership-transfer-complete`), **Agree to become Owner**
 (`ownership-transfer-accept`), **Decline** (`ownership-transfer-decline`), **Withdraw my agreement**
 (`ownership-transfer-withdraw`); the live status line is `ownership-transfer-state` and the
-explanation of a request that already ended is `ownership-transfer-outcome`. The card renders for
+explanation of a request that already ended is `ownership-transfer-outcome`. The entry point renders for
 participants only — a non-participant reads an empty projection, so hiding is presentation, not
 authorisation. Routes: `GET /api/accounts/:accountId/ownership-transfer`
 (`{live, latestOutcome}`, both nullable; refused under masquerade),

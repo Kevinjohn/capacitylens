@@ -26,7 +26,9 @@ If the link is lost, revoke it under Outstanding invites and create a replacemen
 
 ## Does an Admin invitation transfer ownership?
 
-No. It gives the person sign-in access with the Admin role. Ownership changes only through Company ownership after the nominee agrees and the current Owner selects Confirm the transfer.
+No. It gives the person sign-in access with the Admin role. Ownership changes only through the
+**Manage ownership** modal in Company ownership, after the nominee agrees and the current Owner
+selects Confirm the transfer.
 
 ## Why can I not choose a language when I create the company?
 

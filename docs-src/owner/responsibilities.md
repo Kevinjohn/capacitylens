@@ -19,9 +19,11 @@ Your Admin can run everyday setup. You keep the decisions that change company ow
 
 ![Team & access showing Company ownership, Next Owner and Start transfer](../screenshots/flows/owner_appoint_an_admin_1.png)
 
-Open Team & access and find Company ownership. Choose an active Admin in Next Owner, then select Start transfer.
+Open Team & access, find Company ownership and select **Manage ownership**. In the modal, choose an
+active Admin in Next Owner, then select Start transfer.
 
-The nominee selects Agree to become Owner. After they agree, you return to Team & access and select Confirm the transfer.
+The nominee opens the same modal and selects Agree to become Owner. After they agree, you return to
+Team & access, open **Manage ownership**, and select Confirm the transfer.
 
 The transfer completes only after your confirmation. You become an Admin and the nominee becomes the Owner.
 

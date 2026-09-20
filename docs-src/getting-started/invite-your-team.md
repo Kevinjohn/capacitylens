@@ -33,10 +33,9 @@ permissions](/getting-started/roles-and-permissions) for why.
 1. Open **Team & access**. Your own access is summarised at the top of the page; select
    **See full capabilities** if you want the full list of what your role can and can't do.
 
-2. Select **Invite someone** to open the centered invite dialog. Choose a role in the dialog.
-   The consequences of that role are spelled out in plain language underneath it, and you can optionally pre-authorise a specific
-   email address. That restricts acceptance to that address. Leave it empty for a single-use
-   link that another recipient can use. Company-login-only installs require an email address.
+2. Select **Invite someone**, above the member table, to open the centered invite dialog. Choose a
+   role in the dialog. The consequences of that role are spelled out in plain language underneath
+   it. **Email** is optional for password sign-in and required on company-login-only installs.
 
 3. Optionally choose **Link to Resource**, or leave **No Resource linked** selected.
    This proposes an existing person Resource without reserving it. The recipient cannot see this
@@ -80,7 +79,7 @@ Either way, they land directly on your schedule with their role visible.
 ## Pending invites
 
 Invites that haven't been accepted yet stay listed on **Team & access** as pending, in
-their own bordered table below your members. It uses the same **Name**, **Role**, **Email**,
+their own bordered table above your members. It uses the same **Name**, **Role**, **Email**,
 **Link to Resource** and **Actions** columns as the member table. An invite has no name, and a
 proposed Resource stays marked pending until the invite is accepted. Owners and Admins can see this
 list; other roles only see their own access. Invitations are ordered Owner, Admin, Editor, then
@@ -104,6 +103,8 @@ The **Link to Resource** column shows the member's association. Select the membe
 to open the centered Resource selector directly. Choosing a person saves immediately. If a link
 already exists, **Remove link to resource** removes it immediately; closing the dialog never
 reverses a completed change. See [Link a person to a member](/guide/people-and-placeholders#link-a-person-to-a-member).
+
+![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/remove_resource_link.png)
 
 **Disable** and **archive** both stop someone opening the company immediately while
 keeping their role and history — use them when someone leaves, goes on long-term leave, or
