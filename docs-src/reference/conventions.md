@@ -155,8 +155,8 @@ Playwright project does not enable the typed project-service rules:
 
 Existing violations, including the reviewed initial baseline for a newly adopted rule, are
 recorded as a count per file and rule in `eslint-suppressions.json` at the repository root. The
-[#645 enforcement baseline](https://github.com/Kevinjohn/capacitylens/blob/main/tasks/conventions-enforcement-baseline.md)
-and [#647 structural baseline](https://github.com/Kevinjohn/capacitylens/blob/main/tasks/strictness-structure-baseline.md)
+[#645 enforcement baseline](https://github.com/Kevinjohn/capacitylens/blob/1131a21f/tasks/conventions-enforcement-baseline.md)
+and [#647 structural baseline](https://github.com/Kevinjohn/capacitylens/blob/1131a21f/tasks/strictness-structure-baseline.md)
 record each declaration and its disposition. A count that rises fails lint. A count that falls
 also fails, until the entry is pruned with
 
