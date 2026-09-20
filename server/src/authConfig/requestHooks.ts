@@ -120,7 +120,7 @@ function createBeforeRequestHook(options: RequestHookOptions) {
       return continuingContext;
     }
     // A fresh password instance is never claimable merely because it is reachable. The operator
-    // configures CAPACITYLENS_SETUP_TOKEN and the owner-setup form presents it in this header.
+    // configures SMALLSASS_ACCOUNT_SETUP_TOKEN and the owner-setup form presents it in this header.
     // index.ts also refuses a fresh password boot when the secret is absent.
     if (isBootstrapSetupRequest(context, options)) {
       // Validate before acquiring the one-at-a-time bootstrap claim: a malformed password must not

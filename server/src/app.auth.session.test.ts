@@ -32,7 +32,7 @@ function cookiesOf(res: LightMyRequestResponse): string {
     .join("; ");
 }
 
-// P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
+// P3.1/P3.2/P3.5 (flag SMALLSASS_ACCOUNT_MODE → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged — these tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
@@ -151,11 +151,11 @@ function totpCode(secret: string, at = Date.now()): string {
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  CAPACITYLENS_AUTH: "sso",
-  CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-  CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-  CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  CAPACITYLENS_SSO_ISSUER: "https://idp.test",
+  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
+  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
 };
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -363,10 +363,10 @@ const sessionActivityBoundaryCases: SessionActivityBoundaryInput[] = (
   ).map(([label, elapsed, active]) => ({ _label: `${label} (${rep})`, rep, elapsed, active })),
 );
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("accepts federated assurance as MFA in mixed mode and advertises provider step-up", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const principalId = "federated-principal";
     db.prepare(
@@ -416,7 +416,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("requires enrollment, verifies TOTP, and challenges every later password sign-in", async () => {
     const { app, email, password, signupCookie } = await createRequiredMfaFixture();
     const { enrolledCookie, secret } = await completeRequiredMfaEnrollment({
@@ -472,7 +472,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("sign-up → session cookie → the session authenticates and /api/auth/me reports the user", async () => {
     const app = await appWithAuth(PASSWORD_ENV);
     const signUp = await call(app, {
@@ -533,11 +533,11 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("emits a valid __Host session cookie for an HTTPS public origin", async () => {
     const app = await appWithAuth({
       ...PASSWORD_ENV,
-      BETTER_AUTH_URL: "https://capacity.example",
+      SMALLSASS_ACCOUNT_PUBLIC_URL: "https://capacity.example",
     });
     const signUp = await call(app, {
       method: "POST",
@@ -560,10 +560,10 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it.each([
     ["ordinary cookie", PASSWORD_ENV],
-    ["secure __Host- cookie", { ...PASSWORD_ENV, BETTER_AUTH_URL: "https://capacity.example" }],
+    ["secure __Host- cookie", { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_PUBLIC_URL: "https://capacity.example" }],
   ] as const)(
     "expires an idle session carried by an %s before a direct authenticated auth operation can use it",
     async (_label, env) => {
@@ -618,7 +618,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   );
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("expires a session whose activity timestamp is in the future", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -652,7 +652,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   // Both storage representations exercise the real `date` column representation.
   it.each(sessionActivityBoundaryCases)(
     "treats a session $_label the inactivity deadline as active=$rep",
@@ -680,7 +680,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   );
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it.each([
     { caseName: "fresh concurrent activity", next: "2026-07-31T09:00:00.000Z", preparationFails: false },
     { caseName: "malformed concurrent activity", next: "not-a-timestamp", preparationFails: false },
@@ -734,7 +734,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("touches active sessions without extending their absolute expiry", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);

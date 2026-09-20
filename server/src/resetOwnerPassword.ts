@@ -37,7 +37,7 @@ export interface OwnerRecoveryInput {
 
 interface RecoveryContext {
   email: string;
-  env: Record<string, string | undefined> & { BETTER_AUTH_URL: string };
+  env: Record<string, string | undefined> & { SMALLSASS_ACCOUNT_PUBLIC_URL: string };
 }
 
 function validateRecoveryInput(input: OwnerRecoveryInput): RecoveryContext {
@@ -54,13 +54,13 @@ function validateRecoveryInput(input: OwnerRecoveryInput): RecoveryContext {
   if (!isAccountEmail(email)) throw new Error("The target email is not a valid account address.");
 
   const { env } = resolveAccountEnvironment({ ...(input.env ?? process.env) });
-  if (env.CAPACITYLENS_AUTH !== "password") {
+  if (env.SMALLSASS_ACCOUNT_MODE !== "password") {
     throw new Error(
       "SMALLSASS_ACCOUNT_MODE must be password: sso installations have no local credential to reset " +
         "and off installations have no credential model.",
     );
   }
-  if (!env.BETTER_AUTH_URL) {
+  if (!env.SMALLSASS_ACCOUNT_PUBLIC_URL) {
     throw new Error("SMALLSASS_ACCOUNT_PUBLIC_URL must be set; the reset link cannot be built without it.");
   }
   return { email, env: env as RecoveryContext["env"] };
@@ -123,7 +123,7 @@ interface RecordRecoveryInput {
 function recordRecovery({ db, context, target, token }: RecordRecoveryInput): OwnerRecoveryResult {
   const applicationId = DEFAULT_ACCOUNT_APPLICATION.applicationId;
   const ceremonyId = createHash("sha256").update(`${applicationId}-reset-ceremony\0`).update(token).digest("base64url");
-  const link = `${new URL(context.env.BETTER_AUTH_URL).origin}/reset-password/${encodeURIComponent(token)}`;
+  const link = `${new URL(context.env.SMALLSASS_ACCOUNT_PUBLIC_URL).origin}/reset-password/${encodeURIComponent(token)}`;
   const expiresAt = new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString();
   const event: AccountAuditEvent = {
     id: randomUUID(),

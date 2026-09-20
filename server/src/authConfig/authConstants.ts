@@ -23,7 +23,7 @@ export const FEDERATED_PRINCIPAL_PROVIDER_UNIQUE_INDEX = "idx_account_principal_
 /** Reserved v25 trigger that atomically records newly admitted external provider rows. */
 export const FEDERATED_OBSERVATION_TRIGGER = "capacitylens_observe_federated_account";
 
-/** Better Auth signs sessions/cookies with BETTER_AUTH_SECRET — a short secret is
+/** Better Auth signs sessions/cookies with SMALLSASS_ACCOUNT_SECRET — a short secret is
  *  brute-forceable, so refuse anything weaker than this. (Better Auth's own guidance and
  *  generators emit 32+ char secrets.) */
 export const MIN_BETTER_AUTH_SECRET_LENGTH = 32;

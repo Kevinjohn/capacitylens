@@ -34,10 +34,9 @@ const registerOidcBrandComposeTest = (): void => {
     expect(apiService).toBeDefined();
     const apiLines = apiService?.split("\n").map((line) => line.trim());
 
-    for (const name of ["SMALLSASS_ACCOUNT_OIDC_BRAND", "CAPACITYLENS_SSO_BRAND"]) {
-      expect(envExample).toContain(name);
-      expect(apiLines).toContain(`${name}: ${"${"}${name}:-}`);
-    }
+    const name = "SMALLSASS_ACCOUNT_OIDC_BRAND";
+    expect(envExample).toContain(name);
+    expect(apiLines).toContain(`${name}: ${"${"}${name}:-}`);
   });
 };
 

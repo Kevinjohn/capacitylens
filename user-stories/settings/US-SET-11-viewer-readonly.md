@@ -29,7 +29,7 @@ online membership-driven Viewer mode is reachable only on a server + auth-on dep
 ## How (end-to-end)
 
 **Precondition:** The app runs in its default server mode against a server with
-`CAPACITYLENS_AUTH=password`. Same-origin `/api` needs no frontend API setting; set
+`SMALLSASS_ACCOUNT_MODE=password`. Same-origin `/api` needs no frontend API setting; set
 `VITE_CAPACITYLENS_API` only when the API uses a different origin. Owner A has created a company and
 invited **Viewer V** and **Editor E** (both accepted).
 

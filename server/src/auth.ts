@@ -1,7 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { Db } from "./db";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
-import { resolveAccountConfigKey } from "./accountConfig";
 import { StrictOidcVerificationError } from "./strictOidc";
 import type { AccountMode, Auth } from "./authConfig/authTypes";
 import { resetTokenCapture } from "./authConfig/captureContexts";
@@ -33,8 +32,8 @@ export { runAuthMigrations, planAuthSchemaMigrations, BOOTSTRAP_ADMIN_EMAIL } fr
 
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
 // OSS library owns the session/credential/OIDC machinery — accepted precisely so we
-// don't own crypto/session code. THE OFF GUARANTEE: with CAPACITYLENS_AUTH unset or 'off',
-// nothing in this module runs — Better Auth is never initialised, no BETTER_AUTH_* env
+// don't own crypto/session code. THE OFF GUARANTEE: with SMALLSASS_ACCOUNT_MODE unset or 'off',
+// nothing in this module runs — Better Auth is never initialised, no account credential env
 // is read, no auth tables are created, zero new attack surface (authFromEnv returns
 // { mode: 'off', auth: null } before touching anything else).
 //
@@ -206,7 +205,7 @@ type Env = Record<string, string | undefined>;
 
 function readRequiredSetting(environment: Env, key: string, context: string): string {
   const value = environment[key];
-  if (!value) throw new AuthConfigError(`${resolveAccountConfigKey(key)} is required when ${context}.`);
+  if (!value) throw new AuthConfigError(`${key} is required when ${context}.`);
   return value;
 }
 

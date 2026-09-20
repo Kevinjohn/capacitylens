@@ -3,8 +3,8 @@
 **Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Account returns to the login screen", "the --create-owner-admin-admin bootstrap credential signs in through the real form"
 
 > **Flag-gated; not reachable in the default deploy.** The login screen only exists when
-> the optional server runs with `CAPACITYLENS_AUTH=password` (or `sso`) — the controlled-demo
-> deploy keeps `CAPACITYLENS_AUTH` unset (off), where every request carries a synthetic demo
+> the optional server runs with `SMALLSASS_ACCOUNT_MODE=password` (or `sso`) — the controlled-demo
+> deploy keeps `SMALLSASS_ACCOUNT_MODE` unset (off), where every request carries a synthetic demo
 > identity and no login UI exists. The dedicated Playwright `auth-backed` project boots a
 > server with the flag on to run this story's checks; it cannot be exercised against
 > `pnpm run dev`.
@@ -23,7 +23,7 @@ session must restore exactly the normal flow.
 
 ## How (end-to-end, password mode)
 
-**Precondition:** a deploy with `CAPACITYLENS_AUTH=password`, and a user account created.
+**Precondition:** a deploy with `SMALLSASS_ACCOUNT_MODE=password`, and a user account created.
 On a **fresh password-mode instance with zero users** the login wall instead shows the one sign-up form
 that exists — **Set up the first Owner** (see REFERENCE.md “First-run owner setup”). It explains
 that this creates a personal sign-in for the installation with the Owner role; the one-time setup
