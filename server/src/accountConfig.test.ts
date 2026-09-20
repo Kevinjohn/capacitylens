@@ -59,6 +59,21 @@ it("treats empty retired Compose placeholders as absent", () => {
   ).not.toThrow();
 });
 
+it("refuses whitespace-only retired values", () => {
+  expect(() => resolveAccountEnvironment({ CAPACITYLENS_AUTH: " \t" })).toThrow(
+    "CAPACITYLENS_AUTH was removed; use SMALLSASS_ACCOUNT_MODE",
+  );
+});
+
+it("refuses a retired name even when its canonical value matches", () => {
+  expect(() =>
+    resolveAccountEnvironment({
+      CAPACITYLENS_AUTH: "password",
+      SMALLSASS_ACCOUNT_MODE: "password",
+    }),
+  ).toThrow("CAPACITYLENS_AUTH was removed; use SMALLSASS_ACCOUNT_MODE");
+});
+
 it("normalizes canonical settings without compatibility writes", () => {
   const resolved = resolveAccountEnvironment({
     SMALLSASS_ACCOUNT_MODE: " password ",
@@ -76,6 +91,15 @@ it("returns an already resolved canonical environment unchanged", () => {
 
   expect(second.env).toBe(first.env);
   expect(second.profile).toBe(first.profile);
+});
+
+it("refuses a retired name added to an already resolved environment", () => {
+  const resolved = resolveAccountEnvironment({ SMALLSASS_ACCOUNT_MODE: "off" });
+  resolved.env.CAPACITYLENS_AUTH = "off";
+
+  expect(() => resolveAccountEnvironment(resolved.env)).toThrow(
+    "CAPACITYLENS_AUTH was removed; use SMALLSASS_ACCOUNT_MODE",
+  );
 });
 
 it.each([

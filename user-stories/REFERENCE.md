@@ -898,7 +898,7 @@ identifiers, paths, hostnames, secrets, invite or session values, raw errors or 
 fields. The button reports a generic success or clipboard failure message.
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
-server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `CAPACITYLENS_AUTH=password` or
+server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password` or
 `sso`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
@@ -943,7 +943,7 @@ character even though browser `maxlength` uses two UTF-16 code units. Email admi
 254 limit to UTF-8 bytes. Passwords independently use the documented 15–128 Unicode-code-point
 policy.
 
-**Password MFA and account security.** When an operator sets `CAPACITYLENS_REQUIRE_MFA=1`, after
+**Password MFA and account security.** When an operator sets `SMALLSASS_ACCOUNT_REQUIRE_MFA=1`, after
 first-owner setup or after an existing pre-MFA user signs in, the app shows **Secure your account**
 before any company data. MFA is optional by default. The user enters their current password
 (`data-testid="mfa-enroll-password"`), records the authenticator URI and one-time recovery codes,

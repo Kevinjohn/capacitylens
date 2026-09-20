@@ -738,7 +738,7 @@ function registerAuthModeRefusalTests(): void {
     expect(parseAuthMode("")).toBe("off");
   });
 
-  it("off mode reads no BETTER_AUTH_* env at all", () => {
+  it("off mode constructs no auth instance", () => {
     const { mode, auth } = createAuthFromEnvironment(openDb(":memory:"), {
       SMALLSASS_ACCOUNT_MODE: "off",
     });
