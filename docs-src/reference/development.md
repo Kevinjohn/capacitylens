@@ -48,7 +48,7 @@ Every local server takes its port from a *lane*: an integer from 0 to 9 that one
 duration. A port is `base + lane`, so lane 0 is the historical `5173`/`8787`/`4173` and ten
 concurrent worktrees never collide.
 
-`pnpm run dev`, `preview`, `test`, `gate`, `gate:server`, `e2e` and the documentation servers all
+`pnpm run dev`, `preview`, `test`, `gate`, `gate:server`, `gate:all`, `e2e` and the documentation servers all
 run through `scripts/with-lane.mjs`, which claims a lane before the command starts and releases it
 after. Configuration files only read the resolved lane, so there is nothing to pass by hand:
 
@@ -753,8 +753,8 @@ Opening a pull request and pushing to its branch previously fired `gate`, `e2e`,
 `security` on every event — several full passes per change. Focused format/lint/type-check and
 CodeQL jobs now cover every proposed commit without repeating the full suites. Staged-file lint on
 commit, whole-repository lint on push and whole-repository formatting on pull requests provide
-early feedback; `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` remain the complete
-local checks, and CI is the record.
+early feedback; `pnpm run gate:all` and `pnpm run e2e` remain the complete local checks, and CI is
+the record.
 
 Two jobs used to depend on pull-request context and now read the pushed commit range
 (`github.event.before`..`github.sha`) instead: DCO sign-off and dependency review. Both
