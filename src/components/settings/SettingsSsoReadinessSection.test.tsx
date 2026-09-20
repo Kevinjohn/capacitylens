@@ -109,11 +109,16 @@ describe("Settings SSO readiness boundary", () => {
   });
 
   it("renders readiness as its own Settings group and member table", async () => {
-    vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => jsonResponse(readiness()) }));
+    let resolveReadiness!: (response: Response) => void;
+    const pendingReadiness = new Promise<Response>((resolve) => {
+      resolveReadiness = resolve;
+    });
+    vi.stubGlobal("fetch", mockApi(directory, { "GET /sso-readiness": () => pendingReadiness }));
     renderReadiness();
 
     const group = await screen.findByRole("region", { name: m.settings_sso_readiness_heading() });
-    const table = within(group).getByRole("table");
+    await act(async () => resolveReadiness(jsonResponse(readiness())));
+    const table = await within(group).findByRole("table");
     expect(
       within(table)
         .getAllByRole("columnheader")
