@@ -33,7 +33,7 @@ function cookiesOf(res: LightMyRequestResponse): string {
     .join("; ");
 }
 
-// P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
+// P3.1/P3.2/P3.5 (flag SMALLSASS_ACCOUNT_MODE → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged — these tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
@@ -123,11 +123,11 @@ function parseFederatedLink(auth: ReturnType<typeof createAuthFromEnvironment>["
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  CAPACITYLENS_AUTH: "sso",
-  CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-  CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-  CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  CAPACITYLENS_SSO_ISSUER: "https://idp.test",
+  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
+  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
 };
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -371,7 +371,7 @@ function registerAuthOffCorruptRepairTests(): void {
   });
 }
 
-describe("CAPACITYLENS_AUTH off (default)", () => {
+describe("SMALLSASS_ACCOUNT_MODE off (default)", () => {
   registerAuthOffSurfaceTests();
   registerAuthOffCommandIdentityTests();
   registerAuthOffCommandStatusTests();
@@ -439,7 +439,7 @@ describe("normalizeSessionUser (P1.7a)", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("401s data routes without a session; /api/health stays open", async () => {
     const app = await appWithAuth(PASSWORD_ENV);
     expect((await call(app, { method: "GET", url: "/api/state" })).statusCode).toBe(401);
@@ -484,10 +484,10 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("refuses to relink a principal who already has the strict provider", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
@@ -517,7 +517,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("refuses a corrupted principal with multiple strict-provider links", async () => {
     const raw = openDb(":memory:");
     const observed = new Proxy(raw, {
@@ -541,7 +541,7 @@ describe("CAPACITYLENS_AUTH password", () => {
         return typeof value === "function" ? value.bind(target) : value;
       },
     }) as Db;
-    const configured = createAuthFromEnvironment(observed, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    const configured = createAuthFromEnvironment(observed, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(observed, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
@@ -566,7 +566,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("guards provider-link initiation when no strict provider exists or the session principal does not match", async () => {
     const passwordDb = openDb(":memory:");
     const password = createAuthFromEnvironment(passwordDb, PASSWORD_ENV);
@@ -581,7 +581,7 @@ describe("CAPACITYLENS_AUTH password", () => {
     ).rejects.toMatchObject({ body: { code: "PROVIDER_NOT_FOUND" } });
 
     const strictDb = openDb(":memory:");
-    const strict = createAuthFromEnvironment(strictDb, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    const strict = createAuthFromEnvironment(strictDb, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
     await runAuthMigrations(parseConfiguredAuth(strict.auth));
     await expect(
       parseFederatedLink(strict.auth)({
@@ -595,10 +595,10 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("rejects an untrusted link return URL before persisting a ceremony", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
@@ -623,12 +623,12 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it.each(["not an absolute URL", "http://user:password@localhost:8787/settings"])(
     "rejects malformed or credentialed link return URL %j before persisting a ceremony",
     async (callbackURL) => {
       const db = openDb(":memory:");
-      const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+      const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
       await runAuthMigrations(parseConfiguredAuth(configured.auth));
       const app = createApp(db, { authMode: "password", auth: configured.auth });
       const signUp = await call(app, {
@@ -654,10 +654,10 @@ describe("CAPACITYLENS_AUTH password", () => {
   );
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("forwards the signed OAuth state cookie when a provider-link ceremony starts", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, CAPACITYLENS_AUTH: "password" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
     const app = createApp(db, { authMode: "password", auth: configured.auth });
     const signUp = await call(app, {
@@ -686,7 +686,7 @@ describe("CAPACITYLENS_AUTH password", () => {
   });
 });
 
-describe("CAPACITYLENS_AUTH password", () => {
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("does not expose SSO email repair on an ordinary password-only installation", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
@@ -732,7 +732,7 @@ describe("CAPACITYLENS_AUTH password", () => {
 });
 
 function registerAuthModeRefusalTests(): void {
-  it("rejects an unknown CAPACITYLENS_AUTH value; blank/unset means off", () => {
+  it("rejects an unknown SMALLSASS_ACCOUNT_MODE value; blank/unset means off", () => {
     expect(() => parseAuthMode("on")).toThrow(AuthConfigError);
     expect(parseAuthMode(undefined)).toBe("off");
     expect(parseAuthMode("")).toBe("off");
@@ -740,7 +740,7 @@ function registerAuthModeRefusalTests(): void {
 
   it("off mode reads no BETTER_AUTH_* env at all", () => {
     const { mode, auth } = createAuthFromEnvironment(openDb(":memory:"), {
-      CAPACITYLENS_AUTH: "off",
+      SMALLSASS_ACCOUNT_MODE: "off",
     });
     expect(mode).toBe("off");
     expect(auth).toBeNull();
@@ -748,11 +748,11 @@ function registerAuthModeRefusalTests(): void {
 
   it("password mode without secret or URL refuses", () => {
     const db = openDb(":memory:");
-    expect(() => createAuthFromEnvironment(db, { CAPACITYLENS_AUTH: "password" })).toThrow(AuthConfigError);
+    expect(() => createAuthFromEnvironment(db, { SMALLSASS_ACCOUNT_MODE: "password" })).toThrow(AuthConfigError);
     expect(() =>
       createAuthFromEnvironment(db, {
-        CAPACITYLENS_AUTH: "password",
-        BETTER_AUTH_SECRET: "x".repeat(32),
+        SMALLSASS_ACCOUNT_MODE: "password",
+        SMALLSASS_ACCOUNT_SECRET: "x".repeat(32),
       }),
     ).toThrow(AuthConfigError);
   });
@@ -762,7 +762,7 @@ function registerAuthModeRefusalTests(): void {
     const tooShort = "x".repeat(MIN_BETTER_AUTH_SECRET_LENGTH - 1);
     let thrown: unknown;
     try {
-      createAuthFromEnvironment(db, { ...PASSWORD_ENV, BETTER_AUTH_SECRET: tooShort });
+      createAuthFromEnvironment(db, { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_SECRET: tooShort });
     } catch (err) {
       thrown = err;
     }
@@ -780,7 +780,7 @@ function registerCredentialAndDiscoveryConfigurationTests(): void {
     expect(() =>
       createAuthFromEnvironment(db, {
         ...PASSWORD_ENV,
-        BETTER_AUTH_SECRET: "x".repeat(MIN_BETTER_AUTH_SECRET_LENGTH),
+        SMALLSASS_ACCOUNT_SECRET: "x".repeat(MIN_BETTER_AUTH_SECRET_LENGTH),
       }),
     ).not.toThrow();
   });
@@ -789,7 +789,7 @@ function registerCredentialAndDiscoveryConfigurationTests(): void {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
-        CAPACITYLENS_SETUP_TOKEN: "too-short",
+        SMALLSASS_ACCOUNT_SETUP_TOKEN: "too-short",
       }),
     ).toThrow(/setup_token must be at least 32 bytes/i);
   });
@@ -799,9 +799,9 @@ function registerCredentialAndDiscoveryConfigurationTests(): void {
     expect(() =>
       createAuthFromEnvironment(db, {
         ...PASSWORD_ENV,
-        CAPACITYLENS_AUTH: "sso",
-        CAPACITYLENS_SSO_CLIENT_ID: "id",
-        CAPACITYLENS_SSO_CLIENT_SECRET: "secret",
+        SMALLSASS_ACCOUNT_MODE: "sso",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "id",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
         // no discovery URL
       }),
     ).toThrow(AuthConfigError);
@@ -813,13 +813,13 @@ function registerOidcEndpointRefusalTests(): void {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...SSO_ENV,
-        CAPACITYLENS_SSO_AUTHORIZATION_URL: "https://idp.test/authorize",
+        SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL: "https://idp.test/authorize",
       }),
     ).toThrow(/endpoints must come from discovery/i);
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...SSO_ENV,
-        CAPACITYLENS_SSO_TOKEN_URL: "https://idp.test/token",
+        SMALLSASS_ACCOUNT_OIDC_TOKEN_URL: "https://idp.test/token",
       }),
     ).toThrow(/endpoints must come from discovery/i);
   });
@@ -833,9 +833,9 @@ function registerOidcEndpointRefusalTests(): void {
       expect(() =>
         createAuthFromEnvironment(openDb(":memory:"), {
           ...SSO_ENV,
-          CAPACITYLENS_SSO_AUTHORIZATION_URL: undefined,
-          CAPACITYLENS_SSO_TOKEN_URL: undefined,
-          CAPACITYLENS_SSO_DISCOVERY_URL: endpoint,
+          SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL: undefined,
+          SMALLSASS_ACCOUNT_OIDC_TOKEN_URL: undefined,
+          SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: endpoint,
         }),
       ).toThrow(/https|credentials|URL/i);
     }
@@ -845,7 +845,7 @@ function registerOidcEndpointRefusalTests(): void {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...SSO_ENV,
-        CAPACITYLENS_SSO_DISCOVERY_URL: "http://localhost:9999/.well-known/openid-configuration",
+        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "http://localhost:9999/.well-known/openid-configuration",
       }),
     ).not.toThrow();
   });
@@ -857,7 +857,7 @@ function registerOidcProviderIdTests(): void {
       expect(() =>
         createAuthFromEnvironment(openDb(":memory:"), {
           ...SSO_ENV,
-          CAPACITYLENS_SSO_PROVIDER_ID: providerId,
+          SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: providerId,
         }),
       ).toThrow(/PROVIDER_ID/);
     }
@@ -869,7 +869,7 @@ function registerOidcProviderIdTests(): void {
       expect(() =>
         createAuthFromEnvironment(openDb(":memory:"), {
           ...SSO_ENV,
-          CAPACITYLENS_SSO_PROVIDER_ID: providerId,
+          SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: providerId,
         }),
       ).toThrow(new RegExp(`reserved provider id.*${providerId}`, "i"));
     },
@@ -878,15 +878,15 @@ function registerOidcProviderIdTests(): void {
   it("keeps a distinct generic OIDC provider alongside a native provider", () => {
     const configured = createAuthFromEnvironment(openDb(":memory:"), {
       ...SSO_ENV,
-      CAPACITYLENS_SSO_PROVIDER_ID: "company-sso",
-      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
-      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "company-sso",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
 
     expect(parseConfiguredAuth(configured.auth).providers.map(({ id }) => id)).toEqual(["google", "company-sso"]);
     expect(parseConfiguredAuth(configured.auth).federatedIssuers.get("google")).toBe("https://accounts.google.com");
     expect(parseConfiguredAuth(configured.auth).federatedIssuers.get("company-sso")).toBe(
-      SSO_ENV.CAPACITYLENS_SSO_ISSUER,
+      SSO_ENV.SMALLSASS_ACCOUNT_OIDC_ISSUER,
     );
   });
 

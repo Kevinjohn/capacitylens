@@ -119,7 +119,7 @@ function requireApplication(
 }
 
 function requireSecret(environment: Env, mode: AccountMode, dependencies: FactoryDependencies): string {
-  const secret = dependencies.required(environment, "BETTER_AUTH_SECRET", `SMALLSASS_ACCOUNT_MODE=${mode}`);
+  const secret = dependencies.required(environment, "SMALLSASS_ACCOUNT_SECRET", `SMALLSASS_ACCOUNT_MODE=${mode}`);
   if (secret.length < MIN_BETTER_AUTH_SECRET_LENGTH) {
     throw new dependencies.AuthConfigError(
       `SMALLSASS_ACCOUNT_SECRET must be at least ${MIN_BETTER_AUTH_SECRET_LENGTH} characters when SMALLSASS_ACCOUNT_MODE=${mode} (got ${secret.length}).`,
@@ -160,7 +160,7 @@ function requireSetupToken(
   mode: AccountMode,
   AuthConfigError: FactoryDependencies["AuthConfigError"],
 ) {
-  const configuredSetupToken = environment.CAPACITYLENS_SETUP_TOKEN;
+  const configuredSetupToken = environment.SMALLSASS_ACCOUNT_SETUP_TOKEN;
   const setupToken = configuredSetupToken === "" ? undefined : configuredSetupToken;
   if (mode === "password" && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
     throw new AuthConfigError("SMALLSASS_ACCOUNT_SETUP_TOKEN must be at least 32 bytes.");
@@ -181,7 +181,7 @@ function createEnabledAuthContext(input: {
   const secret = requireSecret(input.environment, input.mode, input.dependencies);
   const baseURL = input.dependencies.required(
     input.environment,
-    "BETTER_AUTH_URL",
+    "SMALLSASS_ACCOUNT_PUBLIC_URL",
     `SMALLSASS_ACCOUNT_MODE=${input.mode}`,
   );
   const publicUrl = parsePublicUrl(baseURL, input.runtimeEnvironment, input.dependencies.AuthConfigError);
@@ -198,11 +198,11 @@ function createEnabledAuthContext(input: {
 // Retain one facade-owned error class and policy surface without a runtime cycle.
 export function createAuthFromEnvironmentFactory(dependencies: FactoryDependencies) {
   /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
-   *  env beyond CAPACITYLENS_AUTH itself is read. `trustedOrigins` should be the same browser
+   *  env beyond SMALLSASS_ACCOUNT_MODE itself is read. `trustedOrigins` should be the same browser
    *  origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
    *  the same-origin production deploy needs none.
    *
-   *  Cookie security is derived from `BETTER_AUTH_URL`, the browser-facing public origin. It must
+   *  Cookie security is derived from `SMALLSASS_ACCOUNT_PUBLIC_URL`, the browser-facing public origin. It must
    *  never be tied to whether the Node hop itself terminates TLS: the normal nginx deployment uses
    *  HTTPS in the browser and HTTP between nginx and Node. */
   return function authFromEnv(
@@ -211,10 +211,8 @@ export function createAuthFromEnvironmentFactory(dependencies: FactoryDependenci
     options: AuthFromEnvOptions = {},
   ): { mode: AccountMode; auth: Auth | null } {
     const runtimeEnvironment = environment.NODE_ENV ?? process.env.NODE_ENV;
-    const resolvedEnvironment = resolveAccountEnvironment(environment, {
-      ...(runtimeEnvironment === "test" ? { warn: () => {} } : {}),
-    }).env;
-    const mode = dependencies.parseAuthMode(resolvedEnvironment.CAPACITYLENS_AUTH);
+    const resolvedEnvironment = resolveAccountEnvironment(environment).env;
+    const mode = dependencies.parseAuthMode(resolvedEnvironment.SMALLSASS_ACCOUNT_MODE);
     if (mode === "off") return { mode, auth: null };
     const context = createEnabledAuthContext({
       db,
@@ -253,10 +251,10 @@ function buildProviderPolicies(context: EnabledAuthContext) {
   // NOT by Better Auth's static
   // disableSignUp, because a boot-time boolean cannot express "open while zero users, closed the
   // moment the first user exists": a still-running server would keep signup open until a restart
-  // (a hole). CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 keeps its meaning — an INTERIM trusted-instance/dev
+  // (a hole). SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 keeps its meaning — an INTERIM trusted-instance/dev
   // escape that re-opens signup unconditionally. With neither condition, POST
   // /api/auth/sign-up/email returns the same 400 EMAIL_PASSWORD_SIGN_UP_DISABLED as before.
-  const allowOpenSignup = environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1";
+  const allowOpenSignup = environment.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1";
   const setupToken = requireSetupToken(environment, mode, dependencies.AuthConfigError);
   const providerConfig = buildProviders({
     env: environment,
@@ -305,7 +303,7 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
     genericProviderId: providers.providerConfig.genericProviderId,
     configuredFederatedIssuers: providers.providerConfig.configuredFederatedIssuers,
     allowOpenSignup: providers.allowOpenSignup,
-    requirePasswordMfa: mode === "password" && environment.CAPACITYLENS_REQUIRE_MFA === "1",
+    requirePasswordMfa: mode === "password" && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1",
     ...(options.externalIdentityAdmission === undefined
       ? {}
       : { externalIdentityAdmission: options.externalIdentityAdmission }),

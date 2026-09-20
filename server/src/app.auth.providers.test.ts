@@ -12,7 +12,7 @@ import {
 } from "./controlTables";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
-// P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
+// P3.1/P3.2/P3.5 (flag SMALLSASS_ACCOUNT_MODE → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged — these tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
@@ -25,11 +25,11 @@ function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>[
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  CAPACITYLENS_AUTH: "sso",
-  CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-  CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-  CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  CAPACITYLENS_SSO_ISSUER: "https://idp.test",
+  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
+  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
 };
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -41,7 +41,7 @@ async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance
 
 function registerSsoClosedRouteTests(): void {
   it("publishes the configured strict OIDC presentation brand to signed-out clients", async () => {
-    const app = await appWithAuth({ ...SSO_ENV, CAPACITYLENS_SSO_BRAND: "google" });
+    const app = await appWithAuth({ ...SSO_ENV, SMALLSASS_ACCOUNT_OIDC_BRAND: "google" });
     const response = await call(app, { method: "GET", url: "/api/auth/me" });
 
     expect(response.statusCode).toBe(401);
@@ -92,7 +92,7 @@ function registerSsoRedirectTests(): void {
     const originalFetch = globalThis.fetch;
     vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url === SSO_ENV.CAPACITYLENS_SSO_DISCOVERY_URL) {
+      if (url === SSO_ENV.SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL) {
         return new Response(
           JSON.stringify({
             issuer: "https://idp.test",
@@ -142,7 +142,7 @@ function registerSsoRedirectTests(): void {
 
 // The suite owns one contiguous configured strict-OIDC lifecycle in addition to the small route checks.
 // eslint-disable-next-line max-lines-per-function
-describe("CAPACITYLENS_AUTH sso", () => {
+describe("SMALLSASS_ACCOUNT_MODE sso", () => {
   registerSsoClosedRouteTests();
   registerSsoRedirectTests();
 
@@ -158,17 +158,17 @@ describe("CAPACITYLENS_AUTH sso", () => {
     const token = () =>
       new SignJWT({ email: providerEmail, email_verified: true })
         .setProtectedHeader({ alg: "RS256", kid: "strict-key" })
-        .setIssuer(SSO_ENV.CAPACITYLENS_SSO_ISSUER)
-        .setAudience(SSO_ENV.CAPACITYLENS_SSO_CLIENT_ID)
+        .setIssuer(SSO_ENV.SMALLSASS_ACCOUNT_OIDC_ISSUER)
+        .setAudience(SSO_ENV.SMALLSASS_ACCOUNT_OIDC_CLIENT_ID)
         .setSubject("strict-subject")
         .setIssuedAt()
         .setExpirationTime("5m")
         .sign(pair.privateKey);
     vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0]) => {
       const url = input instanceof Request ? input.url : String(input);
-      if (url === SSO_ENV.CAPACITYLENS_SSO_DISCOVERY_URL)
+      if (url === SSO_ENV.SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL)
         return Response.json({
-          issuer: SSO_ENV.CAPACITYLENS_SSO_ISSUER,
+          issuer: SSO_ENV.SMALLSASS_ACCOUNT_OIDC_ISSUER,
           authorization_endpoint: "https://idp.test/authorize",
           token_endpoint: "https://idp.test/token",
           userinfo_endpoint: "https://idp.test/userinfo",
@@ -282,12 +282,12 @@ describe("CAPACITYLENS_AUTH sso", () => {
 describe("social providers (P1.7)", () => {
   const SOCIAL_ENV = {
     ...PASSWORD_ENV,
-    CAPACITYLENS_GOOGLE_CLIENT_ID: "google-id",
-    CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
-    CAPACITYLENS_MICROSOFT_CLIENT_ID: "ms-id",
-    CAPACITYLENS_MICROSOFT_CLIENT_SECRET: "ms-secret",
-    CAPACITYLENS_GITHUB_CLIENT_ID: "gh-id",
-    CAPACITYLENS_GITHUB_CLIENT_SECRET: "gh-secret",
+    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-id",
+    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+    SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "ms-id",
+    SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "ms-secret",
+    SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "gh-id",
+    SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "gh-secret",
   };
 
   it("inits all three (Google/Microsoft/GitHub) from env without throwing", () => {
@@ -313,7 +313,7 @@ describe("social providers (P1.7)", () => {
   it("honours an explicit Microsoft tenant id", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), {
       ...SOCIAL_ENV,
-      CAPACITYLENS_MICROSOFT_TENANT_ID: "tenant-123",
+      SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "tenant-123",
     });
     expect(parseConfiguredAuth(auth).options.socialProviders?.microsoft).toMatchObject({
       tenantId: "tenant-123",
@@ -355,7 +355,7 @@ describe("social providers (P1.7)", () => {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
-        CAPACITYLENS_GITHUB_CLIENT_ID: "gh-id-only",
+        SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "gh-id-only",
       }),
     ).toThrow(/must both be set/i);
   });
@@ -372,7 +372,7 @@ describe("social providers (P1.7)", () => {
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(
       db,
-      { ...SOCIAL_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1" },
+      { ...SOCIAL_ENV, SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1" },
       { externalIdentityAdmission: async () => true },
     );
     const configured = parseConfiguredAuth(auth);
@@ -492,4 +492,4 @@ describe("social providers (P1.7)", () => {
 // P1.7 + first-run setup — open email self-registration is closed by default. The single
 // bootstrap exception is an empty user table plus the operator's setup token; the gate is enforced
 // live per request, so it closes on the very next request after the first identity. The explicit
-// CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 escape still re-opens registration unconditionally.
+// SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 escape still re-opens registration unconditionally.

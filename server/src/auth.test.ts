@@ -38,9 +38,9 @@ import { registerServerFixtureCleanup } from "./testHelpers";
 // are no options to harden — authFromEnv returns { mode:'off', auth:null } untouched.
 
 const PASSWORD_ENV = {
-  CAPACITYLENS_AUTH: "password",
-  BETTER_AUTH_SECRET: "unit-test-secret-0123456789abcdef-0123", // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH)
-  BETTER_AUTH_URL: "http://localhost:8787",
+  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123", // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH)
+  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
 };
 
 const fixtures = registerServerFixtureCleanup();
@@ -168,11 +168,11 @@ const registerFederatedSchemaTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
-      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
     });
     const auth = assertPresent(configured.auth, "password auth");
     await runAuthMigrations(auth);
@@ -207,11 +207,11 @@ const registerFederatedAuditTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
-      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
     });
     const auth = assertPresent(configured.auth, "password auth");
     const strictProvider = assertPresent(auth.strictProvider, "strict OIDC provider");
@@ -270,11 +270,11 @@ const registerFederatedReconciliationTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
-      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
     });
     const auth = assertPresent(configured.auth, "password auth");
     const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
@@ -322,11 +322,11 @@ const registerFederatedCeremonyConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
-      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
     });
     const auth = assertPresent(configured.auth, "password auth");
     await runAuthMigrations(auth);
@@ -364,11 +364,11 @@ const registerFederatedSubjectConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-      CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
-      CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
     });
     const auth = assertPresent(configured.auth, "password auth");
     const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
@@ -452,7 +452,7 @@ const registerStartupConfigurationRefusalTests = () => {
   it("leaves a bare database untouched when provider configuration is invalid", () => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
     expect(() =>
-      createAuthFromEnvironment(db, { ...PASSWORD_ENV, CAPACITYLENS_GOOGLE_CLIENT_ID: "id-without-secret" }),
+      createAuthFromEnvironment(db, { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "id-without-secret" }),
     ).toThrow(/google/i);
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     db.close();
@@ -470,10 +470,10 @@ const registerStartupConfigurationRefusalTests = () => {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
-        CAPACITYLENS_SSO_CLIENT_ID: "client",
-        CAPACITYLENS_SSO_CLIENT_SECRET: "secret",
-        CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-        CAPACITYLENS_SSO_ISSUER: "https://idp.example/tenant?version=2",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
+        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example/tenant?version=2",
       }),
     ).toThrow(/query string or fragment/i);
   });
@@ -487,11 +487,11 @@ const registerStartupConfigurationRefusalTests = () => {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
-        CAPACITYLENS_SSO_CLIENT_ID: "client",
-        CAPACITYLENS_SSO_CLIENT_SECRET: "secret",
-        CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-        CAPACITYLENS_SSO_ISSUER: "https://idp.example",
-        CAPACITYLENS_SSO_SCOPES: scopes,
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
+        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+        SMALLSASS_ACCOUNT_OIDC_SCOPES: scopes,
       }),
     ).toThrow(new RegExp(`requires the ${missing} scope`));
   });
@@ -506,7 +506,7 @@ const registerStartupConfigurationRefusalTests = () => {
       expect(() =>
         createAuthFromEnvironment(openDb(":memory:"), {
           ...PASSWORD_ENV,
-          BETTER_AUTH_URL: publicUrl,
+          SMALLSASS_ACCOUNT_PUBLIC_URL: publicUrl,
         }),
       ).toThrow(/must be an origin/);
     }
@@ -533,10 +533,10 @@ const registerStartupDiscoverySuccessTest = () => {
     );
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), {
       ...PASSWORD_ENV,
-      CAPACITYLENS_SSO_CLIENT_ID: "client",
-      CAPACITYLENS_SSO_CLIENT_SECRET: "secret",
-      CAPACITYLENS_SSO_DISCOVERY_URL: discoveryUrl,
-      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
+      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: discoveryUrl,
+      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
     });
     const ssoAuth = assertPresent(auth, "SSO auth");
     const response = await ssoAuth.handler(
@@ -569,10 +569,10 @@ const registerStartupDiscoveryFailureTest = () => {
     );
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), {
       ...PASSWORD_ENV,
-      CAPACITYLENS_SSO_CLIENT_ID: "client",
-      CAPACITYLENS_SSO_CLIENT_SECRET: "secret",
-      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
+      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
     });
 
     const ssoAuth = assertPresent(auth, "SSO auth");
@@ -730,10 +730,10 @@ describe("first-owner database-hook races", () => {
 
 describe("resolved auth options", () => {
   const strictProviderEnv = {
-    CAPACITYLENS_SSO_CLIENT_ID: "strict-client",
-    CAPACITYLENS_SSO_CLIENT_SECRET: "strict-secret",
-    CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-    CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+    SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "strict-client",
+    SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "strict-secret",
+    SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+    SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
   };
 
   it.each([
@@ -748,15 +748,15 @@ describe("resolved auth options", () => {
       env: {
         ...PASSWORD_ENV,
         ...strictProviderEnv,
-        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
-        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
       },
       trustedOrigins: ["https://admin.example", "https://capacity.example"],
       pluginIds: ["generic-oauth", "two-factor"],
     },
     {
       name: "sso",
-      env: { ...PASSWORD_ENV, ...strictProviderEnv, CAPACITYLENS_AUTH: "sso" },
+      env: { ...PASSWORD_ENV, ...strictProviderEnv, SMALLSASS_ACCOUNT_MODE: "sso" },
       trustedOrigins: ["https://capacity.example"],
       pluginIds: ["generic-oauth"],
     },
@@ -766,7 +766,7 @@ describe("resolved auth options", () => {
       deferDatabaseSetup: true,
       ...(trustedOrigins === undefined ? {} : { trustedOrigins }),
     });
-    const configuredAuth = assertPresent(auth, `${env.CAPACITYLENS_AUTH} auth`);
+    const configuredAuth = assertPresent(auth, `${env.SMALLSASS_ACCOUNT_MODE} auth`);
 
     expect(configuredAuth.options.telemetry?.enabled).toBe(false);
     expect(configuredAuth.options.verification?.storeIdentifier).toBe("hashed");
@@ -792,7 +792,7 @@ const registerCookieHardeningTests = () => {
   it("sets a valid __Host prefix and Secure from the HTTPS public URL even behind an HTTP proxy hop", () => {
     const { auth } = createAuthFromEnvironment(openDb(":memory:"), {
       ...PASSWORD_ENV,
-      BETTER_AUTH_URL: "https://capacity.example",
+      SMALLSASS_ACCOUNT_PUBLIC_URL: "https://capacity.example",
     });
     const passwordAuth = assertPresent(auth, "password auth");
     // Better Auth's built-in switch is deliberately false because it prepends `__Secure-`.
@@ -811,7 +811,7 @@ const registerCookieHardeningTests = () => {
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
         NODE_ENV: "production",
-        BETTER_AUTH_URL: "http://capacity.example",
+        SMALLSASS_ACCOUNT_PUBLIC_URL: "http://capacity.example",
       }),
     ).toThrow(/must use https:\/\//);
   });
@@ -823,7 +823,7 @@ const registerCookieHardeningTests = () => {
       expect(() =>
         createAuthFromEnvironment(openDb(":memory:"), {
           ...PASSWORD_ENV,
-          BETTER_AUTH_URL: "http://capacity.example",
+          SMALLSASS_ACCOUNT_PUBLIC_URL: "http://capacity.example",
         }),
       ).toThrow(/must use https:\/\//);
     } finally {
@@ -837,7 +837,7 @@ const registerCookieHardeningTests = () => {
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
         NODE_ENV: "production",
-        BETTER_AUTH_URL: "http://localhost:8787",
+        SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
       }),
     ).not.toThrow();
   });
@@ -852,10 +852,10 @@ const registerSessionHardeningTests = () => {
     expect(passwordAuth.options.session?.freshAge).toBe(900);
   });
 
-  it("OFF mode constructs no betterAuth instance — nothing to harden (auth === null)", () => {
-    const { mode, auth } = createAuthFromEnvironment(openDb(":memory:"), { CAPACITYLENS_AUTH: "off" });
-    expect(mode).toBe("off");
-    expect(auth).toBeNull();
+  it("constructs no betterAuth instance for an absent or explicit off mode", () => {
+    for (const environment of [{}, { SMALLSASS_ACCOUNT_MODE: "off" }]) {
+      expect(createAuthFromEnvironment(openDb(":memory:"), environment)).toMatchObject({ mode: "off", auth: null });
+    }
   });
 };
 
@@ -885,8 +885,8 @@ const registerExternalProviderConfigurationTests = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
-      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     expect(assertPresent(auth, "password auth").federatedIssuers.get("google")).toBe("https://accounts.google.com");
     expect(
@@ -902,9 +902,9 @@ const registerExternalOpenSignupTest = () => {
       db,
       {
         ...PASSWORD_ENV,
-        CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
-        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
-        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+        SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
       },
       {
         externalIdentityAdmission: async () => false,
@@ -929,13 +929,13 @@ const registerExternalSsoProviderTest = () => {
       db,
       {
         ...PASSWORD_ENV,
-        CAPACITYLENS_AUTH: "sso",
-        CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
-        CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
-        CAPACITYLENS_SSO_CLIENT_ID: "strict-client",
-        CAPACITYLENS_SSO_CLIENT_SECRET: "strict-secret",
-        CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-        CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+        SMALLSASS_ACCOUNT_MODE: "sso",
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "strict-client",
+        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "strict-secret",
+        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
       },
       { externalIdentityAdmission: async () => true },
     );
@@ -962,11 +962,11 @@ const registerExternalSessionAssuranceTest = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      CAPACITYLENS_AUTH: "sso",
-      CAPACITYLENS_SSO_CLIENT_ID: "strict-client",
-      CAPACITYLENS_SSO_CLIENT_SECRET: "strict-secret",
-      CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      CAPACITYLENS_SSO_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_MODE: "sso",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "strict-client",
+      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "strict-secret",
+      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
     });
     const ssoAuth = assertPresent(auth, "SSO auth");
     await runAuthMigrations(ssoAuth);
@@ -1006,9 +1006,9 @@ const registerExternalBootstrapAdmissionTests = () => {
     const db = openDb(":memory:");
     const env = {
       ...PASSWORD_ENV,
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
-      CAPACITYLENS_GOOGLE_CLIENT_ID: "google-client",
-      CAPACITYLENS_GOOGLE_CLIENT_SECRET: "google-secret",
+      SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     };
     createAuthFromEnvironment(db, env);
 
@@ -1019,25 +1019,25 @@ const registerExternalBootstrapAdmissionTests = () => {
   it("allows only a verified, explicitly allow-listed first identity", () => {
     const db = openDb(":memory:");
     createAuthFromEnvironment(db, PASSWORD_ENV); // initializes Better Auth's user table
-    const env = { CAPACITYLENS_SSO_BOOTSTRAP_EMAILS: " owner@example.com, second@example.com " };
+    const env = { SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS: " owner@example.com, second@example.com " };
     expect(
       canAdmitLocalExternalIdentity({
         ...admissionDependencies(db),
-        bootstrapEmails: env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
+        bootstrapEmails: env.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
         candidate: { email: "OWNER@example.com", emailVerified: true },
       }),
     ).toBe(true);
     expect(
       canAdmitLocalExternalIdentity({
         ...admissionDependencies(db),
-        bootstrapEmails: env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
+        bootstrapEmails: env.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
         candidate: { email: "owner@example.com", emailVerified: false },
       }),
     ).toBe(false);
     expect(
       canAdmitLocalExternalIdentity({
         ...admissionDependencies(db),
-        bootstrapEmails: env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
+        bootstrapEmails: env.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
         candidate: { email: "stranger@example.com", emailVerified: true },
       }),
     ).toBe(false);

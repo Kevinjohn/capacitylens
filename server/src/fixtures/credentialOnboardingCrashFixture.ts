@@ -10,10 +10,10 @@ if (!dbPath || (boundary !== "after-user" && boundary !== "after-correlation-com
 const db = openDb(dbPath);
 const configured = createAuthFromEnvironment(db, {
   NODE_ENV: "test",
-  CAPACITYLENS_AUTH: "password",
-  BETTER_AUTH_SECRET: "crash-fixture-secret-0123456789abcdef",
-  BETTER_AUTH_URL: "http://localhost:8787",
-  CAPACITYLENS_PASSWORD_BREACH_CHECK: "off",
+  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_SECRET: "crash-fixture-secret-0123456789abcdef",
+  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+  SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off",
 });
 const auth = configured.auth;
 if (!auth) {

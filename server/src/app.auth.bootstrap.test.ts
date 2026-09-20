@@ -32,7 +32,7 @@ function cookiesOf(res: LightMyRequestResponse): string {
     .join("; ");
 }
 
-// P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
+// P3.1/P3.2/P3.5 (flag SMALLSASS_ACCOUNT_MODE → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged — these tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
@@ -84,20 +84,20 @@ function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>[
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  CAPACITYLENS_AUTH: "sso",
-  CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-  CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-  CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  CAPACITYLENS_SSO_ISSUER: "https://idp.test",
+  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
+  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
 };
 
 const SETUP_TOKEN = "unit-test-owner-setup-token-0123456789abcdef";
 /** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
 const CLOSED_SIGNUP_ENV: Record<string, string> = {
   ...PASSWORD_ENV,
-  CAPACITYLENS_SETUP_TOKEN: SETUP_TOKEN,
+  SMALLSASS_ACCOUNT_SETUP_TOKEN: SETUP_TOKEN,
 };
-delete CLOSED_SIGNUP_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
+delete CLOSED_SIGNUP_ENV.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP;
 
 const signUpWithSetupToken = (app: FastifyInstance, email = "late@capacitylens.dev") =>
   call(app, {
@@ -203,10 +203,10 @@ function registerClosedSignupRejectionTests(): void {
 }
 
 function registerOpenSignupEscapeTests(): void {
-  it("allows sign-up with users already present only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1", async () => {
+  it("allows sign-up with users already present only when SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1", async () => {
     const app = await appWithAuth({
       ...CLOSED_SIGNUP_ENV,
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+      SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
     });
     // First user consumes the bootstrap exception; the second still succeeds because the flag
     // re-opens sign-up unconditionally.
@@ -217,7 +217,7 @@ function registerOpenSignupEscapeTests(): void {
   });
 
   it("open email signup validation failures leave the external bootstrap-claim table empty", async () => {
-    const env = { ...CLOSED_SIGNUP_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1" };
+    const env = { ...CLOSED_SIGNUP_ENV, SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1" };
     const db = openDb(":memory:");
     const { mode, auth } = createAuthFromEnvironment(db, env);
     await runAuthMigrations(parseConfiguredAuth(auth));
@@ -244,7 +244,7 @@ function registerClosedSignupStatusTests(): void {
     // behaviour above comes from hooks.before, never from this option.
     const open = createAuthFromEnvironment(openDb(":memory:"), {
       ...CLOSED_SIGNUP_ENV,
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+      SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
     });
     const closed = createAuthFromEnvironment(openDb(":memory:"), CLOSED_SIGNUP_ENV);
     expect(parseConfiguredAuth(open.auth).options.emailAndPassword?.disableSignUp).toBe(false);
@@ -276,7 +276,7 @@ describe("closed self-registration (P1.7) + first-run bootstrap", () => {
 
 const BOOTSTRAP_PASSWORD = "operator-managed-bootstrap-password";
 const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV };
-delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP;
+delete CLOSED_ENV.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP;
 
 /** authFromEnv + migrations on a fresh in-memory DB, ready for createBootstrapAdmin. */
 async function bootstrapFixture(env: Record<string, string> = CLOSED_ENV) {
@@ -381,7 +381,7 @@ function registerBootstrapCredentialPolicyTests(): void {
     // the finding called out: it must NOT inherit any lowered floor.
     const open = createAuthFromEnvironment(db, {
       ...CLOSED_ENV,
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+      SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
     });
     const app = createApp(db, { authMode: open.mode, auth: open.auth });
     const res = await call(app, {
@@ -403,7 +403,7 @@ function registerBootstrapUnicodePolicyTests(): void {
     const { db } = await bootstrapFixture();
     const open = createAuthFromEnvironment(db, {
       ...CLOSED_ENV,
-      CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+      SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
     });
     const app = createApp(db, { authMode: open.mode, auth: open.auth });
     const signUpWith = (email: string, password: string) =>

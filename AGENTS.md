@@ -176,7 +176,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   link/repair. Other administrative actions need only the actor's role and MFA policy. Data export
   is served under the `read` action, which the freshness check short-circuits; it is not gated.
 - New external principals require verified email plus an unused pre-authorised invitation. The
-  first SSO identity requires `CAPACITYLENS_SSO_BOOTSTRAP_EMAILS`. An already-authenticated local
+  first SSO identity requires `SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS`. An already-authenticated local
   principal may explicitly link a verified, email-matching strict-OIDC identity without consuming
   another invitation.
 - Password mode may include providers; `sso` mode removes password sign-in.

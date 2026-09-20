@@ -79,7 +79,7 @@ export interface AppOptions {
    *  from X-Forwarded-Proto. Set ONLY when the API is unreachable directly and the proxy overwrites
    *  both headers; on a directly exposed host either header is client-spoofable. */
   trustProxyHeaders?: boolean;
-  /** CAPACITYLENS_AUTH: 'off' (the default) means Better Auth does not exist here —
+  /** SMALLSASS_ACCOUNT_MODE: 'off' (the default) means Better Auth does not exist here —
    *  the only auth surface is GET /api/auth/me reporting the demo identity, and
    *  requireUser attaches that identity and continues, so NO request that succeeds
    *  today may fail. 'password'/'sso' mount opts.auth's handler at /api/auth/* and

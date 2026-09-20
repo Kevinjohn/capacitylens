@@ -88,8 +88,8 @@ async function closedSignupProposalContext(): Promise<{ app: FastifyInstance; db
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
-    CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
+    SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: undefined,
+    SMALLSASS_ACCOUNT_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
   });
   const requiredAuth = requireValue(auth, "password authentication");
   await runAuthMigrations(requiredAuth);

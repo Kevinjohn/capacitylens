@@ -248,10 +248,8 @@ This is the short, present-tense record of decisions that constrain future work.
   testing at the IdP is required; this responsibility also applies to experimental named providers
   used in mixed mode.
 - Secure-cookie behavior follows the public `SMALLSASS_ACCOUNT_PUBLIC_URL`, including behind a TLS
-  proxy. Legacy product/vendor-prefixed account variables remain warning aliases until both two
-  stable minor releases and 90 days have elapsed from the first stable release carrying the
-  canonical namespace. Prereleases do not start that clock; after 0.26.0 stable, removal is no
-  earlier than 0.28.0 and 90 days after its recorded release date. Conflicting aliases refuse startup.
+  proxy. Legacy account environment names were removed before beta with no migration window;
+  startup refuses each non-empty retired name and identifies its `SMALLSASS_ACCOUNT_*` replacement.
 - Password mode defaults to breached-password screening; required TOTP MFA is an operator opt-in.
   Sessions have a fixed twelve-hour lifetime; privileged actions require a session no older than
   fifteen minutes regardless of MFA policy. The client answers the freshness refusal with an

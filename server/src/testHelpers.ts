@@ -11,10 +11,10 @@ import type { Db } from "./db";
  *  fixtures create users via sign-up/email, so it is re-opened here until the invite flow is the only
  *  path. A suite that asserts the default-closed posture builds its own env WITHOUT this flag. */
 export const PASSWORD_ENV = {
-  CAPACITYLENS_AUTH: "password",
-  BETTER_AUTH_SECRET: "unit-test-secret-0123456789abcdef-0123",
-  BETTER_AUTH_URL: "http://localhost:8787",
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123",
+  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+  SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
 };
 
 /** Own every Fastify/SQLite fixture created by one test file and close it after each test. */

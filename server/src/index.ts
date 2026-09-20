@@ -73,7 +73,7 @@ const https = process.env.CAPACITYLENS_HTTPS === "1";
 const log = process.env.CAPACITYLENS_LOG === "1";
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === "1";
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT);
-const requireMfa = accountEnv.CAPACITYLENS_REQUIRE_MFA === "1";
+const requireMfa = accountEnv.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1";
 const internalTls: ReturnType<typeof loadInternalTls> = tryOrRefuse(() =>
   loadInternalTls({ environment: process.env }),
 );
@@ -133,7 +133,7 @@ try {
     application: ACCOUNT_APPLICATION,
     externalIdentityAdmission: (candidate) =>
       canAdmitLocalExternalIdentity({
-        bootstrapEmails: accountEnv.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
+        bootstrapEmails: accountEnv.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
         candidate,
         identityHasAnyPrincipal: () => countUsers(db) !== 0,
         hasLivePreauthorizedInvitation: (email) => hasLivePreauthorizedInvitation(db, email),
@@ -198,7 +198,7 @@ try {
         providers: auth.providers,
         identity,
         administration,
-        openSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
+        openSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
       });
       if (!readiness.ready) {
         throw new AuthConfigError(`SSO cutover readiness failed. ${formatSsoCutoverRefusal(readiness)}`);
@@ -216,8 +216,8 @@ try {
   if (
     authMode === "password" &&
     userCount === 0 &&
-    accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP !== "1" &&
-    !accountEnv.CAPACITYLENS_SETUP_TOKEN
+    accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP !== "1" &&
+    !accountEnv.SMALLSASS_ACCOUNT_SETUP_TOKEN
   ) {
     throw new AuthConfigError(
       "A fresh password instance requires SMALLSASS_ACCOUNT_SETUP_TOKEN (or an explicit bootstrap-admin/open-signup override).",
@@ -266,7 +266,7 @@ startServerRuntime({
     authMode,
     auth,
     requireMfa,
-    allowOpenSignup: accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
+    allowOpenSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
   },
   backupConfig,
   db,

@@ -23,10 +23,10 @@ const client = { id: "c1", accountId: "a1", name: "Acme", color: "#3b82f6", crea
 const readResponse = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> => app.inject(opts);
 
 const PASSWORD_ENV = {
-  CAPACITYLENS_AUTH: "password",
-  BETTER_AUTH_SECRET: "unit-test-secret-0123456789abcdef-0123",
-  BETTER_AUTH_URL: "http://localhost:8787",
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
+  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123",
+  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
+  SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
 };
 
 /**

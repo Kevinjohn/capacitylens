@@ -9,6 +9,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Removed legacy account environment aliases; the server refuses them and names the
+  `SMALLSASS_ACCOUNT_*` replacement (#1201).
 - Managed-VPS builds now activate a production-only runtime artifact instead of retaining build and test dependencies in each release.
 - Give every supported social sign-in provider a recognisable, consistently aligned button, with
   Microsoft and GitHub joining the existing Google treatment across sign-in, invitations and

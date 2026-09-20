@@ -192,17 +192,12 @@ Any of these needs a rebuild to take effect. Use `docker compose build web` for 
 packaged production stack, or `pnpm run build` for a direct Node installation, then
 redeploy the rebuilt web files. Setting them only in a running process does nothing.
 
-## Older variable names
+## Removed account variable names
 
-Earlier releases used `CAPACITYLENS_AUTH`, `BETTER_AUTH_*`, `CAPACITYLENS_SSO_*` and
-named-social-provider variables with different names than the `SMALLSASS_ACCOUNT_*` ones
-above. Those older names still work as aliases, but they're deprecated: CapacityLens
-warns once, without logging the value, when it sees only the old name, and refuses to
-start if an old and a new name are both set but disagree. Move to the `SMALLSASS_ACCOUNT_*`
-names above when you next touch your configuration — the aliases won't be removed until
-at least two stable minor releases and 90 days have passed since the canonical names
-first shipped, so there's no rush, but new deployments should use the current names from
-the start.
+CapacityLens accepts only the `SMALLSASS_ACCOUNT_*` account variables documented above.
+If you're upgrading an installation that predates this namespace, follow the
+[account-variable rename procedure](/self-hosting/upgrades#upgrading-to-0-71-0-alpha-1) before
+starting the new release. Startup refuses a configured removed name and identifies its replacement.
 
 <!-- #endregion guide-content -->
 

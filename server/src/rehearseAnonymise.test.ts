@@ -205,7 +205,7 @@ function listMissingColumns(db: DatabaseSync, tableName: string): string[] {
 async function assertSchemaCoverage(): Promise<void> {
   const db = openDb(":memory:");
   try {
-    const { auth } = createAuthFromEnvironment(db, { ...PASSWORD_ENV, CAPACITYLENS_REQUIRE_MFA: "1" });
+    const { auth } = createAuthFromEnvironment(db, { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_REQUIRE_MFA: "1" });
     await runAuthMigrations(assertAuth(auth));
     const tables = listSchemaTables(db);
     expect(tables.map(({ name }) => name)).toEqual(

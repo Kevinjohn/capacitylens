@@ -1,4 +1,3 @@
-import { resolveAccountConfigKey } from "../accountConfig";
 import type { AuthProviderBrand } from "./authTypes";
 
 /** Reports a startup configuration problem; the server's console in production. */
@@ -24,8 +23,8 @@ export function warnOnBrandIssuerMismatch(brand: AuthProviderBrand, issuer: stri
   }
   if (expectedHosts.includes(host)) return;
   warn(
-    `capacitylens-server: configuration warning — ${resolveAccountConfigKey("CAPACITYLENS_SSO_BRAND")}=${brand} ` +
-      `shows the ${brand} sign-in button, but ${resolveAccountConfigKey("CAPACITYLENS_SSO_ISSUER")} is ${host}, ` +
+    `capacitylens-server: configuration warning — SMALLSASS_ACCOUNT_OIDC_BRAND=${brand} ` +
+      `shows the ${brand} sign-in button, but SMALLSASS_ACCOUNT_OIDC_ISSUER is ${host}, ` +
       `not ${expectedHosts.join(" or ")}. People will be offered a ${brand} button that signs them in somewhere else.`,
   );
 }

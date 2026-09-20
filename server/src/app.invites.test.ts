@@ -704,8 +704,8 @@ async function createClosedSignupInviteContext() {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
-    CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
+    SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: undefined,
+    SMALLSASS_ACCOUNT_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
   });
   const requiredAuth = requireValue(auth, "password authentication");
   await runAuthMigrations(requiredAuth);
@@ -1055,13 +1055,13 @@ async function createSsoProviderInviteContext() {
   const db = openDb(":memory:");
   const configured = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-    CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-    CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-    CAPACITYLENS_SSO_ISSUER: "https://idp.example",
-    CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
-    CAPACITYLENS_GITHUB_CLIENT_ID: "github-client-id",
-    CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-client-secret",
+    SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+    SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+    SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+    SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+    SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+    SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client-id",
+    SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-client-secret",
   });
   const configuredAuth = requireValue(configured.auth, "configured authentication");
   await runAuthMigrations(configuredAuth);

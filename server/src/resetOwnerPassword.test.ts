@@ -109,15 +109,15 @@ describe("resetOwnerPassword guards", () => {
 
   it("refuses sso and off modes and an unset public URL, naming canonical keys", async () => {
     const { databasePath } = await seededInstance();
-    await expect(run(databasePath, { env: { ...PASSWORD_ENV, CAPACITYLENS_AUTH: "sso" } })).rejects.toThrow(
+    await expect(run(databasePath, { env: { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_MODE: "sso" } })).rejects.toThrow(
       /SMALLSASS_ACCOUNT_MODE must be password/,
     );
-    await expect(run(databasePath, { env: { ...PASSWORD_ENV, CAPACITYLENS_AUTH: "off" } })).rejects.toThrow(
+    await expect(run(databasePath, { env: { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_MODE: "off" } })).rejects.toThrow(
       /SMALLSASS_ACCOUNT_MODE must be password/,
     );
-    await expect(run(databasePath, { env: { ...PASSWORD_ENV, BETTER_AUTH_URL: undefined } })).rejects.toThrow(
-      /SMALLSASS_ACCOUNT_PUBLIC_URL/,
-    );
+    await expect(
+      run(databasePath, { env: { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_PUBLIC_URL: undefined } }),
+    ).rejects.toThrow(/SMALLSASS_ACCOUNT_PUBLIC_URL/);
   });
 
   it("refuses while another connection holds the database, then proceeds once released", async () => {
