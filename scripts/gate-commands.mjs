@@ -48,8 +48,17 @@ const commands = {
   ],
 };
 
+const commandKey = (args) => JSON.stringify(args);
+const appCommandKeys = new Set(commands.app.map(commandKey));
+const serverCommandKeys = new Set(commands.server.map(commandKey));
+const sharedCommands = commands.server.filter((args) => appCommandKeys.has(commandKey(args)));
+const appOnlyCommands = commands.app.filter((args) => !serverCommandKeys.has(commandKey(args)));
+const serverOnlyCommands = commands.server.filter((args) => !appCommandKeys.has(commandKey(args)));
+
+commands.all = [...sharedCommands, ...appOnlyCommands, ...serverOnlyCommands];
+
 /** Return independent, ordered pnpm argument arrays for a known repository gate. */
 export function gateCommands(mode) {
-  if (!Object.hasOwn(commands, mode)) throw new Error("Expected app or server with no extra arguments.");
+  if (!Object.hasOwn(commands, mode)) throw new Error("Expected app, server, or all with no extra arguments.");
   return commands[mode].map((args) => [...args]);
 }
