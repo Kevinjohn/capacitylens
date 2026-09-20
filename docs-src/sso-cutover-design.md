@@ -1092,7 +1092,7 @@ row stores only a SHA-256 `ceremonyId`, never the token (`:133-136`, `:150-151`)
 > `server/src/cutoverPreflight.ts`, `server/src/federatedLinkLifecycle.ts`, and
 > `src/components/settings/SsoReadinessPanel.tsx`; focused evidence lives in
 > `server/src/accounts/ssoCutoverRoutes.test.ts`, `server/src/cutoverPreflight.test.ts`, and
-> `src/components/settings/MembersSection.sso.test.tsx`. Use the
+> `src/components/team/MembersSection.sso.test.tsx`. Use the
 > [current cutover procedure](company-login/move-to-single-sign-on.md) rather than executing this
 > historical breakdown.
 

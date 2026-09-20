@@ -321,7 +321,7 @@ validation failures.
 
 - Prose-only changes require formatting and content/link review. Run the documentation build when
   its inputs change (see “Documentation”). Application suites are not required for prose alone.
-- Other changes default to `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` before
+- Other changes default to `pnpm run gate:all` and `pnpm run e2e` before
   submission on Node >= 24. Cross-browser and mutation checks are documented in
   `docs-src/reference/development.md`; keep E2E specs browser-agnostic.
 

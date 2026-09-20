@@ -8,7 +8,11 @@ export type { MemberConfirmation, MemberConfirmationAction } from "./memberConfi
 import { resolveRoleSummary } from "../../lib/accessCopy";
 import { ConfirmDialog, Modal, SelectField } from "../common/ui";
 import { Button } from "../ui/button";
-import { resolveReadinessMemberLabel, type ReadinessMember, type ReadinessRepairLink } from "./ssoReadiness";
+import {
+  resolveReadinessMemberLabel,
+  type ReadinessMember,
+  type ReadinessRepairLink,
+} from "@/components/settings/ssoReadiness";
 
 export type MemberRoleEdit = { member: TeamMember; nextRole: Role };
 export type UnlinkRepair = { member: ReadinessMember; link: ReadinessRepairLink };

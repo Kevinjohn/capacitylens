@@ -48,7 +48,7 @@ Every local server takes its port from a *lane*: an integer from 0 to 9 that one
 duration. A port is `base + lane`, so lane 0 is the historical `5173`/`8787`/`4173` and ten
 concurrent worktrees never collide.
 
-`pnpm run dev`, `preview`, `test`, `gate`, `gate:server`, `e2e` and the documentation servers all
+`pnpm run dev`, `preview`, `test`, `gate`, `gate:server`, `gate:all`, `e2e` and the documentation servers all
 run through `scripts/with-lane.mjs`, which claims a lane before the command starts and releases it
 after. Configuration files only read the resolved lane, so there is nothing to pass by hand:
 
@@ -427,8 +427,7 @@ Inside a module, function verbs, variable names, parameter style and result shap
 Run these before proposing a change:
 
 ```bash
-pnpm run gate
-pnpm run gate:server
+pnpm run gate:all
 pnpm run test:account-conformance
 pnpm run e2e
 pnpm run e2e:oidc
@@ -448,6 +447,10 @@ operation only when diagnosing a hook problem; pull-request checks remain author
 enforced coverage floors, rejects any new measured executable module with zero covered
 lines, and builds the SPA. A short exact-file allow-list records existing zero-coverage
 debt; broad patterns are forbidden so unrelated new files can't inherit an exception.
+
+Run `gate:all` for the combined app and server gate. It executes the checks shared by `gate`
+and `gate:server` once, then runs the app-only and server-only checks in their established
+order. The separate commands remain available when only one workspace needs validation.
 
 Lint also holds the typed packages to the mechanical rules of the code conventions page:
 identifier casing, no negated boolean names, and at most three parameters. Existing violations
@@ -750,8 +753,8 @@ Opening a pull request and pushing to its branch previously fired `gate`, `e2e`,
 `security` on every event — several full passes per change. Focused format/lint/type-check and
 CodeQL jobs now cover every proposed commit without repeating the full suites. Staged-file lint on
 commit, whole-repository lint on push and whole-repository formatting on pull requests provide
-early feedback; `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` remain the complete
-local checks, and CI is the record.
+early feedback; `pnpm run gate:all` and `pnpm run e2e` remain the complete local checks, and CI is
+the record.
 
 Two jobs used to depend on pull-request context and now read the pushed commit range
 (`github.event.before`..`github.sha`) instead: DCO sign-off and dependency review. Both
