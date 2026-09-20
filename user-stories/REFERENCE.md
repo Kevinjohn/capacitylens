@@ -898,7 +898,7 @@ identifiers, paths, hostnames, secrets, invite or session values, raw errors or 
 fields. The button reports a generic success or clipboard failure message.
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
-server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password` or
+server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password` or
 `sso`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
