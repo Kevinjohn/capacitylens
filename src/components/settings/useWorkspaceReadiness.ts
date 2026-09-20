@@ -10,8 +10,8 @@ import {
   type ReadinessRepairLink,
   type WorkspaceReadiness,
 } from "./ssoReadiness";
-import type { useTeamDirectory } from "./useTeamDirectory";
-import type { MemberActionDependencies } from "./memberActionDependencies";
+import type { MemberActionDependencies } from "@/components/team/memberActionDependencies";
+import type { useTeamDirectory } from "@/components/team/useTeamDirectory";
 
 interface WorkspaceReadinessDependencies extends Pick<
   MemberActionDependencies,

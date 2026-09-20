@@ -8,10 +8,10 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { useStore } from "../../store/useStore";
 import { FieldError } from "../ui/field";
 import { Button } from "../ui/button";
-import { SsoUnlinkConfirmation } from "./MemberConfirmations";
+import { SsoUnlinkConfirmation } from "@/components/team/MemberConfirmations";
 import { SettingsGroup } from "./SettingsGroup";
 import { SsoReadinessPanel } from "./SsoReadinessPanel";
-import { useTeamDirectory } from "./useTeamDirectory";
+import { useTeamDirectory } from "@/components/team/useTeamDirectory";
 import { useWorkspaceReadiness } from "./useWorkspaceReadiness";
 
 function canViewReadiness({

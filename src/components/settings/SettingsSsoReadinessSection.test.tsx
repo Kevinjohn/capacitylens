@@ -6,7 +6,7 @@ import { PermissionContext, type PermissionContextValue } from "../../auth/permi
 import { setOfflineReadState } from "../../data/offlineCache";
 import { DEFAULT_ACCOUNT_ID, jsonResponse, resetStoreWithAccount } from "../../test/fixtures";
 import { useStore } from "../../store/useStore";
-import { authValue, mockApi, rawMember, stubPageReload } from "./MembersSection.testSupport";
+import { authValue, mockApi, rawMember, stubPageReload } from "@/components/team/MembersSection.testSupport";
 import { SettingsSsoReadinessSection } from "./SettingsSsoReadinessSection";
 import { m } from "@/i18n";
 
