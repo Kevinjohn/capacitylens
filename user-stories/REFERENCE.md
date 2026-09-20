@@ -1235,7 +1235,7 @@ write-once) mints the reset link. SSO staging additionally exposes
 `PATCH /api/accounts/:accountId/members/:userId/email`, and
 `DELETE /api/accounts/:accountId/members/:userId/federated-link`; the two repair writes are
 mixed-mode-only and identity-global. The management UI is
-`src/components/settings/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
+`src/components/team/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
 

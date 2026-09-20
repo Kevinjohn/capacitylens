@@ -14,7 +14,7 @@ vi.mock("../../data/apiConfig", () => ({
   API_BASE: "http://api.test",
 }));
 
-vi.mock("../settings/MembersSection", () => ({
+vi.mock("./MembersSection", () => ({
   MembersSection: () => <div data-testid="member-management">Member controls</div>,
 }));
 
