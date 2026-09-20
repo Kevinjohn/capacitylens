@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { m } from "@/i18n";
 import { Modal } from "../common/ui";
 import { Button } from "../ui/button";
@@ -19,22 +19,33 @@ export function MemberActionsDialog({
   onOpenChange(open: boolean): void;
   children: ReactNode;
 }) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) {
+      requestAnimationFrame(() => {
+        const confirmation = document.querySelector<HTMLElement>('[role="alertdialog"]');
+        if (confirmation) confirmation.focus();
+        else triggerRef.current?.focus();
+      });
+    }
+    wasOpen.current = open;
+  }, [open]);
   if (!hasExistingActions) return null;
   return (
     <>
-      {!open && (
-        <Button
-          size="icon-sm"
-          variant="outline"
-          title={m.settings_member_settings_aria({ member: memberLabel })}
-          aria-label={m.settings_member_settings_aria({ member: memberLabel })}
-          data-testid="member-menu"
-          disabled={busy}
-          onClick={() => onOpenChange(true)}
-        >
-          <Settings />
-        </Button>
-      )}
+      <Button
+        ref={triggerRef}
+        size="icon-sm"
+        variant="outline"
+        title={m.settings_member_settings_aria({ member: memberLabel })}
+        aria-label={m.settings_member_settings_aria({ member: memberLabel })}
+        data-testid="member-menu"
+        disabled={busy}
+        onClick={() => onOpenChange(true)}
+      >
+        <Settings />
+      </Button>
       {open && (
         <Modal
           title={m.settings_member_settings_heading()}

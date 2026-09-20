@@ -3,20 +3,18 @@ import { formatInstant } from "../../lib/dateDisplay";
 import { useStore } from "../../store/useStore";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { Field, FieldContent, FieldDescription, FieldError, FieldLabel } from "../ui/field";
-import { Switch } from "../ui/switch";
+import { FieldError } from "../ui/field";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { CopyableLinkBlock, InviteMemberPanel } from "./InviteMemberPanel";
 import { MemberConfirmations } from "./MemberConfirmations";
 import { MemberRow } from "./MemberRow";
-import { SsoReadinessPanel } from "./SsoReadinessPanel";
 import { useMembersOrchestration } from "./useMembersOrchestration";
 import type { TeamMember } from "../../account/teamAccessClient";
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members in a compact managed-row table (name / email / optional sign-in confirmation), change a member's role through the
 // row's pencil, reach the rarer lifecycle actions and Resource link through the centered member-actions dialog, and invite people from a
-// separate dialog below. Ownership transfer is deliberately absent: it is not a per-row action
+// separate dialog above. Ownership transfer is deliberately absent: it is not a per-row action
 // and returns as its own owner-only section under a follow-up ticket. The CLIENT
 // gate is courtesy only — the SAME pure guards (canEditAnyMemberRole / canRemoveMember) hide controls
 // the user can't use, but the SERVER is the backstop (every route is gated server-side; a 403 on the
@@ -52,8 +50,6 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   const { invites } = orchestration.directory.snapshot;
   return (
     <>
-      <MembersDirectorySection members={orchestration} setActionStatusElement={setActionStatusElement} />
-      <SsoReadinessSection readiness={orchestration} />
       {/* Inviting someone is its own job, not a footnote to the member table (#175): the form opens
           in a centered dialog and outstanding invites stay in their own bordered section. */}
       {orchestration.mayManageInvites && (
@@ -80,6 +76,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           setInvitationResourceId={orchestration.setInvitationResourceId}
         />
       )}
+      <MembersDirectorySection members={orchestration} setActionStatusElement={setActionStatusElement} />
       <MemberConfirmations
         memberConfirmation={orchestration.memberConfirmation}
         setMemberConfirmation={orchestration.setMemberConfirmation}
@@ -89,9 +86,6 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
         roleOptions={orchestration.roleOptions}
         busy={orchestration.busyAction !== null}
         changeRole={orchestration.changeRole}
-        unlinkRepair={orchestration.unlinkRepair}
-        setUnlinkRepair={orchestration.setUnlinkRepair}
-        removeIncorrectSsoLink={orchestration.removeIncorrectSsoLink}
       />
     </>
   );
@@ -112,21 +106,6 @@ type MemberTableCapabilities = Pick<
   | "error"
   | "errorField"
   | "errorId"
->;
-type ReadinessCapabilities = Pick<
-  MembersOrchestration,
-  | "readinessApplies"
-  | "readinessError"
-  | "readiness"
-  | "authMode"
-  | "busyAction"
-  | "emailRepair"
-  | "setEmailRepair"
-  | "error"
-  | "errorField"
-  | "errorId"
-  | "correctSsoEmail"
-  | "setUnlinkRepair"
 >;
 type DirectoryCapabilities = MemberTableCapabilities &
   Pick<MembersOrchestration, "activeMembers" | "inactiveMembers" | "inactiveOpen" | "setInactiveOpen">;
@@ -156,13 +135,11 @@ function MembersErrorCard({ errorId, error, reload }: { errorId: string; error: 
 function MembersTable({
   rows,
   testId,
-  signInTrackingEnabled,
   memberActions,
   allMembers,
 }: {
   rows: TeamMember[];
   testId: string;
-  signInTrackingEnabled: boolean;
   memberActions: MemberTableCapabilities;
   allMembers: TeamMember[];
 }) {
@@ -178,18 +155,16 @@ function MembersTable({
               {m.settings_member_col_name()}
             </th>
             <th scope="col" className="py-2 px-4 font-medium">
+              {m.settings_invite_role_label()}
+            </th>
+            <th scope="col" className="py-2 px-4 font-medium">
               {m.settings_member_col_email()}
             </th>
             <th scope="col" className="py-2 px-4 font-medium">
               {m.settings_member_col_scheduled_person()}
             </th>
-            {signInTrackingEnabled && (
-              <th scope="col" className="py-2 px-4 font-medium">
-                {m.settings_member_col_sign_in_confirmed()}
-              </th>
-            )}
             <th scope="col" className="w-auto py-2 px-4 text-right font-medium">
-              <span className="sr-only">{m.settings_member_col_actions()}</span>
+              {m.settings_member_col_actions()}
             </th>
           </tr>
         </thead>
@@ -199,7 +174,6 @@ function MembersTable({
               key={member.userId}
               member={member}
               myRole={memberActions.myRole}
-              signInTrackingEnabled={signInTrackingEnabled}
               busy={memberActions.busyAction !== null}
               openMenuFor={memberActions.openMenuFor}
               setOpenMenuFor={memberActions.setOpenMenuFor}
@@ -217,55 +191,7 @@ function MembersTable({
   );
 }
 
-function ReadinessPanels({ readiness }: { readiness: ReadinessCapabilities }) {
-  return (
-    <>
-      {readiness.readinessApplies && readiness.readinessError && (
-        <section
-          className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/5 p-3"
-          data-testid="sso-readiness-error"
-          role="alert"
-        >
-          <h3 className="text-sm font-medium text-danger">{m.settings_sso_readiness_heading()}</h3>
-          <p className="text-xs text-danger">{m.settings_sso_readiness_error()}</p>
-        </section>
-      )}
-      {readiness.readinessApplies && readiness.readiness && (
-        <SsoReadinessPanel
-          authMode={readiness.authMode}
-          readiness={readiness.readiness}
-          busy={readiness.busyAction !== null}
-          emailRepair={readiness.emailRepair}
-          setEmailRepair={readiness.setEmailRepair}
-          error={readiness.error}
-          errorField={readiness.errorField}
-          errorId={readiness.errorId}
-          onCorrectEmail={() => void readiness.correctSsoEmail()}
-          onRemoveLink={(member, link) => readiness.setUnlinkRepair({ member, link })}
-        />
-      )}
-    </>
-  );
-}
-
-function SsoReadinessSection({ readiness }: { readiness: ReadinessCapabilities }) {
-  if (!readiness.readinessApplies) return null;
-  return (
-    <section data-testid="sso-readiness-section" className="flex flex-col gap-3">
-      <ReadinessPanels readiness={readiness} />
-    </section>
-  );
-}
-
-function MemberDirectory({
-  directory,
-  members,
-  signInTrackingEnabled,
-}: {
-  directory: DirectoryCapabilities;
-  members: TeamMember[];
-  signInTrackingEnabled: boolean;
-}) {
+function MemberDirectory({ directory, members }: { directory: DirectoryCapabilities; members: TeamMember[] }) {
   let activeContent = null;
   if (members.length === 0)
     activeContent = <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>;
@@ -274,7 +200,6 @@ function MemberDirectory({
       <MembersTable
         rows={directory.activeMembers}
         testId="members-table"
-        signInTrackingEnabled={signInTrackingEnabled}
         memberActions={directory}
         allMembers={members}
       />
@@ -302,7 +227,6 @@ function MemberDirectory({
               <MembersTable
                 rows={directory.inactiveMembers}
                 testId="members-inactive-table"
-                signInTrackingEnabled={signInTrackingEnabled}
                 memberActions={directory}
                 allMembers={members}
               />
@@ -343,7 +267,7 @@ function MembersDirectorySection({
   setActionStatusElement(element: HTMLParagraphElement | null): void;
 }) {
   if (members.directory.kind !== "ready") return null;
-  const { members: memberRows, signInTrackingEnabled } = members.directory.snapshot;
+  const { members: memberRows } = members.directory.snapshot;
   return (
     <section data-testid="members-section" aria-busy={members.busyAction !== null} className="flex flex-col gap-4">
       <header className="flex flex-col gap-2">
@@ -355,22 +279,7 @@ function MembersDirectorySection({
           {members.busyAction ? m.settings_members_updating() : ""}
         </p>
         <FieldError id={members.errorId}>{members.errorField === null ? members.error : null}</FieldError>
-        {members.mayManageSignInTracking && (
-          <Field orientation="horizontal" data-disabled={members.busyAction !== null || undefined}>
-            <FieldContent>
-              <FieldLabel htmlFor="member-sign-in-tracking">{m.settings_members_sign_in_tracking_label()}</FieldLabel>
-              <FieldDescription>{m.settings_members_sign_in_tracking_description()}</FieldDescription>
-            </FieldContent>
-            <Switch
-              id="member-sign-in-tracking"
-              data-testid="member-sign-in-tracking"
-              checked={signInTrackingEnabled}
-              disabled={members.busyAction !== null}
-              onCheckedChange={(next) => void members.changeSignInTracking({ next: next })}
-            />
-          </Field>
-        )}
-        <MemberDirectory directory={members} members={memberRows} signInTrackingEnabled={signInTrackingEnabled} />
+        <MemberDirectory directory={members} members={memberRows} />
         <ResetLink reset={members} />
       </div>
     </section>

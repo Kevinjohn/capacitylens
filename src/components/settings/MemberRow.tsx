@@ -101,9 +101,6 @@ function MemberIdentity({ member }: { member: TeamMember }) {
   let name = member.userId;
   if (trimmedName) name = trimmedName;
 
-  let roleLabel = resolveRoleLabel(member.role);
-  if (member.role === "owner") roleLabel = m.settings_member_sole_owner_protected();
-
   let statusLabel: string | null = null;
   if (member.status === "disabled") statusLabel = m.settings_member_status_disabled();
   if (member.status === "archived") statusLabel = m.settings_member_status_archived();
@@ -116,9 +113,6 @@ function MemberIdentity({ member }: { member: TeamMember }) {
           {member.isSelf && <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>}
         </span>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground" data-testid="member-role">
-            {roleLabel}
-          </span>
           {statusLabel && (
             <Badge variant="outline" data-testid="member-status">
               {statusLabel}
@@ -270,7 +264,6 @@ function MemberSettingsMenuItems({
 export function MemberRow({
   member: member,
   myRole,
-  signInTrackingEnabled,
   busy,
   openMenuFor,
   setOpenMenuFor,
@@ -283,7 +276,6 @@ export function MemberRow({
 }: {
   member: TeamMember;
   myRole: Role | undefined;
-  signInTrackingEnabled: boolean;
   busy: boolean;
   openMenuFor: string | null;
   setOpenMenuFor(value: string | null): void;
@@ -306,8 +298,13 @@ export function MemberRow({
       data-testid="member-row"
     >
       <MemberIdentity member={member} />
-      <td className="py-2 px-4 text-xs text-muted-foreground" data-testid="member-email">
-        {member.email ?? m.settings_member_email_missing()}
+      <td className="py-2 px-4 text-sm text-ink" data-testid="member-role">
+        {member.role === "owner" ? m.settings_member_sole_owner_protected() : resolveRoleLabel(member.role)}
+      </td>
+      <td className="max-w-52 py-2 px-4 text-xs text-muted-foreground" data-testid="member-email">
+        <span className="block truncate" title={member.email ?? undefined}>
+          {member.email ?? m.settings_member_email_missing()}
+        </span>
       </td>
       <MemberResourceLink
         member={member}
@@ -317,11 +314,6 @@ export function MemberRow({
         workspaceId={workspaceId}
         reload={reload}
       />
-      {signInTrackingEnabled && (
-        <td className="py-2 px-4 text-muted-foreground" data-testid="member-sign-in-confirmed">
-          {member.signInConfirmed ? m.settings_member_sign_in_confirmed() : m.settings_member_sign_in_not_confirmed()}
-        </td>
-      )}
       <MemberPrimaryActions
         member={member}
         memberLabel={memberLabel}

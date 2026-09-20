@@ -16,7 +16,7 @@ const OWNER = `ot-owner-${STAMP}@capacitylens.dev`;
 const ADMIN = `ot-admin-${STAMP}@capacitylens.dev`;
 const EDITOR = `ot-editor-${STAMP}@capacitylens.dev`;
 const COMPANY = `Ownership Studio ${STAMP}`;
-// Sign-up derives a display name from the address, and the card names people by it: the ceremony
+// Sign-up derives a display name from the address, and the dialog names people by it: the ceremony
 // copies no name of its own into the workflow row.
 const ownerName = OWNER.split("@")[0] as string;
 const adminName = ADMIN.split("@")[0] as string;
@@ -69,6 +69,11 @@ async function openTeamAccess(context: BrowserContext, email: string): Promise<P
   return page;
 }
 
+async function openOwnershipDialog(page: Page): Promise<void> {
+  await page.getByTestId("ownership-transfer-open").click();
+  await expect(page.getByRole("dialog", { name: "Company ownership" })).toBeVisible();
+}
+
 async function readRoles(
   request: APIRequestContext,
   cookie: string,
@@ -91,8 +96,8 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   await expect(ownerPage.getByTestId("current-access")).toContainText("Owner");
 
   // NOMINATE. Only active Admins are offered, so the editor must not appear as a candidate.
-  const card = ownerPage.getByTestId("ownership-transfer-card");
-  await expect(card).toBeVisible();
+  await expect(ownerPage.getByTestId("ownership-transfer-card")).toBeVisible();
+  await openOwnershipDialog(ownerPage);
   await nominate(ownerPage, admin.userId, editor.userId);
   await ownerPage.getByTestId("ownership-transfer-start").click();
   await expect(ownerPage.getByTestId("ownership-transfer-state")).toContainText(adminName);
@@ -120,6 +125,7 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   // AGREE, as the nominee and nobody else.
   const adminContext = await newObservedContext({ reducedMotion: "reduce" });
   const adminPage = await openTeamAccess(adminContext, ADMIN);
+  await openOwnershipDialog(adminPage);
   await expect(adminPage.getByTestId("ownership-transfer-state")).toContainText(ownerName);
   await expect(adminPage.getByTestId("ownership-transfer-complete")).toHaveCount(0);
   await adminPage.getByTestId("ownership-transfer-accept").click();
@@ -127,6 +133,7 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
 
   // CONFIRM, by the same Owner who nominated.
   await ownerPage.reload();
+  await openOwnershipDialog(ownerPage);
   await ownerPage.getByTestId("ownership-transfer-complete").click();
 
   // The swap: the nominee is the Owner, the person who handed it over is an Admin.
@@ -136,8 +143,9 @@ test("an owner nominates an admin, the admin agrees, the owner confirms, and the
   await expect(ownerPage.getByTestId("current-access")).toContainText("Admin");
   await adminPage.reload();
   await expect(adminPage.getByTestId("current-access")).toContainText("Owner");
-  // The new Owner now holds the ceremony themselves: their card offers a nomination rather than a
+  // The new Owner now holds the ceremony themselves: their dialog offers a nomination rather than a
   // request, and offers it to the person who just handed the company over.
+  await openOwnershipDialog(adminPage);
   await expect(adminPage.getByTestId("ownership-transfer-start")).toBeVisible();
 
   await adminContext.close();

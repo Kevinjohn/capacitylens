@@ -172,7 +172,6 @@ export function TeamAccessView() {
     <div className="mx-auto flex max-w-4xl flex-col gap-5 p-6">
       <header>
         <h1 className="text-xl font-semibold text-ink">{m.access_title()}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{m.access_intro()}</p>
       </header>
 
       <CurrentAccessCard
@@ -192,8 +191,8 @@ export function TeamAccessView() {
       />
 
       {/* Below member management, because a transfer is a consequence of who administers the
-          company rather than a way to administer it. The card renders nothing for anyone who is
-          not a participant, and nothing at all while writes are suspended. */}
+          company rather than a way to administer it. The modal entry point renders nothing for
+          anyone who is not a participant, and nothing at all while writes are suspended. */}
       {authenticated && mayManage && <OwnershipTransferCard />}
     </div>
   );

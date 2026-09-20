@@ -85,6 +85,11 @@ function renderAs(userId: string) {
   );
 }
 
+async function openOwnershipDialog(): Promise<void> {
+  fireEvent.click(await screen.findByTestId("ownership-transfer-open"));
+  await screen.findByRole("dialog", { name: m.ownership_transfer_heading() });
+}
+
 const applied = (
   value: OwnershipTransferView,
 ): { kind: "ok"; status: number; value: OwnershipTransferOutcomeView } => ({
@@ -99,10 +104,24 @@ beforeEach(() => {
 });
 
 describe("OwnershipTransferCard as the Owner", () => {
+  it("keeps ceremony controls in a Company ownership modal", async () => {
+    seed({ live: null, latestOutcome: null });
+    renderAs(OWNER.userId);
+
+    const trigger = await screen.findByTestId("ownership-transfer-open");
+    expect(screen.queryByTestId("ownership-transfer-nominee")).not.toBeInTheDocument();
+    fireEvent.click(trigger);
+
+    const dialog = screen.getByRole("dialog", { name: m.ownership_transfer_heading() });
+    expect(dialog).toHaveAccessibleDescription(m.ownership_transfer_intro());
+    expect(screen.getByTestId("ownership-transfer-nominee")).toBeInTheDocument();
+  });
+
   it("offers the Admins of the company and nominates the chosen one", async () => {
     seed({ live: null, latestOutcome: null });
     client.initiateOwnershipTransfer.mockResolvedValue(applied(request()));
     renderAs(OWNER.userId);
+    await openOwnershipDialog();
 
     const select = await screen.findByTestId("ownership-transfer-nominee");
     select.focus();
@@ -121,6 +140,7 @@ describe("OwnershipTransferCard as the Owner", () => {
   it("waits for consent before offering confirmation", async () => {
     seed({ live: request(), latestOutcome: null });
     renderAs(OWNER.userId);
+    await openOwnershipDialog();
 
     expect(await screen.findByTestId("ownership-transfer-state")).toHaveTextContent(NOMINEE.name ?? "");
     expect(screen.getByTestId("ownership-transfer-state").nextElementSibling).toHaveTextContent(
@@ -137,6 +157,7 @@ describe("OwnershipTransferCard as the Owner", () => {
     });
     client.commandOwnershipTransfer.mockResolvedValue(applied(request({ state: "completed" })));
     renderAs(OWNER.userId);
+    await openOwnershipDialog();
 
     fireEvent.click(await screen.findByTestId("ownership-transfer-complete"));
 
@@ -154,6 +175,7 @@ describe("OwnershipTransferCard as the Owner", () => {
     seed({ live: request({ revision: "3" }), latestOutcome: null }, [OWNER, NOMINEE, OTHER_ADMIN]);
     client.initiateOwnershipTransfer.mockResolvedValue(applied(request({ toUserId: OTHER_ADMIN.userId })));
     renderAs(OWNER.userId);
+    await openOwnershipDialog();
 
     const select = await screen.findByTestId("ownership-transfer-nominee");
     select.focus();
@@ -177,6 +199,7 @@ describe("OwnershipTransferCard as the nominee", () => {
   it("offers consent and refusal, never the Owner's controls", async () => {
     seed({ live: request(), latestOutcome: null });
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
 
     expect(await screen.findByTestId("ownership-transfer-accept")).toBeInTheDocument();
     expect(screen.getByTestId("ownership-transfer-decline")).toBeInTheDocument();
@@ -188,6 +211,7 @@ describe("OwnershipTransferCard as the nominee", () => {
     seed({ live: request({ state: "awaiting_owner", revision: "2" }), latestOutcome: null });
     client.commandOwnershipTransfer.mockResolvedValue(applied(request()));
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
 
     fireEvent.click(await screen.findByTestId("ownership-transfer-withdraw"));
 
@@ -213,6 +237,7 @@ describe("OwnershipTransferCard outcomes", () => {
       }),
     });
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
 
     expect(await screen.findByTestId("ownership-transfer-outcome")).toHaveTextContent(
       m.ownership_transfer_outcome_declined(),
@@ -229,6 +254,7 @@ describe("OwnershipTransferCard outcomes", () => {
       }),
     });
     renderAs(OWNER.userId);
+    await openOwnershipDialog();
 
     // The Owner can always start a transfer, so the explanation must sit BESIDE the nominate
     // control: showing one instead of the other loses the only account of what happened.
@@ -256,6 +282,7 @@ describe("OwnershipTransferCard outcomes", () => {
       value: { kind: "terminal", state: "expired", reason: "deadline_passed" },
     });
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
 
     fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
 
@@ -266,6 +293,7 @@ describe("OwnershipTransferCard outcomes", () => {
     seed({ live: request(), latestOutcome: null });
     client.commandOwnershipTransfer.mockRejectedValue(new Error("offline"));
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
 
     fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
 
@@ -284,6 +312,7 @@ describe("OwnershipTransferCard outcomes", () => {
       message: "The server returned an invalid response.",
     });
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
 
     fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
 
@@ -299,6 +328,7 @@ describe("OwnershipTransferCard outcomes", () => {
       message: "Ownership transfer changed.",
     });
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
 
     fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
 
@@ -309,6 +339,7 @@ describe("OwnershipTransferCard outcomes", () => {
     client.readOwnershipTransfer.mockRejectedValue(new Error("offline"));
     client.listMembers.mockResolvedValue({ kind: "ok", status: 200, value: { members: [OWNER, NOMINEE] } });
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
 
     expect(await screen.findByText(m.ownership_transfer_read_failed())).toBeInTheDocument();
   });
@@ -316,6 +347,7 @@ describe("OwnershipTransferCard outcomes", () => {
   it("empties the card when the company changes, even if the next read fails", async () => {
     seed({ live: request(), latestOutcome: null });
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
     expect(await screen.findByTestId("ownership-transfer-state")).toBeInTheDocument();
 
     // The next company's read fails: what stays on screen must not be the previous company's
@@ -340,6 +372,7 @@ describe("OwnershipTransferCard outcomes", () => {
     });
     client.listMembers.mockResolvedValue({ kind: "error", status: 500, message: "boom" });
     renderAs(OWNER.userId);
+    await openOwnershipDialog();
 
     // Without the directory there is no nominee list and no name to print, so rendering nothing
     // would look exactly like "you have no transfer and cannot start one" to the one person who can.
@@ -350,6 +383,7 @@ describe("OwnershipTransferCard outcomes", () => {
     seed({ live: request(), latestOutcome: null });
     client.commandOwnershipTransfer.mockResolvedValue(applied(request({ state: "declined" })));
     renderAs(NOMINEE.userId);
+    await openOwnershipDialog();
 
     fireEvent.click(await screen.findByTestId("ownership-transfer-accept"));
     client.readOwnershipTransfer.mockRejectedValue(new Error("offline"));
@@ -365,6 +399,7 @@ describe("OwnershipTransferCard outcomes", () => {
     client.readOwnershipTransfer.mockResolvedValue({ kind: "error", status: 500, message: "boom" });
     client.listMembers.mockResolvedValue({ kind: "ok", status: 200, value: { members: [OWNER, NOMINEE] } });
     renderAs(OWNER.userId);
+    await openOwnershipDialog();
 
     expect(await screen.findByText(m.ownership_transfer_read_failed())).toBeInTheDocument();
   });

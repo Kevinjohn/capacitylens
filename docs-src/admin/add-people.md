@@ -26,7 +26,8 @@ Select Save. They now have a row on Schedule; they do not need a sign-in.
 
 If they also need access, [invite them](/admin/invite-teammates).
 
-In Team & access, select the link icon beside the member to open **Link to Resource**, then choose their scheduled person. Linking does not change their permissions.
+In Team & access, select the link icon beside the member to open **Link to Resource**, then choose
+their scheduled person. The choice saves immediately. Linking does not change their permissions.
 
 ## Plan an unfilled role
 

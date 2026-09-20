@@ -39,13 +39,15 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 10. Click **Team & access**. The URL is `/team` and the current access summary shows.
 11. Click **Settings**. The URL is `/settings` and the page shows **Company setup**,
     **Scheduling features**, **My display** and **Data and support** in order. **Company details**
-    and **Diagnostics** appear in Data and support.
+    and **Diagnostics** appear in Data and support. When strict company login is configured,
+    **SSO cutover readiness** appears as its own group after Company setup.
 12. Click **Account**. The URL is `/account` and the personal identity and available security
     controls show independently of the active company.
 
 ## Acceptance criteria
 
-- ✅ Settings keeps its four groups on one scrollable page. Group descriptions distinguish company
+- ✅ Settings keeps its four permanent groups on one scrollable page and adds the conditional SSO
+  readiness group only when it applies. Group descriptions distinguish company
   settings from this browser's preferences; controls stack under their labels at narrow widths
   without horizontal page overflow. Help opens by keyboard and returns focus to its trigger.
   Coverage: `e2e/settings-layout.spec.ts`.

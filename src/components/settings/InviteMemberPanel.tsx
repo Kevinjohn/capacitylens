@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -11,7 +11,7 @@ import { resolveRoleLabel, resolveRoleSummary } from "../../lib/accessCopy";
 import { Modal, SelectField, TextField } from "../common/ui";
 import { Button } from "../ui/button";
 import { FieldError, FieldSet } from "../ui/field";
-import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
+import { sortInvitationsForPresentation } from "./buildMemberDirectoryPresentation";
 
 /**
  * A write-once "here is a freshly-minted link, copy it now" block (shared by the invite link and the
@@ -200,11 +200,6 @@ function InviteForm(props: InviteFormProps) {
           clear,
         }}
       />
-      <div className="sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] sm:gap-3">
-        <p id={`${errorId}-email-help`} className="text-xs text-muted-foreground sm:col-start-2">
-          {authMode === "sso" ? m.settings_invite_preauth_description_sso() : m.settings_invite_preauth_description()}
-        </p>
-      </div>
       <SelectField
         label={m.settings_invite_person_label()}
         ariaLabel={m.settings_invite_person_aria()}
@@ -262,7 +257,7 @@ function InviteEmailField(props: InviteEmailFieldProps) {
     props;
   return (
     <TextField
-      label={authMode === "sso" ? m.settings_invite_preauth_label_required() : m.settings_invite_preauth_label()}
+      label={m.settings_invite_preauth_label()}
       ariaLabel={m.settings_invite_preauth_aria()}
       type="email"
       value={invitationPreauthorizedEmail}
@@ -275,7 +270,6 @@ function InviteEmailField(props: InviteEmailFieldProps) {
       invalid={errorField === "invite"}
       layout="label-control"
       required={authMode === "sso"}
-      externalDescriptionId={`${errorId}-email-help`}
       describedById={errorId}
       placeholder={m.settings_invite_preauth_placeholder()}
       testId="invite-preauth"
@@ -307,50 +301,75 @@ function resolveInvitationPerson(invitation: TeamInvitation, people: readonly In
 function OutstandingInvites({ invites, renderedAt, busy, revokeInvite, invitationPeople }: OutstandingInvitesProps) {
   if (invites.length === 0) return null;
   return (
-    <section data-testid="outstanding-invites" className="flex flex-col gap-2 rounded-md border bg-card p-3">
+    <section data-testid="outstanding-invites" className="flex flex-col gap-2">
       <h3 className="text-sm font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
-      <ItemGroup>
-        {invites.map((invitation, index) => {
-          const expired = Date.parse(invitation.expiresAt) <= renderedAt;
-          const actionable = invitation.usedAt === null && !expired;
-          const proposedPerson = resolveInvitationPerson(invitation, invitationPeople);
-          return (
-            <Fragment key={invitation.id}>
-              {index > 0 && <ItemSeparator />}
-              <Item size="sm" role="listitem" className="rounded-none" data-testid="invite-row">
-                <ItemContent className="flex-row flex-wrap items-center gap-x-2 gap-y-1 text-sm text-ink">
-                  <span className="font-medium">{resolveRoleLabel(invitation.role)}</span>
-                  <span className="text-muted-foreground">
-                    {invitation.preauthEmail
-                      ? m.settings_invite_suffix_email({ email: invitation.preauthEmail })
-                      : m.settings_invite_suffix_link()}
-                  </span>
-                  <span className="text-muted-foreground">{resolveInvitationStatus(invitation, expired)}</span>
-                  {proposedPerson && (
-                    <span className="basis-full text-xs text-muted-foreground">
-                      {m.settings_invite_person_pending({ person: proposedPerson })}{" "}
-                      {m.settings_invite_person_not_reserved()}
+      <div className="overflow-x-auto rounded-md border bg-card">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs font-medium text-muted-foreground">
+              <th scope="col" className="py-2 px-4 font-medium">
+                {m.settings_member_col_name()}
+              </th>
+              <th scope="col" className="py-2 px-4 font-medium">
+                {m.settings_invite_role_label()}
+              </th>
+              <th scope="col" className="py-2 px-4 font-medium">
+                {m.settings_member_col_email()}
+              </th>
+              <th scope="col" className="py-2 px-4 font-medium">
+                {m.settings_member_col_scheduled_person()}
+              </th>
+              <th scope="col" className="py-2 px-4 text-right font-medium">
+                {m.settings_member_col_actions()}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortInvitationsForPresentation(invites).map((invitation) => {
+              const expired = Date.parse(invitation.expiresAt) <= renderedAt;
+              const actionable = invitation.usedAt === null && !expired;
+              const proposedPerson = resolveInvitationPerson(invitation, invitationPeople);
+              return (
+                <tr key={invitation.id} className="border-b last:border-b-0" data-testid="invite-row">
+                  <td className="py-2 px-4">—</td>
+                  <td className="py-2 px-4">{resolveRoleLabel(invitation.role)}</td>
+                  <td className="max-w-52 py-2 px-4 text-xs text-muted-foreground">
+                    <span className="block truncate" title={invitation.preauthEmail ?? undefined}>
+                      {invitation.preauthEmail ?? m.settings_invite_table_link()}
                     </span>
-                  )}
-                </ItemContent>
-                {actionable && (
-                  <ItemActions>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      data-testid="invite-revoke"
-                      disabled={busy}
-                      onClick={() => void revokeInvite(invitation.id)}
-                    >
-                      {m.settings_invite_revoke()}
-                    </Button>
-                  </ItemActions>
-                )}
-              </Item>
-            </Fragment>
-          );
-        })}
-      </ItemGroup>
+                    <span className="block">
+                      {resolveInvitationStatus(invitation, expired).replace(/^\s*·\s*/, "")}
+                    </span>
+                  </td>
+                  <td className="py-2 px-4 text-xs text-muted-foreground">
+                    {proposedPerson ? (
+                      <>
+                        {proposedPerson}{" "}
+                        {actionable && <span className="text-warn">{m.settings_invite_table_pending()}</span>}
+                      </>
+                    ) : (
+                      m.settings_member_resource_not_linked()
+                    )}
+                  </td>
+                  <td className="py-2 px-4 text-right">
+                    {actionable && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-testid="invite-revoke"
+                        disabled={busy}
+                        onClick={() => void revokeInvite(invitation.id)}
+                      >
+                        {m.settings_invite_revoke()}
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

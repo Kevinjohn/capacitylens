@@ -8,16 +8,16 @@ import type { OwnershipTransferView, TeamMember } from "../../account/teamAccess
 import { useAuth } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
 import { formatInstant } from "@/lib/dateDisplay";
+import { Modal } from "../common/ui";
 import { SelectField } from "../common/fields/SelectField";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { useOwnershipTransfer, type OwnershipTransferController } from "./useOwnershipTransfer";
 
 /**
  * The three-step ownership transfer ceremony, for whichever side of it the viewer is on.
  *
- * The card renders NOTHING for anyone who is not a participant. That is not tidiness: a transfer in
+ * The section renders NOTHING for anyone who is not a participant. That is not tidiness: a transfer in
  * progress, and who it names, is not ordinary member-management information, and the server returns
  * an empty projection to everyone else — so there is nothing to render even if this decided
  * otherwise. Every control's authority is re-checked by the server; hiding is never the mechanism.
@@ -51,7 +51,7 @@ function describeReason(reason: OwnershipTransferTerminalReason | null, state: O
   }
 }
 
-/** The two things the card says about the last action: what it committed, and what went wrong.
+/** The two things the dialog says about the last action: what it committed, and what went wrong.
  *  Both are answers to the command the viewer just gave, so they live together. */
 function CeremonyAlerts({ controller }: { controller: OwnershipTransferController }) {
   const terminal = controller.lastTerminal;
@@ -145,7 +145,7 @@ interface StepButtonProps {
 }
 
 /** One ceremony step as a button. Every step sends the same command against the same request at the
- *  revision the card read, so the only things that vary are which step, how it reads and whether it
+ *  revision the dialog read, so the only things that vary are which step, how it reads and whether it
  *  is the primary action of the pair. */
 function StepButton({ controller, request, step, label, variant }: StepButtonProps) {
   return (
@@ -251,7 +251,7 @@ interface CeremonyBodyProps {
   mayNominate: boolean;
 }
 
-/** What the card shows once it has something to say: the live ceremony, or the nomination control,
+/** What the dialog shows once it has something to say: the live ceremony, or the nomination control,
  *  or the explanation of how the last one ended. */
 function CeremonyBody({ controller, principalId, mayNominate }: CeremonyBodyProps) {
   const live = controller.projection?.live ?? null;
@@ -295,11 +295,11 @@ function mayNominate(controller: OwnershipTransferController, principalId: strin
 }
 
 /**
- * Has this card anything to tell this viewer?
+ * Has this section anything to tell this viewer?
  *
  * Nothing live, nothing to explain and no standing to start one: render nothing rather than an
- * empty card that invites a question it cannot answer. A failure IS something to say, so it keeps
- * the card open — a nominee whose read failed must not be shown the same blank page as a nominee
+ * empty section that invites a question it cannot answer. A failure IS something to say, so it keeps
+ * the entry point visible — a nominee whose read failed must not be shown the same blank page as a nominee
  * who has no request at all.
  */
 function hasSomethingToSay(controller: OwnershipTransferController, nominatable: boolean): boolean {
@@ -309,6 +309,7 @@ function hasSomethingToSay(controller: OwnershipTransferController, nominatable:
 }
 
 export function OwnershipTransferCard() {
+  const [open, setOpen] = useState(false);
   const activeAccountId = useStore((state) => state.activeAccountId);
   const { user, refreshAuth } = useAuth();
   const controller = useOwnershipTransfer(activeAccountId, refreshAuth);
@@ -317,17 +318,30 @@ export function OwnershipTransferCard() {
   if (!hasSomethingToSay(controller, nominatable)) return null;
 
   return (
-    <Card data-testid="ownership-transfer-card">
-      <CardHeader>
-        <CardTitle>
-          <h2>{m.ownership_transfer_heading()}</h2>
-        </CardTitle>
-        <CardDescription>{m.ownership_transfer_intro()}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <CeremonyBody controller={controller} principalId={principalId} mayNominate={nominatable} />
-        <CeremonyAlerts controller={controller} />
-      </CardContent>
-    </Card>
+    <section data-testid="ownership-transfer-card" className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex max-w-2xl flex-col gap-1">
+        <h2 className="font-semibold">{m.ownership_transfer_heading()}</h2>
+        <p className="text-sm text-muted-foreground">{m.ownership_transfer_intro()}</p>
+      </div>
+      <Button type="button" data-testid="ownership-transfer-open" onClick={() => setOpen(true)}>
+        {m.ownership_transfer_open()}
+      </Button>
+      {open && (
+        <Modal
+          title={m.ownership_transfer_heading()}
+          description={m.ownership_transfer_intro()}
+          guardDirty={false}
+          onClose={() => setOpen(false)}
+          footer={
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+              {m.ownership_transfer_close()}
+            </Button>
+          }
+        >
+          <CeremonyBody controller={controller} principalId={principalId} mayNominate={nominatable} />
+          <CeremonyAlerts controller={controller} />
+        </Modal>
+      )}
+    </section>
   );
 }

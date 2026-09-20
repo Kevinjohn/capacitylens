@@ -13,6 +13,7 @@ import {
 } from "./SettingsSchedulingSection";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsSection } from "./SettingsSection";
+import { SettingsSsoReadinessSection } from "./SettingsSsoReadinessSection";
 import { useSettingsViewController } from "./useSettingsViewController";
 
 type Controller = ReturnType<typeof useSettingsViewController>;
@@ -86,6 +87,7 @@ export function SettingsView() {
             updateSetting={controller.updateSetting}
           />
         </SettingsGroup>
+        <SettingsSsoReadinessSection />
         <SettingsGroup title={m.settings_features_heading()} description={m.settings_features_description()}>
           <SchedulingFeatureSections
             canEdit={controller.canEdit}

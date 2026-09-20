@@ -33,10 +33,9 @@ permissions](/getting-started/roles-and-permissions) for why.
 1. Open **Team & access**. Your own access is summarised at the top of the page; select
    **See full capabilities** if you want the full list of what your role can and can't do.
 
-2. Select **Invite someone** to open the centered invite dialog. Choose a role in the dialog.
-   The consequences of that role are spelled out in plain language underneath it, and you can optionally pre-authorise a specific
-   email address. That restricts acceptance to that address. Leave it empty for a single-use
-   link that another recipient can use. Company-login-only installs require an email address.
+2. Select **Invite someone**, above the member table, to open the centered invite dialog. Choose a
+   role in the dialog. The consequences of that role are spelled out in plain language underneath
+   it. **Email** is optional for password sign-in and required on company-login-only installs.
 
 3. Optionally choose **Link to Resource**, or leave **No Resource linked** selected.
    This proposes an existing person Resource without reserving it. The recipient cannot see this
@@ -44,7 +43,7 @@ permissions](/getting-started/roles-and-permissions) for why.
    member can still join; Team & access shows **Resource link needs attention**. Choose
    **Choose another person** or **Dismiss** there.
 
-   ![Invitation form with an optional Resource link and the current outstanding invite list](../screenshots/flows/invitation_created.png)
+   ![Invite someone dialog with the optional Link to Resource selection](../screenshots/flows/invitation_created.png)
 
 4. Select **Create invite**, then **Copy** the one-time link. It's shown exactly once — the server keeps only a hash of it —
    so copy it now and send it to the [person](/reference/glossary). The confirmation stays beside
@@ -80,15 +79,20 @@ Either way, they land directly on your schedule with their role visible.
 ## Pending invites
 
 Invites that haven't been accepted yet stay listed on **Team & access** as pending, in
-their own bordered section below your members. Owners and Admins can see this list; other roles only
-see their own access.
+their own bordered table above your members. It uses the same **Name**, **Role**, **Email**,
+**Link to Resource** and **Actions** columns as the member table. An invite has no name, and a
+proposed Resource stays marked pending until the invite is accepted. Owners and Admins can see this
+list; other roles only see their own access. Invitations are ordered Owner, Admin, Editor, then
+Viewer, with consistent email and creation-order tie-breakers.
 
 ## Managing someone who already joined
 
-Your members are listed in a table showing their name and email, with their role beneath
-their name. Two controls sit at the end of each row:
+Your members are listed by **Name**, **Role**, **Email**, **Link to Resource** and **Actions**.
+Owners come first, followed by Admins, Editors and Viewers; ties remain stable by display name.
+Long email addresses shorten visually, but the complete address remains available to select and in
+the native hover label.
 
-![Members table with Resource links and the privacy-preserving sign-in setting enabled](../screenshots/flows/team_access_members.png)
+![Members table with role, email, Resource link and row actions](../screenshots/flows/team_access_members.png)
 
 - The **pencil** changes that person's role, with the consequences spelled out before you
   save.
@@ -96,22 +100,17 @@ their name. Two controls sit at the end of each row:
   password, sign them out everywhere, disable or archive them, or remove them from the company.
 
 The **Link to Resource** column shows the member's association. Select the member's link icon
-to open the centered Resource form directly; when permitted it offers **Link**, **Change** and
-**Remove** controls. See [Link a person to a member](/guide/people-and-placeholders#link-a-person-to-a-member).
+to open the centered Resource selector directly. Choosing a person saves immediately. If a link
+already exists, **Remove link to resource** removes it immediately; closing the dialog never
+reverses a completed change. See [Link a person to a member](/guide/people-and-placeholders#link-a-person-to-a-member).
+
+![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/remove_resource_link.png)
 
 **Disable** and **archive** both stop someone opening the company immediately while
 keeping their role and history — use them when someone leaves, goes on long-term leave, or
 you need access shut off right now. They stay in the list with a badge, and **Restore
 access** in the same dialog puts them back exactly as they were. Removing someone, by
 contrast, is permanent: they'd need a fresh invitation to return.
-
-Owners can turn on **Record member sign-ins** above the table. It is off by default. When
-it is on, the columns are **Name**, **Email**, **Link to Resource**, **Signed in**, **Edit member** and **Member
-settings**. The last two controls stay together at the right-hand edge. **Signed in**
-shows **Yes** or **Not yet** for each member. CapacityLens stores no sign-in date or
-activity history for this feature. Turning the setting off deletes every confirmation.
-Admins can see the column when an Owner enables it, but only the Owner can change the
-setting.
 
 ## Common questions
 

@@ -1,7 +1,7 @@
 [
   {
     "path": "docs-src/screenshots/flows/invitation_created.png",
-    "sha256": "47bc36bd90464c188558a0ea84ccafef8d01b694c1fed40e9e702abfec6d38cc"
+    "sha256": "6cc433d2a378817200f0e96a5642db44a5e588ace2d1b4683b22bfc3efb7a8b3"
   },
   {
     "path": "docs-src/screenshots/flows/using_account_1.png",
@@ -17,11 +17,15 @@
   },
   {
     "path": "docs-src/screenshots/flows/using_team_access_1.png",
-    "sha256": "258e16bf0ca800fe0a70054db8a79b40933e6c2ce650eb74fd643a797df424ca"
+    "sha256": "eee75099d8e8aac1d1ecba417c134290ebdfb9d8c434df0e44a835afc5539a83"
   },
   {
     "path": "docs-src/screenshots/flows/admin_add_people_2.png",
-    "sha256": "7c8ece997baa1968a24253ac16da17b59deb259a9dfa375e517932d1e0091e08"
+    "sha256": "0435e44d4c8546997c59c39736a938e903b7e931eb49b0c4ed3805bd706bf88a"
+  },
+  {
+    "path": "docs-src/screenshots/flows/remove_resource_link.png",
+    "sha256": "42383139208a828868e11d8b7c5499ad512f7412c77b9d3fe928fd37ae700922"
   },
   {
     "path": "docs-src/screenshots/flows/admin_invite_teammates_1.png",
@@ -29,15 +33,15 @@
   },
   {
     "path": "docs-src/screenshots/flows/admin_invite_teammates_2.png",
-    "sha256": "fee60370c653745ecc23f73f91d98740027e78ff4855a5f0d7278cd4488a291b"
+    "sha256": "ff31291df4d9ea22fe8ac44abe2313971dd0771d7ad736e3207cb54cea648d1f"
   },
   {
     "path": "docs-src/screenshots/flows/admin_ongoing_administration_1.png",
-    "sha256": "22cee71ffedce185d697e24afcc55952228ee3daea2f02d600a8266bc1bffb98"
+    "sha256": "83bf882f42cfb7272a55b2d780cd7578b0e56eab5d1585d4bd30cd37d74c9b6e"
   },
   {
     "path": "docs-src/screenshots/flows/owner_appoint_an_admin_1.png",
-    "sha256": "03acd9001fd219505fb5b31fa2bc64fb58b2c825d72a1d1010eb5572f28b5f7c"
+    "sha256": "c393d43aae200754269f7b1c3f7e9fd35c6909179b0a826287cf2b89bea1de9b"
   },
   {
     "path": "docs-src/screenshots/flows/owner_create_your_company_1.png",
@@ -49,6 +53,6 @@
   },
   {
     "path": "docs-src/screenshots/flows/owner_responsibilities_1.png",
-    "sha256": "7db312250b81039a2fc3c0189d82a80f76df767bcbbe1d5619052c9a0e1c45ea"
+    "sha256": "3130e6f93bae50d7f976f13bcda179b4ee0f7d1158bd80cf7f37b4821dd55304"
   }
 ]

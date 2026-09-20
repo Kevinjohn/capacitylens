@@ -43,8 +43,8 @@ function terminaliseMemberTransfers(db: Db, accountId: string, userId: string): 
 /**
  * Insert a membership, or update the role/status of an existing `(accountId, userId)`. `createdAt`
  * is the JOIN timestamp and is **preserved** on a role/status change (it is set ONCE, on the first
- * insert) — so a role change or ownership transfer never re-orders the member list (which sorts by
- * createdAt) nor rewrites a member's displayed "joined" date. The idempotent write the permissioned
+ * insert) — so a role change or ownership transfer never rewrites a member's displayed "joined"
+ * date. The client applies its own role-priority presentation order. The idempotent write the permissioned
  * member-management endpoints (P1.5) use: re-inviting an existing member just changes their role
  * rather than erroring on the PK conflict.
  *

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import type { TeamInvitation, TeamMember as Member } from "../../account/teamAccessClient";
-import { resolveStrictOidcProvider, useAuth } from "../../auth/authContext";
+import { useAuth } from "../../auth/authContext";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useOfflineState } from "../../data/useOfflineState";
 import { useDeadlineClock } from "../../hooks/useDeadlineClock";
@@ -11,13 +11,11 @@ import { useStore } from "../../store/useStore";
 import type { StoreState } from "../../store/types";
 import { useTeamDirectory } from "./useTeamDirectory";
 import { useMemberInvites, type InvitationPersonOption } from "./useMemberInvites";
-import { useWorkspaceReadiness } from "./useWorkspaceReadiness";
 import { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 import { createMemberMutations } from "./createMemberMutations";
 import { startMasquerade } from "../../auth/accountTransition";
 import { STATUS_FOR_ACTION, type MemberConfirmation, type MemberConfirmationAction } from "./memberConfirmationCopy";
 import { buildMemberDirectoryPresentation } from "./buildMemberDirectoryPresentation";
-import type { WorkspaceReadiness } from "./ssoReadiness";
 import { useResourceListModel } from "../resources/useResourceListModel";
 
 const NO_INVITES: readonly TeamInvitation[] = Object.freeze([]);
@@ -32,25 +30,6 @@ function selectAuthorizedDirectory(directory: ReturnType<typeof useTeamDirectory
     case "loading":
       return null;
   }
-}
-
-function assertNeverReadinessState(state: never): never {
-  throw new Error(`Unexpected workspace readiness state: ${JSON.stringify(state)}`);
-}
-
-function resolveReadinessPresentation(state: ReturnType<typeof useWorkspaceReadiness>["readinessState"]): {
-  readiness: WorkspaceReadiness | null;
-  readinessError: boolean;
-} {
-  switch (state.kind) {
-    case "loading":
-      return { readiness: null, readinessError: false };
-    case "ready":
-      return { readiness: state.readiness, readinessError: false };
-    case "error":
-      return { readiness: null, readinessError: true };
-  }
-  return assertNeverReadinessState(state);
 }
 
 function pickNextInviteDeadline(invites: readonly TeamInvitation[], clock: number): number | null {
@@ -203,8 +182,6 @@ function useMemberDirectoryState(input: MemberDirectoryStateInput) {
 interface MemberMutationStateInput {
   activeAccountId: string | null;
   authMode: ReturnType<typeof useAuth>["authMode"];
-  strictProviderId: string | null;
-  offlineReadOnly: boolean;
   refreshAuth: ReturnType<typeof useAuth>["refreshAuth"];
   invalidateMemberships: StoreState["invalidateMemberships"];
   clear: ReturnType<typeof useFieldError>["clear"];
@@ -216,19 +193,8 @@ interface MemberMutationStateInput {
 }
 
 function useMemberMutationState(input: MemberMutationStateInput) {
-  const refreshDirectory = () => {
-    input.directoryState.reload();
-    bumpReadiness();
-  };
-  const { bumpReadiness, readinessState, ...readinessActions } = useWorkspaceReadiness({
-    activeAccountId: input.activeAccountId,
-    strictProviderId: input.strictProviderId,
-    directory: input.directoryState.directory,
-    offlineReadOnly: input.offlineReadOnly,
-    members: input.directoryState.members,
-    refreshDirectory,
-    ...input.directoryState.actionDependencies,
-  });
+  const refreshDirectory = input.directoryState.reload;
+  const bumpReadiness = () => undefined;
   const reconciliation = createMemberAccessReconciliation({
     activeAccountId: input.activeAccountId,
     invalidateMemberships: input.invalidateMemberships,
@@ -259,8 +225,6 @@ function useMemberMutationState(input: MemberMutationStateInput) {
   return {
     actions,
     inviteActions,
-    readinessActions,
-    readinessPresentation: resolveReadinessPresentation(readinessState),
     confirmationActions: createConfirmationActions(input.activeAccountId, input.viewState, actions),
   };
 }
@@ -288,11 +252,7 @@ function useMemberStoreActions() {
 
 // eslint-disable-next-line max-lines-per-function
 export function useMembersOrchestration(activeAccountId: string | null) {
-  const { authMode, providers, refreshAuth } = useAuth();
-  // Only the strict (non-experimental) OIDC provider's IDENTITY is needed here: the readiness read
-  // is keyed on it, and keying on the provider OBJECT would re-fetch whenever an equal-but-new
-  // provider list is resolved.
-  const strictProviderId = resolveStrictOidcProvider(providers)?.id ?? null;
+  const { authMode, refreshAuth } = useAuth();
   const offline = useOfflineState();
   const { setNotice, setActiveAccount, invalidateMemberships } = useMemberStoreActions();
   const { error, errorField, errorId, fail, clear } = useFieldError();
@@ -338,8 +298,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
   const mutationState = useMemberMutationState({
     activeAccountId,
     authMode,
-    strictProviderId,
-    offlineReadOnly: offline.readOnly,
     invalidateMemberships,
     refreshAuth,
     clear,
@@ -360,8 +318,6 @@ export function useMembersOrchestration(activeAccountId: string | null) {
     errorId,
     clear,
     reload: directoryState.reload,
-    ...mutationState.readinessActions,
-    ...mutationState.readinessPresentation,
     members: directoryState.members,
     resourceCandidates,
     ...buildMemberDirectoryPresentation(directoryState.members),
