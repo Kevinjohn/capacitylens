@@ -125,18 +125,17 @@ test("all mode runs shared checks once before the app-only and server-only check
   const expectedKeys = new Set([...app, ...server].map(key));
   const actualKeys = all.map(key);
   const sharedPrefix = all.slice(0, sharedKeys.size);
-  const lastAppOnly = all.findLastIndex(
-    (args) => appKeys.has(key(args)) && !sharedKeys.has(key(args)),
-  );
-  const firstServerOnly = all.findIndex(
-    (args) => serverKeys.has(key(args)) && !sharedKeys.has(key(args)),
-  );
+  const lastAppOnly = all.findLastIndex((args) => appKeys.has(key(args)) && !sharedKeys.has(key(args)));
+  const firstServerOnly = all.findIndex((args) => serverKeys.has(key(args)) && !sharedKeys.has(key(args)));
 
   assert.deepEqual(new Set(actualKeys), expectedKeys);
   assert.equal(new Set(actualKeys).size, actualKeys.length);
   assert.ok(sharedPrefix.every((args) => sharedKeys.has(key(args))));
   assert.ok(all.slice(sharedKeys.size).every((args) => !sharedKeys.has(key(args))));
-  assert.deepEqual(sharedPrefix, server.filter((args) => sharedKeys.has(key(args))));
+  assert.deepEqual(
+    sharedPrefix,
+    server.filter((args) => sharedKeys.has(key(args))),
+  );
   assert.deepEqual(
     all.filter((args) => appKeys.has(key(args)) && !sharedKeys.has(key(args))),
     app.filter((args) => !sharedKeys.has(key(args))),
