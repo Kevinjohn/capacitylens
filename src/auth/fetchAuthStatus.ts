@@ -12,6 +12,7 @@ interface AuthResponseFields {
   authMode: unknown;
   canCreateAccount: unknown;
   mfaRequired: unknown;
+  requireMfa: unknown;
   multiAccount: unknown;
   needsSetup: unknown;
   providers: unknown;
@@ -30,6 +31,7 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
     authMode: readField(value, "authMode"),
     canCreateAccount: readField(value, "canCreateAccount"),
     mfaRequired: readField(value, "mfaRequired"),
+    requireMfa: readField(value, "requireMfa"),
     multiAccount: readField(value, "multiAccount"),
     needsSetup: readField(value, "needsSetup"),
     providers: readField(value, "providers"),
@@ -88,6 +90,7 @@ function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatu
     canCreateAccount: resolveBooleanField(fields.canCreateAccount, true),
     multiAccount: resolveBooleanField(fields.multiAccount, true),
     mfaRequired: authMode === "password" && resolveBooleanField(fields.mfaRequired, false),
+    requireMfa: authMode === "password" && resolveBooleanField(fields.requireMfa, false),
     providers: parseAuthProviders(fields.providers),
     reauthMethod: fields.reauthMethod === "provider" || authMode === "sso" ? "provider" : "password",
     reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,
@@ -122,6 +125,7 @@ async function readOfflineIdentity(error: unknown, acceptEffects: () => boolean)
       canCreateAccount: false,
       multiAccount: cached.value.multiAccount,
       mfaRequired: false,
+      requireMfa: false,
       providers: [],
       reauthMethod: "password",
       reauthProviderId: null,

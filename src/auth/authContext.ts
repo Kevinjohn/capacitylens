@@ -91,6 +91,10 @@ export interface AuthContextValue {
    *  is the one gating decision (it also covers the zero-accounts bootstrap exemption); this exists
    *  because it costs nothing to carry alongside it. Same fail-open `true` default as above. */
   multiAccount: boolean;
+  /** Operator policy, distinct from an unfinished MFA enrollment challenge. */
+  requireMfa?: boolean;
+  /** Current identity's method for fresh authentication. */
+  reauthMethod?: "password" | "provider";
   /** Re-asks GET /api/auth/me mid-session. The server recomputes `canCreateAccount` per request
    *  from MUTABLE state (account count + the caller's membership roles), so a client action that
    *  changes that state — creating or deleting a company — must call this or the picker gates its

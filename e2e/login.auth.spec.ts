@@ -88,6 +88,9 @@ function registerSuiteScenario2() {
     await page.getByRole("link", { name: "Account", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Account", exact: true })).toBeVisible();
     await expect(page.getByText(email, { exact: true })).toBeVisible();
+    await expect(page.getByRole("columnheader")).toHaveText(["Avatar", "Name", "Email", "Actions"]);
+    const actions = page.getByTestId("account-identity-row").locator("td").nth(3);
+    await expect(actions.getByRole("button")).toHaveText(["Change password", "Sign out"]);
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
 
     // Session gone: back behind the wall, and a reload stays there.
