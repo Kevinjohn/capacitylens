@@ -5,14 +5,9 @@ import type { SanitizeWriteOptions } from "./fieldPolicy";
 import type { TenantStore } from "./tenantStore";
 import { createServerRevision } from "./revision";
 
-// THE SINGLE GENERIC-WRITE FUNNEL (Finding 7).
-//
-// POST (create), PUT (replace), PATCH (patch) and the /api/batch loop used to each RE-SEQUENCE the
-// same write pipeline inline — body-shape checks, the builtin-Internal guard, sanitizeWrite, the
-// revision stamp, assertValidWrite — and the copies had already DRIFTED (four builtin-guard messages;
-// two accountId-required messages). This module owns that shared sequence ONCE so the four call
-// sites are thin and cannot drift again. Each site still owns its own transport specifics
-// (authorize, account provisioning, persistence, audit) — only the deterministic middle is shared.
+// Generic writes share this deterministic funnel: body-shape checks, built-in Internal-client
+// protection, sanitization, revision stamping, and validation. Routes retain transport-specific
+// authorization, provisioning, persistence, and audit responsibilities.
 
 /** The write verb, so the funnel can vary the few genuinely verb-specific rules (id matching,
  *  whether an incoming `builtin` is a create attempt, whether builtin-replacement applies). */
@@ -52,8 +47,7 @@ function accountIdIsInvalid(verb: WriteVerb, row: Record<string, unknown>): bool
 }
 
 /**
- * Unified body-shape + id + accountId checks for the three generic entity routes (Finding 7 folds
- * the four drifted copies into one). Returns `null` when the body is acceptable, else the
+ * Unified body-shape, id, and accountId checks for generic entity routes. Returns `null` when the body is acceptable, else the
  * {status,error} to reply with.
  *
  * Verb-specific rules: `create` (POST — no URL id) requires a string body id; `replace` (PUT)
@@ -100,8 +94,7 @@ interface ResolveBuiltinWriteRejectionInput {
 }
 
 /**
- * The ONE built-in Internal client write guard (Finding 7 — was inlined four times with divergent
- * messages). Two symmetric protections:
+ * The built-in Internal client write guard. Two symmetric protections:
  *  - UPDATE/REPLACE/PATCH over an EXISTING built-in row is refused ('cannot be modified') — its
  *    lifecycle is server-owned. Applies to PUT/PATCH and the batch loop.
  *  - a CREATE (POST) may not hand-craft a builtin client ('managed by the server') — it is minted
@@ -140,9 +133,8 @@ export interface PreparedWrite {
 }
 
 /**
- * The shared prepare-and-validate core (Finding 7 + Finding 9). Sanitizes and stamps the row, reads
- * ONLY the writing account's slice (Finding 9 — replaces the old full-DB loadState on every
- * single-entity write), then runs the referential validation.
+ * The shared prepare-and-validate core sanitizes and stamps the row, reads only the writing
+ * account's slice, then runs referential validation.
  *
  * `body` is what the verb feeds sanitizeWrite: the raw create/replace body, or the MERGED
  * `{...existing, ...patch, id}` for a patch. `existing` is the stored row (undefined on a create).
@@ -162,7 +154,7 @@ export function prepareScopedWrite(input: {
 }): PreparedWrite {
   const { store, entity, body, existing, vis, verb } = input;
   const row = stampServerRevision(sanitizeWrite({ table: entity, row: body, existing, options: vis }), existing);
-  // Finding 9: scope the referential read to the write's OWN account (accounts key on id; scoped
+  // Scope the referential read to the write's own account (accounts key on id; scoped
   // tables on accountId) instead of loadState(db)'s SELECT * over every tenant.
   const scopeId = entity === "accounts" ? String(row.id) : String(row.accountId);
   const lookup = store.validationLookup?.();

@@ -23,10 +23,9 @@ export function readState(db: Db): AppData {
   return data as unknown as AppData;
 }
 
-/** GET /api/accounts' authMode="off" branch: every account, id+name only (OFF mode is trusted-local
- *  and has no membership rows, so every account is visible there). SQL copied byte-identically from
- *  the app.ts route this encapsulates — the caller still maps each row onto the wire AccountSummary
- *  shape (adding the OFF sentinel `role: "owner"`); this only owns the query and its cached statement. */
+/** GET /api/accounts' authMode="off" query: every account's id and name. OFF mode is trusted-local
+ *  and has no membership rows, so every account is visible. The caller adds the `role: "owner"`
+ *  sentinel to form AccountSummary values; this function owns only the cached query. */
 export function listAccountSummaries(db: Db): Array<{ id: string; name: string }> {
   const cache = createStatementCache(db);
   cache.accountSummariesSelect ??= db.prepare(`SELECT id, name FROM accounts ORDER BY id`);
@@ -34,7 +33,7 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
 }
 
 /**
- * Read ONLY one account's slice of AppData — the per-account scoped read primitive (P1.4).
+ * Read only one account's slice of AppData.
  *
  * Returns an AppData whose `accounts` array is the single requested account (0 rows if it does not
  * exist) and whose every SCOPED table holds ONLY rows where `accountId = accountId`. The result has
@@ -51,7 +50,7 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  * client is a 0-row read, not a corruption signal). Rows are mapped through the SAME `fromRow` codec
  * {@link readState} uses, so optional/json columns round-trip identically.
  *
- * FIELD-LEVEL REDACTION (P1.6): `opts.includeTimeOffNote` is REQUIRED — there is no silent default, so
+ * Field-level redaction: `opts.includeTimeOffNote` is required — there is no silent default, so
  * every caller must DECIDE the visibility of the owner/admin-only time-off `note` (the access rule
  * lives in `canSeeTimeOffNote`, shared/domain/access). When `false`, the `note` key is STRIPPED from every returned `timeOff`
  * row HERE, server-side — so an Editor/Viewer's read can never serialize the note onto the wire. When
@@ -62,12 +61,12 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  * project real names are replaced with their quoted code names and the raw `codeName` field is
  * removed. Only account owners pass true; every other role is narrowed before serialization.
  *
- * LIFECYCLE PROJECTION (P2.4): `opts.includeInactive` is REQUIRED, mirroring `includeTimeOffNote` (no
+ * Lifecycle projection: `opts.includeInactive` is required, mirroring `includeTimeOffNote` (no
  * silent default — every caller DECIDES). When `false` (the normal app read), the SHARED `activeOnly`
  * helper is applied AFTER the note redaction, dropping every NON-active (archived OR soft-deleted)
  * resource/client/project from the returned slice — exactly the rows the normal views hide. The rows
  * REMAIN in the DB and in EXPORT; this only narrows what the per-account read serializes. When `true`
- * (P2.5's admin "Archived & deleted" read), the full slice is returned untouched. Composition order is
+ * (the privileged inactive-row read), the full slice is returned untouched. Composition order is
  * load-bearing: redact the note FIRST, then `activeOnly` — the two narrowings are independent, and
  * applying `activeOnly` last keeps it a single, total projection over the already-redacted slice.
  *
@@ -78,7 +77,7 @@ export function listAccountSummaries(db: Db): Array<{ id: string; name: string }
  * @param opts.includePrivateNames REQUIRED. `true` keeps real private names; `false` substitutes
  *                                 quoted code names and strips the raw codeName field.
  * @param opts.includeInactive  REQUIRED. `false` drops archived/soft-deleted resources/clients/projects
- *                              (the normal app read); `true` returns every row (the P2.5 admin read).
+ *                              (the normal app read); `true` returns every row.
  * @returns A serialization-only projected slice containing ONLY `accountId`'s data. Its brand is
  *          intentionally incompatible with {@link replaceAccountSlice}.
  */
@@ -149,14 +148,12 @@ function readSliceFromSnapshot(
     });
     data[table] = statement.all(accountId).map((r) => fromRow(spec, r));
   }
-  // P1.6 / private-name field-level redaction: derive BOTH gated-field redactions from the SAME
+  // Derive both gated-field redactions from the same
   // fieldPolicy.ts GATED_FIELD_POLICIES catalogue the write-pin (pinGatedFields) and export-include
   // (readSliceVisibility) sites already use, so a read/write/export can never disagree about who may
   // see a gated field. redactGatedEcho DELETES the gated key (never nulls it) — matching TimeOff's
   // optional `note` shape — and is applied per-table via tableHasGatedFields, so redacting
-  // clients/projects here is byte-identical to the former direct whole-slice `redactPrivateNames`
-  // call, which was itself exactly `clients.map(redactPrivateName)` / `projects.map(redactPrivateName)`
-  // — the SAME function the catalogue's privateNames policy's redactEcho calls. Applied BEFORE the
+  // clients/projects through the catalogue's privateNames `redactEcho` policy. Apply it before the
   // activeOnly projection below, over every gated table at once (table iteration order doesn't matter:
   // each policy only ever touches its own table(s), so the net result of this loop is unchanged
   // regardless of order — the one ordering that DOES matter, gated redaction before activeOnly, is
@@ -172,11 +169,11 @@ function readSliceFromSnapshot(
     data[table] = rows.map((row) => redactGatedEcho(table, row as Record<string, unknown>, visibility) as Row);
   }
   const visibleData = data as unknown as AppData;
-  // P2.4 lifecycle projection: for the NORMAL app read (includeInactive:false), drop every NON-active
+  // For the normal app read (includeInactive:false), drop every non-active
   // (archived/soft-deleted) resource/client/project via the SHARED activeOnly helper — the SAME rule
   // the client views use (useActiveScopedData), so the two halves can't drift. Applied AFTER the gated
-  // redaction above so the projection runs over the already-redacted slice. includeInactive:true (P2.5's
-  // admin read) returns the full slice untouched. The dropped rows stay in the DB + export.
+  // redaction above so the projection runs over the already-redacted slice. includeInactive:true
+  // returns the full slice untouched. The dropped rows stay in the database and export.
   if (!options.includeInactive) return activeOnly(visibleData);
   return visibleData;
 }

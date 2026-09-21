@@ -56,9 +56,7 @@ interface IsCreationStartBlockedInput {
 
 /** Recurring weekdays on which an allocation may start for this resource. Company closures also
  *  block tracked resources; externals ignore closures and use only the company working calendar.
- *  TRANSITIONAL SEAM: the ONLY place an EffectiveWorkingWeek collapses to a plain array. An empty
- *  result for "none" happens to be correct for start gating (every day blocked); #257 Phases 3-5
- *  replace this with explicit "none" branches where downstream behavior must differ. */
+ *  A week with no effective days returns an empty array, so every start date is blocked. */
 export function resolveEffectiveWorkingDays(resource: Resource, accountWorkingDays: Weekday[]): Weekday[] {
   const effectiveWeek = effectiveWorkingWeek(resource, accountWorkingDays);
   return effectiveWeek.kind === "days" ? effectiveWeek.days : [];

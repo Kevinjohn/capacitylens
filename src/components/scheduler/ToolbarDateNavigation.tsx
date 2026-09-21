@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 /**
  * The jump-to-date picker is deliberately not rendered: reaching a far-off date is rare enough that
  * it doesn't earn toolbar space, and a month list is the likelier affordance for it. {@link
- * JumpToDateInput} stays live and tested so re-surfacing it is a one-line flip — see DECISIONS.md.
+ * JumpToDateInput} stays live and tested behind this flag.
  * Typed `boolean` (not the `false` literal) so the render below is a condition, not dead code.
  */
 const SHOW_JUMP_TO_DATE: boolean = false;

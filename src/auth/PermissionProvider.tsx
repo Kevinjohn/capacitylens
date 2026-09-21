@@ -104,7 +104,7 @@ function getPermissionValue(input: PermissionValueInput): PermissionValue {
   return { role: "viewer", status: input.fetched?.status ?? "pending" };
 }
 
-// Client permission boundary (production plan P1.12). It resolves the caller's ROLE for the ACTIVE
+// Client permission boundary. It resolves the caller's role for the active
 // account and provides it to the pure-`can`-driven affordance hooks (useRole / useCanEdit) so a
 // Viewer sees a read-only UI. It mounts INSIDE AppShell, around the app body subtree, AFTER the
 // tenant/intro gates — so `activeAccountId` is already set when this runs.
@@ -120,7 +120,7 @@ function getPermissionValue(input: PermissionValueInput): PermissionValue {
 // divergence while the permission endpoint is unavailable. OFF/demo still use null (editable).
 
 /**
- * Resolve and provide the caller's role for the active account (P1.12).
+ * Resolve and provide the caller's role for the active account.
  *
  * - OFF mode OR the demo build (no server): `role: null`, no fetch — the must-stay-editable path.
  * - auth-on + server + an active account: own the shared `GET /api/accounts` refresh for this
@@ -128,7 +128,7 @@ function getPermissionValue(input: PermissionValueInput): PermissionValue {
  *   that same result. Pending/failure/absence is viewer.
  *
  * The resolved role is ALSO pushed to the store (`setActiveRole`) so the store's defense-in-depth
- * mutation guard (P1.12) can no-op a viewer's optimistic local write — see useStore.assertCanWrite.
+ * mutation guard can no-op a viewer's optimistic local write — see useStore.assertCanWrite.
  */
 export function PermissionProvider({ children }: { children: ReactNode }) {
   const { authMode } = useAuth();

@@ -7,14 +7,8 @@ import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 
 // ROUTING-BOUNDARY contract for the dedicated `accounts` write routes (routes/accountEntityRoutes.ts).
 //
-// The account rules used to live as ~25 hand-replicated `entity === "accounts"` branches inside the
-// generic /api/:entity handlers. They now live once each behind STATIC /api/accounts… paths, which
-// Fastify matches ahead of the parametric routes. The BEHAVIOUR of each rule is already pinned by
-// app.test.ts (frozen fields, provisioning, cap), app.authz.test.ts (the write/delete gates),
-// app.singleCompanyCap.test.ts and app.erasure.test.ts — all of which drive these same URLs and must
-// keep passing unchanged. What is NOT covered elsewhere, and is new with this extraction, is the
-// route-precedence wiring itself: adding a static `/api/accounts/:id` node must neither swallow the
-// deeper parametric routes nor let an account write fall back into scoped-entity semantics.
+// Routing contract for dedicated `accounts` writes: static `/api/accounts/:id` routes must not
+// swallow deeper parametric routes or let an account write fall back into scoped-entity semantics.
 
 const TS = "2026-01-01T00:00:00.000Z";
 
@@ -106,9 +100,8 @@ describe("dedicated /api/accounts routes — no scoped-entity fallback", () => {
   });
 
   it("PATCH /api/accounts/:id enforces the frozen-field guard on the dedicated route", async () => {
-    // The frozen-field (P1.14) refusal is now defined once and reached from PUT, PATCH and the batch
-    // loop. Re-assert it at the PATCH vector: it was the branch most easily lost in the extraction,
-    // since PATCH is the only verb whose scoped path conceals refusals as a 404.
+    // PATCH follows the shared frozen-field refusal. Its scoped route shape makes this vector
+    // particularly important to retain.
     const app = freshApp();
     const res = await call(app, {
       method: "POST",

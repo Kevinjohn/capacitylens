@@ -948,13 +948,9 @@ describe("update* re-validates the merged row so the store + server agree", () =
 // those dependents (the scheduler hides external capacity + time-off) — recreating the invisible-orphan
 // state v0.8.1 closed at the allocation/time-off write boundary. updateResource must REJECT the flip
 // (reassign/remove first), throw-before-mutate, exactly as the server's validateWrite does.
-// The store's colour-repair idiom (previously copy-pasted per add*/update* action, see git history)
-// is now ONE shared helper (withSnappedColor/snapColor) built on the shared snapToPresetColor
-// mapper — the SAME mapper server/src/validate.ts's sanitizeWrite('accounts') uses, so client and
-// server can never disagree about what a given colour snaps to (see DECISIONS.md). A non-preset
-// colour snaps to its NEAREST preset (not a fixed fallback), and a REJECTED write (the P1.12
-// viewer no-op) must not silently substitute a colour onto an entity that was never persisted —
-// the rejection is surfaced via the store's existing notice mechanism instead.
+// Client and server use the shared snapToPresetColor mapper, so they agree on each repaired colour.
+// A non-preset colour snaps to its nearest preset. A rejected write must not apply a replacement
+// colour to an entity that was never persisted; the store surfaces the rejection instead.
 // #7cd9e4 is not a preset; its nearest preset is #7adae3 (distance 6 — see shared/lib/color.test.ts,
 // which pins the same fixture against the full palette).
 const NON_PRESET = "#7cd9e4";

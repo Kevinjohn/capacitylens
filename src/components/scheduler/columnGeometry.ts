@@ -2,21 +2,11 @@ import { dayIndex, weekdayOf } from "@capacitylens/shared/lib/dateMath";
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from "../../lib/schedulerConfig";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 
-// The scheduler grid used to be a UNIFORM fixed-pixel grid: a single scalar `dayWidth`,
-// every column the same width, so `x = index * dayWidth` and the inverse was a plain
-// `Math.floor(px / dayWidth)`. The "minimise weekends" feature breaks that assumption —
-// Sat/Sun columns shrink to a sliver — so this module replaces the scalar with a
-// prefix-summed offsets array that lets each day carry its own width.
-//
-// It is the SINGLE source of truth for px↔day↔date geometry: the view-model (bar/time-off
-// x/width), the header cell widths, every lane overlay, the pointer→day inverse, and the
-// live drag preview all go through it. Routing the preview AND the commit through the same
-// object is what keeps a drag across a narrow weekend from jumping on release.
-//
-// Pure and DOM-free, so it's exhaustively unit-tested (columnGeometry.test.ts). The
-// load-bearing guarantee proven there: with `minimiseWeekends: false` the geometry is
-// byte-identical to the old `index * dayWidth` math (widths are all `dayWidth`, `indexAt`
-// reduces to the old floor), and `indexAt` is the EXACT inverse of `x()` at every boundary.
+// Scheduler column geometry is the source of truth for px↔day↔date mapping. Prefix-summed
+// offsets permit each visible day to have its own width, including narrowed weekend columns.
+// Bars, headers, lane overlays, pointer mapping, and drag previews use the same geometry so
+// preview and commit agree. The module is pure and DOM-free; tests cover boundary inverses and
+// uniform-width behavior.
 
 /**
  * Per-column pixel geometry for the visible day window. Build once per render with
