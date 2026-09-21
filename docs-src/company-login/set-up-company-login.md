@@ -13,6 +13,16 @@ You need to be an administrator of that system — the person who can add users 
 Google Workspace or Microsoft 365. If that isn't you, this is a ten-minute favour to
 ask of whoever it is.
 
+::: tip Current provider paths
+This page documents CapacityLens's provider-neutral company-login path. Better Auth
+1.7.5 also supplies built-in Google and Microsoft providers, but CapacityLens still
+marks those named buttons experimental while their provider-specific compatibility is
+being proved. Their callback paths are `/api/auth/callback/google` and
+`/api/auth/callback/microsoft`; they are separate from the generic provider's
+`/api/auth/callback/sso` path. See [Configuration](/self-hosting/configuration#company-login)
+for the separate settings.
+:::
+
 ## What you're actually doing
 
 When someone clicks **"Continue with company login"** in CapacityLens, they get bounced
@@ -142,10 +152,14 @@ Issuer          https://login.microsoftonline.com/<tenant-id>/v2.0
 ```
 
 ::: warning
-Microsoft is the one provider that sometimes doesn't tell CapacityLens whether an email
-address is verified, and CapacityLens insists on being told. If sign-in gets refused
-with a message about a verified email address, open **Token configuration** on the app
-you just made, add the optional `email` item, and try again.
+Microsoft may omit an `email` claim for managed users, and when it returns one Microsoft
+documents that value as tenant-mutable and unverified. Adding the optional `email` item
+can provide an address, but it does not establish that the address is verified.
+CapacityLens still requires a verified-email signal before admitting an external
+identity. Test the configured tenant with a real account; do not use the email claim
+alone as an authorization or membership decision. See [Microsoft's Better Auth
+provider notes](https://better-auth.com/docs/authentication/microsoft) for the current
+provider behavior.
 :::
 
 ### Okta

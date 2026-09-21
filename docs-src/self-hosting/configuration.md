@@ -95,7 +95,12 @@ Google, Microsoft and GitHub sign-in buttons are available and experimental thro
 equivalent Microsoft and GitHub pairs (Microsoft also takes an optional
 `SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID`, defaulting to `common`). Each provider needs
 both its id and secret set, or it's off. Strict OIDC above is the supported,
-provider-neutral path.
+provider-neutral path. In Better Auth 1.7.5, these named providers and generic OAuth use
+the same social-provider callback shape: Google returns to
+`/api/auth/callback/google`, Microsoft to `/api/auth/callback/microsoft`, and a generic
+provider uses `/api/auth/callback/<provider-id>`. This does not change CapacityLens's
+verified-email, invitation or identity-linking rules, and it does not promote named
+providers out of their experimental status.
 
 ## The database and backups
 
