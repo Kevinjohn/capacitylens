@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Show five data-derived Getting started milestones with progress on every page and company-wide dismissal (#1229, #1230).
 - Removed legacy account environment aliases; the server refuses them and names the
   `SMALLSASS_ACCOUNT_*` replacement (#1201).
 - Managed-VPS builds now activate a production-only runtime artifact instead of retaining build and test dependencies in each release.

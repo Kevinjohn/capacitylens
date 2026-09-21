@@ -53,7 +53,7 @@ interface ResolvedRepair {
 }
 
 const REPAIR_COMPATIBLE_MIGRATIONS = new Set([
-  25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
+  25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
 ]);
 
 function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
@@ -75,7 +75,8 @@ function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
   // optional account-wide date format; and v41 adds only the empty ownership-transfer workflow
   // table, which no repair reads and which can hold no rows before it exists; and v42 adds only an
   // optional person avatar URL column; and v43 adds an empty member/resource association table.
-  // Both are outside every identity/workspace repair.
+  // v44 adds only optional invitation/person proposals; v45 adds an empty company-dismissal
+  // table. These are outside every identity/workspace repair.
   // These are safe to remain pending before this stopped-server repair. Keep this allowlist explicit
   // so a future migration requires review.
   if (plan.migrations.some(({ version }) => !REPAIR_COMPATIBLE_MIGRATIONS.has(version))) {

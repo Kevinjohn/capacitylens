@@ -196,12 +196,6 @@ export interface StoreState {
    *  NOT real auth — the real seam is `src/auth/`; the gate is active only when that auth is
    *  off. See `src/components/FakeSignIn.tsx`. */
   fakeSignedIn: boolean;
-  /** Whether the schedule's first-run "Getting started" checklist card has been dismissed on this
-   *  device. Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults OFF
-   *  so the checklist shows on first contact. The card also self-hides once every step is complete
-   *  (derived live from scoped data) — this flag records only an explicit dismissal.
-   *  See `src/components/GettingStarted.tsx`. */
-  gettingStartedDismissed: boolean;
   /** The caller's resolved {@link Role} for the ACTIVE account, or null. Set by PermissionProvider
    *  (P1.12) once it resolves the role from `GET /api/accounts`; null in OFF/local/not-fetched.
    *  Transient (never persisted, never on the undo stack). It powers ONLY the defense-in-depth
@@ -265,9 +259,6 @@ export interface StoreState {
   setCompactView: (value: boolean) => void;
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void;
-  /** Mark the post-login intro page as seen on this device: persist and update state. */
-  /** Mark the "Getting started" checklist as dismissed on this device: persist and update state. */
-  setGettingStartedDismissed: (value: boolean) => void;
   /** Set the active account's resolved role (P1.12) — called by PermissionProvider whenever it
    *  resolves/changes the role (incl. back to null on OFF/local/account-switch). Plain transient
    *  state: never persisted, never on the undo stack. Drives ONLY the defense-in-depth write guard. */

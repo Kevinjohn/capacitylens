@@ -155,6 +155,11 @@ const V44_MIGRATION = {
   name: "add-invitation-person-proposals",
   checksum: "5d8954d0ad867841f181d9da2742345bf49d016a35634ebde542778004b2fa42",
 } as const;
+const V45_MIGRATION = {
+  version: 45,
+  name: "add-getting-started-dismissals",
+  checksum: "bef033bdac24187ba63dbe24c3af0167113962e5c08edf7a8f14cde7b80de62c",
+} as const;
 const RELEASED_MIGRATION_HISTORY = [
   {
     version: 8,
@@ -265,6 +270,7 @@ const RELEASED_MIGRATION_HISTORY = [
   V42_MIGRATION,
   V43_MIGRATION,
   V44_MIGRATION,
+  V45_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -291,6 +297,7 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V42_MIGRATION,
   V43_MIGRATION,
   V44_MIGRATION,
+  V45_MIGRATION,
 ] as const;
 /** The same list without its v25 head — what a database rolled back to v25 still has pending. */
 const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
@@ -1787,6 +1794,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
       expect(plannedBeforeWinner).toEqual([
         17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
+        45,
       ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
@@ -1819,6 +1827,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
       17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
+      45,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -2130,7 +2139,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2199,6 +2208,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2259,6 +2269,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2324,6 +2335,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2372,6 +2384,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2673,6 +2686,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2832,6 +2846,7 @@ function registerActivityLifecycleMigrationTest(): void {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
@@ -2878,6 +2893,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2918,6 +2934,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2964,6 +2981,7 @@ describe("schema migration of an existing on-disk DB", () => {
           V42_MIGRATION,
           V43_MIGRATION,
           V44_MIGRATION,
+          V45_MIGRATION,
         ]);
         initializeOpenDb(db, copied.path);
 

@@ -3,7 +3,6 @@ import {
   readDefaultSidebarOpen,
   readStoredBarLabelPrefs,
   readStoredFakeSignedIn,
-  readStoredGettingStartedDismissed,
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
   readStoredCompactView,
@@ -11,7 +10,6 @@ import {
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
   writeStoredFakeSignedIn,
-  writeStoredGettingStartedDismissed,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
   writeStoredCompactView,
@@ -40,7 +38,6 @@ type RuntimeSliceKeys =
   | "snapToWeekStart"
   | "compactView"
   | "fakeSignedIn"
-  | "gettingStartedDismissed"
   | "activeRole"
   | "activeRoleStatus"
   | "membershipRevision"
@@ -62,7 +59,6 @@ type RuntimeSliceKeys =
   | "setSnapToWeekStart"
   | "setCompactView"
   | "setFakeSignedIn"
-  | "setGettingStartedDismissed"
   | "setActiveRole"
   | "invalidateMemberships"
   | "setMasquerade"
@@ -72,8 +68,7 @@ type RuntimeSliceKeys =
 type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
 /** The device-global boolean prefs, each persisted under its own localStorage key. */
-type PersistedFlagKey =
-  "sidebarOpen" | "minimiseWeekends" | "snapToWeekStart" | "compactView" | "fakeSignedIn" | "gettingStartedDismissed";
+type PersistedFlagKey = "sidebarOpen" | "minimiseWeekends" | "snapToWeekStart" | "compactView" | "fakeSignedIn";
 
 const legacyDirtyFormSource = Symbol("setDirtyForm");
 
@@ -107,7 +102,6 @@ function readRuntimeInitialState() {
     snapToWeekStart: readStoredSnapToWeekStart(),
     compactView: readStoredCompactView(),
     fakeSignedIn: readStoredFakeSignedIn(),
-    gettingStartedDismissed: readStoredGettingStartedDismissed(),
     activeRole: null,
     activeRoleStatus: "not-applicable" as const,
     membershipRevision: 0,
@@ -168,11 +162,6 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     setSnapToWeekStart: createPersistedFlagSetter(set, "snapToWeekStart", writeStoredSnapToWeekStart),
     setCompactView: createPersistedFlagSetter(set, "compactView", writeStoredCompactView),
     setFakeSignedIn: createPersistedFlagSetter(set, "fakeSignedIn", writeStoredFakeSignedIn),
-    setGettingStartedDismissed: createPersistedFlagSetter(
-      set,
-      "gettingStartedDismissed",
-      writeStoredGettingStartedDismissed,
-    ),
     setActiveRole: (role, status = role === null ? "not-applicable" : "resolved") =>
       set({ activeRole: role, activeRoleStatus: status }),
     invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),

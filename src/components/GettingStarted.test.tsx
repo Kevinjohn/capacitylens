@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { GettingStarted, GettingStartedShortcut } from "./GettingStarted";
+import { GettingStarted } from "./GettingStarted";
 import { resetStoreWithAccount } from "../test/fixtures";
 import { useStore } from "../store/useStore";
 import { PermissionContext } from "../auth/permissionContext";
@@ -10,132 +10,72 @@ import type { Role } from "@capacitylens/shared/domain/access";
 import indexCss from "../index.css?raw";
 
 const tourMock = vi.hoisted(() => ({ startTour: vi.fn<() => Promise<void>>() }));
+const apiMode = vi.hoisted(() => ({ demo: true }));
 vi.mock("../lib/tour", () => ({ startTour: tourMock.startTour }));
+vi.mock("../data/apiConfig", () => ({ API_BASE: "", isDemoMode: () => apiMode.demo }));
 
 beforeEach(() => {
-  tourMock.startTour.mockReset().mockResolvedValue(undefined);
-  localStorage.clear();
   resetStoreWithAccount();
-  useStore.getState().setGettingStartedDismissed(false);
+  apiMode.demo = true;
+  tourMock.startTour.mockReset().mockResolvedValue(undefined);
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
 
 function renderChecklist(role: Role | null, path = "/") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <PermissionContext.Provider value={{ role, status: role ? "resolved" : "not-applicable" }}>
-        {path === "/" ? <GettingStarted /> : <GettingStartedShortcut />}
+        <GettingStarted />
       </PermissionContext.Provider>
     </MemoryRouter>,
   );
 }
 
-function progressKey(): string {
-  return `capacitylens/gettingStartedProgress/${useStore.getState().activeAccountId}`;
-}
-
-describe("GettingStarted first-use outcomes", () => {
-  it("starts with a concise choice and reveals the three outcomes after manual setup is chosen", async () => {
-    const user = userEvent.setup();
+describe("Getting started", () => {
+  it("shows all five milestones immediately and a zero progress bar", async () => {
     renderChecklist("owner");
-
-    expect(screen.getByText("Add a person and some work, then schedule them together.")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Import CapacityLens data" })).toHaveAttribute(
-      "href",
-      "/settings#getting-started-import",
-    );
-    expect(screen.queryByText("Add someone to the schedule")).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Set up manually" }));
-
+    expect(await screen.findByTestId("getting-started")).toBeVisible();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "0");
     expect(screen.getByRole("link", { name: "Add someone to the schedule" })).toHaveAttribute("href", "/resources");
-    expect(screen.getByRole("link", { name: "Add work to schedule" })).toHaveAttribute("href", "/activities");
-    expect(screen.getByText("Schedule the first piece of work")).toBeVisible();
     expect(screen.getByRole("link", { name: "Add a client" })).toHaveAttribute("href", "/clients");
-    expect(screen.getByRole("link", { name: "Add a project" })).toHaveAttribute("href", "/projects");
+    expect(screen.getByRole("link", { name: "Add a project to the client" })).toHaveAttribute("href", "/projects");
+    expect(screen.getByRole("link", { name: "Add an Activity" })).toHaveAttribute("href", "/activities");
+    expect(screen.getByRole("link", { name: "Schedule the first piece of work" })).toHaveAttribute("href", "/");
+    expect(screen.queryByText("Set up manually")).not.toBeInTheDocument();
   });
 
-  it("moves keyboard focus to the first milestone only after manual setup is activated", async () => {
+  it("opens from another page and lets an editor hide the card", async () => {
     const user = userEvent.setup();
-    renderChecklist("editor");
-    const manual = screen.getByRole("button", { name: "Set up manually" });
-    manual.focus();
-    await user.keyboard("{Enter}");
-    await vi.waitFor(() => expect(screen.getByTestId("first-incomplete-milestone")).toHaveFocus());
-    expect(screen.getByTestId("first-incomplete-milestone")).toHaveAccessibleName("Add someone to the schedule");
-  });
-
-  it("does not move focus when background data reveals the milestones", async () => {
-    renderChecklist("editor");
-    const tour = screen.getByRole("button", { name: "Show me around" });
-    tour.focus();
-    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#2d75da" });
-    await vi.waitFor(() => expect(screen.getByTestId("first-incomplete-milestone")).toBeVisible());
-    expect(tour).toHaveFocus();
-  });
-
-  it("explains schedule people, work hierarchy, scheduling, import, settings and sign-in access", async () => {
-    const user = userEvent.setup();
-    renderChecklist("owner");
-    expect(
-      screen.getByText("Restore a CapacityLens JSON export. Importing replaces this company’s planning data."),
-    ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Set up manually" }));
-    expect(
-      screen.getByText(
-        "People on the schedule are the people whose capacity you plan. Adding someone here does not give them sign-in access.",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Activities are the work you schedule. For client work, add the client and project first. Internal work only needs an activity.",
-      ),
-    ).toBeVisible();
-    expect(screen.getByText("Click or drag across a person’s row, then choose an activity.")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Adjust company settings" })).toHaveAttribute(
-      "href",
-      "/settings#getting-started-settings",
-    );
-    expect(
-      screen.getByText("Inviting someone gives them access to CapacityLens; it does not add them to the schedule."),
-    ).toBeVisible();
-  });
-
-  it("shows milestones immediately for partial active data, including supporting client data", () => {
-    useStore.getState().addClient({ name: "Wayne Enterprises", color: "#2d75da" });
-    renderChecklist("editor");
-    expect(screen.getByRole("link", { name: "Add someone to the schedule" })).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Set up manually" })).not.toBeInTheDocument();
-  });
-
-  it("legacy choice and Settings markers reveal milestones but never add completion", () => {
-    localStorage.setItem(
-      progressKey(),
-      JSON.stringify({ started: true, importChosen: true, scratchChosen: false, settingsReviewed: true }),
-    );
-    renderChecklist("editor", "/clients");
-    expect(screen.getByRole("link", { name: "Getting started: 0 of 3 complete" })).toBeVisible();
-  });
-
-  it("does not offer a shortcut when no company is active", () => {
-    useStore.getState().setActiveAccount(null);
-    renderChecklist("owner", "/clients");
-    expect(screen.queryByTestId("getting-started-shortcut")).not.toBeInTheDocument();
-  });
-
-  it("uses the PermissionContext role even when the store role is stale", () => {
-    useStore.getState().setActiveRole("viewer", "resolved");
-    renderChecklist("owner");
+    renderChecklist("editor", "/settings");
+    expect(await screen.findByTestId("getting-started-progress")).toBeVisible();
+    expect(screen.queryByTestId("getting-started")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Show checklist" }));
     expect(screen.getByTestId("getting-started")).toBeVisible();
-    expect(screen.getByRole("link", { name: "Import CapacityLens data" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Hide checklist", expanded: true }));
+    expect(screen.queryByTestId("getting-started")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("getting-started-dismiss")).not.toBeInTheDocument();
   });
 
-  it("tracks progress from zero through three and hides once all useful outcomes exist", () => {
-    const view = renderChecklist("editor", "/clients");
-    expect(screen.getByRole("link", { name: "Getting started: 0 of 3 complete" })).toBeVisible();
-    view.unmount();
+  it("requires confirmation before an owner dismisses incomplete setup", async () => {
+    const user = userEvent.setup();
+    renderChecklist("owner");
+    await screen.findByTestId("getting-started-progress");
+    await user.click(screen.getByTestId("getting-started-dismiss"));
+    expect(screen.getByText("Do you really want to hide this forever?")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "No" }));
+    expect(screen.getByTestId("getting-started-progress")).toBeVisible();
+    await user.click(screen.getByTestId("getting-started-dismiss"));
+    await user.click(screen.getByRole("button", { name: "Yes" }));
+    expect(screen.queryByTestId("getting-started-progress")).not.toBeInTheDocument();
+  });
 
-    const person = useStore.getState().addResource({
+  it("keeps the completed bar until dismissal and skips the warning at 5/5", async () => {
+    resetStoreWithAccount("acct-complete-checklist");
+    const store = useStore.getState();
+    const person = store.addResource({
       kind: "person",
       name: "Bruce Wayne",
       role: "Designer",
@@ -146,112 +86,99 @@ describe("GettingStarted first-use outcomes", () => {
       halfDays: [],
       color: "#2d75da",
     });
-    const work = useStore.getState().addActivity({ name: "Planning", kind: "internal" });
-    const two = renderChecklist("editor", "/clients");
-    expect(screen.getByRole("link", { name: "Getting started: 2 of 3 complete" })).toBeVisible();
-    two.unmount();
-
-    useStore.getState().addAllocation({
+    const client = store.addClient({ name: "Wayne Enterprises", color: "#2d75da" });
+    store.addProject({ name: "Wayne redesign", clientId: client.id, color: "#2d75da" });
+    const activity = store.addActivity({ name: "Planning", kind: "internal" });
+    store.addAllocation({
       resourceId: person.id,
-      activityId: work.id,
+      activityId: activity.id,
       startDate: "2026-06-03",
       endDate: "2026-06-03",
       hoursPerDay: 0,
       status: "tentative",
     });
-    renderChecklist("editor", "/clients");
-    expect(screen.queryByTestId("getting-started-shortcut")).not.toBeInTheDocument();
-  });
-});
-
-describe("GettingStarted role gates", () => {
-  it.each(["owner", null] as const)("offers import to %s", (role) => {
-    renderChecklist(role);
-    expect(screen.getByRole("link", { name: "Import CapacityLens data" })).toBeVisible();
-  });
-
-  it.each(["admin", "editor"] as const)("does not offer import to %s", (role) => {
-    renderChecklist(role);
-    expect(screen.queryByRole("link", { name: "Import CapacityLens data" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Set up manually" })).toBeVisible();
-  });
-
-  it.each(["owner", "admin"] as const)("offers %s the optional sign-in invitation", async (role) => {
-    const user = userEvent.setup();
-    renderChecklist(role);
-    await user.click(screen.getByRole("button", { name: "Set up manually" }));
-    expect(screen.getByRole("link", { name: "Invite people to sign in" })).toHaveAttribute("href", "/team");
-  });
-
-  it("does not offer an Editor import or invitations", async () => {
-    const user = userEvent.setup();
-    renderChecklist("editor");
-    await user.click(screen.getByRole("button", { name: "Set up manually" }));
-    expect(screen.queryByRole("link", { name: "Import CapacityLens data" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Invite people to sign in" })).not.toBeInTheDocument();
-  });
-
-  it("renders no write-oriented card for a Viewer", () => {
-    renderChecklist("viewer");
-    expect(screen.queryByTestId("getting-started")).not.toBeInTheDocument();
-  });
-});
-
-describe("GettingStarted supporting behavior", () => {
-  it("clicking import opens its destination but does not record success", async () => {
     const user = userEvent.setup();
     renderChecklist("owner");
-    await user.click(screen.getByRole("link", { name: "Import CapacityLens data" }));
-    const saved = JSON.parse(localStorage.getItem(progressKey()) ?? "{}") as { importChosen?: boolean };
-    expect(saved.importChosen).toBe(true);
-    expect(screen.getByRole("link", { name: "Add someone to the schedule" })).toBeVisible();
-    expect(screen.queryAllByText(/^Done:/)).toHaveLength(0);
-  });
-
-  it("keeps the bounded card pointer-interactive for narrow and short layouts", () => {
-    expect(indexCss).toMatch(/\.getting-started-popover\s*\{[^}]*overflow-y:\s*auto;[^}]*pointer-events:\s*auto;/);
-  });
-
-  it("starts one tour at a time and surfaces failures", async () => {
-    let finish!: () => void;
-    tourMock.startTour.mockImplementationOnce(
-      () =>
-        new Promise<void>((resolve) => {
-          finish = resolve;
-        }),
-    );
-    const user = userEvent.setup();
-    renderChecklist("editor");
-    const action = screen.getByRole("button", { name: "Show me around" });
-    await user.dblClick(action);
-    expect(tourMock.startTour).toHaveBeenCalledOnce();
-    expect(action).toBeDisabled();
-    finish();
-    await vi.waitFor(() => expect(action).toBeEnabled());
-  });
-
-  it("clears tour busy state, records a persistent notice and logs no failure details", async () => {
-    const failure = new Error("sensitive tour failure details");
-    tourMock.startTour.mockRejectedValueOnce(failure);
-    const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const user = userEvent.setup();
-    renderChecklist("editor");
-    const action = screen.getByRole("button", { name: "Show me around" });
-
-    await user.click(action);
-
-    await vi.waitFor(() => expect(action).toBeEnabled());
-    expect(action).not.toHaveAttribute("aria-busy");
-    expect(useStore.getState().notice?.tone).toBe("error");
-    expect(error).toHaveBeenCalledWith("GettingStarted: tour failed to start");
-    expect(error.mock.calls.flat().join(" ")).not.toContain("sensitive tour failure details");
-  });
-
-  it("dismisses the card with the existing device-global preference", async () => {
-    const user = userEvent.setup();
-    renderChecklist("editor");
+    expect(await screen.findByRole("progressbar", { name: "Getting started" })).toHaveAttribute("aria-valuenow", "5");
+    expect(screen.queryByTestId("getting-started")).not.toBeInTheDocument();
     await user.click(screen.getByTestId("getting-started-dismiss"));
-    expect(useStore.getState().gettingStartedDismissed).toBe(true);
-    expect(localStorage.getItem("capacitylens/gettingStartedDismissed")).toBe("on");
+    expect(screen.queryByText("Do you really want to hide this forever?")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("getting-started-progress")).not.toBeInTheDocument();
+  });
+
+  it("excludes viewers", () => {
+    renderChecklist("viewer");
+    expect(screen.queryByTestId("getting-started-progress")).not.toBeInTheDocument();
+  });
+
+  it("ignores the legacy device flag and keeps guidance after a failed server save", async () => {
+    apiMode.demo = false;
+    localStorage.setItem("capacitylens/gettingStartedDismissed", "on");
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: false }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const user = userEvent.setup();
+    renderChecklist("owner");
+    expect(await screen.findByTestId("getting-started-progress")).toBeVisible();
+    await user.click(screen.getByTestId("getting-started-dismiss"));
+    await user.click(screen.getByRole("button", { name: "Yes" }));
+    expect(await screen.findByTestId("getting-started-progress")).toBeVisible();
+    expect(useStore.getState().notice?.tone).toBe("error");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/accounts\/[^/]+\/getting-started$/),
+      expect.objectContaining({ method: "PUT", body: JSON.stringify({ dismissed: true }) }),
+    );
+    expect(console.error).toHaveBeenCalledWith("GettingStarted: dismissal could not be saved");
+  });
+
+  it("shows guidance after a read failure and retries without logging error details", async () => {
+    apiMode.demo = false;
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockRejectedValueOnce(new Error("sensitive server detail"))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: false }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    renderChecklist("owner");
+    expect(await screen.findByTestId("getting-started-progress")).toBeVisible();
+    expect(screen.getByTestId("getting-started")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeVisible();
+    expect(errorLog).toHaveBeenCalledWith("GettingStarted: company state could not be loaded");
+    expect(errorLog.mock.calls.flat().join(" ")).not.toContain("sensitive server detail");
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await vi.waitFor(() => expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument());
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not restore the bar when an earlier navigation read finishes after dismissal", async () => {
+    apiMode.demo = false;
+    let finishRead!: (response: Response) => void;
+    const pendingRead = new Promise<Response>((resolve) => {
+      finishRead = resolve;
+    });
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: false }), { status: 200 }))
+      .mockReturnValueOnce(pendingRead)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ dismissed: true }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    renderChecklist("owner");
+    await screen.findByTestId("getting-started-progress");
+    await user.click(screen.getByRole("link", { name: "Add a client" }));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    await user.click(screen.getByTestId("getting-started-dismiss"));
+    await user.click(screen.getByRole("button", { name: "Yes" }));
+    await vi.waitFor(() => expect(screen.queryByTestId("getting-started-progress")).not.toBeInTheDocument());
+    await act(async () => finishRead(new Response(JSON.stringify({ dismissed: false }), { status: 200 })));
+    expect(screen.queryByTestId("getting-started-progress")).not.toBeInTheDocument();
+  });
+
+  it("keeps the card bounded and pointer interactive", () => {
+    expect(indexCss).toMatch(/\.getting-started-popover\s*\{[^}]*overflow-y:\s*auto;[^}]*pointer-events:\s*auto;/);
   });
 });

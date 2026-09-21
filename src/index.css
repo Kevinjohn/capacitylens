@@ -447,17 +447,12 @@ input[type="radio"] {
   }
 }
 
-/* First-run guidance floats over the scheduler grid so it is useful without stealing vertical
-   space or covering toolbar actions. The panel is intentionally non-modal: the schedule remains
-   interactive outside its opaque card, while the card itself receives pointer input so short
-   viewports can wheel- or touch-scroll its bounded content. */
+/* Keep the expanded guidance in the page flow so it cannot cover scheduler controls. The card
+   still scrolls within short viewports while the rest of the page remains interactive. */
 .getting-started-popover {
-  position: absolute;
-  z-index: var(--z-index-popover);
-  top: 0.75rem;
-  right: 0.75rem;
+  margin: 0.5rem 0.75rem 0.5rem auto;
   width: min(28rem, calc(100% - 1.5rem));
-  max-height: min(24rem, calc(100% - 1.5rem), calc(100dvh - 5rem));
+  max-height: min(24rem, calc(100dvh - 7rem));
   overflow-y: auto;
   pointer-events: auto;
 }

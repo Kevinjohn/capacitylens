@@ -60,7 +60,7 @@ function registerSuiteScenario3() {
     await selectShadOption(page.getByLabel("Resource"), {
       label: "Clark Kent",
     });
-    await page.getByLabel("Start").fill("2026-06-18");
+    await page.getByLabel("Start", { exact: true }).fill("2026-06-18");
     await page.getByLabel("End").fill("2026-06-20");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByTestId("timeoff-row")).toHaveCount(2); // seed Bruce + new Clark

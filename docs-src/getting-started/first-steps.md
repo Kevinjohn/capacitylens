@@ -7,6 +7,21 @@ description: Start with the guide for your role, or make a first booking in an e
 
 <span id="make-your-first-schedule-useful"></span>
 
+## Make your first schedule useful
+
+When a company is new, **Getting started** shows five milestones: add someone to the schedule,
+add a client, add a project to that client, add an Activity, and schedule the first piece of work.
+Each step completes from the company's records, including imported data. You can create records
+in any order. Internal work is available at any time, though it does not complete the client or
+project steps.
+
+The 0–5 progress bar appears across the application, including Settings. The checklist opens on
+Schedule while setup is incomplete and can be shown or hidden from the bar on any page. At 5/5 it
+starts closed, but stays available until an Owner or Admin dismisses it. If work remains, dismissal
+asks for confirmation. Dismissing hides
+the guidance for everyone in that company. Editors can view and toggle the checklist; Viewers do
+not see it.
+
 CapacityLens setup is shared between three people. The technical installer makes the
 service available, the Owner creates the company and appoints an Admin, and the Admin
 prepares members and scheduling data. One person can hold all three responsibilities,

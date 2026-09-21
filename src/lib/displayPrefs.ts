@@ -264,14 +264,3 @@ export const [readStoredFakeSignedIn, writeStoredFakeSignedIn] = createBooleanPr
   key: "fakeSignedIn",
   fallback: false,
 });
-
-// "Getting started dismissed": whether the schedule's first-run "Getting started" checklist card
-// has been dismissed on this device. Device-global like the prefs above (own key, on/off string,
-// NOT account data) and DEFAULTS OFF so the card shows on first contact. The card ALSO self-hides
-// (without touching this flag) once the active account has completed every step — the checklist's
-// content is derived live from scoped data, only the dismissal is a device pref. See
-// `src/components/GettingStarted.tsx`.
-export const [readStoredGettingStartedDismissed, writeStoredGettingStartedDismissed] = createBooleanPreference({
-  key: "gettingStartedDismissed",
-  fallback: false,
-});
