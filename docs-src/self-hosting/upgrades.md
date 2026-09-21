@@ -94,7 +94,7 @@ Microsoft's `email` claim is not proof that an address is verified. Requesting t
 optional claim may provide an address for a managed user, but CapacityLens still requires
 the provider's verified-email signal before admitting an external identity. Test a real
 tenant and account before treating Microsoft sign-in as available; see [Set up your
-company login](/company-login/set-up-company-login#microsoft-365--entra-id) for the
+company login](/company-login/set-up-company-login#microsoft-365-entra-id) for the
 provider warning.
 
 ## One-time check for older Compose installations
