@@ -1,9 +1,7 @@
 // Reports an unattended workflow outcome as a GitHub issue, and closes that issue once the
 // workflow is healthy again.
 //
-// A failure on a pull request is already in front of the person who caused it. A failure on a
-// schedule or on `main` is in front of nobody: no pull request turns red, no reviewer is waiting.
-// The weekly security scan broke on 2026-08-04 and stayed red for two days on exactly that gap.
+// A failure on a schedule or on `main` has no pull-request audience, so this script records it.
 //
 // Three judgements make this harder than "if it failed, file an issue", and all three live in
 // `decide` below so they can be tested without GitHub:
@@ -16,9 +14,7 @@
 //    produces no logs to read. The discriminator is therefore whether the commit is still the
 //    branch tip, not the cancellation itself.
 //
-// 2. Reporting must not cry wolf. An issue filed for every transient runner hiccup trains a
-//    reader to ignore the label, which is how the previous secret-scanning exception list decayed.
-//    So a green run closes the open report rather than leaving it for someone to tidy up: a
+// 2. Reporting avoids transient noise. A green run closes the open report: a
 //    transient failure that fixes itself on the next run closes itself too, and an issue that
 //    stays open means something that is still broken.
 //

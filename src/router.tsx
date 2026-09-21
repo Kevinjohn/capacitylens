@@ -56,7 +56,7 @@ const AccountView = lazy(() =>
 const InviteAccept = lazy(() =>
   import("./components/invites/InviteAccept").then((module) => ({ default: module.InviteAccept })),
 );
-// Password reset (P1.18): like InviteAccept, its own top-level route outside AppShell — but unlike
+// Password reset is a top-level route outside AppShell, like InviteAccept — but unlike
 // an invite it must render for a visitor with NO session (they're locked out; that's the point), so
 // AuthProvider carves /reset-password/ out of the login wall (see the status 'login' branch there).
 // Lazy for the same bundle reason: the chunk loads only when a reset link is actually opened.
@@ -131,7 +131,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    // Invite accept (P1.9). DELIBERATELY a sibling of the AppShell route, NOT a child: AppShell's
+    // Invite accept is a sibling of AppShell, not a child: AppShell's
     // tenant gate would otherwise show the AccountPicker before this page ever ran. It carries its
     // own errorElement + Suspense boundary (AppShell provides those only for ITS children). The
     // surrounding AuthProvider (main.tsx) provides identity state and lets this token-scoped
@@ -145,7 +145,7 @@ export const router = createBrowserRouter([
     ),
   },
   {
-    // Password reset (P1.18). A sibling of AppShell for the same reason as /invite (no tenant gate),
+    // Password reset is a sibling of AppShell for the same reason as /invite (no tenant gate),
     // with its own errorElement + Suspense. AuthProvider additionally lets this path through the
     // login wall — the visitor redeeming a reset link is exactly the person who cannot sign in.
     path: PUBLIC_AUTH_ENTRY_PATHS.passwordReset,

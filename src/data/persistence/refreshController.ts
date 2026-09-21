@@ -254,10 +254,9 @@ export function createRefreshController({
   const { save } = writes;
   const beginSuspension = ({ external }: BeginSuspensionInput) =>
     owner.beginSuspension({ external: external, writes: writes });
-  // Re-hydrate ONE non-null account's slice and re-seed the adapter's diff snapshot to it,
-  // ATOMICALLY — the shared body of both a tenant SWITCH (newId) and a refresh-on-focus
-  // (activeId). Extracted (P1.16) precisely so refresh REUSES this exact sequence: the snapshot
-  // (adapter.lastSynced) is private to the adapter and is re-seeded ONLY by loadAll, so a parallel
+  // Re-hydrate one non-null account's slice and atomically re-seed the adapter's diff snapshot.
+  // Both a tenant switch and refresh-on-focus use this sequence because adapter.lastSynced is
+  // private to the adapter and is re-seeded only by loadAll, so a parallel
   // re-hydrate path (e.g. a React hook calling replaceAll) would leave `data` updated but the
   // snapshot stale → the next save would diff the fresh slice against the old snapshot and emit a
   // cross-account / garbage delta. The token discipline below also makes a late refresh that
@@ -268,7 +267,7 @@ export function createRefreshController({
   // (it must not seed a stale account over the newer one).
   //
   // SEQUENCE (token-guarded throughout, see the inline (a)/(a′)/(b)/(c) markers):
-  //   (a) await any in-flight save so a prior write can't land against the new snapshot;
+  //   (a) await any in-flight save so a write cannot land against the new snapshot;
   //  (a′) FLUSH (not drop) the current account's pending debounced edits while data AND the snapshot
   //       are BOTH still this account → the diff is self-vs-self (correct), landed BEFORE (b) reseeds;
   //   (b) adapter.loadAll(id) → returns the slice AND re-seeds lastSynced to it;

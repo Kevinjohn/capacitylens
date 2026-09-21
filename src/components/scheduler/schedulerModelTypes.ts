@@ -87,7 +87,7 @@ export interface SchedulerModelOptions {
   data: AppData;
   // Per-column pixel geometry (built once in SchedulerGrid). Owns the date→x / range→width
   // math so bars line up with the header even when weekend columns are narrowed; replaces the
-  // old uniform `origin` + `dayWidth` scalars. Its origin (days[0]) === ui.originDate.
+  // Its origin (days[0]) equals ui.originDate.
   geom: ColumnGeometry;
   days: ISODate[];
   // TWO separate windows, deliberately distinct (CLAUDE.md / DECISIONS.md):
@@ -148,7 +148,7 @@ export interface SchedulerModelOptions {
   // `top` and every row's `rowHeight` derive from it. SchedulerGrid passes `buildLaneLayout(compact)`
   // and lists it as a memo dependency, or a density change would leave stale row heights behind.
   // Defaults to the compact geometry so callers that don't care about density (tests, and any
-  // consumer measuring the original layout) keep their existing numbers.
+  // consumer measuring this layout) keep their existing numbers.
   laneLayout?: LaneLayout;
 }
 

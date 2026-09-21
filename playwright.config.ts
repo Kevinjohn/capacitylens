@@ -51,15 +51,9 @@ const reportPhase = reportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
 const devWebServer = {
   command: "pnpm run dev:demo",
   url: `http://localhost:${WEB_PORT}`,
-  // Never reuse: Playwright matches a running server by URL only — it can't see the persistence
-  // flavour. Post-flip, `pnpm run dev` boots a SERVER-mode dev server on the same port; reusing that
-  // for the in-memory demo specs would run them against the wrong backend. Always spawn a fresh
-  // demo build (the CI guard is moot now that we never reuse).
-  // CONSEQUENCE: if something is already holding this lane's web port, the spawn collides
-  // (strictPort) and the run fails to start rather than reusing it — BY DESIGN. Lanes are what stop
-  // that being another worktree: scripts/with-lane.mjs gives each concurrent run its own port, and
-  // clears this worktree's own orphans first. A full-stack `pnpm run dev` in THIS worktree still
-  // holds this lane's port, so stop it first.
+  // Never reuse: Playwright identifies a running server by URL, not persistence mode. Reusing a
+  // server-mode process would run in-memory demo specs against the wrong backend. Each run starts
+  // a fresh demo build; lane allocation prevents concurrent worktrees from colliding.
   reuseExistingServer: false,
   timeout: 120_000,
 };
@@ -175,7 +169,7 @@ export default defineConfig({
           },
         ]
       : []),
-    // Phase 6 rehearsal (docs-src/self-hosting/upgrades.md): exists only when CAPACITYLENS_REHEARSAL_URL is set —
+    // Upgrade rehearsal (docs-src/self-hosting/upgrades.md): exists only when CAPACITYLENS_REHEARSAL_URL is set —
     // the PRODUCTION build served behind a local /api proxy (scripts/serve-dist.mjs), with
     // the droplet's flags ON in the daemon. Reuses the db-backed specs verbatim; the
     // baseURL override is the only difference. Started by hand per the runbook, so the
