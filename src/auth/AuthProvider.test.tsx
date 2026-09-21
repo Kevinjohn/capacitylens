@@ -432,7 +432,7 @@ function registerServerModeTest10() {
       </AuthProvider>,
     );
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
     // A well-formed SSO body is a real signal too — no degraded notice.
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
@@ -700,8 +700,8 @@ function registerServerModeTest20() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Create the owner account" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Name")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Set up the first Owner" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Your name")).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
 }

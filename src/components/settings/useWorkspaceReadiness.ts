@@ -10,8 +10,8 @@ import {
   type ReadinessRepairLink,
   type WorkspaceReadiness,
 } from "./ssoReadiness";
-import type { useTeamDirectory } from "./useTeamDirectory";
-import type { MemberActionDependencies } from "./memberActionDependencies";
+import type { MemberActionDependencies } from "@/components/team/memberActionDependencies";
+import type { useTeamDirectory } from "@/components/team/useTeamDirectory";
 
 interface WorkspaceReadinessDependencies extends Pick<
   MemberActionDependencies,
@@ -53,7 +53,7 @@ function useReadinessState({
         }
         if (effect.active) setReadinessState({ kind: "ready", readiness: parsed });
       } catch (cause) {
-        console.error("MembersSection: SSO readiness failed", cause);
+        console.error("Settings: SSO readiness failed", cause);
         if (effect.active) setReadinessState({ kind: "error" });
       }
     })();
@@ -73,12 +73,14 @@ function createCorrectSsoEmail({
   setNotice,
   setEmailRepair,
   refreshDirectory,
+  bumpReadiness,
 }: Pick<
   WorkspaceReadinessDependencies,
   "members" | "requestAccountId" | "withMemberAction" | "fail" | "setNotice" | "refreshDirectory"
 > & {
   emailRepair: { member: ReadinessMember; email: string } | null;
   setEmailRepair: (repair: null) => void;
+  bumpReadiness: () => void;
 }) {
   return async () => {
     if (!emailRepair) return;
@@ -101,9 +103,12 @@ function createCorrectSsoEmail({
         setEmailRepair(null);
         setNotice(m.settings_sso_correct_email_done());
         if (changedSelf) window.location.reload();
-        else refreshDirectory();
+        else {
+          refreshDirectory();
+          bumpReadiness();
+        }
       } catch (cause) {
-        console.error("MembersSection: SSO email correction failed", cause);
+        console.error("Settings: SSO email correction failed", cause);
         fail("sso-email", m.settings_sso_correct_email_error());
       }
     });
@@ -132,7 +137,7 @@ function createRemoveIncorrectSsoLink({
         if (changedSelf) window.location.reload();
         else bumpReadiness();
       } catch (cause) {
-        console.error("MembersSection: SSO link removal failed", cause);
+        console.error("Settings: SSO link removal failed", cause);
         fail(null, m.settings_sso_remove_link_error());
       }
     });
@@ -178,6 +183,7 @@ export function useWorkspaceReadiness({
     setNotice,
     setEmailRepair,
     refreshDirectory,
+    bumpReadiness,
   });
   const removeIncorrectSsoLink = createRemoveIncorrectSsoLink({
     members,

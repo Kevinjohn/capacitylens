@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { dismissIntroIfPresent } from "./helpers";
+import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -59,14 +59,28 @@ function registerSuiteScenario1() {
     await expect(preview).toContainText("Can edit scheduling data");
     await expect(preview).toContainText("accepting keeps your existing role");
     await expect(preview).toContainText("This single-use invite expires");
-    await page.getByLabel("Email").fill(JOINER);
-    await page.getByLabel("Password").fill(PASSWORD);
+    await expect(page.getByLabel("Name", { exact: true })).toHaveCount(0);
+    const roleBox = await page.getByTestId("invite-role").boundingBox();
+    const companyBox = await preview.getByRole("heading", { name: `Invite Studio ${STAMP}` }).boundingBox();
+    expect(roleBox).not.toBeNull();
+    expect(companyBox).not.toBeNull();
+    expect((roleBox?.y ?? 0) + (roleBox?.height ?? 0)).toBeLessThanOrEqual(companyBox?.y ?? 0);
+    expect(
+      await preview
+        .locator("[data-slot='item-description']")
+        .evaluateAll((descriptions) =>
+          descriptions.every((description) => getComputedStyle(description).webkitLineClamp === "none"),
+        ),
+    ).toBe(true);
+    await page.getByLabel("Email", { exact: true }).fill(JOINER);
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
 
     // Sign-in reloads onto the same bearer URL. The membership must still be untouched until B has
     // reviewed the invitation under the signed-in identity and activates the explicit accept action.
     const accept = page.getByRole("button", { name: "Accept invite" });
     await expect(accept).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/invite/${token}$`));
     await expect(page.getByTestId("invite-preview")).toContainText("Editor");
     await accept.click();
 
@@ -82,10 +96,12 @@ function registerSuiteScenario1() {
     // Wait for the root navigation before checking the intro. The company name is no longer a safe
     // pre-navigation sentinel because the invite preview deliberately shows it too.
     await expect(page).toHaveURL(/\/$/);
-    await dismissIntroIfPresent(page, page.locator("#main"));
-    // In the app, in the joined company — the shell shows its name, and no picker heading.
-    await expect(page.getByTitle(`Invite Studio ${STAMP}`, { exact: true })).toBeVisible();
+    await waitForAppLanding(page, page.locator("#main"));
+    // In the app, the joined company is active. Its single-company context is intentionally hidden
+    // from the sidebar, so verify the authoritative current-access card instead.
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Team & access" }).click();
+    await expect(page.getByTestId("current-access")).toContainText("Editor");
 
     // Single-use guarantee at the API layer: the browser accept already consumed the token, so a
     // second accept (B's API session) of the same token is 409.
@@ -113,20 +129,44 @@ function registerSuiteScenario2() {
     expect(signupInvite.status()).toBe(201);
     const signupToken = (await signupInvite.json()).token as string;
     await page.goto(`/invite/${signupToken}`);
-    await page.getByLabel("Name").fill("New Joiner");
-    await page.getByLabel("Email").fill(NEW_JOINER);
-    await page.getByLabel("Password").fill(PASSWORD);
+    await expect(page.getByTestId("invite-preview")).toContainText(`${NEW_JOINER.split("@")[0]}@…`);
+    await expect(page.getByTestId("invite-preview")).not.toContainText(NEW_JOINER);
+    await page.getByRole("tab", { name: "Create account" }).click();
+    await page.getByLabel("Name", { exact: true }).fill("New Joiner");
+    await page.getByLabel("Email", { exact: true }).fill(NEW_JOINER);
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
     await page.getByRole("button", { name: "Create account and accept" }).click();
 
     await expect(page).toHaveURL(/\/$/);
-    await dismissIntroIfPresent(page, page.locator("#main"));
-    await expect(page.getByTitle(`Signup Invite Studio ${STAMP}`, { exact: true })).toBeVisible();
+    await waitForAppLanding(page, page.locator("#main"));
+    // The joined company is active, while its single-company context is intentionally hidden from
+    // the sidebar. Team & access exposes the authoritative role projection.
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
-    await expect(page.getByTestId("active-role")).toContainText("Viewer");
+    await page.getByRole("link", { name: "Team & access" }).click();
+    await expect(page.getByTestId("current-access")).toContainText("Viewer");
   });
 }
 
 test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
+
+  test("a maximum-length addressed hint wraps within a narrow invitation preview", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 1000 });
+    const emailHint = `${"a".repeat(252)}@…`;
+    await page.route("**/api/invites/*/preview", (route) =>
+      route.fulfill({
+        json: {
+          accountName: "Wayne Enterprises",
+          role: "editor",
+          expiresAt: "2999-01-01T00:00:00.000Z",
+          emailBound: true,
+          emailHint,
+        },
+      }),
+    );
+    await page.goto("/invite/long-hint-layout");
+    await expect(page.getByTestId("invite-preview")).toContainText(emailHint);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  });
 });

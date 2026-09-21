@@ -3,6 +3,7 @@ import { isExternalResource } from "../../types/entities";
 import type { Activity, Allocation, AppData, ID, Resource, ScopedEntity, ScopedEntityKey } from "../../types/entities";
 import { belongsToAccount } from "../tenancy";
 import { domainError } from "../errors";
+import { parseResourceAvatarUrl } from "../resourceAvatarUrl";
 import {
   resolveValidationRow,
   resolveOwnedRow,
@@ -10,6 +11,8 @@ import {
   isEffectivelyActive,
   type ValidationDataLookup,
 } from "../validationLookup";
+
+const RESOURCE_KINDS: ReadonlySet<unknown> = new Set(["person", "placeholder", "external"]);
 
 /**
  * Strict tenancy at the WRITE boundary. An update/delete must own its target:
@@ -152,6 +155,8 @@ function assertActivityRefs(context: ScopedRefsContext): void {
   assertActivityPhase(context);
 }
 
+// Resource reference policy intentionally combines kind-dependent project and avatar invariants.
+// eslint-disable-next-line complexity
 function assertResourceRefs(context: ScopedRefsContext): void {
   const { record, previous, supplied, need } = context;
   const mergedKind = supplied("kind") ? record.kind : previous?.kind;
@@ -159,6 +164,14 @@ function assertResourceRefs(context: ScopedRefsContext): void {
   const projectBindingChanged = supplied("kind") || supplied("projectId");
   const hasProject = mergedProjectId !== undefined && mergedProjectId !== null;
   const hasKind = mergedKind !== undefined && mergedKind !== null;
+  const mergedAvatarUrl = supplied("avatarUrl") ? record.avatarUrl : previous?.avatarUrl;
+  if (mergedAvatarUrl !== undefined) {
+    if (mergedKind !== "person") domainError("resource_avatar_url_forbidden", "Only a person can have an avatar URL.");
+    const avatarUrl = parseResourceAvatarUrl(mergedAvatarUrl);
+    if (!avatarUrl.ok || avatarUrl.value !== mergedAvatarUrl) {
+      domainError("resource_avatar_url_invalid", "Avatar URL must be a normalised HTTPS URL without credentials.");
+    }
+  }
   if (projectBindingChanged && hasProject && hasKind && mergedKind !== "placeholder") {
     domainError("resource_project_forbidden", "Only a placeholder can be assigned to a project.");
   }
@@ -182,10 +195,24 @@ function assertResourceRefs(context: ScopedRefsContext): void {
  * slice can't prove is yours. (The server needs no such relaxation: its validateWrite
  * runs against the full DB, where an archived parent still exists.)
  */
+function assertResourceKindImmutable(
+  previous: Record<string, unknown> | undefined,
+  record: Record<string, unknown>,
+): void {
+  if (previous === undefined) return;
+  if (typeof previous.kind !== "string" || !RESOURCE_KINDS.has(previous.kind)) {
+    domainError("resource_kind_immutable", "The stored resource kind is invalid and must be repaired by import.");
+  }
+  if (typeof record.kind === "string" && previous.kind !== record.kind) {
+    domainError("resource_kind_immutable", "A resource’s kind cannot change after creation.");
+  }
+}
+
 export function assertScopedRefs(
   ...[data, accountId, key, record, existing, lookup, options = {}]: ScopedRefsArgs
 ): void {
   const context = createScopedRefsContext(data, accountId, record, existing, lookup);
+  if (key === "resources") assertResourceKindImmutable(context.previous, record);
   switch (key) {
     case "projects":
       assertRequiredRef(

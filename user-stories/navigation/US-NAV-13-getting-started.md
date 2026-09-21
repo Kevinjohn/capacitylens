@@ -1,63 +1,58 @@
-# US-NAV-13 — "Getting started" checklist + "Show me around" tour (first run, empty account)
+# US-NAV-13 — Reach a useful first schedule through three outcomes
 
-**Area:** Navigation & shell · **Persona:** New owner setting up their first company · **Linked coverage:** `e2e/getting-started.spec.ts` (core checklist/tour), `e2e/members.auth.spec.ts` (Admin invite path), `e2e/viewer.auth.spec.ts` (Editor/Viewer gates), and `src/components/GettingStarted.test.tsx` (all four roles)
+**Area:** Navigation & shell · **Persona:** New Owner, Admin or Editor setting up a company · **Linked coverage:** `e2e/getting-started.spec.ts`, `e2e/members.auth.spec.ts`, `e2e/viewer.auth.spec.ts`, `src/components/GettingStarted.test.tsx`, `src/lib/gettingStarted.test.ts`
+
+**Documentation:** [Make your first schedule useful](../../docs-src/getting-started/first-steps.md)
 
 ## Goal
 
-On a fresh, still-empty company, the schedule shows a small **Getting started** card that walks the
-owner through the four steps that make the app useful — add a client, a project, a person, then
-assign them — plus a **Show me around** button that runs a short spotlight tour of where things
-live (schedule, toolbar, People, Clients & projects, Settings). In an authenticated company, Owner
-and Admin also get an optional **Invite your team** path to **Team & access**; it is not a completion
-step and never blocks a solo setup.
+Turn an empty company into a useful schedule by completing three observable outcomes: add someone
+to schedule, add work to schedule, and schedule the first piece of work.
 
 ## Why
 
-An empty schedule explains nothing. The checklist is **state-driven** (each step ticks itself off
-from the account's real data), so it survives the user wandering off mid-flow and never gets out of
-step with reality the way a scripted do-this-now tour would. The tour is deliberately **loose** —
-five look-around stops, no navigation, no forced actions — the where, not the how.
+An empty schedule explains very little. Outcome-based guidance keeps the route short and remains
+accurate when records arrive in a different order or through import. It avoids making client setup,
+Settings, invitations or the tour mandatory for a solo team or internal work.
 
 ## How (end-to-end, default local mode)
 
-**Precondition:** Start from a clean state (DevTools → Console → `localStorage.clear()` → reload).
+**Precondition:** Start from a clean device state and create a new, empty company.
 
-1. Open the app, click through the demo sign-in (US-NAV-11), and create a **New company** (any
-   name). Continue through the intro page (US-NAV-12).
-2. The schedule shows the floating **Getting started** card over the schedule without shifting the
-   toolbar or grid: four steps, all pending. The
-   first three are links; the fourth (**Assign them to the project**) carries a hint about
-   clicking/dragging on a person's row.
-3. Click **Add your first client** → you land on the Clients page. Add a client, then return to
-   **Schedule** → that step is now ticked (struck through, no longer a link); the others remain.
-4. When testing a real Owner/Admin membership, confirm **Invite your team** links to `/team` and is
-   labelled optional. An Editor gets the schedule checklist without that access-management link; a
-   Viewer gets neither because every setup action is a write.
-5. Click **Show me around** → a spotlight popover opens on the schedule grid with **Next/Back**
-   buttons and a step counter. Step through all five stops (grid → toolbar → People → Clients &
-   projects → Settings) → **Done** closes it. Escape at any point also closes it. The URL never
-   changes during the tour.
-6. Click **Dismiss** → the card disappears and does not return on this device (even for another
-   still-empty company).
+1. The Schedule remains visible with a floating **Getting started** card over the grid. The
+   non-blocking **How CapacityLens works** region may also appear above the page (US-NAV-12).
+2. Choose **Set up manually**. Focus moves to **Add someone to the schedule**. Follow it to
+   **Resources**, add a person, then return to Schedule: the first outcome is marked done.
+3. Add an **Internal** or **All projects** activity. Return to Schedule: **Add work to schedule**
+   is marked done. Internal work needs no client or project. An All-projects booking may be left
+   unattributed or attributed only to an active project with an active client. Project-specific
+   work must belong to a valid active client and project.
+4. Click or drag on the person's schedule row and save the allocation. The third outcome completes
+   and the card closes automatically.
+5. In another empty Owner company, choose **Import CapacityLens data**. Settings opens at Import,
+   but merely following the link completes nothing. After a successful import, only the outcomes
+   represented by coherent imported records are marked done.
+6. Confirm **Review Settings**, **Invite your team** and **Show me around** remain available as
+   supporting actions. They are optional and do not affect the three-outcome progress.
 
 ## Acceptance criteria
 
-- The card (`data-testid="getting-started"`) appears on the schedule **only** when the active
-  account has at least one incomplete step AND it hasn't been dismissed on this device. A fully
-  set-up (seeded) company never shows it.
-- The card is an overlay in the schedule chrome: showing or hiding it does not change the toolbar or
-  grid's top position, and it stays within the schedule viewport at desktop and narrow widths.
-- Steps derive from real data: the built-in **Internal** client does **not** tick the client step;
-  any allocation ticks the assign step. Completed steps render struck-through with a check and a
-  screen-reader "Done:" prefix; pending steps 1–3 are links to `/clients`, `/projects`,
-  `/resources`.
-- **Show me around** (`data-testid="getting-started-tour"`) opens the driver.js tour: five stops,
-  translatable Next/Back/Done labels, progress counter, Escape bails, spotlighted elements are
-  inert (a stray click can't navigate), and the popover follows the app theme in light AND dark.
-- **Dismiss** (`data-testid="getting-started-dismiss"`) hides the card immediately and persists
-  device-globally (`capacitylens/gettingStartedDismissed`, `'on'`/`'off'`, default off) — never in
-  `AppData`/export, cleared by Settings → **Clear local data** like every `capacitylens/` key.
-- A **Viewer** on a server-backed deploy never sees the card (every CTA is a write they can't do).
-- In an authenticated company, **Owner/Admin** see **Invite your team** linking to `/team`; it is
-  visibly optional and outside the four state-driven completion steps. **Editor** sees the schedule
-  checklist without that link; **Viewer** sees neither.
+- The card (`data-testid="getting-started"`) appears over Schedule only while at least one outcome
+  is incomplete and it has not been dismissed on this device. It does not move the toolbar or grid.
+- Outcomes derive from active, coherent company data. A person must be schedulable; work may be an
+  internal activity, an All-projects activity, or a project activity with its active client and
+  project; an allocation must join an active person and coherent activity. A zero-hour allocation
+  still counts.
+- **Set up manually** reveals the outcomes and moves focus to the first incomplete one. Background
+  data changes do not steal focus.
+- Choosing import opens the Import section but does not itself count as progress. Imported data
+  satisfies only the outcomes it actually contains.
+- Only an Owner, or an open/demo deployment, sees the whole-company import action. Owner and Admin
+  see the optional Team & access link; Editor sees neither import nor the access link. Viewer sees
+  no setup guidance because every outcome needs write access.
+- Completed outcomes show a check, strike-through and screen-reader **Done:** prefix. Other pages
+  show a compact **Getting started: N of 3 complete** link back to Schedule.
+- **Show me around** (`data-testid="getting-started-tour"`) runs the five-stop schedule tour without
+  navigating. Next, Back, Done and Escape work, and spotlighted controls remain inert.
+- **Dismiss** (`data-testid="getting-started-dismiss"`) hides the card and persists the device-wide
+  `capacitylens/gettingStartedDismissed` preference. It is never company data or exported data.

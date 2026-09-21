@@ -81,6 +81,46 @@ function assertHistoricalShapesAreNoOps(db: DatabaseSync, accounts: unknown[]): 
   expect(db.prepare("SELECT id FROM accounts ORDER BY id").all()).toEqual(accounts);
 }
 
+function assertRemapsRepeatedIdsOnce(): void {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec(`
+      CREATE TABLE bindings (providerId TEXT);
+      CREATE TABLE links (providerId TEXT);
+      INSERT INTO bindings VALUES
+        ('shared-provider'), ('shared-provider'), ('other-provider'), (NULL), ('rehearsal-bindings-1');
+      INSERT INTO links VALUES
+        ('shared-provider'), ('shared-provider'), ('other-provider'), (NULL), ('rehearsal-bindings-1');
+    `);
+    const sourceIds = new Set(
+      db
+        .prepare("SELECT providerId FROM bindings WHERE providerId IS NOT NULL")
+        .all()
+        .map(({ providerId }) => providerId),
+    );
+
+    remapIds({
+      db,
+      table: "bindings",
+      idColumn: "providerId",
+      references: [{ table: "links", column: "providerId" }],
+    });
+
+    const bindings = db.prepare("SELECT providerId FROM bindings ORDER BY rowid").all();
+    const links = db.prepare("SELECT providerId FROM links ORDER BY rowid").all();
+    expect(links).toEqual(bindings);
+    expect(bindings[0]?.providerId).toBe(bindings[1]?.providerId);
+    expect(bindings[0]?.providerId).not.toBe(bindings[2]?.providerId);
+    expect(bindings[3]).toEqual({ providerId: null });
+    expect(new Set(bindings.flatMap(({ providerId }) => (providerId === null ? [] : [providerId]))).size).toBe(3);
+    for (const { providerId } of bindings) {
+      if (providerId !== null) expect(sourceIds).not.toContain(providerId);
+    }
+  } finally {
+    db.close();
+  }
+}
+
 function assertScrubsKnownParent(): void {
   const db = new DatabaseSync(":memory:");
   try {
@@ -165,7 +205,7 @@ function listMissingColumns(db: DatabaseSync, tableName: string): string[] {
 async function assertSchemaCoverage(): Promise<void> {
   const db = openDb(":memory:");
   try {
-    const { auth } = createAuthFromEnvironment(db, { ...PASSWORD_ENV, CAPACITYLENS_REQUIRE_MFA: "1" });
+    const { auth } = createAuthFromEnvironment(db, { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_REQUIRE_MFA: "1" });
     await runAuthMigrations(assertAuth(auth));
     const tables = listSchemaTables(db);
     expect(tables.map(({ name }) => name)).toEqual(
@@ -192,6 +232,8 @@ describe("rehearsal anonymisation helpers", () => {
   );
 
   it("remaps every present reference without colliding with an existing rehearsal id", assertRemapsIds);
+
+  it("remaps each distinct repeated source id once while preserving nulls and references", assertRemapsRepeatedIdsOnce);
 
   it("scrubs only orphan references when the parent exists and preserves nulls", assertScrubsKnownParent);
 

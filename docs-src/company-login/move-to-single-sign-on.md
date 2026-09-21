@@ -53,21 +53,21 @@ again. Nobody has to change anything on the company login side.
 
 | You need                          | Why                                                                                                | Where it comes from                                                                                                 |
 | --------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| A database backup                 | Your undo button. Take it before [step 1](#step-1) and again at [step 7](#step-7).                 | All your data lives in one file, `capacitylens.db`. Copy it while the app is stopped.                               |
+| A recovery bundle                | Your undo button. Take it before [step 1](#step-1) and again at [step 7](#step-7).                 | Preserve the stopped database, sidecars and both audit-log generations, then copy the bundle off-host.              |
 | A way back to today's version     | If you change your mind, you want to start exactly what you're running right now.                  | Don't delete or overwrite whatever you installed from — the download, or the version tag if you run it in Docker.   |
 | A login app in your company login | This is what lets CapacityLens hand people over to Google (or Microsoft, or Okta) and back.        | Ten minutes in your provider's admin screens. See [Set up your company login](/company-login/set-up-company-login). |
-| Three values from it              | The app's own ID and password, plus the address CapacityLens fetches the rest of the details from. | Shown when you create the login app. Keep the secret one somewhere safe.                                            |
+| Four values from it               | The client ID, client secret, discovery URL and issuer.                                            | Shown when you create the login app. Keep the secret in protected storage.                                          |
 | One address pasted back in        | Where your provider sends people after they've signed in. Without it, the very first click fails.  | `https://your-capacitylens-address/api/auth/oauth2/callback/sso`                                                    |
 | A quiet hour                      | [Steps 7–9](#step-7) are the disruptive window; [step 8](#step-8) signs everybody out, once.       | Friday evening is traditional.                                                                                      |
 
 ### Do the company login part first
 
-Three of the things in that table come out of the system your staff already sign into
+Four of the things in that table come out of the system your staff already sign into
 for their email — Google Workspace, Microsoft 365, Okta, whatever yours is. Setting
 that up is a ten-minute job of clicking through admin screens, and it has nothing to do
 with the move itself, so it's written up on its own page: [Set up your company
 login](/company-login/set-up-company-login). Pick your provider, follow the clicks, and
-come back with three values.
+come back with four values.
 
 Come back here when you have them. If someone has already set that up for you, you can
 skip straight on.
@@ -86,21 +86,21 @@ those permissions. One step is for everybody.
 
 _5 minutes · Operator_
 
-Stop the app, copy its data file somewhere safe, and label the copy "before SSO".
-Everything CapacityLens knows — every person, company and scheduled hour — lives in
-that one file. Also keep hold of whatever you installed the current version from: going
-back means starting yesterday's version again, so don't throw yesterday away.
+Stop the app and label a complete recovery bundle "before SSO". Also keep the exact
+release you are running: going back means starting that release again.
 
 ```bash
-# with the server stopped
-cp /var/lib/capacitylens/capacitylens.db \
-   /var/lib/capacitylens/backups/before-sso-$(date +%F).db
+sudo systemctl stop capacitylens
+bundle="/var/lib/capacitylens/backups/before-sso-$(date -u +%Y%m%dT%H%M%SZ)"
+sudo install -d -m 700 -o capacitylens -g capacitylens "$bundle"
+sudo -u capacitylens cp -p /var/lib/capacitylens/capacitylens.db* /var/lib/capacitylens/capacitylens-audit.jsonl* "$bundle/"
 ```
 
-::: warning
-Copy the file while the server is **stopped**. A live copy can miss recent writes that
-are still sitting in a temporary side-file next to it.
-:::
+Copy that directory to protected off-host storage before restarting. If your paths differ,
+use the configured database and audit paths. For Compose, run only the preservation step
+in the [named-volume procedure](/self-hosting/backups-and-restore#preserve-compose-files),
+then copy its `manual-restore-*` directory from the backups volume to protected off-host
+storage. Do not continue to the replacement steps.
 
 ### 2. Open the second door {#step-2}
 
@@ -131,6 +131,11 @@ SMALLSASS_ACCOUNT_OIDC_LABEL=Northwind Identity
 `LABEL` is just the words on the button your people will click, so use the name they'd
 recognise — "Northwind Identity", "Google", "Company login".
 
+For Google Workspace, set `SMALLSASS_ACCOUNT_OIDC_BRAND=google` as well. This selects the
+Google presentation without changing the strict OIDC authentication flow. CapacityLens does
+not infer presentation from the editable label; all other providers remain generic unless a
+supported brand is configured explicitly.
+
 ::: warning Get the [issuer](/reference/glossary#issuer) line right first time, then leave it alone
 The first successful start ties this installation to that one company login, and every
 connection your people make afterwards is filed against it. Changing the issuer later
@@ -143,14 +148,17 @@ email and password form, and a button for your provider:
 ![The CapacityLens sign-in page in mixed mode, showing the email and password form above a Continue with Northwind Identity button](../screenshots/flows/sso-login-mixed.jpg)
 
 Mixed mode. Everyone keeps signing in exactly as they did yesterday — the new button is
-there for the linking ceremony, not for signing in yet.
+there for the linking ceremony, not for signing in yet. Company login is not promoted above the
+password form. If you also configured the experimental Google social provider, its **Sign in with
+Google** action appears first, followed by **or use your password** and the password form; the
+company-login button stays below that fallback.
 
 #### What if the server refuses to start?
 
 Good — that's the point. It checks your provider settings before it accepts a single
 request. The usual causes: the discovery URL doesn't resolve, the issuer in the
 discovery document doesn't exactly match `SMALLSASS_ACCOUNT_OIDC_ISSUER`, one of the
-three things it asks for is missing, or your provider is set to the weak way of signing
+four values it asks for is missing, or your provider is set to the weak way of signing
 (HS256) instead of the normal one. Fix the setting it names and start again. Nothing has
 changed in the database yet.
 
@@ -161,8 +169,8 @@ empty install with nobody in it. You already have people.
 
 _2 minutes · Owner / Admin_
 
-Sign in with your password as usual, and go to **Team & access**. There's a new panel:
-**SSO cutover readiness**. Right now it will be a wall of "Not connected", and that's
+Sign in with your password as usual, and go to **Settings**. After **Company setup** there is a
+separate **SSO cutover readiness** group. Its member table will be a wall of "Not connected", and that's
 exactly what it should look like on day one.
 
 ![The SSO cutover readiness panel listing four members, all marked Not connected, with the Owner row highlighted in red and marked Critical](../screenshots/flows/sso-readiness-blocked.jpg)
@@ -171,18 +179,18 @@ Every active member of this company, and whether they've connected. The Owner is
 outlined in red and marked **Critical** — if the Owner can't get in after cutover,
 nobody can fix it from inside the app.
 
-This panel is your progress bar for the whole project. Check it whenever you like. It
-updates as people connect.
+This **Settings → SSO cutover readiness** table is your progress bar for the whole project. Check it
+whenever you like. It updates as people connect.
 
 ### 4. Everyone connects their own account {#step-4}
 
 _2 minutes each · Every member_
 
 This is the part your people do, and it's the part you can't do for them — that's the
-security property. Send them this: _"Go to Settings, open Security, find Company
+security property. Send them this: _"Go to Account, open Security, find Company
 sign-in, and click Connect."_
 
-Settings → Security → Company sign-in. One button.
+Account → Security → Company sign-in. One button.
 
 They get sent to your company login page, sign in there the way they always do, and
 come straight back.
@@ -199,12 +207,13 @@ Someone else already connected this exact company login account — usually a sh
 login, or a colleague who clicked Connect on the wrong CapacityLens profile. The member
 sees this on their own screen, word for word: _"This identity-provider account is
 already connected to a different person. Ask an administrator to repair the existing
-link."_ They can't fix it themselves. On your side, the readiness panel shows the same
+link."_ They can't fix it themselves. On your side, the **Settings → SSO cutover readiness** table
+shows the same
 problem as **Provider account claimed twice** against the person who connected first —
 see [step 5](#step-5) for how to work out which link is right and remove the other one.
 :::
 
-And the readiness panel ticks over:
+And the Settings readiness section ticks over:
 
 ![The readiness panel with the Owner row now green and marked Connected, and the remaining three members still Not connected](../screenshots/flows/sso-readiness-owner-linked.jpg)
 
@@ -227,19 +236,19 @@ Slack. The app runs completely normally throughout.
 
 _Varies · Owner / Admin_
 
-Some people won't go green on the first try, and the panel tells you why in plain
+Some people won't go green on the first try, and the Settings readiness section tells you why in plain
 words. Here's every message you can get and what to do about it:
 
-| The panel says                 | What actually happened                                                                 | What you do                                                                                                                          |
+| The readiness section says     | What actually happened                                                                 | What you do                                                                                                                          |
 | ------------------------------ | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Not connected                  | They haven't done [step 4](#step-4) yet.                                               | Nudge them. If their CapacityLens email is wrong or stale, use **Correct email**.                                                    |
-| Reconnect to verify            | Your company login didn't confirm that the email address is a real, verified one.      | Mark the address verified in your company login, then **Remove link** and have them connect again.                                   |
-| Multiple provider links        | Two identities are attached to one person — usually a half-finished earlier attempt.   | **Remove link** on the wrong one, keep the right one.                                                                                |
-| Provider account claimed twice | Two CapacityLens people connected to the same company account. Shared logins, usually. | Work out from your company login which person is which, **Remove link** from the wrong one, and have them connect their own account. |
-| Unsupported provider link      | They connected through a different provider (a social login), not the company one.     | **Remove link**, then have them connect the company provider.                                                                        |
+| Reconnect to verify            | Your company login didn't confirm that the email address is a real, verified one.      | Mark the address verified in your company login, then **Remove incorrect link** and have them connect again.                         |
+| Multiple provider links        | Two identities are attached to one person — usually a half-finished earlier attempt.   | **Remove incorrect link** on the wrong one, keep the right one.                                                                      |
+| Provider account claimed twice | Two CapacityLens people connected to the same company account. Shared logins, usually. | Work out from your company login which person is which, **Remove incorrect link** from the wrong one, and have them connect their own account. |
+| Unsupported provider link      | They connected through a different provider (a social login), not the company one.     | **Remove incorrect link**, then have them connect the company provider.                                                              |
 | Identity record missing        | A membership with no identity behind it. Rare, and not self-service.                   | See the repair commands in [When something goes wrong](/self-hosting/incidents).                                                     |
 
-**Correct email** is the button for the situation the whole cutover usually hinges on:
+In **Settings → SSO cutover readiness**, **Correct email** is the button for the situation the whole cutover usually hinges on:
 someone signed up as `dave@agency.com` but the company login knows him as
 `david.smith@agency.co.uk`. Change the CapacityLens side to match, and he can connect.
 
@@ -267,8 +276,8 @@ Team & access and they stop blocking.
 
 _1 minute · Operator_
 
-The panel shows one company at a time. This command checks _everything_ — every
-company, plus integrity problems the panel can't show you. Run it with the server
+The Settings readiness section shows one company at a time. This command checks _everything_ — every
+company, plus integrity problems the section can't show you. Run it with the server
 still up, pointing at your database file.
 
 ```bash
@@ -343,14 +352,19 @@ is locking your entire agency out of its own planning tool on a Friday night.
 
 _5 minutes · Operator_
 
-Stop CapacityLens and stop traffic reaching it. Take a **second** backup and label it
-"cutover point". This is the snapshot you'd restore to if something truly
-surprising happens — the step-1 backup is now hours or weeks out of date.
+Stop CapacityLens and stop traffic reaching it. Create a **second complete recovery
+bundle** and label it "cutover point"; the step-1 bundle may now be hours or weeks out of
+date.
 
 ```bash
-cp /var/lib/capacitylens/capacitylens.db \
-   /var/lib/capacitylens/backups/cutover-point-$(date +%F).db
+sudo systemctl stop capacitylens
+bundle="/var/lib/capacitylens/backups/cutover-point-$(date -u +%Y%m%dT%H%M%SZ)"
+sudo install -d -m 700 -o capacitylens -g capacitylens "$bundle"
+sudo -u capacitylens cp -p /var/lib/capacitylens/capacitylens.db* /var/lib/capacitylens/capacitylens-audit.jsonl* "$bundle/"
 ```
+
+Copy the bundle off-host before changing the sign-in mode. Compose operators repeat the
+preservation-only procedure linked in step 1 and copy that bundle off-host.
 
 ### 8. Close the password door {#step-8}
 
@@ -486,7 +500,7 @@ something goes wrong](/self-hosting/incidents).
 
 Everything above is self-service, from inside the app. These four situations are not —
 they need the server stopped and one exact command, because by the time you need them
-you're past the point where a button in Team & access can safely make the change. All
+you're past the point where a button in Settings can safely make the change. All
 four take SQLite's exclusive lock, require `--confirm-server-stopped`, refuse to run if
 the situation they expect has changed underneath them, and record an operator audit
 event in the same transaction as the fix. Never edit the sign-in tables directly
@@ -517,7 +531,7 @@ pnpm --filter capacitylens-server cutover:repair -- \
 This requires the mixed profile, and requires one exact local email, provider id,
 subject and stored row to match before it changes anything — so it can remove one wrong row out
 of a multi-link mess, and it can repair a link to a named social provider even if that
-provider isn't enabled any more. Unlike the live Team & access repair, this
+provider isn't enabled any more. Unlike the live Settings repair, this
 explicitly-stopped-server command is allowed to remove an unusable _final_ provider row,
 so a critical readiness blocker stays recoverable — just make sure there's a password
 recovery path in mixed mode first (use the stopped-server Owner reset in [When something
@@ -618,13 +632,19 @@ You can skip running it yourself, but you can't skip it — the server runs the 
 check at startup and refuses to proceed. There's no override. Better to see the refusal
 in a terminal at your own pace than in a failed deploy.
 
-### What about the "Continue with Google/Microsoft/GitHub" style buttons?
+<a id="what-about-the-continue-with-google-microsoft-github-style-buttons"></a>
+
+### What about the "Sign in with Google/Continue with Microsoft/GitHub" style buttons?
 
 Those are separate, experimental, named social providers. After cutover they can let an
 existing person sign in, but they can't create anyone new, and invitations always
 require the company provider. If you enable one, check its two-factor and
 account-recovery settings as carefully as your main login's — it's a door into the same
-building.
+building. The hosted company-login-only profile refuses these providers altogether. To
+make company login the sole sign-in method on a self-hosted installation, remove every
+named social provider's client-id and client-secret pair described in
+[Configuration](/self-hosting/configuration#company-login), restart CapacityLens and check
+that the social buttons are gone.
 
 ### Are passwords deleted at cutover?
 

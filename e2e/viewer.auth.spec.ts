@@ -1,6 +1,6 @@
 import { test, expect, type APIRequestContext } from "./fixtures";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser as signUp } from "./auth-helpers";
-import { dismissIntroIfPresent } from "./helpers";
+import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -17,10 +17,9 @@ const STAMP = Date.now();
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;
 const EDITOR = `v-editor-${STAMP}@capacitylens.dev`;
+const VIEWER_AVATAR_URL = "https://images.example/viewer-person.png";
 
-/** Sign in through the browser login wall and pick the org, dismissing the intro IF it shows. The
- *  intro is once-per-device (localStorage `capacitylens/introSeen`), so on the SECOND sign-in in the
- *  same browser context (viewer → editor) it won't reappear — handle it conditionally. */
+/** Sign in through the browser login wall and pick the company, then wait for the app shell. */
 async function signInAndOpen(page: import("@playwright/test").Page, email: string, org: string) {
   await page.goto("/");
   await page.getByRole("heading", { name: "Sign in" }).waitFor();
@@ -30,7 +29,7 @@ async function signInAndOpen(page: import("@playwright/test").Page, email: strin
   await page.getByRole("button", { name: org, exact: true }).click();
   // The intro is once-per-device; on the second sign-in it won't reappear. Wait for EITHER the intro
   // OR the app (Schedule heading) to settle the race, then dismiss the intro if present.
-  await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
+  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
   await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
 }
 
@@ -77,6 +76,7 @@ async function seedViewerScenario(request: APIRequestContext) {
       accountId,
       kind: "person",
       name: "Viewer-visible person",
+      avatarUrl: VIEWER_AVATAR_URL,
       role: "Designer",
       employmentType: "permanent",
       engagement: "studio" as const,
@@ -105,21 +105,30 @@ async function seedViewerScenario(request: APIRequestContext) {
   return { resourceId };
 }
 
+// This end-to-end permission contrast intentionally keeps both roles in one session.
+/* eslint-disable max-lines-per-function -- one journey contrasts viewer and editor permissions. */
 test("a viewer sees no edit affordances; an editor does; a direct viewer write is 403", async ({
   page,
   request,
   context,
 }) => {
   const { resourceId } = await seedViewerScenario(request);
+  await page.route(VIEWER_AVATAR_URL, (route) =>
+    route.fulfill({
+      contentType: "image/png",
+      body: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    }),
+  );
 
   // ── Browser as VIEWER: the read-only UI. ───────────────────────────────────────────────────────
   await signInAndOpen(page, VIEWER, `Viewer Studio ${STAMP}`);
 
-  // The role is visible in the sidebar footer, and Team & access remains available so a Viewer
-  // can understand the role without being shown the company directory or management controls.
+  // Team & access remains available so a Viewer can understand the role without being shown the
+  // company context, directory or management controls.
   await expect(page.getByTestId("getting-started")).toHaveCount(0);
-  await expect(page.getByTestId("view-only")).toBeVisible();
-  await expect(page.getByTestId("active-role")).toContainText("Viewer");
   await page.getByRole("link", { name: "Team & access" }).click();
   const currentAccess = page.getByTestId("current-access");
   await expect(currentAccess).toContainText("Viewer");
@@ -139,8 +148,16 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(viewerClientRow).toBeVisible();
   await expect(viewerClientRow.getByRole("button")).toHaveCount(0);
 
+  await page.getByRole("link", { name: "Resources" }).click();
+  const viewerResourceRow = page.getByTestId("resource-row").filter({ hasText: "Viewer-visible person" });
+  await expect(viewerResourceRow).toBeVisible();
+  await expect(viewerResourceRow.getByRole("button", { name: "Edit Viewer-visible person" })).toHaveCount(0);
+
   // Scheduler: the draw-mode toggle + Undo/Redo are hidden.
   await page.getByRole("link", { name: "Schedule" }).click();
+  const viewerScheduleTrigger = page.getByRole("button", { name: "View Viewer-visible person's schedule" });
+  await expect(viewerScheduleTrigger.locator("img")).toHaveAttribute("src", VIEWER_AVATAR_URL);
+  await expect(viewerScheduleTrigger.locator("img")).toHaveAttribute("referrerpolicy", "no-referrer");
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
   await page.getByRole("button", { name: "Show filters" }).click();
   await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toHaveCount(0);
@@ -166,10 +183,11 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await context.clearCookies();
   await signInAndOpen(page, EDITOR, `Viewer Studio ${STAMP}`);
 
-  // No "View only" badge for an editor.
-  await expect(page.getByTestId("view-only")).toHaveCount(0);
   await expect(page.getByTestId("getting-started")).toBeVisible();
   await expect(page.getByRole("link", { name: "Invite your team" })).toHaveCount(0);
+  await page.getByRole("link", { name: "Team & access" }).click();
+  await expect(page.getByTestId("current-access")).toContainText("Editor");
+  await expect(page.getByTestId("members-section")).toHaveCount(0);
 
   await page.getByRole("link", { name: "Clients" }).click();
   await expect(page.getByRole("heading", { name: "Clients" })).toBeVisible();
@@ -183,3 +201,4 @@ test("a viewer sees no edit affordances; an editor does; a direct viewer write i
   await expect(page.getByRole("radiogroup", { name: "Draw mode" })).toBeVisible();
   await expect(page.getByTestId("undo-button")).toBeVisible();
 });
+/* eslint-enable max-lines-per-function */

@@ -89,7 +89,13 @@ const administration: SsoCutoverAccountAdminPort = {
   changeMemberRole: unusedAsync,
   changeMemberStatus: unusedAsync,
   removeMember: unusedAsync,
-  transferOwnership: unusedAsync,
+  readOwnershipTransfer: unusedAsync,
+  initiateOwnershipTransfer: unusedAsync,
+  acceptOwnershipTransfer: unusedAsync,
+  withdrawOwnershipTransfer: unusedAsync,
+  declineOwnershipTransfer: unusedAsync,
+  cancelOwnershipTransfer: unusedAsync,
+  completeOwnershipTransfer: unusedAsync,
   evaluateIdentityAdminAuthority: unusedAsync,
   evaluateIdentityAdminAuthorities: unusedAsync,
   evaluateIdentityAdminAuthoritiesForTargets: unusedAsync,
@@ -132,7 +138,7 @@ function createContext(openSignup: string | undefined): ContextFixture {
     identity,
     administration,
     resolvedEnvironment: {
-      env: { CAPACITYLENS_ALLOW_OPEN_SIGNUP: openSignup },
+      env: { SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: openSignup },
       profile: "self-hosted-mixed",
     },
   };

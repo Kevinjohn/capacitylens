@@ -2,7 +2,7 @@
 # One reproducible build, two non-root runtime targets (SQLite API and nginx SPA) plus a
 # one-shot, least-privilege initializer for the per-install internal TLS certificate set.
 
-FROM node:24-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d AS deps
+FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS deps
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
@@ -43,15 +43,20 @@ RUN for package in vite vitest jsdom eslint react react-dom playwright playwrigh
       || { echo "unexpected API runtime package: $package" >&2; exit 1; }; \
     done
 
-FROM node:24-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d AS api
+FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS api
 WORKDIR /app/server
 ENV NODE_ENV=production
 ENV CAPACITYLENS_HOST=0.0.0.0
 COPY --from=server-deploy /prod/server ./
+# Apply Debian security patches not yet present in the pinned base, then remove package metadata
+# from the runtime layer.
 # Package managers are build tools, not runtime requirements. The upstream Node image currently
 # bundles an otherwise-unreachable vulnerable undici under npm; remove all unused npm/Corepack/Yarn
 # tooling instead of shipping or suppressing it. Application dependencies live in ./node_modules.
-RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+RUN apt-get update \
+    && apt-get upgrade --yes \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
       /opt/yarn-v1.22.22 /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
       /usr/local/bin/yarn /usr/local/bin/yarnpkg \
     && mkdir -p /data /backups \
@@ -85,6 +90,7 @@ EXPOSE 8080
 FROM web-runtime AS web-client
 COPY --from=web-client-build /tmp/nginx.client.conf /etc/nginx/conf.d/default.conf
 
-# Keep the local-API image as the Dockerfile's final/default target for existing direct builds.
+# Keep the web image as the Dockerfile's final/default target. Direct API builds must select the
+# `api` target explicitly.
 FROM web-runtime AS web
 COPY nginx.conf /etc/nginx/conf.d/default.conf

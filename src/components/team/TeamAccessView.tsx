@@ -5,7 +5,8 @@ import { useAuth } from "../../auth/authContext";
 import { resolveAccessLabel, resolveAccessSummary } from "../../lib/accessCopy";
 import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
 import { useOfflineState } from "../../data/useOfflineState";
-import { MembersSection } from "../settings/MembersSection";
+import { MembersSection } from "./MembersSection";
+import { OwnershipTransferCard } from "./OwnershipTransferCard";
 import { Badge } from "../ui/badge";
 import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
 import { Alert, AlertDescription } from "../ui/alert";
@@ -171,7 +172,6 @@ export function TeamAccessView() {
     <div className="mx-auto flex max-w-4xl flex-col gap-5 p-6">
       <header>
         <h1 className="text-xl font-semibold text-ink">{m.access_title()}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{m.access_intro()}</p>
       </header>
 
       <CurrentAccessCard
@@ -189,6 +189,11 @@ export function TeamAccessView() {
         offlineReadOnly={offline.readOnly}
         permissionStatus={permissionStatus}
       />
+
+      {/* Below member management, because a transfer is a consequence of who administers the
+          company rather than a way to administer it. The modal entry point renders nothing for
+          anyone who is not a participant, and nothing at all while writes are suspended. */}
+      {authenticated && mayManage && <OwnershipTransferCard />}
     </div>
   );
 }

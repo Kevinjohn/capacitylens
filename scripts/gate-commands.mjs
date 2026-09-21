@@ -1,14 +1,21 @@
 const structuralChecks = [
   "policy:gate-runner:test",
+  "policy:ports",
+  "policy:ports:test",
   "policy:lint-coverage:test",
   "policy:server-script-lint:test",
   "policy:shared-environment:test",
+  "policy:typecheck-graph:test",
+  "policy:build-tsconfig:test",
   "policy:script-environments:test",
   "policy:sonner-csp:test",
   "policy:file-sizes",
   "policy:file-sizes:test",
   "policy:import-cycles",
   "policy:dependencies:test",
+  "package:managed-release:test",
+  "security:screenshot-publication",
+  "security:screenshot-publication:test",
 ].map((name) => ["run", name]);
 
 const commands = {
@@ -23,10 +30,7 @@ const commands = {
     ["run", "policy:workflow-report:test"],
     ["run", "ui:check"],
     ["run", "format:check"],
-    ["run", "paraglide:compile"],
-    ["--filter", "@capacitylens/shared", "type-check"],
-    ["exec", "tsc", "-b"],
-    ["run", "typecheck:e2e"],
+    ["run", "typecheck"],
     ["exec", "eslint", ".", "--max-warnings", "0"],
     ["exec", "vitest", "run", "--coverage"],
     ["run", "coverage:files"],
@@ -44,8 +48,17 @@ const commands = {
   ],
 };
 
+const commandKey = (args) => JSON.stringify(args);
+const appCommandKeys = new Set(commands.app.map(commandKey));
+const serverCommandKeys = new Set(commands.server.map(commandKey));
+const sharedCommands = commands.server.filter((args) => appCommandKeys.has(commandKey(args)));
+const appOnlyCommands = commands.app.filter((args) => !serverCommandKeys.has(commandKey(args)));
+const serverOnlyCommands = commands.server.filter((args) => !appCommandKeys.has(commandKey(args)));
+
+commands.all = [...sharedCommands, ...appOnlyCommands, ...serverOnlyCommands];
+
 /** Return independent, ordered pnpm argument arrays for a known repository gate. */
 export function gateCommands(mode) {
-  if (!Object.hasOwn(commands, mode)) throw new Error("Expected app or server with no extra arguments.");
+  if (!Object.hasOwn(commands, mode)) throw new Error("Expected app, server, or all with no extra arguments.");
   return commands[mode].map((args) => [...args]);
 }

@@ -1,9 +1,8 @@
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
-import { Eye, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { m } from "@/i18n";
 import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
 import { UTILIZATION_WINDOW_DAYS } from "../../lib/schedulerConfig";
-import { Avatar } from "../common/ui";
 import { resolveResourceDisplayName } from "../../lib/metadata";
 import { LAYOUT, buildSchedulerDensity } from "./layout";
 import { ResourceLane } from "./ResourceLane";
@@ -12,6 +11,7 @@ import type { GroupModel, RowModel } from "./schedulerModel";
 import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/types/entities";
 import type { ISODate } from "@capacitylens/shared/types/entities";
 import { Button } from "../ui/button";
+import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
 import type { ModalState } from "./schedulerGridModal";
 import type { SchedulerUI, StoreState } from "../../store/useStore";
 
@@ -34,6 +34,7 @@ export interface SchedulerGridRowProps {
   handleEdit: LaneProps["onEdit"];
   handleDraw: LaneProps["onDraw"];
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
+  resourceAvatars?: ReadonlyMap<string, string>;
   onViewSchedule: (resourceId: string, opener: HTMLButtonElement) => void;
 }
 
@@ -42,39 +43,26 @@ function ResourceIdentity({
   row,
   density,
   personScheduleTitlesByResourceId,
+  resourceAvatars = new Map(),
   onViewSchedule,
-}: Pick<SchedulerGridRowProps, "group" | "row" | "density" | "personScheduleTitlesByResourceId" | "onViewSchedule">) {
+}: Pick<
+  SchedulerGridRowProps,
+  "group" | "row" | "density" | "personScheduleTitlesByResourceId" | "resourceAvatars" | "onViewSchedule"
+>) {
   const { resource } = row;
   const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
-  const triggerLabel = m.scheduler_person_schedule_trigger({ name: scheduleTitle });
+  const imageUrl = resource.kind === "person" ? (resource.avatarUrl ?? resourceAvatars.get(resource.id)) : undefined;
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2" style={{ height: density.identityBandHeight }}>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        data-testid="person-schedule-trigger"
-        aria-label={triggerLabel}
-        title={triggerLabel}
-        className="group relative size-7 shrink-0 cursor-pointer rounded-full p-0"
-        onClick={(event) => onViewSchedule(resource.id, event.currentTarget)}
-      >
-        <span
-          data-testid="person-schedule-avatar"
-          className="transition-opacity group-hover:opacity-0 group-focus-visible:opacity-0"
-        >
-          <Avatar
-            name={resource.name ?? resource.role}
-            color={group.color ?? resource.color}
-            placeholder={resource.kind === "placeholder"}
-          />
-        </span>
-        <Eye
-          aria-hidden
-          data-testid="person-schedule-eye"
-          className="absolute opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-        />
-      </Button>
+      <PersonScheduleTrigger
+        resourceId={resource.id}
+        scheduleTitle={scheduleTitle}
+        avatarName={resource.name ?? resource.role}
+        color={group.color ?? resource.color}
+        placeholder={resource.kind === "placeholder"}
+        {...(imageUrl ? { imageUrl } : {})}
+        onViewSchedule={onViewSchedule}
+      />
       <div className="ms-1.5 min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1">
           <span className="min-w-0 truncate text-sm font-medium">{resolveResourceDisplayName(resource)}</span>
@@ -166,11 +154,13 @@ type RowHeaderProps = Pick<
   | "visibleStartDate"
   | "setModal"
   | "personScheduleTitlesByResourceId"
+  | "resourceAvatars"
   | "onViewSchedule"
 >;
 
 function SchedulerGridRowHeader(props: RowHeaderProps) {
   const { row, group, density, utilizationPrefs, visibleWeeksLabel, ui } = props;
+  const resourceAvatars = props.resourceAvatars ?? new Map<string, string>();
   const { resource } = row;
   return (
     <div
@@ -193,6 +183,7 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
         row={row}
         density={density}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
+        resourceAvatars={resourceAvatars}
         onViewSchedule={props.onViewSchedule}
       />
       <ResourceActions {...props} />

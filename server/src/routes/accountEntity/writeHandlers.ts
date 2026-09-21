@@ -190,7 +190,7 @@ async function applyPut(input: AccountWriteInput): Promise<FastifyReply | undefi
   const workspaceCommand = command(req);
   let existing = getRow(db, "accounts", id) ?? undefined;
   if (enforcePutPreflight(input, existing)) return;
-  const visibility = fieldVisibility(req, "accounts", body.accountId);
+  const visibility = fieldVisibility(req, "accounts", id);
   if (await replayPut({ ...input, existing, workspaceCommand, visibility })) return;
   existing = getRow(db, "accounts", id) ?? undefined;
   if (enforcePutPreflight(input, existing)) return;
@@ -251,7 +251,7 @@ function applyPatch(input: AccountWriteInput): FastifyReply | undefined {
   const existing = getRow(db, "accounts", id);
   if (!existing) return reply.code(404).send({ error: "Not found" });
   if (!authorize({ req, reply, accountId: id, action: "write" })) return;
-  const visibility = fieldVisibility(req, "accounts", body.accountId ?? existing.accountId);
+  const visibility = fieldVisibility(req, "accounts", id);
   const merged = sanitizeWrite({ table: "accounts", row: { ...existing, ...body, id }, existing, options: visibility });
   // Accounts sanitization drops accountId, but ownsRow must see the caller's raw assertion so a
   // foreign ownership claim is concealed as 404 instead of being silently ignored.

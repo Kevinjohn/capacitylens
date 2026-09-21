@@ -11,6 +11,8 @@
     "./account/audit": "./src/account/audit.ts",
     "./account/conformance": "./src/account/conformance.ts",
     "./account/errors": "./src/account/errors.ts",
+    "./account/ownershipTransfer": "./src/account/ownershipTransfer.ts",
+    "./account/ownershipTransferPolicy": "./src/account/ownershipTransferPolicy.ts",
     "./account/policy": "./src/account/policy.ts",
     "./account/ports": "./src/account/ports.ts",
     "./account/sessionPolicy": "./src/account/sessionPolicy.ts",
@@ -30,6 +32,7 @@
     "./domain/mutations": "./src/domain/mutations.ts",
     "./domain/password": "./src/domain/password.ts",
     "./domain/privateNames": "./src/domain/privateNames.ts",
+    "./domain/resourceAvatarUrl": "./src/domain/resourceAvatarUrl.ts",
     "./domain/tenancy": "./src/domain/tenancy.ts",
     "./lib/color": "./src/lib/color.ts",
     "./lib/accountWorkingDays": "./src/lib/accountWorkingDays.ts",
@@ -48,6 +51,7 @@
   },
   "devDependencies": {
     "@types/node": "^24.13.3",
+    "fast-check": "^4.10.1",
     "vite": "^8.2.2",
     "vitest": "^4.1.11"
   },

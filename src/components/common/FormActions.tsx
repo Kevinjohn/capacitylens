@@ -6,16 +6,18 @@ import { Button } from "../ui/button";
 export function FormActions({
   onCancel,
   submitLabel = m.form_save(),
+  disabled = false,
 }: {
   onCancel: () => void;
   submitLabel?: ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <>
       <Button size="sm" type="button" variant="outline" onClick={onCancel}>
         {m.form_cancel()}
       </Button>
-      <Button size="sm" type="submit">
+      <Button size="sm" type="submit" disabled={disabled}>
         {submitLabel}
       </Button>
     </>

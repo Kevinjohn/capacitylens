@@ -5,6 +5,18 @@ import { describe, expect, it } from "vitest";
 const envExample = readFileSync(fileURLToPath(new URL("../../.env.example", import.meta.url)), "utf8");
 const compose = readFileSync(fileURLToPath(new URL("../../docker-compose.yml", import.meta.url)), "utf8");
 const dockerfile = readFileSync(fileURLToPath(new URL("../../Dockerfile", import.meta.url)), "utf8");
+const managedConfigure = readFileSync(
+  fileURLToPath(new URL("../../docs-src/self-hosting/managed-vps/configure-the-api-and-nginx.md", import.meta.url)),
+  "utf8",
+);
+const managedDeploy = readFileSync(
+  fileURLToPath(new URL("../../docs-src/self-hosting/managed-vps/deploy-and-upgrade-safely.md", import.meta.url)),
+  "utf8",
+);
+const bareMetalInstall = readFileSync(
+  fileURLToPath(new URL("../../docs-src/self-hosting/install-without-docker.md", import.meta.url)),
+  "utf8",
+);
 const nginxConf = readFileSync(fileURLToPath(new URL("../../nginx.conf", import.meta.url)), "utf8");
 const dockerIgnore = readFileSync(fileURLToPath(new URL("../../.dockerignore", import.meta.url)), "utf8");
 const appSource = readFileSync(fileURLToPath(new URL("./routes/appLogging.ts", import.meta.url)), "utf8");
@@ -14,6 +26,18 @@ const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
   const alternation = source.match(anchor);
   const actions = alternation?.[1];
   return actions ? [...new Set(actions.split("|").map((value) => value.trim()))].sort() : [];
+};
+
+const registerOidcBrandComposeTest = (): void => {
+  it("passes the documented OIDC presentation brand settings into the API container", () => {
+    const apiService = compose.split("\n  api:\n")[1]?.split("\n  web:\n")[0];
+    expect(apiService).toBeDefined();
+    const apiLines = apiService?.split("\n").map((line) => line.trim());
+
+    const name = "SMALLSASS_ACCOUNT_OIDC_BRAND";
+    expect(envExample).toContain(name);
+    expect(apiLines).toContain(`${name}: ${"${"}${name}:-}`);
+  });
 };
 
 describe("Compose exceptions in the environment register", () => {
@@ -37,18 +61,32 @@ describe("Compose exceptions in the environment register", () => {
     }
   });
 
-  it("documents that the image, rather than Compose or .env interpolation, fixes production mode", () => {
-    expect(envExample).toMatch(
-      /Node environment for bare-metal runs\. Compose does not pass this setting into the container;[\s\S]*?NODE_ENV=production/,
-    );
+  registerOidcBrandComposeTest();
+
+  it("keeps production mode out of Vite-loaded env files and sets it on the API process", () => {
+    expect(envExample).toMatch(/Node environment is set on the API process for bare-metal runs/);
+    expect(envExample).not.toMatch(/^NODE_ENV=/m);
     expect(compose).not.toMatch(/^\s+NODE_ENV:/m);
     expect(dockerfile).toMatch(/^ENV NODE_ENV=production$/m);
+    expect(managedConfigure).toMatch(
+      /source \.env; set \+a; exec env NODE_ENV=production node production\/server\/dist\/index\.mjs/,
+    );
+    expect(managedConfigure).not.toMatch(/^NODE_ENV=production$/m);
+    expect(bareMetalInstall).toMatch(/^\s+Environment=NODE_ENV=production$/m);
+    expect(managedDeploy).toMatch(/Keep `NODE_ENV=production` on the API process/);
   });
 
   it("builds the API runtime ahead of time instead of transforming TypeScript at startup", () => {
     expect(dockerfile).toContain("pnpm --filter capacitylens-server run build:runtime");
     expect(dockerfile).toContain("exec node dist/index.mjs");
     expect(dockerfile).not.toContain("exec node_modules/.bin/tsx");
+  });
+
+  it("documents the web image as the default Dockerfile target", () => {
+    const stages = [...dockerfile.matchAll(/^FROM\s+\S+(?:\s+AS\s+(\S+))?$/gim)];
+    expect(stages.at(-1)?.[1]).toBe("web");
+    expect(dockerfile).toMatch(/web image as the Dockerfile's final\/default target/i);
+    expect(dockerfile).toMatch(/select the\s+#?\s*`api` target explicitly/i);
   });
 
   it("suppresses the nginx access log for exactly the invite bearers the app redacts", () => {

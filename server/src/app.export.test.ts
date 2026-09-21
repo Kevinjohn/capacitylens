@@ -137,6 +137,16 @@ describe("P2.6a complete per-tenant export — server-control tables / PII struc
       usedAt: null,
       createdAt: TS,
     });
+    const inviteId = (db.prepare(`SELECT id FROM invites WHERE accountId = 'a1'`).get() as { id: string }).id;
+    db.prepare(
+      `INSERT INTO invitation_person_proposals (invitationId, accountId, resourceId, createdAt, updatedAt)
+       VALUES (?, 'a1', 'private-proposed-resource', ?, ?)`,
+    ).run(inviteId, TS, TS);
+    db.prepare(
+      `INSERT INTO member_resource_link_exceptions
+       (accountId, userId, proposedResourceId, reason, createdAt, updatedAt)
+       VALUES ('a1', ?, 'private-proposed-resource', 'resource_unavailable', ?, ?)`,
+    ).run(MEMBER_USER_ID, TS, TS);
 
     const res = await app.inject({ method: "GET", url: "/api/state?accountId=a1&includeInactive=1" });
     expect(res.statusCode).toBe(200);
@@ -151,6 +161,9 @@ describe("P2.6a complete per-tenant export — server-control tables / PII struc
     expect(serialised).not.toContain(MEMBER_USER_ID);
     expect(serialised).not.toContain(INVITE_TOKEN);
     expect(serialised).not.toContain(INVITE_EMAIL);
+    expect(serialised).not.toContain("invitation_person_proposals");
+    expect(serialised).not.toContain("private-proposed-resource");
+    expect(serialised).not.toContain("resource_unavailable");
     // Sanity: the account's OWN data IS in the export (proving we asserted absence on a populated payload).
     expect(ids(res.json())).toContain("rActive");
   });

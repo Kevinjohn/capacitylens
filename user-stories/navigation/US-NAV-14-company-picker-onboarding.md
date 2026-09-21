@@ -20,10 +20,12 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 **Empty picker, caller may create:**
 
 1. Start from a clean device state and complete the demo sign-in if it appears.
-2. With no companies, confirm the heading is **Start planning** and the screen offers only two
-   next steps: **New company** and **Ask an admin for an invite**.
-3. Click **New company**. Confirm the form asks for **Company name**, week start, timezone and the
-   read-only English language value; it does **not** ask the user to choose a company colour.
+2. With no companies, confirm **Set up your company** and its mandatory create form appear
+   automatically. There is no preliminary choice or Cancel action.
+3. Confirm the form explains that its shared calendar choices are fixed while the company name can
+   change later, then asks for **Company name**, week start, a searchable
+   timezone combobox preselected to the browser's IANA zone, and the read-only English language
+   value; it does **not** ask the user to choose a company colour.
 4. Create the company and confirm it becomes active and opens the schedule.
 
 **Empty picker, caller cannot create:**
@@ -42,12 +44,13 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 8. On first entry, keep the picker visible. Open the only valid company, navigate to another route,
    then reload: confirm the same route resumes without another choice. Use **Switch company** and
    confirm that explicit action keeps the picker visible.
+9. If the selected company cannot be loaded, confirm its recovery screen hides the previous
+   company's data and offers **Retry** or **Choose another company**. See [Settings](../../docs-src/guide/settings.md#your-personal-account).
 
 ## Acceptance criteria
 
-- ✅ The empty, create-allowed state is headed **Start planning** and contains exactly the two
-  available next steps: **New company** and **Ask an admin for an invite**; the old **No companies
-  yet / Create your first one** mixed message is absent.
+- ✅ The empty, create-allowed state is headed **Set up your company** and shows the mandatory
+  company-create form immediately, with no preliminary **New company** choice and no Cancel action.
 - ✅ The empty, create-forbidden state shows only the invite step and says the user should ask an
   admin; it does not render a disabled or hidden-behind-copy create promise.
 - ✅ The populated state uses **“Choose a company to plan, or create another one.”** only when
@@ -57,7 +60,17 @@ colour is automatic, so onboarding does not create an unnecessary design task.
   membership role only in authenticated mode, **Demo access** in the in-memory demo, or **Open
   access** on an auth-off persisted server.
 - ✅ The create form captures Company name, Week starts on, Timezone and read-only Language
-  (English), then activates the created company and lands on Schedule.
+  (English). Help is associated with each control: the company name is separate from the fixed
+  calendar choices; week start controls displayed week order; timezone controls the company-wide
+  date boundary used for Today and date-based scheduling; and language is shared company-wide.
+  The three calendar choices cannot be changed later, then the form activates the created company
+  and lands on Schedule.
+- ✅ When first-company creation is the caller's only next step, the form appears immediately, has
+  no **New company** subheading or Cancel action, and keeps the outer **Set up your company** heading
+  as the valid hierarchy. Creating another company still begins from **New company**, keeps that
+  card heading, and can be cancelled.
+- ✅ The timezone combobox is keyboard accessible, searchable by IANA identifier or friendly name,
+  keeps the detected local and common zones first, and returns focus to its trigger after selection.
 - ✅ The create form has no company-colour control; the account receives the default preset
   automatically.
 - ✅ A server-side permission/cap refusal remains enforced even if the UI affordance is bypassed.
@@ -65,3 +78,5 @@ colour is automatic, so onboarding does not create an unnecessary design task.
   navigating away from the requested route.
 - ✅ First entry, explicit switching, multiple companies, no companies, unavailable membership and
   invite handoff continue through their existing safe picker/handoff boundaries.
+- ✅ A failed company load shows recovery instead of another company's data; Retry keeps the
+  selection, while Choose another company returns to the picker.

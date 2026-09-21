@@ -7,22 +7,24 @@ import { copyFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parsePort } from "./scripts/port.mjs";
+import { ports, testShare } from "./scripts/ports.mjs";
 import { clientApiOrigin } from "./scripts/render-client-nginx.mjs";
-import { isAccountEmail } from "./shared/src/account/validation";
+import { STATIC_SPA_ROUTES } from "./scripts/static-spa-routes.mjs";
+import { ENTRY_RAW_LIMIT_KB } from "./scripts/bundle-budget.mjs";
+import { isAccountEmail } from "./shared/src/account/validation.ts";
 
-const devApiPort = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, 8787, "CAPACITYLENS_DEV_API_PORT");
-const STATIC_SPA_ROUTES = [
-  "resources",
-  "external",
-  "disciplines",
-  "clients",
-  "projects",
-  "activities",
-  "timeoff",
-  "team",
-  "settings",
-] as const;
-
+// Lane-derived ports (scripts/ports.mjs): lane 0 is the historical 5173/8787/4173, and a run
+// launched through scripts/with-lane.mjs gets its own lane so ten worktrees never collide.
+const lanePorts = ports();
+const devApiPort = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, lanePorts.dbApi, "CAPACITYLENS_DEV_API_PORT");
+// One Vite config serves several dev servers on different ports (the core app, and the db/auth
+// flavours Playwright boots). The service name selects which lane port this invocation binds,
+// so no script has to pass a literal `--port`.
+const viteService = process.env.CAPACITYLENS_VITE_SERVICE ?? "web";
+if (!Object.hasOwn(lanePorts, viteService)) {
+  throw new Error(`CAPACITYLENS_VITE_SERVICE must name a lane port; received ${JSON.stringify(viteService)}.`);
+}
+const servicePort = lanePorts[viteService as keyof typeof lanePorts];
 function offlineShellManifest(): Plugin {
   return {
     name: "capacitylens-offline-shell-manifest",
@@ -44,9 +46,11 @@ function offlineShellManifest(): Plugin {
 /**
  * Emit real directory index documents for fixed client routes. The packaged nginx image still
  * provides the normal SPA fallback, while these aliases also survive a static outer proxy that
- * serves only paths which physically exist (the production failure mode this guards).
+ * serves only paths which physically exist (the production failure mode this guards). Keep the
+ * filesystem work in `writeBundle`: Rollup also runs `closeBundle` while unwinding failed builds,
+ * before Vite has emitted `index.html`.
  */
-function staticSpaRouteDocuments(): Plugin {
+export function staticSpaRouteDocuments(): Plugin {
   let outputDirectory = "";
   return {
     name: "capacitylens-static-spa-route-documents",
@@ -54,7 +58,7 @@ function staticSpaRouteDocuments(): Plugin {
     configResolved(config) {
       outputDirectory = resolve(config.root, config.build.outDir);
     },
-    async closeBundle() {
+    async writeBundle() {
       const shell = resolve(outputDirectory, "index.html");
       for (const route of STATIC_SPA_ROUTES) {
         const directory = resolve(outputDirectory, route);
@@ -77,6 +81,11 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    build: {
+      // The post-build checker also enforces the gzip limit. Sharing its raw boundary keeps Vite's
+      // generic chunk warning actionable instead of warning below the project's deliberate budget.
+      chunkSizeWarningLimit: ENTRY_RAW_LIMIT_KB,
+    },
     plugins: [
       react(),
       tailwindcss(),
@@ -105,11 +114,11 @@ export default defineConfig(({ mode }) => {
     // reaching `127.0.0.1` gets connection-refused (blank page, no console error).
     // Pinning 127.0.0.1 keeps it loopback-only while staying reachable as `localhost`.
     // (Use `host: true` instead if you need to reach the dev server from another device.)
-    // strictPort: if 5173 is already taken (for example by a stale development server), FAIL LOUDLY instead of
-    // silently starting on 5174 while the browser stares at the wrong port's white page.
+    // strictPort: if the port is already taken (for example by a stale development server), FAIL LOUDLY
+    // instead of silently starting on the next one while the browser stares at the wrong port's white page.
     server: {
       host: "127.0.0.1",
-      port: 5173,
+      port: servicePort,
       strictPort: true,
       // Dev-only /api proxy for the full-stack `pnpm run dev` (scripts/dev-fullstack.mjs): the app
       // talks to a same-origin /api and Vite forwards it to the SQLite server on :8787 (one rule
@@ -117,14 +126,23 @@ export default defineConfig(({ mode }) => {
       // does this); ignored by `vite build`. Stays in lockstep with the launcher via the same env var.
       proxy: {
         "/api": {
-          // Keep this `CAPACITYLENS_DEV_API_PORT ?? 8787` default identical to scripts/dev-fullstack.mjs's
-          // API_PORT so the launcher and this proxy stay in lockstep (the 8787 is the shared default).
+          // Keep this `CAPACITYLENS_DEV_API_PORT ?? lane dbApi` default identical to
+          // scripts/dev-fullstack.mjs's API_PORT so the launcher and this proxy stay in lockstep.
           target: `http://localhost:${devApiPort}`,
           changeOrigin: true,
         },
       },
     },
+    // `vite preview` and scripts/serve-dist.mjs both default to 4173, so this needs a lane too.
+    preview: {
+      host: "127.0.0.1",
+      port: lanePorts.preview,
+      strictPort: true,
+    },
     test: {
+      // The CPU reservation this run holds (scripts/lane-claim.mjs). Unset means nothing else is
+      // running and Vitest keeps its historical "use the machine" default.
+      maxWorkers: testShare(),
       environment: "jsdom",
       env: { TZ: "UTC" },
       setupFiles: ["./src/test/setup.ts"],

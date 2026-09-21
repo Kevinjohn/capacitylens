@@ -19,8 +19,9 @@ import { SchedulerGridRows } from "./SchedulerGridRows";
 import type { ModalState } from "./schedulerGridModal";
 import { useSchedulerGridPreferences, useSchedulerGridModel } from "./useSchedulerGridModel";
 import { useSchedulerGridVirtualization } from "./useSchedulerGridVirtualization";
-import { PersonScheduleSheet } from "./PersonScheduleSheet";
-import { usePersonScheduleDrawer } from "./usePersonScheduleDrawer";
+import { PersonScheduleSheet } from "../person-schedule/PersonScheduleSheet";
+import { usePersonScheduleDrawer } from "../person-schedule/usePersonScheduleDrawer";
+import { useResourceAvatars } from "../../account/useResourceAvatars";
 
 // Creation/editing forms are not needed to paint or inspect the schedule. Load them on the first
 // interaction so their validation and picker dependencies do not consume the initial entry budget.
@@ -180,6 +181,7 @@ type GridViewProps = {
   navigateToResources: () => void;
   interactions: ReturnType<typeof useSchedulerInteractions>;
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
+  resourceAvatars: ReadonlyMap<string, string>;
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 };
 
@@ -238,6 +240,7 @@ function SchedulerGridContents(props: GridViewProps) {
         handleEdit={interactions.editAllocation}
         handleDraw={interactions.createFromDraw}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
+        resourceAvatars={props.resourceAvatars}
         onViewSchedule={props.onViewSchedule}
       />
       <SchedulerModalBoundary interactions={interactions} />
@@ -269,6 +272,28 @@ function SchedulerGridFooter({
   );
 }
 
+/**
+ * The scroll container's contribution to the grid's shared geometry variables: the measured sticky
+ * header, and the timeline area actually on screen. Each size is published only once it has been
+ * measured — a still-unmeasured `0` would clamp every visible-portion overlay to nothing, whereas
+ * an absent variable falls back to not clamping at all (see visibleSpanInsets).
+ */
+function buildViewportVariables({
+  stickyHeaderHeight,
+  timelineWidth,
+  timelineHeight,
+}: Pick<ReturnType<typeof useSchedulerViewport>, "stickyHeaderHeight" | "timelineWidth" | "timelineHeight">) {
+  return {
+    ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
+    ...(timelineWidth > 0
+      ? { ["--sched-visible-width" as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px` }
+      : {}),
+    ...(timelineHeight > 0
+      ? { ["--sched-visible-height" as string]: `${Math.max(0, timelineHeight - stickyHeaderHeight)}px` }
+      : {}),
+  };
+}
+
 function SchedulerGridSurface({
   contents,
   viewport,
@@ -279,7 +304,7 @@ function SchedulerGridSurface({
   personScheduleDrawer: ReturnType<typeof usePersonScheduleDrawer>;
 }) {
   const { gridModel, virtualization, interactions, preferences } = contents;
-  const { scrollRef, stickyHeaderHeight, timelineWidth, onScroll } = viewport;
+  const { scrollRef, stickyHeaderHeight, timelineWidth, timelineHeight, onScroll } = viewport;
   return (
     <div className="h-full">
       <div
@@ -293,10 +318,7 @@ function SchedulerGridSurface({
         aria-colcount={2}
         aria-rowcount={virtualization.items.length + 1 + (gridModel.model.length === 0 ? 1 : 0)}
         onScroll={onScroll}
-        style={{
-          ["--sched-sticky-top" as string]: `${stickyHeaderHeight}px`,
-          ["--sched-visible-width" as string]: `${Math.max(0, timelineWidth - LAYOUT.leftColWidth)}px`,
-        }}
+        style={buildViewportVariables({ stickyHeaderHeight, timelineWidth, timelineHeight })}
       >
         <SchedulerGridContents {...contents} />
       </div>
@@ -320,6 +342,8 @@ export function SchedulerGrid() {
   const canEdit = useCanEdit();
   const toggleGroup = useStore((state) => state.toggleGroup);
   const clearFilters = useStore((state) => state.clearFilters);
+  const activeAccountId = useStore((state) => state.activeAccountId);
+  const resourceAvatars = useResourceAvatars(activeAccountId);
   const { accountPrefs, ui, minimiseWeekends, snapToWeekStart } = preferences;
   const interactions = useSchedulerInteractions(ui);
   const viewport = useSchedulerViewport({
@@ -348,6 +372,7 @@ export function SchedulerGrid() {
     navigateToResources: () => void navigate("/resources"),
     interactions,
     personScheduleTitlesByResourceId: personScheduleDrawer.titlesByResourceId,
+    resourceAvatars,
     onViewSchedule: personScheduleDrawer.viewSchedule,
   };
   return (

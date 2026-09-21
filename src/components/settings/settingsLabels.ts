@@ -1,8 +1,9 @@
 import { m } from "@/i18n";
-import type { InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
+import type { CapacityOverviewAccess, InternalColourMode, SchedulingMode } from "@capacitylens/shared/types/entities";
 import type { BarLabelPreferences, UtilizationPreferences } from "../../lib/displayPrefs";
 import { type LabelMessages } from "../../lib/metadata";
 import type { ThemePreference } from "../../lib/theme";
+import type { DateStyle } from "@capacitylens/shared/types/entities";
 
 // Module-scope option tables hold UNCALLED message references (`m.key`, never `m.key()`) and are
 // resolved at RENDER through metadata.ts's `buildLabels`/`buildLabelOptions` — the same lazy rule the enum
@@ -16,10 +17,23 @@ export const THEME_MESSAGES: LabelMessages<ThemePreference> = {
   system: m.settings_theme_system,
 };
 
+export const DATE_STYLE_MESSAGES: LabelMessages<DateStyle> = {
+  "day-month": m.settings_date_style_day_month,
+  "day-ordinal-month": m.settings_date_style_day_ordinal_month,
+  "month-day": m.settings_date_style_month_day,
+  "month-day-ordinal": m.settings_date_style_month_day_ordinal,
+};
+
 export const SCHEDULING_MESSAGES: LabelMessages<SchedulingMode> = {
   hourly: m.settings_scheduling_option_hours,
   days: m.settings_scheduling_option_days,
   blocks: m.settings_scheduling_option_blocks,
+};
+
+export const CAPACITY_OVERVIEW_ACCESS_MESSAGES: LabelMessages<CapacityOverviewAccess> = {
+  owner_admin: m.settings_capacity_overview_access_owner_admin,
+  owner_admin_editor: m.settings_capacity_overview_access_owner_admin_editor,
+  everyone: m.settings_capacity_overview_access_everyone,
 };
 
 export const INTERNAL_COLOUR_MESSAGES: LabelMessages<InternalColourMode> = {

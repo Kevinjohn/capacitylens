@@ -15,16 +15,13 @@ function expectCompact(control: HTMLElement) {
   expect(control.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
 }
 
-function expectPrivacyDescriptionWithControl() {
-  const privacy = screen.getByRole("switch", { name: "Use a code name" });
-  const description = screen.getByText("Only account owners can see the real name. Everyone else sees the code name.");
-  expect(privacy.parentElement).toContainElement(description);
-}
-
-function expectCodeNameHintWithInput() {
+function expectCodeNameDescriptionOnOwnRow() {
   const codeName = screen.getByLabelText("Code name");
-  const hint = screen.getByText("Quotation marks are added automatically.");
-  expect(codeName.parentElement).toContainElement(hint);
+  const field = codeName.closest('[data-slot="field"]');
+  const description = screen.getByText("Only account owners can see real names. Everyone else sees the code name.");
+  expect(codeName.parentElement).toBe(field);
+  expect(description.parentElement).toBe(field);
+  expect(description).toHaveClass("sm:col-start-2");
 }
 
 describe("compact input modal layouts", () => {
@@ -43,21 +40,19 @@ describe("compact input modal layouts", () => {
     const user = userEvent.setup();
     const client = render(<ClientForm onClose={vi.fn()} />);
     expectCompact(screen.getByLabelText("Name"));
-    expectCompact(screen.getByRole("switch", { name: "Use a code name" }));
-    expectPrivacyDescriptionWithControl();
+    expectCompact(screen.getByRole("switch", { name: "Use code name" }));
     expectCompact(screen.getByRole("button", { name: /^Colour \(/ }));
-    await user.click(screen.getByRole("switch", { name: "Use a code name" }));
+    await user.click(screen.getByRole("switch", { name: "Use code name" }));
     expectCompact(screen.getByLabelText("Code name"));
-    expectCodeNameHintWithInput();
+    expectCodeNameDescriptionOnOwnRow();
     client.unmount();
 
     render(<ProjectForm onClose={vi.fn()} />);
     expectCompact(screen.getByLabelText("Name"));
-    expectCompact(screen.getByRole("switch", { name: "Use a code name" }));
-    expectPrivacyDescriptionWithControl();
-    await user.click(screen.getByRole("switch", { name: "Use a code name" }));
+    expectCompact(screen.getByRole("switch", { name: "Use code name" }));
+    await user.click(screen.getByRole("switch", { name: "Use code name" }));
     expectCompact(screen.getByLabelText("Code name"));
-    expectCodeNameHintWithInput();
+    expectCodeNameDescriptionOnOwnRow();
     expectCompact(screen.getByLabelText("Client"));
     expectCompact(screen.getByRole("button", { name: /^Colour \(/ }));
   });

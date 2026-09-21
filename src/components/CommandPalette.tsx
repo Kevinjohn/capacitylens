@@ -6,7 +6,10 @@ import {
   hasExternalResourcesEnabled,
   hasPlaceholdersEnabled,
   hasVisibleInternalProjects,
+  resolveCapacityOverviewAccess,
 } from "../store/selectors";
+import { usePermissionStatus, useRole } from "../auth/permissionContext";
+import { resolveCapacityOverviewAccessDecision } from "../auth/capacityOverviewAccess";
 import { useActiveScopedData } from "../store/useScopedData";
 import { m } from "@/i18n";
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from "./ui/command";
@@ -53,12 +56,18 @@ function usePaletteItems(query: string, onClose: () => void) {
   const placeholdersEnabled = useStore((state) => hasPlaceholdersEnabled(state.data, state.activeAccountId));
   const externalEnabled = useStore((state) => hasExternalResourcesEnabled(state.data, state.activeAccountId));
   const showInternalProjects = useStore((state) => hasVisibleInternalProjects(state.data, state.activeAccountId));
+  const role = useRole();
+  const permissionStatus = usePermissionStatus();
+  const overviewAccess = useStore((state) => resolveCapacityOverviewAccess(state.data, state.activeAccountId));
+  const showCapacityOverview =
+    resolveCapacityOverviewAccessDecision({ role, status: permissionStatus, access: overviewAccess }) === "allowed";
   return useMemo(
     () =>
       buildPaletteItems({
         query,
         data,
         disciplinesEnabled,
+        showCapacityOverview,
         placeholdersEnabled,
         externalEnabled,
         showInternalProjects,
@@ -73,6 +82,7 @@ function usePaletteItems(query: string, onClose: () => void) {
       query,
       data,
       disciplinesEnabled,
+      showCapacityOverview,
       placeholdersEnabled,
       externalEnabled,
       showInternalProjects,
@@ -153,7 +163,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const [inputElement, setInputElement] = useState<HTMLInputElement | null>(null);
   const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
   // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
-  // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
+  // internal filter, hence `shouldFilter={false}` below). Memoised so the fuzzy filter over ALL data
   // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
   // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
   const items: PaletteItem[] = usePaletteItems(query, onClose);

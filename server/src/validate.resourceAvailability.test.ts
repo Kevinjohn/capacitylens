@@ -35,6 +35,23 @@ describe("resource availability write sanitisation", () => {
   registerIntersectionTests();
 });
 
+describe("resource avatar URL write sanitisation", () => {
+  it("normalises HTTPS URLs and rejects invalid or non-person values", () => {
+    expect(
+      sanitizeWrite({ table: "resources", row: { ...resource, avatarUrl: " https://images.example/b.png " } }),
+    ).toMatchObject({ avatarUrl: "https://images.example/b.png" });
+    expect(() =>
+      sanitizeWrite({ table: "resources", row: { ...resource, avatarUrl: "http://images.example/b.png" } }),
+    ).toThrow(/https url/i);
+    expect(() =>
+      sanitizeWrite({
+        table: "resources",
+        row: { ...resource, kind: "placeholder", avatarUrl: "https://images.example/b.png" },
+      }),
+    ).toThrow(/only a person/i);
+  });
+});
+
 function registerClearTests(): void {
   it("uses null independently in full-row PUTs and persists each clear across reload", () => {
     const db = openDb(":memory:");
@@ -71,21 +88,19 @@ function registerClearTests(): void {
 }
 
 function registerNonPersonTests(): void {
-  it("strips stale boundaries when a person is changed to a non-person through a direct write", () => {
-    const cleaned = sanitizeWrite({
-      table: "resources",
-      row: {
-        ...resource,
-        kind: "external",
-        firstAvailableDate: resource.firstAvailableDate,
-        lastAvailableDate: resource.lastAvailableDate,
-      },
-      existing: resource,
-    });
-
-    expect(cleaned.kind).toBe("external");
-    expect(cleaned).not.toHaveProperty("firstAvailableDate");
-    expect(cleaned).not.toHaveProperty("lastAvailableDate");
+  it("rejects changing a person to a non-person through a direct write", () => {
+    expect(() =>
+      sanitizeWrite({
+        table: "resources",
+        row: {
+          ...resource,
+          kind: "external",
+          firstAvailableDate: resource.firstAvailableDate,
+          lastAvailableDate: resource.lastAvailableDate,
+        },
+        existing: resource,
+      }),
+    ).toThrow(/kind cannot change/i);
   });
 }
 

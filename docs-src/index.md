@@ -1,69 +1,46 @@
 ---
 title: Documentation
-description: Learn how to try, install, use and operate CapacityLens, the self-hosted week-by-week capacity scheduler.
+description: Choose the CapacityLens guide that matches the job you need to complete.
 ---
 
 # CapacityLens documentation
 
-CapacityLens gives a small agency a helicopter view of who is busy, free, or
-overworked, week by week. It is self-hosted, deliberately small, and open source.
+CapacityLens helps a small agency plan who is working on what, week by week, and see who
+has room for more work. These guides take you straight to the job you need to complete.
 
-New here? [Try the demo](/getting-started/try-the-demo) — it runs in one command
-and takes about two minutes.
+New to the product?
 
-Here to put it on a server? Skip straight to
-[Self-hosting: before you start](/self-hosting/).
+- Read [What is CapacityLens?](/getting-started/what-is-capacitylens)
+- then use the [Quick start](/getting-started/quick-start) to make your first booking.
 
-## Getting started
+## Choose your guide
 
-Learn what CapacityLens is and get your own copy running.
+<span id="quick-start"></span>
+<span id="technical-installation"></span>
+<span id="owner-setup"></span>
+<span id="admin-and-settings"></span>
+<span id="day-to-day-usage"></span>
+<span id="self-hosting-operations"></span>
 
-- [What is CapacityLens?](/getting-started/what-is-capacitylens) — what it does, and what it deliberately doesn't.
-- [Try the demo](/getting-started/try-the-demo) — a two-minute look with sample data.
-- [Choose how to install](/getting-started/install) — Docker Compose and direct Node
-  installation are separate, supported routes.
-- [First steps after installing](/getting-started/first-steps) — sign in and find your way around.
-- [Invite your team](/getting-started/invite-your-team) — get everyone else in.
-- [Roles and permissions](/getting-started/roles-and-permissions) — who can see and change what.
+| Guide | Use it to |
+| --- | --- |
+| [Use CapacityLens day to day](/using/) | Join your team, understand the schedule, find available capacity, and plan or check work. |
+| [Set up your company as the Owner](/owner/) | Create your company, appoint an Admin, and hand over everyday setup. |
+| [Administer your company](/admin/) | Invite teammates, add people to the schedule, choose settings, and prepare the first piece of work. |
+| [Install CapacityLens](/installation/) | Put CapacityLens on a server, configure sign-in, verify it, and hand it to the Owner. |
+| [Operate an existing installation](/operations/) | Back up, upgrade, monitor, configure, and recover the service. |
 
-## Using CapacityLens
+## Not sure where to start?
 
-How the everyday screens work.
+If your team already uses CapacityLens, start with [Day-to-day usage](/using/). If you
+have been asked to look after members or company choices, start with [Admin and
+settings](/admin/).
 
-- [The schedule](/guide/the-schedule) — the week-by-week view at the heart of the app.
-- [People and placeholders](/guide/people-and-placeholders) — who appears on the schedule.
-- [Projects and allocations](/guide/projects-and-allocations) — putting work on the calendar.
-- [Time off](/guide/time-off) — holidays, sickness and other absence.
-- [Settings](/guide/settings) — the toggles that shape what your team sees.
-- [Offline access](/guide/offline-access) — what works without a connection.
+## Open source and contributing
 
-## Company login (SSO)
+<span id="security-and-privacy"></span>
+<span id="reference"></span>
+<span id="get-more-help"></span>
 
-Let people sign in with the work identity they already use everywhere else.
-
-- [How sign-in works](/company-login/) — passwords, social sign-in and company login, in plain language.
-- [Set up your company login](/company-login/set-up-company-login) — connect CapacityLens to your provider.
-- [Move from passwords to single sign-on](/company-login/move-to-single-sign-on) — the guided cutover for existing teams.
-
-## Self-hosting
-
-Run CapacityLens on your own server and keep it healthy.
-
-- [Before you start](/self-hosting/) — what you need and how the pieces fit.
-- [Install with Docker](/self-hosting/install-with-docker) · [Install without Docker](/self-hosting/install-without-docker) · [Configuration](/self-hosting/configuration) · [TLS and networking](/self-hosting/tls-and-networking)
-- [Backups and restore](/self-hosting/backups-and-restore) · [Upgrades](/self-hosting/upgrades) · [Monitoring](/self-hosting/monitoring) · [When something goes wrong](/self-hosting/incidents)
-
-## Security and privacy
-
-- [Security overview](/security/) · [Privacy](/security/privacy) · [Reviews and compliance](/security/reviews)
-
-## Reference
-
-- [Glossary](/reference/glossary) — the short list of terms these docs rely on.
-- [Development guide](/reference/development) — for people changing the code.
-
-## Get more help
-
-- [Support](https://github.com/Kevinjohn/capacitylens/blob/main/SUPPORT.md) — where to ask questions.
-- [Report a problem](https://github.com/Kevinjohn/capacitylens/issues) — bugs and documentation fixes alike.
-- [Contributing](https://github.com/Kevinjohn/capacitylens/blob/main/CONTRIBUTING.md) — how to help, including with these docs.
+CapacityLens is open source under AGPL-3.0. Learn how to get support, report a problem,
+or contribute a change in [Open source and contributing](/open-source).

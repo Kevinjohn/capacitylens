@@ -4,6 +4,19 @@ import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
 import { sanitizeImportedRecord } from "../lib/sanitizeImport";
 
 describe("migrate", () => {
+  // Guards a development-time mistake: a migration step added to POST_REPAIR_BASE_STEPS (in
+  // migrate.ts) without EXPORT_SCHEMA_VERSION bumped to match, or vice versa. That invariant used
+  // to throw at module-evaluation time, which meant merely IMPORTING shared/data/migrate (as
+  // src/data/sync/loadSlice.ts and src/data/validateAccountSlice.ts do, both on the app's entry
+  // graph) could white-screen the whole app before any error boundary exists. It is now asserted
+  // lazily, the first time migrate() actually runs, so importing the module can never throw and a
+  // mismatch instead surfaces here, in a normal, diagnosable test failure. Any call to migrate()
+  // exercises the check; this test exists so the invariant has a dedicated, self-explanatory home
+  // rather than relying on incidental coverage from unrelated tests.
+  it("keeps the POST_REPAIR_BASE_STEPS ceiling in sync with EXPORT_SCHEMA_VERSION", () => {
+    expect(() => migrate(null)).not.toThrow();
+  });
+
   it("returns empty data for null/garbage", () => {
     expect(migrate(null)).toEqual(emptyAppData());
     expect(migrate("nope")).toEqual(emptyAppData());

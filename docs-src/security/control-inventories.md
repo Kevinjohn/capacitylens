@@ -38,7 +38,12 @@ processing entry point.
 | Tenant confidential data | schedule, notes, real private names                                                 | SQLite, encrypted operator storage, role-filtered API                      | operator policy; owner export; account erasure; old backups/audits follow operator retention/legal hold                                        |
 | Offline tenant data      | last verified identity/account/snapshot                                             | AES-GCM IndexedDB                                                          | opt-in; seven-day expiry is physically swept before the next cache access; sign-out/opt-out/device clear/schema upgrade/tamper removes records |
 | Audit/security metadata  | timestamp, actor/account/action/entity/field names, security outcome/IP             | local JSONL and separately forwarded JSON                                  | no entity values, credentials or bearer tokens; deployment defines access and retention                                                        |
+| Ownership transfer request | company, initiator and nominee ids, workflow state, deadline                       | SQLite over TLS                                                            | a live request expires seven days after it is made; a terminal request is retained for a year and is then swept the next time that company uses the ceremony (activity-driven, as invitation retention is); account erasure deletes them; no name or email is ever copied into the row |
 | Device preference        | theme, zoom and similar settings                                                    | localStorage                                                               | device-local, not account data/export; explicit device clear                                                                                   |
+
+Ownership-transfer revisions are strictly increasing concurrency guards. If a persisted revision is
+corrupted or has exhausted the safe range, transition and membership-invalidation writes fail closed
+without partially ending the request.
 
 Every `/api/*` response receives `Cache-Control: no-store` and `Pragma: no-cache`. The SPA contains no
 advertising, analytics or crash-reporting integration. The only default outbound application call is

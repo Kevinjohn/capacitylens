@@ -5,10 +5,10 @@ description: The three ways to sign in to CapacityLens, how they stay linked to 
 
 # How sign-in works
 
-CapacityLens supports three ways for someone to sign in: a password, a social sign-in
-button, or your company's own login system (single sign-on). Every installation
-supports at least one of these; most self-hosted installations start on passwords and
-move to company login later. This page explains what each mode is, how a person stays
+An auth-enabled CapacityLens installation supports one or more of three ways to sign in:
+a password, a social sign-in button, or your company's own login system (single sign-on).
+The demo and trusted-local mode deliberately have no sign-in; most self-hosted installations
+start on passwords and move to company login later. This page explains what each mode is, how a person stays
 "the same person" no matter which one they use, and how sessions and two-factor codes
 work. If you're ready to set company login up, skip to [Set up your company
 login](/company-login/set-up-company-login); if you're moving an existing team off
@@ -21,11 +21,23 @@ self-hosted install, the first person in signs up with a one-time setup token; e
 after that needs an invitation. This is the fastest way to start, and it's the default
 for a new installation.
 
-**Social sign-in.** A "Continue with Google" or "Continue with Microsoft" style button.
+**Social sign-in.** A recognisable Google, Microsoft or GitHub button. Each configured provider
+uses the same branded treatment on the sign-in wall, invitation acceptance and identity
+confirmation prompts.
 These are marked **experimental** in CapacityLens: they work, but they're a lighter-weight
-option than company login and aren't accepted on installations that require company login.
-Treat them as a convenience for people who already have one of those accounts, not as your
-main door.
+option than company login. In mixed password mode, a configured Google action is shown first on
+the sign-in wall, followed by **or use your password** and the password form; other configured
+providers remain available below that fallback. A self-hosted company-login-only installation may
+keep configured social buttons as sign-in doors for existing people, but they cannot create a new
+identity or accept an invitation. The hosted company-login-only profile refuses social-provider settings.
+To make company login the only door,
+remove every named social provider's client-id and client-secret pair, restart CapacityLens, and
+check that the buttons are gone. See the [cutover FAQ](/company-login/move-to-single-sign-on#what-about-the-sign-in-with-google-continue-with-microsoft-github-style-buttons)
+and [Configuration](/self-hosting/configuration#company-login) for the exact settings.
+
+![The CapacityLens sign-in page in light mode, showing branded Google, Microsoft and GitHub buttons](../screenshots/flows/social_provider_buttons_light.jpg)
+
+![The CapacityLens sign-in page in dark mode, showing branded Google, Microsoft and GitHub buttons](../screenshots/flows/social_provider_buttons_dark.jpg)
 
 **Company login.** Also called single sign-on, or SSO. The person clicks "Continue with
 [your company]" and is sent to the [identity provider](/reference/glossary) your
@@ -53,7 +65,7 @@ email address.
 For example: Dave signed up for CapacityLens with the password `dave@agency.com`, but
 his company's login system knows him as `david.smith@agency.co.uk`. CapacityLens
 won't silently treat those as the same person just because they sound alike. Instead,
-Dave signs in with his password as usual, opens **Settings → Security → Company sign-in**
+Dave signs in with his password as usual, opens **Account → Security → Company sign-in**
 and clicks **Connect**. He's sent to that login system, signs in there, and comes back —
 and only then are the two identities linked. From that point on, CapacityLens
 remembers him by a stable ID the login system issues (not by his email address), so
@@ -71,12 +83,15 @@ A CapacityLens session lasts at most twelve hours from the moment someone signs 
 doesn't renew itself just because they're active — after twelve hours, they sign in
 again regardless. Separately, thirty minutes with no activity also signs someone out.
 
-A handful of sensitive actions — changing a password, resetting someone else's
-password, removing a member, exporting data, deleting a company — need a session that's
-"fresh": if it's been more than fifteen minutes since the person last proved who they
-are, CapacityLens asks them to confirm again (their password, or a two-factor code)
-before letting the action through. This doesn't sign them out or lose their place; it's
-a quick check in place.
+A handful of sensitive actions — resetting someone else's password, signing someone out of
+every session, connecting, correcting or removing a company-login identity, transferring company
+ownership, deleting a company, and importing or purging company data — need a session that's
+"fresh": if it's been more than fifteen minutes since the person last proved who they are,
+CapacityLens asks them to confirm again with their password, a local two-factor code, or the company
+login provider before letting the action through. This doesn't sign them out or lose their place;
+it's a quick check in place. Other administrative actions — inviting or removing a member, changing
+a role or status, and similar day-to-day admin work — only need the right role and, where required,
+two-factor sign-in; they don't ask for this extra confirmation.
 
 ## Extra security: two-factor sign-in
 

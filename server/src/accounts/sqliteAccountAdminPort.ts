@@ -11,6 +11,7 @@ import { createCutover } from "./adminPort/cutover";
 import { createInvitationClaims } from "./adminPort/invitationClaims";
 import { createInvitations } from "./adminPort/invitations";
 import { createMembership } from "./adminPort/membership";
+import { createOwnershipTransferOperations } from "./adminPort/ownershipTransfer";
 import { beginCommand, completeCommand, markAccountCommandReplay, terminateCommand } from "./commands";
 import { KeyedOperationLock } from "./KeyedOperationLock";
 import { WriteOnceSecretReplay } from "./WriteOnceSecretReplay";
@@ -51,7 +52,17 @@ interface MutationOptions<Execute extends () => unknown> {
   replayGuard?: () => void;
   afterCommit?: (result: ReturnType<Execute>) => void;
   afterRollback?: () => void;
-  audit?: { action: StandardAccountAuditAction; changedFields: readonly string[] };
+  audit?: {
+    action: StandardAccountAuditAction;
+    changedFields: readonly string[];
+    /** Derive the event for a committed result. Failure and denial keep the static action, and
+     *  `changedFields` above covers every outcome — a committed result names which event it was,
+     *  not which columns moved. */
+    successAction?: (result: ReturnType<Execute>) => {
+      action: StandardAccountAuditAction;
+      eventKey?: string;
+    };
+  };
 }
 
 interface MutationDependencies {
@@ -61,9 +72,9 @@ interface MutationDependencies {
   audit: ReturnType<typeof createAccountAuditWriter>;
 }
 
-function buildCommandScope(
+function buildCommandScope<Execute extends () => unknown>(
   dependencies: Pick<MutationDependencies, "applicationId">,
-  options: MutationOptions<() => unknown>,
+  options: MutationOptions<Execute>,
 ) {
   return {
     applicationId: dependencies.applicationId,
@@ -74,14 +85,18 @@ function buildCommandScope(
   };
 }
 
-function writeMutationAudit(
+function writeMutationAudit<Execute extends () => unknown>(
   dependencies: Pick<MutationDependencies, "audit">,
-  options: MutationOptions<() => unknown>,
-  outcome: "success" | "denied" | "failed",
+  options: MutationOptions<Execute>,
+  result: { outcome: "success"; value: ReturnType<Execute> } | { outcome: "denied" | "failed" },
 ): void {
   if (!options.audit) return;
+  const { outcome } = result;
+  const event =
+    result.outcome === "success" ? (options.audit.successAction?.(result.value) ?? options.audit) : options.audit;
   dependencies.audit({
-    action: options.audit.action,
+    action: event.action,
+    ...("eventKey" in event ? { eventKey: event.eventKey } : {}),
     outcome,
     ...(options.workspaceId === undefined ? {} : { workspaceId: options.workspaceId }),
     actorPrincipalId: options.actorPrincipalId,
@@ -96,14 +111,19 @@ function isDeniedMutation(error: unknown): boolean {
   return ["FORBIDDEN", "NOT_MEMBER", "SESSION_NOT_FRESH", "MFA_REQUIRED"].includes(error.failure.code);
 }
 
-interface RecordFailedMutationInput {
+interface RecordFailedMutationInput<Execute extends () => unknown> {
   dependencies: Pick<MutationDependencies, "db" | "audit">;
-  options: MutationOptions<() => unknown>;
+  options: MutationOptions<Execute>;
   scope: ReturnType<typeof buildCommandScope>;
   error: unknown;
 }
 
-function recordFailedMutation({ dependencies, options, scope, error }: RecordFailedMutationInput): void {
+function recordFailedMutation<Execute extends () => unknown>({
+  dependencies,
+  options,
+  scope,
+  error,
+}: RecordFailedMutationInput<Execute>): void {
   recordTerminalOutcome(
     error,
     () => {
@@ -117,7 +137,7 @@ function recordFailedMutation({ dependencies, options, scope, error }: RecordFai
             status: "compensated",
             failureCode: error instanceof AccountContractError ? error.failure.code : "CONFLICT",
           });
-          writeMutationAudit(dependencies, options, isDeniedMutation(error) ? "denied" : "failed");
+          writeMutationAudit(dependencies, options, { outcome: isDeniedMutation(error) ? "denied" : "failed" });
         },
         "immediate",
       );
@@ -139,7 +159,7 @@ function executeMutation<Execute extends () => unknown>(
       command: options.command,
       result: options.persistResult ? options.persistResult(result) : result,
     });
-    writeMutationAudit(dependencies, options, "success");
+    writeMutationAudit(dependencies, options, { outcome: "success", value: result });
     return result;
   }) as SynchronousCallback<() => ReturnType<Execute>>;
   return tx(dependencies.db, transaction, "immediate");
@@ -188,11 +208,12 @@ export function createSqliteAccountAdminPort(input: CreateSqliteAccountAdminPort
     input.writeOnceReplayCapacity ?? MAX_SECRET_REPLAYS,
   );
   const runMutation = createRunMutation({ applicationId, db, lock, audit });
-  const context = { applicationId, db, trustedLocal, requireMfa, invitationSecretReplay, runMutation };
+  const context = { applicationId, audit, db, trustedLocal, requireMfa, invitationSecretReplay, runMutation };
   return {
     ...createAuthority(context),
     ...createCutover(context),
     ...createMembership(context),
+    ...createOwnershipTransferOperations(context),
     ...createInvitations(context),
     ...createInvitationClaims(context),
   };

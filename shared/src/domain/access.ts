@@ -2,6 +2,7 @@
 // provider-neutral account contract; this module adds product-data actions and field visibility.
 // Both the browser and server import these pure rules so affordances and enforcement cannot drift.
 import type { Role } from "../account/types";
+import type { CapacityOverviewAccess } from "../types/entities";
 import {
   canAdministerAccount,
   canAdministerIdentityAcrossWorkspaces,
@@ -30,7 +31,10 @@ export type { Role } from "../account/types";
  * - `'manageMemberSignInTracking'` — opt into coarse sign-in confirmation. Owner ONLY.
  * - `'purge'`            — hard-delete (purge) tombstoned data. Admin tier (owner | admin).
  * - `'deleteAccount'`    — erase an entire account and its members' orphaned identities. Owner ONLY.
- * - `'transferOwnership'`— hand the account to another login. Owner ONLY.
+ * - `'transferOwnership'`— propose, cancel or finally approve an ownership transfer. Owner ONLY.
+ * - `'actOnOwnershipTransfer'` — reach the ownership-transfer ceremony at all. Admin tier, because
+ *   the nominated Admin must be able to give or withdraw their own consent; participant identity
+ *   decides each specific action.
  *
  * INVARIANT: this union is the closed vocabulary the matrix is exhaustive over (see {@link can}'s
  * `satisfies Record<Action, …>`): adding a member here without a rule fails to compile.
@@ -45,7 +49,8 @@ export type Action =
   | "manageMemberSignInTracking"
   | "purge"
   | "deleteAccount"
-  | "transferOwnership";
+  | "transferOwnership"
+  | "actOnOwnershipTransfer";
 
 // Product-data policy stays here; account-administration policy lives in account/policy.ts. Both
 // use the account boundary's one canonical role ordering.
@@ -73,6 +78,7 @@ const ACCOUNT_ADMIN_ACTION = {
   manageMemberSignInTracking: "manage-member-sign-in-tracking",
   deleteAccount: "erase-workspace",
   transferOwnership: "transfer-ownership",
+  actOnOwnershipTransfer: "act-on-ownership-transfer",
 } as const satisfies Record<AccountAdministrationAction, AccountAdminAction>;
 
 type ProductDataAction = "read" | "write" | "manageInternalClient" | "purge";
@@ -286,4 +292,16 @@ export function canSeeTimeOffNote(role: Role): boolean {
  */
 export function canSeePrivateNames(role: Role): boolean {
   return role === "owner";
+}
+
+/**
+ * Decide whether a member may open Capacity Overview under an account's access setting.
+ *
+ * PURE: no I/O or session state. An absent or malformed setting fails closed to the documented
+ * owner/admin default so direct-route callers cannot accidentally expose the page.
+ */
+export function canViewCapacityOverview(role: Role, access: CapacityOverviewAccess | undefined): boolean {
+  if (access === "everyone") return true;
+  if (access === "owner_admin_editor") return role === "owner" || role === "admin" || role === "editor";
+  return role === "owner" || role === "admin";
 }

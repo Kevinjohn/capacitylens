@@ -9,6 +9,7 @@ import {
   markInviteUsed,
   preauthInviteAllows,
   pruneInvites,
+  settleInvitationPersonProposal,
   upsertMember,
 } from "../../controlTables";
 import { markAccountCommandReplay, resumeExistingCommand } from "../commands";
@@ -95,6 +96,16 @@ function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvit
       createdAt: now,
     });
   }
+  // Admission is the first and only point at which an invitation proposal may attempt the live
+  // association. This helper is deliberately transaction-aware: expected occupancy/eligibility
+  // outcomes become an admin-visible exception, while storage/integrity errors escape and roll back.
+  settleInvitationPersonProposal({
+    db: context.db,
+    invitationId: live.id,
+    accountId: live.accountId,
+    userId: input.principalId,
+    now,
+  });
   // Invitation acceptance itself runs only for the verified/authenticated principal. If the
   // membership is created after its session, the session hook could not have observed this
   // account yet, so confirm it inside the same invitation transaction.

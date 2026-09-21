@@ -10,9 +10,10 @@ import {
   assertSchemaV33,
   assertSchemaV34,
   assertSchemaV35,
-  assertSchemaCurrent,
   assertSchemaV36,
   assertSchemaV37,
+  assertSchemaV38,
+  assertSchemaV39,
 } from "../../schema";
 import { ensureControlTables, assertControlTablesCurrent, SINGLE_OWNER_INDEX } from "../../controlTables";
 import { migrateSingleOwnerControlPlaneV10, assertSingleOwnerControlPlaneV10 } from "../../controlTables";
@@ -20,6 +21,7 @@ import { migrateOwnerlessControlPlaneV11, assertSingleOwnerControlPlaneCurrent }
 import { reportOwnerlessPromotionsV11, migrateOwnerResetCeremoniesV12 } from "../../controlTables";
 import { migrateMemberResetCeremoniesV14, USED_INVITATION_RETENTION_V24_DEFINITION } from "../../controlTables";
 import { migrateUsedInvitationHistoryV24 } from "../../controlTables";
+import { OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, runOwnershipTransfersV41 } from "../../controlTables";
 import { isInitialized, markInitialized } from "../initialization";
 import { isEmpty } from "@capacitylens/shared/types/entities";
 import { readState } from "../slices";
@@ -32,7 +34,13 @@ import {
   ACTIVITY_LIFECYCLE_V36_DEFINITION,
   ALLOCATION_TASK_V37_DEFINITION,
   RESOURCE_AVAILABILITY_V38_DEFINITION,
+  CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION,
+  ACCOUNT_DATE_STYLE_V40_DEFINITION,
+  runAccountDateStyleV40,
 } from "./definitions";
+import { RESOURCE_AVATAR_URL_V42_MIGRATION } from "./resourceAvatarUrlV42";
+import { ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION } from "./accountMemberResourcesV43";
+import { INVITATION_PERSON_PROPOSALS_V44_MIGRATION } from "./invitationPersonProposalsV44";
 import { migrateTimeOffResourceNullableV33, COMPANY_CLOSURES_V34_DEFINITION } from "./definitions";
 import { migrateCompanyClosuresV34 } from "./definitions";
 import { ACCOUNT_BOUNDARY_STATE_V15_SQL, assertAccountBoundaryStateCurrent } from "../../accounts/state";
@@ -67,8 +75,6 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       INTERNAL_CLIENT_UNIQUE_INDEX_SQL,
     ].join("\n-- migration component --\n"),
     (db) => {
-      // Consolidate every legacy v0-v7 file through the already-proven, introspection-gated
-      // repair path. From v8 onward, persisted changes get their own ordered migration entry.
       renameLegacyActivityTables(db);
       db.exec(SCHEMA_V8_SQL);
       migrateSchemaV8(db);
@@ -88,9 +94,7 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       "ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;",
     ].join("\n"),
     (db) => {
-      // Some pre-ledger development databases were manually version-stamped after receiving the
-      // current optional-column repair. Keep the explicit migration idempotent for that shape while
-      // real released v8 databases take the ALTER path.
+      // Pre-ledger development databases may already have the optional column.
       if (!tableHasColumns(db, "accounts", ["internalColourMode"])) {
         db.exec("ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;");
       }
@@ -366,15 +370,27 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     for (const column of ["firstAvailableDate", "lastAvailableDate"]) {
       if (!tableHasColumns(db, "resources", [column])) db.exec(`ALTER TABLE resources ADD COLUMN ${column} TEXT;`);
     }
-    assertSchemaCurrent(db);
+    assertSchemaV38(db);
     assertTenantRelationshipIntegrityCurrent(db);
     assertTenantEntityIndexesCurrent(db);
   }),
+  defineMigration(39, "add-capacity-overview-access", CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION, (db) => {
+    assertSchemaV38(db);
+    if (!tableHasColumns(db, "accounts", ["capacityOverviewAccess"])) {
+      db.exec("ALTER TABLE accounts ADD COLUMN capacityOverviewAccess TEXT;");
+    }
+    assertSchemaV39(db);
+    assertTenantRelationshipIntegrityCurrent(db);
+    assertTenantEntityIndexesCurrent(db);
+  }),
+  defineMigration(40, "add-account-date-style", ACCOUNT_DATE_STYLE_V40_DEFINITION, runAccountDateStyleV40),
+  defineMigration(41, "add-ownership-transfer-requests", OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, runOwnershipTransfersV41),
+  RESOURCE_AVATAR_URL_V42_MIGRATION,
+  ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION,
+  INVITATION_PERSON_PROPOSALS_V44_MIGRATION,
 ];
-
-if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {
+if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION)
   throw new Error("DB_SCHEMA_VERSION must equal the newest explicit database migration.");
-}
 for (let index = 1; index < DATABASE_MIGRATIONS.length; index += 1) {
   const migration = DATABASE_MIGRATIONS[index];
   const previous = DATABASE_MIGRATIONS[index - 1];

@@ -53,6 +53,7 @@ function registerImportRouteGroup(input: RegisterRouteGroupInput): void {
     authMode: config.authMode,
     allowReset: options.allowReset === true,
     accountAdminPort: runtime.accountAdminPort,
+    memberResources: runtime.memberResources,
     accountLock: runtime.accountLock,
     authorize: authorization.authorizeAllowed,
     executeImportWorker: config.executeImportWorker,
@@ -124,6 +125,7 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
   const { authorizeAllowed, fieldVisibilityFor, memberReadProjection, redactWriteEcho, resolveEffectiveRole } =
     authorization;
   registerAccountRoutes(app, {
+    memberResources: runtime.memberResources,
     authMode,
     authenticationConfigured: auth !== null,
     requiredSsoProviderId: authMode === "sso" ? (auth?.strictProvider?.id ?? null) : null,
@@ -136,6 +138,9 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
         setMemberSignInTracking({ db, accountId: workspaceId, actorPrincipalId, enabled }),
     },
     authorize: authorizeAllowed,
+    // Only the ceremony read consults this: the global masquerade policy already refuses every
+    // unsafe method, so the six commands need no check of their own.
+    isMasquerading: (request) => request.session !== null && masquerades.peek(request.session.id) !== undefined,
     command: createAccountCommand,
     audit,
     fail: accountFail,
@@ -174,6 +179,7 @@ function buildPlatformRouteDependencies(input: RegisterApiRoutesInput) {
     system: {
       securityEvent,
       healthStatement: healthStmt,
+      diagnosticsSchemaStatement: runtime.diagnosticsSchemaStatement,
       auditDrainer,
       auditSink,
       ...(options.backupHealth === undefined ? {} : { backupHealth: options.backupHealth }),

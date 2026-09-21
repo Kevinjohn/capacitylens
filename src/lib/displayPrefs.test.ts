@@ -17,8 +17,6 @@ import {
   readStoredBarLabelPrefs,
   writeStoredBarLabelPrefs,
   DEFAULT_BAR_LABEL_PREFS,
-  readStoredIntroSeen,
-  writeStoredIntroSeen,
   readStoredGettingStartedDismissed,
   writeStoredGettingStartedDismissed,
 } from "./displayPrefs";
@@ -339,7 +337,19 @@ describe("sidebar default (viewport-derived)", () => {
     const matchMedia = vi.fn().mockReturnValue({ matches: false });
     window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
     readDefaultSidebarOpen();
-    expect(matchMedia).toHaveBeenCalledWith("(max-width: 767px), (max-height: 480px)");
+    expect(matchMedia).toHaveBeenCalledWith("(max-width: 1023px), (max-height: 480px)");
+  });
+
+  it("collapses by default at 1023px (below the lg breakpoint)", () => {
+    const matchMedia = vi.fn((query: string) => ({ matches: query.includes("max-width: 1023px") }));
+    window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
+    expect(readDefaultSidebarOpen()).toBe(false);
+  });
+
+  it("opens by default at 1024px (the lg breakpoint)", () => {
+    const matchMedia = vi.fn(() => ({ matches: false }));
+    window.matchMedia = matchMedia as unknown as typeof window.matchMedia;
+    expect(readDefaultSidebarOpen()).toBe(true);
   });
 
   it("defaults open when matchMedia throws", () => {
@@ -347,28 +357,6 @@ describe("sidebar default (viewport-derived)", () => {
       throw new Error("blocked");
     }) as unknown as typeof window.matchMedia;
     expect(readDefaultSidebarOpen()).toBe(true);
-  });
-});
-
-describe("intro-seen preference", () => {
-  beforeEach(() => {
-    localStorage.removeItem("capacitylens/introSeen");
-  });
-
-  it("defaults to FALSE (not yet seen) when never chosen", () => {
-    expect(readStoredIntroSeen()).toBe(false);
-  });
-
-  it("round-trips an explicit on/off choice", () => {
-    writeStoredIntroSeen(true);
-    expect(readStoredIntroSeen()).toBe(true);
-    writeStoredIntroSeen(false);
-    expect(readStoredIntroSeen()).toBe(false);
-  });
-
-  it("persists under the documented storage key", () => {
-    writeStoredIntroSeen(true);
-    expect(localStorage.getItem("capacitylens/introSeen")).toBe("on");
   });
 });
 

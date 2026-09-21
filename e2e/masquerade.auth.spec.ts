@@ -1,6 +1,6 @@
 import { expect, test } from "./fixtures";
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { dismissIntroIfPresent } from "./helpers";
+import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -31,7 +31,7 @@ test.describe("member masquerade", () => {
     await page.getByLabel("Password").fill(AUTH_PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
     await page.getByRole("button", { name: COMPANY, exact: true }).click();
-    await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
+    await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
 
     await page.getByRole("link", { name: "Team & access" }).click();
     const viewerRow = page.getByTestId("member-row").filter({ hasText: VIEWER_EMAIL });
@@ -45,14 +45,16 @@ test.describe("member masquerade", () => {
     await expect(banner).toHaveAttribute("role", "status");
     await expect(banner).toContainText("Masquerading as");
     await expect(banner.getByRole("button", { name: "End now" })).toBeVisible();
-    await expect(page.getByTestId("view-only")).toBeVisible();
+    await expect(page.getByTestId("current-access")).toContainText("Viewer");
     await expect(page.getByTestId("members-section")).toHaveCount(0);
 
     await banner.getByRole("button", { name: "End now" }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
     await expect(page.getByTestId("masquerade-banner")).toHaveCount(0);
-    await expect(page.getByTestId("view-only")).toHaveCount(0);
     await expect(page.getByTestId("getting-started")).toBeVisible();
+    await page.getByRole("link", { name: "Team & access" }).click();
+    await expect(page.getByTestId("current-access")).toContainText("Owner");
+    await expect(page.getByTestId("members-section")).toBeVisible();
   });
 });

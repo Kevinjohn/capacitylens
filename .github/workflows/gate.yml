@@ -1,10 +1,10 @@
 name: gate
 
-# Deliberately no `pull_request:` trigger. Work lands through a pull request, but the
-# checks run when the merge reaches `main` — or on demand from the Actions tab / `gh
-# workflow run gate.yml --ref <branch>` before merging. Opening a pull request and pushing
-# to its branch used to fire this workflow (and e2e, docker, security and CodeQL) on every
-# event, which is several full passes per change for no added signal.
+# Deliberately no `pull_request:` trigger. The focused static-analysis and CodeQL workflows
+# cover pull requests; these heavier checks run when the merge reaches `main` — or on demand
+# from the Actions tab / `gh workflow run gate.yml --ref <branch>` before merging. Running
+# every full workflow on each pull-request event produced several passes per change for no
+# added signal.
 on:
   workflow_dispatch:
   push:

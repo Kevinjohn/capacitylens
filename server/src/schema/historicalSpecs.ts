@@ -50,6 +50,52 @@ function liveTableSpec(table: string): TableSpec {
   return spec;
 }
 
+const PRE_V42_TABLES: Record<string, TableSpec> = {
+  ...TABLES,
+  resources: {
+    ...liveTableSpec("resources"),
+    columns: liveTableSpec("resources").columns.filter((column) => column.name !== "avatarUrl"),
+  },
+};
+
+const ACCOUNT_COLUMN_INTRODUCED_AT: Record<string, number> = {
+  id: 8,
+  name: 8,
+  color: 8,
+  schedulingMode: 8,
+  timezone: 8,
+  weekStartsOn: 8,
+  language: 8,
+  disciplinesEnabled: 8,
+  placeholdersEnabled: 8,
+  externalEnabled: 8,
+  createdAt: 8,
+  updatedAt: 8,
+  internalColourMode: 9,
+  showInternalProjects: 16,
+  showInternalActivities: 16,
+  inlineActivityCreateEnabled: 16,
+  groupResourcesByEngagement: 30,
+  workingDays: 31,
+  showTaskFieldInSchedule: 37,
+  capacityOverviewAccess: 39,
+  dateStyle: 40,
+};
+
+export function buildAccountsTableAtVersion(targetVersion: number): TableSpec {
+  const accounts = liveTableSpec("accounts");
+  return {
+    ...accounts,
+    columns: accounts.columns.filter((column) => {
+      const introducedAt = ACCOUNT_COLUMN_INTRODUCED_AT[column.name];
+      if (introducedAt === undefined) {
+        throw new Error(`Missing ACCOUNT_COLUMN_INTRODUCED_AT entry for live accounts column "${column.name}".`);
+      }
+      return introducedAt <= targetVersion;
+    }),
+  };
+}
+
 export const V8_TABLES = tableSpecsFromHistoricalSql(SCHEMA_V8_SQL);
 export const V9_TABLES = tableSpecsFromHistoricalSql(`${SCHEMA_V8_SQL}
 ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;`);
@@ -60,21 +106,8 @@ ALTER TABLE accounts ADD COLUMN showInternalActivities TEXT;
 ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;`);
 // Historical contracts let released migrations validate their own result without accidentally
 // requiring columns owned by a later migration.
-const V29_ACCOUNTS: TableSpec = {
-  ...liveTableSpec("accounts"),
-  columns: liveTableSpec("accounts").columns.filter(
-    (column) =>
-      column.name !== "groupResourcesByEngagement" &&
-      column.name !== "workingDays" &&
-      column.name !== "showTaskFieldInSchedule",
-  ),
-};
-const V30_ACCOUNTS: TableSpec = {
-  ...liveTableSpec("accounts"),
-  columns: liveTableSpec("accounts").columns.filter(
-    (column) => column.name !== "workingDays" && column.name !== "showTaskFieldInSchedule",
-  ),
-};
+const V29_ACCOUNTS = buildAccountsTableAtVersion(29);
+const V30_ACCOUNTS = buildAccountsTableAtVersion(30);
 const PRE_V35_ALLOCATIONS: TableSpec = {
   ...liveTableSpec("allocations"),
   columns: liveTableSpec("allocations").columns.filter(
@@ -98,11 +131,8 @@ const V32_TIME_OFF: TableSpec = {
   ),
 };
 const PRE_V37_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
-  accounts: {
-    ...liveTableSpec("accounts"),
-    columns: liveTableSpec("accounts").columns.filter((column) => column.name !== "showTaskFieldInSchedule"),
-  },
+  ...PRE_V42_TABLES,
+  accounts: buildAccountsTableAtVersion(36),
   allocations: {
     ...liveTableSpec("allocations"),
     columns: liveTableSpec("allocations").columns.filter((column) => column.name !== "task"),
@@ -110,7 +140,8 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
   resources: {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
-      (column) => column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+      (column) =>
+        column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate" && column.name !== "avatarUrl",
     ),
   },
 };
@@ -118,14 +149,35 @@ const PRE_V37_TABLES: Record<string, TableSpec> = {
 // that are absent from this historical contract; keep the v37 fields present so the v38
 // precondition proves the exact released shape before adding its two columns.
 export const V37_TABLES: Record<string, TableSpec> = {
-  ...TABLES,
+  ...PRE_V42_TABLES,
+  accounts: buildAccountsTableAtVersion(37),
   resources: {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
-      (column) => column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+      (column) =>
+        column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate" && column.name !== "avatarUrl",
     ),
   },
 };
+/** Released v38 shape before the Capacity Overview access preference is added. */
+export const V38_TABLES: Record<string, TableSpec> = {
+  ...PRE_V42_TABLES,
+  accounts: buildAccountsTableAtVersion(38),
+};
+/** Released v39 shape before the account-wide date format is added. */
+export const V39_TABLES: Record<string, TableSpec> = {
+  ...PRE_V42_TABLES,
+  accounts: buildAccountsTableAtVersion(39),
+};
+/**
+ * Released v40 shape. The account columns are derived at the v40 boundary, so a later account
+ * migration only needs to add its column and introduction version to the map above.
+ */
+export const V40_TABLES: Record<string, TableSpec> = {
+  ...PRE_V42_TABLES,
+  accounts: buildAccountsTableAtVersion(40),
+};
+
 const PRE_V34_TABLES = Object.fromEntries(
   Object.entries(PRE_V37_TABLES).filter(([key]) => key !== "closures"),
 ) as Record<string, TableSpec>;
@@ -142,6 +194,7 @@ export const V27_TABLES: Record<string, TableSpec> = {
       (column) =>
         column.name !== "halfDays" &&
         column.name !== "engagement" &&
+        column.name !== "avatarUrl" &&
         column.name !== "firstAvailableDate" &&
         column.name !== "lastAvailableDate",
     ),
@@ -156,7 +209,10 @@ export const V28_TABLES: Record<string, TableSpec> = {
     ...liveTableSpec("resources"),
     columns: liveTableSpec("resources").columns.filter(
       (column) =>
-        column.name !== "engagement" && column.name !== "firstAvailableDate" && column.name !== "lastAvailableDate",
+        column.name !== "engagement" &&
+        column.name !== "avatarUrl" &&
+        column.name !== "firstAvailableDate" &&
+        column.name !== "lastAvailableDate",
     ),
   },
 };

@@ -2,6 +2,8 @@
 
 **Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)" — the one test that asserts the Monday re-anchor for **Weeks visible**, **Next**, **Prev** and **Today**
 
+**Documentation:** [Settings](../../docs-src/guide/settings.md)
+
 ## Goal
 
 Whenever the manager navigates the timeline — a **Weeks visible** choice (1/2/4/6/8 weeks), **Prev**/**Next**, or **Today** — the grid's leftmost column always lands on the week start (the account `weekStartsOn`, default Monday), never mid-week.
@@ -12,7 +14,7 @@ This is a weekly view. A left edge parked on a Wednesday makes every week bounda
 
 ## How (end-to-end)
 
-**Precondition:** Seeded app open at **Schedule** (`/`), viewport ~1440 wide. In **Settings → Schedule**, turn **Snap to week start** off so its idle free-scroll behavior cannot mask the always-on navigation behavior, then return to **Schedule**. (Do not pre-set **Weeks visible** — this story changes it.)
+**Precondition:** Seeded app open at **Schedule** (`/`), viewport ~1440 wide. In **Settings → My display → Schedule on this device**, turn **Snap to week start** off so its idle free-scroll behavior cannot mask the always-on navigation behavior, then return to **Schedule**. (Do not pre-set **Weeks visible** — this story changes it.)
 
 1. Open **Weeks visible** and choose **1 week**. Read the leftmost date-header column — its weekday label is **Mon** (the focused week start).
 2. Scroll the grid right by ~2.5 day columns so the leftmost column is now a mid-week day (e.g. its label reads **Wed**).

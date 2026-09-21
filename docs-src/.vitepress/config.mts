@@ -2,10 +2,12 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "vitepress";
 import { imageLightbox } from "./lightbox.mts";
 import { BASE } from "./base.mjs";
+import { generateDocumentationComponentId } from "./generateDocumentationComponentId.mts";
+import { ports } from "../../scripts/ports.mjs";
 
 // The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
-// Sidebar order is the reading order: sections run from "never seen it" to
-// "operating it in production" to "reference".
+// Each task track has its own ordered sidebar. The longest matching path is
+// listed first where two tracks reuse an existing reference page.
 // Escape closes an open screenshot lightbox. Opening, closing by click, and all
 // the styling are pure CSS (see lightbox.mts); this one keystroke is the only
 // part CSS cannot express, so it is the only script the standalone build keeps —
@@ -19,7 +21,167 @@ import { BASE } from "./base.mjs";
 // Read measured source at build time; the generated page still contains this one inline script.
 const escapeClosesLightbox = readFileSync(new URL("../../scripts/docs-lightbox.js", import.meta.url), "utf8").trimEnd();
 
+// VitePress is Vite, so `docs:dev` would default to 5173 and `docs:preview` to 4173 — the exact
+// ports the application dev server and the E2E suite bind. Writing documentation would then quietly
+// block a test run in another worktree, and the collision surfaces as an unrelated E2E failure.
+// Pin both to the documentation lane instead (scripts/ports.mjs).
+const lanePorts = ports();
+
+const usingSidebar = [
+  {
+    text: "Day-to-day usage",
+    items: [
+      { text: "Start here", link: "/using/" },
+      { text: "Join your team", link: "/using/join-your-team" },
+      {
+        text: "Page guide",
+        items: [
+          { text: "Schedule", link: "/using/read-the-schedule" },
+          { text: "Overview", link: "/using/overview" },
+          { text: "Resources", link: "/using/resources" },
+          { text: "Disciplines", link: "/using/disciplines" },
+          { text: "Clients", link: "/using/clients" },
+          { text: "Projects", link: "/using/projects" },
+          { text: "Activities", link: "/using/activities" },
+          { text: "Time off", link: "/using/time-off" },
+        ],
+      },
+      {
+        text: "Scheduling tasks",
+        items: [
+          { text: "Find capacity", link: "/using/find-capacity" },
+          { text: "Schedule work", link: "/using/schedule-work" },
+          { text: "Change work", link: "/using/change-work" },
+          { text: "Record time off", link: "/using/record-time-off" },
+        ],
+      },
+      {
+        text: "When you need it",
+        items: [
+          { text: "Settings", link: "/using/settings" },
+          { text: "Account", link: "/using/account" },
+          { text: "Team & access", link: "/using/team-access" },
+          { text: "FAQ", link: "/using/faq" },
+        ],
+      },
+    ],
+  },
+];
+
+const ownerSidebar = [
+  {
+    text: "Owner setup",
+    items: [
+      { text: "Start here", link: "/owner/" },
+      { text: "Create your company", link: "/owner/create-your-company" },
+      { text: "Appoint an Admin", link: "/owner/appoint-an-admin" },
+      { text: "Owner responsibilities", link: "/owner/responsibilities" },
+      { text: "Roles and permissions", link: "/getting-started/roles-and-permissions" },
+      { text: "Owner FAQ", link: "/owner/faq" },
+    ],
+  },
+];
+
+const adminSidebar = [
+  {
+    text: "Admin and settings",
+    items: [
+      { text: "Start here", link: "/admin/" },
+      { text: "Invite teammates", link: "/admin/invite-teammates" },
+      { text: "Add people to the schedule", link: "/admin/add-people" },
+      { text: "Choose company settings", link: "/admin/company-settings" },
+      { text: "Prepare clients and work", link: "/admin/prepare-work" },
+      { text: "Make the first booking", link: "/admin/first-booking" },
+      { text: "Ongoing administration", link: "/admin/ongoing-administration" },
+      { text: "Admin FAQ", link: "/admin/faq" },
+    ],
+  },
+];
+
+const installationSidebar = [
+  {
+    text: "Technical installation",
+    items: [
+      { text: "Start here", link: "/installation/" },
+      { text: "Choose how to install", link: "/getting-started/install" },
+      { text: "Install with Docker", link: "/self-hosting/install-with-docker" },
+      { text: "Install without Docker", link: "/self-hosting/install-without-docker" },
+      {
+        text: "Deploy on a managed VPS",
+        link: "/self-hosting/managed-vps/",
+        items: [
+          { text: "Choose the release source", link: "/self-hosting/managed-vps/choose-the-release-source" },
+          { text: "Create and build the site", link: "/self-hosting/managed-vps/create-and-build-the-site" },
+          { text: "Configure the API and nginx", link: "/self-hosting/managed-vps/configure-the-api-and-nginx" },
+          { text: "Deploy and upgrade safely", link: "/self-hosting/managed-vps/deploy-and-upgrade-safely" },
+          { text: "Finish and hand over", link: "/self-hosting/managed-vps/finish-and-operate-the-installation" },
+        ],
+      },
+      { text: "Configure the service", link: "/installation/configure-the-service" },
+      { text: "Secure the connection", link: "/installation/secure-the-connection" },
+      { text: "Verify and hand over", link: "/installation/verify-and-hand-over" },
+      { text: "Installation FAQ", link: "/installation/faq" },
+    ],
+  },
+];
+
+const operationsSidebar = [
+  {
+    text: "Self-hosted operations",
+    items: [
+      { text: "Start here", link: "/operations/" },
+      { text: "Backups and restore", link: "/self-hosting/backups-and-restore" },
+      { text: "Upgrades", link: "/self-hosting/upgrades" },
+      { text: "Monitoring and health checks", link: "/self-hosting/monitoring" },
+      { text: "Configuration", link: "/self-hosting/configuration" },
+      { text: "Company login", link: "/company-login/" },
+      { text: "Ownership-transfer recovery", link: "/self-hosting/ownership-transfer-recovery" },
+      { text: "When something goes wrong", link: "/self-hosting/incidents" },
+      { text: "Operations FAQ", link: "/operations/faq" },
+    ],
+  },
+];
+
+const referenceSidebar = [
+  {
+    text: "Reference",
+    items: [
+      { text: "Glossary", link: "/reference/glossary" },
+      { text: "Security and privacy", link: "/security/" },
+      { text: "Privacy", link: "/security/privacy" },
+      { text: "Reviews and compliance", link: "/security/reviews" },
+      { text: "Threat model", link: "/security/threat-model" },
+      { text: "OpenSSF Baseline assessment", link: "/security/OpenSSF-best-practices-dev" },
+      { text: "Control inventories", link: "/security/control-inventories" },
+      { text: "Development guide", link: "/reference/development" },
+      { text: "Node 26 discovery", link: "/reference/node26-discovery" },
+      { text: "Code conventions", link: "/reference/conventions" },
+      { text: "Open source and contributing", link: "/open-source" },
+    ],
+  },
+];
+
+const introductionSidebar = [
+  {
+    text: "Start here",
+    items: [
+      { text: "What is CapacityLens?", link: "/getting-started/what-is-capacitylens" },
+      { text: "Quick start", link: "/getting-started/quick-start" },
+      { text: "Getting-started FAQ", link: "/getting-started/faq" },
+    ],
+  },
+];
+
 export default defineConfig({
+  vue: {
+    features: {
+      componentIdGenerator: generateDocumentationComponentId,
+    },
+  },
+  vite: {
+    server: { port: lanePorts.docsDev, strictPort: true },
+    preview: { port: lanePorts.docsPreview, strictPort: true },
+  },
   head: [["script", { "data-cl-keep": "" }, escapeClosesLightbox]],
   title: "CapacityLens",
   description:
@@ -68,91 +230,35 @@ export default defineConfig({
     search: { provider: "local" },
 
     nav: [
-      { text: "Getting started", link: "/getting-started/what-is-capacitylens" },
-      { text: "Using CapacityLens", link: "/guide/the-schedule" },
-      { text: "Self-hosting", link: "/self-hosting/" },
+      { text: "What is CapacityLens?", link: "/getting-started/what-is-capacitylens" },
+      { text: "Quick start", link: "/getting-started/quick-start" },
+      { text: "Choose your guide", link: "/#choose-your-guide" },
       { text: "GitHub", link: "https://github.com/Kevinjohn/capacitylens" },
     ],
 
-    sidebar: [
-      {
-        text: "Getting started",
-        items: [
-          { text: "What is CapacityLens?", link: "/getting-started/what-is-capacitylens" },
-          { text: "Try the demo", link: "/getting-started/try-the-demo" },
-          { text: "Choose how to install", link: "/getting-started/install" },
-          { text: "First steps after installing", link: "/getting-started/first-steps" },
-          { text: "Invite your team", link: "/getting-started/invite-your-team" },
-          { text: "Roles and permissions", link: "/getting-started/roles-and-permissions" },
-        ],
-      },
-      {
-        text: "Using CapacityLens",
-        items: [
-          { text: "The schedule", link: "/guide/the-schedule" },
-          { text: "People and placeholders", link: "/guide/people-and-placeholders" },
-          { text: "Projects and allocations", link: "/guide/projects-and-allocations" },
-          { text: "Time off", link: "/guide/time-off" },
-          { text: "Settings", link: "/guide/settings" },
-          { text: "Offline access", link: "/guide/offline-access" },
-        ],
-      },
-      {
-        text: "Company login (SSO)",
-        items: [
-          { text: "How sign-in works", link: "/company-login/" },
-          { text: "Set up your company login", link: "/company-login/set-up-company-login" },
-          { text: "Move from passwords to single sign-on", link: "/company-login/move-to-single-sign-on" },
-        ],
-      },
-      {
-        text: "Self-hosting",
-        items: [
-          { text: "Before you start", link: "/self-hosting/" },
-          { text: "Install with Docker", link: "/self-hosting/install-with-docker" },
-          { text: "Install without Docker", link: "/self-hosting/install-without-docker" },
-          { text: "Configuration", link: "/self-hosting/configuration" },
-          { text: "TLS and networking", link: "/self-hosting/tls-and-networking" },
-          { text: "Backups and restore", link: "/self-hosting/backups-and-restore" },
-          { text: "Upgrades", link: "/self-hosting/upgrades" },
-          { text: "Monitoring and health checks", link: "/self-hosting/monitoring" },
-          { text: "When something goes wrong", link: "/self-hosting/incidents" },
-        ],
-      },
-      {
-        text: "Security and privacy",
-        items: [
-          { text: "Security overview", link: "/security/" },
-          { text: "Privacy", link: "/security/privacy" },
-          { text: "Reviews and compliance", link: "/security/reviews" },
-          {
-            // Not collapsed: VitePress expands a collapsed group client-side,
-            // and the shipped pages have no JavaScript (see docs-standalone.mjs),
-            // so a collapsed group would put these six pages behind a control
-            // that can never open.
-            text: "Review records",
-            items: [
-              { text: "Threat model", link: "/security/threat-model" },
-              { text: "OWASP ASVS 5.0.0 mapping", link: "/security/owasp-asvs-5.0.0" },
-              { text: "OpenSSF Baseline assessment", link: "/security/OpenSSF-best-practices-dev" },
-              { text: "Control inventories", link: "/security/control-inventories" },
-              { text: "Security review — 2026-08-18", link: "/security/security-review-2026-08-18" },
-              { text: "Mutation-test security review — 2026-07-15", link: "/security/mutation-review-2026-07-15" },
-              { text: "Mutation-test review — 2026-07-18", link: "/security/mutation-review-2026-07-18" },
-            ],
-          },
-        ],
-      },
-      {
-        text: "Reference",
-        items: [
-          { text: "Glossary", link: "/reference/glossary" },
-          { text: "Development guide", link: "/reference/development" },
-          { text: "Node 26 discovery", link: "/reference/node26-discovery" },
-          { text: "Code conventions", link: "/reference/conventions" },
-        ],
-      },
-    ],
+    sidebar: {
+      "/guide/settings": adminSidebar,
+      "/using/": usingSidebar,
+      "/guide/": usingSidebar,
+      "/owner/": ownerSidebar,
+      "/getting-started/set-up-your-company": ownerSidebar,
+      "/getting-started/roles-and-permissions": ownerSidebar,
+      "/getting-started/invite-your-team": adminSidebar,
+      "/admin/": adminSidebar,
+      "/installation/": installationSidebar,
+      "/getting-started/install": installationSidebar,
+      "/getting-started/try-the-demo": installationSidebar,
+      "/self-hosting/managed-vps/": installationSidebar,
+      "/self-hosting/install-with-docker": installationSidebar,
+      "/self-hosting/install-without-docker": installationSidebar,
+      "/operations/": operationsSidebar,
+      "/self-hosting/": operationsSidebar,
+      "/company-login/": operationsSidebar,
+      "/reference/": referenceSidebar,
+      "/security/": referenceSidebar,
+      "/open-source": referenceSidebar,
+      "/getting-started/": introductionSidebar,
+    },
 
     docFooter: { prev: "Previous", next: "Next" },
 
@@ -160,7 +266,6 @@ export default defineConfig({
 
     footer: {
       message: "CapacityLens is open source under AGPL-3.0.",
-      copyright: "Screenshots are captured from the running app — see docs-src/STYLE.md in the repository.",
     },
   },
 });

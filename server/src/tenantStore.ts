@@ -97,7 +97,12 @@ function collectRemovedCounts(
   return removedCounts;
 }
 
-function purgeLifecycleRow({ db, accountId, entity, id }: PurgeLifecycleRowInput): PurgeLifecycleResult | null {
+// Cascade inspection, survivor restamping and account-port cleanup form one atomic purge.
+// eslint-disable-next-line max-lines-per-function
+function purgeLifecycleRow(
+  { db, accountId, entity, id }: PurgeLifecycleRowInput,
+  removeResourceLink: (accountId: string, resourceId: string) => void,
+): PurgeLifecycleResult | null {
   if (!getOwnedLifecycleRow({ db, accountId, entity, id })) return null;
   const before = readScopedRowCounts(db, accountId);
 
@@ -155,9 +160,17 @@ function purgeLifecycleRow({ db, accountId, entity, id }: PurgeLifecycleRowInput
     restampRows({ db, table: "allocations", rows: allocations, clearedColumn: "projectId" });
   }
 
-  deleteRow(db, entity, id);
+  purgeOwnedRow({ db, accountId, entity, id }, removeResourceLink);
   const after = readScopedRowCounts(db, accountId);
   return { removedCounts: collectRemovedCounts(before, after) };
+}
+
+function purgeOwnedRow(
+  { db, accountId, entity, id }: PurgeLifecycleRowInput,
+  removeResourceLink: (accountId: string, resourceId: string) => void,
+): void {
+  if (entity === "resources") removeResourceLink(accountId, id);
+  deleteRow(db, entity, id);
 }
 
 // TENANT-SCOPING STORAGE SEAM. Permissioned routes use these accountId-keyed reads, validation
@@ -226,7 +239,12 @@ export interface TenantStore {
  * @param db  The open SQLite handle this store reads from / writes to.
  * @returns A {@link TenantStore} bound to `db`.
  */
-export function createSqliteTenantStore(db: Db): TenantStore {
+// Keep the complete scoped-storage surface visible in its factory return.
+// eslint-disable-next-line max-lines-per-function
+export function createSqliteTenantStore(
+  db: Db,
+  removeResourceLink: (accountId: string, resourceId: string) => void = () => undefined,
+): TenantStore {
   // Single query + fromRow, replacing an id-only SELECT followed by one getRow point lookup per
   // id (N+1). Same WHERE predicate as before, so it hits the same idx_allocations_{field} index and
   // returns rows in the same order the old id-loop preserved — verified empirically, since neither
@@ -258,8 +276,12 @@ export function createSqliteTenantStore(db: Db): TenantStore {
     validationLookup: () => validationLookup,
     readLifecycleRow: (accountId, entity, id) => getOwnedLifecycleRow({ db, accountId, entity, id }),
     writeLifecycleRow: (accountId, entity, row) => {
-      if (row.accountId !== accountId || !getOwnedLifecycleRow({ db, accountId, entity, id: row.id })) {
+      const existing = getOwnedLifecycleRow({ db, accountId, entity, id: row.id });
+      if (row.accountId !== accountId || !existing) {
         throw new Error("Lifecycle row does not belong to the requested company.");
+      }
+      if (entity === "resources" && (existing as Resource).kind !== (row as Resource).kind) {
+        throw new Error("A resource’s kind cannot change after creation.");
       }
       upsertRow(db, entity, row as unknown as Record<string, unknown>);
     },
@@ -286,6 +308,6 @@ export function createSqliteTenantStore(db: Db): TenantStore {
         timeOffNotes: scrub("timeOff"),
       };
     },
-    purgeLifecycleRow: (accountId, entity, id) => purgeLifecycleRow({ db, accountId, entity, id }),
+    purgeLifecycleRow: (accountId, entity, id) => purgeLifecycleRow({ db, accountId, entity, id }, removeResourceLink),
   };
 }

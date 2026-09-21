@@ -1,14 +1,14 @@
 import { test, expect } from "./fixtures";
-import { openApp, openNewCompany, showScheduleFilters } from "./helpers";
+import { openApp, openNewCompany, selectShadOption } from "./helpers";
 import { TOUR_ANCHORS } from "../src/lib/tourAnchors";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // First-run "Getting started" checklist + "Show me around" tour (US-NAV-13). The card is
-// state-driven: it shows only while the ACTIVE account still has an onboarding step to do, so the
+// state-driven: it shows only while the ACTIVE company lacks a useful first-use outcome, so the
 // seeded companies (full data) never show it — these specs create a FRESH empty company (same
 // picker flow as onboarding.spec.ts, via helpers.ts's `openNewCompany`) to see it. Dismissal is
-// the device-global `capacitylens/gettingStartedDismissed` pref, mirroring the intro page's flag.
+// the device-global `capacitylens/gettingStartedDismissed` preference.
 
 function registerSuiteScenario1() {
   test("a seeded (fully set up) company never shows the card", async ({ page }) => {
@@ -19,7 +19,7 @@ function registerSuiteScenario1() {
 }
 
 function registerSuiteScenario2() {
-  test("an empty company shows the card; completing a step ticks it off", async ({ page }) => {
+  test("manual setup completes after a person, internal activity and allocation are connected", async ({ page }) => {
     await openNewCompany(page, "Fresh Co");
     const card = page.getByTestId("getting-started");
     await expect(card).toBeVisible();
@@ -37,29 +37,48 @@ function registerSuiteScenario2() {
     const cardBox = await card.boundingBox();
     expect(cardBox).not.toBeNull();
     expect(cardBox!.y).toBeGreaterThanOrEqual(gridAfter!.y);
-    await showScheduleFilters(page);
-
-    // All four steps are pending — the first three are links to where the step happens.
-    // (The account's built-in Internal client must NOT tick the client step.)
-    const clientStep = card.getByRole("link", { name: "Add your first client" });
-    await expect(clientStep).toBeVisible();
-    await expect(card.getByRole("link", { name: "Add your first project" })).toBeVisible();
-    await expect(card.getByRole("link", { name: "Add your first person" })).toBeVisible();
-    await expect(card.getByText("Assign them to the project")).toBeVisible();
-
-    // Follow the first step and actually add a client…
-    await clientStep.click();
-    await expect(page).toHaveURL(/\/clients$/);
-    await page.getByRole("button", { name: "Add client" }).click();
-    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Acme");
+    await expect(card.getByRole("link", { name: "Import CapacityLens data" })).toBeVisible();
+    await card.getByRole("button", { name: "Set up manually" }).click();
+    await card.getByRole("link", { name: "Add someone to the schedule" }).click();
+    await expect(page.getByRole("link", { name: "Getting started: 0 of 3 complete" })).toBeVisible();
+    await page.getByRole("button", { name: "Add resource" }).click();
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Bruce Wayne");
+    await page.getByLabel("Role").fill("Designer");
     await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("link", { name: "Getting started: 1 of 3 complete" })).toBeVisible();
 
-    // …then back on the schedule the client step is done (no longer a link) and the rest remain.
+    await page.getByRole("link", { name: "Activities" }).click();
+    await page.getByRole("button", { name: "Add activity" }).click();
+    await page.getByRole("textbox", { name: "Name", exact: true }).fill("Studio planning");
+    await page.getByRole("radio", { name: "Internal" }).click();
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("link", { name: "Getting started: 2 of 3 complete" })).toBeVisible();
+
     await page.getByRole("link", { name: "Schedule" }).click();
-    await expect(card).toBeVisible();
-    await expect(card.getByRole("link", { name: "Add your first client" })).toHaveCount(0);
-    await expect(card.getByText("Add your first client")).toBeVisible();
-    await expect(card.getByRole("link", { name: "Add your first project" })).toBeVisible();
+    await page.getByRole("button", { name: "Add allocation for Bruce Wayne" }).click();
+    const dialog = page.getByRole("dialog", { name: "New allocation" });
+    await selectShadOption(dialog.getByRole("combobox", { name: "Activity", exact: true }), {
+      label: "Studio planning",
+    });
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(card).toHaveCount(0);
+  });
+}
+
+function registerSuiteScenarioImportPath() {
+  test("the import link opens Settings but does not count as completion", async ({ page }) => {
+    await openNewCompany(page, "Queen Industries");
+    const card = page.getByTestId("getting-started");
+    await card.getByRole("link", { name: "Import CapacityLens data" }).click();
+    await expect(page).toHaveURL(/\/settings#getting-started-import/);
+    const importSection = page.locator("#getting-started-import");
+    await expect(importSection).toBeFocused();
+    await expect(importSection).toContainText("Import JSON");
+
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await expect(page.getByTestId("getting-started")).toBeVisible();
+    await expect(page.getByTestId("getting-started").getByText("Add someone to the schedule")).toBeVisible();
+    await expect(page.getByTestId("getting-started").getByText(/^Done:/)).toHaveCount(0);
   });
 }
 
@@ -132,6 +151,7 @@ function registerSuiteScenario5() {
 test.describe("getting started checklist", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
+  registerSuiteScenarioImportPath();
   registerSuiteScenario3();
   registerSuiteScenario4();
   registerSuiteScenario5();

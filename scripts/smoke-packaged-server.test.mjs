@@ -24,6 +24,7 @@ test("packaged smoke strips deployment settings before applying its loopback fix
 
   assert.equal(environment.PATH, "/tools");
   assert.equal(environment.CAPACITYLENS_HOST, "127.0.0.1");
+  assert.equal(environment.SMALLSASS_ACCOUNT_MODE, "off");
   assert.equal(environment.CAPACITYLENS_INTERNAL_TLS_KEY, undefined);
   assert.equal(environment.SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL, undefined);
   assert.equal(environment.BETTER_AUTH_SECRET, undefined);

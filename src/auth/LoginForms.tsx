@@ -1,16 +1,29 @@
 import { m } from "@/i18n";
-import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
+import {
+  MAX_PASSWORD_INPUT_CODE_UNITS,
+  MAX_PASSWORD_LENGTH,
+  MIN_PASSWORD_LENGTH,
+} from "@capacitylens/shared/domain/password";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { Button } from "../components/ui/button";
 import { FieldError, FieldGroup } from "../components/ui/field";
 import { LoginField } from "./LoginField";
 
-type LoginIds = { name: string; email: string; password: string; setupToken: string; error: string };
+type LoginIds = {
+  name: string;
+  email: string;
+  password: string;
+  passwordHelp: string;
+  setupToken: string;
+  setupTokenHelp: string;
+  error: string;
+};
 
 type LoginFormProps = {
   authMode: "password" | "sso";
   setup: boolean;
+  passwordAutoFocus: boolean;
   busy: boolean;
   error: string | null;
   setError: Dispatch<SetStateAction<string | null>>;
@@ -63,7 +76,15 @@ export function LoginForm(props: LoginFormProps) {
     );
   }
   if (props.authMode === "password") {
-    return <PasswordForm busy={props.busy} error={props.error} ids={props.ids} passwordSignIn={props.passwordSignIn} />;
+    return (
+      <PasswordForm
+        autoFocus={props.passwordAutoFocus}
+        busy={props.busy}
+        error={props.error}
+        ids={props.ids}
+        passwordSignIn={props.passwordSignIn}
+      />
+    );
   }
   return null;
 }
@@ -151,7 +172,7 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
       />
       <LoginField
         id={ids.email}
-        label={m.login_email()}
+        label={m.login_setup_email()}
         data-testid="owner-setup-email"
         type="email"
         autoComplete="email"
@@ -162,7 +183,7 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
       />
       <LoginField
         id={ids.password}
-        label={m.login_password()}
+        label={m.login_setup_password()}
         data-testid="owner-setup-password"
         type="password"
         autoComplete="new-password"
@@ -170,8 +191,11 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
         minLength={MIN_PASSWORD_LENGTH}
         maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
         onChange={(event) => passwordSignIn.setPassword(event.target.value)}
-        aria-describedby={describedBy}
+        aria-describedby={[ids.passwordHelp, describedBy].filter(Boolean).join(" ")}
       />
+      <p id={ids.passwordHelp} className="text-xs text-muted-foreground">
+        {m.login_setup_password_help({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH })}
+      </p>
       <LoginField
         id={ids.setupToken}
         label={m.login_setup_token()}
@@ -181,15 +205,20 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
         value={ownerSetup.setupToken}
         onChange={(event) => ownerSetup.setSetupToken(event.target.value)}
         placeholder={m.login_setup_token_placeholder()}
-        aria-describedby={describedBy}
+        aria-describedby={[ids.setupTokenHelp, describedBy].filter(Boolean).join(" ")}
       />
+      <p id={ids.setupTokenHelp} className="text-xs text-muted-foreground">
+        {m.login_setup_token_help()}
+      </p>
     </>
   );
 }
 
-type PasswordFormProps = Pick<LoginFormProps, "busy" | "error" | "ids" | "passwordSignIn">;
+type PasswordFormProps = Pick<LoginFormProps, "busy" | "error" | "ids" | "passwordSignIn"> & {
+  autoFocus: boolean;
+};
 
-function PasswordForm({ busy, error, ids, passwordSignIn }: PasswordFormProps) {
+function PasswordForm({ autoFocus, busy, error, ids, passwordSignIn }: PasswordFormProps) {
   const describedBy = error ? ids.error : undefined;
   return (
     <form onSubmit={(event) => void passwordSignIn.signInWithPassword(event)} noValidate>
@@ -203,7 +232,7 @@ function PasswordForm({ busy, error, ids, passwordSignIn }: PasswordFormProps) {
           maxLength={MAX_EMAIL_LENGTH}
           onChange={(event) => passwordSignIn.setEmail(event.target.value)}
           aria-describedby={describedBy}
-          autoFocus
+          autoFocus={autoFocus}
         />
         <LoginField
           id={ids.password}

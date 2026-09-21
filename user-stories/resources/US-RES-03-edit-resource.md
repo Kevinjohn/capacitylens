@@ -24,7 +24,7 @@ there's no second place to keep in sync.
 2. Change **Role** = `Lead Developer`.
 3. Change **Discipline** = _Design_.
 4. Change Wednesday to **Half day**.
-5. Set **First available date** = `2026-06-08` and leave **Last available date** blank.
+5. Set **Start date** = `2026-06-08` and leave **End date** blank.
 6. Click **Save**. The dialog closes.
 
 ## Acceptance criteria
@@ -41,5 +41,7 @@ there's no second place to keep in sync.
 - ✅ In the public demo, the change lasts for the current page only and reload restores the seed.
 - ✅ Availability dates are inclusive. A blank boundary is unbounded, the same date on both sides
   is valid, and a first date after a last date keeps the dialog open with an inline validation error.
+- ✅ The resource form does not expose an Avatar URL control. A person's profile image belongs to
+  their own Account identity rather than to a manager editing the resource.
 - ✅ Editing role, discipline, engagement, working days or availability metadata does not rewrite
   existing allocations, even when one now falls outside the person's availability range.

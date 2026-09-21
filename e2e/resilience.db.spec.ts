@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import { resetServer, serverState, stateRows } from "./db-helpers";
 import { failRequestsUntilReleased } from "./fault-helpers";
-import { dismissIntroIfPresent, freezeBrowserDate, openApp } from "./helpers";
+import { waitForAppLanding, freezeBrowserDate, openApp } from "./helpers";
 
 const PERSISTENCE_WARNING = "Changes aren’t being saved right now — we’ll keep retrying.";
 
@@ -29,7 +29,7 @@ function registerSuiteScenario2() {
     stateFailure.release();
     await page.getByRole("button", { name: "Try again" }).click();
     await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
-    await dismissIntroIfPresent(page, page.locator("#main"));
+    await waitForAppLanding(page, page.locator("#main"));
 
     await expect(page.getByText("Bruce Wayne")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Can’t reach the server" })).toHaveCount(0);

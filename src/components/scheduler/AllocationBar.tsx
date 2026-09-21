@@ -3,14 +3,15 @@ import { ensureBarColors } from "@capacitylens/shared/lib/color";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useCanEdit } from "../../auth/permissionContext";
-import { formatDayMonth } from "../../lib/dateDisplay";
+import { formatDayMonthEndpoint } from "../../lib/dateDisplay";
+import { useDateStyle } from "../../store/useDateStyle";
 import type { BarLabelPreferences } from "../../lib/displayPrefs";
-import { resolveAllocationStatusLabel } from "../../lib/metadata";
+import { resolveAllocationStatusAnnotation } from "../../lib/metadata";
 import { useStore } from "../../store/useStore";
 import { hasVisibleTaskFieldInSchedule } from "../../store/selectors";
 import { AllocationBarView } from "./AllocationBarView";
 import type { ColumnGeometry } from "./columnGeometry";
-import { LAYOUT } from "./layout";
+import { buildAllocationBarInset } from "./layout";
 import type { BarLayout } from "./schedulerModel";
 import { useAllocationGesture } from "./useAllocationGesture";
 
@@ -47,12 +48,15 @@ interface AriaLabelInput {
 }
 
 function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }: AriaLabelInput) {
+  const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status);
   const shared = {
     hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) }),
-    status: resolveAllocationStatusLabel(bar.allocation.status),
-    start: formatDayMonth(bar.allocation.startDate),
-    end: formatDayMonth(bar.allocation.endDate),
-    series: bar.seriesEnd ? m.scheduler_bar_aria_series({ end: formatDayMonth(bar.seriesEnd) }) : "",
+    status: statusAnnotation ? m.scheduler_bar_aria_status({ status: statusAnnotation }) : "",
+    start: formatDayMonthEndpoint(bar.allocation.startDate, bar.allocation.endDate),
+    end: formatDayMonthEndpoint(bar.allocation.endDate, bar.allocation.startDate),
+    series: bar.seriesEnd
+      ? m.scheduler_bar_aria_series({ end: formatDayMonthEndpoint(bar.seriesEnd, bar.allocation.startDate) })
+      : "",
   };
   const task =
     showTaskFieldInSchedule && bar.allocation.task ? m.scheduler_bar_aria_task({ task: bar.allocation.task }) : "";
@@ -66,10 +70,19 @@ function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedul
 
 function useBarAriaLabel(input: AriaLabelInput) {
   const { bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel } = input;
-  // The name cannot change mid-gesture, so memoise it instead of rebuilding it on every pointermove render.
+  // The dates in this name are formatted INSIDE the memo, so the style has to be a dependency:
+  // without it the name keeps its old format until something else invalidates the memo. Today that
+  // happens by accident — changing the account rebuilds `state.data`, then the view-model, then
+  // `bar` — but the accident is not the guarantee, and a bar name is what a screen-reader user
+  // hears while dragging.
+  const dateStyle = useDateStyle();
+  // The name cannot change mid-gesture, so memoise it instead of rebuilding it on every pointermove
+  // render. The date formatters read the active style from a module-level mirror rather than an
+  // argument, so the linter cannot see that dependency.
   return useMemo(
     () => buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }),
-    [bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the style is a real input to the name
+    [bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel, dateStyle],
   );
 }
 
@@ -142,11 +155,6 @@ function useBarLabelText(bar: BarLayout) {
   );
 }
 
-function buildBarInset(left: number, width: number) {
-  const inset = Math.min(LAYOUT.barInset, width / 3);
-  return { insetLeft: left + inset, insetWidth: Math.max(1, width - inset * 2) };
-}
-
 /**
  * One draggable/resizable allocation bar in a resource lane.
  *
@@ -161,7 +169,7 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
   const hideHours = gesture.isBlocks || bar.external;
   const [popoverOpen, setPopoverOpen] = useState(false);
   const { bg: background, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color]);
-  const { insetLeft, insetWidth } = buildBarInset(gesture.left, gesture.width);
+  const { insetLeft, insetWidth } = buildAllocationBarInset(gesture.left, gesture.width);
   const { label: labelText, viewerLabel: viewerLabelText } = useBarLabelText(bar);
   const showTaskFieldInSchedule = useStore((state) => hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId));
   const ariaLabel = useBarAriaLabel({

@@ -2,6 +2,8 @@
 
 **Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/external.spec.ts` → "hidden by default: the seeded external is absent from the schedule and the Resources tab", "turning it on reveals the External section with help in Resources and the band on the schedule", "the choice survives a reload (per-account pref)"
 
+**Documentation:** [Settings](../../docs-src/guide/settings.md)
+
 ## Goal
 
 Keep external / 3rd-party companies out of the way by default, and let account editors switch them
@@ -25,7 +27,7 @@ old URL now redirects to `/resources`.)
 
 1. On the Schedule, note there is **no External band** at the bottom — only the real people. The external's bar (Visual Design) is not drawn.
 2. Open **Resources** (sidebar). There is **no "External" section** and **no "Add external party" button** — only the people list.
-3. Open **Settings** (sidebar). In the **External** section, find the **Show external resources**
+3. Open **Settings** (sidebar). In the **Placeholders and external resources** section, find the **Show external resources**
    switch — it's **off**. Its question-mark action opens the fuller explainer.
 4. Switch it **on**.
 5. Return to **Resources**: the **External** section now appears with the same explainer behind its labelled question-mark action and an **Add external party** button, showing the seeded external _Kord Industries_.
@@ -35,7 +37,7 @@ old URL now redirects to `/resources`.)
 
 ## Acceptance criteria
 
-- The **External** section appears in Settings with a single **Show external resources** switch
+- The **Placeholders and external resources** section appears in Settings with a **Show external resources** switch
   (`role="switch"`, accessible name `Show external resources`); its fuller explainer is in the
   labelled question-mark help modal rather than permanently on the page.
 - The switch defaults to **off** (`aria-checked="false"`) — externals are hidden out of the box.

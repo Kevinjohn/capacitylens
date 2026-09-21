@@ -129,13 +129,15 @@ describe("member sign-in confirmation lifecycle", () => {
     const current = setup();
     setMemberSignInTracking({ db: current, accountId: "account-a", actorPrincipalId: "owner", enabled: true });
     confirmTrackedMemberSignIn(current, "editor");
-    expect(setMemberStatus({ db: current, accountId: "account-a", userId: "editor", status: "disabled" })).toBe(
-      "changed",
-    );
+    expect(setMemberStatus({ db: current, accountId: "account-a", userId: "editor", status: "disabled" })).toEqual({
+      outcome: "changed",
+      invalidatedTransferIds: [],
+    });
     expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
-    expect(setMemberStatus({ db: current, accountId: "account-a", userId: "editor", status: "active" })).toBe(
-      "changed",
-    );
+    expect(setMemberStatus({ db: current, accountId: "account-a", userId: "editor", status: "active" })).toEqual({
+      outcome: "changed",
+      invalidatedTransferIds: [],
+    });
     expect(readMemberSignInTrackingSnapshot(current, "account-a").confirmations.get("editor")).toBe(false);
   });
 });

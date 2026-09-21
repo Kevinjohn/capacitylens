@@ -488,11 +488,11 @@ const registerAssertScopedRefsPart6 = () => {
     const existing = placeholder("r1", A1, "p1");
 
     expect(() => assertScopedRefs(data, A1, "resources", { kind: "person" }, existing)).toThrow(
-      "Only a placeholder can be assigned to a project.",
+      "A resource’s kind cannot change after creation.",
     );
-    expect(() =>
-      assertScopedRefs(data, A1, "resources", { kind: "person", projectId: undefined }, existing),
-    ).not.toThrow();
+    expect(() => assertScopedRefs(data, A1, "resources", { kind: "person", projectId: undefined }, existing)).toThrow(
+      "A resource’s kind cannot change after creation.",
+    );
   });
 
   it("does not make an unrelated edit fail solely because of a legacy non-placeholder binding", () => {

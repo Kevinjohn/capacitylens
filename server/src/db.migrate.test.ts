@@ -37,6 +37,7 @@ import {
   type Auth,
 } from "./auth";
 import { TABLES } from "./tables";
+import { runAccountDateStyleV40 } from "./db/migrations/definitions";
 import {
   assertMigrationValuesPreserved,
   captureMigrationValues,
@@ -120,6 +121,39 @@ const V38_MIGRATION = {
   version: 38,
   name: "add-resource-availability-dates",
   checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
+} as const;
+const V39_MIGRATION = {
+  version: 39,
+  name: "add-capacity-overview-access",
+  checksum: "098f2980febe986613c549b5f1a48c003d17528c34ea3c7deec706d6afdbae45",
+} as const;
+const V40_MIGRATION = {
+  version: 40,
+  name: "add-account-date-style",
+  checksum: "5523524112cbd00936ed3fff90c0e00e142472abf78122e39dbc32f3bf59e2cc",
+} as const;
+/** The two newest account-preference steps. Spread into expectations rather than listed twice, so
+ *  the next account column does not push one of these enumerations past the 60-line function cap. */
+const NEWEST_ACCOUNT_MIGRATIONS = [V39_MIGRATION, V40_MIGRATION] as const;
+const V41_MIGRATION = {
+  version: 41,
+  name: "add-ownership-transfer-requests",
+  checksum: "d9dc51a48af818e1ccefcbb0fa0d7a703258c9149545f8cc62eaef5c6a5015e7",
+} as const;
+const V42_MIGRATION = {
+  version: 42,
+  name: "add-resource-avatar-url",
+  checksum: "26e210bba4db97503645979b4abe44a38f118f9278b7b295423af97109b0661a",
+} as const;
+const V43_MIGRATION = {
+  version: 43,
+  name: "add-account-member-resource-links",
+  checksum: "46cbdc72fdb7fd382810a3344e4d8f94f465dd9b1102b2d3430bebd5561f3c94",
+} as const;
+const V44_MIGRATION = {
+  version: 44,
+  name: "add-invitation-person-proposals",
+  checksum: "5d8954d0ad867841f181d9da2742345bf49d016a35634ebde542778004b2fa42",
 } as const;
 const RELEASED_MIGRATION_HISTORY = [
   {
@@ -225,6 +259,12 @@ const RELEASED_MIGRATION_HISTORY = [
   V36_MIGRATION,
   V37_MIGRATION,
   V38_MIGRATION,
+  V39_MIGRATION,
+  V40_MIGRATION,
+  V41_MIGRATION,
+  V42_MIGRATION,
+  V43_MIGRATION,
+  V44_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -245,18 +285,26 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V36_MIGRATION,
   V37_MIGRATION,
   V38_MIGRATION,
+  V39_MIGRATION,
+  V40_MIGRATION,
+  V41_MIGRATION,
+  V42_MIGRATION,
+  V43_MIGRATION,
+  V44_MIGRATION,
 ] as const;
+/** The same list without its v25 head — what a database rolled back to v25 still has pending. */
+const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
-const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34] as const;
+const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34, 42] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
   `v${version}-off.db`,
   `v${version}-password.db`,
 ]);
 const FIXTURE_PASSWORD_ENV = {
   NODE_ENV: "test",
-  CAPACITYLENS_AUTH: "password",
-  BETTER_AUTH_SECRET: "fixture-secret-0123456789abcdef-012345",
-  BETTER_AUTH_URL: "http://localhost:8787",
+  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_SECRET: "fixture-secret-0123456789abcdef-012345",
+  SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
 } as const;
 
 function createFixtureAuth(db: Db): Auth {
@@ -478,7 +526,13 @@ function dropAllocationTaskFields(db: DatabaseSync): void {
 }
 
 function dropResourceAvailabilityFields(db: DatabaseSync): void {
-  db.exec("ALTER TABLE resources DROP COLUMN firstAvailableDate; ALTER TABLE resources DROP COLUMN lastAvailableDate;");
+  db.exec(
+    "ALTER TABLE resources DROP COLUMN avatarUrl; ALTER TABLE resources DROP COLUMN firstAvailableDate; ALTER TABLE resources DROP COLUMN lastAvailableDate;",
+  );
+  db.exec("ALTER TABLE accounts DROP COLUMN capacityOverviewAccess;");
+  // Every fixture that winds a current database back below v38 winds past v40 on the way, so the
+  // newest account column comes off here too — the same accumulation v39 made when it landed.
+  db.exec("ALTER TABLE accounts DROP COLUMN dateStyle;");
 }
 
 function rollbackColourFixtureToV12(db: DatabaseSync): void {
@@ -1732,7 +1786,7 @@ describe("schema migration of an existing on-disk DB", () => {
       }) as Db;
 
       expect(plannedBeforeWinner).toEqual([
-        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
       ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
@@ -1764,7 +1818,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
-      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+      17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -1924,24 +1978,7 @@ describe("schema migration of an existing on-disk DB", () => {
         name: "bound-used-invitation-history",
         checksum: "a8bdf450c3741579a8a83598f9fe1941358332e6fe00044cf82c5e4ae66d3e24",
       },
-      {
-        version: 25,
-        name: "secure-federated-identity-linking",
-        checksum: "2ea61616adff7302a5c3edd7d72be55126c8336ccd536792d62113392681a743",
-      },
-      V26_MIGRATION,
-      V27_MIGRATION,
-      V28_MIGRATION,
-      V29_MIGRATION,
-      V30_MIGRATION,
-      V31_MIGRATION,
-      V32_MIGRATION,
-      V33_MIGRATION,
-      V34_MIGRATION,
-      V35_MIGRATION,
-      V36_MIGRATION,
-      V37_MIGRATION,
-      V38_MIGRATION,
+      ...V25_TO_CURRENT_MIGRATIONS,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2015,6 +2052,70 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
+function seedV35AllocationProjectGraph(db: Db): void {
+  db.exec(`
+    INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES
+      ('issue909-dc-account', 'Wayne Enterprises', '#3b82f6', '${TS}', '${TS}'),
+      ('issue909-marvel-account', 'Stark Industries', '#ef4444', '${TS}', '${TS}');
+    INSERT INTO clients (id, accountId, name, color, createdAt, updatedAt) VALUES
+      ('issue909-dc-client', 'issue909-dc-account', 'Daily Planet', '#3b82f6', '${TS}', '${TS}'),
+      ('issue909-marvel-client', 'issue909-marvel-account', 'Daily Bugle', '#ef4444', '${TS}', '${TS}');
+    INSERT INTO projects (id, accountId, name, clientId, color, createdAt, updatedAt) VALUES
+      ('issue909-dc-project', 'issue909-dc-account', 'Metropolis rollout', 'issue909-dc-client', '#3b82f6', '${TS}', '${TS}'),
+      ('issue909-marvel-project', 'issue909-marvel-account', 'Stark Expo', 'issue909-marvel-client', '#ef4444', '${TS}', '${TS}');
+    INSERT INTO resources (
+      id, accountId, kind, name, role, employmentType, engagement, workingHoursPerDay,
+      workingDays, color, createdAt, updatedAt
+    ) VALUES (
+      'issue909-dc-resource', 'issue909-dc-account', 'person', 'Clark Kent', 'Reporter',
+      'employee', 'studio', 8, '[1,2,3,4,5]', '#3b82f6', '${TS}', '${TS}'
+    );
+    INSERT INTO activities (id, accountId, name, kind, createdAt, updatedAt)
+      VALUES ('issue909-dc-activity', 'issue909-dc-account', 'Weekly planning', 'repeatable', '${TS}', '${TS}');
+  `);
+}
+
+function assertV35AllocationProjectWrites(db: Db): void {
+  seedV35AllocationProjectGraph(db);
+  const insertAllocation = db.prepare(`
+    INSERT INTO allocations (
+      id, accountId, resourceId, activityId, projectId, startDate, endDate, hoursPerDay, status,
+      createdAt, updatedAt
+    ) VALUES (?, 'issue909-dc-account', 'issue909-dc-resource', 'issue909-dc-activity', ?,
+              '2026-01-05', '2026-01-09', 8, 'confirmed', ?, ?)
+  `);
+  const readAllocation = (id: string): Record<string, unknown> | undefined =>
+    db.prepare("SELECT * FROM allocations WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+  const crossAccountError = "cross-account relationship: allocations.projectId -> projects.id";
+
+  insertAllocation.run("issue909-allocation-project", "issue909-dc-project", TS, TS);
+  expect(readAllocation("issue909-allocation-project")).toEqual(
+    expect.objectContaining({ accountId: "issue909-dc-account", projectId: "issue909-dc-project" }),
+  );
+  insertAllocation.run("issue909-allocation-null", null, TS, TS);
+  expect(readAllocation("issue909-allocation-null")).toEqual(
+    expect.objectContaining({ accountId: "issue909-dc-account", projectId: null }),
+  );
+
+  expect(() => insertAllocation.run("issue909-allocation-cross-account", "issue909-marvel-project", TS, TS)).toThrow(
+    crossAccountError,
+  );
+  expect(readAllocation("issue909-allocation-cross-account")).toBeUndefined();
+
+  const updateProject = db.prepare("UPDATE allocations SET projectId = ? WHERE id = ?");
+  const originalAllocation = readAllocation("issue909-allocation-project");
+  if (!originalAllocation) throw new Error("Expected the valid allocation to be persisted.");
+  expect(() => updateProject.run("issue909-marvel-project", "issue909-allocation-project")).toThrow(crossAccountError);
+  expect(readAllocation("issue909-allocation-project")).toEqual(originalAllocation);
+
+  updateProject.run(null, "issue909-allocation-project");
+  expect(readAllocation("issue909-allocation-project")).toEqual(expect.objectContaining({ projectId: null }));
+  updateProject.run("issue909-dc-project", "issue909-allocation-project");
+  expect(readAllocation("issue909-allocation-project")).toEqual(
+    expect.objectContaining({ projectId: "issue909-dc-project" }),
+  );
+}
+
 describe("schema migration of an existing on-disk DB", () => {
   it("v20 rejects unknown bootstrap-claim drift and rolls its ledger step back", () => {
     const db = openDb(":memory:");
@@ -2029,7 +2130,7 @@ describe("schema migration of an existing on-disk DB", () => {
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2043,7 +2144,9 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function
 describe("schema migration of an existing on-disk DB", () => {
+  // eslint-disable-next-line max-lines-per-function
   it("v21 adds every tenant-slice index through one explicit ledger step", () => {
     const db = openDb(":memory:");
     dropTenantEntityIndexes(db);
@@ -2091,6 +2194,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V36_MIGRATION,
       V37_MIGRATION,
       V38_MIGRATION,
+      ...NEWEST_ACCOUNT_MIGRATIONS,
+      V41_MIGRATION,
+      V42_MIGRATION,
+      V43_MIGRATION,
+      V44_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2104,7 +2212,9 @@ describe("schema migration of an existing on-disk DB", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function
 describe("schema migration of an existing on-disk DB", () => {
+  // eslint-disable-next-line max-lines-per-function
   it("v22 reactivates tombstoned built-in Internal clients and advances their revisions", () => {
     const db = openDb(":memory:");
     const priorRevision = "2099-01-01T00:00:00.000Z";
@@ -2144,6 +2254,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V36_MIGRATION,
       V37_MIGRATION,
       V38_MIGRATION,
+      ...NEWEST_ACCOUNT_MIGRATIONS,
+      V41_MIGRATION,
+      V42_MIGRATION,
+      V43_MIGRATION,
+      V44_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2204,6 +2319,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V36_MIGRATION,
       V37_MIGRATION,
       V38_MIGRATION,
+      ...NEWEST_ACCOUNT_MIGRATIONS,
+      V41_MIGRATION,
+      V42_MIGRATION,
+      V43_MIGRATION,
+      V44_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2247,6 +2367,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V36_MIGRATION,
       V37_MIGRATION,
       V38_MIGRATION,
+      ...NEWEST_ACCOUNT_MIGRATIONS,
+      V41_MIGRATION,
+      V42_MIGRATION,
+      V43_MIGRATION,
+      V44_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2460,21 +2585,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const db = openDb(":memory:");
     rollBackCurrentDatabaseToV25(db);
 
-    expect(planDatabaseMigrations(db).migrations).toEqual([
-      V26_MIGRATION,
-      V27_MIGRATION,
-      V28_MIGRATION,
-      V29_MIGRATION,
-      V30_MIGRATION,
-      V31_MIGRATION,
-      V32_MIGRATION,
-      V33_MIGRATION,
-      V34_MIGRATION,
-      V35_MIGRATION,
-      V36_MIGRATION,
-      V37_MIGRATION,
-      V38_MIGRATION,
-    ]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([...V26_TO_CURRENT_MIGRATIONS]);
     initializeOpenDb(db, ":memory:");
     expect(
       (db.prepare("PRAGMA table_info(account_members)").all() as Array<{ name: string }>).some(
@@ -2557,6 +2668,11 @@ describe("schema migration of an existing on-disk DB", () => {
       V36_MIGRATION,
       V37_MIGRATION,
       V38_MIGRATION,
+      ...NEWEST_ACCOUNT_MIGRATIONS,
+      V41_MIGRATION,
+      V42_MIGRATION,
+      V43_MIGRATION,
+      V44_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2707,7 +2823,16 @@ function registerActivityLifecycleMigrationTest(): void {
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 36;
       PRAGMA user_version = 35;
     `);
-    expect(planDatabaseMigrations(db).migrations).toEqual([V36_MIGRATION, V37_MIGRATION, V38_MIGRATION]);
+    expect(planDatabaseMigrations(db).migrations).toEqual([
+      V36_MIGRATION,
+      V37_MIGRATION,
+      V38_MIGRATION,
+      ...NEWEST_ACCOUNT_MIGRATIONS,
+      V41_MIGRATION,
+      V42_MIGRATION,
+      V43_MIGRATION,
+      V44_MIGRATION,
+    ]);
     initializeOpenDb(db, ":memory:");
     expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
       expect.arrayContaining([
@@ -2731,40 +2856,142 @@ function registerActivityLifecycleMigrationTest(): void {
 
 describe("schema migration of an existing on-disk DB", registerActivityLifecycleMigrationTest);
 
+// eslint-disable-next-line max-lines-per-function
+describe("schema migration of an existing on-disk DB", () => {
+  it("v39 adds Capacity Overview access without changing existing account data", () => {
+    const db = openDb(":memory:");
+    seedIfUninitialized(db, seed());
+    const before = readState(db).accounts;
+    db.exec(`
+      ALTER TABLE accounts DROP COLUMN dateStyle;
+      ALTER TABLE accounts DROP COLUMN capacityOverviewAccess;
+      ALTER TABLE resources DROP COLUMN avatarUrl;
+      DROP TABLE account_ownership_transfers;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 39;
+      PRAGMA user_version = 38;
+    `);
+
+    expect(planDatabaseMigrations(db).migrations).toEqual([
+      V39_MIGRATION,
+      V40_MIGRATION,
+      V41_MIGRATION,
+      V42_MIGRATION,
+      V43_MIGRATION,
+      V44_MIGRATION,
+    ]);
+    initializeOpenDb(db, ":memory:");
+
+    expect(db.prepare("PRAGMA table_info(accounts)").all()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "capacityOverviewAccess", type: "TEXT", notnull: 0 }),
+        expect.objectContaining({ name: "dateStyle", type: "TEXT", notnull: 0 }),
+      ]),
+    );
+    expect(readState(db).accounts).toEqual(before);
+    db.close();
+  });
+
+  // The accounts carry a non-default value in a neighbouring optional column, so the preservation
+  // assertion below has something to lose: `dateStyle` itself is absent on both sides of the
+  // migration (v40 is what introduces it), which would make a snapshot comparison of seeded
+  // accounts alone pass whatever the migration did to the table.
+  function rewindToV39(db: Db): void {
+    db.exec(`
+      ALTER TABLE accounts DROP COLUMN dateStyle;
+      ALTER TABLE resources DROP COLUMN avatarUrl;
+      DROP TABLE IF EXISTS account_ownership_transfers;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 40;
+      PRAGMA user_version = 39;
+    `);
+  }
+
+  it("v40 adds the account date format without changing existing account data", () => {
+    const db = openDb(":memory:");
+    seedIfUninitialized(db, seed());
+    db.exec("UPDATE accounts SET internalColourMode = 'palette';");
+    const before = readState(db).accounts;
+    rewindToV39(db);
+
+    expect(planDatabaseMigrations(db).migrations).toEqual([
+      V40_MIGRATION,
+      V41_MIGRATION,
+      V42_MIGRATION,
+      V43_MIGRATION,
+      V44_MIGRATION,
+    ]);
+    initializeOpenDb(db, ":memory:");
+
+    expect(db.prepare("PRAGMA table_info(accounts)").all()).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "dateStyle", type: "TEXT", notnull: 0 })]),
+    );
+    expect(readState(db).accounts).toEqual(before);
+    db.close();
+  });
+
+  it("v40 leaves the column it added writable, and running it again is a no-op", () => {
+    const db = openDb(":memory:");
+    seedIfUninitialized(db, seed());
+    rewindToV39(db);
+    initializeOpenDb(db, ":memory:");
+
+    const accountId = db.prepare("SELECT id FROM accounts LIMIT 1").get() as { id: string };
+    db.prepare("UPDATE accounts SET dateStyle = ? WHERE id = ?").run("month-day", accountId.id);
+
+    // Re-running the runner exercises its `tableHasColumns` guard. Without it SQLite raises
+    // "duplicate column name: dateStyle" and startup migration of an already-migrated DB fails.
+    expect(() => runAccountDateStyleV40(db)).not.toThrow();
+    expect(db.prepare("SELECT dateStyle FROM accounts WHERE id = ?").get(accountId.id)).toEqual({
+      dateStyle: "month-day",
+    });
+    db.close();
+  });
+});
+
 describe("schema migration of an existing on-disk DB", () => {
   it("v35 adds allocation project attribution with its FK, tenant guards and child index", () => {
     const copied = copyFixture("v34-off.db");
     try {
       const db = openDbConnection(copied.path);
-      expect(planDatabaseMigrations(db).migrations).toEqual([
-        V35_MIGRATION,
-        V36_MIGRATION,
-        V37_MIGRATION,
-        V38_MIGRATION,
-      ]);
-      initializeOpenDb(db, copied.path);
+      try {
+        expect(planDatabaseMigrations(db).migrations).toEqual([
+          V35_MIGRATION,
+          V36_MIGRATION,
+          V37_MIGRATION,
+          V38_MIGRATION,
+          V39_MIGRATION,
+          V40_MIGRATION,
+          V41_MIGRATION,
+          V42_MIGRATION,
+          V43_MIGRATION,
+          V44_MIGRATION,
+        ]);
+        initializeOpenDb(db, copied.path);
 
-      expect(
-        (db.prepare("PRAGMA table_info(allocations)").all() as Array<{ name: string }>).some(
-          (column) => column.name === "projectId",
-        ),
-      ).toBe(true);
-      expect(db.prepare("PRAGMA foreign_key_list(allocations)").all()).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ from: "projectId", table: "projects", to: "id", on_delete: "SET NULL" }),
-        ]),
-      );
-      expect(db.prepare("PRAGMA index_list(allocations)").all()).toEqual(
-        expect.arrayContaining([expect.objectContaining({ name: "idx_allocations_projectId" })]),
-      );
-      expect(
-        db
-          .prepare(
-            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'capacitylens_tenant_allocations_projectId_%'",
-          )
-          .get(),
-      ).toEqual({ count: 2 });
-      db.close();
+        expect(
+          (db.prepare("PRAGMA table_info(allocations)").all() as Array<{ name: string }>).some(
+            (column) => column.name === "projectId",
+          ),
+        ).toBe(true);
+        expect(db.prepare("PRAGMA foreign_key_list(allocations)").all()).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ from: "projectId", table: "projects", to: "id", on_delete: "SET NULL" }),
+          ]),
+        );
+        expect(db.prepare("PRAGMA index_list(allocations)").all()).toEqual(
+          expect.arrayContaining([expect.objectContaining({ name: "idx_allocations_projectId" })]),
+        );
+        expect(
+          db
+            .prepare(
+              "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'capacitylens_tenant_allocations_projectId_%'",
+            )
+            .get(),
+        ).toEqual({ count: 2 });
+
+        assertV35AllocationProjectWrites(db);
+      } finally {
+        db.close();
+      }
     } finally {
       copied.cleanup();
     }

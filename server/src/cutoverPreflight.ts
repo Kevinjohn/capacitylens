@@ -22,6 +22,6 @@ export async function inspectSsoCutoverPreflight(db: Db, environment: Record<str
     providers: context.auth.providers,
     identity: context.identity,
     administration: context.administration,
-    openSignup: context.resolvedEnvironment.env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1",
+    openSignup: context.resolvedEnvironment.env.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
   });
 }

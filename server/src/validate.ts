@@ -74,6 +74,10 @@ function optionalString(row: Record<string, unknown>, field: string): string | u
   return value;
 }
 
+function optionalStringOrEmpty(row: Record<string, unknown>, field: string): string {
+  return optionalString(row, field) ?? "";
+}
+
 function parseAncestryRow(row: Record<string, unknown>): LifecycleAncestryRow {
   const id = requireString(row, "id");
   const accountId = optionalString(row, "accountId");
@@ -148,7 +152,10 @@ function parseResource(row: Record<string, unknown>): Resource {
     createdAt: requireString(row, "createdAt"),
     updatedAt: requireString(row, "updatedAt"),
     kind,
-    role: requireString(row, "role"),
+    // Role is an optional descriptor in the resource form and in the shared entity contract.
+    // Keep the property on every row for the NOT NULL column, but accept the empty string the
+    // form sends when the manager leaves Role blank.
+    role: optionalStringOrEmpty(row, "role"),
     employmentType,
     engagement,
     workingHoursPerDay: requireNumber(row, "workingHoursPerDay"),
@@ -223,6 +230,9 @@ function assertResourceWrite(input: AssertValidWriteInput, accountId: string): v
   const { state, row, existing, lookup } = input;
   const resource = parseResource(row);
   const previous = existing ? parseResource(existing) : undefined;
+  if (previous && previous.kind !== resource.kind) {
+    throw new ValidationError("A resource’s kind cannot change after creation.", { code: "resource_kind_immutable" });
+  }
   assertResourceProjectAllowsDependents(state, accountId, resource.id, resource, previous, lookup);
   assertResourceKindAllowsDependents(state, accountId, resource.id, resource.kind, lookup);
   const availability = validateResourceAvailabilityPair(resource.firstAvailableDate, resource.lastAvailableDate);

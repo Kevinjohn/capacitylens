@@ -1,13 +1,10 @@
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { AccountPicker } from "./accounts/AccountPicker";
+import { AccountLoadRecovery } from "./accounts/AccountLoadRecovery";
 import { ConnectionError } from "./ConnectionError";
 import { FakeSignIn } from "./FakeSignIn";
 import { RotateHint } from "./RotateHint";
 import { m } from "@/i18n";
-
-const IntroPage = lazy(async () => ({
-  default: (await import("./IntroPage")).IntroPage,
-}));
 
 const StorageRecovery = lazy(async () => ({
   default: (await import("./StorageRecovery")).StorageRecovery,
@@ -40,9 +37,13 @@ interface AppEntryGateProps {
   demoAuthActive: boolean;
   fakeSignedIn: boolean;
   hasActiveAccount: boolean;
-  introSeen: boolean;
+  allowWithoutActiveAccount: boolean;
+  activeAccountId: string | null;
+  activeAccountLoadFailed: string | null;
+  activeAccountName: string;
   onFakeSignIn: () => void;
-  onIntroContinue: () => void;
+  onRetryActiveAccountLoad: () => Promise<boolean>;
+  onChooseAnotherAccount: () => void;
   children: ReactNode;
 }
 
@@ -54,9 +55,13 @@ export function AppEntryGate({
   demoAuthActive,
   fakeSignedIn,
   hasActiveAccount,
-  introSeen,
+  allowWithoutActiveAccount,
+  activeAccountId,
+  activeAccountLoadFailed,
+  activeAccountName,
   onFakeSignIn,
-  onIntroContinue,
+  onRetryActiveAccountLoad,
+  onChooseAnotherAccount,
   children,
 }: AppEntryGateProps) {
   if (connectionError)
@@ -84,23 +89,24 @@ export function AppEntryGate({
     );
   }
 
-  if (!hasActiveAccount) {
+  if (activeAccountLoadFailed !== null && activeAccountLoadFailed === activeAccountId) {
+    return (
+      <FocusableStage>
+        <AccountLoadRecovery
+          accountName={activeAccountName}
+          onRetry={onRetryActiveAccountLoad}
+          onChooseAnother={onChooseAnotherAccount}
+        />
+      </FocusableStage>
+    );
+  }
+
+  if (!hasActiveAccount && !allowWithoutActiveAccount) {
     return (
       <FocusableStage>
         <AccountPicker />
         <RotateHint />
       </FocusableStage>
-    );
-  }
-
-  if (!introSeen) {
-    return (
-      <Suspense fallback={<LoadingBoundary />}>
-        <FocusableStage>
-          <IntroPage onContinue={onIntroContinue} />
-          <RotateHint />
-        </FocusableStage>
-      </Suspense>
     );
   }
 

@@ -1,6 +1,6 @@
 # US-TOF-05 — Scan current and future time off by resource
 
-**Area:** Time off · **Persona:** Studio manager · **Linked automated coverage:** `src/components/timeoff/timeOffView.test.ts` (week boundary, grouping and ordering), `src/components/timeoff/TimeOffList.test.tsx` (account settings, placeholders, lifecycle and permissions), `e2e/timeoff.spec.ts` → "groups current and future entries by resource"
+**Area:** Time off · **Persona:** Studio manager · **Linked automated coverage:** `src/components/timeoff/timeOffView.test.ts` (grouping and ordering), `src/components/timeoff/TimeOffList.test.tsx` and `src/components/timeoff/CompanyClosureSection.test.tsx` (mounted company-week rollover, account settings, placeholders, lifecycle and permissions), `e2e/timeoff.spec.ts` → "groups current and future entries by resource"
 
 ## Goal
 
@@ -23,6 +23,8 @@ multiple entries for one person and an entry that ended before the current compa
 3. Within a resource section, read its time-off rows from top to bottom.
 4. Edit or delete one dated row using its date-specific action.
 
+See [Review current and upcoming time off](../../docs-src/guide/time-off.md#review-current-and-upcoming-time-off).
+
 ## Acceptance criteria
 
 - ✅ Entries are grouped into one bordered list per resource. The resource name appears once as the
@@ -31,9 +33,12 @@ multiple entries for one person and an entry that ended before the current compa
   section are ordered by start date, then end date, then a deterministic final tie-breaker.
 - ✅ The boundary is the start of the current week in the active company's timezone, using that
   company's Monday/Sunday week-start setting. An entry remains visible when its end date is on or
-  after the boundary; an entry that ended before it is hidden without being deleted.
+  after the boundary; an entry that ended before it is hidden without being deleted. Personal
+  entries and company closures refresh at the account-local date boundary while the page remains
+  open, without requiring navigation or a data change.
 - ✅ Placeholder time off still follows **Show placeholders**. An unexpected dangling resource is
   shown safely in a final **(unknown)** section. Time off beneath an archived resource remains hidden.
-- ✅ Empty-state behavior is unchanged when the view filter leaves no entries.
+- ✅ Empty sections explain their purpose. **Add closure** and **Add time off** appear once each,
+  beside their section headings, including when no entries remain in the forward view.
 - ✅ Each row keeps its date-specific Edit/Delete accessible name. Editing, deleting, confirmation,
   Undo and role-based mutation visibility target the correct underlying entry after sorting.

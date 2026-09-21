@@ -11,17 +11,355 @@ new features and **patch** versions carry fixes.
 
 - Prepare experimental Node 26 compatibility checks while retaining Node 24 as the default;
   official fixed-runtime acceptance remains pending (#710).
+- Removed legacy account environment aliases; the server refuses them and names the
+  `SMALLSASS_ACCOUNT_*` replacement (#1201).
+- Managed-VPS builds now activate a production-only runtime artifact instead of retaining build and test dependencies in each release.
+- Give every supported social sign-in provider a recognisable, consistently aligned button, with
+  Microsoft and GitHub joining the existing Google treatment across sign-in, invitations and
+  reauthentication.
+- Add an icon button below Settings in the sidebar for quickly switching between light and dark
+  modes, while retaining the full Match system preference in Settings (#1146).
+- Rework Team & access into matching five-column member and invitation tables, keep row actions
+  stable while dialogs are open, place invitations before the member table, simplify immediate
+  Resource linking, give SSO cutover readiness its own Settings table, move company ownership into
+  a dialog, and align every Team dialog with the shared bordered modal shell and the product's
+  left-label/right-control form layout (#1198).
+- Update the Overview guide for individual week columns and the Ledger and Load curve displays.
+  Refresh screenshots of Overview, Schedule filters, Settings and forms to match the current
+  controls (#1143, #1144).
 
-- Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
-  and simplify drawer entries to a compact activity-first agenda (#753, #754).
+### Fixed
+
+- Include the Docker internal-TLS renewal verifier in the production API image so Compose deployments can validate coordinated certificate renewal (#1192).
+- Pass strict OIDC presentation brand settings through Docker Compose so container installations
+  can use the documented Google, Microsoft or generic sign-in treatment (#1170).
+- Render Google sign-in actions sharply on high-density displays, remove the transparent wrapper's
+  full-width shadow, and add breathing room above and below the promoted action (#1164).
+- Align the Team & access member table with the Resources list by grouping its outlined actions,
+  reducing email text size, and removing the table's outer card (#1150).
+- Present the Account page's **Sign out** action in red and align it to the right (#1151).
+- Apply Google sign-in presentation and mixed-mode ordering to strict OIDC providers explicitly
+  configured with the Google brand, without changing their authentication mechanism (#1152).
+- Warn at startup when a company login is branded `google` or `microsoft` but its issuer belongs
+  to neither, so people are not offered a branded button that signs them in somewhere else
+  (#1154).
+
+## [0.70.0-alpha.1] - 2026-09-17
+
+### Fixed
+
+- Keep selected and keyboard-focused recessed segments above their neighbours, and keep allocation
+  detail popovers centred on the visible portion of a bar after horizontal schedule scrolling
+  (#1145).
+
+### Changed
+
+- Carry the same control treatment into dialogs and forms: the allocation **Status**, activity
+  **Kind**, resource **Engagement** and company **Week starts on** choices sit on the recessed
+  track, so no control in the product still marks its selection with a blue border (#1128).
+- Carry the Overview's control treatment into Schedule and Settings: segmented choices sit on a
+  recessed track with only the selected option lifted, and the Schedule's **Show tentative** /
+  **Hide tentative** pair becomes a single **Tentative** pill that is on by default (#1128).
+- Redesign the Overview page as a single capacity ledger: each week cell shows free days out of
+  capacity with a colour-graded bar and a grey tentative hatch, an optional **Totals** header row
+  reports each week's committed percentage and free days, a **Load curve** display shows shape only,
+  and the horizon offers 4, 8 or 12 single weeks. Boolean toolbar choices become single pills. The
+  per-group totals rows, including the combined unassigned-demand figure, are removed: totals cover
+  the people shown and placeholder rows carry their own demand (#1130).
+
+## [0.69.0-alpha.1] - 2026-09-17
+
+### Fixed
+
+- Align Team & access member actions as distinct masquerade, role-edit, Resource-link and settings
+  controls, and show **None** for members without a linked Resource (#1132).
+- Use Google's recognizable mark and exact **Sign in with Google** action copy across configured
+  Google social sign-in, invitation and reauthentication buttons, including their disabled states (#1124).
+- Keep successful Google and other external sign-in handoffs in a neutral, accessible redirecting
+  state instead of showing a false failure (#1123).
+- Align labels with their controls in the Client and Project modals, and place the clearer code-name
+  privacy explanation beneath the conditional input (#1120).
+- Keep profile-picture ownership with each person's Account by removing Avatar URL from the resource
+  modal, and place Start date and End date together on one responsive row (#1108).
+- Centre allocation detail popovers over the visible segment of a schedule bar when horizontal
+  scrolling clips the bar (#1107).
+- Size schedule rows for overlapping allocations in the visible date window, so historical
+  overlaps do not leave otherwise single-lane rows unnecessarily tall (#858).
+
+### Changed
+
+- Put a configured Google social sign-in action first in mixed password mode, with an explicit
+  **or use your password** fallback separator while keeping password and other provider doors available (#1125).
+- Rework day-to-day, Admin and Owner documentation around visible screens and useful actions.
+  Prioritise personal scheduled work, complete Admin tasks and the Owner-to-Admin handover.
+  Add real application screenshots for each guide, including role-specific access and first-company setup.
+
+- Clarify the first-booking, installation and operations journeys with visual stages,
+  route-specific navigation and safer verification and recovery guidance (#1100).
+
+- Align Team & access member and outstanding-invite rows with the managed-resource list, move member
+  actions and Resource linking into centered dialogs, and rename the association controls to **Link
+  to Resource** (#1104).
+
+- Start Overview in **Bar & number** mode and give the 12-week table extra breathing room only at
+  the Week 4 to Weeks 5–8 strategic boundary (#1102).
+- Remove member-link guidance and entry points from Resources, and add a consistent pointer cursor
+  to enabled action controls across the resource and directory pages (#1103).
+- Consolidate the sidebar footer to one avatar-led **Account** row, move real and demo sign-out to
+  Account, and hide product-orientation navigation and unnecessary single-company context (#1105).
+- Make the documentation home easier to scan, replace the day-to-day application tour entry with
+  the task-focused Overview guide, and keep the current page marked in the static sidebar and
+  narrow-screen guide menu.
+- Reorganise the documentation into self-contained day-to-day, Owner, Admin, installation,
+  and operations guides, each with its own task path and FAQ. Add a plain-language introduction,
+  first-booking quick start, script-free narrow-screen guide navigation, and an open-source and
+  contributing page (#1099).
+
+## [0.68.0-alpha.1] - 2026-09-15
+
+### Changed
+
+- Keep member links and invitations in Team & access, with a **Manage team links** entry point
+  from Resources (#1088).
+
+- Let Owners and Admins optionally propose an account-scoped scheduled person for an invitation;
+  admission attempts the link atomically and reports actionable exceptions without exposing proposal
+  state to invitees (#1087).
+
+- Keep scheduled-person kinds immutable, clear member links during destructive scheduling imports
+  and permanent lifecycle removal, and make Team & access link changes retry-safe and auditable (#1086).
+
+- Simplify onboarding from first-Owner and company setup through the first useful schedule, with
+  plain-language labels, three outcome-based setup steps and a non-blocking explanation that can
+  always be reopened from the sidebar (#837).
+- Organise Settings into Company setup, Scheduling features, My display, and Data and support,
+  with compact responsive rows, clearer labels and visible company/device scope (#965).
+- Name the Settings build and persistence row so build stamps, feedback and diagnostic breadcrumbs
+  have a clear support context, and keep the personal Account controls outside Data and support (#1042).
 
 ### Added
 
+- Let Owners and Admins explicitly link account members to scheduled people, using a validated
+  sign-in avatar only when that person has no explicit avatar URL (#1084).
+- Allow scheduled people to use an externally hosted HTTPS avatar, with initials as the loading and
+  error fallback and no-referrer browser requests (#1083).
+- Add an optional **12 weeks** strategic horizon to Overview, while keeping the four-week tactical
+  view as the default and the person schedule drawer at 28 days (#968).
+- Add a current visual tour of every application page to the documentation.
+
+### Fixed
+
+- Refresh every documentation screenshot against the current interface, correct the Settings and
+  navigation captures, and pin sensitive invitation imagery for bearer-value publication review
+  (#923, #924, #925).
+- Bring the published guides, contributor guidance, historical implementation records and
+  user-story test references back into line with the shipped product, including installation,
+  sign-in, permissions, date formatting and ownership-transfer details (#913, #914, #915, #916,
+  #917, #918, #919, #920, #926, #928, #930, #934, #935, #937, #940, #941, #944, #1010).
+- Clarify that the company date format governs planning dates, while session, reset,
+  invitation and ownership timestamps use each viewer's browser locale and local time zone
+  (#927, #939).
+- Clarify first-owner and company-login onboarding recovery, company calendar choices and
+  All-projects setup guidance, and repair the first-steps orientation link (#1023, #1024, #1025,
+  #1060, #1061, #1062, #1063).
+- Keep the command palette's Overview page result consistent with the sidebar and its role-based
+  company access setting (#1000).
+- Include the Account page in the command palette's Pages results (#938).
+- Keep ownership-transfer revisions strictly increasing by refusing to advance an exhausted or
+  corrupted stored revision, including during membership-driven invalidation (#906).
+- Replace manual ownership-transfer recovery SQL with a stopped-server command that checks the
+  exact request and revision, takes an exclusive lock and records the cancellation for delivery (#996).
+- Preserve distinct application namespaces while anonymising command-ledger rows so migration
+  rehearsal copies cannot fail when applications share operation coordinates (#958).
+- Refresh personal time off and company closures when the company week rolls over, so newly
+  historical rows no longer remain visible until an unrelated page update (#902, #903).
+- Treat confirmed allocation work as the implicit default in schedule popovers and accessible bar
+  names, while retaining explicit annotations for tentative and completed work (#851).
+- Keep the original retry identity when concurrent copies of the same account command include an
+  unknown outcome, preventing a later retry from submitting a second semantic mutation (#942).
+- Hide the previously open company's data when a newly selected company cannot load, and offer
+  explicit retry or company-selection recovery actions (#945).
+- Prevent simultaneous identity-email repairs from sharing an audit event ID and rolling back an
+  otherwise valid administrator correction (#905).
+- Emit a static Overview route document so direct links work on strict static deployments (#943).
+- Make the managed-VPS deployment examples stop on build failures, limit Supervisor privileges to
+  one installation's process group, and describe the initial pending backup health state accurately
+  (#921, #933, #936).
+- Use a subtle neutral grey for Overview Bar mode's unavailable cells and add 6px horizontal and
+  vertical breathing room between cells for easier scanning (#963).
+- Release an ownership-transfer step's retry handle (accept, withdraw, decline, cancel or complete)
+  once the server reports that request already reached a terminal outcome, instead of letting a
+  retry with the same identity replay the earlier terminal receipt (#908).
+- Allow migration rehearsal copies to anonymise federated provider bindings when several
+  applications use the same provider identifier (#904).
+- Make the bare-metal installation select Node from the repository's `.nvmrc`, then run the
+  systemd service from a root-owned copy of that verified binary, including upgrade and runtime
+  checks (#931, #932).
+- Scale Overview capacity bars against the company working days in each column, so people with
+  different working patterns remain visually comparable (#890).
+- Keep the Overview's ordered week-column headers compact across a year boundary, so the one
+  cross-year week does not make the header row taller than its neighbours (#861).
+
+### Changed
+
+- Reorganise the documentation around quick start, technical installation, Owner setup,
+  administration and day-to-day work, with a guided path from a fresh installation through team
+  setup and ownership transfer (#841, #850).
+- Document a backup-first, transactional operator procedure on its own runbook page for inspecting
+  and cancelling an ownership-transfer request whose revision is corrupt or exhausted (#990, #997).
+- Replace the browser favicon's lightning mark with a magnifying glass (#966).
+- Local development and test servers now take their ports from a lane claimed for the duration of
+  each command, so several checkouts can run the suites at the same time without colliding on a
+  port or inheriting a crashed run's orphaned server. Each run also reserves a share of the
+  machine's CPUs, which stops concurrent runs from each assuming they own every core. A single
+  checkout keeps the ports it always had (#886).
+
+## [0.67.0-alpha.1] - 2026-09-12
+
+### Added
+
+- Handing a company to someone else is a three-step ceremony again, replacing the one-click
+  transfer that was removed. The Owner nominates another Admin, that person agrees, and only then
+  does the Owner confirm the exchange — so nobody is made Owner without having said yes, and the
+  Owner cannot be moved aside by a single mis-click. Either side can pull out until the moment it
+  completes: the nominee can decline or withdraw an agreement, the Owner can cancel or nominate
+  someone else, and a request that nobody acts on expires on a stated date. Team settings shows
+  whose turn it is and why a previous attempt ended (#780).
+
+## [0.66.0-alpha.1] - 2026-09-12
+
+### Fixed
+
+- Keep an allocation's length when it is dragged to someone with different working days: the
+  duration is now measured against the working week it came from and re-placed in the new one,
+  so a two-day booking stays two days instead of being re-read against the destination's calendar.
+  The drag preview shows the resulting length before release (#338).
+
+### Added
+
+- Add a **Show totals** / **Hide totals** toggle to the Overview toolbar, hiding group header
+  figures by default (#794).
+- Add a **Bar** / **Bar & number** / **Number** capacity display toggle to the Overview toolbar,
+  filling each cell from the bottom with free (green) or overbooked (red) capacity proportioned
+  against that week's own availability (#795).
+- Open a person's read-only schedule drawer from their avatar on Overview rows, using the same
+  hover/focus-to-eye trigger and 28-day drawer as the Schedule (#790).
+
+### Changed
+
+- Rename "Capacity Overview" to "Overview" in the sidebar, page heading, table, settings and
+  route (`/overview`); no redirect from the old `/capacity-overview` path (#791).
+
+## [0.65.0-alpha.1] - 2026-09-12
+
+### Fixed
+
+- Restore importing and exporting after the account date-format change: the export schema version
+  had moved ahead of the migration steps, so every import and export failed with an internal
+  migration message (#866).
+
+### Changed
+
+- The date format is a company setting rather than a per-browser one, so everyone in an account
+  reads the schedule in the same convention. An editor or above sets it in Settings → **Date
+  format**; a viewer sees it, disabled. It applies immediately, without a reload, and it is part of
+  the account — present in Export JSON and undoable like any other account change (#866). It never
+  shipped as the device preference the Added entry below first described.
+
+## [0.64.1-alpha.1] - 2026-09-12
+
+### Fixed
+
+- Highlight company closures the same way as personal time off when the schedule's draw mode is
+  switched to Time off, instead of leaving the closure band unchanged (#787).
+- Keep an allocation bar's label inside the part of the bar on screen, so a booking that started
+  before the visible window is no longer unlabelled (#786).
+- Show a company closure's name in the standard text colour and keep it centred in the part of the
+  band on screen, so the closure stays named after scrolling a long list of people (#788).
+
+## [0.64.0-alpha.1] - 2026-09-12
+
+### Fixed
+
+- Show both years on a date range that crosses one, instead of a repeated month that read as a
+  single day (#819).
+- Carry the year into the screen-reader names and the "series through" line for a booking or a
+  time-off entry that crosses a year, so a spoken `28 Dec to 8 Jan` can no longer read as a range
+  running backwards through the year (#793).
+- Name the company-closure Edit and Delete buttons with the date range shown on the row they act
+  on, so a voice-control user can speak what is on screen (#793).
+- Reduced memory pressure during direct deployment builds by keeping test and build-tool type-checking
+  in validation while checking only browser-shipped sources in `pnpm run build`.
+
+- Keep schedule group headers above company closure shading (#766).
+- Warn how many active allocations an activity archive would pull out of the schedule, matching the
+  existing client and project archive copy (#805).
+- Show a notice instead of failing silently when a member view is started while another start is
+  already in flight, and show the generic persistence message instead of a raw internal error when a
+  resource save fails through batch reconciliation (#806).
+- Keep the archive confirmation on screen when the row stops being active while the dialog is open,
+  instead of losing the page to an error (#817).
+
+### Changed
+
+- Ask for the password again only for high-impact administration — ownership transfer, resetting
+  another member's password, revoking another member's sessions, company deletion, import/purge and
+  SSO cutover/identity link and repair — and drop the re-prompt from invites, role and status changes,
+  member removal, the sign-in-tracking toggle, masquerade start and internal-client adoption (#807).
+- Default the sidebar to collapsed below 1024px viewport width so it no longer crowds the
+  schedule on tablet-sized screens; a saved open/closed choice still wins (#792).
+- Make company creation actions responsive and spaced, use equal-width week-start choices, and
+  replace the overwhelming timezone select with a searchable browser-aware IANA combobox that
+  presents local/common zones first and reflects daylight-saving abbreviations (#740).
+- Clarify manual invitation delivery, keep the one-time link confirmation inline, and separate
+  sign-in and account-creation journeys with fully readable permissions, local expiry and recipient
+  email hints that hide the domain (#746).
+- Clarify first-owner setup with the exact setup-token setting and secure handoff guidance, then
+  continue directly to first-company creation without invitation guidance (#739).
+- Keep Team & access member and invitation directories available as read-only information without a
+  fresh-session prompt; require fresh confirmation only for initiated sensitive actions and name the
+  action in that confirmation (#737).
+- Rename Global working days to Company-wide working days, clarify company, personal and device
+  preference scope, and group independent Placeholder and External visibility switches under
+  Additional resourcing options. New companies now default to Days input with inline activity
+  creation off (#743).
+- Narrow the Schedule project filter choices to the selected client while retaining **All projects**
+  and resetting incompatible project selections (#716).
+- Explain every empty activity category and keep creation actions beside the Activities and Time off headings (#742).
+- Open an individual's schedule from their avatar, with matching hover and keyboard-focus cues,
+  and simplify drawer entries to a compact activity-first agenda (#753, #754).
+- Make first-run setup-token pastes resilient to edge whitespace and reject invisible characters
+  before request construction, without exposing token values in client logs (#738).
+- Keep the Add person dialog open when a self-hosted save is rejected, and allow people whose
+  optional Role is blank to persist (#736).
+- Simplify resource add/edit forms with always-visible Studio/Supplementary choices, compact Start date and End date labels,
+  and separators around the date group (#765).
+- Collapse the repeated month in date ranges across the schedule, Capacity Overview, Time off and company
+  closures: "9 – 14 Sep" rather than "9 Sep – 14 Sep" (#793).
+
+### Added
+
+- Move company ownership through a three-step consent ceremony in **Team & access**: the Owner
+  nominates an Admin, the nominated Admin agrees, and the same Owner confirms. Nothing changes until
+  all three have happened, either side can stop it, a request expires after seven days, and a request
+  ends by itself if either participant's membership changes. Both participants — and nobody else —
+  can see it, and a participant who was away learns how it ended (#780).
+
+- Document deploying on a managed VPS platform such as Forge, Ploi or RunCloud (#734).
+- Add a personal Account page for identity, password, MFA status and active sessions, linked beside
+  the current-user control on every main page (#744).
+- Add a privacy-safe Diagnostics card to Settings with a fixed allowlist of app and observable
+  server health metadata that can be copied for support reports (#745).
+- Add a Date format company setting, choosing between 9 Sep, 9th Sep, Sep 9 and Sep 9th (#793, #866).
+- Expand first-run guidance into a persistent setup checklist with import-or-scratch choice,
+  activity creation, company-settings review and direct links to each action (#741).
 - Publish the documentation site to GitHub Pages after each tagged release or through a deliberate,
   manually triggered workflow (#752).
+- Review free capacity, overload and unassigned demand across a fixed four-week Capacity Overview,
+  with tentative and availability filters plus company-controlled role access (#722).
 - Add an optional account-wide allocation **Task** field, with preserved text when the field is
   hidden and task details above Notes in schedule popovers and person drawers (#720).
-- Add optional inclusive **First available date** and **Last available date** fields for Studio and
+- Add optional inclusive **Start date** and **End date** fields for Studio and
   Supplementary people. Capacity is zero outside a person's range while existing allocated work
   remains visible; new or placement-changing work cannot be placed outside the range (#723).
 
@@ -4234,7 +4572,15 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.0-alpha.1...HEAD
+[0.70.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.69.0-alpha.1...v0.70.0-alpha.1
+[0.69.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.69.0-alpha.1
+[0.68.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.67.0-alpha.1...v0.68.0-alpha.1
+[0.67.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.66.0-alpha.1...v0.67.0-alpha.1
+[0.66.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.65.0-alpha.1...v0.66.0-alpha.1
+[0.65.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.64.1-alpha.1...v0.65.0-alpha.1
+[0.64.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.64.0-alpha.1...v0.64.1-alpha.1
+[0.64.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.63.0-alpha.1...v0.64.0-alpha.1
 [0.63.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.1-alpha.1...v0.63.0-alpha.1
 [0.62.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.62.0-alpha.5...v0.62.1-alpha.1
 [0.62.0-alpha.5]: https://github.com/Kevinjohn/capacitylens/compare/v0.55.0-alpha.4...v0.62.0-alpha.5

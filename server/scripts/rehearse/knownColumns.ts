@@ -24,6 +24,9 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "showInternalActivities",
       "inlineActivityCreateEnabled",
       "showTaskFieldInSchedule",
+      "capacityOverviewAccess",
+      // A display preference: no personal data, nothing to anonymise.
+      "dateStyle",
     ],
     clients: [
       "id",
@@ -59,6 +62,7 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "kind",
       "name",
       "role",
+      "avatarUrl",
       "disciplineId",
       "employmentType",
       "engagement",
@@ -109,6 +113,26 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
     timeOff: ["id", "accountId", "resourceId", "startDate", "endDate", "type", "note", "createdAt", "updatedAt"],
     // Membership flags and scheduling settings/dates are deliberately retained.
     account_members: ["accountId", "userId", "role", "status", "createdAt", "signInConfirmed"],
+    // Opaque revisions and timestamps carry no source identity; all three coordinates are remapped.
+    account_member_resources: ["accountId", "userId", "resourceId", "revision", "createdAt", "updatedAt"],
+    invitation_person_proposals: ["invitationId", "accountId", "resourceId", "createdAt", "updatedAt"],
+    member_resource_link_exceptions: ["accountId", "userId", "proposedResourceId", "reason", "createdAt", "updatedAt"],
+    // `terminalReason` is a bounded enum of workflow outcomes (never free text, never an
+    // identifier), so it is RETAINED rather than scrubbed: a rehearsal that lost it could not
+    // exercise the retention sweep or the participant projection it feeds.
+    account_ownership_transfers: [
+      "id",
+      "accountId",
+      "initiatorUserId",
+      "targetUserId",
+      "state",
+      "revision",
+      "createdAt",
+      "expiresAt",
+      "targetAcceptedAt",
+      "terminalAt",
+      "terminalReason",
+    ],
     account_member_sign_in_tracking: ["accountId"],
     closures: ["id", "accountId", "name", "startDate", "endDate", "createdAt", "updatedAt"],
     capacitylens_federated_link_ceremonies: [
@@ -150,6 +174,9 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
     verification: ["id", "identifier", "value", "expiresAt", "createdAt", "updatedAt"],
     capacitylens_bootstrap_claim: ["id", "claimedAt", "claimToken"],
     account_security_revisions: ["principalId", "revision", "updatedAt"],
+    // Application and command ids are deterministically remapped as distinct namespaces;
+    // operation coordinates and result data are redacted, while workflow states and timestamps
+    // are retained so the rehearsal continues to exercise command-ledger behavior.
     account_commands: [
       "applicationId",
       "operation",

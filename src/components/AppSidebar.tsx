@@ -1,4 +1,4 @@
-import { EyeIcon } from "lucide-react";
+import { EyeIcon, MoonIcon, SunIcon } from "lucide-react";
 import { matchPath, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/authContext";
 import { usePermissionStatus, useRole } from "../auth/permissionContext";
@@ -9,7 +9,7 @@ import { FAKE_USER } from "../lib/fakeAuth";
 import demoAvatarUrl from "../assets/avatar-demo.svg";
 import { DEFAULT_COLORS } from "../lib/palette";
 import { Avatar } from "./common/ui";
-import type { NavigationLinkDefinition } from "../lib/navLinks";
+import { ACCOUNT_LINK, type NavigationLinkDefinition } from "../lib/navLinks";
 import { Badge } from "./ui/badge";
 import {
   Sidebar,
@@ -37,9 +37,9 @@ interface AppSidebarProps {
   activeAccount: { name: string } | undefined;
   /** Administration destinations pinned to the bottom of the nav (Team & access, Settings). */
   adminLinks: NavigationLinkDefinition[];
+  accessibleAccountCount: number;
   demoAuthActive: boolean;
   navLinks: NavigationLinkDefinition[];
-  onSignOut: () => void;
   onSwitchAccount: () => void;
   open: boolean;
 }
@@ -48,9 +48,9 @@ interface AppSidebarProps {
 export function AppSidebar({
   activeAccount,
   adminLinks,
+  accessibleAccountCount,
   demoAuthActive,
   navLinks,
-  onSignOut,
   onSwitchAccount,
   open,
 }: AppSidebarProps) {
@@ -90,9 +90,11 @@ export function AppSidebar({
       <SidebarNavigation navLinks={navLinks} adminLinks={adminLinks} pathname={pathname} onNavigate={closeOnMobile} />
       <SidebarAccountFooter
         activeAccount={activeAccount}
+        accessibleAccountCount={accessibleAccountCount}
         demoAuthActive={demoAuthActive}
-        onSignOut={onSignOut}
         onSwitchAccount={onSwitchAccount}
+        onNavigate={closeOnMobile}
+        pathname={pathname}
       />
 
       <SidebarRail aria-hidden="true" />
@@ -147,7 +149,9 @@ function SidebarNavigation({
           <SidebarGroup className="mt-auto">
             <SidebarSeparator className="mx-0 mb-1" />
             <SidebarGroupContent>
-              <NavMenu links={adminLinks} pathname={pathname} onNavigate={onNavigate} />
+              <NavMenu links={adminLinks} pathname={pathname} onNavigate={onNavigate}>
+                <ThemeToggleMenuItem />
+              </NavMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
@@ -158,33 +162,43 @@ function SidebarNavigation({
 
 function SidebarAccountFooter({
   activeAccount,
+  accessibleAccountCount,
   demoAuthActive,
-  onSignOut,
   onSwitchAccount,
+  onNavigate,
+  pathname,
 }: {
   activeAccount: AppSidebarProps["activeAccount"];
+  accessibleAccountCount: number;
   demoAuthActive: boolean;
-  onSignOut: () => void;
   onSwitchAccount: () => void;
+  onNavigate: () => void;
+  pathname: string;
 }) {
-  if (!activeAccount) return null;
-
+  const { authMode } = useAuth();
+  const showCompanyContext = activeAccount !== undefined && (authMode === "off" || accessibleAccountCount > 1);
   return (
-    <SidebarFooter className="group-data-[collapsible=icon]:hidden">
-      <SidebarSeparator className="mx-0" />
-      <div className="min-w-0 px-2">
-        <div className="truncate text-sm font-semibold" title={activeAccount.name}>
-          {activeAccount.name}
+    <SidebarFooter>
+      {showCompanyContext && (
+        <div className="group-data-[collapsible=icon]:hidden">
+          <SidebarSeparator className="mx-0" />
+          <div className="min-w-0 px-2">
+            <div className="truncate text-sm font-semibold" title={activeAccount.name}>
+              {activeAccount.name}
+            </div>
+            <ActiveRoleBadge />
+          </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
+                {m.nav_switch_company()}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         </div>
-        <ActiveRoleBadge />
-      </div>
+      )}
       <SidebarMenu>
-        <SidebarMenuItem>
-          <SidebarMenuButton size="sm" onClick={onSwitchAccount}>
-            {m.nav_switch_company()}
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SessionMenuItem demoAuthActive={demoAuthActive} onSignOutDemo={onSignOut} />
+        <SessionMenuItem demoAuthActive={demoAuthActive} onNavigate={onNavigate} pathname={pathname} />
       </SidebarMenu>
     </SidebarFooter>
   );
@@ -197,10 +211,12 @@ function NavMenu({
   links,
   onNavigate,
   pathname,
+  children,
 }: {
   links: NavigationLinkDefinition[];
   onNavigate: () => void;
   pathname: string;
+  children?: React.ReactNode;
 }) {
   return (
     <SidebarMenu>
@@ -218,43 +234,71 @@ function NavMenu({
           </SidebarMenuItem>
         );
       })}
+      {children}
     </SidebarMenu>
   );
 }
 
-/**
- * The signed-in identity + sign-out control at the very bottom of the nav (issue #169).
- *
- * Two identities can be signed in here and they never overlap: the COSMETIC demo persona
- * (`demoAuthActive` — real auth is off, see fakeAuth.ts) and a REAL Better Auth session
- * (`authMode !== "off"`). An auth-off server with no demo build has neither, and renders nothing —
- * exactly as before. The control always reads "Sign out" rather than toggling to "Sign in": the
- * entry gate (AppEntryGate / LoginScreen) means the shell — and therefore this footer — only ever
- * renders for someone already signed in, so offering "Sign in" here would be a dead affordance.
- */
-function SessionMenuItem({ demoAuthActive, onSignOutDemo }: { demoAuthActive: boolean; onSignOutDemo: () => void }) {
-  const { authMode, signOut, user } = useAuth();
-  if (!demoAuthActive && authMode === "off") return null;
+/** Fast light/dark access beside the persistent administration destinations. Settings retains the
+ *  full three-way preference, including Match system; this button deliberately makes an explicit
+ *  light or dark choice rather than cycling through the three-way setting. */
+function ThemeToggleMenuItem() {
+  const theme = useStore((state) => state.theme);
+  const setTheme = useStore((state) => state.setTheme);
+  const dark = theme === "dark";
+  const label = dark ? m.nav_switch_to_light_mode() : m.nav_switch_to_dark_mode();
+  const ThemeIcon = dark ? SunIcon : MoonIcon;
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        type="button"
+        tooltip={label}
+        aria-label={label}
+        onClick={() => setTheme(dark ? "light" : "dark")}
+      >
+        <ThemeIcon aria-hidden="true" focusable="false" />
+        <span>{label}</span>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
+}
+
+/** The personal Account destination and identity avatar at the very bottom of the nav. */
+function SessionMenuItem({
+  demoAuthActive,
+  onNavigate,
+  pathname,
+}: {
+  demoAuthActive: boolean;
+  onNavigate: () => void;
+  pathname: string;
+}) {
+  const { authMode, user } = useAuth();
 
   let name: string = FAKE_USER.name;
   let imageUrl: string | undefined = demoAvatarUrl;
-  let onSignOut = onSignOutDemo;
   if (!demoAuthActive) {
     name = user?.name ?? user?.email ?? m.settings_signed_in_unknown();
     imageUrl = user?.image ?? undefined;
-    onSignOut = () => void signOut();
   }
 
   return (
     <SidebarMenuItem>
       <SidebarMenuButton
+        asChild
         size="sm"
-        data-testid="nav-sign-out"
-        title={m.nav_signed_in_as({ who: name })}
-        onClick={onSignOut}
+        isActive={matchPath({ path: ACCOUNT_LINK.to, end: true }, pathname) !== null}
+        tooltip={ACCOUNT_LINK.label()}
       >
-        <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
-        <span className="truncate">{m.nav_sign_out()}</span>
+        <NavLink
+          to={ACCOUNT_LINK.to}
+          onClick={onNavigate}
+          {...(demoAuthActive || authMode !== "off" ? { title: m.nav_signed_in_as({ who: name }) } : {})}
+        >
+          <Avatar name={name} color={DEFAULT_COLORS.account} size={20} {...(imageUrl ? { imageUrl } : {})} />
+          <span>{ACCOUNT_LINK.label()}</span>
+        </NavLink>
       </SidebarMenuButton>
     </SidebarMenuItem>
   );

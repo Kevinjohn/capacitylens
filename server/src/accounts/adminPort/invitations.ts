@@ -11,6 +11,8 @@ import {
   normalizeEmail,
   pruneInvites,
   revokeInvite,
+  createInvitationPersonProposal,
+  isEligibleInvitationPerson,
 } from "../../controlTables";
 import type { Db } from "../../db";
 import { createOperationReceipt } from "../accountFlowRuntime";
@@ -55,10 +57,10 @@ type InvitationInput<Name extends keyof SsoCutoverAccountAdminPort> = Parameters
 
 async function listInvitations(
   context: InvitationsContext,
-  { actor, workspaceId }: InvitationInput<"listInvitations">,
+  { actor, workspaceId, requireFresh = true }: InvitationInput<"listInvitations">,
 ) {
   const { db, requireMfa, trustedLocal } = context;
-  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal });
+  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, requireFresh });
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
   return listInvitesForAccount(db, workspaceId).flatMap((invite) => {
     // Reads remain pure. Hide an expired unused bearer from the live management view without
@@ -77,6 +79,12 @@ async function listInvitations(
         expiresAt: invite.expiresAt,
         usedAt: invite.usedAt,
         createdAt: invite.createdAt,
+        ...(trustedLocal || invite.proposedResourceId === undefined
+          ? {}
+          : { proposedResourceId: invite.proposedResourceId }),
+        ...(trustedLocal || invite.proposedResourceLabel === undefined
+          ? {}
+          : { proposedResourceLabel: invite.proposedResourceLabel }),
       },
     ];
   });
@@ -89,7 +97,16 @@ async function previewInvitation(context: InvitationsContext, { token }: Invitat
   if (inviteIsExpired(invite.expiresAt)) throw createAccountFailure("INVITATION_EXPIRED", "This invite has expired.");
   assertRedeemableInvitationRole(invite.role);
   const workspace = assertWorkspaceExists(context.db, invite.accountId);
-  return { workspaceName: workspace.name, role: invite.role, expiresAt: invite.expiresAt };
+  return {
+    workspaceName: workspace.name,
+    role: invite.role,
+    expiresAt: invite.expiresAt,
+    // Disclose only the local part as a hint. The full addressed email remains account
+    // administration data; the hint omits its domain and cannot authenticate anyone.
+    emailBound: invite.preauthEmail !== null,
+    emailHint:
+      invite.preauthEmail === null ? null : `${invite.preauthEmail.slice(0, invite.preauthEmail.lastIndexOf("@"))}@…`,
+  };
 }
 
 async function preparePasswordInvitationClaim(
@@ -108,9 +125,17 @@ async function preparePasswordInvitationClaim(
   return { emailVerifiedByInvitation: invite.preauthEmail !== null, workspaceId: invite.accountId };
 }
 
+// eslint-disable-next-line complexity, max-lines-per-function
 function executeInvitationCreation(
   context: InvitationsContext,
-  { workspaceId, role, preauthorizedEmail, expiresAt, command }: InvitationInput<"createInvitation">,
+  {
+    workspaceId,
+    role,
+    preauthorizedEmail,
+    expiresAt,
+    proposedResourceId,
+    command,
+  }: InvitationInput<"createInvitation">,
 ): CreatedInvitation {
   const { db, invitationSecretReplay } = context;
   assertInvitationRole(role, command.commandId);
@@ -128,6 +153,13 @@ function executeInvitationCreation(
     throw createAccountFailure(
       "VALIDATION_FAILED",
       "The preauthorized invitation email address is invalid.",
+      command.commandId,
+    );
+  }
+  if (proposedResourceId !== undefined && !isEligibleInvitationPerson(db, workspaceId, proposedResourceId)) {
+    throw createAccountFailure(
+      "VALIDATION_FAILED",
+      "The selected scheduled person is no longer available.",
       command.commandId,
     );
   }
@@ -150,6 +182,15 @@ function executeInvitationCreation(
     usedAt: null,
     createdAt: now,
   });
+  if (proposedResourceId !== undefined) {
+    createInvitationPersonProposal({
+      db,
+      invitationId: id,
+      accountId: workspaceId,
+      resourceId: proposedResourceId,
+      now,
+    });
+  }
   return {
     token,
     id,
@@ -159,24 +200,36 @@ function executeInvitationCreation(
     expiresAt: canonicalExpiresAt,
     usedAt: null,
     createdAt: now,
+    ...(proposedResourceId === undefined ? {} : { proposedResourceId }),
   };
 }
 
+// eslint-disable-next-line max-lines-per-function
 async function createInvitation(
   context: InvitationsContext,
   input: InvitationInput<"createInvitation">,
 ): Promise<CreatedInvitation> {
-  const { actor, workspaceId, role, preauthorizedEmail, expiresAt, command } = input;
+  const { actor, workspaceId, role, preauthorizedEmail, expiresAt, proposedResourceId, command } = input;
   const { db, trustedLocal, requireMfa, invitationSecretReplay, runMutation } = context;
   assertInvitationRole(role, command.commandId);
+  if (trustedLocal && proposedResourceId !== undefined) {
+    throw createAccountFailure(
+      "FORBIDDEN",
+      "Invitation schedule proposals require authenticated administration.",
+      command.commandId,
+    );
+  }
   return runMutation<() => CreatedInvitation>({
     operation: "create-invitation",
     actorPrincipalId: actor.principalId,
     workspaceId,
     command,
-    payload: { workspaceId, role, preauthorizedEmail, expiresAt },
+    payload: { workspaceId, role, preauthorizedEmail, expiresAt, proposedResourceId: proposedResourceId ?? null },
     lockKeys: [actor.principalId, `workspace:${workspaceId}`],
-    audit: { action: "invitation.created", changedFields: ["role", "preauthorizedEmail", "expiresAt"] },
+    audit: {
+      action: "invitation.created",
+      changedFields: ["role", "preauthorizedEmail", "expiresAt", "proposedResourceId"],
+    },
     persistResult: ({
       id,
       workspaceId: createdWorkspaceId,
@@ -184,7 +237,16 @@ async function createInvitation(
       expiresAt: createdExpiresAt,
       usedAt,
       createdAt,
-    }) => ({ id, workspaceId: createdWorkspaceId, role: createdRole, expiresAt: createdExpiresAt, usedAt, createdAt }),
+      proposedResourceId,
+    }) => ({
+      id,
+      workspaceId: createdWorkspaceId,
+      role: createdRole,
+      expiresAt: createdExpiresAt,
+      usedAt,
+      createdAt,
+      ...(proposedResourceId === undefined ? {} : { proposedResourceId }),
+    }),
     replayResult: (_stored, commandId) => {
       const replay = invitationSecretReplay.get(commandId);
       if (replay) return replay;
@@ -196,12 +258,28 @@ async function createInvitation(
     },
     replayGuard: () => {
       // Re-evaluate current authority before re-disclosing the cached write-once bearer token.
-      assertInvitationAuthority({ db, actor, requireMfa, trustedLocal, workspaceId, commandId: command.commandId });
+      assertInvitationAuthority({
+        db,
+        actor,
+        requireMfa,
+        trustedLocal,
+        workspaceId,
+        commandId: command.commandId,
+        requireFresh: false,
+      });
     },
     afterCommit: (invitation) => invitationSecretReplay.storeReserved(command.commandId, invitation),
     afterRollback: () => invitationSecretReplay.releaseReservation(command.commandId),
     execute: () => {
-      assertInvitationAuthority({ db, actor, requireMfa, trustedLocal, workspaceId, commandId: command.commandId });
+      assertInvitationAuthority({
+        db,
+        actor,
+        requireMfa,
+        trustedLocal,
+        workspaceId,
+        commandId: command.commandId,
+        requireFresh: false,
+      });
       return executeInvitationCreation(context, input);
     },
   });
@@ -220,7 +298,13 @@ async function revokeInvitation(context: InvitationsContext, input: InvitationIn
     audit: { action: "invitation.revoked", changedFields: ["invitation"] },
     afterCommit: () => invitationSecretReplay.deleteWhere((invitation) => invitation.id === invitationId),
     execute: () => {
-      assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId: command.commandId });
+      assertAdministrativeAssurance({
+        actor,
+        requireMfa,
+        trustedLocal,
+        commandId: command.commandId,
+        requireFresh: false,
+      });
       assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
       const changed = listInvitesForAccount(db, workspaceId).some((invite) => invite.id === invitationId);
       revokeInvite(db, workspaceId, invitationId);

@@ -127,13 +127,13 @@ describe("SSO provider-link failures", () => {
 describe("SSO cutover readiness authorization", () => {
   it("enforces readiness authorization and provider configuration before inventory reads", async () => {
     const authorize = vi.fn((input: Parameters<Parameters<typeof registerSsoCutoverRoutes>[1]["authorize"]>[0]) => {
-      void input;
+      input.reply.code(403).send({ error: "Forbidden." });
       return false;
     });
     const identity = { readSsoCutoverSnapshot: vi.fn() } as unknown as SsoCutoverIdentityPort;
     const refused = authenticatedApp({ authorize, identity });
     expect((await refused.inject({ method: "GET", url: "/api/accounts/workspace-1/sso-readiness" })).statusCode).toBe(
-      200,
+      403,
     );
     const authorization = authorize.mock.calls[0]?.[0];
     if (!authorization) throw new Error("Expected readiness authorization");
@@ -142,6 +142,7 @@ describe("SSO cutover readiness authorization", () => {
       reply: authorization.reply,
       accountId: "workspace-1",
       action: "manageMembers",
+      options: { requireFreshSession: false },
     });
     expect(identity.readSsoCutoverSnapshot).not.toHaveBeenCalled();
     await refused.close();
@@ -316,7 +317,65 @@ describe("SSO cutover repair identity", () => {
   });
 });
 
+function registerSameMillisecondEmailRepairTest(): void {
+  it("commits two same-millisecond email repairs with distinct audit ids", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-13T08:15:30.123Z"));
+    const auditIds = new Set<string>();
+    const committedEmails: string[] = [];
+    const correctPrincipalEmail = vi.fn(
+      async (input: Parameters<SsoCutoverIdentityPort["correctPrincipalEmail"]>[0]) => {
+        if (auditIds.has(input.audit.id)) throw new Error("duplicate audit id");
+        auditIds.add(input.audit.id);
+        committedEmails.push(input.email);
+      },
+    );
+    const administration = {
+      evaluateIdentityAdminAuthority: vi.fn(async () => ({
+        allowed: true as const,
+        revision: "revision-1" as never,
+        policyVersion: "policy-1" as never,
+      })),
+    } as unknown as SsoCutoverAccountAdminPort;
+    const app = authenticatedApp({
+      identity: { correctPrincipalEmail } as unknown as SsoCutoverIdentityPort,
+      administration,
+    });
+
+    try {
+      const first = await app.inject({
+        method: "PATCH",
+        url: "/api/accounts/workspace-1/members/member-1/email",
+        payload: { email: "bruce.one@example.com" },
+      });
+      const second = await app.inject({
+        method: "PATCH",
+        url: "/api/accounts/workspace-1/members/member-1/email",
+        payload: { email: "bruce.two@example.com" },
+      });
+
+      expect([first.statusCode, second.statusCode]).toEqual([204, 204]);
+      expect(committedEmails).toEqual(["bruce.one@example.com", "bruce.two@example.com"]);
+      const ids = correctPrincipalEmail.mock.calls.map(([input]) => input.audit.id);
+      expect(new Set(ids)).toHaveLength(2);
+      expect(ids).toEqual([
+        expect.stringMatching(
+          /^identity-email:member-1:2026-09-13T08:15:30\.123Z:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+        ),
+        expect.stringMatching(
+          /^identity-email:member-1:2026-09-13T08:15:30\.123Z:[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+        ),
+      ]);
+    } finally {
+      vi.useRealTimers();
+      await app.close();
+    }
+  });
+}
+
 describe("SSO cutover repair transactions", () => {
+  registerSameMillisecondEmailRepairTest();
+
   it.each([
     {
       name: "email correction",

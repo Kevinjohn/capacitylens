@@ -5,9 +5,9 @@
 // (key `external_explainer`). It lives in one place on purpose; both surfaces call this getter.
 //
 // i18n: the copy resolves through Paraglide (`@/i18n`). This is a GETTER (`() => …`), not a
-// pre-resolved constant — mirrors `introCopy.ts` — so the text re-resolves at render with the active
+// pre-resolved constant so the text re-resolves at render with the active
 // account's locale rather than freezing to the import-time locale.
 import { m } from "@/i18n";
 
-/** The shared External / 3rd-party help copy (Resources tab + Settings → External). */
+/** The shared External / 3rd-party help copy (Resources tab + Settings → Additional resourcing options). */
 export const externalExplainer = () => m.external_explainer();

@@ -489,30 +489,54 @@ describe("POST /api/invites (P1.9 create) — gate", () => {
   registerInviteInputTests();
 });
 
-describe("GET /api/invites/:token/preview", () => {
-  it("returns only safe company, role, and expiry context without requiring a session", async () => {
-    const { app, db } = await appWithAuth();
-    seedOne(db);
-    createInvite(db, {
-      token: "preview-token",
-      id: "preview-id",
-      accountId: "a1",
-      role: "editor",
+function registerInvitePreviewProjectionTests(): void {
+  it.each([
+    {
+      kind: "email-bound",
       preauthEmail: "private-address@capacitylens.dev",
-      expiresAt: "2999-01-01T00:00:00.000Z",
-      usedAt: null,
-      createdAt: TS,
-    });
+      emailBound: true,
+      emailHint: "private-address@…",
+    },
+    {
+      kind: "maximum-length email-bound",
+      preauthEmail: `${"a".repeat(252)}@x`,
+      emailBound: true,
+      emailHint: `${"a".repeat(252)}@…`,
+    },
+    { kind: "generic", preauthEmail: null, emailBound: false, emailHint: null },
+  ])(
+    "returns safe $kind context without an address, token or session",
+    async ({ preauthEmail, emailBound, emailHint }) => {
+      const { app, db } = await appWithAuth();
+      seedOne(db);
+      createInvite(db, {
+        token: "preview-token",
+        id: "preview-id",
+        accountId: "a1",
+        role: "editor",
+        preauthEmail,
+        expiresAt: "2999-01-01T00:00:00.000Z",
+        usedAt: null,
+        createdAt: TS,
+      });
 
-    const res = await previewReq(app, "preview-token");
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toEqual({
-      accountName: "Studio a1",
-      role: "editor",
-      expiresAt: "2999-01-01T00:00:00.000Z",
-    });
-    expect(JSON.stringify(res.json())).not.toContain("private-address");
-  });
+      const res = await previewReq(app, "preview-token");
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({
+        accountName: "Studio a1",
+        role: "editor",
+        expiresAt: "2999-01-01T00:00:00.000Z",
+        emailBound,
+        emailHint,
+      });
+      expect(JSON.stringify(res.json())).not.toContain("private-address@capacitylens.dev");
+      expect(JSON.stringify(res.json())).not.toContain("capacitylens.dev");
+    },
+  );
+}
+
+describe("GET /api/invites/:token/preview", () => {
+  registerInvitePreviewProjectionTests();
 
   it.each([
     ["unknown", "missing-preview", 404],
@@ -680,8 +704,8 @@ async function createClosedSignupInviteContext() {
   const db = openDb(":memory:");
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
-    CAPACITYLENS_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
+    SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: undefined,
+    SMALLSASS_ACCOUNT_SETUP_TOKEN: "test-setup-token-0123456789abcdef",
   });
   const requiredAuth = requireValue(auth, "password authentication");
   await runAuthMigrations(requiredAuth);
@@ -1031,13 +1055,13 @@ async function createSsoProviderInviteContext() {
   const db = openDb(":memory:");
   const configured = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    CAPACITYLENS_SSO_CLIENT_ID: "client-id",
-    CAPACITYLENS_SSO_CLIENT_SECRET: "client-secret",
-    CAPACITYLENS_SSO_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-    CAPACITYLENS_SSO_ISSUER: "https://idp.example",
-    CAPACITYLENS_SSO_PROVIDER_ID: "workforce",
-    CAPACITYLENS_GITHUB_CLIENT_ID: "github-client-id",
-    CAPACITYLENS_GITHUB_CLIENT_SECRET: "github-client-secret",
+    SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
+    SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
+    SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
+    SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+    SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+    SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client-id",
+    SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-client-secret",
   });
   const configuredAuth = requireValue(configured.auth, "configured authentication");
   await runAuthMigrations(configuredAuth);

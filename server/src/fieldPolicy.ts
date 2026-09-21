@@ -37,6 +37,8 @@ export interface SanitizeWriteOptions {
   /** Whether the writer may manage/read private client/project real-name fields. False for every
    * authenticated role except owner; trusted-local/off mode passes true. */
   canSeePrivateNames?: boolean;
+  /** True only for an owner/admin (or trusted-local mode) changing the account's overview access. */
+  canChangeCapacityOverviewAccess?: boolean;
 }
 
 export interface ReadSliceFieldVisibility {

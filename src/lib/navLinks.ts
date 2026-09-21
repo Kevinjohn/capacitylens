@@ -1,6 +1,7 @@
 import {
   BriefcaseIcon,
   CalendarIcon,
+  ChartNoAxesColumnIncreasingIcon,
   ClipboardCheckIcon,
   FolderIcon,
   ShieldCheckIcon,
@@ -8,11 +9,14 @@ import {
   SunIcon,
   TagIcon,
   UsersIcon,
+  UserRoundIcon,
   type LucideIcon,
 } from "lucide-react";
 import { m } from "@/i18n";
 import {
   ROUTE_ACTIVITIES,
+  ROUTE_ACCOUNT,
+  ROUTE_CAPACITY_OVERVIEW,
   ROUTE_CLIENTS,
   ROUTE_DISCIPLINES,
   ROUTE_PROJECTS,
@@ -40,10 +44,11 @@ export type NavigationLinkDefinition = { to: string; label: () => string; icon: 
 // anchor to a real element in the rendered schedule) — but the rest use the constants too so no
 // reader has to work out which literals are load-bearing.
 export const LINKS: NavigationLinkDefinition[] = [
+  { to: ROUTE_CAPACITY_OVERVIEW, label: () => m.nav_capacity_overview(), icon: ChartNoAxesColumnIncreasingIcon },
   { to: ROUTE_SCHEDULE, label: () => m.nav_schedule(), icon: CalendarIcon },
   { to: ROUTE_RESOURCES, label: () => m.nav_resources(), icon: UsersIcon },
   // External / 3rd parties moved INTO the Resources tab behind a per-account setting
-  // (`externalEnabled` on the Account, default off — Settings → External). They no longer have their
+  // (`externalEnabled` on the Account, default off — Settings → Additional resourcing options). They no longer have their
   // own nav link; the old /external route redirects to /resources for saved bookmarks.
   { to: ROUTE_DISCIPLINES, label: () => m.nav_disciplines(), icon: TagIcon },
   { to: ROUTE_CLIENTS, label: () => m.nav_clients(), icon: BriefcaseIcon },
@@ -63,3 +68,10 @@ export const ADMIN_LINKS: NavigationLinkDefinition[] = [
   { to: ROUTE_TEAM, label: () => m.nav_team_access(), icon: ShieldCheckIcon },
   { to: ROUTE_SETTINGS, label: () => m.nav_settings(), icon: SlidersHorizontalIcon },
 ];
+
+/** The personal account destination rendered in the sidebar session footer. */
+export const ACCOUNT_LINK: NavigationLinkDefinition = {
+  to: ROUTE_ACCOUNT,
+  label: () => m.nav_account(),
+  icon: UserRoundIcon,
+};

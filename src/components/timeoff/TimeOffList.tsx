@@ -1,18 +1,20 @@
 import { useStore } from "../../store/useStore";
+import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
 import { hasPlaceholdersEnabled, resolveTimeZone, resolveWeekStart } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useEntityListState } from "../../hooks/useEntityListState";
 import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
-import { formatShortDate, formatDayCount } from "../../lib/dateDisplay";
+import { formatShortDate, formatShortDateEndpoint, formatDayCount } from "../../lib/dateDisplay";
 import { TimeOffForm } from "./TimeOffForm";
-import { buildTimeOffGroups, readCurrentTimeOffWeekStart, type TimeOffGroup } from "./timeOffView";
+import { buildTimeOffGroups, type TimeOffGroup } from "./timeOffView";
 import type { TimeOff } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { Fragment, useMemo } from "react";
-import { Calendar, Plus } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
 import { CompanyClosureSection } from "./CompanyClosureSection";
+import { useCalendarToday } from "../scheduler/useCalendarToday";
 
 interface PersonalTimeOffSectionProps {
   groups: TimeOffGroup[];
@@ -31,11 +33,7 @@ function PersonalTimeOffSection({ groups, onAdd, onEdit, onDelete }: PersonalTim
         <AddButton label={m.list_timeoff_add()} onClick={onAdd} />
       </div>
       {groups.length === 0 ? (
-        <EmptyState
-          icon={Calendar}
-          description={m.list_timeoff_empty_desc()}
-          action={{ label: m.list_timeoff_empty_action(), onClick: onAdd, icon: Plus, requiresEdit: true }}
-        >
+        <EmptyState icon={Calendar} description={m.list_timeoff_empty_desc()}>
           {m.list_timeoff_empty()}
         </EmptyState>
       ) : (
@@ -92,8 +90,8 @@ interface TimeOffItemProps {
 function TimeOffItem({ timeOff, resourceName, separated, onEdit, onDelete }: TimeOffItemProps) {
   const labelContext = {
     name: resourceName,
-    start: formatShortDate(timeOff.startDate),
-    end: formatShortDate(timeOff.endDate),
+    start: formatShortDateEndpoint(timeOff.startDate, timeOff.endDate),
+    end: formatShortDateEndpoint(timeOff.endDate, timeOff.startDate),
   };
   return (
     <Fragment>
@@ -123,7 +121,8 @@ export function TimeOffList() {
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<TimeOff>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
 
-  const currentWeekStart = readCurrentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
+  const today = useCalendarToday(calendarTimeZone);
+  const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn);
   const groups = useMemo(
     () =>
       buildTimeOffGroups({

@@ -7,6 +7,21 @@ const page = (path: string) =>
   readFileSync(fileURLToPath(new URL(`../../docs-src/${path}`, import.meta.url)), "utf8").replace(/\s+/g, " ");
 
 describe("operator documentation", () => {
+  it("keeps all three supported installation routes in the self-hosting overview", () => {
+    const overview = page("self-hosting/index.md");
+    expect(overview).toContain("/self-hosting/install-with-docker");
+    expect(overview).toContain("/self-hosting/install-without-docker");
+    expect(overview).toContain("/self-hosting/managed-vps/");
+    expect(overview).not.toContain("supports two ways to install");
+  });
+
+  it("distinguishes password and SSO first-owner bootstrap settings", () => {
+    const configuration = page("self-hosting/configuration.md");
+    const setupTokenRow = configuration.match(/\| `SMALLSASS_ACCOUNT_SETUP_TOKEN` \| ([^|]+)/u)?.[1];
+    expect(setupTokenRow).toContain("fresh password-mode instance");
+    expect(setupTokenRow).toContain("SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS");
+  });
+
   it("includes an executable Compose named-volume restore path", () => {
     const restore = page("self-hosting/backups-and-restore.md");
     expect(restore).toContain("docker compose stop api");
@@ -31,6 +46,19 @@ describe("operator documentation", () => {
     expect(incidents).toContain("recover:audit-outbox -- quarantine");
     expect(incidents.toLowerCase()).toContain("never delete or update an outbox row with ad hoc sql");
     expect(incidents).toContain("refuses to overwrite an existing evidence file");
+  });
+
+  it("pins the guarded ownership-transfer recovery runbook", () => {
+    const recovery = page("self-hosting/ownership-transfer-recovery.md");
+    const incidents = page("self-hosting/incidents.md");
+    expect(recovery).toContain("recover:ownership-transfer -- inspect");
+    expect(recovery).toContain("recover:ownership-transfer -- cancel");
+    expect(recovery).toContain("exclusive database lock");
+    expect(recovery).toContain("revisionHex");
+    expect(recovery).toContain("both participants and revision still match");
+    expect(recovery).not.toContain("UPDATE account_ownership_transfers");
+    expect(incidents).toContain("/self-hosting/ownership-transfer-recovery");
+    expect(incidents).not.toContain("recover:ownership-transfer -- inspect");
   });
 
   it("documents the released over-maximum backup clamping contract", () => {

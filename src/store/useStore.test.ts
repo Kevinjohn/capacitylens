@@ -9,6 +9,8 @@ import {
   WORKDAYS,
 } from "../test/fixtures";
 import { addDaysISO, weekdayOf } from "@capacitylens/shared/lib/dateMath";
+import { readActiveDateStyle, formatDayMonth } from "../lib/dateDisplay";
+import { resolveDateStyle } from "./selectors";
 import { serializeData } from "@capacitylens/shared/data/transfer";
 import { PAST_BUFFER_DAYS } from "../lib/schedulerConfig";
 import { diffOps } from "../data/syncOps";
@@ -318,6 +320,33 @@ function registerSchedulerUiPart3(): void {
     s().setSnapToWeekStart(true);
   });
 
+  it("the date format is account data: undoable, exported, and mirrored to the formatters", () => {
+    // The inverse of the device-preference contract this test used to assert. It is on the account
+    // now, so it takes the account's behaviour in full — including the parts a device pref refused.
+    const accountId = s().activeAccountId;
+    if (!accountId) throw new Error("Expected an active account.");
+    s().updateAccount(accountId, { dateStyle: "month-day" });
+    expect(resolveDateStyle(s().data, accountId)).toBe("month-day");
+
+    // The store pushes it into the formatters synchronously, so a pure formatter agrees with the
+    // account without reading React.
+    expect(readActiveDateStyle()).toBe("month-day");
+    expect(formatDayMonth("2026-09-09")).toBe("Sep 9");
+
+    // An account write, so undo reverts it — unlike the theme, which never touches the stack.
+    s().undo();
+    expect(resolveDateStyle(s().data, accountId)).toBe("day-month");
+    expect(readActiveDateStyle()).toBe("day-month");
+
+    // And it travels with the company's data.
+    s().updateAccount(accountId, { dateStyle: "month-day" });
+    expect(serializeData(s().data)).toContain("dateStyle");
+
+    // Restore the default — the store is a singleton, so leaving it changed would bleed into
+    // later specs that format a date.
+    s().updateAccount(accountId, { dateStyle: "day-month" });
+  });
+
   it("setDrawMode toggles between work and time off", () => {
     s().setDrawMode("timeoff");
     expect(s().ui.drawMode).toBe("timeoff");
@@ -393,9 +422,20 @@ function registerSchedulerUiPart6(): void {
     expect(s().ui.filters.activityId).toBeNull();
   });
   it("clears a stale project when the client filter changes", () => {
-    s().setFilters({ clientId: "client-1", projectId: "project-1" });
-    s().setFilters({ clientId: "client-2" });
-    expect(s().ui.filters).toMatchObject({ clientId: "client-2", projectId: null });
+    const queen = s().addClient({ name: "Queen Consolidated", color: "#111" });
+    const lex = s().addClient({ name: "LexCorp", color: "#222" });
+    const project = s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    s().setFilters({ clientId: queen.id, projectId: project.id });
+    s().setFilters({ clientId: lex.id });
+    expect(s().ui.filters).toMatchObject({ clientId: lex.id, projectId: null });
+  });
+
+  it("keeps a project when the client filter changes to its client", () => {
+    const queen = s().addClient({ name: "Queen Consolidated", color: "#111" });
+    const project = s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    s().setFilters({ projectId: project.id });
+    s().setFilters({ clientId: queen.id });
+    expect(s().ui.filters).toMatchObject({ clientId: queen.id, projectId: project.id });
   });
 
   it("clears a stale project when the client filter is cleared", () => {

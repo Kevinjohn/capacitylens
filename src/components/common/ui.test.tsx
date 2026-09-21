@@ -92,6 +92,17 @@ function registerButtonAppearanceTests() {
     expect(button).not.toHaveClass("transition-all");
   });
 
+  it("signals enabled buttons and links as clickable without making disabled controls look enabled", () => {
+    const { rerender } = render(
+      <Button asChild>
+        <a href="/archived">Archived</a>
+      </Button>,
+    );
+    expect(screen.getByRole("link", { name: "Archived" })).toHaveClass("[&:not(:disabled)]:cursor-pointer");
+    rerender(<Button disabled>Disabled</Button>);
+    expect(screen.getByRole("button", { name: "Disabled" })).not.toHaveClass("cursor-pointer");
+  });
+
   it("renders ghost variant", () => {
     render(<Button variant="ghost">Ghost</Button>);
     expect(screen.getByRole("button", { name: "Ghost" })).toBeInTheDocument();
@@ -732,14 +743,14 @@ describe("compact product fields", () => {
   it("lays out a privacy switch with the shared responsive label-control contract", () => {
     render(
       <SwitchField
-        label="Use a code name"
+        label="Use code name"
         description="Hide the real name"
         checked={false}
         onChange={vi.fn()}
         layout="label-control"
       />,
     );
-    const control = screen.getByRole("switch", { name: "Use a code name" });
+    const control = screen.getByRole("switch", { name: "Use code name" });
     const field = control.closest('[data-slot="field"]');
     const description = screen.getByText("Hide the real name");
     expect(field).toHaveAttribute("data-product-layout", "label-control");
@@ -765,6 +776,7 @@ describe("compact product fields", () => {
         label="Kind"
         value="project"
         onChange={vi.fn()}
+        disabled
         options={[
           { value: "project", label: "Project" },
           { value: "internal", label: "Internal" },
@@ -774,6 +786,7 @@ describe("compact product fields", () => {
     );
     const group = screen.getByRole("radiogroup", { name: "Kind" });
     expect(group.closest('[data-slot="field"]')).toHaveAttribute("data-product-layout", "label-control");
+    for (const radio of screen.getAllByRole("radio")) expect(radio).toBeDisabled();
   });
 });
 
@@ -807,6 +820,36 @@ describe("TextField", () => {
       "data-product-layout",
       "label-control",
     );
+  });
+
+  it("keeps describedById conditional on invalid state by default", () => {
+    render(
+      <>
+        <TextField label="Name" value="Barbara Gordon" onChange={vi.fn()} describedById="name-error" />
+        <p id="name-error">Name has an issue.</p>
+      </>,
+    );
+
+    expect(screen.getByLabelText("Name")).not.toHaveAttribute("aria-describedby");
+  });
+
+  it("supports a persistent external description alongside a conditional error description", () => {
+    render(
+      <>
+        <TextField
+          label="Name"
+          value="Barbara Gordon"
+          onChange={vi.fn()}
+          externalDescriptionId="name-help"
+          describedById="name-error"
+          invalid
+        />
+        <p id="name-help">Use your full name.</p>
+        <p id="name-error">Name has an issue.</p>
+      </>,
+    );
+
+    expect(screen.getByLabelText("Name")).toHaveAttribute("aria-describedby", "name-help name-error");
   });
 });
 
@@ -1388,8 +1431,7 @@ function registerAvatarImageTests() {
   });
 
   it("renders the photo <img> from imageUrl once it loads", () => {
-    // Radix mounts the <img> only after the image reports "loaded"; stub window.Image so the
-    // synchronous load-status probe returns "loaded" in jsdom (complete + non-zero naturalWidth).
+    // Stub Image as loaded (complete + non-zero naturalWidth) so Radix mounts the photo in jsdom.
     class LoadedImage {
       complete = true;
       naturalWidth = 1;
@@ -1406,6 +1448,7 @@ function registerAvatarImageTests() {
       expect(img).not.toBeNull();
       expect(img).toHaveAttribute("src", "https://cdn.example/a.png");
       expect(img).toHaveAttribute("alt", "");
+      expect(img).toHaveAttribute("referrerpolicy", "no-referrer");
       expect(img).toHaveClass("object-cover");
     } finally {
       vi.unstubAllGlobals();

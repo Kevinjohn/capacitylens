@@ -15,10 +15,12 @@ wrong, skip straight to [Restore a snapshot](#restore-a-snapshot).
 - **The SQLite database file** — the single source of truth for every company, person,
   project and allocation.
 - **Its `-wal` and `-shm` sidecar files**, if present, whenever you copy it by hand — see
-  the warning below.
-- **The audit log** (JSONL). The database and the audit log share a single durability
-  boundary: SQLite retains pending audit events until they're durably written to disk, so
-  a complete recovery bundle includes both.
+  the warning below. A scheduled snapshot is a standalone SQLite file and does not need
+  sidecars.
+- **The audit log** (JSONL), including the rotated `<file>.1` generation when it exists.
+  The database and the audit log share a single durability boundary: SQLite retains
+  pending audit events until they're durably written to disk, so a complete recovery
+  bundle includes both.
 
 ::: warning
 Never `cp` a live database file as a backup. SQLite keeps recent writes in the `-wal`
@@ -49,7 +51,9 @@ local-time snapshots (from earlier releases) remain valid restore inputs.
 The on-host snapshot directory protects against many application and operator mistakes,
 but not loss of the whole host. For real disaster recovery, also copy snapshots off-host
 — to a separate account, region or provider, with tools like restic, rclone or rsync —
-encrypt that destination, and monitor snapshot freshness. Deep health reports
+encrypt that destination, and monitor snapshot freshness. Set
+`CAPACITYLENS_STORAGE_ENCRYPTED=1` only after you have verified that the database, audit
+log and backup storage are encrypted at rest. Deep health reports
 `backup.status` and `backup.lastSuccessAt`; see
 [Monitoring and health checks](/self-hosting/monitoring).
 
@@ -58,6 +62,62 @@ encrypt that destination, and monitor snapshot freshness. Deep health reports
 Rehearse this before launch, and again after any material storage change — new host,
 new volume driver, new backup destination. Don't let the first real restore be the first
 time anyone has run it.
+
+Use a staging host or a temporary checkout with its own storage. Before starting, have
+the exact release that will run the restored snapshot, a dated `capacitylens-utc-*.db` or older
+local-time `capacitylens-*.db` snapshot, free space for a second copy, and a private
+place to record the result. The `capacitylens-pre-migration-*` files are only for
+[upgrade rollback](/self-hosting/upgrades). Do not use production database or named
+volumes, production ports, public proxies or provider callback URLs.
+
+From that release's checkout, install its locked dependencies and build the API runtime:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter capacitylens-server run build:runtime
+```
+
+Create a loopback-only scratch environment and copy the snapshot into it:
+
+```bash
+drill_dir="$(mktemp -d /var/tmp/capacitylens-restore-drill.XXXXXX)" && install -d -m 700 "$drill_dir/backups" && cp /path/to/capacitylens-utc-YYYYMMDD-HHMMSS-sss.db "$drill_dir/capacitylens.db"
+```
+
+Start the API with an empty inherited environment, the same sign-in mode and deployment
+profile as production, and separate storage paths. The example below is for password mode.
+For SSO or mixed mode, use the stored issuer and its discovery URL with non-production
+drill client credentials; this storage drill does not attempt provider sign-in.
+
+```bash
+env -i PATH="$PATH" NODE_ENV=production \
+  SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password \
+  SMALLSASS_ACCOUNT_MODE=password \
+  SMALLSASS_ACCOUNT_SECRET='<drill-only secret of at least 32 characters>' \
+  SMALLSASS_ACCOUNT_PUBLIC_URL=http://127.0.0.1:8877 \
+  CAPACITYLENS_RATE_LIMIT=300 \
+  CAPACITYLENS_HEALTH_DEEP=1 \
+  CAPACITYLENS_DB="$drill_dir/capacitylens.db" \
+  CAPACITYLENS_AUDIT_FILE="$drill_dir/capacitylens-audit.jsonl" \
+  CAPACITYLENS_BACKUP_DIR="$drill_dir/backups" \
+  CAPACITYLENS_HOST=127.0.0.1 PORT=8877 \
+  node server/dist/index.mjs
+```
+
+Use a newly generated signing secret for the drill; do not copy the production secret.
+Do not expose the port, change the provider's registered callback, or reuse production
+storage paths. Leave the process running and, in a second shell, check the isolated API:
+
+```bash
+curl -fsS http://127.0.0.1:8877/api/health
+```
+
+Confirm deep health reports a successful database check, healthy audit state and a completed
+backup. This proves the selected release can migrate and open the copied storage. Rehearse
+sign-in, reads and writes separately on an isolated staging origin configured with its own
+provider callback; an SSO deployment cannot complete sign-in through this loopback-only
+storage drill. Stop the process, retain the result required by your recovery policy, and
+remove only the temporary directory. This native drill also works for a snapshot copied off
+a Compose host; use the off-host copy so the drill never mounts production volumes.
 
 ## Restore a snapshot
 
@@ -73,9 +133,10 @@ you start — steps 1-2 below do this for you.
 1. Stop the API cleanly and wait for it to exit.
 2. Copy the live database and its `-wal`/`-shm` sidecars somewhere safe, in case you need
    to roll back the restore itself.
-3. Copy a selected dated `capacitylens-utc-YYYYMMDD-HHMMSS-sss.db` scheduled snapshot to
-   the configured database path. Don't select a `capacitylens-pre-migration-*` file here
-   — those belong to the [upgrade rollback procedure](/self-hosting/upgrades) instead.
+3. Copy a selected dated `capacitylens-utc-YYYYMMDD-HHMMSS-sss.db` (or older
+   `capacitylens-YYYYMMDD-HHMMSS-sss.db`) scheduled snapshot to the configured database
+   path. Don't select a `capacitylens-pre-migration-*` file here — those belong to the
+   [upgrade rollback procedure](/self-hosting/upgrades) instead.
 4. Remove any stale `-wal` and `-shm` sidecars next to the restored file.
 5. Start the API and check deep health.
 6. Verify sign-in, the account list, recent expected data and one safe write.
@@ -102,34 +163,40 @@ list. Creating a company against the wrong volume set is not recoverable by rest
 later.
 :::
 
-1. Stop the API, list the available snapshots, and preserve the cleanly stopped live
-   database inside the backups volume. This fails before touching `/data` if no snapshot
-   is present:
+<span id="preserve-compose-files"></span>
+
+1. Stop the API and preserve the cleanly stopped live database inside the backups volume:
 
    ```bash
    docker compose stop api
    docker compose run --rm --no-deps --entrypoint sh api -eu -c '
-     ls -l /backups/capacitylens-*.db
+     test -f /data/capacitylens.db
      rollback_dir="/backups/manual-restore-$(date -u +%Y%m%dT%H%M%SZ)"
      umask 077
      mkdir -m 700 "$rollback_dir"
-     for file in /data/capacitylens.db /data/capacitylens.db-wal /data/capacitylens.db-shm; do
+     for file in /data/capacitylens.db /data/capacitylens.db-wal /data/capacitylens.db-shm \
+       /data/capacitylens-audit.jsonl /data/capacitylens-audit.jsonl.1; do
        test ! -e "$file" || cp -p "$file" "$rollback_dir/"
      done
      printf "Preserved stopped database files in %s\n" "$rollback_dir"
    '
    ```
 
-2. Choose the exact filename from that listing, then copy it into place, verify its mode
+2. List the available snapshots and choose the exact filename. Then copy it into place, verify its mode
    and owner, atomically replace the live database, and remove sidecars. The basename
    check keeps the value confined to `/backups`:
 
    ```bash
+   docker compose run --rm --no-deps --entrypoint sh api -eu -c 'ls -l /backups/capacitylens-*.db'
    export RESTORE_SNAPSHOT=capacitylens-utc-YYYYMMDD-HHMMSS-sss.db
    docker compose run --rm --no-deps -e RESTORE_SNAPSHOT --entrypoint sh api -eu -c '
      case "$RESTORE_SNAPSHOT" in
-       capacitylens-*.db) ;;
-       *) echo "RESTORE_SNAPSHOT must be a capacitylens-*.db basename" >&2; exit 1 ;;
+       capacitylens-pre-migration-*.db)
+         echo "RESTORE_SNAPSHOT must not be a pre-migration backup; use the upgrade rollback procedure" >&2
+         exit 1
+         ;;
+       capacitylens-utc-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-*.db|capacitylens-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-*.db) ;;
+       *) echo "RESTORE_SNAPSHOT must be a dated capacitylens snapshot basename" >&2; exit 1 ;;
      esac
      case "$RESTORE_SNAPSHOT" in
        */*) echo "RESTORE_SNAPSHOT must not contain a path" >&2; exit 1 ;;

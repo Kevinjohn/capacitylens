@@ -11,7 +11,11 @@ export interface FilterOption {
   primaryLabel?: string;
 }
 
-export function buildFilterOptions(data: AppData) {
+export function buildFilterOptions(
+  data: AppData,
+  selectedClientId: string | null = null,
+  selectedProjectId: string | null = null,
+) {
   const clients = [...data.clients].sort(
     (a, b) => Number(b.builtin === true) - Number(a.builtin === true) || byName(a, b),
   );
@@ -21,14 +25,23 @@ export function buildFilterOptions(data: AppData) {
       .sort(byDisciplineOrder)
       .map((discipline) => ({ id: discipline.id, label: discipline.name })),
     clientOptions: clients.map((client) => ({ id: client.id, label: client.name })),
-    projectOptions: [...data.projects].sort(createClientProjectDisplayNameComparator(data.clients)).map((project) => {
-      const clientName = clientNames.get(project.clientId);
-      return {
-        id: project.id,
-        label: clientName ? `${clientName} / ${project.name}` : project.name,
-        ...(clientName ? { contextLabel: `${clientName} /`, primaryLabel: project.name } : {}),
-      };
-    }),
+    projectOptions: [...data.projects]
+      // A selected project stays listed even when it no longer belongs to the selected client
+      // (its client was edited after the filter was set), so the stale choice remains visible and
+      // correctable instead of rendering an empty select over an empty grid.
+      .filter(
+        (project) =>
+          selectedClientId === null || project.clientId === selectedClientId || project.id === selectedProjectId,
+      )
+      .sort(createClientProjectDisplayNameComparator(data.clients))
+      .map((project) => {
+        const clientName = clientNames.get(project.clientId);
+        return {
+          id: project.id,
+          label: clientName ? `${clientName} / ${project.name}` : project.name,
+          ...(clientName ? { contextLabel: `${clientName} /`, primaryLabel: project.name } : {}),
+        };
+      }),
     // The activity lens covers only the project-LESS kinds — project-specific activities are
     // reached via the Projects dropdown above.
     internalActivities: data.activities.filter((activity) => activity.kind === "internal").sort(byName),

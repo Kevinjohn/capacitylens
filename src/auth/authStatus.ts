@@ -1,4 +1,10 @@
-import { isSupportedSocialProviderId, type AccountMode, type AuthProviderInfo, type AuthUser } from "./authContext";
+import {
+  isSupportedSocialProviderId,
+  type AccountMode,
+  type AuthProviderBrand,
+  type AuthProviderInfo,
+  type AuthUser,
+} from "./authContext";
 import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
 
 export type AuthStatusResult =
@@ -54,7 +60,11 @@ export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null
 export function isAuthMode(value: unknown): value is AccountMode {
   return value === "off" || value === "password" || value === "sso";
 }
-function isAuthProvider(value: unknown): value is AuthProviderInfo {
+type AuthProviderCandidate =
+  | (Omit<Extract<AuthProviderInfo, { kind: "social" }>, "brand"> & { brand?: unknown })
+  | (Omit<Extract<AuthProviderInfo, { kind: "oidc" }>, "brand"> & { brand?: unknown });
+
+function isAuthProvider(value: unknown): value is AuthProviderCandidate {
   if (typeof value !== "object" || value === null) return false;
   const provider = value as Record<string, unknown>;
   return (
@@ -67,12 +77,24 @@ function isAuthProvider(value: unknown): value is AuthProviderInfo {
   );
 }
 
+const SOCIAL_PROVIDER_BRANDS: Record<string, AuthProviderBrand> = { google: "google", microsoft: "microsoft" };
+
+function parseProviderBrand(provider: AuthProviderCandidate): AuthProviderBrand {
+  // A social provider's presentation follows the id the click dispatches, so no payload can brand
+  // one social provider as another; only the strict OIDC provider carries configurable branding.
+  if (provider.kind === "social") return SOCIAL_PROVIDER_BRANDS[provider.id] ?? "generic";
+  if (provider.brand === "google" || provider.brand === "microsoft" || provider.brand === "generic") {
+    return provider.brand;
+  }
+  return "generic";
+}
+
 export function parseAuthProviders(value: unknown): AuthProviderInfo[] {
   if (!Array.isArray(value)) return [];
   const providers: AuthProviderInfo[] = [];
   for (const candidate of value) {
     if (isAuthProvider(candidate)) {
-      providers.push(candidate);
+      providers.push({ ...candidate, brand: parseProviderBrand(candidate) });
       continue;
     }
     const record = candidate && typeof candidate === "object" ? (candidate as Record<string, unknown>) : null;

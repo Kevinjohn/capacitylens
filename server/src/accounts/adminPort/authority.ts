@@ -53,6 +53,7 @@ interface AssertAdministrativeAssuranceInput {
   requireMfa: boolean;
   trustedLocal: boolean;
   commandId?: string | undefined;
+  requireFresh?: boolean;
 }
 
 export function assertAdministrativeAssurance({
@@ -60,9 +61,10 @@ export function assertAdministrativeAssurance({
   requireMfa,
   trustedLocal,
   commandId,
+  requireFresh = true,
 }: AssertAdministrativeAssuranceInput): void {
   if (trustedLocal) return;
-  if (!actor.fresh) {
+  if (requireFresh && !actor.fresh) {
     throw createAccountFailure(
       "SESSION_NOT_FRESH",
       "A fresh sign-in is required for this account operation.",
@@ -85,11 +87,14 @@ interface AssertInvitationAuthorityInput {
   trustedLocal: boolean;
   workspaceId: string;
   commandId: string;
+  requireFresh?: boolean | undefined;
 }
 
 /** createInvitation's replay guard and its execute path both open with this same authority check.
  *  assertAccountAuthority already asserts the workspace exists as its own first statement, so
- *  neither closure needs a trailing assertWorkspaceExists of its own. */
+ *  neither closure needs a trailing assertWorkspaceExists of its own. `requireFresh` defaults to
+ *  true here as it does in assertAdministrativeAssurance: a caller opts an ordinary administrative
+ *  action out of the re-prompt explicitly, and role and MFA checks are unaffected either way. */
 export function assertInvitationAuthority({
   db,
   actor,
@@ -97,8 +102,9 @@ export function assertInvitationAuthority({
   trustedLocal,
   workspaceId,
   commandId,
+  requireFresh = true,
 }: AssertInvitationAuthorityInput): void {
-  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId });
+  assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, commandId, requireFresh });
   assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
 }
 

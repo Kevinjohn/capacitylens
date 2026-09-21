@@ -13,6 +13,7 @@ const IMPORTED_FIELDS = {
     "kind",
     "name",
     "role",
+    "avatarUrl",
     "disciplineId",
     "employmentType",
     "engagement",

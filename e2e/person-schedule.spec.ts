@@ -2,6 +2,7 @@ import { expect, test } from "./fixtures";
 import {
   boundingBoxOrThrow,
   dismissLandscapeHint,
+  focusByKeyboard,
   goToSeedWeek,
   nudgeScheduler,
   openApp,
@@ -24,7 +25,8 @@ async function assertReadOnlySchedule(page: import("@playwright/test").Page) {
   await expect(sheet).toContainText("Visual Design");
   await expect(sheet).toContainText("Long weekend");
   await expect(sheet.getByTestId("person-schedule-header")).toContainText(
-    /\d{1,2} [A-Z][a-z]{2} – \d{1,2} [A-Z][a-z]{2}/,
+    // A same-month range collapses the repeated month: "1 – 28 Jun" as well as "28 Jun – 4 Jul".
+    /\d{1,2}( [A-Z][a-z]{2})? – \d{1,2} [A-Z][a-z]{2}/,
   );
   await expect(sheet.getByTestId("person-schedule-header")).not.toContainText(/Four weeks:|2026/);
   await expect(sheet).not.toContainText(/Confirmed|Tentative|Completed|Series through/);
@@ -46,13 +48,17 @@ async function assertGridPreserved(
   expect((await probeSchedulerGeometry(page)).leftDate).toBe(before.leftDate);
   await expect(page.getByLabel("Search people")).toHaveValue("Bruce");
   await expect(page.getByLabel("Filter by project")).toHaveText("All projects");
-  await expect(page.getByRole("radio", { name: "Hide tentative", includeHidden: true })).toBeChecked();
+  await expect(
+    page
+      .getByTestId("scheduler-filter-controls")
+      .getByRole("button", { name: "Tentative", exact: true, includeHidden: true }),
+  ).toHaveAttribute("aria-pressed", "false");
 }
 
 async function prepareFilteredGrid(page: import("@playwright/test").Page) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await openApp(page);
-  await page.getByRole("link", { name: "Settings" }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   const snap = page.getByRole("switch", { name: "Snap to week start" });
   await snap.click();
   await expect(snap).toHaveAttribute("aria-checked", "false");
@@ -60,7 +66,7 @@ async function prepareFilteredGrid(page: import("@playwright/test").Page) {
   await setZoom(page, 4);
   await goToSeedWeek(page);
   await showScheduleFilters(page);
-  await page.getByRole("radio", { name: "Hide tentative" }).click();
+  await page.getByTestId("scheduler-filter-controls").getByRole("button", { name: "Tentative", exact: true }).click();
   await page.getByLabel("Search people").fill("Bruce");
   await resetSchedulerScroll(page);
   await nudgeScheduler(page, 5);
@@ -116,7 +122,7 @@ function registerLayoutScenario() {
     await expect(dialog).toHaveCount(0);
     await expect(normalTrigger).toBeFocused();
 
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     const compact = page.getByRole("switch", { name: "Compact view" });
     await compact.click();
     await expect(compact).toHaveAttribute("aria-checked", "true");
@@ -182,13 +188,7 @@ test("uses the avatar as the sole trigger with resting, hover, and focus cues", 
   await expect(avatar).toHaveCSS("opacity", "0");
   await expect(eye).toHaveCSS("opacity", "1");
   await page.mouse.move(900, 700);
-  for (
-    let tabs = 0;
-    tabs < 20 && !(await trigger.evaluate((element) => element === document.activeElement));
-    tabs += 1
-  ) {
-    await page.keyboard.press("Tab");
-  }
+  await focusByKeyboard(page, trigger);
   await expect(trigger).toBeFocused();
   await expect(avatar).toHaveCSS("opacity", "0");
   await expect(eye).toHaveCSS("opacity", "1");

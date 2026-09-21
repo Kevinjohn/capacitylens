@@ -592,14 +592,10 @@ describe("P1.5 authorize — auth-on 403 matrix", () => {
         new Date(Date.now() - 16 * 60 * 1000).toISOString(),
         admin.userId,
       );
+      // Adopting a client as the internal one is ordinary administration: the admin-tier role
+      // check still gates it, a recent sign-in no longer does.
       const stale = await replaceGeneratedInternal(app, admin.cookie, batched);
-      expect(stale.statusCode).toBe(403);
-      expect(stale.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
-      expect(getRow(db, "clients", "internal:a1")?.builtin).toBe(true);
-      expect(getRow(db, "clients", "legacy-internal")).toBeNull();
-
-      db.prepare("UPDATE session SET createdAt = ? WHERE userId = ?").run(new Date().toISOString(), admin.userId);
-      expect((await replaceGeneratedInternal(app, admin.cookie, batched)).statusCode).toBe(200);
+      expect(stale.statusCode).toBe(200);
       expect(getRow(db, "clients", "internal:a1")).toBeNull();
       expect(getRow(db, "clients", "legacy-internal")?.builtin).toBe(true);
       expect(getRow(db, "projects", "internal-project")?.clientId).toBe("legacy-internal");
@@ -1768,6 +1764,44 @@ describe("batch ownership checks after authorization", () => {
     expect(getRow(db, op.table, op.id)).toMatchObject({ accountId: "a2" });
     await app.close();
     db.close();
+  });
+});
+
+describe("high-impact actions keep the fresh-sign-in gate", () => {
+  // Ordinary administration no longer re-prompts, so the destructive pair is pinned here: an
+  // aged-out owner session must still be refused on whole-company deletion and on import, which
+  // replaces a company's entire dataset.
+  const ageOwnerSession = (db: Db, userId: string): void => {
+    db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`).run(
+      new Date(Date.now() - 16 * 60 * 1000).toISOString(),
+      userId,
+    );
+  };
+
+  it("refuses whole-company deletion from a stale owner session", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "stale-delete-owner@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "owner", status: "active", createdAt: TS });
+    ageOwnerSession(db, userId);
+
+    const response = await deleteAccount(app, "a1", cookie);
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
+    expect(getRow(db, "accounts", "a1")).toMatchObject({ id: "a1" });
+  });
+
+  it("refuses import from a stale owner session", async () => {
+    const { app, db } = await appWithAuth();
+    seedTwo(db);
+    const { cookie, userId } = await signUp(app, "stale-import-owner@capacitylens.dev");
+    upsertMember(db, { accountId: "a1", userId, role: "owner", status: "active", createdAt: TS });
+    ageOwnerSession(db, userId);
+
+    const response = await importInto({ app, accountId: "a1", id: "stale-import-client", cookie });
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
+    expect(getRow(db, "clients", "stale-import-client")).toBeNull();
   });
 });
 

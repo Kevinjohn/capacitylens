@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import { API, resetServer } from "./db-helpers";
-import { dismissIntroIfPresent } from "./helpers";
+import { waitForAppLanding } from "./helpers";
 
 test.describe("single-company reload entry", () => {
   test.beforeEach(async ({ request }) => {
@@ -19,7 +19,7 @@ test.describe("single-company reload entry", () => {
     const picker = page.getByRole("heading", { name: "Choose a company" });
     await expect(picker).toBeVisible();
     await page.getByRole("button", { name: company.name, exact: true }).click();
-    await dismissIntroIfPresent(page, page.locator("#main"));
+    await waitForAppLanding(page, page.locator("#main"));
     await expect(page.getByRole("heading", { name: "Clients", exact: true })).toBeVisible();
 
     const reload = await page.reload();
@@ -44,7 +44,7 @@ test.describe("single-company reload entry", () => {
     expect(deleted.status()).toBe(204);
 
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Set up your company" })).toBeVisible();
     await expect(page).toHaveURL(/\/clients$/);
     await expect(page.locator("#main")).toHaveCount(0);
   });

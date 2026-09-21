@@ -50,7 +50,7 @@ export interface StrictOidcProfile extends Record<string, unknown> {
   email: string;
   emailVerified: boolean;
   name: string;
-  image?: string;
+  image: string | null;
 }
 
 export interface StrictOidcClient {

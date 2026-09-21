@@ -1,6 +1,7 @@
-import { test, expect, type Page } from "./fixtures";
+import { test, expect, type Locator, type Page } from "./fixtures";
 import {
   boundingBoxOrThrow as box,
+  dismissLandscapeHint,
   goToSeedWeek,
   openApp,
   probeSchedulerGeometry as probe,
@@ -338,7 +339,7 @@ function registerSuiteScenario8() {
     await expect(page.getByText("Jun 2026")).toBeVisible();
     await expect(page.getByText("Jul 2026")).toBeVisible();
 
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     const compactView = page.getByRole("switch", { name: "Compact view" });
     await compactView.click();
     await expect(compactView).toHaveAttribute("aria-checked", "true");
@@ -382,15 +383,106 @@ function registerSuiteScenario9() {
   });
 }
 
+async function expectPopoverToTrackAnchor(page: Page, anchor: Locator, popover: Locator) {
+  const anchorBox = await box(anchor);
+  const popoverBox = await box(popover);
+  const viewportWidth = await page.evaluate(() => document.documentElement.clientWidth);
+  const centredLeft = anchorBox.x + anchorBox.width / 2 - popoverBox.width / 2;
+  const expectedLeft = Math.min(Math.max(centredLeft, 0), viewportWidth - popoverBox.width);
+  expect(Math.abs(popoverBox.x - expectedLeft)).toBeLessThanOrEqual(2);
+  expect(popoverBox.x).toBeGreaterThanOrEqual(-1);
+  expect(popoverBox.x + popoverBox.width).toBeLessThanOrEqual(viewportWidth + 1);
+}
+
+async function expectAnchorCenteredOverVisibleSpan(anchor: Locator, visibleLeft: number, visibleRight: number) {
+  await expect
+    .poll(async () => {
+      const anchorBox = await box(anchor);
+      return Math.abs(anchorBox.x + anchorBox.width / 2 - (visibleLeft + visibleRight) / 2);
+    })
+    .toBeLessThanOrEqual(2);
+}
+
+async function scrollSchedulerForwardOneWeek(page: Page, grid: Locator) {
+  const dayTier = page.getByTestId("scheduler-day-tier");
+  const firstWeek = await box(dayTier.locator('[data-date="2026-06-01"]'));
+  const secondWeek = await box(dayTier.locator('[data-date="2026-06-08"]'));
+  await grid.evaluate((element, weekWidth) => {
+    element.scrollLeft += weekWidth;
+    element.dispatchEvent(new Event("scroll"));
+  }, secondWeek.x - firstWeek.x);
+  await waitForWeekSnap(page);
+  await expect
+    .poll(async () => {
+      const timeline = await box(page.getByTestId("scheduler-resource-header"));
+      const week = await box(dayTier.locator('[data-date="2026-06-08"]'));
+      return Math.abs(week.x - (timeline.x + timeline.width));
+    })
+    .toBeLessThanOrEqual(2);
+}
+
 function registerSuiteScenario10() {
   test("shows a detail popover on hover (US-SCH-15)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await resetSchedulerScroll(page);
+    await goToSeedWeek(page);
     await page.getByTestId("allocation-bar").filter({ hasText: "Brand System" }).hover();
     const pop = page.getByTestId("allocation-popover");
     await expect(pop).toBeVisible();
     await expect(pop).toContainText("Metropolis Rebrand"); // project name in the popover
+    await expect(pop).not.toContainText("Confirmed");
+  });
+
+  test("centres allocation details over the visible part of a clipped bar (US-SCH-15)", async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+    await goToSeedWeek(page);
+
+    const grid = page.getByTestId("scheduler-grid");
+    const resourceHeader = page.getByTestId("scheduler-resource-header");
+    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
+    const timeline = await box(resourceHeader);
+    await scrollSchedulerForwardOneWeek(page, grid);
+
+    const clippedBar = await box(bar);
+    const gridBox = await box(grid);
+    const visibleLeft = Math.max(clippedBar.x, timeline.x + timeline.width);
+    const visibleRight = Math.min(clippedBar.x + clippedBar.width, gridBox.x + gridBox.width);
+    expect(clippedBar.x).toBeLessThan(timeline.x + timeline.width);
+    expect(visibleRight).toBeGreaterThan(visibleLeft);
+    const anchor = bar.getByTestId("allocation-popover-anchor");
+    await expectAnchorCenteredOverVisibleSpan(anchor, visibleLeft, visibleRight);
+
+    await page.mouse.move((visibleLeft + visibleRight) / 2, clippedBar.y + clippedBar.height / 2);
+
+    const popover = page.getByTestId("allocation-popover");
+    await expect(popover).toBeVisible();
+    await expectPopoverToTrackAnchor(page, anchor, popover);
+  });
+
+  test("anchors allocation details to the visible part of a right-clipped bar (US-SCH-15)", async ({ page }) => {
+    await openApp(page);
+    await setZoom(page, 4);
+    await goToSeedWeek(page);
+    await dismissLandscapeHint(page);
+    await page.setViewportSize({ width: 320, height: 720 });
+
+    const grid = page.getByTestId("scheduler-grid");
+    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Brand System" });
+    const barBox = await box(bar);
+    const gridBox = await box(grid);
+    const visibleLeft = barBox.x;
+    const visibleRight = gridBox.x + gridBox.width;
+    expect(barBox.x + barBox.width).toBeGreaterThan(visibleRight);
+
+    const anchorBox = await box(bar.getByTestId("allocation-popover-anchor"));
+    expect(Math.abs(anchorBox.x + anchorBox.width / 2 - (visibleLeft + visibleRight) / 2)).toBeLessThanOrEqual(2);
+
+    await page.mouse.move((visibleLeft + visibleRight) / 2, barBox.y + barBox.height / 2);
+
+    const popover = page.getByTestId("allocation-popover");
+    await expect(popover).toBeVisible();
+    await expectPopoverToTrackAnchor(page, bar.getByTestId("allocation-popover-anchor"), popover);
   });
 }
 
@@ -474,7 +566,7 @@ function registerSuiteScenario13() {
   test("stacks overlapping allocations onto a taller row (US-SCH-08)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await resetSchedulerScroll(page);
+    await goToSeedWeek(page);
     // Bruce has two overlapping seed bars (3-4 June) -> 2 lanes; Clark has one -> 1 lane.
     const bruceBars = page.locator('[data-resource-id="r-tyler"]').getByTestId("allocation-bar");
     await expect(bruceBars).toHaveCount(2);
@@ -495,7 +587,7 @@ function registerSuiteScenario15() {
   test("allocation status and note are visually distinct on the bar (US-SCH-19)", async ({ page }) => {
     await openApp(page);
     await setZoom(page, 4);
-    await resetSchedulerScroll(page);
+    await goToSeedWeek(page);
 
     // Seed: Bruce's Visual Design bar is tentative (the placeholder also has a confirmed one).
     await expect(
@@ -577,6 +669,55 @@ function registerSuiteScenario16() {
   });
 }
 
+// #786. A bar that started before the visible window used to carry its label off-screen with it,
+// leaving long-running work unlabelled in any given view. The label now sits over the intersection
+// of the bar and the scroll container's viewport. The device-global "Snap to week start" pref is
+// turned OFF first: its idle snap animates the scroll position shortly AFTER the scroll is written,
+// and measuring through that animation has produced CI-only flakes before.
+function registerSuiteScenario17() {
+  test("keeps a bar's label on screen after scrolling past the bar's start (#786)", async ({ page }) => {
+    await openApp(page, "Wayne Enterprises", "/settings");
+    const snap = page.getByRole("switch", { name: "Snap to week start" });
+    await snap.click();
+    await expect(snap).toHaveAttribute("aria-checked", "false");
+    await page.getByRole("link", { name: "Schedule" }).click();
+    await setZoom(page, 2);
+    await goToSeedWeek(page);
+
+    const bar = page.getByTestId("allocation-bar").filter({ hasText: "Metropolis Rebrand" }).first();
+    const label = bar.getByTestId("allocation-bar-label");
+    await expect(bar).toBeVisible();
+    const resourceHeader = await box(page.getByTestId("scheduler-resource-header"));
+    const timelineLeft = resourceHeader.x + resourceHeader.width;
+
+    // Park the bar's own left edge behind the frozen resource column while roughly half of it is
+    // still on screen — exactly the case a start-anchored label cannot survive.
+    const before = await box(bar);
+    await page.getByTestId("scheduler-grid").evaluate(
+      (element, delta) => {
+        element.scrollLeft += delta;
+        // Assigning scrollLeft moves the element's layout immediately but queues the scroll event,
+        // and the label's inset is published from that handler. A real scroll publishes it in the
+        // same frame it paints; a direct assignment can be measured in between, with the bar in its
+        // new position and the inset still on the old one. Dispatch it so the read is not a race.
+        element.dispatchEvent(new Event("scroll"));
+      },
+      Math.round(before.x - timelineLeft + before.width / 2),
+    );
+    await expect.poll(async () => (await box(bar)).x < timelineLeft).toBe(true);
+
+    const after = await box(bar);
+    expect(after.x + after.width).toBeGreaterThan(timelineLeft); // still partly visible
+    const labelBox = await box(label);
+    expect(labelBox.width).toBeGreaterThan(0);
+    expect(labelBox.x).toBeGreaterThanOrEqual(timelineLeft - 1);
+    expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(after.x + after.width + 1);
+    // ...and centred within that visible portion rather than pinned to either end of it.
+    const visibleCentre = (timelineLeft + after.x + after.width) / 2;
+    expect(Math.abs(labelBox.x + labelBox.width / 2 - visibleCentre)).toBeLessThanOrEqual(1);
+  });
+}
+
 test.describe("Scheduler", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
@@ -594,4 +735,5 @@ test.describe("Scheduler", () => {
   registerSuiteScenario14();
   registerSuiteScenario15();
   registerSuiteScenario16();
+  registerSuiteScenario17();
 });

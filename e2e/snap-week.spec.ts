@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import {
-  dismissIntroIfPresent,
+  waitForAppLanding,
   nudgeScheduler as nudge,
   openApp,
   probeSchedulerGeometry as probe,
@@ -27,7 +27,7 @@ test.describe("Snap to week start", () => {
     await page.reload();
     // Re-pick the company after reload (activeAccountId is never persisted) and re-open Settings.
     await page.getByRole("button", { name: "Wayne Enterprises", exact: true }).click();
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("switch", { name: "Snap to week start" })).toHaveAttribute("aria-checked", "false");
   });
 
@@ -86,12 +86,12 @@ test.describe("Snap to week start", () => {
     await page.getByRole("radio", { name: "Sunday" }).click(); // capture the Sunday week-start
     await page.getByRole("button", { name: "Create company" }).click();
     // A post-create intro may precede the app; click through if it's up.
-    await dismissIntroIfPresent(page, page.locator("#main"));
+    await waitForAppLanding(page, page.locator("#main"));
 
     // Turn "Minimise weekends" OFF (device pref): with it on, a week-start Sunday is a (collapsed)
     // weekend labelled "S", indistinguishable from a Saturday, making the column-width probe
     // unreliable. Off → the Sunday reads a full "Sun" and every column is the same width.
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("switch", { name: "Minimise weekends" }).click();
 
     await page.getByRole("link", { name: "Schedule" }).click();

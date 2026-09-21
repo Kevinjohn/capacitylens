@@ -10,6 +10,12 @@ function requireSqlRow(row: Record<string, unknown> | undefined): Record<string,
   return row;
 }
 
+function requireSqlText(value: unknown, label: string): string {
+  expect(typeof value).toBe("string");
+  if (typeof value !== "string") throw new Error(`Expected ${label} to be text`);
+  return value;
+}
+
 function populateFederatedIdentityDb(db: DatabaseSync): void {
   db.exec(`
     CREATE TABLE user (id TEXT PRIMARY KEY);
@@ -37,6 +43,316 @@ function populateFederatedIdentityDb(db: DatabaseSync): void {
       ('source-orphan-account-row', 'source-orphan-principal', 'source-orphan-provider', 'source-orphan-subject', '2026-02-01', '2026-02-02');
     INSERT INTO capacitylens_sso_cutover_state VALUES ('source-application', '2026-03-01');
   `);
+}
+
+function createSharedProviderDb(reverseOrder: boolean): DatabaseSync {
+  const db = new DatabaseSync(":memory:");
+  db.exec(`
+      CREATE TABLE user (id TEXT PRIMARY KEY);
+      CREATE TABLE account_federated_provider_bindings (
+        applicationId TEXT NOT NULL,
+        issuer TEXT NOT NULL,
+        providerId TEXT NOT NULL,
+        createdAt TEXT NOT NULL,
+        PRIMARY KEY (applicationId, issuer),
+        UNIQUE (applicationId, providerId)
+      ) STRICT;
+      CREATE TABLE account (
+        id TEXT PRIMARY KEY, userId TEXT REFERENCES user(id), providerId TEXT, accountId TEXT
+      );
+      CREATE TABLE account_session_assurance (
+        sessionId TEXT PRIMARY KEY, principalId TEXT NOT NULL, assurance TEXT NOT NULL,
+        providerId TEXT, createdAt TEXT NOT NULL
+      );
+      CREATE TABLE capacitylens_federated_link_ceremonies (
+        id TEXT PRIMARY KEY, principalId TEXT NOT NULL, providerId TEXT NOT NULL,
+        createdAt TEXT NOT NULL, expiresAt TEXT NOT NULL, completedAt TEXT,
+        UNIQUE(principalId, providerId)
+      );
+      CREATE TABLE capacitylens_federated_link_observations (
+        accountRowId TEXT PRIMARY KEY, principalId TEXT NOT NULL, providerId TEXT NOT NULL,
+        subject TEXT NOT NULL, verifiedAt TEXT NOT NULL, auditedAt TEXT,
+        UNIQUE(providerId, subject)
+      );
+      INSERT INTO user VALUES ('principal-a'), ('principal-b'), ('principal-c');
+    `);
+  insertSharedProviderRows(db, reverseOrder);
+  return db;
+}
+
+function insertSharedProviderRows(db: DatabaseSync, reverseOrder: boolean): void {
+  const bindings: Array<[applicationId: string, issuer: string, providerId: string, createdAt: string]> = [
+    ["app-a", "https://a-one.example.test", "provider-shared", "2026-01-01"],
+    ["app-b", "https://b.example.test", "provider-shared", "2026-01-02"],
+    ["app-a", "https://a-two.example.test", "provider-other", "2026-01-03"],
+  ];
+  const identities: Array<
+    [
+      accountId: string,
+      principalId: string,
+      providerId: string,
+      subject: string,
+      sessionId: string,
+      ceremonyId: string,
+      timestamp: string,
+    ]
+  > = [
+    ["account-a", "principal-a", "provider-shared", "subject-a", "session-a", "ceremony-a", "2026-02-01"],
+    ["account-b", "principal-b", "provider-shared", "subject-b", "session-b", "ceremony-b", "2026-02-02"],
+    ["account-c", "principal-c", "provider-other", "subject-c", "session-c", "ceremony-c", "2026-02-03"],
+  ];
+  const order = <T>(rows: T[]): T[] => (reverseOrder ? rows.toReversed() : rows);
+  for (const row of order(bindings)) {
+    db.prepare("INSERT INTO account_federated_provider_bindings VALUES (?, ?, ?, ?)").run(...row);
+  }
+  for (const [accountId, principalId, providerId, subject, sessionId, ceremonyId, timestamp] of order(identities)) {
+    db.prepare("INSERT INTO account VALUES (?, ?, ?, ?)").run(accountId, principalId, providerId, subject);
+    db.prepare("INSERT INTO account_session_assurance VALUES (?, ?, 'federated', ?, ?)").run(
+      sessionId,
+      principalId,
+      providerId,
+      timestamp,
+    );
+    db.prepare("INSERT INTO capacitylens_federated_link_ceremonies VALUES (?, ?, ?, ?, ?, NULL)").run(
+      ceremonyId,
+      principalId,
+      providerId,
+      timestamp,
+      `${timestamp}-expires`,
+    );
+    db.prepare("INSERT INTO capacitylens_federated_link_observations VALUES (?, ?, ?, ?, ?, ?)").run(
+      accountId,
+      principalId,
+      providerId,
+      subject,
+      timestamp,
+      `${timestamp}-audited`,
+    );
+  }
+}
+
+function assertSharedProviderJoins(db: DatabaseSync, rows: Record<string, unknown>[]): void {
+  const [sharedProviderId, otherProviderId] = [rows[0]?.providerId, rows[2]?.providerId];
+  for (const table of [
+    "account",
+    "account_session_assurance",
+    "capacitylens_federated_link_ceremonies",
+    "capacitylens_federated_link_observations",
+  ]) {
+    expect(
+      db.prepare(`SELECT providerId, COUNT(*) AS count FROM ${table} GROUP BY providerId ORDER BY count`).all(),
+    ).toEqual([
+      { providerId: otherProviderId, count: 1 },
+      { providerId: sharedProviderId, count: 2 },
+    ]);
+  }
+  expect(
+    db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM capacitylens_federated_link_observations AS observation
+          JOIN account ON account.id = observation.accountRowId
+            AND account.userId = observation.principalId
+            AND account.providerId = observation.providerId
+            AND account.accountId = observation.subject`,
+      )
+      .get(),
+  ).toEqual({ count: 3 });
+  expect(
+    db
+      .prepare(
+        `SELECT COUNT(*) AS count FROM account_session_assurance AS assurance
+          JOIN user ON user.id = assurance.principalId
+          JOIN account_federated_provider_bindings AS binding ON binding.providerId = assurance.providerId`,
+      )
+      .get(),
+  ).toEqual({ count: 5 });
+}
+
+function assertOrderedTimestamps(
+  db: DatabaseSync,
+  {
+    table,
+    orderColumn,
+    columns,
+    deriveExtra,
+  }: {
+    table: string;
+    orderColumn: string;
+    columns: string[];
+    deriveExtra: (value: string) => Record<string, unknown>;
+  },
+): void {
+  const timestamps = ["2026-02-01", "2026-02-02", "2026-02-03"];
+  expect(db.prepare(`SELECT ${columns.join(", ")} FROM ${table} ORDER BY ${orderColumn}`).all()).toEqual(
+    timestamps.map((value) => ({ [orderColumn]: value, ...deriveExtra(value) })),
+  );
+}
+
+function assertSharedProviderResult(db: DatabaseSync): Record<string, unknown>[] {
+  const rows = db.prepare("SELECT * FROM account_federated_provider_bindings ORDER BY createdAt").all();
+  expect(rows).toHaveLength(3);
+  expect(rows[0]?.providerId).toBe(rows[1]?.providerId);
+  expect(rows[0]?.providerId).not.toBe(rows[2]?.providerId);
+  expect(rows[0]?.applicationId).not.toBe(rows[1]?.applicationId);
+  expect(rows[0]?.applicationId).toBe(rows[2]?.applicationId);
+  expect(rows.every(({ issuer }) => /^https:\/\/idp-\d+\.example\.invalid$/.test(String(issuer)))).toBe(true);
+  expect(rows.map(({ createdAt }) => createdAt)).toEqual(["2026-01-01", "2026-01-02", "2026-01-03"]);
+  assertSharedProviderJoins(db, rows);
+  assertOrderedTimestamps(db, {
+    table: "account_session_assurance",
+    orderColumn: "createdAt",
+    columns: ["createdAt"],
+    deriveExtra: () => ({}),
+  });
+  assertOrderedTimestamps(db, {
+    table: "capacitylens_federated_link_ceremonies",
+    orderColumn: "createdAt",
+    columns: ["createdAt", "expiresAt", "completedAt"],
+    deriveExtra: (createdAt) => ({ expiresAt: `${createdAt}-expires`, completedAt: null }),
+  });
+  assertOrderedTimestamps(db, {
+    table: "capacitylens_federated_link_observations",
+    orderColumn: "verifiedAt",
+    columns: ["verifiedAt", "auditedAt"],
+    deriveExtra: (verifiedAt) => ({ auditedAt: `${verifiedAt}-audited` }),
+  });
+  const retained = [
+    ...rows,
+    ...db.prepare("SELECT * FROM account").all(),
+    ...db.prepare("SELECT * FROM account_session_assurance").all(),
+    ...db.prepare("SELECT * FROM capacitylens_federated_link_ceremonies").all(),
+    ...db.prepare("SELECT * FROM capacitylens_federated_link_observations").all(),
+  ];
+  expect(JSON.stringify(retained)).not.toMatch(/app-[ab]|provider-(shared|other)|principal-[abc]|subject-[abc]/);
+  expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
+  expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+  expect(
+    db.prepare("SELECT name FROM sqlite_temp_schema WHERE name LIKE 'capacitylens_rehearsal_id_map_%'").all(),
+  ).toEqual([]);
+  return db
+    .prepare("SELECT applicationId, providerId, createdAt FROM account_federated_provider_bindings ORDER BY createdAt")
+    .all();
+}
+
+function anonymiseSharedProviderBindings(reverseOrder: boolean): Record<string, unknown>[] {
+  const db = createSharedProviderDb(reverseOrder);
+  try {
+    expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM account_federated_provider_bindings").get()).toEqual({ count: 3 });
+    anonymise(db);
+    return assertSharedProviderResult(db);
+  } finally {
+    db.close();
+  }
+}
+
+const ACCOUNT_COMMANDS_DDL = `
+  CREATE TABLE account_commands (
+    applicationId TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    idempotencyKey TEXT NOT NULL,
+    commandId TEXT NOT NULL UNIQUE,
+    actorPrincipalId TEXT,
+    targetPrincipalId TEXT,
+    workspaceId TEXT,
+    payloadHash TEXT NOT NULL CHECK(length(payloadHash) = 64),
+    status TEXT NOT NULL CHECK(status IN ('pending', 'completed', 'compensated', 'reconciliation_required')),
+    resultJson TEXT CHECK(resultJson IS NULL OR json_valid(resultJson)),
+    failureCode TEXT,
+    createdAt TEXT NOT NULL,
+    updatedAt TEXT NOT NULL,
+    CHECK(
+      (status = 'pending' AND resultJson IS NULL AND failureCode IS NULL) OR
+      (status = 'completed' AND resultJson IS NOT NULL AND failureCode IS NULL) OR
+      (status IN ('compensated', 'reconciliation_required') AND failureCode IS NOT NULL)
+    ),
+    PRIMARY KEY (applicationId, operation, idempotencyKey)
+  ) STRICT
+`;
+
+interface SharedCommandRow {
+  applicationId: string;
+  operation: string;
+  commandId: string;
+  timestamp: string;
+  status: string;
+  resultJson: string | null;
+  failureCode: string | null;
+}
+
+const SHARED_COMMAND_ROWS: SharedCommandRow[] = [
+  {
+    applicationId: "app-a",
+    operation: "shared-operation",
+    commandId: "command-a",
+    timestamp: "2026-01-01",
+    status: "pending",
+    resultJson: null,
+    failureCode: null,
+  },
+  {
+    applicationId: "app-b",
+    operation: "shared-operation",
+    commandId: "command-b",
+    timestamp: "2026-01-02",
+    status: "completed",
+    resultJson: '{"ok":true}',
+    failureCode: null,
+  },
+  {
+    applicationId: "app-a",
+    operation: "other-operation",
+    commandId: "command-c",
+    timestamp: "2026-01-03",
+    status: "compensated",
+    resultJson: '{"partial":true}',
+    failureCode: "rollback-failed",
+  },
+];
+
+function anonymiseSharedCommandCoordinates(reverseOrder: boolean): string[] {
+  const db = new DatabaseSync(":memory:");
+  try {
+    db.exec(ACCOUNT_COMMANDS_DDL);
+    const insert = db.prepare(`
+      INSERT INTO account_commands (
+        applicationId, operation, idempotencyKey, commandId, payloadHash, status, resultJson, failureCode,
+        createdAt, updatedAt
+      ) VALUES (?, ?, 'shared-key', ?, ?, ?, ?, ?, ?, ?)
+    `);
+    for (const row of reverseOrder ? SHARED_COMMAND_ROWS.toReversed() : SHARED_COMMAND_ROWS) {
+      insert.run(
+        row.applicationId,
+        row.operation,
+        row.commandId,
+        "0".repeat(64),
+        row.status,
+        row.resultJson,
+        row.failureCode,
+        row.timestamp,
+        row.timestamp,
+      );
+    }
+
+    anonymise(db);
+
+    const commands = db
+      .prepare(`SELECT applicationId, commandId, resultJson, createdAt FROM account_commands ORDER BY createdAt`)
+      .all() as Array<{ applicationId: string; commandId: string; resultJson: string | null; createdAt: string }>;
+    expect(commands).toHaveLength(3);
+    expect(commands[0]?.resultJson).toBeNull();
+    expect(commands[1]?.resultJson).toBe("{}");
+    expect(commands[2]?.resultJson).toBe('{"kind":"rehearsal-redacted"}');
+    expect(commands[0]?.applicationId).not.toBe(commands[1]?.applicationId);
+    expect(commands[0]?.applicationId).toBe(commands[2]?.applicationId);
+    expect(commands[0]?.commandId).not.toBe(commands[1]?.commandId);
+    expect(JSON.stringify(commands)).not.toMatch(/app-[ab]|command-[abc]/);
+    expect(db.prepare("PRAGMA integrity_check").get()).toEqual({ integrity_check: "ok" });
+    expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
+    return commands.map(({ applicationId }) => applicationId);
+  } finally {
+    db.close();
+  }
 }
 
 function createProviderBindingAbsenceStatement(
@@ -135,6 +451,22 @@ function registerFederatedIdentityTest(): void {
     } finally {
       db.close();
     }
+  });
+}
+
+function registerSharedProviderBindingsTest(): void {
+  it("preserves application namespaces and shared provider joins under the real binding constraints", () => {
+    const forward = anonymiseSharedProviderBindings(false);
+    const reverse = anonymiseSharedProviderBindings(true);
+    expect(reverse).toEqual(forward);
+  });
+}
+
+function registerSharedCommandCoordinatesTest(): void {
+  it("preserves distinct command application namespaces when operation coordinates overlap", () => {
+    const forward = anonymiseSharedCommandCoordinates(false);
+    const reverse = anonymiseSharedCommandCoordinates(true);
+    expect(reverse).toEqual(forward);
   });
 }
 
@@ -326,6 +658,55 @@ function registerSchedulingRedactionTest(): void {
   });
 }
 
+function registerNoForeignKeyProposalRedactionTest(): void {
+  it("scrubs dangling no-FK proposal and exception resource coordinates", () => {
+    const db = new DatabaseSync(":memory:");
+    try {
+      db.exec(`
+        CREATE TABLE accounts (id TEXT PRIMARY KEY);
+        CREATE TABLE resources (id TEXT PRIMARY KEY, accountId TEXT, kind TEXT, name TEXT, role TEXT);
+        CREATE TABLE invitation_person_proposals (
+          invitationId TEXT PRIMARY KEY, accountId TEXT, resourceId TEXT, createdAt TEXT, updatedAt TEXT
+        );
+        CREATE TABLE member_resource_link_exceptions (
+          accountId TEXT, userId TEXT, proposedResourceId TEXT, reason TEXT, createdAt TEXT, updatedAt TEXT
+        );
+        INSERT INTO accounts VALUES ('source-workspace');
+        INSERT INTO resources VALUES ('source-resource', 'source-workspace', 'person', 'Lois Lane', 'Designer');
+        INSERT INTO invitation_person_proposals VALUES
+          ('source-invite-live', 'source-workspace', 'source-resource', '2026-01-01', '2026-01-01'),
+          ('source-invite-dangling', 'source-workspace', 'source-resource-missing', '2026-01-01', '2026-01-01');
+        INSERT INTO member_resource_link_exceptions VALUES
+          ('source-workspace', 'source-member-live', 'source-resource', 'resource_unavailable', '2026-01-01', '2026-01-01'),
+          ('source-workspace', 'source-member-dangling', 'source-resource-missing', 'resource_unavailable', '2026-01-01', '2026-01-01');
+      `);
+      anonymise(db);
+      const resource = requireSqlRow(db.prepare("SELECT id FROM resources").get());
+      const proposals = db.prepare("SELECT resourceId FROM invitation_person_proposals ORDER BY invitationId").all();
+      const exceptions = db
+        .prepare("SELECT proposedResourceId FROM member_resource_link_exceptions ORDER BY userId")
+        .all();
+      expect(proposals).toContainEqual({ resourceId: resource.id });
+      expect(
+        proposals.some(({ resourceId }) =>
+          /^rehearsal-dangling-resource-coordinate-/.test(requireSqlText(resourceId, "dangling proposal resource id")),
+        ),
+      ).toBe(true);
+      expect(exceptions).toContainEqual({ proposedResourceId: resource.id });
+      expect(
+        exceptions.some(({ proposedResourceId }) =>
+          /^rehearsal-dangling-resource-coordinate-/.test(
+            requireSqlText(proposedResourceId, "dangling exception resource id"),
+          ),
+        ),
+      ).toBe(true);
+      expect(JSON.stringify({ proposals, exceptions })).not.toContain("source-resource");
+    } finally {
+      db.close();
+    }
+  });
+}
+
 function registerTenantTriggerTest(): void {
   it("restores immutable tenant triggers byte-for-byte after remapping", () => {
     const db = new DatabaseSync(":memory:");
@@ -381,10 +762,13 @@ function registerRedactionRollbackTest(): void {
 
 describe("migration rehearsal redaction", () => {
   registerFederatedIdentityTest();
+  registerSharedProviderBindingsTest();
+  registerSharedCommandCoordinatesTest();
   registerStaleObservationTest();
   registerProviderBindingAbsenceTests();
   registerMembershipConfirmationTest();
   registerSchedulingRedactionTest();
+  registerNoForeignKeyProposalRedactionTest();
   registerTenantTriggerTest();
   registerRedactionRollbackTest();
 });

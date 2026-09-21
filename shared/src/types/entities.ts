@@ -17,6 +17,25 @@ export type SchedulingMode = "hourly" | "days" | "blocks";
 /** Runtime list of the valid scheduling modes — the single source the server's
  *  sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ["hourly", "days", "blocks"];
+/** Who may open the Capacity Overview for an account. Absent means owner/admin only. */
+export type CapacityOverviewAccess = "owner_admin" | "owner_admin_editor" | "everyone";
+/** Runtime list used by import and server sanitisation to reject unknown access policies. */
+export const CAPACITY_OVERVIEW_ACCESS_VALUES: CapacityOverviewAccess[] = [
+  "owner_admin",
+  "owner_admin_editor",
+  "everyone",
+];
+/** How human-readable dates read across an account: day/month order, and whether the day number
+ *  carries an ordinal suffix. Absent means "day-month" ("9 Sep"), the format the app has always
+ *  used. This is account data, not a device preference — a company reads one convention. */
+export type DateStyle = "day-month" | "day-ordinal-month" | "month-day" | "month-day-ordinal";
+/** Every supported style, in the order the Settings control offers them. The server/import
+ *  sanitiser rejects anything absent from this list, and the `Record<DateStyle, …>` tables in the
+ *  app fail to compile until they cover a new entry — so a style cannot exist in the type while
+ *  being missing here. */
+export const DATE_STYLES: DateStyle[] = ["day-month", "day-ordinal-month", "month-day", "month-day-ordinal"];
+/** The format an absent `dateStyle` reads back as. */
+export const DEFAULT_DATE_STYLE: DateStyle = "day-month";
 /** How work filed under the built-in Internal client is coloured. */
 export type InternalColourMode = "grey" | "palette";
 /** Runtime list used by the server/import sanitiser to reject an unknown Internal colour mode. */
@@ -102,6 +121,12 @@ export interface Account extends Entity {
   inlineActivityCreateEnabled?: boolean;
   /** Whether populated allocation task text is shown in schedule details. Absent = false. */
   showTaskFieldInSchedule?: boolean;
+  /** Who may open Capacity Overview. Absent = owner/admin only. */
+  capacityOverviewAccess?: CapacityOverviewAccess;
+  /** How human-readable dates read across this company. Absent = 'day-month' ("9 Sep"). Editors
+   *  and up may change it, and it applies to every member: a schedule where half the rows read
+   *  "9 Sep" and half read "Sep 9" is the problem the setting exists to remove. */
+  dateStyle?: DateStyle;
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */
@@ -123,6 +148,8 @@ export interface Resource extends ScopedEntity {
   /** e.g. "Senior Designer" — the label used for nameless placeholders; an `external`'s
    *  optional descriptor (e.g. "Print", "Overflow dev"). */
   role: string;
+  /** Optional externally hosted avatar for people. Must be an absolute HTTPS URL without credentials. */
+  avatarUrl?: string;
   disciplineId?: ID;
   employmentType: EmploymentType;
   engagement: ResourceEngagement;
@@ -306,8 +333,10 @@ export type { AppDataKey, ScopedEntityKey } from "./entityKeys";
  *  separates company closures into their own table and restores required TimeOff.resourceId; v18
  *  adds optional per-allocation project attribution for repeatable activities; v19 adds optional
  *  Activity lifecycle tombstones archivedAt/deletedAt; v20 adds optional allocation task text and
- *  account-wide schedule visibility for it; v21 adds optional person availability boundaries.) */
-export const EXPORT_SCHEMA_VERSION = 21;
+ *  account-wide schedule visibility for it; v21 adds optional person availability boundaries; v22
+ *  adds the optional account-wide dateStyle, whose absence means 'day-month'; v23 adds optional
+ *  Resource.avatarUrl for externally hosted scheduled-person avatars.) */
+export const EXPORT_SCHEMA_VERSION = 23;
 
 export interface PersistedState {
   schemaVersion: number;

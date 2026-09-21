@@ -138,7 +138,7 @@ function registerTimeOffRepeatProjection(): void {
     await user.type(screen.getByLabelText("Note"), "  Family trip  ");
     chooseRepeat("Monthly on the last Friday");
 
-    expect(screen.getByTestId("timeoff-repeat-preview")).toHaveTextContent("26 Feb 2027 – 28 Feb 2027");
+    expect(screen.getByTestId("timeoff-repeat-preview")).toHaveTextContent("26 – 28 Feb 2027");
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     const saved = useStore.getState().data.timeOff;

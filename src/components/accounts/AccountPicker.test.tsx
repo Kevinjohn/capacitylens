@@ -10,10 +10,9 @@ import { AuthProvider } from "../../auth/AuthProvider";
 import { useStore } from "../../store/useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../../test/fixtures";
+import { resolveBrowserTimeZone } from "../../lib/timezones";
 
-// The picker now branches server-vs-demo (create → POST /api/orgs; delete → DELETE /api/accounts/:id
-// in server mode), so apiConfig is mocked with a MUTABLE flag — the ArchivedSection.test idiom: most
-// tests run as the demo build (local store paths), the server-mode describe flips it on per-test.
+// Mutable API configuration lets server-mode tests opt in while the rest exercise demo-store paths.
 const serverFlag = vi.hoisted(() => ({ on: false }));
 vi.mock("../../data/apiConfig", () => ({
   API_BASE: "",
@@ -28,9 +27,7 @@ vi.mock("../../auth/accountTransition", () => ({
   }),
 }));
 
-/** Render `ui` inside an AuthContext fixed to `canCreateAccount` (single-company-per-instance
- *  policy) — mirrors permissionGating.test.tsx's `withRole`. The other fields are fixed to the
- *  same defaults the real context uses when the fact IS available (authMode off, no user). */
+/** Render with the single-company capability and the real context's remaining off-mode defaults. */
 function withCanCreateAccount(canCreateAccount: boolean, ui: ReactNode) {
   return render(
     <AuthContext.Provider
@@ -48,9 +45,7 @@ function withCanCreateAccount(canCreateAccount: boolean, ui: ReactNode) {
   );
 }
 
-/** Seed the picker's server-sourced list (P1.13) from the store's accounts — mirrors the demo build's
- *  derivation (useAccountSummaries), which these unit tests don't mount. The picker now lists from
- *  accountSummaries, NOT data.accounts, so any test that seeds accounts must seed summaries too. */
+/** Seed both account data and the server-sourced summaries the picker renders. */
 function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
   useStore.getState().replaceAll(makeAppData({ accounts }));
   useStore.getState().setAccountSummaries(accounts.map((a) => ({ id: a.id, name: a.name, role: "owner" as const })));
@@ -63,6 +58,7 @@ function requireAccount(name: string) {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
@@ -76,9 +72,6 @@ beforeEach(() => {
   // Sign through the cosmetic demo gate so AppShell renders the picker (the demo sign-in
   // sits in front of it) — these tests exercise the account gate, not the demo one.
   useStore.getState().setFakeSignedIn(true);
-  // Dismiss the post-login intro page too: it gates the app AFTER a company is chosen, and
-  // these tests assert on the picker / shell, not the intro (covered by IntroPage.test.tsx).
-  useStore.getState().setIntroSeen(true);
 });
 
 function renderShell() {
@@ -144,7 +137,8 @@ function registerCreateAndActivateTests() {
     const user = userEvent.setup();
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
+    expect(screen.queryByRole("heading", { name: "New company" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
     const nameInput = screen.getByLabelText("Company name");
     await user.type(nameInput, "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
@@ -155,15 +149,44 @@ function registerCreateAndActivateTests() {
     expect(useStore.getState().activeAccountId).toBe(created.id);
   });
 
+  it("keeps the New company heading when creating an additional company", async () => {
+    const user = userEvent.setup();
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
+    render(<AccountPicker />);
+
+    await user.click(screen.getByRole("button", { name: "New company" }));
+    expect(screen.getByRole("heading", { name: "New company" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+  });
+
   it("captures week-start, timezone and language at creation and passes them to addAccount (P1.14)", async () => {
     const user = userEvent.setup();
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
+    expect(
+      screen.getByText(
+        "Week start, timezone, and language apply to everyone and are fixed after creation. The company name is separate and can be changed later.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Company planning settings" })).toHaveAccessibleDescription(
+      "Week start, timezone, and language apply to everyone and are fixed after creation. The company name is separate and can be changed later.",
+    );
+    expect(screen.getByLabelText("Company name")).toHaveAccessibleDescription(
+      "You can change the company name later; the calendar choices below are fixed after creation.",
+    );
     // The three frozen-after-creation fields render with concrete defaults.
     expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = screen.getByLabelText("Timezone");
-    expect(tz).toHaveTextContent("GMT");
+    expect(tz).toHaveTextContent(/(?:GMT|UTC|London)/);
+    expect(tz).toHaveAccessibleDescription(
+      "Sets the company-wide calendar boundary used for “today” and date-based scheduling.",
+    );
+    expect(screen.getByRole("radio", { name: "Monday" }).parentElement).toHaveAccessibleDescription(
+      "Controls which day starts each calendar week and the order of days in the schedule for everyone.",
+    );
+    expect(screen.getByRole("group", { name: "Language" })).toHaveAccessibleDescription(
+      "Sets the display language for everyone in this company. English is currently available.",
+    );
     expect(screen.getByTestId("create-language")).toHaveTextContent("English");
 
     // Change the two editable-at-creation ones, then create.
@@ -181,13 +204,37 @@ function registerCreateAndActivateTests() {
     // listbox + 9 typed keystrokes, ~0.6s on dev hardware) and it deterministically exceeded 5s
     // on contended CI runners (gate run 29868452988, twice) while every other test passed.
   }, 15_000);
+
+  it("detects the browser zone, searches friendly names, and selects it with the keyboard", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockReturnValue({
+      locale: "en-GB",
+      timeZone: "Europe/London",
+    } as Intl.ResolvedDateTimeFormatOptions);
+    render(<AccountPicker />);
+
+    const timezone = screen.getByRole("combobox", { name: "Timezone" });
+    expect(timezone).toHaveTextContent("London");
+    await user.click(timezone);
+    expect(document.getElementById(timezone.getAttribute("aria-controls") ?? "")).toHaveAttribute("role", "dialog");
+    const search = screen.getByRole("combobox", { name: "Search time zones" });
+    await user.type(search, "London");
+    await user.keyboard("{Enter}");
+
+    expect(timezone).toHaveTextContent("London");
+    expect(timezone).toHaveAttribute("aria-expanded", "false");
+    expect(document.activeElement).toBe(timezone);
+
+    await user.type(screen.getByLabelText("Company name"), "Queen Industries");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+    await waitFor(() => expect(requireAccount("Queen Industries").timezone).toBe("Europe/London"));
+  });
 }
 
 function registerCreateFormValidationTests() {
   it("validates a blank name", async () => {
     const user = userEvent.setup();
     render(<AccountPicker />);
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.click(screen.getByRole("button", { name: "Create company" }));
     expect(screen.getByText("Name is required.")).toBeInTheDocument();
     expect(useStore.getState().data.accounts).toHaveLength(0);
@@ -195,6 +242,7 @@ function registerCreateFormValidationTests() {
 
   it("reopens the create form without the previous attempt's validation error", async () => {
     const user = userEvent.setup();
+    seedAccounts(makeAccount({ name: "Wayne Enterprises" }));
     render(<AccountPicker />);
 
     await user.click(screen.getByRole("button", { name: "New company" }));
@@ -224,7 +272,6 @@ function registerOpenAndEnterTests() {
     const user = userEvent.setup();
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Enter Co");
     await user.keyboard("{Enter}");
 
@@ -261,7 +308,7 @@ function registerDeleteConfirmationTests() {
 describe("AccountPicker server-mode list (P1.13)", () => {
   registerServerListMembershipTests();
   registerServerListAccessTests();
-  registerServerListEmptyStateTests();
+  registerUnloadedAccountActivationTest();
 });
 
 function registerServerListMembershipTests() {
@@ -333,7 +380,7 @@ function registerServerListAccessTests() {
   });
 }
 
-function registerServerListEmptyStateTests() {
+function registerUnloadedAccountActivationTest() {
   it("activates an account whose slice is NOT loaded (existence via summaries)", async () => {
     const user = userEvent.setup();
     // `data` is empty (no slice loaded yet — the pre-load state), but the summary exists.
@@ -344,44 +391,6 @@ function registerServerListEmptyStateTests() {
     // setActiveAccount validates against the UNION of data.accounts + summaries, so it activates
     // (the switch orchestrator then hydrates the slice) rather than bouncing back to the picker.
     expect(useStore.getState().activeAccountId).toBe("a2");
-  });
-
-  it("keeps the empty picker focused on the two next steps", () => {
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([]);
-    render(<AccountPicker />);
-    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
-    expect(screen.getByText("Create a company to start planning, or ask an admin for an invite.")).toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options")).toBeInTheDocument();
-    expect(screen.getByText("Set up a new company and start planning right away.")).toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options").children).toHaveLength(2);
-    expect(screen.queryByText(/No companies yet/)).not.toBeInTheDocument();
-    // Zero accounts ⇒ the server reports canCreateAccount: true when re-asked (no provider here,
-    // so the default context value applies — see authContext.ts's fail-open default; the live
-    // refetch after a delete is pinned in the refreshAuth describe below).
-    expect(screen.getByTestId("new-company-button")).toBeInTheDocument();
-  });
-
-  it("shows only the invite step when an empty picker caller cannot create a company", () => {
-    useStore.getState().replaceAll(emptyAppData());
-    useStore.getState().setAccountSummaries([]);
-    withCanCreateAccount(false, <AccountPicker />);
-
-    expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
-    expect(screen.getByText("Ask an admin for an invite to join an existing company.")).toBeInTheDocument();
-    expect(screen.queryByTestId("new-company-button")).not.toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options").children).toHaveLength(1);
-    expect(screen.queryByText(/Create a company to start planning/)).not.toBeInTheDocument();
-  });
-
-  it("does not ask new-company onboarding users to choose a colour", async () => {
-    const user = userEvent.setup();
-    render(<AccountPicker />);
-    await user.click(screen.getByRole("button", { name: "New company" }));
-    expect(screen.queryByText("Colour")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^Colour \(/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("list")).not.toBeInTheDocument();
   });
 }
 
@@ -418,7 +427,6 @@ function registerServerCreateRequestTest() {
     const fetchMock = stubFetch({ ok: true, status: 201, body: { id: "org-1", name: "Stark Industries" } });
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -431,7 +439,9 @@ function registerServerCreateRequestTest() {
     const body = JSON.parse(init.body as string) as Record<string, unknown>;
     expect(body.name).toBe("Stark Industries");
     expect(body.weekStartsOn).toBe(1);
-    expect(body.timezone).toBe("Etc/GMT");
+    expect(body.timezone).toBe(resolveBrowserTimeZone());
+    expect(body.schedulingMode).toBe("days");
+    expect(body.inlineActivityCreateEnabled).toBe(false);
     expect(body.internalColourMode).toBe("grey");
     // Summary seeded (the picker lists it; setActiveAccount validated against it)…
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain("org-1");
@@ -455,12 +465,18 @@ function registerServerCreateUnusableBodyTest() {
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
     // The company appears via the refetch (the picker list), the form is gone, and no error shows.
     expect(await screen.findByText("Stark Industries")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(useStore.getState().notice).toMatchObject({
+        message:
+          "The create request had an unknown outcome. The company list was refreshed; check it before trying again.",
+        tone: "warning",
+      }),
+    );
     expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.map((c) => c[0] as unknown as string)).toContain("/api/accounts");
@@ -484,7 +500,6 @@ function registerServerCreateWhitespaceBodyTest() {
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -501,7 +516,6 @@ function registerServerCreateRefusalTest() {
     stubFetch({ ok: false, status: 403, body: { error: "This instance allows a single company." } });
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Second Co");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -523,7 +537,6 @@ function registerServerCreateUnknownResponseTest() {
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Uncertain Co");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -532,6 +545,8 @@ function registerServerCreateUnknownResponseTest() {
         "The create request had an unknown outcome. The company list was refreshed; check it before trying again.",
       ),
     );
+    expect(screen.getByLabelText("Company name")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create company" })).toBeEnabled();
   });
 }
 
@@ -545,7 +560,6 @@ function registerServerCreateTransportFailureTest() {
     vi.stubGlobal("fetch", fetchMock);
     render(<AccountPicker />);
 
-    await user.click(screen.getByRole("button", { name: "New company" }));
     await user.type(screen.getByLabelText("Company name"), "Uncertain Co");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 
@@ -554,6 +568,34 @@ function registerServerCreateTransportFailureTest() {
         "The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again. create transport failed",
       ),
     );
+    expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
+  });
+
+  it("locks creation when a successful response cannot be reconciled", async () => {
+    serverFlag.on = true;
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === "/api/orgs") return { ok: true, status: 201, json: async () => ({ ok: true }) };
+      throw new Error("directory refresh failed");
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<AccountPicker />);
+
+    await user.type(screen.getByLabelText("Company name"), "Unresolved Co");
+    await user.click(screen.getByRole("button", { name: "Create company" }));
+
+    await waitFor(() => expect(screen.queryByLabelText("Company name")).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(useStore.getState().notice).toMatchObject({
+        message:
+          "The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again.",
+        tone: "warning",
+      }),
+    );
+    expect(screen.queryByRole("button", { name: "Create company" })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.filter(([url]) => url === "/api/orgs")).toHaveLength(1);
   });
 }
 
@@ -780,8 +822,8 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
 
     // The refetched /me flips canCreateAccount → the button (and the empty two-choice state)
     // come back WITHOUT a manual reload — the dead end this pins against.
-    expect(await screen.findByTestId("new-company-button")).toBeInTheDocument();
-    expect(screen.getByTestId("company-empty-options")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Company name")).toBeInTheDocument();
+    expect(screen.queryByTestId("company-empty-options")).not.toBeInTheDocument();
     expect(fetchMock.mock.calls.filter((c) => c[0] === "/api/auth/me")).toHaveLength(2);
   });
 
@@ -792,7 +834,6 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "/api/auth/me") {
         meCalls += 1;
-        // Single-company instance the other way round: creatable at zero accounts, capped after.
         return jsonRes(200, { authMode: "off", user: null, canCreateAccount: meCalls === 1, multiAccount: false });
       }
       if (url === "/api/orgs" && init?.method === "POST")
@@ -806,7 +847,7 @@ describe("AccountPicker — refreshAuth after org create/delete (canCreateAccoun
       </AuthProvider>,
     );
 
-    await user.click(await screen.findByTestId("new-company-button"));
+    await screen.findByLabelText("Company name");
     await user.type(screen.getByLabelText("Company name"), "Stark Industries");
     await user.click(screen.getByRole("button", { name: "Create company" }));
 

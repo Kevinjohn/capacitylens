@@ -6,6 +6,8 @@ import { type Row } from "../rowCodec";
 import { CREATE_ORDER, SCOPED_ORDER } from "../tables";
 import { insertRowRaw } from "./rows";
 import type { CompleteAccountSlice } from "./slices";
+import { removeAccountMemberResourcesForAccount } from "../controlTables/accountMemberResources";
+import { INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION } from "./constants";
 export { markInitialized, isInitialized } from "./initialization";
 /** First-run seeding gate used by the server entrypoint: seed ONLY a never-initialised DB.
  *  Gated on the persistent `initialized` marker — which survives the user emptying their
@@ -46,10 +48,21 @@ export function insertAll(db: Db, data: AppData): void {
  *  init marker is cleared so the next load seeds again. */
 export function wipe(db: Db): void {
   tx(db, () => {
+    if (db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'account_member_resources'`).get()) {
+      const accounts = db.prepare(`SELECT id FROM accounts`).all() as Array<{ id: string }>;
+      for (const account of accounts) removeAccountMemberResourcesForAccount(db, account.id);
+    }
+    const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version?: unknown }).user_version;
+    if (typeof schemaVersion === "number" && schemaVersion >= INVITATION_PERSON_PROPOSALS_SCHEMA_VERSION) {
+      db.exec(`DELETE FROM invitation_person_proposals; DELETE FROM member_resource_link_exceptions;`);
+    }
     for (let i = CREATE_ORDER.length - 1; i >= 0; i--) db.exec(`DELETE FROM ${CREATE_ORDER[i]}`);
     db.exec(`DELETE FROM account_member_sign_in_tracking`);
     db.exec(`DELETE FROM account_members`);
     db.exec(`DELETE FROM invites`);
+    // Ownership-transfer rows name two principals of a company whose data has just been wiped;
+    // leaving them behind would keep a live nomination pointing at memberships that no longer exist.
+    db.exec(`DELETE FROM account_ownership_transfers`);
     db.exec(`DELETE FROM _meta`);
   });
 }
@@ -61,6 +74,10 @@ export function wipe(db: Db): void {
 export function replaceAccountSlice(db: Db, accountId: string, next: CompleteAccountSlice): void {
   const d = next as unknown as Record<string, Row[]>;
   tx(db, () => {
+    // Scheduling import is a destructive replacement. Associations are control-plane rows and
+    // must not be remapped onto newly generated resource ids; clearing inside this transaction
+    // preserves them when preparation/validation or insertion rolls back.
+    removeAccountMemberResourcesForAccount(db, accountId);
     for (let i = SCOPED_ORDER.length - 1; i >= 0; i--) {
       db.prepare(`DELETE FROM ${SCOPED_ORDER[i]} WHERE accountId = ?`).run(accountId);
     }

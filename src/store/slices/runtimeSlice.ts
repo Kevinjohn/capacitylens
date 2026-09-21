@@ -4,7 +4,6 @@ import {
   readStoredBarLabelPrefs,
   readStoredFakeSignedIn,
   readStoredGettingStartedDismissed,
-  readStoredIntroSeen,
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
   readStoredCompactView,
@@ -13,7 +12,6 @@ import {
   writeStoredBarLabelPrefs,
   writeStoredFakeSignedIn,
   writeStoredGettingStartedDismissed,
-  writeStoredIntroSeen,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
   writeStoredCompactView,
@@ -28,6 +26,7 @@ type RuntimeSliceKeys =
   | "persistError"
   | "loadError"
   | "connectionError"
+  | "activeAccountLoadFailed"
   | "notice"
   | "srAnnouncement"
   | "dirtyForm"
@@ -41,7 +40,6 @@ type RuntimeSliceKeys =
   | "snapToWeekStart"
   | "compactView"
   | "fakeSignedIn"
-  | "introSeen"
   | "gettingStartedDismissed"
   | "activeRole"
   | "activeRoleStatus"
@@ -64,7 +62,6 @@ type RuntimeSliceKeys =
   | "setSnapToWeekStart"
   | "setCompactView"
   | "setFakeSignedIn"
-  | "setIntroSeen"
   | "setGettingStartedDismissed"
   | "setActiveRole"
   | "invalidateMemberships"
@@ -76,13 +73,7 @@ type RuntimeSlice = Pick<StoreState, RuntimeSliceKeys>;
 
 /** The device-global boolean prefs, each persisted under its own localStorage key. */
 type PersistedFlagKey =
-  | "sidebarOpen"
-  | "minimiseWeekends"
-  | "snapToWeekStart"
-  | "compactView"
-  | "fakeSignedIn"
-  | "introSeen"
-  | "gettingStartedDismissed";
+  "sidebarOpen" | "minimiseWeekends" | "snapToWeekStart" | "compactView" | "fakeSignedIn" | "gettingStartedDismissed";
 
 const legacyDirtyFormSource = Symbol("setDirtyForm");
 
@@ -102,6 +93,7 @@ function readRuntimeInitialState() {
     persistError: false,
     loadError: false,
     connectionError: false,
+    activeAccountLoadFailed: null,
     notice: null,
     srAnnouncement: null,
     dirtyForm: false,
@@ -115,7 +107,6 @@ function readRuntimeInitialState() {
     snapToWeekStart: readStoredSnapToWeekStart(),
     compactView: readStoredCompactView(),
     fakeSignedIn: readStoredFakeSignedIn(),
-    introSeen: readStoredIntroSeen(),
     gettingStartedDismissed: readStoredGettingStartedDismissed(),
     activeRole: null,
     activeRoleStatus: "not-applicable" as const,
@@ -177,7 +168,6 @@ export const createRuntimeSlice: StateCreator<StoreState, [], [], RuntimeSlice> 
     setSnapToWeekStart: createPersistedFlagSetter(set, "snapToWeekStart", writeStoredSnapToWeekStart),
     setCompactView: createPersistedFlagSetter(set, "compactView", writeStoredCompactView),
     setFakeSignedIn: createPersistedFlagSetter(set, "fakeSignedIn", writeStoredFakeSignedIn),
-    setIntroSeen: createPersistedFlagSetter(set, "introSeen", writeStoredIntroSeen),
     setGettingStartedDismissed: createPersistedFlagSetter(
       set,
       "gettingStartedDismissed",

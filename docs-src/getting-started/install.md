@@ -1,17 +1,18 @@
 ---
 title: Choose how to install CapacityLens
-description: Choose between installing CapacityLens with Docker Compose or directly with Node 24, pnpm and nginx.
+description: Choose Docker Compose, a direct Node installation, or a managed VPS platform for CapacityLens.
 ---
 
 # Choose how to install CapacityLens
 
-CapacityLens has two supported installation routes. Docker is not a prerequisite: use
-Docker Compose if you want CapacityLens to manage the packaged services, or install it
-directly if you prefer to manage Node and nginx yourself.
+CapacityLens has three supported installation routes. Docker is not a prerequisite: use
+Docker Compose if you want CapacityLens to manage the packaged services, install it
+directly if you manage Node and nginx yourself, or adapt the direct installation for a
+managed VPS platform.
 
-Both routes give you the same persistent CapacityLens app, SQLite database and sign-in
-options. Both also take you through creating the first [Owner](/reference/glossary)
-account. The difference is how the app and API run on your host.
+Every route gives you the same persistent CapacityLens app, SQLite database and sign-in
+options. The installer verifies the service, then gives the first [Owner](/reference/glossary)
+the address and private setup route. The difference is how the app and API run on your host.
 
 ::: tip
 Just want to look around first? [Try the demo](/getting-started/try-the-demo) instead —
@@ -36,7 +37,18 @@ service, while nginx serves the web app and sends API requests to Node.
 You will need a Linux host with systemd, Node 24, pnpm and nginx. Allow about 20–30
 minutes when those tools are already installed.
 
+## Deploy on a managed VPS platform
+
+Choose [Deploy on a managed VPS platform](/self-hosting/managed-vps/) if Forge, Ploi,
+RunCloud or a similar service manages nginx, background processes and release directories
+on your server. CapacityLens still runs directly on Node; the platform replaces the
+systemd and hand-written site-management steps.
+
+You will need a managed Linux server with Node 24, Corepack, an isolated site user and a
+public HTTPS domain. Allow about 90 minutes for the first installation and its operational
+checks.
+
 ## What's next
 
-After completing either route, follow [First steps after installing](/getting-started/first-steps)
-to claim the Owner account and find your way around the schedule.
+After completing a route, [configure the service](/installation/configure-the-service),
+[secure the connection](/installation/secure-the-connection), then [verify and hand over](/installation/verify-and-hand-over).

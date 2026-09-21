@@ -32,7 +32,7 @@ are documented in `docs-src/self-hosting.md`, `docs-src/authentication.md` and `
 
 ## Authentication
 
-`CAPACITYLENS_AUTH=off|password|sso`. Password mode can also expose configured experimental social
+`SMALLSASS_ACCOUNT_MODE=off|password|sso`. Password mode can also expose configured experimental social
 or generic OIDC providers. External identities need verified email and an invitation, with an
 explicit bootstrap email allow-list for the first identity. Provider configuration is fail-closed;
 partial credentials or missing OIDC endpoints refuse startup.

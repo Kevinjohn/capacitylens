@@ -95,11 +95,17 @@ partial or malicious.
 
 ## Pull requests
 
+- Create pull requests on GitHub and leave them open for review. A request or agreement to create a
+  pull request is not permission to merge it; each merge requires explicit maintainer authorisation
+  for that specific pull request.
 - Explain what changed and why.
 - Link an issue when one exists.
 - Keep unrelated formatting and refactors out of the patch.
 - Note operational, migration, privacy or accessibility impact.
 - Add an entry under `CHANGELOG.md` → `Unreleased` for user-visible changes.
+
+Document implementation, design and investigation plans in GitHub issues. Do not add standalone
+planning or ideation Markdown files to the repository.
 
 Every contributor-authored commit must include a
 [Developer Certificate of Origin](https://developercertificate.org/) sign-off whose email matches

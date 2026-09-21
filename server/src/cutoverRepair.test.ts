@@ -305,6 +305,7 @@ function createOwnerAssignmentRepairTest(): void {
   });
 }
 
+// eslint-disable-next-line max-lines-per-function
 function createEmptyWorkspaceRepairTest(): void {
   it("erases only a workspace with no active members", async () => {
     const prepared = await database();
@@ -328,6 +329,51 @@ function createEmptyWorkspaceRepairTest(): void {
       verified.prepare(`SELECT json_extract(payload, '$.action') AS action FROM capacitylens_audit_outbox`).all(),
     ).toEqual([{ action: "workspace.erased" }]);
     verified.close();
+  });
+
+  it("erases an empty workspace from a genuine pre-v43 database without the association tables", async () => {
+    const prepared = await database();
+    prepared.db.exec(`
+      DROP TABLE account_member_resources;
+      DROP TABLE invitation_person_proposals;
+      DROP TABLE member_resource_link_exceptions;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 43;
+      PRAGMA user_version = 42;
+    `);
+    prepared.db
+      .prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`)
+      .run("workspace-empty", "Empty", "#3b82f6", timestamp, timestamp);
+    prepared.db.close();
+    await expect(
+      repairSsoCutover({
+        databasePath: prepared.path,
+        confirmServerStopped: true,
+        operation: { kind: "erase-empty-workspace", workspaceId: "workspace-empty" },
+        env,
+      }),
+    ).resolves.toMatchObject({ operation: "erase-empty-workspace", principalId: null });
+  });
+
+  it("erases an empty workspace from v43 without touching absent v44 proposal tables", async () => {
+    const prepared = await database();
+    prepared.db.exec(`
+      DROP TABLE invitation_person_proposals;
+      DROP TABLE member_resource_link_exceptions;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 44;
+      PRAGMA user_version = 43;
+    `);
+    prepared.db
+      .prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`)
+      .run("workspace-empty", "Empty", "#3b82f6", timestamp, timestamp);
+    prepared.db.close();
+    await expect(
+      repairSsoCutover({
+        databasePath: prepared.path,
+        confirmServerStopped: true,
+        operation: { kind: "erase-empty-workspace", workspaceId: "workspace-empty" },
+        env,
+      }),
+    ).resolves.toMatchObject({ operation: "erase-empty-workspace", principalId: null });
   });
 }
 
@@ -363,6 +409,45 @@ function createActiveMembershipRefusalTest(): void {
   });
 }
 
+function createMigrationCompatibilityTests(): void {
+  it("allows the exact pending v42-v44 product-only migrations", async () => {
+    const prepared = await database();
+    prepared.db.exec(`
+      ALTER TABLE resources DROP COLUMN avatarUrl;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 42;
+      PRAGMA user_version = 41;
+    `);
+    prepared.db.close();
+
+    await expect(
+      repairSsoCutover({
+        databasePath: prepared.path,
+        confirmServerStopped: true,
+        operation: { kind: "deprovision-credential-orphan", email: "missing@example.com" },
+        env,
+      }),
+    ).rejects.toThrow("No identity matches that address.");
+  });
+
+  it("still rejects a plan containing a migration outside the reviewed repair allowlist", async () => {
+    const prepared = await database();
+    prepared.db.exec(`
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 24;
+      PRAGMA user_version = 23;
+    `);
+    prepared.db.close();
+
+    await expect(
+      repairSsoCutover({
+        databasePath: prepared.path,
+        confirmServerStopped: true,
+        operation: { kind: "deprovision-credential-orphan", email: "missing@example.com" },
+        env,
+      }),
+    ).rejects.toThrow(/unrelated pending migrations/i);
+  });
+}
+
 describe("stopped-server SSO cutover repair", () => {
   createDuplicateSubjectRepairTest();
   createCredentialOrphanRepairTest();
@@ -371,6 +456,7 @@ describe("stopped-server SSO cutover repair", () => {
   createOwnerAssignmentRepairTest();
   createEmptyWorkspaceRepairTest();
   createActiveMembershipRefusalTest();
+  createMigrationCompatibilityTests();
 });
 
 describe("SSO cutover preflight prerequisites", () => {

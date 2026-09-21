@@ -24,7 +24,7 @@ identity provider owns credentials, and in auth-off there are none.
 
 ## How (end-to-end)
 
-**Precondition:** Server mode with `CAPACITYLENS_AUTH=password`. Owner A's company has member B
+**Precondition:** Server mode with `SMALLSASS_ACCOUNT_MODE=password`. Owner A's company has member B
 (editor). B has forgotten their password. Sign in as **A**, pick the company, open **Team & access**.
 
 1. In the **Members** table, A opens the gear on B's row (`data-testid="member-row"` →

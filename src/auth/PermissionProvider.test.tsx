@@ -7,7 +7,7 @@ import { makeAccount, makeAppData, resetStoreWithAccount } from "../test/fixture
 import { useStore } from "../store/useStore";
 import { setOfflineReadState } from "../data/offlineCache";
 import { useAccountSummaries } from "./useAccountSummaries";
-import { masqueradeController } from "./masqueradeController";
+import * as accountTransition from "./accountTransition";
 
 const permissionMocks = vi.hoisted(() => ({
   masqueradeStatus: vi.fn(async () => ({ active: false as const })),
@@ -118,9 +118,9 @@ describe("PermissionProvider authenticated lookup posture", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
     renderProvider();
 
-    await waitFor(() => expect(useStore.getState().activeRole).toBe("viewer"));
+    expect(await screen.findByText("unavailable:viewer:read")).toBeInTheDocument();
+    expect(useStore.getState().activeRole).toBe("viewer");
     expect(useStore.getState().activeRoleStatus).toBe("unavailable");
-    expect(screen.getByText("unavailable:viewer:read")).toBeInTheDocument();
   });
 
   it("reports membership as unavailable for the offline Viewer projection without fetching", async () => {
@@ -221,7 +221,7 @@ describe("PermissionProvider membership invalidation", () => {
         ),
       );
     vi.stubGlobal("fetch", fetchMock);
-    const adoptStatus = vi.spyOn(masqueradeController, "adoptStatus");
+    const adoptStatus = vi.spyOn(accountTransition, "adoptMasqueradeStatus");
     const setActiveRole = vi.spyOn(useStore.getState(), "setActiveRole");
 
     renderProvider();
@@ -334,7 +334,7 @@ describe("PermissionProvider account-switch safety", () => {
       .mockImplementationOnce(() => aStatus.promise)
       .mockResolvedValueOnce({ active: false });
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(accountResponse("a-studio", "editor")));
-    const adoptStatus = vi.spyOn(masqueradeController, "adoptStatus");
+    const adoptStatus = vi.spyOn(accountTransition, "adoptMasqueradeStatus");
     renderProvider();
 
     act(() => useStore.getState().setActiveAccount("a-studio"));

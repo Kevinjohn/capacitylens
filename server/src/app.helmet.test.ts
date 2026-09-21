@@ -24,6 +24,7 @@ describe("baseline security headers (helmet, on by default)", () => {
     expect(typeof csp).toBe("string");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("connect-src 'self'");
+    expect(csp).toContain("img-src 'self' data: https:");
   });
 
   it("keeps the CSP to the minimal set plus reporting — no helmet defaults merged in", async () => {
@@ -63,8 +64,8 @@ describe("baseline security headers (helmet, on by default)", () => {
 });
 
 describe("P2.7 privacy posture — CSP forbids browser egress (connect-src is self only)", () => {
-  // No-egress rationale: CapacityLens is privacy-first — the browser must not be able to call out
-  // to any third party. The page's only programmatic network calls are same-origin (to our API).
+  // Programmatic egress stays forbidden. Explicit person avatar images are the documented exception
+  // under img-src; they cannot widen fetch/XHR destinations governed by connect-src.
   // SSO sign-in is a TOP-LEVEL REDIRECT (a navigation to accounts.google.com /
   // login.microsoftonline.com / github.com), NOT a connect-src fetch, and the token exchange is
   // server-to-server — so connect-src legitimately stays 'self'. These assertions are the

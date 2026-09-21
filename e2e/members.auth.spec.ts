@@ -7,7 +7,7 @@ import {
   signUpUser as signUp,
   signUpUserWithId,
 } from "./auth-helpers";
-import { dismissIntroIfPresent, selectShadOption } from "./helpers";
+import { waitForAppLanding, selectShadOption } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -16,12 +16,12 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // invites admin B + editor C (both accept via the API). Then, as B (admin), we drive the Team &
 // access UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
 // revoke it. We assert the Owner option is ABSENT for B in the UI, and at the API layer that nobody
-// can assign Owner through PATCH (400), cannot touch owner A (→ 403), cannot transfer ownership
+// can assign Owner through PATCH (400), cannot touch owner A (→ 403), cannot nominate a next Owner
 // (→ 403), that owner membership cannot be removed through the ordinary member endpoint (→ 403),
 // and — the cross-tenant headline — that B cannot read ANOTHER account's members (→ 403). Then owner
-// A drives the gear menu to disable and restore C, and finally transfers ownership through the API
-// (#175 removed the per-row transfer button) so the live shell reprojects A as Admin on its next
-// authoritative read. Browser-agnostic (no UA branching).
+// A drives the gear menu to disable and restore C, and we assert ownership is reachable from no
+// member row and no longer from the retired single-call endpoint (#175, #780) — the ceremony itself
+// is covered by e2e/ownership-transfer.auth.spec.ts. Browser-agnostic (no UA branching).
 
 // Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp/signUpUserWithId) comes from ./auth-helpers.
 const STAMP = Date.now();
@@ -55,11 +55,13 @@ async function setupMembersApi(request: APIRequestContext) {
     data: { role: "editor" },
   });
   expect(touchOwner.status()).toBe(403);
-  const adminTransfer = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
+  // An Admin cannot start the ownership ceremony: it belongs to the Owner, and the nominee's own
+  // consent belongs to the nominee. The ceremony itself is covered by ownership-transfer.auth.spec.
+  const adminNominate = await request.post(`${API}/api/accounts/${accountId}/ownership-transfer`, {
     headers: { cookie: admin.cookie },
     data: { toUserId: editor.userId },
   });
-  expect(adminTransfer.status()).toBe(403);
+  expect(adminNominate.status()).toBe(403);
   const selfRemove = await request.delete(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
     headers: { cookie: owner.cookie },
   });
@@ -69,6 +71,33 @@ async function setupMembersApi(request: APIRequestContext) {
   });
   expect(crossTenant.status()).toBe(403);
   return { owner, admin, editor, accountId };
+}
+
+async function createViewerInvite(page: Page): Promise<string> {
+  await page.getByTestId("invite-open").click();
+  const dialog = page.getByRole("dialog", { name: "Invite someone" });
+  await selectShadOption(dialog.getByTestId("invite-role"), "viewer");
+  await dialog.getByTestId("invite-submit").click();
+  await expect(dialog.getByTestId("invite-link")).toContainText("/invite/");
+  const link = (await dialog.getByTestId("invite-link").textContent()) ?? "";
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  return link;
+}
+
+async function revokeViewerInvite(page: Page, mintedLink: string): Promise<void> {
+  await page.getByTestId("invite-open").click();
+  const dialog = page.getByRole("dialog", { name: "Invite someone" });
+  await expect(dialog.getByTestId("invite-link")).toHaveText(mintedLink);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  const inviteRows = page.getByTestId("invite-row");
+  await expect(inviteRows).toHaveCount(3);
+  const viewerInvite = inviteRows.filter({ hasText: "Viewer" });
+  await expect(viewerInvite).toContainText("expires");
+  await viewerInvite.getByTestId("invite-revoke").click();
+  await expect(inviteRows).toHaveCount(2);
+  await page.getByTestId("invite-open").click();
+  await expect(dialog.getByTestId("invite-link")).toHaveCount(0);
+  await dialog.getByRole("button", { name: "Cancel" }).click();
 }
 
 async function manageAdminMembers(
@@ -83,10 +112,11 @@ async function manageAdminMembers(
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Welcome to CapacityLens" })).toBeVisible();
-  await page.getByTestId("intro-continue").click();
+  await expect(page.getByRole("heading", { name: "How CapacityLens works" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Schedule" })).toBeVisible();
+  await page.getByRole("button", { name: "Got it" }).click();
   await expect(page.getByTestId("getting-started")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Invite your team" })).toHaveAttribute("href", "/team");
+  await expect(page.getByRole("link", { name: "Invite people to sign in" })).toHaveAttribute("href", "/team");
   await page.getByRole("link", { name: "Team & access" }).click();
   await expect(page.getByTestId("current-access")).toContainText("Admin");
   await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
@@ -113,49 +143,29 @@ async function manageAdminMembers(
       return members.find((member) => member.userId === editor.userId)?.role;
     })
     .toBe("viewer");
-  await selectShadOption(page.getByTestId("invite-role"), "viewer");
-  await page.getByTestId("invite-submit").click();
-  await expect(page.getByTestId("invite-link")).toContainText("/invite/");
-  const mintedInviteLink = await page.getByTestId("invite-link").textContent();
+  const mintedInviteLink = await createViewerInvite(page);
   await editorRow.getByTestId("member-edit").click();
   await selectShadOption(page.getByRole("dialog").getByTestId("member-role-select").getByRole("combobox"), "editor");
   await page.getByRole("dialog").getByTestId("member-role-save").click();
-  await expect(page.getByTestId("invite-link")).toHaveText(mintedInviteLink ?? "");
-  const inviteRows = page.getByTestId("invite-row");
-  await expect(inviteRows).toHaveCount(3);
-  await inviteRows.first().getByTestId("invite-revoke").click();
-  await expect(inviteRows).toHaveCount(2);
-  await expect(page.getByTestId("invite-link")).toHaveCount(0);
+  await revokeViewerInvite(page, mintedInviteLink);
 }
 
-async function transferOwner(
+/** Ownership never moves from the member table. The per-row control is gone (#175) and the single
+ *  call that replaced it is gone too (#780): the whole ceremony lives in its own spec. */
+async function assertOwnershipIsNotAMemberRowAction(
   ownerContext: BrowserContext,
   ownerPage: Page,
   request: APIRequestContext,
-  owner: { cookie: string; userId: string },
+  owner: { cookie: string },
   editor: { userId: string },
   accountId: string,
 ) {
   await expect(ownerPage.getByTestId("member-make-owner")).toHaveCount(0);
-  const transfer = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
+  const retired = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
     headers: { cookie: owner.cookie },
     data: { toUserId: editor.userId },
   });
-  expect(transfer.status()).toBe(200);
-  await ownerPage.reload();
-  await expect(ownerPage).toHaveURL(/\/team$/);
-  await expect(ownerPage.getByRole("heading", { name: "Members", exact: true })).toBeVisible();
-  await expect(ownerPage.getByTestId("active-role")).toContainText("Admin");
-  await expect
-    .poll(async () => {
-      const res = await request.get(`${API}/api/accounts/${accountId}/members`, { headers: { cookie: owner.cookie } });
-      const members = (await res.json()).members as Array<{ userId: string; role: string }>;
-      return [
-        members.find((member) => member.userId === editor.userId)?.role,
-        members.find((member) => member.userId === owner.userId)?.role,
-      ];
-    })
-    .toEqual(["owner", "admin"]);
+  expect(retired.status()).toBe(404);
   await ownerContext.close();
 }
 
@@ -173,7 +183,7 @@ async function manageOwnerMembers(
   await ownerPage.getByLabel("Password").fill(PASSWORD);
   await ownerPage.getByRole("button", { name: "Sign in" }).click();
   await ownerPage.getByRole("button", { name: `Members Studio ${STAMP}`, exact: true }).click();
-  await dismissIntroIfPresent(ownerPage, ownerPage.locator("#main"));
+  await waitForAppLanding(ownerPage, ownerPage.locator("#main"));
   await ownerPage.getByRole("link", { name: "Team & access" }).click();
   await expect(ownerPage.getByTestId("current-access")).toContainText("Owner");
   const ownerTarget = ownerPage.getByTestId("member-row").filter({ hasText: EDITOR });
@@ -208,7 +218,7 @@ async function manageOwnerMembers(
   await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Restore access" }).click();
   await expect(ownerTarget).not.toContainText("Disabled");
   await expect(ownerPage.getByTestId("members-inactive-toggle")).toHaveCount(0);
-  await transferOwner(ownerContext, ownerPage, request, owner, editor, accountId);
+  await assertOwnershipIsNotAMemberRowAction(ownerContext, ownerPage, request, owner, editor, accountId);
 }
 
 test("admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak", async ({

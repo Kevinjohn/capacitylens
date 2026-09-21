@@ -68,7 +68,11 @@ function rejectStalePut(
     !(syncOrder && isSameSessionSuccessor({ db, order: syncOrder, table, id, current: staleWriteInput.existing }))
   ) {
     throw new StaleWriteError(
-      redactWriteEcho(table, staleWriteInput.existing, fieldVisFor(table, (row as { accountId?: unknown }).accountId)),
+      redactWriteEcho(
+        table,
+        staleWriteInput.existing,
+        fieldVisFor(table, table === "accounts" ? id : (row as { accountId?: unknown }).accountId),
+      ),
     );
   }
 }
@@ -110,7 +114,7 @@ function readPutRow(op: ApplyBatchOperationParameters["op"]): Record<string, unk
 
 function sanitizePut(parameters: OperationParameters, state: PutRowState): Record<string, unknown> {
   const { fieldVisFor } = parameters;
-  const { table, row, existing } = state;
+  const { table, id, row, existing } = state;
   const builtinRejection = resolveBuiltinWriteRejection({ verb: "replace", entity: table, existing, incoming: row });
   if (builtinRejection) throw new ValidationError(builtinRejection.error);
   if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
@@ -120,7 +124,7 @@ function sanitizePut(parameters: OperationParameters, state: PutRowState): Recor
     table,
     row,
     existing,
-    options: fieldVisFor(table, (row as { accountId?: unknown }).accountId),
+    options: fieldVisFor(table, table === "accounts" ? id : (row as { accountId?: unknown }).accountId),
   });
   if (table === "accounts" && hasFrozenAccountFieldChanges(existing, sanitizedRow)) {
     throw new AccountContractError({ code: "CONFLICT", message: ACCOUNT_FROZEN_FIELDS_MESSAGE, retryable: false });

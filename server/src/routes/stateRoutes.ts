@@ -298,6 +298,8 @@ async function createOrganisation(
       table: "accounts",
       row: {
         ...(req.body as Record<string, unknown>),
+        schedulingMode: (req.body as Record<string, unknown>).schedulingMode ?? "days",
+        inlineActivityCreateEnabled: (req.body as Record<string, unknown>).inlineActivityCreateEnabled ?? false,
         id,
         createdAt: now,
         updatedAt: now,

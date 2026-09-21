@@ -1,75 +1,46 @@
 ---
-title: First steps after installing
-description: Claim the first Owner account, create your company and find your way around the schedule.
+title: Choose your first task
+description: Start with the guide for your role, or make a first booking in an existing company.
 ---
 
-# First steps after installing
+# Choose your first task
 
-Once you've finished either [installation route](/getting-started/install), this page
-covers the first few minutes inside the app: claiming the first [Owner](/reference/glossary)
-account, creating your company and getting oriented on the schedule.
+<span id="make-your-first-schedule-useful"></span>
 
-## Claim the Owner account
+CapacityLens setup is shared between three people. The technical installer makes the
+service available, the Owner creates the company and appoints an Admin, and the Admin
+prepares members and scheduling data. One person can hold all three responsibilities,
+but you only need the guide for the job you are doing now.
 
-Open CapacityLens through the public URL you configured during installation. With an
-empty database, the sign-in page asks for your name, email, password and the setup token
-from your `.env` file.
+<span id="prerequisites"></span>
+<span id="steps"></span>
 
-After you submit the form, self-registration closes. Nobody else can join the instance
-without an [invite](/reference/glossary), and every later visit shows the ordinary
-sign-in screen.
+<span id="understand-what-capacitylens-plans"></span>
 
-::: warning
-Do not rely on `admin@admin.admin`. CapacityLens uses that bootstrap account only during
-local development and switches it off for a production install. There is no default
-production password: the Owner account you create here is the one that matters.
-:::
+## I want to understand the product
 
-## Create your company
+Read [What is CapacityLens?](/getting-started/what-is-capacitylens) for a one-page
+explanation, then [Make your first booking](/getting-started/quick-start) in an existing company.
 
-Enter your company name when CapacityLens asks. This also creates its built-in
-"Internal" client and your Owner [membership](/reference/glossary).
+## I am the first Owner
 
-![Choose a company screen listing Wayne Enterprises with an Owner badge](../screenshots/flows/choose-company.jpg)
+Follow [Owner setup](/owner/). You can appoint an Admin and stop without preparing the schedule.
 
-## Sign in
+## I am the Admin
 
-Every visit after you've created the Owner account shows the plain sign-in screen: email
-and password.
+Follow [Admin and settings](/admin/) to invite teammates, add people, choose settings,
+prepare work, and make the first booking.
 
-![CapacityLens sign-in screen with email and password fields](../screenshots/flows/sign-in.jpg)
+## I am joining an existing team
 
-## The welcome message
+Follow [Day-to-day usage](/using/) to accept an invitation, read the schedule, and complete
+the tasks your role allows.
 
-Once per device, CapacityLens shows a short orientation explaining what it is — and what
-it isn't. It's worth reading once: it sets expectations that CapacityLens plans people,
-not paperwork, and it won't show again on that device.
+## I am installing or operating the service
 
-![Welcome to CapacityLens dialog explaining it is a resourcing tool, not a project management tool](../screenshots/flows/welcome.jpg)
-
-## Finding your way around the schedule
-
-After the welcome message, you land on [the schedule](/guide/the-schedule) — the one
-screen the whole product is built around. On a fresh install it's empty, with a Getting
-Started panel prompting you to add clients, projects and people before you drag out any
-allocations.
-
-![The Schedule view with people grouped by discipline, allocation bars, utilisation and a holiday block](../screenshots/flows/schedule.jpg)
-
-A few things worth knowing before you start adding data:
-
-- People are grouped by [discipline](/reference/glossary) down the left.
-- Allocation bars span the weeks a [person](/reference/glossary) is booked, and can be tentative, confirmed or
-  completed.
-- [Utilisation](/reference/glossary) percentages update live as you drag allocations around.
-- Time off — holiday, sick, unpaid — sits on the same canvas as work, so capacity is
-  always honest.
-
-See [The schedule](/guide/the-schedule) for the full walkthrough of the view, and [People
-and placeholders](/guide/people-and-placeholders) for adding your team.
+Use [Technical installation](/installation/) for a new service and [Self-hosted
+operations](/operations/) after handover.
 
 ## What's next
 
-[Invite your team](/getting-started/invite-your-team) so the rest of your studio can sign
-in too — or go straight to [The schedule](/guide/the-schedule) if you're setting things up
-solo first.
+[Choose your guide from the documentation home](/#choose-your-guide).

@@ -1,8 +1,11 @@
 import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
+import { isOwnershipTransferTerminalOutcomeBody } from "@capacitylens/shared/account/ownershipTransfer";
 
-// Only these currently defined 409 codes prove that the server reached a terminal rejection. A
-// new or malformed code stays unknown until it is deliberately classified here, preserving the
-// sole retry/reconciliation handle rather than risking a second semantic command.
+// These currently defined 409 codes prove that the server reached a terminal rejection. A valid
+// ownership-transfer terminal response instead proves that ceremony committed; this classification
+// only releases the command record and does not decode the response as success. A new or malformed
+// code stays unknown, preserving the sole retry/reconciliation handle rather than risking a second
+// semantic command.
 const TERMINAL_COMMAND_CONFLICT_CODES = new Set<string>([
   "INVITATION_USED",
   "CONFLICT",
@@ -56,6 +59,7 @@ export async function readUnknownAccountCommandOutcome(response: Response, parse
     const body = await readResponseBody(response, parsedBody);
     if (!isRecord(body)) return true;
     const code = body.code;
+    if (isOwnershipTransferTerminalOutcomeBody(body)) return false;
     return typeof code !== "string" || !TERMINAL_COMMAND_CONFLICT_CODES.has(code);
   } catch {
     // Status alone cannot distinguish a terminal rejection from an in-flight command. Retain the

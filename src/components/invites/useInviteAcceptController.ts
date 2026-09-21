@@ -260,6 +260,7 @@ export function useInviteAcceptController(token: string | undefined) {
     onSignIn: (event: FormEvent) => void flow.signIn(event),
     onProviderSignIn: (provider: AuthProviderInfo) => void flow.signInWithProvider(provider),
     onCreateAccount: () => void flow.createAccount(),
+    onClearAuthError: () => flow.setState({ kind: "auth" }),
     onRetryPreview: () => {
       flow.setState({ kind: "previewing" });
       flow.setPreviewAttempt((attempt) => attempt + 1);

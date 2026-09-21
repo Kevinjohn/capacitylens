@@ -15,6 +15,8 @@ type TextFieldProps = {
   autoFocus?: boolean;
   invalid?: boolean;
   required?: boolean;
+  /** Optional description ID that remains referenced while the field is valid or invalid. */
+  externalDescriptionId?: string;
   describedById?: string;
   disabled?: boolean;
   maxLength?: number;
@@ -43,6 +45,7 @@ function TextFieldControl({
   autoFocus,
   invalid,
   required,
+  externalDescriptionId,
   describedById,
   disabled,
   maxLength = MAX_NAME_INPUT_CODE_UNITS,
@@ -55,7 +58,9 @@ function TextFieldControl({
   descriptionId,
 }: TextFieldProps & { id: string; descriptionId: string }) {
   const ariaDescribedBy = resolveNonEmptyAttribute(
-    [description ? descriptionId : undefined, invalid ? describedById : undefined].filter(Boolean).join(" "),
+    [externalDescriptionId, description ? descriptionId : undefined, invalid ? describedById : undefined]
+      .filter(Boolean)
+      .join(" "),
   );
 
   return (
@@ -87,6 +92,25 @@ export function TextField(props: TextFieldProps) {
   const id = useId();
   const descriptionId = useId();
   const input = <TextFieldControl {...props} id={id} descriptionId={descriptionId} />;
+  const descriptionOnOwnRow = description && layout === "label-control";
+  let fieldControl = input;
+  if (descriptionOnOwnRow) {
+    fieldControl = (
+      <>
+        {input}
+        <FieldDescription id={descriptionId} className="-mt-1.5 sm:col-start-2">
+          {description}
+        </FieldDescription>
+      </>
+    );
+  } else if (description) {
+    fieldControl = (
+      <FieldContent>
+        {input}
+        <FieldDescription id={descriptionId}>{description}</FieldDescription>
+      </FieldContent>
+    );
+  }
 
   return (
     <Field
@@ -95,14 +119,7 @@ export function TextField(props: TextFieldProps) {
       {...buildProductFieldLayoutProps(layout)}
     >
       <RequiredFieldLabel htmlFor={id} label={label} {...(required !== undefined ? { required } : {})} />
-      {description ? (
-        <FieldContent>
-          {input}
-          <FieldDescription id={descriptionId}>{description}</FieldDescription>
-        </FieldContent>
-      ) : (
-        input
-      )}
+      {fieldControl}
     </Field>
   );
 }

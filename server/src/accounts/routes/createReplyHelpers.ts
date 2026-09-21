@@ -4,6 +4,7 @@ import { isAccountRole } from "@capacitylens/shared/account/types";
 import type { Action } from "@capacitylens/shared/domain/access";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AuditRecord } from "../../audit";
+import type { AuthorizeRouteInput } from "../../routes/routeShared";
 import { wasAccountCommandReplayed } from "../commands";
 import type { AccountRouteDependencies } from "./accountRouteDependencies";
 
@@ -18,6 +19,7 @@ interface AuthorizeMemberMutationInput {
   reply: FastifyReply;
   accountId: string;
   action: Action;
+  options?: AuthorizeRouteInput["options"];
 }
 interface RequireMembershipInput {
   reply: FastifyReply;
@@ -67,8 +69,14 @@ export function createReplyHelpers(dependencies: AccountRouteDependencies) {
   // Gate shared by every member-mutation route below: admin-tier authorize() first (it sends its own
   // 403/404 on failure), then OFF mode's "no real member model" refusal. Same order/short-circuit as
   // each call site had inline.
-  const authorizeMemberMutation = ({ req, reply, accountId, action }: AuthorizeMemberMutationInput): boolean => {
-    if (!authorize({ req, reply, accountId, action })) return false;
+  const authorizeMemberMutation = ({
+    req,
+    reply,
+    accountId,
+    action,
+    options,
+  }: AuthorizeMemberMutationInput): boolean => {
+    if (!authorize({ req, reply, accountId, action, options })) return false;
     if (authMode === "off") {
       rejectTrustedLocalMemberMutation(reply);
       return false;

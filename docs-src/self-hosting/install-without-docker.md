@@ -1,6 +1,12 @@
 ---
 title: Install without Docker
 description: Install CapacityLens directly on a Linux host with Node 24, pnpm and nginx — no Docker required.
+prev:
+  text: Choose how to install
+  link: /getting-started/install
+next:
+  text: Configure the service
+  link: /installation/configure-the-service
 ---
 
 # Install without Docker
@@ -21,19 +27,20 @@ installed.
 
 ## Steps
 
-1. Install Node 24, enable Corepack, and clone the repository:
+1. Clone the repository and select Node 24:
 
    ```bash
-   nvm install
-   nvm use
-   corepack enable
    git clone https://github.com/Kevinjohn/capacitylens.git
    cd capacitylens
+   nvm install
+   nvm use
+   node --version
+   corepack enable
    ```
 
-   `nvm install`/`nvm use` read the pinned version from `.nvmrc` automatically. Confirm
-   with `node --version` — it must be 24 or newer; the server refuses to start
-   otherwise.
+   nvm reads `.nvmrc` from the repository, so run it after changing into the cloned
+   directory. The reported version must be `v24.x`; the server refuses to start with
+   an older version.
 
 2. Install dependencies and copy the example environment file:
 
@@ -57,23 +64,33 @@ installed.
    SMALLSASS_ACCOUNT_SECRET=<first generated value>
    SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
    SMALLSASS_ACCOUNT_SETUP_TOKEN=<second generated value>
-   CAPACITYLENS_HTTPS=1
    CAPACITYLENS_RATE_LIMIT=300
    CAPACITYLENS_DB=/var/lib/capacitylens/capacitylens.db
+   CAPACITYLENS_AUDIT_FILE=/var/lib/capacitylens/capacitylens-audit.jsonl
+   CAPACITYLENS_BACKUP_DIR=/var/lib/capacitylens/backups
    CAPACITYLENS_HOST=127.0.0.1
    PORT=8787
    ```
 
    Unlike Docker Compose, nothing loads `.env` for you automatically here — the systemd
    unit in step 5 reads it directly with `EnvironmentFile`. See
-   [Configuration](/self-hosting/configuration) for what every variable does.
+   [Configure the service](/installation/configure-the-service) for what every variable does.
+   Set `CAPACITYLENS_STORAGE_ENCRYPTED=1` only after verifying that `/var/lib/capacitylens`
+   and the backup destination use encrypted storage at rest; the setting is an attestation,
+   not an encryption mechanism.
 
    Create a dedicated system user and a data directory it owns:
 
    ```bash
    sudo useradd --system --home /var/lib/capacitylens --shell /usr/sbin/nologin capacitylens
-   sudo mkdir -p /var/lib/capacitylens
-   sudo chown capacitylens:capacitylens /var/lib/capacitylens
+   sudo install -d -o capacitylens -g capacitylens /var/lib/capacitylens /var/lib/capacitylens/backups
+   ```
+
+   Copy the selected Node binary to a root-owned path that the service user can run:
+
+   ```bash
+   sudo install -D -m 0755 "$(command -v node)" /opt/capacitylens/bin/node
+   sudo -u capacitylens /opt/capacitylens/bin/node --version
    ```
 
 4. Build the web app and the server:
@@ -88,8 +105,9 @@ installed.
    `server/dist/index.mjs`, the same build Docker's image runs.
 
 5. Install a systemd unit so the API starts on boot and restarts if it exits. Create
-   `/etc/systemd/system/capacitylens.service`, adjusting the paths to where you cloned
-   the repo:
+   `/etc/systemd/system/capacitylens.service`. Adjust `WorkingDirectory` and
+   `EnvironmentFile` to where you cloned the repo, but keep `ExecStart` at the runtime
+   path installed in step 3:
 
    ```ini
    [Unit]
@@ -102,7 +120,8 @@ installed.
    Group=capacitylens
    WorkingDirectory=/opt/capacitylens/server
    EnvironmentFile=/opt/capacitylens/.env
-   ExecStart=/usr/bin/node dist/index.mjs
+   Environment=NODE_ENV=production
+   ExecStart=/opt/capacitylens/bin/node dist/index.mjs
    Restart=on-failure
    RestartSec=5
 
@@ -120,22 +139,30 @@ installed.
 
    Expect `active (running)` with no restart loop. Follow the logs with
    `journalctl -u capacitylens -f` — like the Docker install, there's no single "ready"
-   line, so a quiet log with no restart is what you're looking for.
+   line, so a quiet log with no restart is what you're looking for. To confirm it's
+   running the copied binary, `sudo readlink /proc/$(systemctl show -p MainPID --value
+   capacitylens)/exe` should print `/opt/capacitylens/bin/node`.
 
-6. Configure nginx to serve the built app and proxy `/api/` to the API. Create
-   `/etc/nginx/sites-available/capacitylens`, pointing `root` at the `dist/` directory
-   from step 4:
+6. Obtain a certificate for the final hostname using your distribution's supported ACME
+   client, then configure nginx to serve the built app over HTTPS and proxy `/api/` to
+   the API. Create `/etc/nginx/sites-available/capacitylens`, pointing `root` at the
+   `dist/` directory from step 4:
 
    ```nginx
    server {
-       listen 80;
+       listen 443 ssl;
+       listen [::]:443 ssl;
        server_name capacity.example.com;
+
+       ssl_certificate /etc/letsencrypt/live/capacity.example.com/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/capacity.example.com/privkey.pem;
 
        root /opt/capacitylens/dist;
        index index.html;
 
        location /api/ {
            proxy_pass http://127.0.0.1:8787;
+           proxy_http_version 1.1;
            proxy_set_header Host $host;
            proxy_set_header X-Real-IP $remote_addr;
            proxy_set_header X-Forwarded-For $remote_addr;
@@ -146,6 +173,13 @@ installed.
            try_files $uri $uri/ /index.html;
        }
    }
+
+   server {
+       listen 80;
+       listen [::]:80;
+       server_name capacity.example.com;
+       return 301 https://$host$request_uri;
+   }
    ```
 
    Enable it and reload nginx:
@@ -155,24 +189,32 @@ installed.
    sudo nginx -t && sudo systemctl reload nginx
    ```
 
-   This config is deliberately plain HTTP on port 80, to get the app running end to end
-   first. Put real TLS in front of it before the host is reachable from the internet —
-   see [TLS and networking](/self-hosting/tls-and-networking) for the certificate setup
-   and the exact `X-Forwarded-Proto`/HSTS/security-header details a production config
-   needs, which this step intentionally leaves out.
+   After the certificate and redirect work, add `CAPACITYLENS_HTTPS=1` to `.env` and
+   restart the service. The API remains on loopback HTTP; nginx terminates public TLS and
+   overwrites the forwarded headers. See [Secure the connection](/installation/secure-the-connection)
+   for the same-origin boundary and certificate renewal requirements.
 
-7. Check it's serving:
+7. Check the API locally and through the public HTTPS origin:
 
    ```bash
-   curl -fsS http://127.0.0.1/api/health
+   curl -fsS http://127.0.0.1:8787/api/health
    ```
 
-   Expected output starts `{"ok":true,...}`. Once TLS is in front of it, open the app
-   through your domain and enter `SMALLSASS_ACCOUNT_SETUP_TOKEN` as the first owner.
+   ```bash
+   curl -fsS https://capacity.example.com/api/health
+   ```
+
+   Both responses should start `{"ok":true,...}`. Open the public HTTPS origin and confirm
+   that a nested app route refreshes without an nginx `404`. Complete the [verify and hand
+   over](/installation/verify-and-hand-over) procedure before giving the address or setup
+   details to the first Owner.
+
+After changing Node with nvm during an upgrade, redo the binary copy from step 3 and restart the
+service.
 
 ## What's next
 
-- [TLS and networking](/self-hosting/tls-and-networking) to put a real certificate in
+- [Secure the connection](/installation/secure-the-connection) to put a real certificate in
   front of this host — required before anyone outside your network reaches it.
 - [Backups and restore](/self-hosting/backups-and-restore) to protect the database this
   install just created.

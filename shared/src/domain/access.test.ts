@@ -8,7 +8,9 @@ import {
   canManageMemberRole,
   canRemoveMember,
   canResetMemberAcrossAccounts,
+  canViewCapacityOverview,
 } from "./access";
+import type { CapacityOverviewAccess } from "../types/entities";
 import type { Role, Action } from "./access";
 import { canAdministerAccount } from "../account/policy";
 
@@ -34,9 +36,10 @@ const ACTIONS = [
   "purge",
   "deleteAccount",
   "transferOwnership",
+  "actOnOwnershipTransfer",
 ] as const satisfies readonly Action[];
 
-// The full 4×9 expected matrix, written out explicitly from the Decisions table:
+// The full 4×11 expected matrix, written out explicitly from the Decisions table:
 //   read              — any member (owner, admin, editor, viewer)
 //   write             — editor and up (owner, admin, editor); NOT viewer
 //   manageInternalClient — admin and up (owner, admin)
@@ -45,6 +48,8 @@ const ACTIONS = [
 //   purge             — admin and up (owner, admin)
 //   deleteAccount     — owner only
 //   transferOwnership — owner only
+//   actOnOwnershipTransfer — admin and up (owner, admin): the nominated Admin must be able to
+//                            reach the ceremony to give or withdraw their own consent
 const EXPECTED: Record<Role, Record<Action, boolean>> = {
   owner: {
     read: true,
@@ -57,6 +62,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     purge: true,
     deleteAccount: true,
     transferOwnership: true,
+    actOnOwnershipTransfer: true,
   },
   admin: {
     read: true,
@@ -69,6 +75,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     purge: true,
     deleteAccount: false,
     transferOwnership: false,
+    actOnOwnershipTransfer: true,
   },
   editor: {
     read: true,
@@ -81,6 +88,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     purge: false,
     deleteAccount: false,
     transferOwnership: false,
+    actOnOwnershipTransfer: false,
   },
   viewer: {
     read: true,
@@ -93,6 +101,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     purge: false,
     deleteAccount: false,
     transferOwnership: false,
+    actOnOwnershipTransfer: false,
   },
 };
 
@@ -106,8 +115,8 @@ describe("can(role, action) — the pure access matrix", () => {
   // Completeness guard: the action list the sweep iterates must equal the `Action` union, so a new
   // Action can't slip past the exhaustive check. (The `satisfies` on ACTIONS catches an EXTRA/typo
   // member at compile time; this asserts none was DROPPED — keep this count in step with `Action`.)
-  it("iterates exactly the Action union (10 actions, no more, no fewer)", () => {
-    expect(ACTIONS.length).toBe(10);
+  it("iterates exactly the Action union (11 actions, no more, no fewer)", () => {
+    expect(ACTIONS.length).toBe(11);
     expect(new Set(ACTIONS).size).toBe(ACTIONS.length); // no duplicates
   });
 
@@ -134,6 +143,7 @@ describe("CapacityLens/account-policy ownership seam", () => {
     masquerade: "masquerade-member",
     deleteAccount: "erase-workspace",
     transferOwnership: "transfer-ownership",
+    actOnOwnershipTransfer: "act-on-ownership-transfer",
   } as const;
 
   for (const role of ROLES) {
@@ -170,6 +180,26 @@ describe("canSeePrivateNames(role) — field-level rule (owner only)", () => {
     ["viewer", false],
   ] as const)("%s → %s", (role, expected) => {
     expect(canSeePrivateNames(role)).toBe(expected);
+  });
+});
+
+describe("canViewCapacityOverview(role, access) — account setting policy", () => {
+  const settings: readonly CapacityOverviewAccess[] = ["owner_admin", "owner_admin_editor", "everyone"];
+
+  it("defaults to owner/admin when the setting is absent or malformed", () => {
+    expect(canViewCapacityOverview("owner", undefined)).toBe(true);
+    expect(canViewCapacityOverview("admin", undefined)).toBe(true);
+    expect(canViewCapacityOverview("editor", undefined)).toBe(false);
+    expect(canViewCapacityOverview("viewer", "invalid" as CapacityOverviewAccess)).toBe(false);
+  });
+
+  it.each(settings)("applies the %s setting across all roles", (access) => {
+    const expected = {
+      owner_admin: { owner: true, admin: true, editor: false, viewer: false },
+      owner_admin_editor: { owner: true, admin: true, editor: true, viewer: false },
+      everyone: { owner: true, admin: true, editor: true, viewer: true },
+    }[access];
+    for (const role of ROLES) expect(canViewCapacityOverview(role, access)).toBe(expected[role]);
   });
 });
 

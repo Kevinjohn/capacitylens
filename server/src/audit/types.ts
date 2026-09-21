@@ -37,11 +37,18 @@ export interface AuditRecord {
     | "memberSignInTrackingChange"
     | "memberRemove"
     | "ownershipTransfer"
+    /** A step of the ownership transfer consent ceremony that did NOT move ownership: a nomination,
+     *  the nominee's consent or its withdrawal, a decline, a cancellation. `ownershipTransfer` stays
+     *  reserved for completion, the moment the roles actually change hands. */
+    | "ownershipTransferRequest"
     | "inviteCreate"
     | "inviteAccept"
     | "inviteRevoke"
     | "passwordResetIssue"
-    | "sessionsRevoke";
+    | "sessionsRevoke"
+    | "memberResourceLink"
+    | "memberResourceChange"
+    | "memberResourceUnlink";
   /** The entity/table touched (e.g. 'timeOff', 'clients'), or 'account' for an import slice. */
   entity: string;
   /** The affected row id (the import record uses the accountId as its id). */

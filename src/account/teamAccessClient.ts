@@ -1,10 +1,25 @@
 import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
 import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
-import { accountClient, readUnknownAccountCommandOutcome } from "./accountClient";
+import { accountClient } from "./accountClient";
 import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
-import { isIsoInstant } from "@capacitylens/shared/account/types";
-import { extractApiErrorMessage, readApiError } from "../lib/readApiError";
+import {
+  isNullableString,
+  isRecord,
+  isTimestamp,
+  readCommandResult,
+  readResult,
+  type TeamAccessResult,
+} from "./accessResult";
+import { ownershipTransferAccess } from "./ownershipTransferAccess";
+
+export { resolveRejectionMessage, type TeamAccessResult } from "./accessResult";
+export type {
+  OwnershipTransferOutcomeView,
+  OwnershipTransferTerminalView,
+  OwnershipTransferProjectionView,
+  OwnershipTransferView,
+} from "./ownershipTransferAccess";
 
 export interface TeamMember {
   userId: string;
@@ -18,11 +33,22 @@ export interface TeamMember {
   isSelf: boolean;
   mayResetPassword: boolean;
   mayRevokeSessions: boolean;
+  resourceLink?: {
+    resourceId: string;
+    revision: string;
+    resourceName?: string | null;
+    resourceStatus?: "active" | "disabled" | "archived" | null;
+  } | null;
+  resourceLinkException?: {
+    proposedResourceId: string | null;
+    reason: "resource_unavailable" | "resource_already_linked" | "member_already_linked";
+  } | null;
 }
 
 export interface TeamDirectory {
   members: TeamMember[];
   signInTrackingEnabled: boolean;
+  resourceCandidates: { resourceId: string; label: string }[];
 }
 
 export interface TeamInvitation {
@@ -32,6 +58,8 @@ export interface TeamInvitation {
   expiresAt: string;
   usedAt: string | null;
   createdAt: string;
+  proposedResourceId?: string;
+  proposedResourceLabel?: string;
 }
 
 export interface OneTimeToken {
@@ -39,38 +67,6 @@ export interface OneTimeToken {
   token: string;
   expiresAt?: string;
 }
-
-export type TeamAccessResult<T> =
-  | { kind: "ok"; status: number; value: T }
-  | { kind: "rejected"; status: number; message: string | null }
-  | { kind: "unknown"; status: number; message: string | null }
-  | { kind: "invalid"; status: number; message: string };
-
-/**
- * The sentence to show a user for a non-ok {@link TeamAccessResult}: the SERVER's own message when a
- * rejection carried one, otherwise the caller's per-operation fallback.
- *
- * Only `kind: 'rejected'` is server-authored refusal ("that member is the last owner"), so only that
- * kind's message is preferred. `unknown` (the write may or may not have landed) and `invalid` (we
- * could not decode the body) carry messages that describe OUR uncertainty, not the user's problem,
- * and the caller's fallback stays the better sentence for them — which is exactly what every Team &
- * access call site already open-codes. An empty-string message falls back too: a blank toast is a
- * worse outcome than a generic one.
- *
- * @param result   - the outcome returned by any {@link teamAccessClient} method.
- * @param fallback - the caller's own operation-specific sentence, already localised.
- * @returns the message to surface; never empty as long as `fallback` isn't.
- */
-export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback: string): string {
-  return result.kind === "rejected" && result.message ? result.message : fallback;
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
-
-const isTimestamp = isIsoInstant;
-
-const isNullableString = (value: unknown): value is string | null => value === null || typeof value === "string";
 
 const isOptionalBoolean = (value: unknown): value is boolean | undefined =>
   value === undefined || typeof value === "boolean";
@@ -106,6 +102,10 @@ function parseMember(row: unknown): TeamMember | null {
   if (!hasValidMemberIdentity(row)) return null;
   if (!hasValidMemberAccess(row)) return null;
   if (!isNullableString(row.name) || !isNullableString(row.email)) return null;
+  const resourceLink = parseMemberResourceLink(row.resourceLink);
+  if (resourceLink === undefined) return null;
+  const resourceLinkException = parseMemberResourceLinkException(row.resourceLinkException);
+  if (resourceLinkException === undefined) return null;
   return {
     userId: row.userId,
     role: row.role,
@@ -117,19 +117,57 @@ function parseMember(row: unknown): TeamMember | null {
     isSelf: row.isSelf,
     mayResetPassword: row.mayResetPassword === true,
     mayRevokeSessions: row.mayRevokeSessions === true,
+    resourceLink,
+    resourceLinkException,
   };
 }
 
-function parseMembers(value: unknown): TeamDirectory | null {
+function parseMemberResourceLinkException(value: unknown): TeamMember["resourceLinkException"] | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isRecord(value)) return undefined;
   if (
-    !isRecord(value) ||
-    !Array.isArray(value.members) ||
-    !(value.signInTrackingEnabled === undefined || typeof value.signInTrackingEnabled === "boolean")
+    (value.proposedResourceId !== null && typeof value.proposedResourceId !== "string") ||
+    (value.reason !== "resource_unavailable" &&
+      value.reason !== "resource_already_linked" &&
+      value.reason !== "member_already_linked")
   )
-    return null;
-  const signInTrackingEnabled = value.signInTrackingEnabled === true;
+    return undefined;
+  return { proposedResourceId: value.proposedResourceId, reason: value.reason };
+}
+
+function parseMemberResourceStatus(value: unknown): "active" | "disabled" | "archived" | null | undefined {
+  if (value === undefined || value === null) return null;
+  if (value === "active" || value === "disabled" || value === "archived") return value;
+  return undefined;
+}
+
+// eslint-disable-next-line complexity
+function parseMemberResourceLink(value: unknown): TeamMember["resourceLink"] | undefined {
+  if (value === undefined || value === null) return null;
+  if (!isRecord(value) || typeof value.resourceId !== "string" || value.resourceId.length === 0) return undefined;
+  if (typeof value.revision !== "string" || value.revision.length === 0) return undefined;
+  if (value.resourceName !== undefined && value.resourceName !== null && typeof value.resourceName !== "string")
+    return undefined;
+  const resourceStatus = parseMemberResourceStatus(value.resourceStatus);
+  if (resourceStatus === undefined) return undefined;
+  return {
+    resourceId: value.resourceId,
+    revision: value.revision,
+    resourceName: typeof value.resourceName === "string" ? value.resourceName : null,
+    resourceStatus,
+  };
+}
+
+function parseResourceCandidate(value: unknown): { resourceId: string; label: string } | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.resourceId !== "string" || value.resourceId.length === 0) return null;
+  if (typeof value.label !== "string" || value.label.length === 0) return null;
+  return { resourceId: value.resourceId, label: value.label };
+}
+
+function parseDirectoryMembers(rows: readonly unknown[]): TeamMember[] | null {
   const members: TeamMember[] = [];
-  for (const row of value.members) {
+  for (const row of rows) {
     const member = parseMember(row);
     if (member === null) {
       console.warn("teamAccessClient: dropped an unsupported member-directory row", row);
@@ -137,8 +175,28 @@ function parseMembers(value: unknown): TeamDirectory | null {
     }
     members.push(member);
   }
-  if (value.members.length > 0 && members.length === 0) return null;
-  return hasDuplicateIdentity(members, (member) => member.userId) ? null : { members, signInTrackingEnabled };
+  return rows.length > 0 && members.length === 0 ? null : members;
+}
+
+function parseResourceCandidates(rows: readonly unknown[]): { resourceId: string; label: string }[] {
+  return rows.flatMap((candidate) => {
+    const parsed = parseResourceCandidate(candidate);
+    return parsed === null ? [] : [parsed];
+  });
+}
+
+function parseMembers(value: unknown): TeamDirectory | null {
+  if (!isRecord(value) || !Array.isArray(value.members)) return null;
+  if (value.signInTrackingEnabled !== undefined && typeof value.signInTrackingEnabled !== "boolean") return null;
+  if (value.resourceCandidates !== undefined && !Array.isArray(value.resourceCandidates)) return null;
+  const signInTrackingEnabled = value.signInTrackingEnabled === true;
+  const members = parseDirectoryMembers(value.members);
+  if (members === null) return null;
+  const resourceCandidates = parseResourceCandidates(value.resourceCandidates ?? []);
+  return hasDuplicateIdentity(members, (member) => member.userId) ||
+    hasDuplicateIdentity(resourceCandidates, (candidate) => candidate.resourceId)
+    ? null
+    : { members, signInTrackingEnabled, resourceCandidates };
 }
 
 function hasValidInvitationIdentity(
@@ -153,11 +211,17 @@ function hasValidInvitationDates(
   return isTimestamp(row.expiresAt) && (row.usedAt === null || isTimestamp(row.usedAt)) && isTimestamp(row.createdAt);
 }
 
+function isOptionalNonEmptyString(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && value.length > 0);
+}
+
 function parseInvitation(row: unknown): TeamInvitation | null {
   if (!isRecord(row)) return null;
   if (!hasValidInvitationIdentity(row)) return null;
   if (!hasValidInvitationDates(row)) return null;
   if (!(row.preauthEmail === undefined || row.preauthEmail === null || typeof row.preauthEmail === "string"))
+    return null;
+  if (!isOptionalNonEmptyString(row.proposedResourceId) || !isOptionalNonEmptyString(row.proposedResourceLabel))
     return null;
   return {
     id: row.id,
@@ -166,6 +230,8 @@ function parseInvitation(row: unknown): TeamInvitation | null {
     expiresAt: row.expiresAt,
     usedAt: row.usedAt,
     createdAt: row.createdAt,
+    ...(typeof row.proposedResourceId === "string" ? { proposedResourceId: row.proposedResourceId } : {}),
+    ...(typeof row.proposedResourceLabel === "string" ? { proposedResourceLabel: row.proposedResourceLabel } : {}),
   };
 }
 
@@ -215,57 +281,15 @@ function parseToken(value: unknown): OneTimeToken | null {
   };
 }
 
-/** Shared by {@link readCommandResult} and {@link readResult}: both treat a decode failure on an ok
- * response the same way, so the success-path decoding lives once. */
-async function parseOkBody<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
-  const body: unknown = await response.json().catch(() => null);
-  const value = decode(body);
-  return value === null
-    ? {
-        kind: "invalid",
-        status: response.status,
-        message: "The server returned an invalid response.",
-      }
-    : { kind: "ok", status: response.status, value };
-}
-
-async function readCommandResult<T>(
-  response: Response,
-  decode: (body: unknown) => T | null,
-  expectedStatus?: number,
-): Promise<TeamAccessResult<T>> {
-  if (!response.ok) {
-    const clonedMessage = typeof response.clone === "function" ? await readApiError(response) : undefined;
-    const body: unknown = await response.json().catch(() => null);
-    const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
-    return (await readUnknownAccountCommandOutcome(response, body))
-      ? { kind: "unknown", status: response.status, message }
-      : { kind: "rejected", status: response.status, message };
-  }
-  if (expectedStatus !== undefined && response.status !== expectedStatus) {
-    console.warn(
-      `teamAccessClient: expected status ${expectedStatus} but received equivalent success ${response.status}; decoding the response body.`,
-    );
-  }
-  return parseOkBody(response, decode);
-}
-
-async function readResult<T>(response: Response, decode: (body: unknown) => T | null): Promise<TeamAccessResult<T>> {
-  if (!response.ok) {
-    return {
-      kind: "rejected",
-      status: response.status,
-      message: (await readApiError(response)) ?? null,
-    };
-  }
-  return parseOkBody(response, decode);
-}
-
+/** The decoder for an endpoint whose success carries no body: there is nothing to read, and the ok
+ *  response itself is the whole answer. */
 const noContent = (): true => true;
 
 /** Typed account-administration boundary. Raw Response handling and untrusted payload codecs stay
  * here; the Team & access controller consumes semantic outcomes only. */
 export const teamAccessClient = {
+  ...ownershipTransferAccess,
+
   async listMembers(workspaceId: string): Promise<TeamAccessResult<TeamDirectory>> {
     return readResult(await accountClient.listMembers(workspaceId), parseMembers);
   },
@@ -302,8 +326,33 @@ export const teamAccessClient = {
     return readCommandResult(await accountClient.removeMember(workspaceId, principalId), noContent);
   },
 
-  async transferOwnership(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
-    return readCommandResult(await accountClient.transferOwnership(workspaceId, principalId), noContent);
+  async setMemberResourceLink(input: {
+    workspaceId: string;
+    principalId: string;
+    resourceId: string;
+    expectedRevision: string | null;
+  }) {
+    return readResult(await accountClient.setMemberResourceLink(input), (body) =>
+      isRecord(body) && typeof body.resourceId === "string" && typeof body.revision === "string"
+        ? { resourceId: body.resourceId, revision: body.revision }
+        : null,
+    );
+  },
+
+  async clearMemberResourceLink(workspaceId: string, principalId: string, expectedRevision: string) {
+    return readCommandResult(
+      await accountClient.clearMemberResourceLink({ workspaceId, principalId, expectedRevision }),
+      noContent,
+      204,
+    );
+  },
+
+  async dismissMemberResourceLinkException(workspaceId: string, principalId: string) {
+    return readCommandResult(
+      await accountClient.dismissMemberResourceLinkException(workspaceId, principalId),
+      noContent,
+      204,
+    );
   },
 
   async issuePasswordReset(workspaceId: string, principalId: string): Promise<TeamAccessResult<OneTimeToken>> {
@@ -318,6 +367,7 @@ export const teamAccessClient = {
     accountId: string;
     role: InvitationRole;
     preauthEmail?: string;
+    proposedResourceId?: string;
   }): Promise<TeamAccessResult<OneTimeToken>> {
     return readCommandResult(await accountClient.createInvitation(input), parseToken, 201);
   },

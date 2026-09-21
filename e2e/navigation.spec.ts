@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { dismissIntroIfPresent, freezeBrowserDate, openApp, setTheme } from "./helpers";
+import { waitForAppLanding, freezeBrowserDate, openApp, setTheme } from "./helpers";
 
 // Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error
 // boundary are covered by unit tests / manual scripts — impractical to trigger reliably in E2E.)
@@ -12,6 +12,7 @@ const deepDestinations = [
   ["/timeoff", "Time off"],
   ["/team", "Team & access"],
   ["/settings", "Settings"],
+  ["/account", "Account"],
 ] as const;
 
 // #216: exercise real document navigations, not React Router transitions. The Vite history
@@ -26,12 +27,23 @@ function registerSuiteScenario1() {
 
       const signIn = page.getByTestId("fake-sign-in");
       const company = page.getByRole("button", { name: "Wayne Enterprises", exact: true });
+      const destinationHeading = page.getByRole("heading", { name: heading, exact: true });
+      if (path === "/account") {
+        await signIn.waitFor();
+        await signIn.click();
+        await waitForAppLanding(page, destinationHeading);
+        await expect(destinationHeading).toBeVisible();
+        const reloadResponse = await page.reload();
+        expect([200, 304]).toContain(reloadResponse?.status());
+        await expect(page).toHaveURL(/\/account$/);
+        await expect(destinationHeading).toBeVisible();
+        return;
+      }
       await signIn.or(company).first().waitFor();
       if (await signIn.isVisible()) await signIn.click();
       await company.click();
 
-      const destinationHeading = page.getByRole("heading", { name: heading, exact: true });
-      await dismissIntroIfPresent(page, destinationHeading);
+      await waitForAppLanding(page, destinationHeading);
       await expect(destinationHeading).toBeVisible();
 
       const reloadResponse = await page.reload();
@@ -64,6 +76,7 @@ function registerSuiteScenario3() {
     await expect(page.getByTestId("scheduler-grid")).toBeVisible();
 
     const sections: [string, () => Promise<void>][] = [
+      ["Overview", async () => void (await expect(page.getByRole("table", { name: "Overview" })).toBeVisible())],
       ["Resources", async () => void (await expect(page.getByRole("button", { name: "Add resource" })).toBeVisible())],
       [
         "Team & access",
@@ -79,11 +92,9 @@ function registerSuiteScenario3() {
       ["Time off", async () => void (await expect(page.getByRole("button", { name: "Add time off" })).toBeVisible())],
       [
         "Settings",
-        async () =>
-          void (await expect(
-            page.getByRole("heading", { name: "Account Options Selected at Creation" }),
-          ).toBeVisible()),
+        async () => void (await expect(page.getByRole("heading", { name: "Company details" })).toBeVisible()),
       ],
+      ["Account", async () => void (await expect(page.getByRole("heading", { name: "Your identity" })).toBeVisible())],
     ];
     for (const [link, assert] of sections) {
       await page.getByRole("link", { name: link, exact: true }).click();
@@ -102,6 +113,7 @@ function registerSuiteScenario4() {
 
     const hrefs = await page.locator("nav a").evaluateAll((links) => links.map((l) => l.getAttribute("href")));
     expect(hrefs).toEqual([
+      "/overview",
       "/",
       "/resources",
       "/disciplines",
@@ -113,15 +125,16 @@ function registerSuiteScenario4() {
       "/settings",
     ]);
 
-    // Switch company then the avatar'd sign-out, both below the nav landmark.
+    // Demo keeps company switching in the footer; Account is the only session row.
     await expect(page.getByRole("button", { name: "Switch company" })).toBeVisible();
-    await expect(page.getByTestId("nav-sign-out")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Account", exact: true })).toBeVisible();
+    await expect(page.getByTestId("nav-sign-out")).toHaveCount(0);
 
     // Import/export is gone from the sidebar and lives on Settings instead (#169).
     await expect(page.getByTestId("export-data")).toHaveCount(0);
     await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "Import & export" })).toBeVisible();
-    await page.getByRole("button", { name: "Import & export", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Import and export" })).toBeVisible();
+    await page.getByRole("button", { name: "Import and export", exact: true }).click();
     await expect(page.getByTestId("export-data")).toBeVisible();
     await expect(page.getByTestId("import-data")).toBeVisible();
   });
@@ -228,6 +241,19 @@ function registerSuiteScenario10() {
   });
 }
 
+function registerSuiteScenario11() {
+  test("sidebar toggles between light and dark mode", async ({ page }) => {
+    await openApp(page);
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+
+    await page.getByRole("button", { name: "Switch to dark mode" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+    await page.getByRole("button", { name: "Switch to light mode" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  });
+}
+
 test.describe("Navigation & shell", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
@@ -239,4 +265,5 @@ test.describe("Navigation & shell", () => {
   registerSuiteScenario8();
   registerSuiteScenario9();
   registerSuiteScenario10();
+  registerSuiteScenario11();
 });

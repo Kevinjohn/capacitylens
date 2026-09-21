@@ -1,5 +1,4 @@
 import { m } from "@/i18n";
-import { APP_NAME } from "@capacitylens/shared/brand";
 import { can } from "@capacitylens/shared/domain/access";
 import { useId } from "react";
 import type { ReactNode } from "react";
@@ -9,11 +8,11 @@ import { useOfflineState } from "../../data/useOfflineState";
 import { resolveAccessLabel } from "../../lib/accessCopy";
 import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
 import type { AccessExperience } from "../../lib/resolveAccessExperience";
-import { FAKE_USER, useDemoAuthActive } from "../../lib/fakeAuth";
+import { useDemoAuthActive } from "../../lib/fakeAuth";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import type { AccountSummary } from "../../store/useStore";
 import { useStore } from "../../store/useStore";
-import { AddButton, Avatar, DeleteButton, SegmentedControl, SelectField, TextField } from "../common/ui";
+import { AddButton, Avatar, DeleteButton, SegmentedControl, TextField } from "../common/ui";
 import type { Option, SegmentedOption } from "../common/ui";
 import { Alert, AlertDescription } from "../ui/alert";
 import { Badge } from "../ui/badge";
@@ -22,43 +21,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { FieldError } from "../ui/field";
 import { Item, ItemGroup } from "../ui/item";
 import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
+import { TimeZoneField } from "./TimeZoneField";
+import { AccountPickerHeader } from "./AccountPickerHeader";
 import { useCreateAccountForm } from "./useCreateAccountForm";
 import { useDeleteAccount } from "./useDeleteAccount";
-
-interface PickerHeadingProps {
-  accountCount: number;
-  canCreateAccount: boolean;
-}
-
-function PickerHeading({ accountCount, canCreateAccount }: PickerHeadingProps) {
-  let subtitle = canCreateAccount ? m.picker_subtitle() : m.picker_subtitle_capped();
-  if (accountCount === 0) {
-    subtitle = canCreateAccount ? m.picker_empty_subtitle() : m.picker_empty_subtitle_no_create();
-  }
-  return (
-    <div className="mb-6 text-center">
-      <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-      <h1 className="text-lg font-semibold text-ink">
-        {accountCount === 0 ? m.picker_empty_title() : m.picker_title()}
-      </h1>
-      <p className="text-sm text-muted-foreground">{subtitle}</p>
-    </div>
-  );
-}
-
-function DemoSessionBar({ onSignOut }: { onSignOut: () => void }) {
-  return (
-    <div className="mb-4 flex items-center justify-between gap-2 text-sm">
-      <span className="truncate text-muted-foreground">
-        {m.picker_signed_in_as()}
-        <span className="font-medium text-ink">{FAKE_USER.name}</span>
-      </span>
-      <Button variant="link" onClick={onSignOut} className="h-auto shrink-0 p-0 text-muted-foreground">
-        {m.picker_sign_out()}
-      </Button>
-    </div>
-  );
-}
 
 interface AccountItemsProps {
   accounts: AccountSummary[];
@@ -115,7 +81,16 @@ function AccountItems(input: AccountItemsProps) {
   );
 }
 
-function EmptyAccountOptions({ canCreateAccount, onCreate }: { canCreateAccount: boolean; onCreate: () => void }) {
+function EmptyAccountOptions({
+  canCreateAccount,
+  companySetupEligible,
+  onCreate,
+}: {
+  canCreateAccount: boolean;
+  companySetupEligible: boolean;
+  onCreate: () => void;
+}) {
+  if (companySetupEligible) return null;
   return (
     <div data-testid="company-empty-options" className="mt-4 flex flex-col gap-2">
       {canCreateAccount && (
@@ -135,39 +110,24 @@ function EmptyAccountOptions({ canCreateAccount, onCreate }: { canCreateAccount:
   );
 }
 
-function AccountPickerHeader({
-  demoAuthActive,
-  previous,
-  accountCount,
-  canCreateAccount,
-  onSignOut,
-  onActivate,
+function AccountCreationPanel({
+  form,
+  companySetupEligible,
+  onSubmit,
+  onCancel,
 }: {
-  demoAuthActive: boolean;
-  previous: AccountSummary | null;
-  accountCount: number;
-  canCreateAccount: boolean;
-  onSignOut: () => void;
-  onActivate: (id: string) => void;
+  form: CreateAccountFormState & { creating: boolean };
+  companySetupEligible: boolean;
+  onSubmit: () => void;
+  onCancel: () => void;
 }) {
-  return (
-    <>
-      {demoAuthActive && <DemoSessionBar onSignOut={onSignOut} />}
-      {previous && (
-        <Button
-          variant="link"
-          onClick={() => onActivate(previous.id)}
-          className="mb-4 h-auto p-0 text-sm text-muted-foreground"
-        >
-          {m.picker_back({ name: previous.name })}
-        </Button>
-      )}
-      <PickerHeading accountCount={accountCount} canCreateAccount={canCreateAccount} />
-    </>
-  );
+  if (form.createUnresolved || (!form.creating && !companySetupEligible)) return null;
+  const props = buildCreateAccountPanelProps(form, onSubmit, companySetupEligible ? undefined : onCancel);
+  return <CreateAccountPanel {...props} />;
 }
 
 interface CreateAccountPanelProps {
+  showHeading: boolean;
   name: string;
   weekStartsOn: 0 | 1;
   timezone: string;
@@ -182,10 +142,11 @@ interface CreateAccountPanelProps {
   onTimeZoneChange: (timezone: string) => void;
   onClearError: () => void;
   onSubmit: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
 }
 
 interface CreateAccountFormState {
+  createUnresolved: boolean;
   name: string;
   setName: (name: string) => void;
   weekStartsOn: 0 | 1;
@@ -204,9 +165,10 @@ interface CreateAccountFormState {
 function buildCreateAccountPanelProps(
   form: CreateAccountFormState,
   onSubmit: () => void,
-  onCancel: () => void,
+  onCancel?: () => void,
 ): CreateAccountPanelProps {
   return {
+    showHeading: onCancel !== undefined,
     name: form.name,
     weekStartsOn: form.weekStartsOn,
     timezone: form.timezone,
@@ -221,22 +183,31 @@ function buildCreateAccountPanelProps(
     onTimeZoneChange: form.setTimezone,
     onClearError: form.clear,
     onSubmit,
-    onCancel,
+    ...(onCancel ? { onCancel } : {}),
   };
 }
 
 function AccountLanguageDisplay() {
+  const labelId = useId();
+  const descriptionId = useId();
   return (
-    <div>
-      <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_language()}</p>
+    <div role="group" aria-labelledby={labelId} aria-describedby={descriptionId}>
+      <p id={labelId} className="mb-1.5 text-xs font-medium text-ink">
+        {m.picker_language()}
+      </p>
       <p className="text-sm text-muted-foreground" data-testid="create-language">
         {m.picker_language_english()}
+      </p>
+      <p id={descriptionId} className="mt-1 text-xs text-muted-foreground">
+        {m.picker_language_help()}
       </p>
     </div>
   );
 }
 
 function CreateAccountPanel(input: CreateAccountPanelProps) {
+  const fixedSettingsHelpId = useId();
+  const weekStartHelpId = useId();
   const changeName = (name: string) => {
     input.onNameChange(name);
     if (input.errorField === "name") input.onClearError();
@@ -252,41 +223,57 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
     >
       <Card>
         <CardHeader>
-          <CardTitle>
-            <h2>{m.picker_new()}</h2>
-          </CardTitle>
+          {input.showHeading && (
+            <CardTitle>
+              <h2>{m.picker_new()}</h2>
+            </CardTitle>
+          )}
+          <CardDescription id={fixedSettingsHelpId}>{m.picker_fixed_settings_help()}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <TextField
             label={m.picker_company_name()}
             value={input.name}
             onChange={changeName}
+            description={m.picker_company_name_help()}
             autoFocus
             invalid={input.errorField === "name"}
             describedById={input.errorId}
           />
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
-            <SegmentedControl
-              ariaLabel={m.picker_week_start()}
-              value={input.weekStartsOn}
-              onChange={input.onWeekStartChange}
-              options={input.weekStartSelectOptions}
+          <fieldset aria-describedby={fixedSettingsHelpId} className="flex flex-col gap-3">
+            <legend className="sr-only">{m.picker_fixed_settings_group()}</legend>
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
+              <SegmentedControl
+                variant="recessed"
+                ariaLabel={m.picker_week_start()}
+                ariaDescribedby={weekStartHelpId}
+                value={input.weekStartsOn}
+                onChange={input.onWeekStartChange}
+                options={input.weekStartSelectOptions}
+                fullWidth
+              />
+              <p id={weekStartHelpId} className="mt-1 text-xs text-muted-foreground">
+                {m.picker_week_start_help()}
+              </p>
+            </div>
+            <TimeZoneField
+              label={m.picker_timezone()}
+              value={input.timezone}
+              onChange={input.onTimeZoneChange}
+              options={input.timeZoneSelectOptions}
+              description={m.picker_timezone_help()}
             />
-          </div>
-          <SelectField
-            label={m.picker_timezone()}
-            value={input.timezone}
-            onChange={input.onTimeZoneChange}
-            options={input.timeZoneSelectOptions}
-          />
-          <AccountLanguageDisplay />
+            <AccountLanguageDisplay />
+          </fieldset>
           <FieldError id={input.errorId}>{input.error}</FieldError>
         </CardContent>
-        <CardFooter className="justify-end">
-          <Button size="sm" type="button" variant="outline" onClick={input.onCancel}>
-            {m.picker_cancel()}
-          </Button>
+        <CardFooter className="flex-col gap-2 sm:flex-row sm:justify-end [&>button]:w-full sm:[&>button]:w-auto">
+          {input.onCancel && (
+            <Button size="sm" type="button" variant="outline" onClick={input.onCancel}>
+              {m.picker_cancel()}
+            </Button>
+          )}
           <Button size="sm" type="submit" disabled={input.submitting}>
             {m.picker_create()}
           </Button>
@@ -340,6 +327,7 @@ function activateAccount(id: string): void {
 // complete server-backed list of companies this login may open.
 export function AccountPicker() {
   const accounts = useStore((state) => state.accountSummaries);
+  const accountSummariesComplete = useStore((state) => state.accountSummariesComplete);
   const previousAccountId = useStore((state) => state.previousAccountId);
   const signOutDemo = useStore((state) => state.signOutDemo);
   const previous = accounts.find((account) => account.id === previousAccountId) ?? null;
@@ -350,7 +338,7 @@ export function AccountPicker() {
   const { form, submit, reset } = useCreateAccountForm({ refreshAuth });
   const accountDeletion = useDeleteAccount({ refreshAuth });
   const beginCreating = () => form.setCreating(true);
-  const createAccountPanelProps = buildCreateAccountPanelProps(form, submit, reset);
+  const companySetupEligible = accounts.length === 0 && accountSummariesComplete && canCreateAccount;
 
   return (
     <PickerLayout>
@@ -359,11 +347,16 @@ export function AccountPicker() {
         previous={previous}
         accountCount={accounts.length}
         canCreateAccount={canCreateAccount}
+        companySetupEligible={companySetupEligible}
         onSignOut={signOutDemo}
         onActivate={activateAccount}
       />
       {accounts.length === 0 && !form.creating && (
-        <EmptyAccountOptions canCreateAccount={canCreateAccount} onCreate={beginCreating} />
+        <EmptyAccountOptions
+          canCreateAccount={canCreateAccount}
+          companySetupEligible={companySetupEligible}
+          onCreate={beginCreating}
+        />
       )}
       {accounts.length > 0 && (
         <AccountItems
@@ -375,7 +368,12 @@ export function AccountPicker() {
           onConfirmDelete={accountDeletion.setConfirming}
         />
       )}
-      {form.creating && <CreateAccountPanel {...createAccountPanelProps} />}
+      <AccountCreationPanel
+        form={form}
+        companySetupEligible={companySetupEligible}
+        onSubmit={submit}
+        onCancel={reset}
+      />
       {!form.creating && accounts.length > 0 && canCreateAccount && (
         <CreateAccountAffordance onCreate={beginCreating} />
       )}

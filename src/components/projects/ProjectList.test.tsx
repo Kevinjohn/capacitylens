@@ -17,7 +17,6 @@ beforeEach(() => {
 
 afterEach(() => vi.unstubAllEnvs());
 
-// eslint-disable-next-line max-lines-per-function -- integration scenarios intentionally share one fixture lifecycle
 describe("ProjectList", () => {
   it("sorts by effective client then effective project name without changing stored order", () => {
     const zuluClient = useStore.getState().addClient({ name: "Zulu Client", color: "#111111" });

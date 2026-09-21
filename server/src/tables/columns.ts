@@ -67,6 +67,9 @@ const accountsColumns = [
   { name: "showInternalActivities", json: true, optional: true },
   { name: "inlineActivityCreateEnabled", json: true, optional: true },
   { name: "showTaskFieldInSchedule", json: true, optional: true },
+  { name: "capacityOverviewAccess", json: true, optional: true },
+  // Plain TEXT like internalColourMode: an enum string, not a JSON-encoded value.
+  { name: "dateStyle", optional: true },
   ...META,
 ] as const satisfies ColumnSpec[];
 
@@ -126,6 +129,7 @@ const resourcesColumns = [
   { name: "kind" },
   { name: "name", optional: true },
   { name: "role" },
+  { name: "avatarUrl", optional: true },
   { name: "disciplineId", optional: true },
   { name: "employmentType" },
   { name: "engagement" },

@@ -1,5 +1,6 @@
 import { m } from "@/i18n";
-import { TextField, WorkingDayPicker } from "../common/ui";
+import { DateField, WorkingDayPicker } from "../common/ui";
+import { Separator } from "../ui/separator";
 import type { ResourceFormState } from "./useResourceFormState";
 
 type ResourceAvailabilityFieldsState = Pick<
@@ -24,25 +25,24 @@ type ResourceAvailabilityFieldsProps = {
 export function ResourceAvailabilityFields({ form, errorField, errorId }: ResourceAvailabilityFieldsProps) {
   return (
     <>
-      <TextField
-        label={m.form_resource_first_available_date_label()}
-        value={form.firstAvailableDate}
-        onChange={form.setFirstAvailableDate}
-        type="date"
-        description={m.form_resource_availability_dates_description()}
-        invalid={errorField === "firstAvailableDate"}
-        describedById={errorId}
-        layout="label-control"
-      />
-      <TextField
-        label={m.form_resource_last_available_date_label()}
-        value={form.lastAvailableDate}
-        onChange={form.setLastAvailableDate}
-        type="date"
-        invalid={errorField === "lastAvailableDate"}
-        describedById={errorId}
-        layout="label-control"
-      />
+      <Separator className="my-4" />
+      <div data-resource-availability-date-row className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+        <DateField
+          label={m.form_resource_first_available_date_label()}
+          value={form.firstAvailableDate}
+          onChange={form.setFirstAvailableDate}
+          invalid={errorField === "firstAvailableDate"}
+          describedById={errorId}
+        />
+        <DateField
+          label={m.form_resource_last_available_date_label()}
+          value={form.lastAvailableDate}
+          onChange={form.setLastAvailableDate}
+          invalid={errorField === "lastAvailableDate"}
+          describedById={errorId}
+        />
+      </div>
+      <Separator className="my-4" />
       <WorkingDayPicker
         label={m.form_resource_working_days_label()}
         workingDays={form.workingDays}

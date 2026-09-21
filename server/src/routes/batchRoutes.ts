@@ -1,4 +1,4 @@
-import type { AuthorizeBasicInput } from "./routeShared";
+import type { AuthorizeRouteInput } from "./routeShared";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { LocalAccountFlows } from "../accounts/createLocalAccountFlows";
@@ -23,7 +23,7 @@ export interface BatchRouteDependencies {
   multiAccount: boolean;
   optimisticConcurrency: boolean;
   accountFlows: LocalAccountFlows;
-  authorize: (input: AuthorizeBasicInput) => boolean;
+  authorize: (input: AuthorizeRouteInput) => boolean;
   fieldVisibility: (req: FastifyRequest, table: string, accountId: unknown) => SanitizeWriteOptions;
   redact: (table: string, row: Record<string, unknown>, visibility: SanitizeWriteOptions) => Record<string, unknown>;
   drainProductAudit: (reply: FastifyReply) => boolean;

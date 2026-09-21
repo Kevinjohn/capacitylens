@@ -1,12 +1,12 @@
 import { apiFetch, API_REQUEST_TIMEOUT_MS } from "../data/requestTimeout";
 import { readApiErrorCode } from "../lib/readApiError";
-import { readReauthResolution, requestReauth } from "./reauthCoordinator";
+import { readReauthResolution, requestReauth, type ReauthAction } from "./reauthCoordinator";
 import { m } from "@/i18n";
 
 // The step-up interception seam (DEFECT B). A drop-in replacement for `apiFetch` used only at
-// security-sensitive call sites: membership/invitation administration (including reads of those
-// privileged directories), ownership transfer, and company/entity purge. These are the actions the
-// server 403s with `code: SESSION_NOT_FRESH` once the session is older than 15 minutes
+// security-sensitive call sites: membership/invitation mutations, ownership transfer, and
+// company/entity purge. These are the actions the server 403s with `code: SESSION_NOT_FRESH` once
+// the session is older than 15 minutes
 // (server/src/app.ts authorize()). Ordinary scheduling reads/writes remain freshness-ungated and
 // keep using plain `apiFetch`.
 //
@@ -59,8 +59,8 @@ function canReplayRequest(input: RequestInfo | URL, requestOptions: RequestInit)
 /**
  * `apiFetch` plus transparent step-up re-authentication on a SESSION_NOT_FRESH 403.
  *
- * Signature mirrors {@link apiFetch} exactly (same `input`, `init`, `timeoutMs`) so a call site
- * swaps `apiFetch` → `apiFetchReauth` with no other change. Returns the Response to react to:
+ * Signature mirrors {@link apiFetch} plus an optional step-up descriptor, so a call site swaps
+ * `apiFetch` → `apiFetchReauth` without changing request handling. Returns the Response to react to:
  *   - not a freshness 403 → the original response, untouched;
  *   - freshness 403 + successful re-auth → the response of the RE-ISSUED request (safe: the first
  *     request was rejected before any mutation, so re-sending it is not a double-write);
@@ -72,8 +72,10 @@ function canReplayRequest(input: RequestInfo | URL, requestOptions: RequestInit)
 export async function apiFetchReauth(
   input: RequestInfo | URL,
   requestOptions: RequestInit = {},
-  timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
+  options: { timeoutMs?: number | null; action?: ReauthAction | null } = {},
 ): Promise<Response> {
+  const timeoutMs = options.timeoutMs === undefined ? API_REQUEST_TIMEOUT_MS : options.timeoutMs;
+  const action = options.action ?? null;
   const resolutionAtDispatch = readReauthResolution();
   // Request bodies are one-shot. Clone both attempts before the first dispatch so a successful
   // step-up can replay the same bytes. A stream supplied separately through RequestInit cannot be
@@ -92,7 +94,7 @@ export async function apiFetchReauth(
       ? distinguishFailedStepUp(await apiFetch(retryInput, requestOptions, timeoutMs))
       : res;
   }
-  const reauthResult = await requestReauth();
+  const reauthResult = await requestReauth(action);
   if (reauthResult.kind !== "authenticated") return res;
   return distinguishFailedStepUp(await apiFetch(retryInput, requestOptions, timeoutMs));
 }

@@ -1,5 +1,6 @@
 import type { AccountFailure } from "./errors";
 import type { AccountAuditEvent } from "./audit";
+import type { OwnershipTransferOutcome, OwnershipTransferProjection } from "./ownershipTransfer";
 import type {
   ActorContext,
   ApplicationSession,
@@ -15,7 +16,6 @@ import type {
   MembershipStatus,
   OperationReceipt,
   PendingOperationReceipt,
-  OwnershipTransfer,
   PasswordResetCeremony,
   PrincipalId,
   PrincipalSummary,
@@ -94,6 +94,14 @@ export interface IdentityPort {
   }): Promise<OperationReceipt>;
 }
 
+export interface OwnershipTransferCommandInput {
+  actor: ActorContext;
+  workspaceId: WorkspaceId;
+  requestId: string;
+  expectedRevision: string;
+  command: CommandIdentity;
+}
+
 export interface AccountAdminPort {
   listWorkspacesForPrincipal(input: { principalId: PrincipalId }): Promise<readonly WorkspaceMembershipSummary[]>;
   /** Active membership by default — this is the read request authorization goes through, so a
@@ -108,14 +116,24 @@ export interface AccountAdminPort {
   }): Promise<Membership | null>;
   /** Active memberships by default. `includeInactive` additionally returns disabled and archived
    *  rows and exists for ONE caller — the administrative member directory, which must show an
-   *  administrator the state they applied so they can reverse it. Never widen an authorization read
-   *  with it: a non-active membership confers nothing. */
+   *  administrator the state they applied so they can reverse it. `requireFresh` defaults to true
+   *  for administrative callers; the member-directory projection may set it false after the HTTP
+   *  authorization seam has established the caller's current role. Never widen an authorization
+   *  read with it: a non-active membership confers nothing. */
   listMemberships(input: {
     actor: ActorContext;
     workspaceId: WorkspaceId;
     includeInactive?: boolean;
+    requireFresh?: boolean;
   }): Promise<readonly Membership[]>;
-  listInvitations(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<readonly InvitationSummary[]>;
+  /** Outstanding invite metadata is readable after role authorization without fresh assurance; the
+   *  default remains fresh for direct administrative callers. Invite bearer secrets are never
+   *  returned by this method. */
+  listInvitations(input: {
+    actor: ActorContext;
+    workspaceId: WorkspaceId;
+    requireFresh?: boolean;
+  }): Promise<readonly InvitationSummary[]>;
   previewInvitation(input: { token: string }): Promise<InvitationPreview>;
   preparePasswordInvitationClaim(input: {
     token: string;
@@ -129,6 +147,8 @@ export interface AccountAdminPort {
     preauthorizedEmail: string | null;
     /** Null selects the implementation's standard bounded lifetime at first execution. */
     expiresAt: IsoInstant | null;
+    /** Optional account-scoped person to attempt linking after admission; never reserved. */
+    proposedResourceId?: string;
     command: CommandIdentity;
   }): Promise<CreatedInvitation>;
   acceptInvitation(input: {
@@ -176,12 +196,20 @@ export interface AccountAdminPort {
     targetPrincipalId: PrincipalId;
     command: CommandIdentity;
   }): Promise<OperationReceipt>;
-  transferOwnership(input: {
+  readOwnershipTransfer(input: { actor: ActorContext; workspaceId: WorkspaceId }): Promise<OwnershipTransferProjection>;
+  initiateOwnershipTransfer(input: {
     actor: ActorContext;
     workspaceId: WorkspaceId;
     targetPrincipalId: PrincipalId;
+    expectedRequestId: string | null;
+    expectedRevision: string | null;
     command: CommandIdentity;
-  }): Promise<OwnershipTransfer>;
+  }): Promise<OwnershipTransferOutcome>;
+  acceptOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
+  withdrawOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
+  declineOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
+  cancelOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
+  completeOwnershipTransfer(input: OwnershipTransferCommandInput): Promise<OwnershipTransferOutcome>;
   evaluateIdentityAdminAuthority(input: {
     actor: ActorContext;
     targetPrincipalId: PrincipalId;
@@ -215,6 +243,64 @@ export interface RequestAccess {
 export interface MemberDirectoryEntry {
   membership: Membership;
   principal: PrincipalSummary | null;
+}
+
+/** App-owned association metadata exposed only to the privileged member directory. */
+export interface MemberResourceLink {
+  resourceId: string;
+  revision: string;
+  resourceName?: string | null;
+  resourceStatus?: "active" | "disabled" | "archived" | null;
+}
+
+/** Minimum identity-derived projection required to render a scheduled person's avatar. */
+export interface ResourceAvatarEntry {
+  resourceId: string;
+  imageUrl: string;
+}
+
+/** Account-scoped storage seam for association administration and its privacy-preserving read model. */
+export interface AccountMemberResourcePort {
+  listLinks(workspaceId: WorkspaceId): Promise<ReadonlyMap<PrincipalId, MemberResourceLink>>;
+  listCandidates(workspaceId: WorkspaceId): Promise<readonly { resourceId: string; label: string }[]>;
+  listExceptions(workspaceId: WorkspaceId): Promise<
+    ReadonlyMap<
+      PrincipalId,
+      {
+        proposedResourceId: string | null;
+        reason: "resource_unavailable" | "resource_already_linked" | "member_already_linked";
+      }
+    >
+  >;
+  listAvatarProjection(workspaceId: WorkspaceId): Promise<readonly ResourceAvatarEntry[]>;
+  setLink(input: {
+    workspaceId: WorkspaceId;
+    principalId: PrincipalId;
+    resourceId: string;
+    expectedRevision: string | null;
+    now: IsoInstant;
+    actor: ActorContext;
+    command: CommandIdentity;
+  }): Promise<MemberResourceLink>;
+  clearLink(input: {
+    workspaceId: WorkspaceId;
+    principalId: PrincipalId;
+    expectedRevision: string;
+    actor: ActorContext;
+    command: CommandIdentity;
+  }): Promise<void>;
+  dismissException(input: {
+    workspaceId: WorkspaceId;
+    principalId: PrincipalId;
+    actor: ActorContext;
+    command: CommandIdentity;
+  }): Promise<void>;
+  reconcileImportedLinks(input: {
+    workspaceId: WorkspaceId;
+    resourceIdMap: ReadonlyMap<string, string>;
+    updatedAt: IsoInstant;
+  }): void;
+  removeResourceLink(workspaceId: WorkspaceId, resourceId: string): void;
 }
 
 export interface InviteSignupResult {

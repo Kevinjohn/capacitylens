@@ -10,6 +10,25 @@
 // several security actions failing with SESSION_NOT_FRESH at once DE-DUPE onto ONE dialog (they all
 // share the same promise and all retry once it resolves), rather than stacking N identical dialogs.
 
+export type ReauthAction =
+  | "connect-provider"
+  | "correct-member-email"
+  | "remove-federated-link"
+  | "delete-company"
+  | "change-sign-in-tracking"
+  | "change-member-role"
+  | "change-member-status"
+  | "remove-member"
+  | "transfer-ownership"
+  | "issue-password-reset"
+  | "revoke-member-sessions"
+  | "create-invitation"
+  | "revoke-invitation"
+  | "lifecycle-archive"
+  | "lifecycle-restore"
+  | "lifecycle-delete"
+  | "lifecycle-purge";
+
 export type ReauthResult = { kind: "authenticated" } | { kind: "cancelled" };
 
 type Resolver = (result: ReauthResult) => void;
@@ -23,6 +42,7 @@ let pending: {
   promise: Promise<ReauthResult>;
   resolve: Resolver;
   timeout: ReturnType<typeof setTimeout>;
+  action: ReauthAction | null;
 } | null = null;
 let resolution = { epoch: 0, outcome: null as ReauthResult | null };
 const listeners = new Set<() => void>();
@@ -37,14 +57,14 @@ function emit(): void {
  * that one promise (and thus one dialog) — so a burst of SESSION_NOT_FRESH failures raises a single
  * step-up, and every caller retries together once it resolves. Total: never rejects.
  */
-export function requestReauth(): Promise<ReauthResult> {
+export function requestReauth(action: ReauthAction | null = null): Promise<ReauthResult> {
   if (pending) return pending.promise;
   let resolve!: Resolver;
   const promise = new Promise<ReauthResult>((resolvePromise) => {
     resolve = resolvePromise;
   });
   const timeout = setTimeout(() => completeReauth(false), REAUTH_REQUEST_TIMEOUT_MS);
-  pending = { promise, resolve, timeout };
+  pending = { promise, resolve, timeout, action };
   emit();
   return promise;
 }
@@ -70,6 +90,11 @@ export function readReauthResolution(): Readonly<{ epoch: number; outcome: Reaut
 /** Snapshot for useSyncExternalStore — whether a step-up dialog should currently be shown. */
 export function isReauthPending(): boolean {
   return pending !== null;
+}
+
+/** The user-facing action attached to the current step-up request, if one was supplied. */
+export function readReauthAction(): ReauthAction | null {
+  return pending?.action ?? null;
 }
 
 /** Subscribe to pending-state changes (useSyncExternalStore). Returns an unsubscribe. */

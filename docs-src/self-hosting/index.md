@@ -11,13 +11,16 @@ parts fit together, and which page to read next for the job in front of you.
 
 ## Choose an installation route
 
-CapacityLens supports two ways to install. Choose the route that matches how you manage
+CapacityLens supports three ways to install. Choose the route that matches how you manage
 your host:
 
 - [Install with Docker](/self-hosting/install-with-docker) requires Docker and Docker
   Compose. The packaged stack manages the web app and API services.
 - [Install without Docker](/self-hosting/install-without-docker) requires Node 24, pnpm,
   systemd and nginx. You manage the web app and API services directly.
+- [Deploy on a managed VPS platform](/self-hosting/managed-vps/) adapts the direct Node
+  installation for Forge, Ploi, RunCloud and similar platforms that manage nginx,
+  supervised processes and release directories for you.
 
 Docker is not a shared prerequisite. Each installation page lists only what its route
 needs.
@@ -62,6 +65,13 @@ Don't duplicate the steps here — follow
 **How do I uninstall completely?** For a Docker Compose install, stop the stack and
 remove its containers and named volumes:
 
+::: warning This permanently deletes the installation data
+The volume removal below destroys the database, audit log, scheduled backups and the
+internal certificate. Confirm that you have a readable off-host backup and no restore
+drill or incident still depends on these volumes before continuing. This data cannot be
+recovered from Docker after the volumes are removed.
+:::
+
 ```bash
 docker compose down
 docker volume rm capacitylens_capacitylens-db capacitylens_capacitylens-backups capacitylens_capacitylens-internal-tls
@@ -77,8 +87,9 @@ it.
 
 ## What's next
 
-- Installing for the first time: choose [Install with Docker](/self-hosting/install-with-docker)
-  or [Install without Docker](/self-hosting/install-without-docker).
+- Installing for the first time: choose [Install with Docker](/self-hosting/install-with-docker),
+  [Install without Docker](/self-hosting/install-without-docker), or
+  [Deploy on a managed VPS platform](/self-hosting/managed-vps/).
 - Choosing sign-in mode, secrets and other environment variables:
   [Configuration](/self-hosting/configuration).
 - Putting a domain and certificate in front of it:
@@ -87,4 +98,5 @@ it.
   [Backups and restore](/self-hosting/backups-and-restore).
 - Moving to a new release: [Upgrades](/self-hosting/upgrades).
 - Watching a running instance: [Monitoring and health checks](/self-hosting/monitoring).
+- Recovering a blocked ownership transfer: [Ownership-transfer recovery](/self-hosting/ownership-transfer-recovery).
 - Something looks wrong right now: [When something goes wrong](/self-hosting/incidents).

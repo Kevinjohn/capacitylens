@@ -1,6 +1,12 @@
 ---
 title: Install with Docker
 description: Install CapacityLens with Docker Compose, from cloning the repository to a running, health-checked instance.
+prev:
+  text: Choose how to install
+  link: /getting-started/install
+next:
+  text: Configure the service
+  link: /installation/configure-the-service
 ---
 
 # Install with Docker
@@ -21,8 +27,8 @@ installed, most of it waiting for the first build.
   Silicon and AWS Graviton hosts) should work but isn't independently tested — open an
   issue if you hit something arm64-specific.
 - **Resources**: this is a small Node API and a static file server backed by SQLite, not
-  a heavy stack. As rough guidance: 1 CPU core, 1 GB RAM and a few GB of disk (more if
-  you keep a lot of backup snapshots) is enough for a single small team.
+  a heavy stack. For a small production installation, start with 1 shared CPU core, at
+  least 2 GB RAM and a few GB of disk (more if you keep a lot of backup snapshots).
 
 ## Steps
 
@@ -56,8 +62,10 @@ installed, most of it waiting for the first build.
    CAPACITYLENS_RATE_LIMIT=300
    ```
 
-   `SMALLSASS_ACCOUNT_PUBLIC_URL` must be the exact browser-facing origin. See
-   [Configuration](/self-hosting/configuration) for what every other variable does.
+   Set `CAPACITYLENS_STORAGE_ENCRYPTED=1` only after verifying that the host's Docker
+   volumes and off-host backup destination use encryption at rest. The setting records
+   your attestation; it does not encrypt a volume. `SMALLSASS_ACCOUNT_PUBLIC_URL` must be the exact browser-facing origin. See
+   [Configure the service](/installation/configure-the-service) for what every other variable does.
 
 4. Build and start the stack:
 
@@ -80,7 +88,10 @@ installed, most of it waiting for the first build.
 6. Check the app is serving and the API is healthy:
 
    ```bash
-   docker compose ps
+   docker compose ps --all
+   ```
+
+   ```bash
    curl -fsS http://127.0.0.1:8080/api/health
    ```
 
@@ -95,46 +106,22 @@ installed, most of it waiting for the first build.
    [Monitoring and health checks](/self-hosting/monitoring) for how to check the
    certificate it created.
 
-7. Put a TLS-terminating reverse proxy in front of port 8080 and finish sign-in setup.
-   See [TLS and networking](/self-hosting/tls-and-networking) for the proxy, then enter
-   `SMALLSASS_ACCOUNT_SETUP_TOKEN` as the first owner when you open the app through your
-   domain.
+7. Put a TLS-terminating reverse proxy in front of port 8080, then continue to
+   [verify and hand over the installation](/installation/verify-and-hand-over).
+   See [Secure the connection](/installation/secure-the-connection) for the proxy and
+   [Configure the service](/installation/configure-the-service#sign-in-mode) for the
+   sign-in settings.
 
 ::: tip
 Compose binds port 8080 to `127.0.0.1` by default — nothing outside the host can reach
 it until you add the reverse proxy in the next page.
 :::
 
-## A demo-only, no-backend image
-
-If you just want to try the interface with no database and no sign-in, build the
-client-only image instead:
-
-```bash
-VITE_CAPACITYLENS_DEMO=1 docker compose up --build -d web-client
-curl -fsS http://127.0.0.1:8080/
-```
-
-Naming `web-client` explicitly is what matters — it starts only that service, with no
-API dependency and no certificate volume. Data resets on every page refresh; this mode
-is not a persistent installation.
-
-::: warning
-`web-client` binds the same `127.0.0.1:8080` port as the real `web` service from the
-steps above. Don't run both on the same host at once — the second one to start will
-fail to bind the port, or worse, you'll end up unsure which one you're looking at. Give
-the demo its own port with `WEB_PORT`:
-
-```bash
-WEB_PORT=8081 VITE_CAPACITYLENS_DEMO=1 docker compose up --build -d web-client
-curl -fsS http://127.0.0.1:8081/
-```
-
-:::
-
 ## What's next
 
-- [Configuration](/self-hosting/configuration) to understand every environment variable
+- [Configure the service](/installation/configure-the-service) to understand every environment variable
   you just set, plus the ones you didn't.
-- [TLS and networking](/self-hosting/tls-and-networking) to put a real domain and
+- [Secure the connection](/installation/secure-the-connection) to put a real domain and
   certificate in front of the stack.
+- [Try a local demo](/getting-started/try-the-demo) for the disposable, in-memory
+  interface. It is separate from this persistent installation.

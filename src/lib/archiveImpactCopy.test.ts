@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildClientArchiveImpactCopy, buildProjectArchiveImpactCopy } from "./archiveImpactCopy";
+import { buildClientArchiveImpactCopy, buildProjectArchiveImpactCopy, safeArchiveImpact } from "./archiveImpactCopy";
+import { makeActivity, makeAppData } from "../test/fixtures";
 
 const impact = (projects: number, phases: number, allocations: number) => ({
   projects,
@@ -28,5 +29,37 @@ describe("archive impact copy", () => {
     const copy = buildProjectArchiveImpactCopy(impact(0, count, count));
     expect(copy).toContain(expected);
     expect(copy).not.toContain("(s)");
+  });
+});
+
+describe("safeArchiveImpact", () => {
+  it("returns the impact for a row that is present and active", () => {
+    const activity = makeActivity({ id: "act-1", kind: "internal" });
+    const data = makeAppData({ activities: [activity] });
+
+    expect(safeArchiveImpact(data, "activities", activity.id)).toEqual({
+      projects: 0,
+      phases: 0,
+      activities: 0,
+      allocations: 0,
+      timeOff: 0,
+    });
+  });
+
+  it("returns undefined instead of throwing when the row is missing", () => {
+    const data = makeAppData({ activities: [] });
+
+    expect(safeArchiveImpact(data, "activities", "missing")).toBeUndefined();
+  });
+
+  it("returns undefined instead of throwing when the row is already archived", () => {
+    const activity = makeActivity({
+      id: "act-1",
+      kind: "internal",
+      archivedAt: "2020-01-01T00:00:00.000Z",
+    });
+    const data = makeAppData({ activities: [activity] });
+
+    expect(safeArchiveImpact(data, "activities", activity.id)).toBeUndefined();
   });
 });

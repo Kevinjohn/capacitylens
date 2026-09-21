@@ -1,12 +1,25 @@
 import { describe, it, expect } from "vitest";
 import { sanitizeImportedRecord, sanitizeAccount } from "./sanitizeImport";
 import { FALLBACK_PRESET_COLOR, snapToPresetColor } from "./color";
-import { SCOPED_KEYS } from "../types/entities";
+import { DATE_STYLES, SCOPED_KEYS } from "../types/entities";
 import { softDelete } from "../domain/lifecycle";
 
 type LifecycleKey = "resources" | "clients" | "projects" | "activities";
 
 describe("sanitizeImportedRecord", () => {
+  it("keeps only valid person avatar URLs", () => {
+    expect(
+      sanitizeImportedRecord("resources", { kind: "person", avatarUrl: " https://images.example/a.png " }),
+    ).toMatchObject({
+      avatarUrl: "https://images.example/a.png",
+    });
+    expect(
+      sanitizeImportedRecord("resources", { kind: "person", avatarUrl: "http://images.example/a.png" }),
+    ).not.toHaveProperty("avatarUrl");
+    expect(
+      sanitizeImportedRecord("resources", { kind: "placeholder", avatarUrl: "https://images.example/a.png" }),
+    ).not.toHaveProperty("avatarUrl");
+  });
   it("sanitizes an optional allocation task as single-line text", () => {
     expect(sanitizeImportedRecord("allocations", { task: "  Fix   launch\ncheck  " }).task).toBe("Fix launch check");
   });
@@ -544,6 +557,11 @@ function registerAccountWeekTests(): void {
 }
 
 function registerAccountFeatureTests(): void {
+  it("keeps valid scheduling modes and drops malformed values", () => {
+    expect(sanitizeAccount({ schedulingMode: "blocks" }).schedulingMode).toBe("blocks");
+    expect(sanitizeAccount({ schedulingMode: "wizard" }).schedulingMode).toBeUndefined();
+  });
+
   it("strips a non-boolean disciplinesEnabled", () => {
     expect(sanitizeAccount({ disciplinesEnabled: "yes" }).disciplinesEnabled).toBeUndefined();
     expect(sanitizeAccount({ disciplinesEnabled: 1 }).disciplinesEnabled).toBeUndefined();
@@ -624,6 +642,26 @@ function registerAccountVisibilityTests(): void {
   it("keeps a boolean inlineActivityCreateEnabled (both true and false survive import)", () => {
     expect(sanitizeAccount({ inlineActivityCreateEnabled: false }).inlineActivityCreateEnabled).toBe(false);
     expect(sanitizeAccount({ inlineActivityCreateEnabled: true }).inlineActivityCreateEnabled).toBe(true);
+  });
+
+  it("keeps valid Capacity Overview access and drops malformed values", () => {
+    expect(sanitizeAccount({ capacityOverviewAccess: "owner_admin" }).capacityOverviewAccess).toBe("owner_admin");
+    expect(sanitizeAccount({ capacityOverviewAccess: "owner_admin_editor" }).capacityOverviewAccess).toBe(
+      "owner_admin_editor",
+    );
+    expect(sanitizeAccount({ capacityOverviewAccess: "everyone" }).capacityOverviewAccess).toBe("everyone");
+    expect(sanitizeAccount({ capacityOverviewAccess: "viewer" }).capacityOverviewAccess).toBeUndefined();
+    expect(sanitizeAccount({ capacityOverviewAccess: 1 }).capacityOverviewAccess).toBeUndefined();
+  });
+
+  it("keeps every date format and drops malformed values", () => {
+    // Every member of the union, so dropping one from ACCOUNT_ENUM_FIELDS' list is caught here
+    // rather than silently persisting a style the UI can never offer back.
+    for (const style of DATE_STYLES) {
+      expect(sanitizeAccount({ dateStyle: style }).dateStyle).toBe(style);
+    }
+    expect(sanitizeAccount({ dateStyle: "year-month-day" }).dateStyle).toBeUndefined();
+    expect(sanitizeAccount({ dateStyle: 1 }).dateStyle).toBeUndefined();
   });
 }
 

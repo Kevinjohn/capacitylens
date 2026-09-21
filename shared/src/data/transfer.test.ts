@@ -12,6 +12,18 @@ describe("data transfer", () => {
     expect(parseData(serialized)).toEqual(data);
   });
 
+  it("round-trips a v23 person avatar URL through export and import", () => {
+    // Pin the complete export history: v23 is the first schema that carries person avatar URLs.
+    const data = seed();
+    const person = data.resources.find(({ kind }) => kind === "person");
+    if (!person) throw new Error("Expected a person in the export fixture");
+    person.avatarUrl = "https://images.example/bruce.png";
+
+    const serialized = serializeData(data);
+    expect(JSON.parse(serialized)).toMatchObject({ schemaVersion: 23 });
+    expect(parseData(serialized).resources.find(({ id }) => id === person.id)?.avatarUrl).toBe(person.avatarUrl);
+  });
+
   it("rejects JSON that is not CapacityLens-shaped (so import never silently wipes data)", () => {
     expect(() => parseData("[1,2,3]")).toThrow(/not CapacityLens data/i);
     expect(() => parseData('{"data":5}')).toThrow(/not CapacityLens data/i);

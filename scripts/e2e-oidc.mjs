@@ -2,13 +2,33 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { fileURLToPath } from "node:url";
+import { acquireExclusiveFile } from "./dev-processes.mjs";
 import { nonColourEnvironment, spawnPnpm } from "./pnpm-spawn.mjs";
+import { FIXED_PORTS_LOCK_FILE } from "./ports.mjs";
 
 const image = "ghcr.io/dexidp/dex:v2.45.1@sha256:8499afd690c437f52301efd2b05b2455da5bd2dfc20332cd697dc9937f808462";
 const container = `capacitylens-oidc-e2e-${process.pid}`;
 const config = fileURLToPath(new URL("../e2e/oidc/dex.yaml", import.meta.url));
 const discovery = "http://127.0.0.1:5556/dex/.well-known/openid-configuration";
 const dexLog = fileURLToPath(new URL("../test-results/oidc/dex.log", import.meta.url));
+// The dex container publishes a fixed host port and its issuer and callback URLs are pinned in
+// e2e/oidc/dex.yaml, so this suite cannot take a port lane the way `pnpm run e2e` does. It is
+// single-flight machine-wide instead, sharing one lock with `pnpm run dev:access`, which binds the
+// same ports. Refusing here is far cheaper than a container that starts and then serves the wrong run.
+const ownershipPath = fileURLToPath(new URL(`../${FIXED_PORTS_LOCK_FILE}`, import.meta.url));
+let releaseOwnership;
+try {
+  releaseOwnership = acquireExclusiveFile(ownershipPath);
+} catch (error) {
+  if (error.code !== "EEXIST") throw error;
+  console.error(
+    "e2e:oidc binds fixed ports and something already holds them — another `pnpm run e2e:oidc` or a " +
+      "`pnpm run dev:access`. Stop it and retry; unlike `pnpm run e2e`, this suite cannot take a free lane.",
+  );
+  process.exit(1);
+}
+process.once("exit", releaseOwnership);
+
 let discoveryFault = "healthy";
 let dexStarted = false;
 let primaryFailure = null;

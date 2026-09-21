@@ -1,5 +1,10 @@
-import type { AuthorizeBasicInput } from "../../routes/routeShared";
-import type { AccountAdminPort, AccountFlows, IdentityPort } from "@capacitylens/shared/account/ports";
+import type { AuthorizeRouteInput } from "../../routes/routeShared";
+import type {
+  AccountAdminPort,
+  AccountFlows,
+  AccountMemberResourcePort,
+  IdentityPort,
+} from "@capacitylens/shared/account/ports";
 import type {
   AccountMode,
   CommandIdentity,
@@ -25,6 +30,7 @@ type SetMemberSignInTrackingRequestInput = Omit<SetMemberSignInTrackingInput, "d
 };
 
 export interface AccountRouteDependencies {
+  memberResources: AccountMemberResourcePort;
   authMode: AccountMode;
   authenticationConfigured: boolean;
   /** SSO-only invitation acceptance must arrive through this provider so a new membership cannot
@@ -37,7 +43,10 @@ export interface AccountRouteDependencies {
     snapshot(workspaceId: string): MemberSignInTrackingSnapshot;
     set(input: SetMemberSignInTrackingRequestInput): { enabled: boolean; changed: boolean };
   };
-  authorize(input: AuthorizeBasicInput): boolean;
+  authorize(input: AuthorizeRouteInput): boolean;
+  /** Is this request being made through an active masquerade? The global policy already refuses
+   *  every unsafe method, so only reads that must conceal rather than redact consult this. */
+  isMasquerading(request: FastifyRequest): boolean;
   command(request: FastifyRequest): CommandIdentity;
   audit(reply: FastifyReply, record: AuditRecord): void;
   fail(reply: FastifyReply, error: unknown): unknown;

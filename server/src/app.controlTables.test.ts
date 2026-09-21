@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createApp } from "./app";
 import { openDb, readState } from "./db";
-import { upsertMember } from "./controlTables";
+import { insertRequest, upsertMember } from "./controlTables";
 
 // P1.1 EXCLUSION proof: the `account_members` server-control table must be UNREACHABLE through the
 // generic entity machinery and ABSENT from the state read. openDb creates it on every open, so even
@@ -52,5 +52,64 @@ describe("account_members is excluded from the AppData path", () => {
 
     // And loadState (the function GET /api/state and export both call) has no such key either.
     expect(readState(db) as unknown as Record<string, unknown>).not.toHaveProperty("account_members");
+  });
+});
+
+// The same EXCLUSION proof for `account_ownership_transfers` (#780). A row names the two principals
+// of a pending ownership handover, so reaching it through the generic entity machinery would
+// publish who is being handed the company to anyone who can read the ordinary state.
+describe("account_ownership_transfers is excluded from the AppData path", () => {
+  it("is not a known entity for generic CRUD (GET + POST → 4xx, not 200)", async () => {
+    const app = createApp(openDb(":memory:"));
+
+    const get = await app.inject({ method: "GET", url: "/api/account_ownership_transfers" });
+    expect(get.statusCode).toBe(404);
+
+    const post = await app.inject({
+      method: "POST",
+      url: "/api/account_ownership_transfers",
+      payload: {
+        id: "ot-1",
+        accountId: "acc-1",
+        initiatorUserId: "u-bruce-wayne",
+        targetUserId: "u-selina-kyle",
+        state: "awaiting_target",
+        revision: "0",
+        createdAt: "2026-09-01T09:00:00.000Z",
+        expiresAt: "2026-09-08T09:00:00.000Z",
+      },
+    });
+    expect(post.statusCode).toBe(404);
+  });
+
+  it("never appears in GET /api/state or loadState, even with a live request present", async () => {
+    const db = openDb(":memory:");
+    const app = createApp(db);
+
+    insertRequest(db, {
+      id: "ot-1",
+      accountId: "acc-1",
+      initiatorUserId: "u-bruce-wayne",
+      targetUserId: "u-selina-kyle",
+      state: "awaiting_target",
+      revision: "0",
+      createdAt: "2026-09-01T09:00:00.000Z",
+      expiresAt: "2026-09-08T09:00:00.000Z",
+      targetAcceptedAt: null,
+      terminalAt: null,
+      terminalReason: null,
+    });
+
+    const res = await app.inject({ method: "GET", url: "/api/state" });
+    expect(res.statusCode).toBe(200);
+    const state = res.json() as Record<string, unknown>;
+    expect(state).not.toHaveProperty("account_ownership_transfers");
+    // Belt-and-braces: neither the table name nor either named principal appears on the wire.
+    const serialised = JSON.stringify(state);
+    expect(serialised).not.toContain("account_ownership_transfers");
+    expect(serialised).not.toContain("u-bruce-wayne");
+    expect(serialised).not.toContain("u-selina-kyle");
+
+    expect(readState(db) as unknown as Record<string, unknown>).not.toHaveProperty("account_ownership_transfers");
   });
 });

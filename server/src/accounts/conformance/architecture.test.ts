@@ -30,7 +30,7 @@ const appBoundaryFiles = boundaryPaths(serverRoot, "productRoutes");
 // the plural `accounts`, so it can be enforced here without confusing the two ownership zones.
 const sqlTableOperation = String.raw`\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|(?:CREATE\s+)?TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE|DROP\s+TABLE)\s+(?:["'\x60]|\[)?(?:\w+\.)?(?:["'\x60]|\[)?`;
 const identitySql = new RegExp(`${sqlTableOperation}(?:user|session|account|verification|twoFactor)\\b`, "i");
-const accountSql = new RegExp(`${sqlTableOperation}(?:account_members|invites)\\b`, "i");
+const accountSql = new RegExp(`${sqlTableOperation}(?:account_members|account_ownership_transfers|invites)\\b`, "i");
 
 function sourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -254,45 +254,58 @@ describe("account-boundary architecture", () => {
     const accountPolicy = readFileSync(resolve(sharedAccountRoot, "policy.ts"), "utf8");
     const productThresholds = productPolicy.match(/const MIN_TIER = \{[\s\S]*?\n\}/)?.[0] ?? "";
     expect(productThresholds).not.toMatch(
-      /manageMembers|manageInvites|manageMemberSignInTracking|deleteAccount|transferOwnership/,
+      /manageMembers|manageInvites|manageMemberSignInTracking|deleteAccount|transferOwnership|actOnOwnershipTransfer/,
     );
     expect(productPolicy).toContain("canAdministerAccount(role, accountAction)");
     expect(accountPolicy).toMatch(/['"]manage-members['"]:\s*['"]admin['"]/);
     expect(accountPolicy).toMatch(/['"]manage-invitations['"]:\s*['"]admin['"]/);
     expect(accountPolicy).toMatch(/['"]manage-member-sign-in-tracking['"]:\s*['"]owner['"]/);
     expect(accountPolicy).toMatch(/['"]transfer-ownership['"]:\s*['"]owner['"]/);
+    expect(accountPolicy).toMatch(/['"]act-on-ownership-transfer['"]:\s*['"]admin['"]/);
     expect(accountPolicy).toMatch(/['"]erase-workspace['"]:\s*['"]owner['"]/);
   });
 });
 
+// Raw identity SQL belongs to the vendor lifecycle and concrete identity-port implementations.
+// A newly added sibling is denied until its specific storage responsibility is reviewed here.
+const identitySqlOwners = new Set([
+  resolve(serverRoot, "auth.ts"),
+  resolve(serverRoot, "authConfig/authAdapter.ts"),
+  resolve(serverRoot, "authConfig/betterAuthProfileCompatibility.ts"),
+  resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
+  resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
+  resolve(serverRoot, "authConfig/sessionActivity.ts"),
+  resolve(serverRoot, "accounts/identityPort/credentials.ts"),
+  resolve(serverRoot, "accounts/identityPort/cutover.ts"),
+  resolve(serverRoot, "accounts/identityPort/erasure.ts"),
+  resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
+  resolve(serverRoot, "accounts/identityPort/inspection.ts"),
+  resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
+  resolve(serverRoot, "accounts/identityPort/sessions.ts"),
+  resolve(serverRoot, "controlTables/accountMemberResources.ts"),
+]);
+
+// eslint-disable-next-line max-lines-per-function
 describe("account-boundary architecture", () => {
+  // eslint-disable-next-line max-lines-per-function
   it("makes account and identity storage ownership deny-by-default across production source", () => {
-    // Raw identity SQL belongs to the vendor lifecycle and concrete identity-port implementations.
-    // A newly added sibling is denied until its specific storage responsibility is reviewed here.
-    const identitySqlOwners = new Set([
-      resolve(serverRoot, "auth.ts"),
-      resolve(serverRoot, "authConfig/authAdapter.ts"),
-      resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
-      resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
-      resolve(serverRoot, "authConfig/sessionActivity.ts"),
-      resolve(serverRoot, "accounts/identityPort/credentials.ts"),
-      resolve(serverRoot, "accounts/identityPort/cutover.ts"),
-      resolve(serverRoot, "accounts/identityPort/erasure.ts"),
-      resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
-      resolve(serverRoot, "accounts/identityPort/inspection.ts"),
-      resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
-      resolve(serverRoot, "accounts/identityPort/sessions.ts"),
-    ]);
     // Product membership/invitation SQL is confined to schema/lifecycle owners, the control-table
     // implementation and the two named operations that update tracking or settle invitations.
     const accountSqlOwners = new Set([
+      resolve(serverRoot, "controlTables/accountMemberResources.ts"),
+      resolve(serverRoot, "controlTables/invitationPersonProposals.ts"),
       resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
+      resolve(serverRoot, "db/migrations/invitationPersonProposalsV44.ts"),
       resolve(serverRoot, "controlTables/assert.ts"),
       resolve(serverRoot, "controlTables/inviteRetention.ts"),
       resolve(serverRoot, "controlTables/invites.ts"),
       resolve(serverRoot, "controlTables/members.ts"),
       resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/ownershipTransferRecovery.ts"),
+      resolve(serverRoot, "controlTables/ownershipTransfers.ts"),
+      resolve(serverRoot, "controlTables/ownershipTransfersSchema.ts"),
       resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
@@ -301,18 +314,29 @@ describe("account-boundary architecture", () => {
     // Routes and coordinators consume their ports instead; this list never grants directory access.
     const controlTableImporters = new Set([
       resolve(serverRoot, "db/open.ts"),
+      resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
+      resolve(serverRoot, "db/migrations/invitationPersonProposalsV44.ts"),
       resolve(serverRoot, "controlTables.ts"),
+      resolve(serverRoot, "controlTables/accountMemberResources.ts"),
+      resolve(serverRoot, "controlTables/invitationPersonProposals.ts"),
       resolve(serverRoot, "controlTables/inviteRetention.ts"),
       resolve(serverRoot, "controlTables/invites.ts"),
       resolve(serverRoot, "controlTables/members.ts"),
       resolve(serverRoot, "controlTables/ownershipMigrations.ts"),
+      resolve(serverRoot, "controlTables/ownershipTransfers.ts"),
       resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/adminPort/authority.ts"),
       resolve(serverRoot, "accounts/adminPort/cutover.ts"),
       resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
       resolve(serverRoot, "accounts/adminPort/membership.ts"),
+      resolve(serverRoot, "accounts/adminPort/ownershipTransfer.ts"),
+      resolve(serverRoot, "accounts/adminPort/ownershipTransferRequests.ts"),
+      resolve(serverRoot, "accounts/sqliteAccountMemberResourcePort.ts"),
+      resolve(serverRoot, "erasure.ts"),
+      resolve(serverRoot, "ownershipTransferRecovery.ts"),
     ]);
 
     for (const file of sourceFiles(serverRoot)) {
@@ -335,31 +359,48 @@ describe("account-boundary architecture", () => {
   });
 });
 
+/** Route-layer files may not prepare a statement naming an identity or account control table. */
+const routeLayerPrepareBan =
+  /\b(?:user|session|account_members|account_ownership_transfers|invites)\b[^\n]*\.prepare\s*\(/;
+
 describe("account-boundary architecture", () => {
   it("prevents product routes from reaching identity or membership storage directly", () => {
     for (const file of appBoundaryFiles) {
       const source = read(file);
       expect(internalImports(resolve(serverRoot, file), () => true).filter(isControlTable), file).toEqual([]);
-      expect(source).not.toMatch(/\b(?:user|session|account_members|invites)\b[^\n]*\.prepare\s*\(/);
+      expect(source).not.toMatch(routeLayerPrepareBan);
       expect(importSpecifiers(resolve(serverRoot, file)).filter(isAuthVendor), file).toEqual([]);
     }
   });
+});
 
+/** Every account-administration path the HTTP adapter owns. The ceremony's six write paths are
+ *  listed individually: the guard asserts each one appears in the adapter and in NO app-boundary
+ *  file, so a route that drifted out of the adapter would otherwise stop being guarded silently. */
+const EXTRACTED_ACCOUNT_ROUTE_PATHS = [
+  "/api/invites",
+  "/api/invites/:token/preview",
+  "/api/invites/:token/accept",
+  "/api/invites/:token/signup",
+  "/api/accounts/:accountId/members",
+  "/api/accounts/:accountId/members/:userId",
+  "/api/accounts/:accountId/members/:userId/resource-link-exception",
+  "/api/accounts/:accountId/ownership-transfer",
+  "/api/accounts/:accountId/ownership-transfer/:requestId",
+  "/api/accounts/:accountId/ownership-transfer/:requestId/accept",
+  "/api/accounts/:accountId/ownership-transfer/:requestId/withdraw",
+  "/api/accounts/:accountId/ownership-transfer/:requestId/decline",
+  "/api/accounts/:accountId/ownership-transfer/:requestId/complete",
+  "/api/accounts/:accountId/members/:userId/reset-password",
+  "/api/accounts/:accountId/members/:userId/revoke-sessions",
+  "/api/accounts/:accountId/invites",
+  "/api/accounts/:accountId/invites/:id",
+];
+
+describe("account-boundary architecture", () => {
   it("keeps invitation and member administration in the account HTTP adapter", () => {
     const accountRoutes = read("accounts/accountRoutes.ts");
-    const extractedPaths = [
-      "/api/invites",
-      "/api/invites/:token/preview",
-      "/api/invites/:token/accept",
-      "/api/invites/:token/signup",
-      "/api/accounts/:accountId/members",
-      "/api/accounts/:accountId/members/:userId",
-      "/api/accounts/:accountId/transfer-ownership",
-      "/api/accounts/:accountId/members/:userId/reset-password",
-      "/api/accounts/:accountId/members/:userId/revoke-sessions",
-      "/api/accounts/:accountId/invites",
-      "/api/accounts/:accountId/invites/:id",
-    ];
+    const extractedPaths = EXTRACTED_ACCOUNT_ROUTE_PATHS;
     for (const path of extractedPaths) {
       // Match either quote style: the route string is the invariant, not how the formatter quotes it.
       const quoted = new RegExp(`['"]${path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}['"]`);
@@ -377,7 +418,9 @@ describe("account-boundary architecture", () => {
       expect(source, file).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE FROM)\b/);
     }
   });
+});
 
+describe("account-boundary architecture", () => {
   it("keeps invitation SQL out of the auth-vendor adapter", () => {
     for (const path of boundaryPaths(serverRoot, "authBuilders")) {
       const source = read(path);

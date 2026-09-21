@@ -180,16 +180,20 @@ function ReadinessMemberRow({
   const status = resolveMemberStatus(member);
   const editingEmail = props.emailRepair?.member.principalId === member.principalId;
   return (
-    <li className={`flex flex-col gap-2 rounded p-2 text-xs ${status.rowClass}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span>
-          {props.memberName} ({member.role}){status.criticalLabel}
-        </span>
+    <tr className={`border-b text-xs last:border-b-0 ${status.rowClass}`}>
+      <td className="py-3 px-4 align-top">
+        {props.memberName}
+        {status.criticalLabel && <span className="font-medium text-danger">{status.criticalLabel}</span>}
+      </td>
+      <td className="py-3 px-4 align-top capitalize">{member.role}</td>
+      <td className="py-3 px-4 align-top">
         <Badge variant={status.badgeVariant}>{resolveReadinessReasonLabel(member)}</Badge>
-      </div>
-      <MemberRepairControls member={member} {...props} />
-      {editingEmail && <FieldError id={props.errorId}>{props.errorField === "sso-email" ? error : null}</FieldError>}
-    </li>
+      </td>
+      <td className="py-3 px-4 align-top">
+        <MemberRepairControls member={member} {...props} />
+        {editingEmail && <FieldError id={props.errorId}>{props.errorField === "sso-email" ? error : null}</FieldError>}
+      </td>
+    </tr>
   );
 }
 
@@ -225,35 +229,60 @@ export function SsoReadinessPanel({ authMode, readiness, ...props }: SsoReadines
     ...readiness.issues.filter((issue) => WORKSPACE_ISSUE_REASONS.has(issue.reason)),
   ];
   return (
-    <section className="flex flex-col gap-2 rounded-md border p-3" data-testid="sso-readiness">
+    <section className="flex flex-col gap-3" data-testid="sso-readiness">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-ink">{m.settings_sso_readiness_heading()}</h3>
+        <div className="flex flex-col gap-1">
+          <p className="text-sm text-muted-foreground">{status.message}</p>
+          <p className="text-xs text-muted-foreground">
+            {m.settings_sso_readiness_provider({ provider: readiness.provider.label })}
+          </p>
+        </div>
         <Badge variant={status.badgeVariant}>{status.label}</Badge>
       </div>
-      <p className="text-xs text-muted-foreground">{status.message}</p>
-      <p className="text-xs text-muted-foreground">
-        {m.settings_sso_readiness_provider({ provider: readiness.provider.label })}
-      </p>
-      <ul className="flex flex-col gap-1">
-        {readiness.members.map((member) => (
-          <ReadinessMemberRow
-            key={member.principalId}
-            member={member}
-            memberName={resolveReadinessMemberLabel(member)}
-            mayRepair={mayRepair}
-            {...props}
-          />
-        ))}
-        {/* Installation-wide issues first, then this workspace's own — one row shape for both. */}
-        {issues.map((issue) => (
-          <li
-            key={`${issue.reason}:${issue.workspaceId ?? "global"}:${issue.principalId ?? "all"}`}
-            className={issue.critical ? "text-xs font-medium text-danger" : "text-xs text-danger"}
-          >
-            {issue.message}
-          </li>
-        ))}
-      </ul>
+      <div className="overflow-x-auto rounded-md border bg-card">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs font-medium text-muted-foreground">
+              <th scope="col" className="py-2 px-4 font-medium">
+                {m.settings_sso_readiness_member()}
+              </th>
+              <th scope="col" className="py-2 px-4 font-medium">
+                {m.settings_invite_role_label()}
+              </th>
+              <th scope="col" className="py-2 px-4 font-medium">
+                {m.settings_sso_readiness_status()}
+              </th>
+              <th scope="col" className="py-2 px-4 font-medium">
+                {m.settings_member_col_actions()}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {readiness.members.map((member) => (
+              <ReadinessMemberRow
+                key={member.principalId}
+                member={member}
+                memberName={resolveReadinessMemberLabel(member)}
+                mayRepair={mayRepair}
+                {...props}
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {issues.length > 0 && (
+        <ul className="flex flex-col gap-1">
+          {/* Installation-wide issues first, then this workspace's own — one row shape for both. */}
+          {issues.map((issue) => (
+            <li
+              key={`${issue.reason}:${issue.workspaceId ?? "global"}:${issue.principalId ?? "all"}`}
+              className={issue.critical ? "text-xs font-medium text-danger" : "text-xs text-danger"}
+            >
+              {issue.message}
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

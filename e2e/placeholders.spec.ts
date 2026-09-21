@@ -56,7 +56,7 @@ test.describe("Placeholders (per-account pref, default off)", () => {
     await openApp(page, "Wayne Enterprises", "/settings");
     await page.getByRole("switch", { name: "Show placeholders" }).click(); // → on
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByRole("link", { name: "Settings" }).click();
+    await page.getByRole("link", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("switch", { name: "Show placeholders" })).toHaveAttribute("aria-checked", "true");
   });
 });

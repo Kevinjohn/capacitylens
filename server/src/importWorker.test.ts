@@ -10,7 +10,7 @@ const request: ImportWorkerRequest = {
   now: "2026-09-09T00:00:00.000Z",
 };
 
-const result: ImportWorkerResult = { data: emptyAppData(), imported: 1, skipped: 2 };
+const result: ImportWorkerResult = { data: emptyAppData(), imported: 1, skipped: 2, resourceIdMap: new Map() };
 
 function createPort() {
   return {

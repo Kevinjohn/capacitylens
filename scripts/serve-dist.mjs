@@ -5,6 +5,7 @@ import { stat } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parsePort } from "./port.mjs";
+import { ports } from "./ports.mjs";
 
 const DEFAULT_DIST = join(process.cwd(), "dist");
 export const REHEARSAL_UPSTREAM_TIMEOUT_MS = 130_000;
@@ -26,7 +27,7 @@ const missing = (error) => error && typeof error === "object" && error.code === 
 
 export function createRehearsalRequestHandler({
   dist = DEFAULT_DIST,
-  apiPort = 8787,
+  apiPort = ports().dbApi,
   upstreamTimeoutMs = REHEARSAL_UPSTREAM_TIMEOUT_MS,
   statPath = stat,
   openFile = createReadStream,
@@ -126,8 +127,8 @@ export function createRehearsalRequestHandler({
 
 const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
 if (isMain) {
-  const port = parsePort(process.env.PORT, 4173, "PORT");
-  const apiPort = parsePort(process.env.API_PORT, 8787, "API_PORT");
+  const port = parsePort(process.env.PORT, ports().preview, "PORT");
+  const apiPort = parsePort(process.env.API_PORT, ports().dbApi, "API_PORT");
   if (!existsSync(join(DEFAULT_DIST, "index.html"))) {
     console.error("serve-dist: no dist/index.html — run the production build first (see runbook).");
     process.exit(1);

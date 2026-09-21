@@ -25,9 +25,11 @@ interface AttachmentValues {
   retryTimer: ReturnType<typeof setTimeout> | null;
   retryAttempts: number;
   failedSinceSuccess: boolean;
+  lastError: unknown | null;
   terminalBatchSnapshot: AppData | null;
   resolvingAuthoritativeReload: boolean;
   authoritativeReloadRequiredFor: string | null;
+  failedAccountLoadRecovery: { accountId: string; base: AppData } | null;
   inFlightSave: Promise<void> | null;
   suspendDepth: number;
   externalSuspendDepth: number;
@@ -51,9 +53,11 @@ function createAttachmentValues(store: StoreApi<StoreState>): AttachmentValues {
     retryTimer: null,
     retryAttempts: 0,
     failedSinceSuccess: false,
+    lastError: null,
     terminalBatchSnapshot: null,
     resolvingAuthoritativeReload: false,
     authoritativeReloadRequiredFor: null,
+    failedAccountLoadRecovery: null,
     inFlightSave: null,
     suspendDepth: 0,
     externalSuspendDepth: 0,
@@ -84,6 +88,11 @@ class AttachmentOwner {
   get current(): Readonly<AttachmentValues> {
     return this.values;
   }
+  /** A failed account-load recovery owns any parked edit until an explicit retry or a different
+   * selection resolves it; every write/retry/flush entry point stays closed until then. */
+  isBlockedByFailedAccountLoad(): boolean {
+    return this.values.failedAccountLoadRecovery !== null;
+  }
   update(patch: Partial<AttachmentValues>): void {
     Object.assign(this.values, patch);
   }
@@ -105,6 +114,27 @@ class AttachmentOwner {
     if (!this.values.retryTimer) return;
     clearTimeout(this.values.retryTimer);
     this.values.retryTimer = null;
+  }
+  discardFailedAccountLoadRecovery(): void {
+    if (this.values.failedAccountLoadRecovery === null) return;
+    const hadUnsavedEdit = this.values.pending !== null || this.values.unacknowledged !== null;
+    this.cancelDebounce();
+    this.cancelRetry();
+    this.update({
+      failedAccountLoadRecovery: null,
+      pending: null,
+      unacknowledged: null,
+      retryAttempts: 0,
+      failedSinceSuccess: false,
+      lastError: null,
+      terminalBatchSnapshot: null,
+    });
+    if (hadUnsavedEdit) {
+      this.discardEdit(
+        "capacitylens: an edit made during a failed company load was discarded",
+        "An edit made while this company failed to load could not be saved.",
+      );
+    }
   }
   discardEdit(warning: string, message: string): void {
     incrementPersistenceDiagnostic("editsDiscarded");
@@ -132,7 +162,7 @@ class AttachmentOwner {
     if (this.values.unacknowledged === data) this.values.unacknowledged = null;
     if (this.values.pending === data) this.values.pending = null;
     if (!acknowledgesLatest) return;
-    this.update({ retryAttempts: 0, failedSinceSuccess: false, terminalBatchSnapshot: null });
+    this.update({ retryAttempts: 0, failedSinceSuccess: false, terminalBatchSnapshot: null, lastError: null });
     this.cancelRetry();
     this.onSuccess?.();
   }
@@ -172,6 +202,7 @@ class AttachmentOwner {
     if (external) this.values.externalSuspendDepth -= 1;
     if (this.values.suspendDepth > 0) return;
     setPersistenceSuspended(false);
+    if (this.values.failedAccountLoadRecovery !== null) return;
     if (!this.values.pending) {
       this.clearExternalState();
       if (this.values.failedSinceSuccess && this.values.authoritativeReloadRequiredFor === null) writes.scheduleRetry();
@@ -215,12 +246,14 @@ export function createAttachmentState(
     dispose: owner.dispose.bind(owner),
     cancelDebounce: owner.cancelDebounce.bind(owner),
     cancelRetry: owner.cancelRetry.bind(owner),
+    discardFailedAccountLoadRecovery: owner.discardFailedAccountLoadRecovery.bind(owner),
     discardEdit: owner.discardEdit.bind(owner),
     supersededBy: owner.supersededBy.bind(owner),
     beginAuthoritativeReloadFor: owner.beginAuthoritativeReloadFor.bind(owner),
     acknowledge: owner.acknowledge.bind(owner),
     installSlice: owner.installSlice.bind(owner),
     beginSuspension: owner.beginSuspension.bind(owner),
+    isBlockedByFailedAccountLoad: owner.isBlockedByFailedAccountLoad.bind(owner),
   };
 }
 export type AttachmentState = ReturnType<typeof createAttachmentState>;

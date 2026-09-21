@@ -6,7 +6,7 @@ import { m, syncLocaleFromAccount } from "@/i18n";
 import { useAccountSummaries } from "../auth/useAccountSummaries";
 import { AUDIT_WARNING_EVENT } from "../lib/auditWarning";
 import { clearJoinedAccountHandoff, readJoinedAccountHandoff } from "../lib/joinedAccountHandoff";
-import { ADMIN_LINKS, LINKS } from "../lib/navLinks";
+import { ACCOUNT_LINK, ADMIN_LINKS, LINKS } from "../lib/navLinks";
 import { hasOpenModal, isTextEntryShortcutOwner } from "../lib/shortcutGuards";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
 import { useStore } from "../store/useStore";
@@ -179,7 +179,9 @@ interface DocumentTitleInput {
 function useDocumentTitle(input: DocumentTitleInput) {
   const { activeLanguage, activeLanguagePending, pathname } = input;
   useEffect(() => {
-    const match = [...LINKS, ...ADMIN_LINKS].find(({ to }) => matchPath({ path: to, end: true }, pathname) !== null);
+    const match = [...LINKS, ...ADMIN_LINKS, ACCOUNT_LINK].find(
+      ({ to }) => matchPath({ path: to, end: true }, pathname) !== null,
+    );
     document.title = match ? `${match.label()} · ${APP_NAME}` : APP_NAME;
   }, [pathname, activeLanguage, activeLanguagePending]);
 }

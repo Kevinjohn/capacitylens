@@ -37,11 +37,22 @@ establish that GitHub, CI, credentials, Git writes or a supported runtime are un
   worktree using the harness's supported working-directory mechanism. Start another session only
   if the current harness cannot safely target it. Do not implement in the primary checkout.
   These rules concern repository changes, not personal files outside the repository.
-- Keep one cohesive task per branch/PR. Link an existing issue when applicable; a new issue is
-  not a prerequisite unless requested. Group inseparable issues and explain the relationship.
-- A request to complete implementation authorises the normal signed commit, push, PR and merge
-  flow. Reviews and questions remain read-only unless implementation is requested. Do not ask
-  again for already-authorised steps; ask only for unresolved consequential choices or scope changes.
+- Keep one cohesive task per branch/PR. Link an existing issue when applicable. Group inseparable
+  issues and explain the relationship.
+- Record every new implementation, design or investigation plan as a GitHub issue. The issue body
+  is the canonical plan; keep later decisions and material revisions in the issue or its comments.
+  Do not create or extend repository Markdown files to hold plans or ideation.
+  Existing checked-in planning records may be consulted for context but must not receive new plan
+  content; move future decisions and revisions to the corresponding GitHub issue.
+- A request to complete implementation authorises the normal signed commit, push and GitHub pull
+  request flow. A request to create, open, prepare or deliver a pull request means creating the
+  actual pull request on GitHub, not merely drafting its text, and never authorises merging it.
+  Reviews and questions remain read-only unless implementation is requested. Do not ask again for
+  already-authorised steps; ask only for unresolved consequential choices or scope changes.
+- Never merge a pull request without separate, explicit authorisation for that specific pull
+  request. General requests to implement, finish, ship, deliver or create pull requests are not
+  merge authorisation. Leave every newly created pull request open unless the user subsequently
+  directs its merge.
 - Review the complete branch diff before submission. Fix correctness, security, regression and
   required-standard findings within scope. Report every finding, including optional improvements;
   cosmetic suggestions do not block delivery or automatically authorise another PR.
@@ -55,6 +66,44 @@ establish that GitHub, CI, credentials, Git writes or a supported runtime are un
   identify useful delivery milestones and report implemented, verified and shipped work separately.
 - Keep unrelated cleanup out of the diff. Later simplification requires its own scope and must
   preserve shared types, entities and public contracts unless their change is explicitly authorised.
+
+### GitHub bug-issue batches
+
+Use this workflow when triaging and delivering a checklist of open GitHub issues reported as bugs.
+
+1. **Triage before implementation.** Reproduce or inspect each issue, confirm its current status,
+   classify its severity and distinguish bugs from maintenance, questions and release-verification
+   items. Bring titles, labels and open/closed state into line with that evidence, and leave a concise
+   status comment when it will prevent duplicate investigation. Keep presumed fixes open until the
+   required deployed environment can be tested. Do not expose customer or tester data. Do not
+   speculate on a code change when the available evidence does not identify the failing condition;
+   request the smallest redacted reproduction data needed instead.
+2. **Order by risk and dependency.** Identify dependencies and overlapping files or guarantees,
+   then separate the batch into: independent quick fixes; ordered changes that share a subsystem or
+   validation lane; and investigation-only issues. Give each implementation task a cohesive scope,
+   expected files, acceptance test, affected story/documentation decision, known invariants and
+   merge predecessor.
+3. **Route high-priority work deliberately.** P1 implementation uses the designated senior
+   implementation role and receives one independent architecture/correctness review in addition to
+   the standard severity review below. P2 work may use the normal implementation role. Reviewers
+   must be independent of the implementation they assess.
+4. **Test and review in a fixed sequence.** During implementation, add or update the focused test
+   that proves the reported failure and run the applicable focused checks. Once the change is
+   complete, run formatting, type-checking and linting before review. Every P1 and P2 change then
+   receives an independent code review before any E2E suite. Resolve blocking findings, rerun the
+   affected static checks and repeat review when the correction invalidates earlier evidence.
+5. **Control expensive validation.** After review passes, run the checks required by the Green gate.
+   Run only one E2E suite at a time across worktrees and stagger other resource-intensive suites to
+   avoid contention. Treat an environment or contention failure as a hypothesis and obtain an
+   isolated supported-runtime result before discounting it.
+6. **Publish small, ordered pull requests.** Keep one cohesive issue or inseparable issue group per
+   branch and pull request. State the merge predecessor explicitly, including `none` for independent
+   work. Before pushing, inspect the complete diff, commit metadata and public text. Open ready PRs
+   only after their required review and local evidence pass. Leave them open until the user explicitly
+   authorises the merge of each specific pull request.
+7. **Report live state.** Take a fresh GitHub snapshot before the handoff. Distinguish implemented,
+   locally verified, CI-verified and merged work; list the current merge order, investigations still
+   awaiting evidence and fixes awaiting deployment verification.
 
 ## Product boundary
 
@@ -105,8 +154,9 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   do not change when a display name does. `Northwind Identity`, the fictional identity provider in
   `docs-src/company-login/`, is deliberately outside this scheme.
 - Forms reject invalid input; import/server sanitise and repair. Server imports are atomic.
-- Device preferences are not account data. Offline snapshots are opt-in, seven-day and read-only;
-  never add queued offline writes.
+- Device preferences are not account data; the date format is the deliberate exception, because a
+  company reads one convention (see `DECISIONS.md`). Offline snapshots are opt-in, seven-day and
+  read-only; never add queued offline writes.
 - Surface errors. No empty catches on a data path. Follow `DEFENSIVE-CODING.md`.
 - New fields flow through shared types → full fixtures → server columns → explicit SQLite migration
   → sanitisation. Keep `EXPORT_SCHEMA_VERSION` and `DB_SCHEMA_VERSION` independent; retain every
@@ -120,9 +170,13 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 
 - Password auth and strict OIDC are supported; named social providers remain experimental.
 - Production password mode lets operators require TOTP MFA and defaults to breached-password
-  screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory.
+  screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory. The
+  fresh-session gate applies only to: transferring company ownership, resetting another member's
+  password, revoking another member's sessions, deleting a company, import/purge, and SSO identity
+  link/repair. Other administrative actions need only the actor's role and MFA policy. Data export
+  is served under the `read` action, which the freshness check short-circuits; it is not gated.
 - New external principals require verified email plus an unused pre-authorised invitation. The
-  first SSO identity requires `CAPACITYLENS_SSO_BOOTSTRAP_EMAILS`. An already-authenticated local
+  first SSO identity requires `SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS`. An already-authenticated local
   principal may explicitly link a verified, email-matching strict-OIDC identity without consuming
   another invitation.
 - Password mode may include providers; `sso` mode removes password sign-in.
@@ -167,9 +221,15 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   upgrades, monitoring, incidents) and `docs-src/company-login/` (sign-in modes, SSO cutover).
 - Update `user-stories/REFERENCE.md` first for user-visible route, label, test-id or seed changes.
 - Add user-visible changes under `CHANGELOG.md` → `Unreleased`.
+- Authorised issue, pull-request and documentation work includes permission to publish reviewed
+  project screenshots to GitHub, both as attachments and as committed documentation assets.
+  Do not request separate upload approval for those screenshots. Use fictional/demo data or
+  appropriately redacted examples, and exclude live credentials and private customer information.
+  This permission does not authorise unrelated uploads or change an explicit instruction to leave
+  pull requests unmerged.
 - Documentation screenshots have no capture harness. Capture manually against the demo
-  (`VITE_CAPACITYLENS_DEMO=1 pnpm exec vite --port 5199 --strictPort`) — never port 5173, which
-  `playwright.config.ts` hardcodes, so a capture run there collides with any concurrent E2E run.
+  (`VITE_CAPACITYLENS_DEMO=1 pnpm exec vite --port 5199 --strictPort`) — never a lane port such as
+  5173, which a concurrent E2E run may be using.
   Keep throwaway capture scripts in a scratch directory and out of the commit.
 - Capture screenshots only after every UI change in the batch has landed, and open every changed
   image before merging: a stale capture is a valid image of UI that no longer exists, and no test
@@ -209,6 +269,10 @@ Use this lightweight workflow for user-facing changes:
 ## Validation environment
 
 - Run focused tests during implementation. Select submission checks using “Green gate” below.
+- Type-check with `pnpm run typecheck`, never a bare `tsc` at the repository root, which reads no
+  files and exits 0 whatever the tree contains — `docs-src/reference/development.md` explains why.
+  It covers the shared, application, Node and end-to-end projects, but not `server/`, which
+  `pnpm run gate:server` type-checks.
 - Before running Node or pnpm commands, activate the version selected by `.nvmrc` in that
   worktree and verify `node --version`; do not use the machine default. Include this requirement
   in delegated briefs and reapply it when switching shells or execution tools.
@@ -228,8 +292,9 @@ validation failures.
 - Within a migration, create SQLite triggers only after every table and column they reference
   exists; trigger creation order relative to DDL matters.
 - After editing `messages/en.json`, run `pnpm run paraglide:compile` (the `test`/`build` scripts do
-  this automatically, but direct `vitest`/`tsc` invocations do not) or type-checking will fail on
-  stale generated messages.
+  this automatically, as do `lint` and `typecheck`, but a direct `vitest`, `tsc` or
+  `pnpm --filter @capacitylens/shared type-check` invocation does not) or type-checking will fail
+  on stale generated messages.
 - Merging `origin/main` into a feature branch across a release boundary can silently move that
   branch's `[Unreleased]` changelog entry into the newly dated section. The release moved the
   heading above the entry, so Git auto-resolves it without a conflict and the result stays valid
@@ -245,22 +310,20 @@ validation failures.
 - The full validation suites compete for the same machine. Run them concurrently only in
   combinations that do not starve each other. Failures in untouched files can still be regressions
   through changed dependencies. Treat contention as a hypothesis; obtain evidence or rerun in
-  isolation before discounting a failure. Run only one E2E suite at a time across worktrees because
-  it binds fixed ports.
+  isolation before discounting a failure. Concurrent runs share the machine through port lanes:
+  `pnpm run e2e`, `gate`, `gate:server`, `test`, `dev` and the documentation servers claim a lane
+  (and a CPU share) through `scripts/with-lane.mjs`, so up to ten worktrees can run at once without
+  colliding or oversubscribing. `pnpm run e2e:oidc` and `pnpm run dev:access` are the exceptions:
+  they keep fixed ports and are single-flight machine-wide. Never hardcode a port in a file that
+  binds or addresses one — `pnpm run policy:ports` names the files that must derive theirs.
 
 ## Green gate
 
 - Prose-only changes require formatting and content/link review. Run the documentation build when
   its inputs change (see “Documentation”). Application suites are not required for prose alone.
-- Other changes default to `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` before
+- Other changes default to `pnpm run gate:all` and `pnpm run e2e` before
   submission on Node >= 24. Cross-browser and mutation checks are documented in
   `docs-src/reference/development.md`; keep E2E specs browser-agnostic.
-- Programme exception, agreed 7 September 2026: only work explicitly governed by `tasks/plan.md`
-  follows its risk-based validation and programme-specific CI/release policy instead of the
-  defaults here. Owners run focused tests, applicable type/lint/format and size/baseline checks;
-  the coordinator owns the three full suites at a recorded integrated milestone before release.
-  Docker and mutation suites are excluded for that programme. Do not carry its skip-CI policy
-  into unrelated work. Current explicit user instructions supersede historical plan decisions.
 
 ## Git and GitHub flow
 
@@ -269,7 +332,10 @@ validation failures.
 - After the review gate passes, push the feature branch and open a ready-for-review pull request into
   `main`. Link its issue with a closing keyword when applicable. Never push task commits directly to
   `main`.
-- Merge validated pull requests with a normal merge commit and delete the remote feature branch:
+- Creating or opening a pull request always means publishing it on GitHub and leaving it open. It
+  does not include merging, even when the implementation and checks are complete.
+- Merge only after the user gives separate, explicit authorisation for the specific pull request.
+  Once authorised, use a normal merge commit and delete the remote feature branch with
   `gh pr merge <number> --merge --delete-branch`. Respect dependency order and land one pull request
   at a time unless independent changes materially benefit from parallel validation.
 - Never squash, rebase or rewrite branch history unless the user explicitly requests it for that

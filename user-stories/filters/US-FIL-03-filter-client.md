@@ -21,6 +21,10 @@ For a client review or billing check, the manager wants to see just that client'
 
 - ✅ The options put **Internal** first, followed by the other clients alphabetically.
 - ✅ Choosing **Queen Consolidated** collapses the schedule to the allocations on _Project Watchtower_ activities (e.g. _Wireframes_, _Visual Design_, _CMS Review_) — resources with no Queen Consolidated work are **hidden by default**. Ticking **Show unallocated** (off by default) brings them back **visible but dimmed**, still showing their full real utilisation (so you can see who's free to staff).
+- ✅ While **Queen Consolidated** is selected, **Filter by project** offers **All projects** followed only by that client's eligible projects. Switching to another client refreshes the project choices; a client with no eligible projects leaves **All projects** as the only project option.
 - ✅ Capacity stays truthful: **over-markers** (`over-marker`) and the per-resource **utilisation %** (`utilization`) still reflect **all** of each resource's work, not just the filtered-in bars.
 - ✅ Setting the select back to **All clients** restores every bar.
+- ✅ Setting the select back to **All clients** restores the usual eligible project choices.
+- ✅ Clearing the client filter resets the project filter to **All projects**, as it did before
+  client and project menus became connected.
 - ✅ While a client filter is active, the **Clear Filters** button is enabled.

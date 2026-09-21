@@ -45,9 +45,9 @@ test("admin mints a reset link in Team & access; the locked-out member sets a ne
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  // Pick the freshly-bootstrapped company, dismiss the first-entry intro (the members.auth idiom).
+  // Pick the freshly-bootstrapped company and dismiss its non-blocking orientation.
   await page.getByRole("button", { name: `Reset Studio ${STAMP}`, exact: true }).click();
-  await page.getByTestId("intro-continue").click();
+  await page.getByRole("button", { name: "Got it" }).click();
 
   await page.getByRole("link", { name: "Team & access" }).click();
   await expect(page.getByRole("heading", { name: "Members", exact: true })).toBeVisible();

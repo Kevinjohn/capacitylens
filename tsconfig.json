@@ -3,5 +3,11 @@
     "paths": { "@/*": ["./src/*"] }
   },
   "files": [],
-  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+  "references": [
+    { "path": "./shared/tsconfig.json" },
+    { "path": "./shared/tsconfig.test.json" },
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.e2e.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
 }

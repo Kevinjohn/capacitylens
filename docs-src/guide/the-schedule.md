@@ -70,7 +70,7 @@ a fully non-working day still fills the whole cell.
 ![The two-week schedule with the lower half of Diana Prince's unobscured Wednesday cell tinted to show her saved half-day working pattern](../screenshots/flows/schedule_half_days.jpg)
 
 A Studio or Supplementary person's optional availability dates also apply to these columns. Days
-before **First available date** or after **Last available date** have zero capacity. Existing allocation bars
+before **Start date** or after **End date** have zero capacity. Existing allocation bars
 stay visible, so the work and its allocated load remain available for review even when the dates now
 fall outside the person's range. The zero-capacity state does not create a new control or a separate
 row type.
@@ -164,33 +164,36 @@ Use **Show filters** at the right of the toolbar, after Undo and Redo, to open t
 row. Select **Hide filters** when you want the extra vertical space back. Hiding the row
 does not clear an active filter.
 
-![The open schedule filter row with person search on the left and the filter, visibility, draw-mode and Clear Filters controls grouped on the right](../screenshots/flows/schedule_filters_open.jpg)
+![The open schedule filter row with person search on the left and the filter, visibility, draw-mode and Clear Filters controls grouped on the right](../screenshots/flows/schedule_filters_open.png)
 
 Person search stays on the left. The discipline, client, project and activity filters sit
-in a group on the right, followed by the **Show tentative** / **Hide tentative** and
-**Work** / **Time off** controls. The group wraps at narrower desktop widths without
+in a group on the right, followed by the **Tentative** pill and the
+**Work** / **Time off** control. The group wraps at narrower desktop widths without
 changing the keyboard order.
 
 The project menu keeps **All projects** first, then sorts projects by client and project.
 A code name controls the alphabetical position when one is set. In each option, the
 client and slash are grey so the project name is easier to scan; the complete
-**Client / Project** label remains available to assistive technology. Selecting a client
-or project narrows the bars and rows to that work. The active value stays visible, and
+**Client / Project** label remains available to assistive technology. Selecting a client narrows
+the project menu to that client's eligible projects while keeping **All projects** available;
+clearing the client restores the full eligible project list and resets the project filter to
+**All projects**. If the selected project belongs to the newly selected client it remains selected,
+otherwise it resets to **All projects**. Selecting a
+client or project narrows the bars and rows to that work. The active value stays visible, and
 **Clear Filters** turns red so the filtered state cannot be mistaken for the complete
 schedule.
 
-![The Schedule filtered to Queen Consolidated and Project Watchtower, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.jpg)
+![The Schedule filtered to a project, with Clear Filters active in red](../screenshots/flows/schedule_filter_project.png)
 
 After selecting a client, project or activity, turn on **Show unallocated** to bring
 people with no matching work back into the result. Their rows are dimmed, which makes
 them useful candidates to staff without implying they are already booked to the filter.
 
-![The Project Watchtower filter with Show unallocated selected and Diana Prince shown dimmed as available capacity](../screenshots/flows/schedule_filter_unallocated.jpg)
+![A project filter with Show unallocated selected and Diana Prince shown dimmed](../screenshots/flows/schedule_filter_unallocated.png)
 
 **Clear Filters** stays at the far right of the open row. It is quiet and disabled when
 nothing is filtered, then turns red with a bin icon when a filter is active. One click
-resets the search, every dropdown and **Show unallocated**, and returns tentative work to
-**Show tentative**.
+resets the search, every dropdown and **Show unallocated**, and turns **Tentative** back on.
 
 An individual schedule is independent of this grid view. Its fixed four-week range does
 not change when you pan or zoom, and it includes the person's matching commitments even
@@ -203,6 +206,15 @@ undone and redone from the toolbar, or with Ctrl/Cmd+Z, if you have edit access.
 Rows, colours and percentages update live as you drag. There's nothing to refresh and
 nothing to recalculate — what you see is always current.
 :::
+
+## Jump to a page with the command palette
+
+Press **⌘K** on macOS or **Ctrl+K** on Windows and Linux to open the command palette from any
+screen, even while a text field is focused — unless a dialog has unsaved changes or another dialog
+is already open, in which case ⌘K/Ctrl+K is blocked until it's closed or saved. With no query, the
+**Pages** section lists the fixed application routes, including **Account**; select one to navigate
+there and close the palette. Type a page name, person, project or date to narrow the results. Press
+**Escape** or click outside the palette to close it without navigating.
 
 ## What's next
 

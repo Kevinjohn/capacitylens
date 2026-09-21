@@ -56,7 +56,6 @@ it("gives repeated client edit controls distinct contextual names", () => {
 // `archivedAt` set (its projects/activities are RETAINED — archiving is reversible, unlike the old
 // cascade-delete) and vanishes from this active-only list. Server is the app default now, so we opt
 // into demo (VITE_CAPACITYLENS_DEMO=1) for the local-mutation path; the env is read per dispatch.
-// eslint-disable-next-line max-lines-per-function -- archive scenarios intentionally share the same demo lifecycle setup
 describe("ClientList archive flow", () => {
   beforeEach(() => vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1"));
   afterEach(() => vi.unstubAllEnvs());

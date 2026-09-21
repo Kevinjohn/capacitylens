@@ -25,7 +25,11 @@ export interface AuthUser {
 interface AuthProviderBase {
   label: string;
   experimental: boolean;
+  /** Server-owned presentation hint. Optional only for compatibility with older servers. */
+  brand?: AuthProviderBrand;
 }
+
+export type AuthProviderBrand = "generic" | "google" | "microsoft";
 
 export const SUPPORTED_SOCIAL_PROVIDER_IDS = ["google", "microsoft", "github"] as const;
 export type SupportedSocialProviderId = (typeof SUPPORTED_SOCIAL_PROVIDER_IDS)[number];
@@ -38,6 +42,13 @@ export function isSupportedSocialProviderId(value: unknown): value is SupportedS
 export type AuthProviderInfo =
   | (AuthProviderBase & { id: SupportedSocialProviderId; kind: "social" })
   | (AuthProviderBase & { id: string; kind: "oidc" });
+
+export function hasGoogleProviderBrand(provider: Pick<AuthProviderInfo, "id" | "kind" | "brand">): boolean {
+  return (
+    provider.brand === "google" ||
+    (provider.brand === undefined && provider.kind === "social" && provider.id === "google")
+  );
+}
 
 /**
  * The one NON-experimental OIDC provider, or `undefined`.

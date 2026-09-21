@@ -1,36 +1,40 @@
-import { useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import { useRole } from "../auth/permissionContext";
-import { useStore } from "../store/useStore";
-import { useActiveScopedData } from "../store/useScopedData";
-import { startTour } from "../lib/tour";
-import { buildGettingStartedSteps, hasCompletedAllSteps } from "../lib/gettingStarted";
+import { useEffect, useRef, useState } from "react";
+import { APP_NAME } from "@capacitylens/shared/brand";
+import { Link, useLocation } from "react-router-dom";
 import { Check } from "lucide-react";
+import { useRole } from "../auth/permissionContext";
+import { canSeePrivateNames } from "@capacitylens/shared/domain/access";
+import {
+  buildGettingStartedSteps,
+  hasCompletedAllSteps,
+  hasExistingSetupData,
+  isGettingStartedComplete,
+  readGettingStartedProgress,
+  writeGettingStartedProgress,
+} from "../lib/gettingStarted";
+import { startTour } from "../lib/tour";
+import { useActiveScopedData } from "../store/useScopedData";
+import { useStore } from "../store/useStore";
 import { Button } from "./ui/button";
-import { m } from "@/i18n";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
+import { m } from "@/i18n";
 
-// First-run "Getting started" checklist, rendered at the top of the schedule. State-driven, not
-// scripted: each step ticks itself off by reading the ACTIVE account's scoped data (has a client /
-// project / person / allocation), so it survives the user wandering off mid-flow and never gets out
-// of step with reality. The companion "Show me around" button runs the loose driver.js orientation
-// tour (lib/tour.ts) — where things live, not do-this-now.
-//
-// Visibility: hidden once dismissed (device-global `capacitylens/gettingStartedDismissed` pref —
-// like `introSeen`, NOT account data) OR once every step is complete (derived, per account — a
-// seeded/established account never sees it). Also hidden for a Viewer: every CTA is a write
-// affordance they can't complete (same rule as the list pages' hidden Add buttons).
-
-/** One checklist row: done = check + struck-through label; not done = a Link to the page where
- *  the step happens (or plain text + hint when `to` is absent — the assign step happens right
- *  here on the schedule). */
-function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?: string; hint?: string }) {
-  let labelContent = (
-    <span className="text-ink">
-      {label}
-      {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
-    </span>
-  );
+function StepRow({
+  done,
+  label,
+  to,
+  help,
+  children,
+  focusRef,
+}: {
+  done: boolean;
+  label: string;
+  to?: string;
+  help: string;
+  children?: React.ReactNode;
+  focusRef?: React.Ref<HTMLDivElement> | undefined;
+}) {
+  let labelContent = <span className="font-medium text-ink">{label}</span>;
   if (done) {
     labelContent = (
       <span className="text-muted-foreground line-through">
@@ -40,7 +44,7 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
     );
   } else if (to) {
     labelContent = (
-      <Link to={to} className="text-ink underline-offset-2 hover:text-brand hover:underline">
+      <Link to={to} className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline">
         {label}
       </Link>
     );
@@ -48,86 +52,60 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
   return (
     <li className="flex items-start gap-2 text-sm">
       {done ? (
-        <Check className="mt-0.5 shrink-0 text-brand" />
+        <Check className="mt-0.5 size-4 shrink-0 text-brand" />
       ) : (
         <span aria-hidden="true" className="mt-1 size-3.5 shrink-0 rounded-full border border-line" />
       )}
-      {labelContent}
+      <div
+        ref={focusRef}
+        className="min-w-0"
+        {...(focusRef ? { tabIndex: -1, "aria-label": label, "data-testid": "first-incomplete-milestone" } : {})}
+      >
+        {labelContent}
+        {!done && <p className="text-xs text-muted-foreground">{help}</p>}
+        {!done && children}
+      </div>
     </li>
   );
 }
 
-/** The first-run checklist card (see the file header for the visibility rules).
- *
- *  Split into a cheap gate + an inner component that owns the scoped-data subscription: the
- *  common case (a dismissed card, or a viewer) should read two plain booleans off the store and
- *  render null, not stay subscribed to `useActiveScopedData()` — that subscription re-runs the
- *  whole scopeData pass on every mutation for a card that already can't render anything. Only the
- *  undismissed/non-viewer case needs to know the per-step completion, so only THAT case mounts
- *  `GettingStartedCard` and pays for the subscription. */
 export function GettingStarted() {
   const dismissed = useStore((state) => state.gettingStartedDismissed);
+  const accountId = useStore((state) => state.activeAccountId);
   const activeRole = useRole();
   if (dismissed || activeRole === "viewer") return null;
-  return <GettingStartedCard />;
+  return <GettingStartedCard key={accountId} accountId={accountId} />;
 }
 
-/** Owns the scoped-data read + step derivation; hides itself once every step is done (a
- *  seeded/established account never sees it). Kept out of the exported gate above — see there. */
-function GettingStartedCard() {
+function GettingStartedCard({ accountId }: { accountId: string | null }) {
   const setDismissed = useStore((state) => state.setGettingStartedDismissed);
   const setNotice = useStore((state) => state.setNotice);
   const activeRole = useRole();
   const data = useActiveScopedData();
   const steps = buildGettingStartedSteps(data);
+  const [progress, setProgress] = useState(() => readGettingStartedProgress(accountId));
+  useEffect(() => {
+    if (accountId && progress.started) writeGettingStartedProgress(accountId, progress);
+  }, [accountId, progress]);
   const { tourBusy, showTour } = useTourAction(setNotice);
 
-  if (hasCompletedAllSteps(steps)) return null;
-
-  return (
-    <GettingStartedCardContent
-      activeRole={activeRole}
-      steps={steps}
-      tourBusy={tourBusy}
-      showTour={showTour}
-      dismiss={() => setDismissed(true)}
-    />
-  );
-}
-
-function useTourAction(setNotice: (message: string, tone: "error") => void) {
-  const tourInFlight = useRef(false);
-  const [tourBusy, setTourBusy] = useState(false);
-  const showTour = async (): Promise<void> => {
-    if (tourInFlight.current) return;
-    tourInFlight.current = true;
-    setTourBusy(true);
-    try {
-      await startTour();
-    } catch (error) {
-      console.error("GettingStarted: tour failed to start", error);
-      setNotice(m.gs_tour_failed(), "error");
-    } finally {
-      tourInFlight.current = false;
-      setTourBusy(false);
-    }
+  const choosePath = (patch: Partial<typeof progress>) => {
+    if (!accountId) return;
+    const next = { ...progress, ...patch };
+    writeGettingStartedProgress(accountId, next);
+    setProgress(next);
   };
-  return { tourBusy, showTour };
-}
 
-function GettingStartedCardContent({
-  activeRole,
-  steps,
-  tourBusy,
-  showTour,
-  dismiss,
-}: {
-  activeRole: ReturnType<typeof useRole>;
-  steps: ReturnType<typeof buildGettingStartedSteps>;
-  tourBusy: boolean;
-  showTour: () => Promise<void>;
-  dismiss: () => void;
-}) {
+  const showMilestones =
+    progress.started || progress.importChosen || progress.scratchChosen || hasExistingSetupData(data, steps);
+  const canImport = activeRole === null || canSeePrivateNames(activeRole);
+  const { milestoneFocusRef, requestMilestoneFocus } = useManualMilestoneFocus(showMilestones);
+  const chooseManual = () => {
+    requestMilestoneFocus();
+    choosePath({ scratchChosen: true });
+  };
+  if (isGettingStartedComplete(steps)) return null;
+
   return (
     <Card aria-label={m.gs_title()} data-testid="getting-started" className="getting-started-popover gap-4 py-4">
       <CardHeader className="px-4">
@@ -135,19 +113,23 @@ function GettingStartedCardContent({
         <CardDescription className="text-xs">{m.gs_subtitle()}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3 px-4">
-        <ol className="flex flex-col gap-1.5">
-          <StepRow done={steps.client} label={m.gs_step_client()} to="/clients" />
-          <StepRow done={steps.project} label={m.gs_step_project()} to="/projects" />
-          <StepRow done={steps.person} label={m.gs_step_person()} to="/resources" />
-          <StepRow done={steps.assign} label={m.gs_step_assign()} hint={m.gs_step_assign_hint()} />
-        </ol>
-        {(activeRole === "owner" || activeRole === "admin") && (
-          <p className="text-sm text-ink">
-            <Link to="/team" className="font-medium underline-offset-2 hover:text-brand hover:underline">
-              {m.gs_invite_team()}
-            </Link>{" "}
-            <span className="text-xs text-muted-foreground">{m.gs_invite_team_optional()}</span>
-          </p>
+        {showMilestones ? (
+          <>
+            <FirstUseMilestones steps={steps} focusRef={milestoneFocusRef} />
+            <SupportingActions
+              activeRole={activeRole}
+              {...(canImport ? { importAction: () => choosePath({ importChosen: true }) } : {})}
+            />
+          </>
+        ) : (
+          <>
+            <SetupChoices
+              canImport={canImport}
+              onImport={() => choosePath({ importChosen: true })}
+              onManual={chooseManual}
+            />
+            <SupportingActions activeRole={activeRole} />
+          </>
         )}
       </CardContent>
       <CardFooter className="gap-2 px-4">
@@ -160,10 +142,184 @@ function GettingStartedCardContent({
         >
           {m.gs_show_me_around()}
         </Button>
-        <Button size="sm" variant="outline" onClick={dismiss} data-testid="getting-started-dismiss">
+        <Button size="sm" variant="outline" onClick={() => setDismissed(true)} data-testid="getting-started-dismiss">
           {m.gs_dismiss()}
         </Button>
       </CardFooter>
     </Card>
+  );
+}
+
+function useManualMilestoneFocus(showMilestones: boolean) {
+  const focusAfterManual = useRef(false);
+  const milestoneFocusRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showMilestones || !focusAfterManual.current) return;
+    focusAfterManual.current = false;
+    milestoneFocusRef.current?.focus();
+  }, [showMilestones]);
+  return { milestoneFocusRef, requestMilestoneFocus: () => (focusAfterManual.current = true) };
+}
+
+function firstIncompleteOutcome(steps: ReturnType<typeof buildGettingStartedSteps>) {
+  if (!steps.person) return "person";
+  if (!steps.work) return "work";
+  return "scheduled";
+}
+
+function FirstUseMilestones({
+  steps,
+  focusRef,
+}: {
+  steps: ReturnType<typeof buildGettingStartedSteps>;
+  focusRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const firstIncomplete = firstIncompleteOutcome(steps);
+  return (
+    <ol className="flex flex-col gap-3">
+      <StepRow
+        done={steps.person}
+        label={m.gs_step_person()}
+        to="/resources"
+        help={m.gs_step_person_help()}
+        {...(firstIncomplete === "person" ? { focusRef } : {})}
+      />
+      <StepRow
+        done={steps.work}
+        label={m.gs_step_work()}
+        to="/activities"
+        help={m.gs_step_work_help()}
+        {...(firstIncomplete === "work" ? { focusRef } : {})}
+      >
+        <span className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+          <Link to="/clients" className="underline-offset-2 hover:text-brand hover:underline">
+            {m.gs_add_client()}
+          </Link>
+          <Link to="/projects" className="underline-offset-2 hover:text-brand hover:underline">
+            {m.gs_add_project()}
+          </Link>
+        </span>
+      </StepRow>
+      <StepRow
+        done={steps.scheduled}
+        label={m.gs_step_schedule()}
+        help={m.gs_step_schedule_help()}
+        {...(firstIncomplete === "scheduled" ? { focusRef } : {})}
+      />
+    </ol>
+  );
+}
+
+function SetupChoices({
+  canImport,
+  onImport,
+  onManual,
+}: {
+  canImport: boolean;
+  onImport: () => void;
+  onManual: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3 text-sm">
+      {canImport && (
+        <div>
+          <Link
+            to="/settings#getting-started-import"
+            onClick={onImport}
+            className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
+          >
+            {m.gs_import_data({ appName: APP_NAME })}
+          </Link>
+          <p className="text-xs text-muted-foreground">{m.gs_import_help({ appName: APP_NAME })}</p>
+        </div>
+      )}
+      <Button type="button" size="sm" variant="outline" className="self-start" onClick={onManual}>
+        {m.gs_start_manual()}
+      </Button>
+    </div>
+  );
+}
+
+function SupportingActions({
+  activeRole,
+  importAction,
+}: {
+  activeRole: ReturnType<typeof useRole>;
+  importAction?: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-t border-line pt-3 text-sm">
+      {importAction && (
+        <div>
+          <Link
+            to="/settings#getting-started-import"
+            onClick={importAction}
+            className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
+          >
+            {m.gs_import_data({ appName: APP_NAME })}
+          </Link>
+          <p className="text-xs text-muted-foreground">{m.gs_import_help({ appName: APP_NAME })}</p>
+        </div>
+      )}
+      <Link
+        to="/settings#getting-started-settings"
+        className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline"
+      >
+        {m.gs_adjust_settings()}
+      </Link>
+      {(activeRole === "owner" || activeRole === "admin") && (
+        <div>
+          <Link to="/team" className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline">
+            {m.gs_invite_team()}
+          </Link>
+          <p className="text-xs text-muted-foreground">{m.gs_invite_team_help({ appName: APP_NAME })}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function useTourAction(setNotice: (message: string, tone: "error") => void) {
+  const tourInFlight = useRef(false);
+  const [tourBusy, setTourBusy] = useState(false);
+  const showTour = async (): Promise<void> => {
+    if (tourInFlight.current) return;
+    tourInFlight.current = true;
+    setTourBusy(true);
+    try {
+      await startTour();
+    } catch {
+      console.error("GettingStarted: tour failed to start");
+      setNotice(m.gs_tour_failed(), "error");
+    } finally {
+      tourInFlight.current = false;
+      setTourBusy(false);
+    }
+  };
+  return { tourBusy, showTour };
+}
+
+export function GettingStartedShortcut() {
+  const { pathname } = useLocation();
+  const dismissed = useStore((state) => state.gettingStartedDismissed);
+  const accountId = useStore((state) => state.activeAccountId);
+  const role = useRole();
+  const data = useActiveScopedData();
+  const steps = buildGettingStartedSteps(data);
+  const progress = readGettingStartedProgress(accountId);
+  const setupIncomplete = !hasCompletedAllSteps(steps);
+  const { started, importChosen, scratchChosen } = progress;
+  useEffect(() => {
+    if (accountId && setupIncomplete && !started)
+      writeGettingStartedProgress(accountId, { started: true, importChosen, scratchChosen });
+  }, [accountId, importChosen, scratchChosen, setupIncomplete, started]);
+  if (!accountId || pathname === "/" || dismissed || role === "viewer" || isGettingStartedComplete(steps)) return null;
+  const done = Object.values(steps).filter(Boolean).length;
+  return (
+    <div className="border-b border-line bg-surface px-4 py-2 text-sm" data-testid="getting-started-shortcut">
+      <Link to="/" className="font-medium text-ink underline-offset-2 hover:text-brand hover:underline">
+        {m.gs_return({ done, total: Object.keys(steps).length })}
+      </Link>
+    </div>
   );
 }

@@ -2,6 +2,7 @@ import type { AuthorizeBasicInput } from "./routeShared";
 import { createHash } from "node:crypto";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
+import type { AccountMemberResourcePort } from "@capacitylens/shared/account/ports";
 import type { Role } from "@capacitylens/shared/account/types";
 import { canSeePrivateNames } from "@capacitylens/shared/domain/access";
 import { seed } from "@capacitylens/shared/data/seed";
@@ -60,6 +61,8 @@ export interface ImportRouteDependencies {
   authMode: AccountMode;
   allowReset: boolean;
   accountAdminPort: ImportAccountAdministration;
+  /** Retained for test/runtime dependency compatibility; replacement cleanup is owned by replaceAccountSlice. */
+  memberResources: AccountMemberResourcePort;
   accountLock: KeyedOperationLock;
   authorize: (input: AuthorizeImportInput) => boolean;
   executeImportWorker: typeof runImportWorker;

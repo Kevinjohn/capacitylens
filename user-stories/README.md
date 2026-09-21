@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-126 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
+130 stories across 16 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -30,23 +30,29 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Navigation & shell — `navigation/`
 
-| Story                                                          | Title                                                          | Automated coverage                                                                                                   |
-| -------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate between all nine sections                             | `e2e/navigation.spec.ts`                                                                                             |
-| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | Active section is indicated (`aria-current`)                   | `e2e/navigation.spec.ts`                                                                                             |
-| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Content gated on hydration ("Loading…")                        | manual (AppShell gates on `hydrated`)                                                                                |
-| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | Persistence-failure banner                                     | manual + unit (`persist.test.ts` seed-fail)                                                                          |
-| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Transient toast (auto-dismiss)                                 | `e2e/data.spec.ts` (toast appears); auto-dismiss manual                                                              |
-| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Light / dark theme preference                                  | `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts` (dark)                                                                 |
-| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recoverable error screen                                       | unit (`ErrorBoundary.test.tsx`) + manual                                                                             |
-| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Command palette (⌘K / Ctrl+K)                                  | `e2e/palette.spec.ts` + unit (`CommandPalette.test.tsx`, `fuzzy.test.ts`)                                            |
-| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Mobile affordances (sidebar rail + rotate hint)                | `e2e/mobile.spec.ts`                                                                                                 |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Login screen (flag-gated; `CAPACITYLENS_AUTH` deploys only)    | `e2e/login.auth.spec.ts` (auth-backed project)                                                                       |
-| [US-NAV-11](navigation/US-NAV-11-fake-sign-in.md)              | Trusted-local fake sign-in                                     | `e2e/navigation.spec.ts`                                                                                             |
-| [US-NAV-12](navigation/US-NAV-12-intro-page.md)                | First-run intro page                                           | `e2e/navigation.spec.ts`                                                                                             |
-| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Getting-started checklist, tour and optional access path       | `e2e/getting-started.spec.ts` + auth E2E + `GettingStarted.test.tsx`                                                 |
-| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Company picker and company-creation choices                    | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`            |
-| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions | `e2e/navigation.spec.ts` + `src/components/common/ui.test.tsx` + `src/lib/designTokens.test.ts` + `e2e/a11y.spec.ts` |
+| Story                                                          | Title                                                           | Automated coverage                                                                                                   |
+| -------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md)         | Navigate between all available sections                         | `e2e/navigation.spec.ts`                                                                                             |
+| [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md)  | Active section is indicated (`aria-current`)                    | `e2e/navigation.spec.ts`                                                                                             |
+| [US-NAV-03](navigation/US-NAV-03-loading-gate.md)              | Content gated on hydration ("Loading…")                         | manual (AppShell gates on `hydrated`)                                                                                |
+| [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md)      | Persistence-failure banner                                      | manual + unit (`persist.bootstrap.test.ts` seed-fail)                                                                |
+| [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md)         | Transient toast (auto-dismiss)                                  | `e2e/data.spec.ts` (toast appears); auto-dismiss manual                                                              |
+| [US-NAV-06](navigation/US-NAV-06-dark-mode.md)                 | Light / dark theme preference                                   | `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts` (dark)                                                                 |
+| [US-NAV-07](navigation/US-NAV-07-error-boundary.md)            | Recoverable error screen                                        | unit (`ErrorBoundary.test.tsx`) + manual                                                                             |
+| [US-NAV-08](navigation/US-NAV-08-command-palette.md)           | Command palette (⌘K / Ctrl+K)                                   | `e2e/palette.spec.ts` + unit (`CommandPalette.test.tsx`, `fuzzy.test.ts`)                                            |
+| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md)        | Mobile affordances (sidebar rail + rotate hint)                 | `e2e/mobile.spec.ts`                                                                                                 |
+| [US-NAV-10](navigation/US-NAV-10-login-screen.md)              | Login screen (flag-gated; account mode enabled)                 | `e2e/login.auth.spec.ts` (auth-backed project)                                                                       |
+| [US-NAV-11](navigation/US-NAV-11-fake-sign-in.md)              | Trusted-local fake sign-in                                      | `e2e/navigation.spec.ts`                                                                                             |
+| [US-NAV-12](navigation/US-NAV-12-product-orientation.md)       | Non-blocking, reusable product orientation                      | `ProductOrientation.test.tsx` + `AppShell.productOrientation.test.tsx` + `e2e/fake-signin.spec.ts`                   |
+| [US-NAV-13](navigation/US-NAV-13-getting-started.md)           | Three-outcome getting-started guidance, tour and optional paths | `e2e/getting-started.spec.ts` + auth E2E + `GettingStarted.test.tsx`                                                 |
+| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Company picker and company-creation choices                     | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts`            |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md)  | Blue identity, green positive actions, red destructive actions  | `e2e/navigation.spec.ts` + `src/components/common/ui.test.tsx` + `src/lib/designTokens.test.ts` + `e2e/a11y.spec.ts` |
+
+## Overview — `capacity-overview/`
+
+| Story                                                                 | Title                                        | Automated coverage                                                     |
+| --------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
+| [US-CAP-01](capacity-overview/US-CAP-01-review-four-week-capacity.md) | Review four-, eight- or twelve-week capacity | `e2e/capacity-overview.spec.ts` + `e2e/capacity-overview.auth.spec.ts` |
 
 ## Resources — `resources/`
 
@@ -122,27 +128,27 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Scheduler timeline — `scheduler/`
 
-| Story                                                           | Title                                      | Automated coverage                                                    |
-| --------------------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------------------- |
-| [US-SCH-01](scheduler/US-SCH-01-grouped-capacity-cues.md)       | Grouped rows + capacity cues               | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-02](scheduler/US-SCH-02-draw-allocation.md)             | Draw a new allocation                      | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off on a lane                    | `e2e/features.spec.ts`                                                |
-| [US-SCH-04](scheduler/US-SCH-04-move-drag.md)                   | Move an allocation by dragging             | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-05](scheduler/US-SCH-05-resize.md)                      | Resize an allocation                       | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign by dragging between rows          | `e2e/features.spec.ts`                                                |
-| [US-SCH-07](scheduler/US-SCH-07-placeholder-reassign-reject.md) | Placeholder reassign rejected              | unit (`AllocationBar.interaction.test.tsx`) + manual                  |
-| [US-SCH-08](scheduler/US-SCH-08-lane-stacking.md)               | Overlapping allocations stack              | `e2e/scheduler.spec.ts` + unit (`lanePacking.test.ts`)                |
-| [US-SCH-09](scheduler/US-SCH-09-over-allocation.md)             | Over-allocated days flagged                | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-10](scheduler/US-SCH-10-unavailable-days.md)            | Unavailable days greyed                    | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-11](scheduler/US-SCH-11-time-off-block.md)              | Time off as a labelled block               | `e2e/features.spec.ts` + `e2e/timeoff.spec.ts`                        |
-| [US-SCH-12](scheduler/US-SCH-12-today-line.md)                  | Today line                                 | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-13](scheduler/US-SCH-13-utilisation-flag.md)            | Per-resource utilisation %, red when over  | `e2e/scheduler.spec.ts` + unit (`schedulerModel.test.ts`)             |
-| [US-SCH-14](scheduler/US-SCH-14-utilisation-summary.md)         | Overall + per-discipline summary           | `e2e/scheduler.spec.ts`                                               |
-| [US-SCH-15](scheduler/US-SCH-15-bar-popover.md)                 | Bar detail popover                         | `e2e/scheduler.spec.ts` + unit (`AllocationBar.interaction.test.tsx`) |
-| [US-SCH-16](scheduler/US-SCH-16-collapse-group.md)              | Collapse/expand a discipline group         | `e2e/features.spec.ts`                                                |
-| [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md)            | Row "+" quick-create                       | `e2e/allocation.spec.ts`                                              |
-| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to visible window    | manual                                                                |
-| [US-SCH-19](scheduler/US-SCH-19-status-and-note-distinct.md)    | Status & note visually distinct on the bar | `e2e/scheduler.spec.ts`                                               |
+| Story                                                           | Title                                      | Automated coverage                                               |
+| --------------------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------- |
+| [US-SCH-01](scheduler/US-SCH-01-grouped-capacity-cues.md)       | Grouped rows + capacity cues               | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-02](scheduler/US-SCH-02-draw-allocation.md)             | Draw a new allocation                      | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-03](scheduler/US-SCH-03-draw-time-off.md)               | Draw time off on a lane                    | `e2e/features.spec.ts`                                           |
+| [US-SCH-04](scheduler/US-SCH-04-move-drag.md)                   | Move an allocation by dragging             | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-05](scheduler/US-SCH-05-resize.md)                      | Resize an allocation                       | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-06](scheduler/US-SCH-06-reassign-drag.md)               | Reassign by dragging between rows          | `e2e/features.spec.ts`                                           |
+| [US-SCH-07](scheduler/US-SCH-07-placeholder-reassign-reject.md) | Placeholder reassign rejected              | unit (`AllocationBar.pointerDrag.interaction.test.tsx`) + manual |
+| [US-SCH-08](scheduler/US-SCH-08-lane-stacking.md)               | Overlapping allocations stack              | `e2e/scheduler.spec.ts` + unit (`lanePacking.test.ts`)           |
+| [US-SCH-09](scheduler/US-SCH-09-over-allocation.md)             | Over-allocated days flagged                | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-10](scheduler/US-SCH-10-unavailable-days.md)            | Unavailable days greyed                    | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-11](scheduler/US-SCH-11-time-off-block.md)              | Time off as a labelled block               | `e2e/features.spec.ts` + `e2e/timeoff.spec.ts`                   |
+| [US-SCH-12](scheduler/US-SCH-12-today-line.md)                  | Today line                                 | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-13](scheduler/US-SCH-13-utilisation-flag.md)            | Per-resource utilisation %, red when over  | `e2e/scheduler.spec.ts` + unit (`schedulerModel.test.ts`)        |
+| [US-SCH-14](scheduler/US-SCH-14-utilisation-summary.md)         | Overall + per-discipline summary           | `e2e/scheduler.spec.ts`                                          |
+| [US-SCH-15](scheduler/US-SCH-15-bar-popover.md)                 | Bar detail popover                         | `e2e/scheduler.spec.ts` + unit (`AllocationBar.test.tsx`)        |
+| [US-SCH-16](scheduler/US-SCH-16-collapse-group.md)              | Collapse/expand a discipline group         | `e2e/features.spec.ts`                                           |
+| [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md)            | Row "+" quick-create                       | `e2e/allocation.spec.ts`                                         |
+| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to visible window    | manual                                                           |
+| [US-SCH-19](scheduler/US-SCH-19-status-and-note-distinct.md)    | Status & note visually distinct on the bar | `e2e/scheduler.spec.ts`                                          |
 
 ## Allocation editor — `allocation/`
 
@@ -188,23 +194,26 @@ picker — US-TBR-04) are marked **not runnable** until that UI returns.
 
 ## Settings — `settings/`
 
-| Story                                                    | Title                                                 | Automated coverage                                      |
-| -------------------------------------------------------- | ----------------------------------------------------- | ------------------------------------------------------- |
-| [US-SET-01](settings/US-SET-01-calendar-settings.md)     | Team calendar (week start + timezone)                 | `e2e/settings-calendar.spec.ts`                         |
-| [US-SET-02](settings/US-SET-02-bar-labels.md)            | Allocation-bar label toggles                          | `e2e/settings-bar-labels.spec.ts`                       |
-| [US-SET-03](settings/US-SET-03-build-stamp.md)           | Build stamp (flag-gated)                              | `e2e/settings-build-stamp.spec.ts` (absence by default) |
-| [US-SET-04](settings/US-SET-04-send-feedback.md)         | Send feedback mailto (flag-gated)                     | `e2e/settings-build-stamp.spec.ts` (absence by default) |
-| [US-SET-05](settings/US-SET-05-minimise-weekends.md)     | Minimise weekends on the schedule                     | `e2e/minimise-weekends.spec.ts`                         |
-| [US-SET-06](settings/US-SET-06-show-placeholders.md)     | Show placeholders on the schedule                     | `e2e/placeholders.spec.ts`                              |
-| [US-SET-07](settings/US-SET-07-show-external.md)         | Show external / 3rd parties                           | `e2e/external.spec.ts`                                  |
-| [US-SET-08](settings/US-SET-08-clear-local-storage.md)   | Clear local storage                                   | `e2e/clear-local-storage.spec.ts`                       |
-| [US-SET-09](settings/US-SET-09-snap-to-week-start.md)    | Snap the schedule's left edge to the week start       | `e2e/snap-week.spec.ts`                                 |
-| [US-SET-10](settings/US-SET-10-member-management.md)     | Member management (invite / role / revoke / transfer) | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts`  |
-| [US-SET-11](settings/US-SET-11-viewer-readonly.md)       | Viewer read-only mode                                 | `e2e/viewer.auth.spec.ts`                               |
-| [US-SET-12](settings/US-SET-12-archived-deleted.md)      | Inline archives and Deleted items                     | `e2e/archived.spec.ts`                                  |
-| [US-SET-13](settings/US-SET-13-password-reset-links.md)  | Admin-issued password-reset links                     | `e2e/reset-password.auth.spec.ts`                       |
-| [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours                                 | `e2e/internal-colours.spec.ts`                          |
-| [US-SET-15](settings/US-SET-15-global-working-days.md)   | Global working days                                   | `e2e/global-working-days.spec.ts`                       |
+| Story                                                    | Title                                           | Automated coverage                                      |
+| -------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------- |
+| [US-SET-01](settings/US-SET-01-calendar-settings.md)     | Team calendar (week start + timezone)           | `e2e/settings-calendar.spec.ts`                         |
+| [US-SET-02](settings/US-SET-02-bar-labels.md)            | Allocation-bar label toggles                    | `e2e/settings-bar-labels.spec.ts`                       |
+| [US-SET-03](settings/US-SET-03-build-stamp.md)           | Build stamp (flag-gated)                        | `e2e/settings-build-stamp.spec.ts` (absence by default) |
+| [US-SET-04](settings/US-SET-04-send-feedback.md)         | Send feedback mailto (flag-gated)               | `e2e/settings-build-stamp.spec.ts` (absence by default) |
+| [US-SET-05](settings/US-SET-05-minimise-weekends.md)     | Minimise weekends on the schedule               | `e2e/minimise-weekends.spec.ts`                         |
+| [US-SET-06](settings/US-SET-06-show-placeholders.md)     | Show placeholders on the schedule               | `e2e/placeholders.spec.ts`                              |
+| [US-SET-07](settings/US-SET-07-show-external.md)         | Show external / 3rd parties                     | `e2e/external.spec.ts`                                  |
+| [US-SET-08](settings/US-SET-08-clear-local-storage.md)   | Clear local storage                             | `e2e/clear-local-storage.spec.ts`                       |
+| [US-SET-09](settings/US-SET-09-snap-to-week-start.md)    | Snap the schedule's left edge to the week start | `e2e/snap-week.spec.ts`                                 |
+| [US-SET-10](settings/US-SET-10-member-management.md)     | Member management (invite / role / revoke)      | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts`  |
+| [US-SET-11](settings/US-SET-11-viewer-readonly.md)       | Viewer read-only mode                           | `e2e/viewer.auth.spec.ts`                               |
+| [US-SET-12](settings/US-SET-12-archived-deleted.md)      | Inline archives and Deleted items               | `e2e/archived.spec.ts`                                  |
+| [US-SET-13](settings/US-SET-13-password-reset-links.md)  | Admin-issued password-reset links               | `e2e/reset-password.auth.spec.ts`                       |
+| [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours                           | `e2e/internal-colours.spec.ts`                          |
+| [US-SET-15](settings/US-SET-15-global-working-days.md)   | Company-wide working days                       | `e2e/global-working-days.spec.ts`                       |
+| [US-SET-16](settings/US-SET-16-diagnostics.md)           | Copy privacy-safe diagnostics                   | `src/data/buildInfo.test.ts` + `SettingsView.test.tsx`  |
+| [US-SET-17](settings/US-SET-17-date-style.md)            | Company-wide date format                        | `e2e/settings-date-style.spec.ts` + `.db.spec.ts`       |
+| [US-SET-18](settings/US-SET-18-ownership-transfer.md)    | Hand the company to someone else                | `e2e/ownership-transfer.auth.spec.ts`                   |
 
 ## Keyboard & accessibility — `accessibility/`
 

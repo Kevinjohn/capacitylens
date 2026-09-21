@@ -44,6 +44,8 @@ overrides:
 # allowlist explicit so a newly introduced lifecycle script fails a clean install.
 allowBuilds:
   esbuild: true
+  # The repository's prepare script installs the configured hooks; the dependency lifecycle is redundant.
+  simple-git-hooks: false
   # Structural checks load only the published WASM grammar, never the native binding.
   tree-sitter-bash: false
 

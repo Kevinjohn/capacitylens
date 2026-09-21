@@ -51,6 +51,23 @@ function CommandList({
   );
 }
 
+// Export the empty-state primitive so searchable fields can provide an explicit no-results state.
+function CommandEmpty({
+  className,
+  ...props
+}: React.ComponentProps<typeof CommandPrimitive.Empty>) {
+  return (
+    <CommandPrimitive.Empty
+      data-slot="command-empty"
+      className={cn(
+        "py-6 text-center text-sm text-muted-foreground",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 function CommandGroup({
   className,
   ...props
@@ -88,4 +105,11 @@ function CommandItem({
   );
 }
 
-export { Command, CommandInput, CommandList, CommandGroup, CommandItem };
+export {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+};

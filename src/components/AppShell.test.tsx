@@ -9,6 +9,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { setOfflineReadState } from "../data/offlineCache";
 import { markCompanyPickerForNextReload } from "../lib/companyPickerEntry";
 import { m } from "@/i18n";
+import * as accountTransition from "../auth/accountTransition";
 
 const i18nMocks = vi.hoisted(() => ({ syncLocaleFromAccount: vi.fn() }));
 vi.mock("@/i18n", async (importOriginal) => ({
@@ -29,11 +30,9 @@ afterEach(() => {
 
 beforeEach(() => {
   i18nMocks.syncLocaleFromAccount.mockReset();
-  // Sign through the cosmetic demo gate, dismiss the post-login intro page, AND seed an active
-  // account so the shell (not the demo sign-in, not the account picker, not the intro) renders —
-  // these tests exercise the nav/hydration gate, which sits *after* all of those gates.
+  // Sign through the cosmetic demo gate and seed an active account so these tests exercise the shell.
   useStore.getState().setFakeSignedIn(true);
-  useStore.getState().setIntroSeen(true);
+  localStorage.setItem("capacitylens/productOrientation/v1/demo/acct-test", "dismissed");
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }));
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID);
   useStore.getState().clearFilters();
@@ -72,31 +71,6 @@ function LocationProbe() {
     </button>
   );
 }
-
-it("shows the session-scoped masquerade banner above ordinary app alerts", () => {
-  useStore.getState().setMasquerade({
-    kind: "active",
-    generation: 1,
-    state: {
-      accountId: DEFAULT_ACCOUNT_ID,
-      targetUserId: "u-viewer",
-      targetName: "Selina Kyle",
-      effectiveRole: "viewer",
-      startedAt: "2026-09-01T10:00:00.000Z",
-      token: "token-1",
-    },
-  });
-  setOfflineReadState("tenant", true, Date.parse("2026-09-01T10:00:00.000Z"));
-  renderAppShell();
-
-  const banner = screen.getByTestId("masquerade-banner");
-  expect(banner).toHaveAttribute("role", "status");
-  expect(banner).toHaveTextContent("Masquerading as Selina Kyle");
-  expect(within(banner).getByRole("button", { name: "End now" })).toBeInTheDocument();
-  expect(
-    banner.compareDocumentPosition(screen.getByTestId("offline-read-only")) & Node.DOCUMENT_POSITION_FOLLOWING,
-  ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
-});
 
 it("shows a fail-closed banner while a member view is starting", () => {
   useStore.getState().setMasquerade({
@@ -269,7 +243,7 @@ it("keeps the picker when one valid company came from an incomplete directory", 
   renderAppShell();
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: /Start planning|Choose a company/ })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
 });
 
 it("keeps the picker when the browser cannot classify the navigation", async () => {
@@ -315,7 +289,7 @@ it("does not mistake an unavailable sole membership for a valid reload destinati
   renderAppShell();
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: /Start planning|Choose a company/ })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
 });
 
 it("lets an invite handoff keep ownership of a reload instead of auto-opening another sole company", async () => {
@@ -341,7 +315,9 @@ it("does not reactivate a sole company after its loaded slice proves missing", a
   });
 
   await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
-  expect(screen.getByRole("heading", { name: "Start planning" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+  expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
+  expect(screen.queryByText(/Ask an admin for an invite/)).not.toBeInTheDocument();
   expect(useStore.getState().notice?.message).toBe("That company no longer exists.");
 });
 
@@ -378,6 +354,12 @@ function registerTrailingSlashTitleTest(): void {
     renderAppShell(["/resources/"]);
 
     await waitFor(() => expect(document.title).toBe("Resources · CapacityLens"));
+  });
+
+  it("keeps Account active on its accepted trailing-slash route", () => {
+    renderAppShell(["/account/"]);
+
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
   });
 }
 
@@ -450,6 +432,99 @@ function registerExpectedNavigationLinksTest(): void {
     expect(screen.getByRole("link", { name: "Activities" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Time off" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
+  });
+}
+
+function registerAccountNavigationStateTest(): void {
+  it("marks the personal Account destination active and gives it a descriptive page title", async () => {
+    renderAppShell(["/account"]);
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("aria-current", "page");
+    await waitFor(() => expect(document.title).toBe("Account · CapacityLens"));
+  });
+
+  it("keeps the personal Account route available before a company is selected", () => {
+    useStore.setState({ activeAccountId: null, accountSummaries: [] });
+    renderAppShell(["/account"]);
+
+    expect(screen.getByRole("main")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
+    expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+  });
+
+  it("returns to the company picker from Account only after a successful switch", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/");
+    expect(transition).toHaveBeenCalledWith(null);
+  });
+
+  it("keeps Account in place when a company switch is cancelled or fails", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockResolvedValue(false);
+    render(
+      <MemoryRouter initialEntries={["/account"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+    await waitFor(() => expect(transition).toHaveBeenCalledWith(null));
+
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/account");
+    expect(screen.queryByRole("heading", { name: "Choose a company" })).not.toBeInTheDocument();
+  });
+}
+
+function registerAccountSwitchRouteTest(): void {
+  it("keeps the current non-Account route after a successful switch", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
+    render(
+      <MemoryRouter initialEntries={["/clients"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/clients");
+    expect(transition).toHaveBeenCalledWith(null);
+  });
+
+  it("returns to the company picker from an Account route with a trailing slash", async () => {
+    const transition = vi.spyOn(accountTransition, "transitionAccount").mockImplementation(async (accountId) => {
+      useStore.getState().setActiveAccount(accountId);
+      return true;
+    });
+    render(
+      <MemoryRouter initialEntries={["/account/"]}>
+        <AppShell />
+        <LocationProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Switch company" }));
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Choose a company" })).toBeInTheDocument());
+    expect(screen.getByTestId("location-probe")).toHaveTextContent("/");
+    expect(transition).toHaveBeenCalledWith(null);
   });
 }
 
@@ -471,17 +546,16 @@ function registerImportExportAbsenceTest(): void {
 }
 
 function registerSidebarSignOutTest(): void {
-  it("offers an avatar'd sign-out below Switch company", () => {
+  it("keeps the avatar-led Account row as the only sidebar session control", () => {
     renderAppShell();
 
-    const signOut = screen.getByTestId("nav-sign-out");
-    expect(signOut).toHaveTextContent("Sign out");
-    expect(signOut).toHaveAttribute("title", "Signed in as Bruce Wayne");
-    expect(signOut.querySelector("[data-slot='avatar']")).not.toBeNull();
+    expect(screen.getByText("Test Co")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Switch company" })).toBeInTheDocument();
+    const account = screen.getByRole("link", { name: "Account" });
+    expect(account.querySelector("[data-slot='avatar']")).not.toBeNull();
+    expect(screen.queryByTestId("nav-sign-out")).not.toBeInTheDocument();
 
     expect(useStore.getState().fakeSignedIn).toBe(true);
-    fireEvent.click(signOut);
-    expect(useStore.getState().fakeSignedIn).toBe(false);
   });
 }
 
@@ -494,6 +568,7 @@ function registerPinnedNavigationOrderTest(): void {
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
     expect(order).toEqual([
+      "/overview",
       "/",
       "/resources",
       "/disciplines",
@@ -507,10 +582,35 @@ function registerPinnedNavigationOrderTest(): void {
   });
 }
 
+function registerSidebarThemeToggleTest(): void {
+  it("offers an icon theme toggle directly below Settings", () => {
+    act(() => useStore.getState().setTheme("light"));
+    renderAppShell();
+
+    const navigation = screen.getByRole("navigation");
+    const settings = within(navigation).getByRole("link", { name: "Settings" });
+    const toggle = within(navigation).getByRole("button", { name: "Switch to dark mode" });
+
+    expect(settings.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(toggle.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+
+    fireEvent.click(toggle);
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    expect(localStorage.getItem("capacitylens/theme")).toBe("dark");
+
+    act(() => useStore.getState().setSidebarOpen(false));
+    fireEvent.click(within(navigation).getByRole("button", { name: "Switch to light mode" }));
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+  });
+}
+
 function registerNavigationRoutesTest(): void {
   it("nav links point to correct routes", () => {
     renderAppShell();
 
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute("href", "/overview");
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Resources" })).toHaveAttribute("href", "/resources");
     expect(screen.getByRole("link", { name: "Team & access" })).toHaveAttribute("href", "/team");
@@ -574,6 +674,7 @@ function registerPersistedSidebarCollapseTest(): void {
 
     expect(screen.getByRole("link", { name: "Schedule" })).toHaveAttribute("href", "/");
     expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(screen.getByRole("link", { name: "Account" })).toHaveAttribute("href", "/account");
     expect(screen.getByTestId("app-sidebar")).toHaveAttribute("data-state", "collapsed");
     expect(within(screen.getByTestId("app-sidebar")).getByRole("button", { name: "Expand menu" })).toHaveAttribute(
       "aria-expanded",
@@ -1001,10 +1102,13 @@ describe("AppShell navigation links", () => {
   registerLoadingAccountLocaleTest();
   registerOfflineSnapshotLabelTest();
   registerExpectedNavigationLinksTest();
+  registerAccountNavigationStateTest();
+  registerAccountSwitchRouteTest();
   registerNavigationBrandNameTest();
   registerImportExportAbsenceTest();
   registerSidebarSignOutTest();
   registerPinnedNavigationOrderTest();
+  registerSidebarThemeToggleTest();
   registerNavigationRoutesTest();
 });
 

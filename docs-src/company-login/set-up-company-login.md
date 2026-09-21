@@ -1,12 +1,12 @@
 ---
 title: Set up your company login
-description: Create one app inside Google, Microsoft, Okta or Keycloak and copy three values into CapacityLens — about ten minutes, no certificates.
+description: Create one app inside Google, Microsoft, Okta or Keycloak and copy four values into CapacityLens — about ten minutes, no certificates.
 ---
 
 # Set up your company login
 
 You're going to create one "app" inside the system your company already uses to sign
-people in — Google, Microsoft, Okta, Keycloak — and copy three values out of it into
+people in — Google, Microsoft, Okta, Keycloak — and copy four values out of it into
 CapacityLens. It takes about ten minutes. Nothing to install, no certificates, no XML.
 
 You need to be an administrator of that system — the person who can add users to
@@ -24,7 +24,7 @@ provider lives and what its password — sorry, its [client
 secret](/reference/glossary#client-secret) — is.
 
 So the job is: create the app in your provider, paste one address _into_ it, and copy
-three values _out_ of it. That's the whole thing.
+four values _out_ of it. That's the whole thing.
 
 ## 1. Work out the one address you'll paste in
 
@@ -50,9 +50,9 @@ Write your redirect URI down now, in a note you can copy from. You'll paste it o
 into your provider and never think about it again.
 :::
 
-## 2. Collect three values from your provider
+## 2. Collect four values from your provider
 
-Whichever provider you use, you're hunting for the same three things. Everything after
+Whichever provider you use, you're hunting for the same four things. Everything after
 this section is just where each provider hides them.
 
 | What it's called | What it looks like                                                                         | What it's for                                                                                              |
@@ -60,10 +60,11 @@ this section is just where each provider hides them.
 | Client ID        | A longish public string. Not secret.                                                       | CapacityLens introduces itself with this.                                                                  |
 | Client secret    | A random string, usually shown **once**. Genuinely secret — treat it like a root password. | Proves the introduction is really from your server.                                                        |
 | Discovery URL    | An address ending `/.well-known/openid-configuration`                                      | One address that tells CapacityLens all the others. It's why you never have to type web addresses by hand. |
+| Issuer           | The exact `"issuer"` value in the discovery document.                                     | Ties stored identities to this provider.                                                                    |
 
 ::: tip The trick that saves you an hour
 Open the discovery URL in a browser. You'll get a wall of JSON. Near the top is a field
-called `"issuer"`. Copy its value exactly — that's your fourth setting, the
+called `"issuer"`. Copy its value exactly — that's the
 [issuer](/reference/glossary#issuer), and it has to match to the character. Guessing
 the issuer instead of reading it is the number one reason the first sign-in click fails.
 :::
@@ -217,7 +218,7 @@ email, before you send anyone to sign in.
 
 Authentik, Auth0, Ping, or your own — every provider above speaks the same standard
 language, called OpenID Connect, so anything else that speaks it works too. Create a
-"web application", paste in your redirect address, and collect the same three values.
+"web application", paste in your redirect address, and collect the same four values.
 
 ::: tip This part is for whoever runs your login system
 The checklist below gets technical fast, on purpose — it's not written for a general
@@ -258,6 +259,17 @@ SMALLSASS_ACCOUNT_OIDC_LABEL=Northwind Identity
 `LABEL` is simply the words printed on the button your staff will click, so use the
 name they'd recognise: "Google", "Company login", "Northwind Identity". Keep the client
 secret wherever you keep your other secrets — not in a file you commit.
+
+If this strict OIDC connection is Google Workspace, also set
+`SMALLSASS_ACCOUNT_OIDC_BRAND=google`. The brand selects the Google button presentation;
+CapacityLens never guesses it from `LABEL`. Other strict OIDC connections default to the
+generic presentation. The `microsoft` value reserves Microsoft presentation metadata for
+supported Microsoft styling without changing the OIDC sign-in flow.
+
+A branded button tells people which company they are about to sign in to, so the issuer should
+be that company. If you set `google` or `microsoft` against an issuer that is not theirs, the
+server prints a configuration warning at startup and still starts — it does not assume the
+pairing is a mistake.
 
 ::: warning Use these settings, not the separate Google or Microsoft buttons
 CapacityLens also has stand-alone `..._GOOGLE_...` and `..._MICROSOFT_...` settings for

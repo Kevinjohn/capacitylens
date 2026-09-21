@@ -15,8 +15,20 @@ import {
   listMembers,
   removeMember,
   setMemberSignInTracking,
-  transferOwnership,
+  listResourceAvatars,
+  setMemberResourceLink,
+  clearMemberResourceLink,
+  dismissMemberResourceLinkException,
 } from "./routes/handlers/memberAdmin";
+import {
+  acceptOwnershipTransfer,
+  cancelOwnershipTransfer,
+  completeOwnershipTransfer,
+  declineOwnershipTransfer,
+  initiateOwnershipTransfer,
+  readOwnershipTransfer,
+  withdrawOwnershipTransfer,
+} from "./routes/handlers/ownershipTransfer";
 import { reconcile } from "./routes/handlers/reconcile";
 import { listSessions, revokeSession, signOut } from "./routes/handlers/session";
 import { createReplyHelpers } from "./routes/createReplyHelpers";
@@ -28,6 +40,7 @@ export type { AccountRouteDependencies } from "./routes/accountRouteDependencies
  * This module owns transport validation and response compatibility only. Policy stays in the
  * account-administration port/policy module; cross-port ordering stays in AccountFlows.
  */
+// eslint-disable-next-line max-lines-per-function
 export function registerAccountRoutes(app: FastifyInstance, dependencies: AccountRouteDependencies): void {
   const context = { ...dependencies, ...createReplyHelpers(dependencies) };
 
@@ -58,7 +71,8 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
 
   // Invite PREVIEW: public because a new invitee has no session yet, but still bearer-authorized —
   // only someone holding the unguessable token can read this deliberately small display shape.
-  // No membership/user table is touched, and no account data beyond the company name leaves.
+  // No membership/user table is touched. A bound invite exposes only its local part plus `@…`;
+  // the full address and domain never leave the account adapter.
   app.get("/api/invites/:token/preview", async (req, reply) => previewInvitation(req, reply, context));
 
   // Invite ACCEPT (P1.9): a signed-in caller redeems a link, binding the invited role to THEIR
@@ -82,6 +96,16 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // here, only for this authorized admin). isSelf marks the caller's own row (the client derives its
   // role from it). A missing name/email degrades to null — never a throw.
   app.get("/api/accounts/:accountId/members", async (req, reply) => listMembers(req, reply, context));
+  app.get("/api/accounts/:accountId/resource-avatars", async (req, reply) => listResourceAvatars(req, reply, context));
+  app.put("/api/accounts/:accountId/members/:userId/resource-link", async (req, reply) =>
+    setMemberResourceLink(req, reply, context),
+  );
+  app.delete("/api/accounts/:accountId/members/:userId/resource-link", async (req, reply) =>
+    clearMemberResourceLink(req, reply, context),
+  );
+  app.delete("/api/accounts/:accountId/members/:userId/resource-link-exception", async (req, reply) =>
+    dismissMemberResourceLinkException(req, reply, context),
+  );
 
   // OWNER-only privacy control. The desired-state PUT is safely repeatable after a lost response:
   // enabling an already-enabled account never resets its confirmations, and disabling is a no-op
@@ -109,14 +133,51 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // 204 on success.
   app.delete("/api/accounts/:accountId/members/:userId", async (req, reply) => removeMember(req, reply, context));
 
-  // TRANSFER ownership (P1.11): hand the account to another EXISTING member and step the caller down
-  // to admin, atomically. Gated 'transferOwnership' — the ONE action above admin in the matrix, so a
-  // mere admin is 403 (authorize resolves the caller's role for this account). Body { toUserId }. The
-  // target must already be an active member (404 else) and not the caller (400 — you're already owner).
-  // Demote-caller and promote-target commit in ONE tx, so no other request observes an ownerless
-  // account and the v10 unique index never permits co-owners. OFF mode has no owner model and
-  // reports that member management is unavailable.
-  app.post("/api/accounts/:accountId/transfer-ownership", async (req, reply) => transferOwnership(req, reply, context));
+  // OWNERSHIP TRANSFER (#780): the three-step consent ceremony that replaced the one-click
+  // hand-over. The Owner nominates, the nominated Admin consents, the same Owner gives final
+  // approval — so ownership never moves on one person's say-so, and the nominee is never made
+  // responsible for a company without agreeing to it.
+  //
+  // Seven explicit routes, not a generic state patch: each step has a different authorised caller.
+  // All seven gate on 'actOnOwnershipTransfer' at ADMIN tier, deliberately — the nominee acts at
+  // Admin tier, and a demoted former Owner must still be able to replay their own command. Owner
+  // authority and participant identity are asserted by the port INSIDE its transaction, where the
+  // membership facts are still true. Every command carries `expectedRevision`, so a command formed
+  // against an earlier acceptance cycle cannot apply to a later one.
+  app.get("/api/accounts/:accountId/ownership-transfer", async (req, reply) =>
+    readOwnershipTransfer(req, reply, context),
+  );
+
+  // NOMINATE, or replace an existing nomination atomically by naming it. Body
+  // { toUserId, expectedRequestId?, expectedRevision? }.
+  app.post("/api/accounts/:accountId/ownership-transfer", async (req, reply) =>
+    initiateOwnershipTransfer(req, reply, context),
+  );
+
+  // The nominee's own consent, and its withdrawal. Nobody else may perform these, at any tier:
+  // consent another Admin can give on the nominee's behalf is not consent.
+  app.post("/api/accounts/:accountId/ownership-transfer/:requestId/accept", async (req, reply) =>
+    acceptOwnershipTransfer(req, reply, context),
+  );
+
+  app.post("/api/accounts/:accountId/ownership-transfer/:requestId/withdraw", async (req, reply) =>
+    withdrawOwnershipTransfer(req, reply, context),
+  );
+
+  app.post("/api/accounts/:accountId/ownership-transfer/:requestId/decline", async (req, reply) =>
+    declineOwnershipTransfer(req, reply, context),
+  );
+
+  // FINAL APPROVAL by the same Owner who nominated. Demote-then-promote commit in one transaction
+  // with the workflow row, so no request ever observes an ownerless company.
+  app.post("/api/accounts/:accountId/ownership-transfer/:requestId/complete", async (req, reply) =>
+    completeOwnershipTransfer(req, reply, context),
+  );
+
+  // The nominating Owner withdrawing the whole nomination.
+  app.delete("/api/accounts/:accountId/ownership-transfer/:requestId", async (req, reply) =>
+    cancelOwnershipTransfer(req, reply, context),
+  );
 
   // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member — the app has
   // no email infrastructure (a standing non-goal), so the admin hands the link over out-of-band,

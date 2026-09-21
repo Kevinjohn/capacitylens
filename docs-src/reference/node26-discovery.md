@@ -7,6 +7,11 @@ description: Evidence, proposed runtime minimums and remaining acceptance checks
 
 This reference preserves the findings for contributors assessing [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710). It records the investigation as of 11 September 2026 and the candidate in [draft PR #779](https://github.com/Kevinjohn/capacitylens/pull/779). It is evidence for a future support decision, not a release announcement.
 
+**Status update, 21 September 2026:** Official [Node 26.9.0](https://nodejs.org/en/blog/release/v26.9.0)
+shipped on 16 September with the upstream SQLite backup fix. The project has not completed
+its official-runtime acceptance checks, so Node 24 remains the supported default. The
+11 September observations below are preserved as recorded.
+
 ## Decision and release boundary
 
 Node 24 remains the development, build and release baseline. The proposal is one codebase supporting Node 24 and Node 26 with separate minimum versions:

@@ -1,0 +1,58 @@
+[
+  {
+    "path": "docs-src/screenshots/flows/invitation_created.png",
+    "sha256": "6cc433d2a378817200f0e96a5642db44a5e588ace2d1b4683b22bfc3efb7a8b3"
+  },
+  {
+    "path": "docs-src/screenshots/flows/using_account_1.png",
+    "sha256": "83138d751e3b036830ab4bd2c02e551501f6a95a8fe9ec482243c8aaf90c6a7e"
+  },
+  {
+    "path": "docs-src/screenshots/flows/using_join_your_team_1.png",
+    "sha256": "e81e19d0bdc9fc37551ace0e7403cb113cdf30f3393e2d1729bc676b66cd1364"
+  },
+  {
+    "path": "docs-src/screenshots/flows/using_join_your_team_2.png",
+    "sha256": "3cbaf4363d27b1d990a5e1d5c4943d9cc8a6f6e16c0c90d189e55162f2407f76"
+  },
+  {
+    "path": "docs-src/screenshots/flows/using_team_access_1.png",
+    "sha256": "eee75099d8e8aac1d1ecba417c134290ebdfb9d8c434df0e44a835afc5539a83"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_add_people_2.png",
+    "sha256": "0435e44d4c8546997c59c39736a938e903b7e931eb49b0c4ed3805bd706bf88a"
+  },
+  {
+    "path": "docs-src/screenshots/flows/remove_resource_link.png",
+    "sha256": "42383139208a828868e11d8b7c5499ad512f7412c77b9d3fe928fd37ae700922"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_invite_teammates_1.png",
+    "sha256": "af1a5d5882c17c3e12c950a3b6cec02879432ffa5fdbeb4a7c8d157c97d9a720"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_invite_teammates_2.png",
+    "sha256": "ff31291df4d9ea22fe8ac44abe2313971dd0771d7ad736e3207cb54cea648d1f"
+  },
+  {
+    "path": "docs-src/screenshots/flows/admin_ongoing_administration_1.png",
+    "sha256": "83bf882f42cfb7272a55b2d780cd7578b0e56eab5d1585d4bd30cd37d74c9b6e"
+  },
+  {
+    "path": "docs-src/screenshots/flows/owner_appoint_an_admin_1.png",
+    "sha256": "c393d43aae200754269f7b1c3f7e9fd35c6909179b0a826287cf2b89bea1de9b"
+  },
+  {
+    "path": "docs-src/screenshots/flows/owner_create_your_company_1.png",
+    "sha256": "9bcadc399059b97681fd435e7e6a584fc0936aa89bf1f4f3bd63db0fefae400d"
+  },
+  {
+    "path": "docs-src/screenshots/flows/owner_create_your_company_2.png",
+    "sha256": "d9f5d6f00fda3558321d59beaa55d958106110f6d2c2c3025ece4be9f0177090"
+  },
+  {
+    "path": "docs-src/screenshots/flows/owner_responsibilities_1.png",
+    "sha256": "3130e6f93bae50d7f976f13bcda179b4ee0f7d1158bd80cf7f37b4821dd55304"
+  }
+]

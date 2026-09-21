@@ -12,6 +12,13 @@ administration, password reset, session revocation, workspace provisioning and t
 cross an explicit account boundary. Product code does not select a Better Auth type, identity table
 or membership table to perform those operations.
 
+The `account_member_resources` control table links one account member to one scheduled person for
+avatar presentation. It deliberately has no foreign keys into AppData: member removal, resource
+purge, account erasure, and imports reconcile it explicitly in their owning transaction. Its opaque
+revision provides compare-and-swap protection and is freshly generated after unlink/recreate. The
+ordinary read surface exposes only `{ resourceId, imageUrl }` for active, validated links; it never
+widens teammate identity records or enters exports, offline snapshots, or AppData diffs.
+
 This is deliberate partial decoupling. The boundary is repository-local and uses the same process,
 SQLite file, transaction manager and product migration ledger. It does not create a separate account
 service, account database, shared runtime identity or common portal. Those would change deployment
@@ -65,10 +72,19 @@ the coordinator, never the identity adapter or control tables.
 
 The browser uses `src/account/accountClient.ts` for every account endpoint. That client owns request
 idempotency headers, reauthentication behavior and the longer timeout used for bulk erasure.
-Member and invitation directories contain identity and admission data, so listing either is an
-administrative operation and deliberately requires the same fresh-session assurance as its related
-mutations. The shared `membershipRevision` is identity-global: a membership change in one workspace
-invalidates every cached workspace authority summary for that principal.
+Member and invitation directories contain identity and admission data, so listing either requires
+an active membership with the Owner or Admin role and any applicable multi-factor sign-in policy.
+These reads do not require the fifteen-minute freshness check described in [Sessions and staying
+signed in](/company-login/#sessions-and-staying-signed-in); an expired or revoked session still
+cannot read them. The shared `membershipRevision` is identity-global: a membership change in one
+workspace invalidates every cached workspace authority summary for that principal.
+
+Invitation previews require possession of a valid bearer link. They expose only the workspace
+name, proposed role, expiry, an `emailBound` boolean and a masked recipient hint when addressed.
+The hint exposes only the local part followed by `@…`; the domain and full address never enter
+the preview response. Previews do not disclose the inviter, identity existence or raw token.
+This informational metadata does not alter email matching, identity verification, single-use
+claims or membership authorization.
 
 ## Trusted application and identity model
 

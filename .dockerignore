@@ -53,6 +53,7 @@ code-reviews
 .issue-fix-state
 e2e
 **/*.test.*
+!shared/tsconfig.test.json
 **/*.spec.*
 .vscode
 .idea

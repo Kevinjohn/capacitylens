@@ -1,17 +1,19 @@
 import { Fragment, useMemo } from "react";
-import { CalendarOff, Plus } from "lucide-react";
+import { startOfWeekISO } from "@capacitylens/shared/lib/dateMath";
+import { CalendarOff } from "lucide-react";
 import type { Closure } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useEntityListState } from "../../hooks/useEntityListState";
 import { useConfirmDelete } from "../../hooks/useConfirmDelete";
-import { formatShortDate } from "../../lib/dateDisplay";
+import { formatShortDateRange } from "../../lib/dateDisplay";
 import { resolveTimeZone, resolveWeekStart } from "../../store/selectors";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useStore } from "../../store/useStore";
 import { AddButton, ConfirmDialog, DeleteButton, EditButton, EmptyState } from "../common/ui";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemSeparator, ItemTitle } from "../ui/item";
 import { ClosureForm } from "./ClosureForm";
-import { buildClosureList, readCurrentTimeOffWeekStart } from "./timeOffView";
+import { useCalendarToday } from "../scheduler/useCalendarToday";
+import { buildClosureList } from "./timeOffView";
 
 interface ClosureItemsProps {
   closures: Closure[];
@@ -23,18 +25,18 @@ function ClosureItems({ closures, onEdit, onDelete }: ClosureItemsProps) {
   return (
     <ItemGroup className="rounded-md border bg-card">
       {closures.map((closure, index) => {
-        const start = formatShortDate(closure.startDate);
-        const end = formatShortDate(closure.endDate);
-        const labelContext = { name: closure.name, start, end };
+        // The buttons' accessible names carry the row's own visible range, so speaking what is on
+        // screen addresses the button a voice-control user is looking at (see dateDisplay.ts's
+        // "COLLAPSE IN ACCESSIBLE NAMES" for when a name states both endpoints in full instead).
+        const range = formatShortDateRange(closure.startDate, closure.endDate);
+        const labelContext = { name: closure.name, range };
         return (
           <Fragment key={closure.id}>
             {index > 0 && <ItemSeparator />}
             <Item size="sm" role="listitem" data-testid="company-closure-row" className="rounded-none">
               <ItemContent>
                 <ItemTitle>{closure.name}</ItemTitle>
-                <ItemDescription>
-                  {start} – {end}
-                </ItemDescription>
+                <ItemDescription>{range}</ItemDescription>
               </ItemContent>
               <ItemActions>
                 <EditButton label={m.list_closures_edit_aria(labelContext)} onClick={() => onEdit(closure)} />
@@ -55,7 +57,8 @@ export function CompanyClosureSection() {
   const deleteEntity = useStore((state) => state.deleteClosure);
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useEntityListState<Closure>();
   const confirmDelete = useConfirmDelete(deleteEntity, () => setConfirming(null));
-  const currentWeekStart = readCurrentTimeOffWeekStart(calendarTimeZone, calendarWeekStartsOn);
+  const today = useCalendarToday(calendarTimeZone);
+  const currentWeekStart = startOfWeekISO(today, calendarWeekStartsOn);
   const closures = useMemo(() => buildClosureList(data.closures, currentWeekStart), [currentWeekStart, data.closures]);
 
   return (
@@ -69,16 +72,7 @@ export function CompanyClosureSection() {
 
       {closures.length === 0 ? (
         <div data-testid="company-closures-empty">
-          <EmptyState
-            icon={CalendarOff}
-            description={m.list_closures_empty_desc()}
-            action={{
-              label: m.list_closures_empty_action(),
-              onClick: () => setCreating(true),
-              icon: Plus,
-              requiresEdit: true,
-            }}
-          >
+          <EmptyState icon={CalendarOff} description={m.list_closures_empty_desc()}>
             {m.list_closures_empty()}
           </EmptyState>
         </div>

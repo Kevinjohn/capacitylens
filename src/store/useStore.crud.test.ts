@@ -61,6 +61,8 @@ function registerStoreCrudEntity2(): void {
 
     const sundayStart = s().addAccount({ name: "Sunday company", color: "#2d75da", weekStartsOn: 0 });
     expect(sundayStart?.workingDays).toEqual([0, 1, 2, 3, 4]);
+    expect(sundayStart?.schedulingMode).toBe("days");
+    expect(sundayStart?.inlineActivityCreateEnabled).toBe(false);
     expect(() =>
       s().addAccount({
         name: "Malformed company",
@@ -294,11 +296,14 @@ function registerStoreCrudEntity15(): void {
       firstAvailableDate: "2026-06-01",
       lastAvailableDate: "2026-06-30",
     });
-    s().updateResource(personToPlaceholder.id, { kind: "placeholder", projectId: project.id });
+    expect(() => s().updateResource(personToPlaceholder.id, { kind: "placeholder", projectId: project.id })).toThrow(
+      /kind cannot change/i,
+    );
     const converted = s().data.resources.find((resource) => resource.id === personToPlaceholder.id);
-    expect(converted?.engagement).toBe("studio");
-    expect(converted).not.toHaveProperty("firstAvailableDate");
-    expect(converted).not.toHaveProperty("lastAvailableDate");
+    expect(converted?.kind).toBe("person");
+    expect(converted?.engagement).toBe("supplementary");
+    expect(converted?.firstAvailableDate).toBe("2026-06-01");
+    expect(converted?.lastAvailableDate).toBe("2026-06-30");
   });
 }
 
@@ -1109,9 +1114,7 @@ function registerExternalFlip1(): void {
       status: "confirmed",
     });
 
-    expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(
-      /work and time off before making it external/i,
-    );
+    expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(/kind cannot change/i);
     expect(s().data.resources[0]?.kind).toBe("person"); // atomic failure — the flip did NOT land
   });
 }
@@ -1126,15 +1129,13 @@ function registerExternalFlip2(): void {
       type: "holiday",
     });
 
-    expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(
-      /work and time off before making it external/i,
-    );
+    expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(/kind cannot change/i);
     expect(s().data.resources[0]?.kind).toBe("person");
   });
 }
 
 function registerExternalFlip3(): void {
-  it("flipping a person with NO dependents (or only a zero-load allocation) to external SUCCEEDS", () => {
+  it("rejects flipping a person with no dependents or a zero-load allocation to external", () => {
     const c = s().addClient({ name: "Acme", color: "#1" });
     const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
     const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
@@ -1142,10 +1143,10 @@ function registerExternalFlip3(): void {
       ...personDraft,
       name: "Free",
     });
-    expect(() => s().updateResource(free.id, { kind: "external" })).not.toThrow();
-    expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe("external");
+    expect(() => s().updateResource(free.id, { kind: "external" })).toThrow(/kind cannot change/i);
+    expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe("person");
 
-    // A zero-load allocation is already valid for an external, so it must NOT block the flip.
+    // Zero-load allocations do not bypass the immutable resource-kind rule.
     const z = s().addResource({
       ...personDraft,
       name: "Zero",
@@ -1158,8 +1159,8 @@ function registerExternalFlip3(): void {
       hoursPerDay: 0,
       status: "confirmed",
     });
-    expect(() => s().updateResource(z.id, { kind: "external" })).not.toThrow();
-    expect(s().data.resources.find((r) => r.id === z.id)?.kind).toBe("external");
+    expect(() => s().updateResource(z.id, { kind: "external" })).toThrow(/kind cannot change/i);
+    expect(s().data.resources.find((r) => r.id === z.id)?.kind).toBe("person");
   });
 }
 

@@ -47,6 +47,7 @@ function createAddAccountAction({ internals, set }: AccountActionContext): Store
       disciplinesEnabled: false,
       placeholdersEnabled: false,
       externalEnabled: false,
+      inlineActivityCreateEnabled: false,
       internalColourMode: "grey",
       ...input,
       workingDays: normalizeAccountWorkingDays(input.workingDays, weekStartsOn),
@@ -144,6 +145,10 @@ function createSetActiveAccountAction({ set, get }: AccountActionContext): Store
       const switching = id !== state.activeAccountId;
       return {
         activeAccountId: id,
+        activeAccountLoadFailed:
+          id === null || (state.activeAccountLoadFailed !== null && state.activeAccountLoadFailed !== id)
+            ? null
+            : state.activeAccountLoadFailed,
         activeRole: switching && state.activeRole !== null ? "viewer" : state.activeRole,
         activeRoleStatus: switching && state.activeRole !== null ? "pending" : state.activeRoleStatus,
         previousAccountId: id === null ? state.activeAccountId : null,

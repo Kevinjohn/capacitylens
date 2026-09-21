@@ -6,7 +6,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// eslint-disable-next-line max-lines-per-function -- integration scenarios intentionally share one fixture lifecycle
 describe("runExternalSignIn", () => {
   it("keeps the attempt pending beyond the former 100 ms redirect guess", async () => {
     vi.useFakeTimers();

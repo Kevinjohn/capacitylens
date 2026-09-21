@@ -33,6 +33,25 @@ export {
 } from "./controlTables/inviteRetention";
 export type { InviteSummary } from "./controlTables/inviteRetention";
 export {
+  OWNERSHIP_TRANSFER_REQUESTS_V41_SQL,
+  OWNERSHIP_TRANSFER_LIVE_INDEX,
+  OWNERSHIP_TRANSFER_TARGET_INDEX,
+  assertOwnershipTransfersCurrent,
+  runOwnershipTransfersV41,
+} from "./controlTables/ownershipTransfersSchema";
+export {
+  nextOwnershipTransferRevision,
+  readLiveRequest,
+  readRequestById,
+  readLatestTerminalForParticipant,
+  insertRequest,
+  applyTransition,
+  terminaliseLiveRequestsForAccount,
+  terminaliseLiveRequestsForMember,
+  deleteRequestsForAccount,
+  sweepExpiredHistory,
+} from "./controlTables/ownershipTransfers";
+export {
   SINGLE_OWNER_INDEX,
   assertControlTablesCurrent,
   assertSingleOwnerControlPlaneV10,
@@ -43,6 +62,7 @@ export {
   setMemberStatus,
   getMembershipRow,
   getMemberRole,
+  countActiveOwners,
   getActiveMemberRole,
   listMembershipsForUser,
   listMembersForAccount,
@@ -63,3 +83,40 @@ export type { Invite } from "./controlTables/invites";
 export type { AccountMember, MembershipStatus } from "./controlTables/members.model";
 
 export { inviteTokenHash, newInviteId } from "./controlTables/inviteTokens";
+export {
+  ACCOUNT_MEMBER_RESOURCES_SQL,
+  ensureAccountMemberResources,
+  listAccountMemberResourceLinks,
+  setAccountMemberResourceLink,
+  setAccountMemberResourceLinkInTransaction,
+  clearAccountMemberResourceLink,
+  listResourceAvatarProjection,
+  removeAccountMemberResourceForMember,
+  removeAccountMemberResourceForResource,
+  removeAccountMemberResourcesForAccount,
+  reconcileAccountMemberResources,
+} from "./controlTables/accountMemberResources";
+export type { AccountMemberResourceLink, AccountMemberResourceMutation } from "./controlTables/accountMemberResources";
+export type { ResourceAvatarProjection } from "./controlTables/accountMemberResources";
+export {
+  INVITATION_PERSON_PROPOSALS_SQL,
+  createInvitationPersonProposal,
+  getInvitationPersonProposal,
+  isEligibleInvitationPerson,
+  listInvitationPersonProposals,
+  removeInvitationPersonProposal,
+  removeInvitationPersonProposalsForAccount,
+  removeInvitationPersonProposalsForResource,
+  listMemberResourceLinkExceptions,
+  getMemberResourceLinkException,
+  upsertMemberResourceLinkException,
+  removeMemberResourceLinkException,
+  removeMemberResourceLinkExceptionsForAccount,
+  removeMemberResourceLinkExceptionsForResource,
+  settleInvitationPersonProposal,
+} from "./controlTables/invitationPersonProposals";
+export type {
+  InvitationPersonProposal,
+  MemberResourceLinkException,
+  MemberResourceLinkExceptionReason,
+} from "./controlTables/invitationPersonProposals";

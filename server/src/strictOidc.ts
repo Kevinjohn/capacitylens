@@ -209,14 +209,9 @@ function createProfile(profile: Record<string, unknown>, subject: string): Stric
     email,
     emailVerified: profile.email_verified === true,
     name: profile.name.trim(),
+    // Null is intentional: Better Auth's override update must clear an earlier provider picture.
+    image: parseOptionalPictureUrl(profile.picture) ?? null,
   };
-  // Preserve the established own-property shape even when the provider picture is unusable.
-  Object.defineProperty(result, "image", {
-    value: parseOptionalPictureUrl(profile.picture) ?? undefined,
-    writable: true,
-    enumerable: true,
-    configurable: true,
-  });
   return result;
 }
 

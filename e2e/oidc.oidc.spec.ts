@@ -22,6 +22,12 @@ async function expectDiscoveryFault(page: Page, expected: "malformed" | "unavail
   expect(await response.json()).toEqual({ fault: expected });
 }
 
+async function expectMandatoryCompanySetup(page: Page) {
+  await expect(page.getByLabel("Company name")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create company" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Cancel" })).toHaveCount(0);
+}
+
 async function createOidcWorkspace(page: Page) {
   const commandHeaders = () => ({
     "Content-Type": "application/json",
@@ -71,8 +77,8 @@ test("completes bootstrap, invitation, callback, membership, and local sign-out 
     user: { email: "oidc-owner@example.com", emailVerified: true },
     providers: [{ id: "sso", kind: "oidc", experimental: false }],
   });
-  await expect(page.getByRole("heading", { name: "Start planning" })).toBeVisible();
-  await expect(page.getByTestId("new-company-button")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Set up your company" })).toBeVisible();
+  await expectMandatoryCompanySetup(page);
 
   const { workspace, invite } = await createOidcWorkspace(page);
 

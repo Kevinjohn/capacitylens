@@ -3,8 +3,13 @@ import { hasUsablePrivateCodeName } from "@capacitylens/shared/domain/privateNam
 import { snapToPresetColor } from "@capacitylens/shared/lib/color";
 import { sanitizeAccount, sanitizeImportedRecord } from "@capacitylens/shared/lib/sanitizeImport";
 import { cleanText } from "@capacitylens/shared/lib/strings";
+import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
 import type { ScopedEntityKey } from "@capacitylens/shared/types/entities";
-import { isScopedEntityKey, SCHEDULING_MODES } from "@capacitylens/shared/types/entities";
+import {
+  CAPACITY_OVERVIEW_ACCESS_VALUES,
+  isScopedEntityKey,
+  SCHEDULING_MODES,
+} from "@capacitylens/shared/types/entities";
 import { pinGatedFields, type SanitizeWriteOptions } from "../fieldPolicy";
 import { TABLES } from "../tables";
 import { assertIdPresent, ValidationError } from "./errors";
@@ -40,9 +45,21 @@ function resolveStoredWeekStart(existing: Record<string, unknown> | undefined): 
   return undefined;
 }
 
+function preserveCapacityOverviewAccess(
+  copy: Record<string, unknown>,
+  existing: Record<string, unknown> | undefined,
+  canChange: boolean | undefined,
+): void {
+  if (canChange === true) return;
+  const storedAccess = existing?.capacityOverviewAccess;
+  if (CAPACITY_OVERVIEW_ACCESS_VALUES.includes(storedAccess as never)) copy.capacityOverviewAccess = storedAccess;
+  else delete copy.capacityOverviewAccess;
+}
+
 function sanitizeAccountWrite(
   copy: Record<string, unknown>,
   existing: Record<string, unknown> | undefined,
+  options: SanitizeWriteOptions,
 ): Record<string, unknown> {
   const workingDaysRequested = Object.hasOwn(copy, "workingDays");
   // POLICY: a non-preset colour snaps to its NEAREST palette preset (shared/lib/color's
@@ -63,6 +80,7 @@ function sanitizeAccountWrite(
   // restored onto the copy AFTER sanitisation (see the loop below), so without this a payload
   // omitting it would repair a Sunday-start account's week to the Monday-start default.
   sanitizeAccount(copy, resolveStoredWeekStart(existing));
+  preserveCapacityOverviewAccess(copy, existing, options.canChangeCapacityOverviewAccess);
   // A full PUT from a pre-v31 client cannot express this field. Preserve the stored selection
   // when it was omitted, while still repairing an explicitly malformed direct write above.
   if (!workingDaysRequested && existing?.workingDays !== undefined) {
@@ -124,10 +142,23 @@ function assertScopedWriteFields(
   }
 }
 
+// This is the central preservation/normalisation boundary for every scoped table.
+// eslint-disable-next-line complexity
 function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedWriteInput): Record<string, unknown> {
+  if (table === "resources" && existing) {
+    const validKinds: ReadonlySet<unknown> = new Set(["person", "placeholder", "external"]);
+    if (typeof existing.kind !== "string" || !validKinds.has(existing.kind)) {
+      throw new ValidationError("The stored resource kind is invalid and must be repaired by import.", {
+        code: "resource_kind_immutable",
+      });
+    }
+    if (copy.kind !== existing.kind) {
+      throw new ValidationError("A resource’s kind cannot change after creation.", { code: "resource_kind_immutable" });
+    }
+  }
   // Availability boundaries use an explicit-null clear in full-row PUTs. Capture presence before
   // the import sanitiser drops null/malformed values, otherwise the preservation pass below would
-  // mistake a deliberate clear (or a person→non-person kind change) for an omitted legacy field
+  // mistake a deliberate clear for an omitted legacy field
   // and restore the old person's dates.
   const availabilityRequested =
     table === "resources"
@@ -136,6 +167,19 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
           lastAvailableDate: Object.hasOwn(copy, "lastAvailableDate"),
         }
       : undefined;
+  if (table === "resources" && Object.hasOwn(copy, "avatarUrl") && copy.avatarUrl != null) {
+    const parsed = parseResourceAvatarUrl(copy.avatarUrl);
+    if (!parsed.ok) {
+      throw new ValidationError("Avatar URL must be an HTTPS URL without embedded credentials.", {
+        code: "resource_avatar_url_invalid",
+      });
+    }
+    const resourceKind = typeof copy.kind === "string" ? copy.kind : existing?.kind;
+    if (parsed.value && resourceKind !== "person") {
+      throw new ValidationError("Only a person can have an avatar URL.", { code: "resource_avatar_url_forbidden" });
+    }
+    copy.avatarUrl = parsed.value;
+  }
   assertScopedWriteFields(table, copy, options);
   const cleaned = sanitizeImportedRecord(table, copy);
   // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated
@@ -199,7 +243,7 @@ export function sanitizeWrite({ table, row, existing, options = {} }: SanitizeWr
     );
   }
   if (table === "accounts") {
-    return sanitizeAccountWrite(copy, existing);
+    return sanitizeAccountWrite(copy, existing, options);
   }
   if (isScopedEntityKey(table)) {
     return sanitizeScopedWrite({ table, copy, existing, options });

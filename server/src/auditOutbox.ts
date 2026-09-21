@@ -1,3 +1,4 @@
+import { assertTableColumns } from "./schema/introspection";
 import { randomUUID } from "node:crypto";
 import type { AccountAuditAction, AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import { MASQUERADE_END_REASONS } from "@capacitylens/shared/domain/masquerade";
@@ -19,23 +20,17 @@ CREATE TABLE IF NOT EXISTS capacitylens_audit_outbox (
 `;
 
 export function assertAuditOutboxCurrent(db: Db): void {
-  const columns = (
-    db.prepare(`PRAGMA table_info(capacitylens_audit_outbox)`).all() as Array<{
-      name: string;
-      type: string;
-      notnull: number;
-      pk: number;
-    }>
-  ).map(({ name, type, notnull, pk }) => ({ name, type, notnull, pk }));
-  const expected = [
-    { name: "sequence", type: "INTEGER", notnull: 0, pk: 1 },
-    { name: "id", type: "TEXT", notnull: 1, pk: 0 },
-    { name: "payload", type: "TEXT", notnull: 1, pk: 0 },
-    { name: "createdAt", type: "TEXT", notnull: 1, pk: 0 },
-  ];
-  if (JSON.stringify(columns) !== JSON.stringify(expected)) {
-    throw new Error("Audit outbox schema does not match the current durable-delivery contract.");
-  }
+  assertTableColumns({
+    db,
+    table: "capacitylens_audit_outbox",
+    expected: [
+      { name: "sequence", type: "INTEGER", notnull: 0, pk: 1 },
+      { name: "id", type: "TEXT", notnull: 1, pk: 0 },
+      { name: "payload", type: "TEXT", notnull: 1, pk: 0 },
+      { name: "createdAt", type: "TEXT", notnull: 1, pk: 0 },
+    ],
+    message: "Audit outbox schema does not match the current durable-delivery contract.",
+  });
 }
 
 interface AuditOutboxRow {
@@ -99,11 +94,15 @@ const PRODUCT_ACTION_VALUES = [
   "memberSignInTrackingChange",
   "memberRemove",
   "ownershipTransfer",
+  "ownershipTransferRequest",
   "inviteCreate",
   "inviteAccept",
   "inviteRevoke",
   "passwordResetIssue",
   "sessionsRevoke",
+  "memberResourceLink",
+  "memberResourceChange",
+  "memberResourceUnlink",
 ] as const satisfies readonly AuditRecord["action"][];
 const ACCOUNT_ACTION_VALUES = [
   "workspace.provisioned",
@@ -115,6 +114,15 @@ const ACCOUNT_ACTION_VALUES = [
   "member.status_changed",
   "member.removed",
   "ownership.transferred",
+  "ownership_transfer.initiated",
+  "ownership_transfer.replaced",
+  "ownership_transfer.accepted",
+  "ownership_transfer.withdrawn",
+  "ownership_transfer.declined",
+  "ownership_transfer.cancelled",
+  "ownership_transfer.expired",
+  "ownership_transfer.invalidated",
+  "ownership_transfer.completed",
   "identity.password_reset_issued",
   "identity.owner_recovery_issued",
   "identity.federated_linked",

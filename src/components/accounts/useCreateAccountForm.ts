@@ -9,14 +9,18 @@ import { useFieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { DEFAULT_COLORS } from "../../lib/palette";
 import { readApiError } from "../../lib/readApiError";
-import { listSupportedTimeZones, resolveTimeZoneOptionLabel } from "../../lib/timezones";
+import {
+  LIKELY_TIME_ZONES,
+  listSupportedTimeZones,
+  resolveBrowserTimeZone,
+  resolveTimeZoneOptionLabel,
+} from "../../lib/timezones";
 import { validateName } from "../../lib/validation";
 import { useStore } from "../../store/useStore";
 import type { StoreState } from "../../store/types";
 
 import {
   DEFAULT_LANGUAGE,
-  DEFAULT_TIMEZONE,
   DEFAULT_WEEK_STARTS_ON,
   parseCreatedAccount,
   WEEK_START_OPTIONS,
@@ -29,9 +33,19 @@ interface CreateServerAccountInput {
   refreshAuth: ReturnType<typeof useAuth>["refreshAuth"];
   resetForm: () => void;
   setSubmitting: Dispatch<SetStateAction<boolean>>;
+  setCreateUnresolved: Dispatch<SetStateAction<boolean>>;
   setNotice: StoreState["setNotice"];
   setAccountSummaries: StoreState["setAccountSummaries"];
   fail: ReturnType<typeof useFieldError>["fail"];
+}
+
+async function reconcileUnknownCreate(
+  input: Pick<CreateServerAccountInput, "refreshAuth" | "setCreateUnresolved">,
+): Promise<boolean> {
+  const list = await refreshAccountSummaries({ allowCachedFallback: false });
+  input.setCreateUnresolved(list === null);
+  await input.refreshAuth();
+  return list !== null;
 }
 
 async function createServerAccount({
@@ -41,6 +55,7 @@ async function createServerAccount({
   refreshAuth,
   resetForm,
   setSubmitting,
+  setCreateUnresolved,
   setNotice,
   setAccountSummaries,
   fail,
@@ -53,14 +68,15 @@ async function createServerAccount({
       weekStartsOn,
       timezone,
       language: DEFAULT_LANGUAGE,
+      schedulingMode: "days",
+      inlineActivityCreateEnabled: false,
       internalColourMode: "grey",
     });
     if (!response.ok) {
       if (hasUnknownAccountCommandOutcome(response)) {
-        const list = await refreshAccountSummaries({ allowCachedFallback: false });
-        await refreshAuth();
+        const reconciled = await reconcileUnknownCreate({ refreshAuth, setCreateUnresolved });
         resetForm();
-        setNotice(list !== null ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale(), "warning");
+        setNotice(reconciled ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale(), "warning");
         return;
       }
       fail(null, (await readApiError(response)) ?? m.picker_err_create({ status: response.status }));
@@ -69,8 +85,8 @@ async function createServerAccount({
     const created = parseCreatedAccount(await response.json().catch(() => null));
     if (created === null) {
       resetForm();
-      await refreshAccountSummaries();
-      void refreshAuth();
+      const reconciled = await reconcileUnknownCreate({ refreshAuth, setCreateUnresolved });
+      setNotice(reconciled ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale(), "warning");
       return;
     }
     const summaries = useStore.getState().accountSummaries;
@@ -81,10 +97,9 @@ async function createServerAccount({
     await transitionAccount(created.id);
     void refreshAuth();
   } catch (cause) {
-    const list = await refreshAccountSummaries({ allowCachedFallback: false });
-    await refreshAuth();
+    const reconciled = await reconcileUnknownCreate({ refreshAuth, setCreateUnresolved });
     resetForm();
-    const message = list !== null ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale();
+    const message = reconciled ? m.picker_create_unknown_refreshed() : m.picker_create_unknown_stale();
     setNotice(`${message} ${resolveErrorMessage(cause)}`, "warning");
   } finally {
     setSubmitting(false);
@@ -94,6 +109,7 @@ async function createServerAccount({
 interface CreateAccountSubmitInput extends Omit<CreateServerAccountInput, "trimmedName"> {
   name: string;
   submitting: boolean;
+  createUnresolved: boolean;
   clear: () => void;
   addAccount: StoreState["addAccount"];
   setActiveAccount: StoreState["setActiveAccount"];
@@ -101,7 +117,7 @@ interface CreateAccountSubmitInput extends Omit<CreateServerAccountInput, "trimm
 
 function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
   return () => {
-    if (input.submitting) return;
+    if (input.submitting || input.createUnresolved) return;
     input.clear();
     const trimmedName = validateName(input.name, input.fail);
     if (!trimmedName) return;
@@ -116,6 +132,8 @@ function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
         weekStartsOn: input.weekStartsOn,
         timezone: input.timezone,
         language: DEFAULT_LANGUAGE,
+        schedulingMode: "days",
+        inlineActivityCreateEnabled: false,
         internalColourMode: "grey",
       });
       if (account === null) return;
@@ -128,8 +146,15 @@ function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
 }
 
 function useAccountSelectOptions() {
-  const timeZoneOptions = listSupportedTimeZones();
-  // Locale-sensitive labels are safe to memoize against this module-cached frozen list while the
+  const timeZoneOptions = useMemo(() => {
+    const supported = listSupportedTimeZones();
+    const local = resolveBrowserTimeZone(supported);
+    const prioritized = [local, ...LIKELY_TIME_ZONES].filter(
+      (timeZone, index, values) => supported.includes(timeZone) && values.indexOf(timeZone) === index,
+    );
+    return [...prioritized, ...supported.filter((timeZone) => !prioritized.includes(timeZone))];
+  }, []);
+  // Locale-sensitive labels are safe to memoise against this module-cached frozen list while the
   // app ships one locale and this pre-account form unmounts before account-driven locale changes.
   const timeZoneSelectOptions = useMemo(
     () => timeZoneOptions.map((timeZone) => ({ value: timeZone, label: resolveTimeZoneOptionLabel(timeZone) })),
@@ -151,10 +176,13 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
   // round-trip would otherwise allow (two companies from one form). Demo-mode create is synchronous.
   const [submitting, setSubmitting] = useState(false);
+  // Failed authoritative reconciliation after an indeterminate create blocks another POST.
+  // Reloading reconstructs this hook after the server directory has been checked again.
+  const [createUnresolved, setCreateUnresolved] = useState(false);
   const [name, setName] = useState("");
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON);
-  const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE);
+  const [timezone, setTimezone] = useState<string>(() => resolveBrowserTimeZone());
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const { timeZoneSelectOptions, weekStartSelectOptions } = useAccountSelectOptions();
   const resetForm = () => {
@@ -162,12 +190,13 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
     setCreating(false);
     setName("");
     setWeekStartsOn(DEFAULT_WEEK_STARTS_ON);
-    setTimezone(DEFAULT_TIMEZONE);
+    setTimezone(resolveBrowserTimeZone());
   };
 
   const submit = createAccountSubmit({
     name,
     submitting,
+    createUnresolved,
     clear,
     addAccount,
     setActiveAccount,
@@ -176,6 +205,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
     refreshAuth,
     resetForm,
     setSubmitting,
+    setCreateUnresolved,
     setNotice,
     setAccountSummaries,
     fail,
@@ -186,6 +216,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       creating,
       setCreating,
       submitting,
+      createUnresolved,
       name,
       setName,
       weekStartsOn,

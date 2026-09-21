@@ -1,12 +1,15 @@
 import { expect, request as playwrightRequest, type APIRequestContext } from "@playwright/test";
+import { ports } from "../scripts/ports.mjs";
 
 // Shared plumbing for the auth-backed Playwright specs (*.auth.spec.ts), which all run against the
-// auth-e2e server (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Extracted here so
+// auth-e2e server (SMALLSASS_ACCOUNT_MODE=password on the lane auth API — see playwright.config.ts). Extracted here so
 // the bootstrap token, sign-up payload shape, and Set-Cookie collapse live in ONE place rather than a
 // copy per spec (they were duplicated across members/invite/viewer/login/reset-password).
 
 /** The auth-e2e API origin (the password-auth server the *.auth specs drive). */
-export const AUTH_API = "http://localhost:8887";
+// Lane-derived, exactly as playwright.config.ts derives the port it boots that server on: a literal
+// here would point every auth spec at lane 0 while the server moved.
+export const AUTH_API = `http://localhost:${ports().authApi}`;
 
 /** The password every auth-e2e fixture signs up / signs in with. */
 export const AUTH_PASSWORD = "demo-password-123456";

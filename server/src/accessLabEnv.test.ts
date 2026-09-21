@@ -9,14 +9,11 @@ describe("access lab environment isolation", () => {
         LANG: "en_GB.UTF-8",
         CAPACITYLENS_HOST: "0.0.0.0",
         CAPACITYLENS_ALLOW_RESET: "1",
-        CAPACITYLENS_REQUIRE_MFA: "1",
-        CAPACITYLENS_AUTH: "sso",
+        SMALLSASS_ACCOUNT_REQUIRE_MFA: "1",
+        SMALLSASS_ACCOUNT_MODE: "sso",
         CAPACITYLENS_SEED_DEMO: "1",
         CAPACITYLENS_HTTPS: "1",
         CAPACITYLENS_OIDC_ISSUER: "https://invalid.example",
-        BETTER_AUTH_URL: "https://invalid.example",
-        BETTER_AUTH_SECRET: "inherited-secret",
-        SMALLSASS_ACCOUNT_MODE: "sso",
         SMALLSASS_ACCOUNT_PUBLIC_URL: "https://canonical.invalid.example",
         SMALLSASS_ACCOUNT_SECRET: "canonical-inherited-secret",
         VITE_CAPACITYLENS_DEMO: "1",
@@ -41,7 +38,6 @@ describe("access lab environment isolation", () => {
       VITE_CAPACITYLENS_API: "",
     });
     expect(env.CAPACITYLENS_OIDC_ISSUER).toBeUndefined();
-    expect(env.BETTER_AUTH_SECRET).toBeUndefined();
-    expect(env.SMALLSASS_ACCOUNT_SECRET).not.toBe("canonical-inherited-secret");
+    expect(env.SMALLSASS_ACCOUNT_SECRET).toBe("capacitylens-access-lab-secret-0123456789abcdef");
   });
 });

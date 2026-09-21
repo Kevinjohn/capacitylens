@@ -184,3 +184,84 @@ html:has(.cl-toggle:checked) {
 .vp-doc blockquote {
   font-size: 0.9375rem;
 }
+
+/* The published site has no client-side menu. Keep each track reachable on
+   narrow screens with a native details element that works without JavaScript. */
+.guide-links {
+  display: none;
+  font-size: 0.875rem;
+}
+
+.guide-navigation {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  background: var(--vp-c-bg-soft);
+}
+
+.guide-navigation summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.guide-navigation ul {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.guide-navigation li + li {
+  margin-top: 0.35rem;
+}
+
+.guide-navigation a[aria-current="page"] {
+  color: var(--vp-c-brand-1);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+/* The standalone build does not run VitePress's client-side active-link
+   update. Keep the current page visible in the sidebar with a marker, a soft
+   background and stronger text so the state does not rely on colour alone. */
+.VPSidebarItem .item > .link[aria-current="page"] {
+  position: relative;
+  margin-inline: -6px;
+  padding-inline: 6px;
+  border-radius: 4px;
+  background: var(--vp-c-brand-soft);
+}
+
+.VPSidebarItem .item > .link[aria-current="page"]::before {
+  position: absolute;
+  inset-block: 4px;
+  inset-inline-start: -6px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--vp-c-brand-1);
+  content: "";
+}
+
+.VPSidebarItem .item > .link[aria-current="page"] .text {
+  color: var(--vp-c-brand-1);
+  font-weight: 700;
+}
+
+@media (max-width: 959px) {
+  /* VitePress moves this sidebar off-canvas and expects JavaScript to open it.
+     The shipped site removes that script, so remove the duplicate from the
+     accessibility tree and use the native guide menu above the page instead. */
+  .VPSidebar {
+    display: none !important;
+  }
+
+  .guide-links {
+    display: block;
+    margin-top: 0;
+  }
+
+  .guide-navigation {
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+}

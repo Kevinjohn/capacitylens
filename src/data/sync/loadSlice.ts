@@ -85,7 +85,7 @@ function applyCachedLoadEffects({ state, data, savedAt, myGen, accountId }: Cach
   if (myGen === state.loadGen) setOfflineReadState("tenant", true, savedAt);
 }
 
-// P3.4: every request carries credentials so an auth-enabled server (CAPACITYLENS_AUTH ≠ off)
+// P3.4: every request carries credentials so an auth-enabled server (SMALLSASS_ACCOUNT_MODE ≠ off)
 // sees the Better Auth session cookie. With auth off (the default) and same-origin
 // requests there are no cookies to send — a verified no-op (the db-backed e2e project
 // runs unchanged); the server pairs reflected CORS origins with Allow-Credentials.

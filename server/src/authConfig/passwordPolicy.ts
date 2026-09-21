@@ -121,7 +121,7 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
       "capacitylens-server: TEST credential profile active — scrypt cost is reduced and breached-password screening is disabled; never retain these credentials or expose this process.",
     );
   }
-  const breachCheckEnabled = env.CAPACITYLENS_PASSWORD_BREACH_CHECK !== "off" && !testRuntime;
+  const breachCheckEnabled = env.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK !== "off" && !testRuntime;
   const baseHasher = createScryptPasswordHasher(testRuntime ? 2 ** 10 : undefined);
   const { assertCredentialPasswordLength, assertAuthRequestPasswordLength } = createPasswordLengthAssertions();
   const passwordHash = createPasswordHash({

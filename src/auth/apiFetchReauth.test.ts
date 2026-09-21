@@ -46,6 +46,19 @@ describe("apiFetchReauth", () => {
 });
 
 describe("apiFetchReauth passthrough", () => {
+  it("preserves an explicit no-timeout option", async () => {
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json(200, { ok: true })),
+    );
+
+    await apiFetchReauth("http://api.test/api/accounts/a1", {}, { timeoutMs: null });
+
+    expect(timeout).not.toHaveBeenCalled();
+    timeout.mockRestore();
+  });
+
   it("passes an ordinary 200 straight through and never raises a step-up", async () => {
     const fetchMock = vi.fn(async () => json(200, { ok: true }));
     vi.stubGlobal("fetch", fetchMock);

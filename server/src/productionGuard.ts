@@ -34,15 +34,15 @@ export interface ProductionPostureResult {
 
 interface ProductionEnvironment {
   NODE_ENV?: string;
-  CAPACITYLENS_AUTH?: string;
+  SMALLSASS_ACCOUNT_MODE?: string;
   CAPACITYLENS_HTTPS?: string;
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP?: string;
+  SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP?: string;
   CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION?: string;
   CAPACITYLENS_CREATE_ADMIN_ADMIN?: string;
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD?: string;
-  CAPACITYLENS_REQUIRE_MFA?: string;
-  CAPACITYLENS_SSO_MFA_ENFORCED?: string;
-  CAPACITYLENS_PASSWORD_BREACH_CHECK?: string;
+  SMALLSASS_ACCOUNT_REQUIRE_MFA?: string;
+  SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED?: string;
+  SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK?: string;
   CAPACITYLENS_RATE_LIMIT?: string;
   CAPACITYLENS_AUDIT?: string;
   CAPACITYLENS_AUDIT_STDOUT?: string;
@@ -58,7 +58,7 @@ function inspectAuthentication(
 ): ReturnType<typeof parseAuthMode> | null {
   let mode: ReturnType<typeof parseAuthMode> | null = null;
   try {
-    mode = parseAuthMode(environment.CAPACITYLENS_AUTH);
+    mode = parseAuthMode(environment.SMALLSASS_ACCOUNT_MODE);
   } catch (error) {
     refusals.push(error instanceof Error ? error.message : String(error));
   }
@@ -79,17 +79,17 @@ function inspectAuthenticationHardening(
   mode: ReturnType<typeof parseAuthMode> | null,
   warnings: string[],
 ): void {
-  if (mode === "password" && environment.CAPACITYLENS_REQUIRE_MFA !== "1") {
+  if (mode === "password" && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA !== "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.",
     );
   }
-  if (mode === "sso" && environment.CAPACITYLENS_SSO_MFA_ENFORCED !== "1") {
+  if (mode === "sso" && environment.SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED !== "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.",
     );
   }
-  if (mode === "password" && environment.CAPACITYLENS_PASSWORD_BREACH_CHECK === "off") {
+  if (mode === "password" && environment.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK === "off") {
     warnings.push(
       "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
     );
@@ -151,7 +151,7 @@ function inspectDeploymentPosture(environment: ProductionEnvironment, { warnings
  * reasoning bootGuard's resetForbidden uses).
  *
  * In production it evaluates, in order:
- * - **Refusal — auth off:** `parseAuthMode(env.CAPACITYLENS_AUTH) === 'off'` is the dev/open
+ * - **Refusal — auth off:** `parseAuthMode(env.SMALLSASS_ACCOUNT_MODE) === 'off'` is the dev/open
  *   posture P3.1 retires; it would leave the demo dataset world-readable+writable. This is a
  *   refusal UNLESS the operator has deliberately opted in via
  *   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === '1'`, in which case it is DOWNGRADED to a warning
@@ -162,7 +162,7 @@ function inspectDeploymentPosture(environment: ProductionEnvironment, { warnings
  * - **Warning — optional hardening absent:** MFA, breached-password screening, audit streaming,
  *   encrypted-storage/log-forwarding attestations and internal TLS remain recommended, but a
  *   small self-hosted installation can deliberately operate without external infrastructure.
- * - **Warning — open signup on:** `CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
+ * - **Warning — open signup on:** `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
  *   registration, which should normally stay closed/invite-only in production.
  * - **Refusal — bootstrap password:** the headless bootstrap flags are development-only because
  *   those initial passwords cannot be forced to expire after first use. Production uses the
@@ -200,7 +200,7 @@ export function evaluateProductionPosture(environment: ProductionEnvironment): P
   inspectDeploymentPosture(environment, result);
 
   // Production concerns are evaluated regardless of auth mode by the helper above.
-  if (environment.CAPACITYLENS_ALLOW_OPEN_SIGNUP === "1") {
+  if (environment.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP unless you intend open registration.",
     );

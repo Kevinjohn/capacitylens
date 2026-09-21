@@ -1,6 +1,14 @@
 import { test, expect, type APIRequestContext, type Page } from "./fixtures";
 import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { dismissIntroIfPresent, freezeBrowserDate, goToSeedWeek, setZoom } from "./helpers";
+import {
+  computedStyles,
+  disableCssMotion,
+  waitForAppLanding,
+  freezeBrowserDate,
+  goToSeedWeek,
+  setZoom,
+  showScheduleFilters,
+} from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -35,7 +43,7 @@ async function signInAsEditor(page: Page) {
   await page.getByLabel("Password").fill(AUTH_PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("button", { name: ORG, exact: true }).click();
-  await dismissIntroIfPresent(page, page.getByRole("heading", { name: "Schedule" }));
+  await waitForAppLanding(page, page.getByRole("heading", { name: "Schedule" }));
 }
 
 async function seedClosureAccount(request: APIRequestContext) {
@@ -100,7 +108,7 @@ async function createClosure(page: Page, request: APIRequestContext, accountId: 
   await create.getByRole("button", { name: "Save" }).click();
   const closureRow = page.getByTestId("company-closure-row");
   await expect(closureRow).toContainText("Long weekend");
-  await expect(closureRow).toContainText("Fri 5th Jun – Mon 8th Jun");
+  await expect(closureRow).toContainText("Fri 5th – Mon 8th Jun");
 
   let closureId = "";
   await expect
@@ -122,7 +130,9 @@ async function assertClosureBand(page: Page) {
   await goToSeedWeek(page);
   const band = page.getByTestId("scheduler-closure-band");
   await expect(band).toHaveCount(1);
-  await expect(band).toContainText("Long weekend");
+  // The closure name lives on its own sibling layer, not inside the band: `z-0` on the band makes
+  // a stacking context, so a nested label could never clear the group-header rows (#788).
+  await expect(page.getByTestId("scheduler-closure-label-layer")).toContainText("Long weekend");
   await expect(band).toHaveAttribute("data-start-date", "2026-06-05");
   await expect(band).toHaveAttribute("data-end-date", "2026-06-08");
   const literalSpanWidth = await page.getByTestId("scheduler-day-tier").evaluate((tier) =>
@@ -134,6 +144,28 @@ async function assertClosureBand(page: Page) {
   expect(await band.evaluate((element) => Number.parseFloat((element as HTMLElement).style.width))).toBe(
     literalSpanWidth,
   );
+
+  // #787: closures are time off for everyone, so switching the schedule's draw mode from Work to
+  // Time off must highlight the closure band with the same timeoff-selected treatment as a
+  // personal time-off block (src/index.css `[data-draw-mode="timeoff"] .scheduler-closure-band`),
+  // and switching back to Work must restore the plain hatch. getComputedStyle-based, so it stays
+  // browser-agnostic.
+  await showScheduleFilters(page);
+  await disableCssMotion(page);
+  const workTreatment = await computedStyles(band, ["background-color", "box-shadow"]);
+  await page.getByRole("radio", { name: "Time off", exact: true }).click();
+  await expect(page.getByTestId("scheduler-grid")).toHaveAttribute("data-draw-mode", "timeoff");
+  const timeoffTreatment = await computedStyles(band, ["background-color", "background-image", "box-shadow", "color"]);
+  expect(timeoffTreatment["background-color"]).toBe("rgb(250, 204, 21)");
+  expect(timeoffTreatment["background-color"]).not.toBe(workTreatment["background-color"]);
+  expect(timeoffTreatment["background-image"]).toContain("repeating-linear-gradient");
+  expect(timeoffTreatment["box-shadow"]).toContain("6px 1px");
+
+  await page.getByRole("radio", { name: "Work", exact: true }).click();
+  await expect(page.getByTestId("scheduler-grid")).toHaveAttribute("data-draw-mode", "work");
+  const revertedTreatment = await computedStyles(band, ["background-color", "box-shadow"]);
+  expect(revertedTreatment).toEqual(workTreatment);
+
   const externalRow = page.getByTestId("scheduler-row").filter({ hasText: "Kord Industries" });
   await expect(externalRow).toBeVisible();
   const [bandBox, externalBox] = await Promise.all([band.boundingBox(), externalRow.boundingBox()]);
@@ -161,7 +193,7 @@ async function assertEditedAndDeletedClosure(
   await page.getByRole("link", { name: "Schedule" }).click();
   await setZoom(page, 1);
   await goToSeedWeek(page);
-  await expect(page.getByTestId("scheduler-closure-band")).toContainText("Studio shutdown");
+  await expect(page.getByTestId("scheduler-closure-label-layer")).toContainText("Studio shutdown");
   await expect(page.getByTestId("scheduler-closure-band")).toHaveAttribute("data-end-date", "2026-06-09");
 
   await page.getByRole("link", { name: "Time off" }).click();

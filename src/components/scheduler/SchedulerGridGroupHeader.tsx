@@ -38,7 +38,7 @@ export function SchedulerGridGroupHeader({
       role="row"
       aria-rowindex={rowIndex}
       data-testid="discipline-group"
-      className="flex border-y border-line-soft bg-scheduler-group text-faint"
+      className="relative z-10 flex border-y border-line-soft bg-scheduler-group text-faint"
       style={{ height: density.groupHeaderHeight }}
     >
       <div

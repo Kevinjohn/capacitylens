@@ -19,6 +19,7 @@ import { enqueueAudit } from "../auditOutbox";
 import { createAuditOutboxDrainer } from "../auditOutboxDrainer";
 import type { resolveAppConfig } from "./appConfig";
 import type { AppOptions } from "../app";
+import { createSqliteAccountMemberResourcePort } from "../accounts/sqliteAccountMemberResourcePort";
 
 interface CreateAuditRuntimeInput {
   db: Db;
@@ -107,7 +108,8 @@ function createAccountPorts({ db, config, options, accountAudit, masqueradeSessi
     eraseProductWorkspaceInTx: (workspaceId) => eraseWorkspaceProductDataInTx(db, workspaceId),
     audit: accountAudit,
   });
-  return { accountLock, identityPort, accountAdminPort, accountFlows };
+  const memberResources = createSqliteAccountMemberResourcePort(db, { applicationId: application.applicationId });
+  return { accountLock, identityPort, accountAdminPort, accountFlows, memberResources };
 }
 
 function createAccountRuntime({ db, config, options, accountAudit }: CreateAccountRuntimeInput) {
@@ -155,7 +157,7 @@ function createAccountRuntime({ db, config, options, accountAudit }: CreateAccou
     accountAudit,
     masqueradeSessions: masqueradeSessionLifecycle,
   });
-  const { accountLock, identityPort, accountAdminPort, accountFlows } = accountPorts;
+  const { accountLock, identityPort, accountAdminPort, accountFlows, memberResources } = accountPorts;
   return {
     masquerades,
     prepareMasqueradeUsers,
@@ -164,6 +166,7 @@ function createAccountRuntime({ db, config, options, accountAudit }: CreateAccou
     identityPort,
     accountAdminPort,
     accountFlows,
+    memberResources,
   };
 }
 
@@ -187,17 +190,19 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
     identityPort,
     accountAdminPort,
     accountFlows,
+    memberResources,
   } = accountRuntime;
   // Deep mode prepares the trivial read ONCE, here in the synchronous factory body while
   // the DB is known-open; a later closed/corrupt/locked DB makes get() throw at request
   // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
   // a server whose DB is broken is a lie).
   const healthStmt = options.healthDeep === true ? db.prepare("SELECT 1") : null;
+  const diagnosticsSchemaStatement = db.prepare("PRAGMA user_version");
 
   // The tenant-scoping storage seam: account-keyed reads, validation projections and lifecycle
   // operations enforce the no-cross-tenant contract in one shared-SQLite implementation. Built once
   // here (factory state, like healthStmt) so the same instance backs every request.
-  const store = createSqliteTenantStore(db);
+  const store = createSqliteTenantStore(db, memberResources.removeResourceLink);
 
   const endMasquerade = (record: Readonly<StoredMasqueradeRecord>, reason: MasqueradeEndReason): void => {
     masquerades.end(record.sessionHandle, null, (ending) =>
@@ -216,7 +221,9 @@ export function createAppRuntime(db: Db, config: ReturnType<typeof resolveAppCon
     identityPort,
     accountAdminPort,
     accountFlows,
+    memberResources,
     healthStmt,
+    diagnosticsSchemaStatement,
     audit,
     drainProductAudit,
     commitProductAudit,

@@ -35,9 +35,9 @@ pnpm install
 
 Node 24 remains the default development and deployment runtime. Node 26 coverage is
 experimental: Node 26.8.2 can delay SQLite backup completion until another timer fires.
-The upstream [callback-scope fix](https://github.com/nodejs/node/pull/65666) passes an
-isolated source-build comparison, but acceptance against an official fixed release is
-still pending. Follow [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710)
+Official [Node 26.9.0](https://nodejs.org/en/blog/release/v26.9.0) includes the upstream
+[callback-scope fix](https://github.com/nodejs/node/pull/65666). Project acceptance
+against that release is still pending. Follow [issue #710](https://github.com/Kevinjohn/capacitylens/issues/710)
 for the current decision and the [consolidated discovery record](/reference/node26-discovery)
 for the evidence, corrected findings and remaining acceptance checks. Proposed minimums
 are 24.19.0 and, conditionally, 26.9.0; these are not yet enforced support ranges.
@@ -101,6 +101,39 @@ pnpm run dev:demo   # web :5173, editable in-memory data, resets on reload
 pnpm run dev:access # isolated password-auth role lab: API :8897 + web :5473
 ```
 
+Those are the lane-0 ports — what a single checkout binds. See [Port lanes](#port-lanes) for what
+happens when several checkouts run at once.
+
+### Port lanes {#port-lanes}
+
+Every local server takes its port from a *lane*: an integer from 0 to 9 that one run holds for its
+duration. A port is `base + lane`, so lane 0 is the historical `5173`/`8787`/`4173` and ten
+concurrent worktrees never collide.
+
+`pnpm run dev`, `preview`, `test`, `gate`, `gate:server`, `gate:all`, `e2e` and the documentation servers all
+run through `scripts/with-lane.mjs`, which claims a lane before the command starts and releases it
+after. Configuration files only read the resolved lane, so there is nothing to pass by hand:
+
+```bash
+pnpm run e2e              # claims the lowest free lane, prints which
+CAPACITYLENS_PORT_LANE=4 pnpm run e2e   # pin a lane (CI pins 0)
+```
+
+The claim also reserves a share of the machine's CPUs and passes it to Vitest and Playwright as a
+worker count, so ten concurrent runs divide the cores instead of each assuming it owns them. A run
+that arrives when the pool is empty still gets one worker — nothing queues.
+
+Two deliberate exceptions:
+
+- `pnpm run e2e:oidc` and `pnpm run dev:access` keep fixed ports, because the dex container pins its
+  issuer and callback. They share one lock, so they are single-flight machine-wide and exclude each
+  other; starting one while the other runs fails immediately with that explanation.
+- Documentation screenshots are captured by hand on `:5199`, which no automated run binds.
+
+If a lane's port is still held when a run claims it, the launcher clears the process only when it
+belongs to this worktree. Anything else is reported by pid and the run stops, rather than killing
+another checkout's server.
+
 An empty `VITE_CAPACITYLENS_API` means same-origin server mode. A non-empty value must be
 an absolute HTTP(S) origin with no credentials, path, query or fragment; surrounding
 whitespace and a trailing slash are normalized. Only `VITE_CAPACITYLENS_DEMO=1` selects the
@@ -142,8 +175,8 @@ Never use these fictional credentials on a real installation.
 3. Compare the sidebar role badge, **Team & access**, edit affordances, private names and
    time-off note against the [roles and permissions
    table](/getting-started/roles-and-permissions). Stop the command with Ctrl-C before
-   running auth-backed Playwright; the automated suite deliberately owns different ports
-   and a separate database.
+   running auth-backed Playwright; the access lab is single-flight on fixed ports, outside
+   the lane system, and keeps a separate database.
 
 Useful automated counterparts are:
 
@@ -185,7 +218,9 @@ its state, fields and commands.
 `src/components/scheduler/allocationSubmit.ts` plus `src/lib/repeatingAllocations.ts` when save or
 recurrence behaviour changes.
 
-**Tests:** Start with `src/components/scheduler/AllocationModal.test.tsx` and
+**Tests:** Start with the `src/components/scheduler/AllocationModal.*.test.tsx` suites
+(`AllocationModal.create.test.tsx`, `AllocationModal.edit.test.tsx` and
+`AllocationModal.repeat.test.tsx` for save and recurrence) and
 `src/components/common/compactFormLayouts.test.tsx`; include `e2e/modal-layout.spec.ts`,
 `e2e/allocation-modal-layout.spec.ts` and `e2e/allocation.spec.ts` when their layout or complete
 browser flow is affected.
@@ -217,6 +252,21 @@ separate signals.
 `src/components/scheduler/schedulerModel.test.ts`; check `e2e/holiday-overallocation.spec.ts` when
 visible capacity or over-capacity presentation changes.
 
+#### Overview horizons {#task-capacity-overview}
+
+**Start:** `src/components/capacity-overview/CapacityOverviewView.tsx` connects active scoped data,
+calendar settings and the Overview toolbar controls, including the selected horizon, to the table.
+
+**Follow through:** `capacityOverviewDates.ts` owns the four-, eight- or twelve-week horizon of
+single weeks, the first cut to the remainder of the current week; `capacityOverviewModel.ts` owns eligibility, precise period
+aggregation, display rounding, grouping and filtering. Access policy is shared in
+`shared/src/domain/access.ts`, while `src/auth/capacityOverviewAccess.ts` gates the sidebar and
+direct route.
+
+**Tests:** Start with `src/components/capacity-overview/capacityOverview.test.ts`,
+`CapacityOverviewTable.test.tsx` and `src/auth/capacityOverviewAccess.test.ts`; use
+`e2e/capacity-overview.spec.ts` and `e2e/capacity-overview.auth.spec.ts` for browser coverage.
+
 #### Scheduler gestures and viewport {#task-scheduler-interactions}
 
 **Start:** `src/components/scheduler/SchedulerGrid.tsx` composes the timeline viewport, row model,
@@ -227,7 +277,9 @@ and resizing, `src/components/scheduler/useSchedulerViewport.ts` for scrolling a
 and `src/components/scheduler/useSchedulerGridVirtualization.ts` with
 `src/components/scheduler/virtualWindow.ts` for rendered rows.
 
-**Tests:** Start with `src/components/scheduler/AllocationBar.interaction.test.tsx`,
+**Tests:** Start with the `src/components/scheduler/AllocationBar.*.interaction.test.tsx` suites
+(`AllocationBar.pointerDrag.interaction.test.tsx` for drag and reassignment;
+`AllocationBar.keyboard.interaction.test.tsx` for keyboard and popover),
 `src/components/scheduler/useSchedulerViewport.test.tsx` and
 `src/components/scheduler/virtualWindow.test.ts`; use `e2e/scheduler.spec.ts` and
 `e2e/snap-week.spec.ts` for browser-level gesture and viewport behaviour.
@@ -267,9 +319,10 @@ account switching, refresh and browser lifecycle hooks.
 coordination path. `src/data/ServerSyncAdapter.ts` owns whole-slice loading and ordered,
 transactional batch diffs against the server.
 
-**Tests:** Start with `src/data/persist.test.ts`, `src/data/persist.overlap.test.ts` and
-`src/data/ServerSyncAdapter.test.ts`; use `e2e/persistence.db.spec.ts` and
-`e2e/resilience.db.spec.ts` for database-backed browser boundaries.
+**Tests:** Start with the `src/data/persist.*.test.ts` suites (`persist.attach.test.ts` for writes,
+retries and page lifecycle; `persist.reconciliation.test.ts` for batch conflicts),
+`src/data/persist.overlap.test.ts` and the `src/data/ServerSyncAdapter.*.test.ts` suites; use
+`e2e/persistence.db.spec.ts` and `e2e/resilience.db.spec.ts` for database-backed browser boundaries.
 
 #### Offline snapshots {#task-offline-snapshots}
 
@@ -281,8 +334,9 @@ and read-only account slices.
 `src/data/offline/crypto.ts` plus `src/data/offline/shell.ts` own the device boundary and cached app
 shell. The service worker lives at `public/offline-worker.js`.
 
-**Tests:** Start with `src/data/offlineCache.test.ts` and `src/data/offlineWorker.test.ts`; include
-the offline transport cases in `src/data/ServerSyncAdapter.test.ts` and
+**Tests:** Start with the `src/data/offlineCache.*.test.ts` suites and
+`src/data/offlineWorker.test.ts`; include the offline transport cases in
+`src/data/ServerSyncAdapter.diff.test.ts` and
 `e2e/clear-local-storage.spec.ts` when cleanup or browser storage boundaries change.
 
 Maintain an entry when its starting point or ownership changes. A task brief should link to the
@@ -435,8 +489,7 @@ Inside a module, function verbs, variable names, parameter style and result shap
 Run these before proposing a change:
 
 ```bash
-pnpm run gate
-pnpm run gate:server
+pnpm run gate:all
 pnpm run test:account-conformance
 pnpm run e2e
 pnpm run e2e:oidc
@@ -445,12 +498,21 @@ pnpm run coverage
 pnpm run mutation
 ```
 
+Installing dependencies configures lightweight Git hooks. Each commit lints only staged authored
+JavaScript and TypeScript files, so small commits stay fast. Each push runs the complete repository
+lint to catch configuration and cross-file effects. Set `SKIP_SIMPLE_GIT_HOOKS=1` for a single Git
+operation only when diagnosing a hook problem; pull-request checks remain authoritative.
+
 ### What `gate` checks
 
 `gate` compiles translations, type-checks, lints with zero warnings, runs Vitest with
 enforced coverage floors, rejects any new measured executable module with zero covered
 lines, and builds the SPA. A short exact-file allow-list records existing zero-coverage
 debt; broad patterns are forbidden so unrelated new files can't inherit an exception.
+
+Run `gate:all` for the combined app and server gate. It executes the checks shared by `gate`
+and `gate:server` once, then runs the app-only and server-only checks in their established
+order. The separate commands remain available when only one workspace needs validation.
 
 Lint also holds the typed packages to the mechanical rules of the code conventions page:
 identifier casing, no negated boolean names, and at most three parameters. Existing violations
@@ -465,6 +527,12 @@ the named capabilities. Browser and Node runtime globals and Node imports are re
 Both gates check the production compiler graph, including dynamically imported declarations, for
 Node types and accidental test imports. Colocated tests use `shared/tsconfig.test.json` with Node
 types and typed promise linting. `pnpm --filter @capacitylens/shared type-check` checks both projects.
+The root `tsconfig.json` references the shared production and test projects, the browser
+application, the end-to-end project, and Node tooling, each with its own compiler environment.
+`pnpm run typecheck` compiles messages and then runs the complete solution with `tsc -b`. It does
+not cover the server workspace, which `pnpm run gate:server` type-checks separately. The root
+`tsconfig.json` has no inputs of its own, so `pnpm run typecheck` is the command to reach for rather
+than `tsc` at the repository root.
 
 Both gates verify the effective lint configuration against the authored source inventory and
 representative new files. The JavaScript and TypeScript recommended rules cover scripts and
@@ -497,8 +565,10 @@ The enforced coverage floors:
 The build also enforces a raw and gzip byte budget on the main JavaScript entry chunk;
 route-level lazy chunks stay separate so authentication and settings code don't inflate
 first load unnoticed. The checked constants live beside the checker in
-`scripts/check-bundle-budget.mjs` — treat that file, not this page, as the authoritative
-size limit. The checker requires exactly one JavaScript module entry in the built HTML and
+`scripts/bundle-budget.mjs` — treat that file, not this page, as the authoritative size
+limit. Vite's generic uncompressed chunk warning shares that raw boundary, while the
+post-build checker additionally enforces the gzip boundary. The checker requires exactly
+one JavaScript module entry in the built HTML and
 refuses to guess if another entry appears; attribute order and quoting don't affect
 discovery.
 
@@ -591,14 +661,14 @@ rollback and recovery behavior. See [Database migrations](#database-migrations) 
 how to run it against a real installation copy.
 
 Run `pnpm run policy:file-sizes` to check file lengths. The checker,
-`scripts/check-file-sizes.mjs`, scans tracked production TS/TSX files under `src`,
-`server/src` and `shared/src`. It excludes tests, `.d.ts` files, `src/paraglide` and
-`e2e` directories.
+`scripts/check-file-sizes.mjs`, scans tracked production and `.test.`/`.spec.` TS/TSX files
+under `src`, `server/src` and `shared/src`. It excludes `.d.ts` files, `src/paraglide`,
+`node_modules` and `e2e` directories.
 
-The 400-line ceiling comes from `scripts/file-size-exceptions.json`. That file carries
-one permanent exception for the source-owned sidebar primitive and no temporary exceptions.
-A successful run prints `File-size check passed` with the source-file count, ceiling and
-temporary-exception count.
+The production ceiling is 400 lines and the test-file ceiling is 800 lines; both come from
+`scripts/file-size-exceptions.json`. That file carries permanent design exceptions and
+temporary ratchet baselines. A successful run prints `File-size check passed` with the
+source-file count, both ceilings and temporary-exception count.
 
 The checker also prints an unenforced `approximately N lines` diagnostic for long
 top-level functions. These approximate lengths help identify functions to review;
@@ -730,9 +800,11 @@ thread-pool reuse or a larger outer timeout.
 
 ### When CI runs
 
-CodeQL analyzes every pull request targeting `main`. The other workflows run when the merge
-reaches `main`, plus their own weekly or monthly schedules. To see those gates green before
-merging, dispatch them against the branch:
+Static analysis and CodeQL analyze every pull request targeting `main`. The focused static-analysis
+workflow checks whole-repository formatting first, then compiles translations, type-checks the shared
+and application projects, and lints all authored sources. The heavier workflows run when the merge
+reaches `main`, plus their own weekly or monthly schedules. To see those gates green before merging,
+dispatch them against the branch:
 
 ```bash
 gh workflow run gate.yml --ref <branch>
@@ -740,19 +812,22 @@ gh workflow run e2e.yml --ref <branch>
 ```
 
 Opening a pull request and pushing to its branch previously fired `gate`, `e2e`, `docker` and
-`security` on every event — several full passes per change. CodeQL remains the deliberately
-smaller exception so static analysis covers every proposed commit. The local
-`pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e` are the fast feedback loop; CI
-is the record.
+`security` on every event — several full passes per change. Focused format/lint/type-check and
+CodeQL jobs now cover every proposed commit without repeating the full suites. Staged-file lint on
+commit, whole-repository lint on push and whole-repository formatting on pull requests provide
+early feedback; `pnpm run gate:all` and `pnpm run e2e` remain the complete local checks, and CI is
+the record.
 
 Two jobs used to depend on pull-request context and now read the pushed commit range
 (`github.event.before`..`github.sha`) instead: DCO sign-off and dependency review. Both
-skip when that range doesn't exist — branch creation and force pushes. Because a squash
-merge lands a single commit, its `Signed-off-by` trailer has to survive into the squash
-body:
+skip when that range doesn't exist — branch creation and force pushes. Feature commits
+carry their own `Signed-off-by` trailers. Creating a pull request means publishing it on GitHub and
+leaving it open for review; it never implies permission to merge. After the maintainer explicitly
+authorises the merge of that specific pull request, use a normal merge commit and delete the remote
+feature branch:
 
 ```bash
-gh pr merge <number> --squash --delete-branch --body "$(git log -1 --format=%b)"
+gh pr merge <number> --merge --delete-branch
 ```
 
 ### CI jobs
@@ -784,12 +859,9 @@ working as intended. See `docs-src/security/security-review-2026-07-14.md` for a
 scope and residual controls.
 
 `main` is protected against deletion and force pushes, and changes must arrive through a pull
-request. The rule deliberately requires neither an approval nor a status check while the project
-has one active maintainer and workflows report after merge rather than on pull requests. A red
-`main` is found by looking at the run the merge produced, or at the badges in the README. If status
-checks are added later, remember that they are matched by display name and no workflow currently
-reports on a pull request — a required check that never runs leaves every pull request permanently
-unmergeable.
+request. The `Lint and type-check` status is required before merge; no approving review is required
+while the project has one active maintainer. The heavier post-merge workflows still report complete
+suite results on `main`.
 
 The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`;
 uploads are deliberately skipped until that secret exists. Uploads are best-effort because
@@ -798,7 +870,10 @@ Codecov availability. Scorecard needs `publish_results: true` and its OIDC permi
 which are configured in `.github/workflows/scorecard.yml`.
 
 Dependabot's monthly npm, GitHub Actions and Docker updates stay enabled; pnpm is updated
-from `/` because the root workspace owns the shared lockfile.
+from `/` because the root workspace owns the shared lockfile. Because its pull-request bodies
+quote registry metadata and a base-image digest carries none, `.github/workflows/dependabot-summary.yml`
+comments a plain-English summary of each update on the pull request. The comment is advisory and
+gates nothing.
 
 ## Database migrations
 

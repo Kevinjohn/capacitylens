@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 // Mock the Better Auth client so the forms can submit without a real server. signIn.email /
 // signUp.email return the library's FAILURE shape ({ error }) so each form sets its inline error
@@ -26,6 +27,7 @@ vi.mock("./authClient", () => ({
 
 import { LoginScreen } from "./LoginScreen";
 import { m } from "@/i18n";
+import { normalizeSetupToken } from "./useOwnerSetup";
 
 beforeEach(() => {
   window.history.replaceState({}, "", "/");
@@ -75,7 +77,7 @@ async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, ex
   await waitFor(() => expect(window.location.search).toBe(""));
 }
 
-async function suppliesMarkedFailureReturnToNamedSocialProvider() {
+async function keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider() {
   signInSocial.mockResolvedValue({ data: {}, error: null });
   window.history.replaceState({}, "", "/invite/token?source=mail");
   render(
@@ -86,7 +88,7 @@ async function suppliesMarkedFailureReturnToNamedSocialProvider() {
     />,
   );
 
-  fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+  fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
   await waitFor(() =>
     expect(signInSocial).toHaveBeenCalledWith({
@@ -95,10 +97,9 @@ async function suppliesMarkedFailureReturnToNamedSocialProvider() {
       errorCallbackURL: "http://localhost:3000/invite/token?source=mail&externalSignInError=1",
     }),
   );
-  expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Single sign-on was not completed. Try again or contact your administrator.",
-  );
+  expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeDisabled();
 }
 
 describe("LoginScreen — external callback failures", () => {
@@ -117,7 +118,132 @@ describe("LoginScreen — external callback failures", () => {
     mapsApplicationOwnedCallbackCodeToActionableCopy,
   );
 
-  it("supplies a marked failure return to a named social provider", suppliesMarkedFailureReturnToNamedSocialProvider);
+  it(
+    "keeps the provider redirect pending after dispatching a named social provider",
+    keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider,
+  );
+});
+
+describe("LoginScreen — mixed-mode Google hierarchy", () => {
+  const google = { id: "google", label: "Google", kind: "social", experimental: true } as const;
+  const companySso = { id: "sso", label: "Company SSO", kind: "oidc", experimental: false } as const;
+
+  it("puts Google before the password fallback with explicit wording", () => {
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    const email = screen.getByLabelText("Email");
+    const password = screen.getByLabelText("Password");
+    const signIn = screen.getByRole("button", { name: "Sign in" });
+
+    expect(googleButton.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(email.compareDocumentPosition(password) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(password.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(googleButton).toHaveClass("mt-5", "mb-4");
+    expect(screen.getByText("or use your password").parentElement).toHaveClass("my-4");
+  });
+  it("starts keyboard focus on Google, then reaches the password email field", async () => {
+    const user = userEvent.setup();
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    const email = screen.getByLabelText("Email");
+    expect(email).not.toHaveFocus();
+
+    await user.tab();
+    expect(googleButton).toHaveFocus();
+    await user.tab();
+    expect(email).toHaveFocus();
+  });
+
+  it("keeps password email autofocus when Google is not configured", () => {
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+
+    expect(screen.getByLabelText("Email")).toHaveFocus();
+  });
+
+  it("keeps the owner name autofocus during first-owner setup", () => {
+    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+
+    expect(screen.getByLabelText("Your name")).toHaveFocus();
+  });
+
+  it("lets the fallback separator rails share the remaining row width", () => {
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    const rails = screen.getAllByRole("none").filter((element) => element.getAttribute("data-slot") === "separator");
+    expect(rails).toHaveLength(2);
+    for (const rail of rails) {
+      expect(rail).toHaveClass("min-w-0", "flex-1", "shrink", "data-[orientation=horizontal]:w-auto");
+    }
+  });
+
+  it("keeps other configured providers after the password fallback", () => {
+    render(<LoginScreen authMode="password" providers={[google, companySso]} onSignedIn={vi.fn()} />);
+
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    const signIn = screen.getByRole("button", { name: "Sign in" });
+    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+
+    expect(googleButton.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(signIn.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("does not promote providers in SSO-only mode", () => {
+    render(<LoginScreen authMode="sso" providers={[google]} onSignedIn={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("keeps password-first behavior when Google is not configured", () => {
+    render(<LoginScreen authMode="password" providers={[companySso]} onSignedIn={vi.fn()} />);
+
+    const email = screen.getByLabelText("Email");
+    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+    expect(email.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("keeps first-owner setup ahead of the promoted provider", () => {
+    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+
+    const name = screen.getByLabelText("Your name");
+    const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
+    expect(name.compareDocumentPosition(googleButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("hides the promoted action and fallback while password MFA is pending", async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    const code = await screen.findByLabelText("Authentication code");
+    expect(code).toBeInTheDocument();
+    expect(code).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
+    expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
+  });
+
+  it("keeps password errors associated with both controls after Google promotion", async () => {
+    signInEmail.mockResolvedValue({ error: { message: "Invalid email or password." } });
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
+    fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+
+    const alert = await screen.findByRole("alert");
+    const errorId = alert.getAttribute("id");
+    expect(errorId).toBeTruthy();
+    expect(screen.getByLabelText("Email")).toHaveAttribute("aria-describedby", errorId);
+    expect(screen.getByLabelText("Password")).toHaveAttribute("aria-describedby", errorId);
+  });
 });
 
 async function enterTotpChallenge(onSignedIn = vi.fn()) {
@@ -292,20 +418,29 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
 // First-run owner setup: needsSetup (server-reported: password mode + zero users) swaps the
 // sign-in form for a create-the-owner-account form; success proceeds exactly like a sign-in.
 function fillOwnerSetup({ name = "Owner", password = "a-strong-password" }: { name?: string; password?: string } = {}) {
-  fireEvent.change(screen.getByLabelText("Name"), { target: { value: name } });
-  fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
-  fireEvent.change(screen.getByLabelText("Password"), { target: { value: password } });
+  fireEvent.change(screen.getByLabelText("Your name"), { target: { value: name } });
+  fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+  fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: password } });
 }
 
 function registerOwnerSetupDisplayTests() {
   it("renders the owner-setup form instead of sign-in when needsSetup", () => {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
-    expect(screen.getByRole("heading", { name: "Create the owner account" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
-    expect(screen.getByLabelText("Setup token")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Set up the first Owner" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Create your personal sign-in for this new installation. You’ll become its first Owner, then create the first company.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Your name")).toBeInTheDocument();
+    expect(screen.getByLabelText("Work email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Create a password")).toHaveAccessibleDescription("Use 15–128 characters.");
+    expect(screen.getByLabelText("Owner setup token")).toHaveAttribute("placeholder", "Paste the setup token");
+    expect(screen.getByLabelText("Owner setup token")).toHaveAccessibleDescription(
+      "Paste the one-time value supplied during installation (SMALLSASS_ACCOUNT_SETUP_TOKEN). It authorises first-owner setup for this installation; it does not create the company.",
+    );
+    expect(screen.queryByText(/server has no users/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
     // The ordinary sign-in affordances are replaced, not stacked.
     expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
   });
@@ -320,14 +455,30 @@ function registerOwnerSetupDisplayTests() {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renders the ordinary sign-in form when needsSetup is absent (fail-closed default)", () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(
+      <LoginScreen
+        authMode="password"
+        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: false }]}
+        onSignedIn={vi.fn()}
+      />,
+    );
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
+      ),
+    ).not.toBeInTheDocument();
   });
 }
 
@@ -336,11 +487,13 @@ function registerOwnerSetupSubmissionTests() {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
-    fireEvent.change(screen.getByLabelText("Setup token"), { target: { value: "operator-secret" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
+    fireEvent.change(screen.getByLabelText("Owner setup token"), {
+      target: { value: "operator-secret" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
     await waitFor(() => expect(onSignedIn).toHaveBeenCalled());
     expect(signUpEmail).toHaveBeenCalledWith({
       email: "owner@x.test",
@@ -354,7 +507,7 @@ function registerOwnerSetupSubmissionTests() {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup({ name: "   " });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.identity_err_name());
     expect(signUpEmail).not.toHaveBeenCalled();
@@ -364,24 +517,95 @@ function registerOwnerSetupSubmissionTests() {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup({ password: "short" });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.identity_err_password({ min: 15, max: 128 }));
     expect(signUpEmail).not.toHaveBeenCalled();
   });
 }
 
-function registerOwnerSetupErrorTests() {
-  it("surfaces a network error and clears busy when owner signup throws", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    signUpEmail.mockRejectedValue(new TypeError("offline"));
+function registerOwnerSetupTokenTests() {
+  it("trims setup-token edge whitespace before constructing the request", async () => {
+    signUpEmail.mockResolvedValue({ data: {}, error: null });
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
+    fireEvent.change(screen.getByLabelText("Owner setup token"), {
+      target: { value: "  operator-secret  " },
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
+
+    await waitFor(() => expect(signUpEmail).toHaveBeenCalled());
+    expect(signUpEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ fetchOptions: { headers: { "x-capacitylens-setup-token": "operator-secret" } } }),
+    );
+  });
+
+  it.each([
+    ["a zero-width space", "\u200b"],
+    ["a word joiner", "\u2060"],
+    ["a non-Latin-1 character", "🙂"],
+    ["a control character", "\u0000"],
+  ])("rejects %s before constructing the request", async (_description, suffix) => {
+    const onSignedIn = vi.fn();
+    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    fillOwnerSetup();
+    const token = `operator-secret${suffix}`;
+    fireEvent.change(screen.getByLabelText("Owner setup token"), { target: { value: token } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(m.login_setup_token_invalid());
+    expect(signUpEmail).not.toHaveBeenCalled();
+    expect(onSignedIn).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Owner setup token")).toHaveValue(token);
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
+  });
+
+  it("trims Unicode edge whitespace from a pasted setup token", async () => {
+    signUpEmail.mockResolvedValue({ data: {}, error: null });
+    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    fillOwnerSetup();
+    fireEvent.change(screen.getByLabelText("Owner setup token"), {
+      target: { value: "\uFEFF operator-secret\u00A0" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
+
+    await waitFor(() => expect(signUpEmail).toHaveBeenCalled());
+    expect(signUpEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ fetchOptions: { headers: { "x-capacitylens-setup-token": "operator-secret" } } }),
+    );
+  });
+
+  it.each([
+    ["an embedded line feed", "operator-\n-secret"],
+    ["an embedded carriage return", "operator-\r-secret"],
+  ])("rejects %s in the token normalizer", (_description, token) => {
+    expect(normalizeSetupToken(token)).toBeNull();
+  });
+}
+
+function registerOwnerSetupErrorTests() {
+  it("surfaces a network error and clears busy when owner signup throws", async () => {
+    const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const token = "operator-secret-that-must-not-be-logged";
+    signUpEmail.mockRejectedValue(new TypeError(`offline while sending ${token}`));
+    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    fillOwnerSetup();
+    fireEvent.change(screen.getByLabelText("Owner setup token"), { target: { value: token } });
+
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
+    expect(logError).toHaveBeenCalledWith("LoginScreen: owner-setup sign-up request failed");
+    const loggedValues = vi
+      .mocked(logError)
+      .mock.calls.flat()
+      .map((value) => String(value))
+      .join("\n");
+    expect(loggedValues).not.toContain(token);
   });
 
   it("uses the setup fallback when owner signup fails without a message", async () => {
@@ -389,10 +613,10 @@ function registerOwnerSetupErrorTests() {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
 
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_setup_failed());
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
   });
 }
 
@@ -403,10 +627,10 @@ function registerOwnerSetupValidationTests() {
     // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a​🙂@example.com" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "a​🙂@example.com" } });
+    fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(m.identity_err_email());
     expect(signUpEmail).not.toHaveBeenCalled();
@@ -417,22 +641,22 @@ function registerOwnerSetupValidationTests() {
     signUpEmail.mockResolvedValue({ error: { message: "Password too short" } });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Password too short");
     expect(onSignedIn).not.toHaveBeenCalled();
     const errorId = alert.getAttribute("id");
     await waitFor(() => {
-      expect(screen.getByLabelText("Name")).toHaveAttribute("aria-describedby", errorId);
-      expect(screen.getByLabelText("Email")).toHaveAttribute("aria-describedby", errorId);
-      expect(screen.getByLabelText("Password")).toHaveAttribute("aria-describedby", errorId);
-      expect(screen.getByLabelText("Setup token")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("Your name")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("Work email")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("Create a password").getAttribute("aria-describedby")).toContain(errorId);
+      expect(screen.getByLabelText("Owner setup token").getAttribute("aria-describedby")).toContain(errorId);
     });
     // The button recovers (busy reset) so the user can retry after fixing the input.
-    expect(screen.getByRole("button", { name: "Create owner account" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeEnabled();
   });
 }
 
@@ -445,24 +669,28 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
     });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "owner@x.test" } });
-    fireEvent.change(screen.getByLabelText("Password"), { target: { value: "a-strong-password" } });
-    fireEvent.click(screen.getByRole("button", { name: "Create owner account" }));
+    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
     // The dead end is fixed: the screen switches to the ordinary sign-in form...
     const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("Someone has already set this workspace up — sign in below.");
+    expect(alert).toHaveTextContent(
+      "First-owner setup for this installation is already complete — use the ordinary sign-in form below.",
+    );
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     });
     // ...the create-owner fields are gone, replaced by the sign-in ones...
-    expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
     // ...and the explanatory message is still visible so the user understands why.
-    expect(screen.getByRole("alert")).toHaveTextContent("Someone has already set this workspace up — sign in below.");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "First-owner setup for this installation is already complete — use the ordinary sign-in form below.",
+    );
     expect(onSignedIn).not.toHaveBeenCalled();
   });
 }
@@ -470,6 +698,7 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
 describe("LoginScreen — first-run owner setup (needsSetup)", () => {
   registerOwnerSetupDisplayTests();
   registerOwnerSetupSubmissionTests();
+  registerOwnerSetupTokenTests();
   registerOwnerSetupErrorTests();
   registerOwnerSetupValidationTests();
   registerOwnerSetupAccessibilityAndRaceTests();
@@ -477,6 +706,7 @@ describe("LoginScreen — first-run owner setup (needsSetup)", () => {
 
 describe("LoginScreen — provider failures", () => {
   const provider = { id: "google", label: "Google", kind: "social", experimental: true } as const;
+  type ProviderResponse = { data: Record<string, never>; error: null };
 
   it.each([
     [{ message: "Provider refused the request." }, "Provider refused the request."],
@@ -485,10 +715,48 @@ describe("LoginScreen — provider failures", () => {
     signInSocial.mockResolvedValue({ data: null, error });
     render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(expected);
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
+  });
+
+  it.each(["password", "sso"] as const)(
+    "announces a successful provider redirect instead of showing a failure in %s mode",
+    async (authMode) => {
+      let resolveProvider!: (value: ProviderResponse) => void;
+      const providerResponse = new Promise<ProviderResponse>((resolve) => (resolveProvider = resolve));
+      signInSocial.mockReturnValue(providerResponse);
+      render(<LoginScreen authMode={authMode} providers={[provider]} onSignedIn={vi.fn()} />);
+      const button = screen.getByRole("button", { name: "Sign in with Google" });
+      fireEvent.click(button);
+
+      expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(button).toBeDisabled();
+      resolveProvider({ data: {}, error: null });
+      await providerResponse;
+      await waitFor(() => {
+        expect(screen.getByRole("status")).toHaveTextContent("Redirecting to Google…");
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        expect(button).toBeDisabled();
+      });
+    },
+  );
+
+  it("clears a prior provider error before announcing the redirect", async () => {
+    signInSocial.mockResolvedValueOnce({ data: null, error: { message: "Provider refused the request." } });
+    signInSocial.mockResolvedValueOnce({ data: {}, error: null });
+    render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
+
+    const button = screen.getByRole("button", { name: "Sign in with Google" });
+    fireEvent.click(button);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Provider refused the request.");
+    expect(button).toBeEnabled();
+
+    fireEvent.click(button);
+    expect(await screen.findByRole("status")).toHaveTextContent("Redirecting to Google…");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("surfaces a network error and clears busy when provider sign-in throws", async () => {
@@ -496,10 +764,10 @@ describe("LoginScreen — provider failures", () => {
     signInSocial.mockRejectedValue(new TypeError("offline"));
     render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+    fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent(m.login_network_error());
-    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
   });
 });
 

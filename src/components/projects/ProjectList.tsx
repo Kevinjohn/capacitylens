@@ -3,7 +3,6 @@ import { useEntityListState } from "../../hooks/useEntityListState";
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from "../common/ui";
 import { ProjectForm } from "./ProjectForm";
 import type { AppData, Client, ID, InternalColourMode, Project } from "@capacitylens/shared/types/entities";
-import { archiveImpact } from "@capacitylens/shared/domain/lifecycle";
 import { useLifecycleActions } from "../../hooks/useLifecycleActions";
 import { m } from "@/i18n";
 import { nameForQuotedContext } from "@capacitylens/shared/domain/privateNames";
@@ -13,16 +12,19 @@ import { resolveInternalColourMode } from "../../store/selectors";
 import { Fragment, useMemo } from "react";
 import { Folder, Plus } from "lucide-react";
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from "../ui/item";
-import { buildProjectArchiveImpactCopy } from "../../lib/archiveImpactCopy";
+import { buildProjectArchiveImpactCopy, safeArchiveImpact } from "../../lib/archiveImpactCopy";
 import { createClientProjectDisplayNameComparator } from "../../lib/displayOrder";
 import { ArchivedEntitySection } from "../common/ArchivedEntitySection";
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
- *  when the project has active allocations that archiving would pull out of the schedule. */
+ *  when the project has active allocations that archiving would pull out of the schedule. Uses
+ *  safeArchiveImpact (not archiveImpact directly) so a project that stopped being active between
+ *  dialog-open and render renders the base message instead of throwing during render. */
 function buildProjectArchiveMessage(data: AppData, project: Project): string {
   const name = project.isPrivate === true ? nameForQuotedContext(project.name) : project.name;
   const base = m.list_projects_archive_message({ name });
-  const impact = archiveImpact(data, "projects", project.id);
+  const impact = safeArchiveImpact(data, "projects", project.id);
+  if (!impact) return base;
   return impact.phases + impact.allocations > 0 ? `${base} ${buildProjectArchiveImpactCopy(impact)}` : base;
 }
 

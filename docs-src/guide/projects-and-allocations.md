@@ -12,6 +12,9 @@ as bars on [the schedule](/guide/the-schedule).
 
 ## Choose where an activity can be used
 
+On **Activities**, each empty category explains where its activities can be used. Select
+**Add activity** beside the page heading to create one.
+
 Before you create an allocation, decide whether its activity is for internal work,
 reusable across projects or unique to one project:
 
@@ -33,12 +36,12 @@ When you create an allocation, choose its context from **Project** first:
 - Choose a real project to use either a shared **All projects** activity or one of that
   project's **Project-specific** activities.
 
-![The allocation Project picker with Internal and No specific project before the available client projects](../screenshots/flows/allocation_project_scopes.jpg)
+![The allocation Project picker with Internal and No specific project before the available client projects](../screenshots/flows/allocation_project_scopes.png)
 
 After you choose a real project, the **Activity** picker separates reusable **All projects**
 activities from the activities in that project's **Project-specific** group.
 
-![The allocation Activity picker for Project Watchtower with separate All projects and Project-specific groups](../screenshots/flows/allocation_activity_scopes.jpg)
+![The allocation Activity picker with separate All projects and Project-specific groups](../screenshots/flows/allocation_activity_scopes.png)
 
 ## Clients and projects
 
@@ -61,14 +64,14 @@ renamed or deleted, and its colour on the schedule is controlled from
 [Settings](/guide/settings).
 
 If a client or project name shouldn't be visible to most of the team — an
-unannounced prospect, for example — turn on its "use a code name" option when you
-create or edit it. Everyone below Owner sees a generic code name instead of the real
-one; only the Owner sees both. See [Roles and permissions](/getting-started/roles-and-permissions)
+unannounced prospect, for example — turn on **Use code name** when you create or edit
+it. The explanation below **Code name** confirms that everyone below Owner sees the
+code name instead of the real one; only the Owner sees both. See [Roles and permissions](/getting-started/roles-and-permissions)
 for what each role can see.
 
-![The Add client form with the privacy explanation aligned beside the Use a code name switch](../screenshots/flows/client_private_name.jpg)
+![The Add client form with the privacy explanation below the Code name input](../screenshots/flows/client_private_name.jpg)
 
-![The Add project form with the same privacy explanation aligned beside its Use a code name switch](../screenshots/flows/project_private_name.jpg)
+![The Add project form with the same privacy explanation below its Code name input](../screenshots/flows/project_private_name.jpg)
 
 ### Activities
 
@@ -80,7 +83,7 @@ it comes in three kinds:
   against any project, like general account management.
 - **Project-specific** — belongs to one project.
 
-![The Add activity form with equal-width Internal, All projects and Project-specific choices](../screenshots/flows/activity_form.jpg)
+![The Add activity form with Internal, All projects and Project-specific choices](../screenshots/flows/activity_form.png)
 
 Internal and All-projects activities are alphabetical. Project-specific activities are
 grouped in client, project and then activity order, with each client and project name
@@ -96,7 +99,7 @@ There are two ways to book a person's time on the schedule:
    with the visible week.
 2. Draw it directly: click and drag across the days you want on that person's row.
 
-![The New allocation form for Clark Kent with the Hours per day select showing Half day (4h), Weekly repeat details and the remaining controls aligned beneath](../screenshots/flows/allocation-form.jpg)
+![The New allocation form with Hours / day set to 8 h - full day, Weekly repeat details and the remaining controls aligned beneath](../screenshots/flows/allocation_form.png)
 
 Either way, choose **Internal**, **No specific project**, or a real project. Internal
 shows only internal activities. No specific project shows only
@@ -105,8 +108,8 @@ unattributed. Real projects follow after a divider in client-and-project order. 
 activity picker shows the shared **All projects** group first, followed by that project's
 **Project-specific** group. Each group is alphabetical.
 
-Choosing an All-projects activity under a real project makes that booking count towards
-the project. The schedule uses the chosen project for the bar's client and project label,
+Choosing an All-projects activity under an active project whose client is also active makes that
+booking count towards the project. The schedule uses the chosen project for the bar's client and project label,
 colour and filters. The activity itself remains shared, so another booking can count
 towards a different project. When you edit the booking, choosing **No specific project**
 clears that attribution. Existing unattributed bookings stay unattributed until you make
@@ -128,7 +131,7 @@ stores a different number of hours, the closed select keeps showing that exact v
 is not rounded; choosing one of the four options is an explicit change.
 
 Leave **Ignore working days** unchecked to follow the person's effective working week — the days
-in both the company's [global working days](/guide/settings#global-working-days) and their own
+in both the company's [company-wide working days](/guide/settings#company-wide-working-days) and their own
 pattern. Check it when the allocation must use every calendar day in its date span, including
 company and personal non-working weekdays. Either way, a new allocation must start on an effective
 working day that isn't covered by the person's time off — the checkbox never changes where a new
@@ -138,7 +141,7 @@ date range, the placement must also stay within that inclusive range. **Ignore w
 not bypass those date boundaries. Existing bookings that become outside the range stay visible, and
 metadata edits remain possible; only a new or placement-changing date/assignee edit is blocked.
 
-![The New allocation form showing a rejected Saturday start date and the message that new allocations must begin on a company and personal working day](../screenshots/flows/allocation_non_working_day_rejected.jpg)
+![The New allocation form showing a rejected non-working-day start date and the message that new allocations must begin on a company and personal working day](../screenshots/flows/allocation_non_working_day_rejected.png)
 
 External-party allocations already use literal calendar spans, so they do not show this checkbox.
 On a regular-width screen, the form keeps its labels in a narrow left column and aligns the controls
@@ -164,6 +167,11 @@ project attribution.
   availability date range, the drop is rejected and the original allocation stays put. An allocation
   with **Ignore working days** enabled may use recurring non-working dates literally, but it still
   cannot cross the person's availability boundaries.
+- **Reassigning** keeps a booking's length, not the calendar dates it was drawn over. Two days of
+  work run Thursday to the following Tuesday for someone who works neither Fridays nor Mondays.
+  Give it to a Monday-to-Friday colleague and it becomes Thursday and Friday. It stretches back out
+  on the return trip. The bar shows the length you will get while you drag, and does not move at all
+  when the drop will be refused.
 - **Resize** a bar from either edge to change its start or end date. A new placement outside the
   assignee's inclusive availability range is rejected atomically.
 - **Open** a bar to change its status between tentative, confirmed and completed, or
@@ -176,7 +184,7 @@ project brings those bookings back with their attribution intact. Permanently de
 the project removes its project-specific work, but a shared All-projects booking remains
 and becomes unattributed.
 
-![The Edit allocation form for an existing bar, with its assignee, project, activity, dates and status aligned in label and control columns](../screenshots/flows/allocation-open.jpg)
+![The Edit allocation form for an existing bar, with its assignee, project, activity, dates and status aligned in label and control columns](../screenshots/flows/allocation_open.png)
 
 ## How allocation granularity works
 
@@ -184,11 +192,14 @@ An allocation is a date range plus how much of the day it takes — there's no
 hour-by-hour calendar and nothing resembling a timesheet to fill in. How you enter that
 effort depends on your company's scheduling mode, set in [Settings](/guide/settings):
 
-- **Hours** (the default) — set a start date, an end date and hours per day directly.
-- **Days** — say how many days of work you need and how many days to spread them over;
-  CapacityLens works out the hours per day for you.
+- **Hours** — set a start date, an end date and hours per day directly.
+- **Days** (the default for a new company) — say how many days of work you need and how
+  many days to spread them over; CapacityLens works out the hours per day for you.
 - **Blocks** — book someone for a span of days with no hours at all, for work that
   shouldn't count toward the utilisation figures.
+
+Changing the mode does not rewrite existing allocations, and an existing company's saved choice is
+preserved.
 
 Whichever mode you use, CapacityLens is planning capacity, not logging time worked —
 there's nothing to submit at the end of the week.

@@ -21,6 +21,8 @@ afterEach(async () => {
   await Promise.all(apps.splice(0).map((app) => app.close()));
 });
 
+// Keep the lock, worker, authority, audit and reconciliation seams observable together.
+// eslint-disable-next-line max-lines-per-function
 function createRaceHarness(nextRole: Role | null) {
   const app = Fastify();
   apps.push(app);
@@ -58,12 +60,15 @@ function createRaceHarness(nextRole: Role | null) {
     accountAdminPort: {
       roleForPrincipalInWorkspace: () => currentRole,
     } as unknown as ImportRouteDependencies["accountAdminPort"],
+    memberResources: {
+      reconcileImportedLinks: vi.fn(),
+    } as unknown as ImportRouteDependencies["memberResources"],
     accountLock,
     authorize: () => true,
     executeImportWorker: vi.fn(async () => {
       workerStarted.resolve();
       await releaseWorker.promise;
-      return { imported: 1, skipped: 0, data: currentSlice };
+      return { imported: 1, skipped: 0, data: currentSlice, resourceIdMap: new Map() };
     }),
     commitProductAudit,
     fail: (reply, error) => reply.code(500).send({ error: error instanceof Error ? error.message : "failed" }),
