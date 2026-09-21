@@ -51,6 +51,52 @@ Empty grep output means the inspected file contains none of the removed names. D
 both spellings. To roll back, redeploy the previous release; it accepts the replacement
 names too.
 
+## Better Auth 1.7.5 authentication changes
+
+This release upgrades Better Auth from 1.6.30 to 1.7.5. The upgrade keeps the
+CapacityLens authentication policy and identity-admission checks, but changes the
+underlying OAuth route and provider integration.
+
+If you use the generic company-login provider, update its registered redirect URI before
+restarting the release:
+
+```text
+https://your-capacitylens-address/api/auth/callback/<provider-id>
+```
+
+The default provider id is `sso`, so the usual address is
+`https://your-capacitylens-address/api/auth/callback/sso`. The older
+`/api/auth/oauth2/callback/<provider-id>` address is no longer used. If you configured
+`SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID`, use that exact value in the final path. Update the
+provider console and any reverse-proxy allowlist together; otherwise the provider will
+return to an address CapacityLens no longer handles.
+
+Better Auth 1.7.5 now puts generic OAuth on the same social-provider path as its built-in
+providers. CapacityLens still keeps the provider-neutral strict OIDC path supported, and
+its named Google, Microsoft and GitHub buttons remain experimental until their
+provider-specific compatibility and identity-admission behavior has been proved.
+
+The 1.7.0–1.7.2 releases temporarily required an `issuer` column in Better Auth's
+`account` table. Better Auth 1.7.3 removed that requirement. A direct upgrade from the
+CapacityLens release using Better Auth 1.6.30 to 1.7.5 does not need that temporary
+column. If an installation actually ran one of
+those intermediate Better Auth releases, follow the [upstream 1.7 upgrade guide](https://better-auth.com/docs/guides/1-7-upgrade-guide)
+before continuing.
+
+Better Auth 1.7 also changed the built-in Microsoft provider's account identifier from
+the app-specific `sub` claim to the directory-stable `oid` claim. Before accepting
+production Microsoft traffic, inventory any existing native Microsoft account rows and
+map each one to its verified `oid`; the old row alone cannot provide that mapping. An
+installation with no native Microsoft identities has no rows to convert. This does not
+change generic strict-OIDC identities, which use their configured provider id.
+
+Microsoft's `email` claim is not proof that an address is verified. Requesting that
+optional claim may provide an address for a managed user, but CapacityLens still requires
+the provider's verified-email signal before admitting an external identity. Test a real
+tenant and account before treating Microsoft sign-in as available; see [Set up your
+company login](/company-login/set-up-company-login#microsoft-365-entra-id) for the
+provider warning.
+
 ## One-time check for older Compose installations
 
 If your installation was created before the Compose project name was pinned to

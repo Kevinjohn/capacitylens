@@ -13,6 +13,16 @@ You need to be an administrator of that system — the person who can add users 
 Google Workspace or Microsoft 365. If that isn't you, this is a ten-minute favour to
 ask of whoever it is.
 
+::: tip Current provider paths
+This page documents CapacityLens's provider-neutral company-login path. Better Auth
+1.7.5 also supplies built-in Google and Microsoft providers, but CapacityLens still
+marks those named buttons experimental while their provider-specific compatibility is
+being proved. Their callback paths are `/api/auth/callback/google` and
+`/api/auth/callback/microsoft`; they are separate from the generic provider's
+`/api/auth/callback/sso` path. See [Configuration](/self-hosting/configuration#company-login)
+for the separate settings.
+:::
+
 ## What you're actually doing
 
 When someone clicks **"Continue with company login"** in CapacityLens, they get bounced
@@ -142,10 +152,14 @@ Issuer          https://login.microsoftonline.com/<tenant-id>/v2.0
 ```
 
 ::: warning
-Microsoft is the one provider that sometimes doesn't tell CapacityLens whether an email
-address is verified, and CapacityLens insists on being told. If sign-in gets refused
-with a message about a verified email address, open **Token configuration** on the app
-you just made, add the optional `email` item, and try again.
+Microsoft may omit an `email` claim for managed users, and when it returns one Microsoft
+documents that value as tenant-mutable and unverified. Adding the optional `email` item
+can provide an address, but it does not establish that the address is verified.
+CapacityLens still requires a verified-email signal before admitting an external
+identity. Test the configured tenant with a real account; do not use the email claim
+alone as an authorization or membership decision. See [Microsoft's Better Auth
+provider notes](https://better-auth.com/docs/authentication/microsoft) for the current
+provider behavior.
 :::
 
 ### Okta
@@ -309,7 +323,7 @@ _provider's page_ is a screen CapacityLens doesn't control.
 | `capacitylens-server: refusing to start —` followed by the setting it didn't like                                                                                    | Server log (paraphrase of the general shape; the exact wording depends which setting is missing) | A required setting — client ID, client secret, discovery URL or issuer — is missing or empty.                                                                                                              | Add the missing line to your settings file and start the server again.                                                                                                                          |
 | "Single sign-on was not completed. Try again or contact your administrator."                                                                                         | Sign-in screen (quoted verbatim)                                                                 | The generic message shown for most first-click failures, including a stale issuer, an unreachable discovery URL, and a rejected signing algorithm.                                                         | Check the server's own log at the moment of the click — it names the specific reason, for example "OIDC discovery issuer does not match the configured issuer." Fix that setting and try again. |
 | The provider says "redirect_uri_mismatch"                                                                                                                            | Provider's page (their own wording, not CapacityLens's)                                          | The address you registered isn't exactly the one CapacityLens sends.                                                                                                                                       | Compare them character by character — trailing slash, `http` vs `https`, www or not.                                                                                                            |
-| "Your identity provider returned information that could not be verified. Ask your administrator to check the OIDC issuer, claims, and verified-email configuration." | Sign-in screen (quoted verbatim)                                                                 | The provider isn't telling CapacityLens the address is verified. Usually Keycloak's **Email verified** switch is off, or Microsoft isn't sending the `email_verified` [claim](/reference/glossary#claims). | Mark the address verified in your provider (Keycloak), or add the `email` item (Microsoft), then have the person try again.                                                                     |
+| "Your identity provider returned information that could not be verified. Ask your administrator to check the OIDC issuer, claims, and verified-email configuration." | Sign-in screen (quoted verbatim)                                                                 | The provider isn't telling CapacityLens the address is verified. Usually Keycloak's **Email verified** switch is off, or Microsoft isn't returning a verification signal CapacityLens can use. | Mark the address verified in your provider (Keycloak). For Microsoft, adding the optional `email` item can provide an address but does not prove it is verified; resolve the provider compatibility issue before retrying. |
 | Button works, but the person can't get in                                                                                                                            | Sign-in screen (plain-language description; access control shows its own separate message)       | Sign-in succeeded; they're just not a member yet, or not invited.                                                                                                                                          | That's access control doing its job — invite them, or connect their existing account.                                                                                                           |
 
 ## What happens next depends on where you started
