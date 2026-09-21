@@ -11,8 +11,8 @@ type BetterAuthProfileCompatibility = {
 };
 
 /**
- * Bridge Better Auth 1.6's narrower declaration to the generic OAuth profile shape. Existing
- * principals refresh only through persistLinkedExternalAvatar; this adapter supplies initial-create fields.
+ * Bridge the strict OIDC profile to Better Auth's generic OAuth profile shape. Existing principals
+ * refresh only through persistLinkedExternalAvatar; this adapter supplies initial-create fields.
  */
 export function adaptStrictOidcProfileForBetterAuth(profile: StrictOidcProfile): BetterAuthProfileCompatibility {
   return profile as unknown as BetterAuthProfileCompatibility;

@@ -272,9 +272,6 @@ function createGenericOidcPlugin(
         authorizationUrl: new URL(strictOidcAuthorizationProxyPath, input.publicUrl).toString(),
         // Shape-only placeholder: custom getToken owns exchange, so this URL is never requested.
         tokenUrl: new URL(`/api/auth/oidc/token/${providerId}`, input.publicUrl).toString(),
-        issuer,
-        // Dex may omit RFC 9207 `iss`; the strict client still enforces ID-token issuer and audience.
-        requireIssuerValidation: false,
         pkce: true,
         getToken: ({ code, redirectURI, codeVerifier }) =>
           strictOidcClient.exchangeCode({

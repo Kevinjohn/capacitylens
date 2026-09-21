@@ -14,7 +14,6 @@ vi.mock("./authClient", () => ({
   authClient: {
     signIn: {
       email: (...args: unknown[]) => signInEmail(...args),
-      oauth2: vi.fn(),
       social: (...args: unknown[]) => signInSocial(...args),
     },
     signUp: { email: (...args: unknown[]) => signUpEmail(...args) },

@@ -12,7 +12,6 @@ import { m } from "@/i18n";
 // wrapper turns into a retry) and shows the failure INLINE without closing.
 
 const signInEmail = vi.fn();
-const signInOauth2 = vi.fn();
 const signInSocial = vi.fn();
 const verifyTotp = vi.fn();
 const verifyBackupCode = vi.fn();
@@ -20,7 +19,6 @@ vi.mock("./authClient", () => ({
   authClient: {
     signIn: {
       email: (...args: unknown[]) => signInEmail(...args),
-      oauth2: (...args: unknown[]) => signInOauth2(...args),
       social: (...args: unknown[]) => signInSocial(...args),
     },
     twoFactor: {
@@ -65,7 +63,6 @@ function Harness({
 afterEach(() => {
   if (isReauthPending()) completeReauth(false);
   signInEmail.mockReset();
-  signInOauth2.mockReset();
   signInSocial.mockReset();
   verifyTotp.mockReset();
   verifyBackupCode.mockReset();
@@ -271,7 +268,7 @@ describe("ReauthDialog recovery-code step-up", () => {
 
 describe("ReauthDialog provider step-up", () => {
   it("preserves the product route and supplies a marked OIDC failure return", async () => {
-    signInOauth2.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: {}, error: null });
     window.history.replaceState({}, "", "/team?tab=access");
     render(
       <Harness
@@ -286,8 +283,8 @@ describe("ReauthDialog provider step-up", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continue with Single sign-on" }));
 
     await waitFor(() =>
-      expect(signInOauth2).toHaveBeenCalledWith({
-        providerId: "sso",
+      expect(signInSocial).toHaveBeenCalledWith({
+        provider: "sso",
         callbackURL: "http://localhost:3000/team?tab=access",
         errorCallbackURL: "http://localhost:3000/team?tab=access&externalSignInError=1",
       }),
@@ -295,7 +292,7 @@ describe("ReauthDialog provider step-up", () => {
   });
 
   it("uses the session's OIDC provider for a federated-only principal in mixed mode", async () => {
-    signInOauth2.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: {}, error: null });
     render(
       <Harness
         authMode="password"
@@ -315,9 +312,7 @@ describe("ReauthDialog provider step-up", () => {
     expect(screen.queryByRole("button", { name: "Continue with GitHub" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Continue with Workforce SSO" }));
 
-    await waitFor(() =>
-      expect(signInOauth2).toHaveBeenCalledWith(expect.objectContaining({ providerId: "workforce" })),
-    );
+    await waitFor(() => expect(signInSocial).toHaveBeenCalledWith(expect.objectContaining({ provider: "workforce" })));
     expect(signInEmail).not.toHaveBeenCalled();
   });
 });
@@ -350,7 +345,7 @@ describe("ReauthDialog social-provider step-up", () => {
   });
 
   it("uses Google presentation while preserving strict OIDC re-authentication", async () => {
-    signInOauth2.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: {}, error: null });
     render(
       <Harness
         authMode="sso"
@@ -363,8 +358,7 @@ describe("ReauthDialog social-provider step-up", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
-    await waitFor(() => expect(signInOauth2).toHaveBeenCalledWith(expect.objectContaining({ providerId: "sso" })));
-    expect(signInSocial).not.toHaveBeenCalled();
+    await waitFor(() => expect(signInSocial).toHaveBeenCalledWith(expect.objectContaining({ provider: "sso" })));
   });
 
   it("preserves the product route and supplies a marked social-provider failure return", async () => {
@@ -397,7 +391,7 @@ describe("ReauthDialog provider failures", () => {
     [{ message: "Provider refused the request." }, "Provider refused the request."],
     [{}, m.reauth_failed()],
   ])("surfaces an SSO re-auth failure and keeps the dialog retryable", async (error, expected) => {
-    signInOauth2.mockResolvedValue({ data: null, error });
+    signInSocial.mockResolvedValue({ data: null, error });
     render(
       <Harness
         authMode="sso"
@@ -417,7 +411,7 @@ describe("ReauthDialog provider failures", () => {
   });
 
   it("announces a successful re-auth redirect instead of reporting a failure", async () => {
-    signInOauth2.mockResolvedValue({ data: {}, error: null });
+    signInSocial.mockResolvedValue({ data: {}, error: null });
     render(
       <Harness
         authMode="sso"
@@ -438,7 +432,7 @@ describe("ReauthDialog provider failures", () => {
 
   it("surfaces a network error and clears busy when SSO re-auth throws", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    signInOauth2.mockRejectedValue(new TypeError("offline"));
+    signInSocial.mockRejectedValue(new TypeError("offline"));
     render(
       <Harness
         authMode="sso"
@@ -467,7 +461,7 @@ describe("ReauthDialog provider failures", () => {
 
 describe("ReauthDialog dismissal guards", () => {
   it("guards SSO modal dismissal while busy and cancels once idle", async () => {
-    signInOauth2.mockImplementation(() => new Promise(() => {}));
+    signInSocial.mockImplementation(() => new Promise(() => {}));
     render(
       <Harness
         authMode="sso"
@@ -478,7 +472,7 @@ describe("ReauthDialog dismissal guards", () => {
     void requestReauth();
     await screen.findByRole("heading", { name: "Confirm it's you" });
     fireEvent.click(screen.getByRole("button", { name: "Continue with Single sign-on" }));
-    await waitFor(() => expect(signInOauth2).toHaveBeenCalledOnce());
+    await waitFor(() => expect(signInSocial).toHaveBeenCalledOnce());
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(isReauthPending()).toBe(true);

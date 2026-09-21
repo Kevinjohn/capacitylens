@@ -103,7 +103,7 @@ final public origin is stable. Register this exact [redirect URI](/reference/glo
 company login provider:
 
 ```text
-https://capacity.example.com/api/auth/oauth2/callback/sso
+https://capacity.example.com/api/auth/callback/sso
 ```
 
 The origin must match `SMALLSASS_ACCOUNT_PUBLIC_URL` character for character. The final

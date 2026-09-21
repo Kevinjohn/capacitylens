@@ -868,8 +868,8 @@ const registerExternalProviderConfigurationTests = () => {
   it("resolves the concrete provider from a parameterized database-hook route", () => {
     expect(
       parseProviderIdFromExternalContext({
-        path: "/oauth2/callback/:providerId",
-        params: { providerId: "sso" },
+        path: "/callback/:id",
+        params: { id: "sso" },
       }),
     ).toBe("sso");
     expect(parseProviderIdFromExternalContext({ path: "/callback/google" })).toBe("google");
@@ -991,7 +991,7 @@ const registerExternalSessionAssuranceTest = () => {
     await expect(
       after(
         { token: "strict-session-token", userId: "strict-principal" } as never,
-        { path: "/oauth2/callback/:providerId", params: { providerId: "sso" } } as never,
+        { path: "/callback/:id", params: { id: "sso" } } as never,
       ),
     ).resolves.toBeUndefined();
     expect(db.prepare("SELECT assurance, providerId FROM account_session_assurance").get()).toEqual({

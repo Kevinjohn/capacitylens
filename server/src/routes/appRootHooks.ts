@@ -81,7 +81,7 @@ function installResponseHooks(input: InstallResponseHooksInput): void {
     const path = req.url.split("?", 1)[0] ?? req.url;
     const authOperation =
       req.method !== "OPTIONS" &&
-      /^\/api\/auth\/(sign-in|sign-out|callback|oauth2\/callback|two-factor|change-password|reset-password)/.test(path);
+      /^\/api\/auth\/(sign-in|sign-out|callback|two-factor|change-password|reset-password)/.test(path);
     if (authOperation || reply.statusCode === 429) {
       let outcome = "blocked";
       if (authOperation) outcome = reply.statusCode < 400 ? "success" : "failure";

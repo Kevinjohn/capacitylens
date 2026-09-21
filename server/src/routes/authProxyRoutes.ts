@@ -33,12 +33,9 @@ function isBetterAuthProxyRouteAllowed(
   method: string,
   pathname: string,
 ): boolean {
-  const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/oauth2", "POST /sign-in/social"]);
+  const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/social"]);
   if (common.has(`${method} ${pathname}`)) return true;
-  if (
-    (method === "GET" || method === "POST") &&
-    (/^\/oauth2\/callback\/[a-z0-9_-]+$/.test(pathname) || /^\/callback\/[a-z0-9_-]+$/.test(pathname))
-  ) {
+  if ((method === "GET" || method === "POST") && /^\/callback\/[a-z0-9_-]+$/.test(pathname)) {
     return true;
   }
   if (method === "GET" && /^\/oidc\/authorize\/[a-z0-9_-]+$/.test(pathname)) return true;

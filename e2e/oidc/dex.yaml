@@ -11,7 +11,7 @@ staticClients:
     secret: capacitylens-e2e-secret
     name: CapacityLens OIDC conformance client
     redirectURIs:
-      - http://localhost:5473/api/auth/oauth2/callback/sso
+      - http://localhost:5473/api/auth/callback/sso
 staticPasswords:
   - email: oidc-owner@example.com
     hash: $2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W

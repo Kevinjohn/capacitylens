@@ -240,11 +240,11 @@ async function beginLink(
   const headers = new Headers(input.headers);
   headers.set("content-type", "application/json");
   const response = await context.raw.handler(
-    new Request(new URL("/api/auth/oauth2/link", context.options.publicUrl), {
+    new Request(new URL("/api/auth/link-social", context.options.publicUrl), {
       method: "POST",
       headers,
       body: JSON.stringify({
-        providerId: provider.id,
+        provider: provider.id,
         callbackURL: success.toString(),
         errorCallbackURL: failure.toString(),
       }),
@@ -258,7 +258,7 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
   // this single narrowing boundary (P1.7a): Better Auth's full user carries the richer fields we
   // drop here, so this is exactly where `emailVerified` is read and defaulted before everything
   // downstream sees only the {id,email,emailVerified,name} SessionUser.
-  // Better Auth's async init context (reverified against better-auth 1.6.23,
+  // Better Auth's async init context (reverified against better-auth 1.7.5,
   // dist/auth/base.mjs:37 `$context: authContext`, dist/db/internal-adapter.mjs for deletion, and
   // dist/context/create-context.mjs for `password.hash`). Read only through the narrow Auth
   // methods below.

@@ -139,7 +139,7 @@ test("surfaces a provider denial at the product sign-in front door", async ({ pa
   expect(state).toBeTruthy();
   // A standards-shaped negative authorization response. Dex's own Cancel button renders a Dex
   // error page instead of redirecting, so drive the response every interoperable RP must handle.
-  await page.goto(`/api/auth/oauth2/callback/sso?error=access_denied&state=${encodeURIComponent(state!)}`);
+  await page.goto(`/api/auth/callback/sso?error=access_denied&state=${encodeURIComponent(state!)}`);
 
   await expect(page).toHaveURL(/^http:\/\/localhost:5473\//);
   await expect(page.getByRole("alert")).toContainText("Single sign-on was not completed");
@@ -153,7 +153,7 @@ test("surfaces a callback failure without echoing provider-controlled detail", a
   const state = new URL(page.url()).searchParams.get("state");
   expect(state).toBeTruthy();
   await page.goto(
-    `/api/auth/oauth2/callback/sso?error=server_error&error_description=${encodeURIComponent("provider secret detail")}&state=${encodeURIComponent(state!)}`,
+    `/api/auth/callback/sso?error=server_error&error_description=${encodeURIComponent("provider secret detail")}&state=${encodeURIComponent(state!)}`,
   );
 
   await expect(page).toHaveURL(/^http:\/\/localhost:5473\//);

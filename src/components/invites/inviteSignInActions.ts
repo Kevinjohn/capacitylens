@@ -33,9 +33,6 @@ function startProviderSignIn(provider: AuthProviderInfo, signal: AbortSignal) {
     disableRedirect: true,
     fetchOptions: { signal },
   };
-  if (provider.kind === "oidc") {
-    return authClient.signIn.oauth2({ ...options, providerId: provider.id });
-  }
   return authClient.signIn.social({ ...options, provider: provider.id });
 }
 
