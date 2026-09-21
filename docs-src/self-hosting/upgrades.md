@@ -79,7 +79,7 @@ provider-specific compatibility and identity-admission behavior has been proved.
 The 1.7.0–1.7.2 releases temporarily required an `issuer` column in Better Auth's
 `account` table. Better Auth 1.7.3 removed that requirement. A direct upgrade from the
 CapacityLens release using Better Auth 1.6.30 to 1.7.5 does not need that temporary
-column or a manual account-table migration. If an installation actually ran one of
+column. If an installation actually ran one of
 those intermediate Better Auth releases, follow the [upstream 1.7 upgrade guide](https://better-auth.com/docs/guides/1-7-upgrade-guide)
 before continuing.
 
