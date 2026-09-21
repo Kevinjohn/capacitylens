@@ -294,6 +294,7 @@ async function createRequiredMfaFixture() {
   expect(before.statusCode).toBe(200);
   expect(before.json()).toMatchObject({
     mfaRequired: true,
+    requireMfa: true,
     user: { twoFactorEnabled: false },
   });
   return { app, email, password, signupCookie };
@@ -330,6 +331,7 @@ async function completeRequiredMfaEnrollment(options: {
   expect(after.statusCode).toBe(200);
   expect(after.json()).toMatchObject({
     mfaRequired: false,
+    requireMfa: true,
     user: { twoFactorEnabled: true },
   });
   expect(
@@ -497,6 +499,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     expect(parseAuthMeResponse(me).authMode).toBe("password");
     expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
     expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
+    expect(me.json()).toMatchObject({ requireMfa: false });
     // P1.7a: emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
     // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
     // is present and defaults correctly (the P1.10 invite-bind gate depends on it).

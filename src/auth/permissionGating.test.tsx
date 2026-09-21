@@ -8,7 +8,7 @@ import { TooltipProvider } from "../components/ui/tooltip";
 // SchedulerGrid), so isolated bar renders here must supply their own provider.
 const render = (ui: ReactNode, options?: Omit<RenderOptions, "wrapper">) =>
   rtlRender(ui, { wrapper: TooltipProvider, ...options });
-import { AddButton, ListPage } from "../components/common/dialogs";
+import { AddButton, ListPage } from "../components/common/ui";
 import { AllocationBar } from "../components/scheduler/AllocationBar";
 import { buildColumnGeometry } from "../components/scheduler/columnGeometry";
 import type { BarLayout } from "../components/scheduler/schedulerModel";

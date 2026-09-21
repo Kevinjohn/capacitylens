@@ -250,9 +250,13 @@ when two or more companies are accessible; with one accessible company they are 
 and demo builds retain their company context and switching exception. (Keeping the context at the
 bottom keeps the logo + collapse toggle as the first item in both the open menu and collapsed rail.)
 **Account** opens the signed-in person's identity and security page from every main app page. In
-password mode it shows password change, MFA status and active-session revocation; in SSO mode it
-shows the provider identity and active sessions without password controls. Demo and auth-off modes
-describe their actual local access and never invent credential controls. Company Settings contains
+its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
+Actions. The row scrolls horizontally on narrow screens. Long email
+addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
+In password mode it offers password change in a dialog for local-password identities and shows MFA
+status only when the operator requires it; in SSO mode it shows the provider identity without password controls.
+The page hides active-session details. Demo and auth-off modes
+never invent credential controls. Company Settings contains
 company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
 otherwise, and the demo persona's face in the demo build. The row always reads **Sign out**, never
 "Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
@@ -918,7 +922,7 @@ the failure detail is announced as an alert when it replaces the checking state.
 While signed in, the sidebar's **Account** destination shows who is signed in and the available
 personal security controls. **Account** contains the single **Sign out** action for real and demo
 sessions. With auth off (the default everywhere) or in
-local mode, no login screen exists, Account explains that sign-in is off, and local mode makes **no**
+local mode, no login screen exists, Account has no credential controls, and local mode makes **no**
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
@@ -955,11 +959,12 @@ challenge for sensitive actions offers the same **Use a recovery code** alternat
 one-time code can restore freshness without signing out or losing the current form. The enrollment
 wall deliberately outranks public-entry links for a signed-in identity: an invitation explains that
 MFA must be finished before it can be accepted, while a password-reset link explains that the user
-may finish enrollment or choose **Sign out** to redeem the link without the current session. Account gains a **Security** section
-(`data-testid="security-section"`) where password users can change their password only by supplying
-the current password and can view/revoke active sessions. Recovery codes and session tokens are
-never displayed after their one-time setup/use. Disabling MFA is deliberately not offered when the
-deployment requires it.
+may finish enrollment or choose **Sign out** to redeem the link without the current session.
+On Account, local-password users open **Change password** from the identity row and supply their
+current password in the dialog. The **Security** section (`data-testid="security-section"`) appears
+when required MFA status or a strict OIDC connection is available. Recovery codes and session
+tokens are never displayed after their one-time setup/use. Disabling MFA is deliberately not offered
+when the deployment requires it.
 
 On a `self-hosted-mixed` deployment with strict OIDC configured, the Account Security section also shows
 **Connect your SSO account** (`data-testid="sso-connection"`). **Connect with _provider_** starts a
