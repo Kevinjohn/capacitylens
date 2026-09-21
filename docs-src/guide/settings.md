@@ -293,7 +293,7 @@ If a selected company cannot be loaded, a recovery screen hides the previously o
 data. **Retry** loads the selected company again without changing your selection, or you can choose
 another company.
 
-![The demo Account page showing Bruce Wayne’s identity row, truncated email and Sign out action](../screenshots/flows/account.jpg)
+![Account page showing separate avatar, name, email and actions columns with Change password beside Sign out](../screenshots/flows/account.jpg)
 
 For local-password identities, Account offers **Change password** in a dialog. It shows multi-factor
 authentication status when the operator requires it. Company single sign-on shows its connection

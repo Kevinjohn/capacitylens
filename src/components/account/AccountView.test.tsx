@@ -49,15 +49,19 @@ describe("AccountView", () => {
     expect(row).toHaveTextContent("Diana Prince");
     expect(row.querySelectorAll("td")).toHaveLength(4);
     expect(screen.getAllByRole("columnheader").map((header) => header.textContent)).toEqual([
+      "Avatar",
       "Name",
       "Email",
-      "Access",
       "Actions",
     ]);
-    expect(row.querySelector("td")?.textContent).toContain("Diana Prince");
+    expect(screen.getByRole("columnheader", { name: "Avatar" }).firstElementChild).toHaveClass("sr-only");
+    expect(row.querySelectorAll("td")[0]).not.toHaveTextContent("Diana Prince");
+    expect(row.querySelectorAll("td")[1]).toHaveTextContent("Diana Prince");
+    expect(row.querySelectorAll("td")[3]).toContainElement(screen.getByRole("button", { name: "Change password" }));
+    expect(row.querySelectorAll("td")[3]).toContainElement(screen.getByRole("button", { name: "Sign out" }));
     expect(screen.getByRole("table").parentElement).toHaveClass("overflow-x-auto");
-    expect(screen.getByRole("table")).toHaveClass("min-w-[41rem]", "table-fixed");
-    expect(screen.getByRole("table").querySelectorAll("col")).toHaveLength(4);
+    expect(screen.getByRole("table")).toHaveClass("min-w-[41rem]");
+    expect(screen.getByRole("table").querySelector("colgroup")).not.toBeInTheDocument();
     const email = screen.getByLabelText("diana@example.test");
     expect(email).toHaveAttribute("tabindex", "0");
     expect(email).toHaveClass("truncate");
@@ -82,8 +86,8 @@ describe("AccountView", () => {
       </AuthContext.Provider>,
     );
     const cells = screen.getByTestId("account-identity-row").querySelectorAll("td");
-    expect(cells[0]).toHaveTextContent("diana@example.test");
     expect(cells[1]).toHaveTextContent("diana@example.test");
+    expect(cells[2]).toHaveTextContent("diana@example.test");
     expect(screen.getByLabelText("diana@example.test")).toHaveClass("truncate");
   });
 
@@ -97,7 +101,7 @@ describe("AccountView", () => {
 
   it("does not invent credential controls when authentication is off", () => {
     renderAccount("off");
-    expect(screen.getByText("Sign-in is off")).toBeInTheDocument();
+    expect(screen.queryByText("Sign-in is off")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Change password" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
   });
@@ -107,7 +111,7 @@ describe("AccountView", () => {
     try {
       renderAccount("off");
       expect(screen.getByText("Bruce Wayne")).toBeInTheDocument();
-      expect(screen.getByText("Demo access")).toBeInTheDocument();
+      expect(screen.queryByText("Demo access")).not.toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "Change password" })).not.toBeInTheDocument();
     } finally {

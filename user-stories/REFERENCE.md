@@ -250,13 +250,13 @@ when two or more companies are accessible; with one accessible company they are 
 and demo builds retain their company context and switching exception. (Keeping the context at the
 bottom keeps the logo + collapse toggle as the first item in both the open menu and collapsed rail.)
 **Account** opens the signed-in person's identity and security page from every main app page. In
-its identity row, Name, Email, Access and Actions have visible column headers, with the avatar and
-name side by side in the Name cell. The row scrolls horizontally on narrow screens. Long email
+its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
+Actions. The row scrolls horizontally on narrow screens. Long email
 addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
 In password mode it offers password change in a dialog for local-password identities and shows MFA
 status only when the operator requires it; in SSO mode it shows the provider identity without password controls.
 The page hides active-session details. Demo and auth-off modes
-describe their actual local access and never invent credential controls. Company Settings contains
+never invent credential controls. Company Settings contains
 company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
 otherwise, and the demo persona's face in the demo build. The row always reads **Sign out**, never
 "Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
@@ -922,7 +922,7 @@ the failure detail is announced as an alert when it replaces the checking state.
 While signed in, the sidebar's **Account** destination shows who is signed in and the available
 personal security controls. **Account** contains the single **Sign out** action for real and demo
 sessions. With auth off (the default everywhere) or in
-local mode, no login screen exists, Account explains that sign-in is off, and local mode makes **no**
+local mode, no login screen exists, Account has no credential controls, and local mode makes **no**
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 

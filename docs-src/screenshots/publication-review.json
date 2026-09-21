@@ -5,7 +5,11 @@
   },
   {
     "path": "docs-src/screenshots/flows/using_account_1.png",
-    "sha256": "edb691f850d3921cd09cdc188b4eca6ea472f8aa85a78d8d3fc2b8153c0f0126"
+    "sha256": "e85371aa54d405aa80cca97859c10469891efaa71774857f17d62e6d2c480d27"
+  },
+  {
+    "path": "docs-src/screenshots/flows/account.jpg",
+    "sha256": "42f4f6e15b086b6648605a14634eb468e86fc2f09a6d1d2106d203379add20cb"
   },
   {
     "path": "docs-src/screenshots/flows/using_join_your_team_1.png",
