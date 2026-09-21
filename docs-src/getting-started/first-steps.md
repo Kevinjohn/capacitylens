@@ -22,6 +22,8 @@ asks for confirmation. Dismissing hides
 the guidance for everyone in that company. Editors can view and toggle the checklist; Viewers do
 not see it.
 
+![Getting started progress at 0/5 with the five setup milestones on Schedule](../screenshots/flows/getting_started_five_steps.png)
+
 CapacityLens setup is shared between three people. The technical installer makes the
 service available, the Owner creates the company and appoints an Admin, and the Admin
 prepares members and scheduling data. One person can hold all three responsibilities,
