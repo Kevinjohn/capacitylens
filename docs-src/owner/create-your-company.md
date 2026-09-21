@@ -11,23 +11,23 @@ next: false
 
 # Create your company
 
-![First Owner password setup with name, email, password and empty setup-token field](../screenshots/flows/owner_create_your_company_1.png)
-
 Open the CapacityLens address supplied by your installer.
 
-For password sign-in, enter your name, work email, password and the Owner setup token supplied by the installer. Select Create my sign-in.
+For password sign-in, enter your name, email and password. Paste the value of
+`SMALLSASS_ACCOUNT_SETUP_TOKEN` from the server `.env` file into Owner setup token. Ask the person
+who installed CapacityLens if you need it. Select Create my sign-in.
 
 For company login, choose the configured provider and use the verified email approved by your installer.
 
 ## Create the company
 
-![Company form: Company name, Week starts on, Timezone and Create company](../screenshots/flows/owner_create_your_company_2.png)
+![Company form: Company name, Week starts on, Timezone and the disabled English language select](../screenshots/flows/owner_create_your_company_2.png)
 
 The first-company form opens after sign-in. Enter the Company name.
 
 Choose Week starts on and Timezone. These apply to everyone and cannot be changed after creation.
 
-Language currently shows English; there is no language choice.
+Language is a select with **English** as its only option. It is fixed for this installation.
 
 Select Create company to open Schedule.
 

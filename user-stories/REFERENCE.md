@@ -816,14 +816,14 @@ If the optional allocation Task field from #720 is available and populated under
 visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
 setting. See [US-ALL-10](allocation/US-ALL-10-task-field.md).
 
-**Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
+**Internal work colours (per-account, default neutral grey).** Settings → **Internal work colours** has a
 two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
-**Grey** (the default) or **Use colour palette**. It is stored as `internalColourMode` on the
-Account (absent = `grey`, syncs but is omitted from the scoped planning-data export). In **Grey** mode, allocation bars for `internal`
+**Neutral grey** (the default) or **Colour palette**. It is stored as `internalColourMode` on the
+Account (absent = `grey`, syncs but is omitted from the scoped planning-data export). In **Neutral grey** mode, allocation bars for `internal`
 activities and for projects owned by the built-in **Internal** client use the neutral grey, and an
 Internal-owned project's saved colour is overridden by grey in the Projects list. The project
 form hides its existing **Colour** swatch picker whenever the selected client is Internal; the
-saved palette colour is retained rather than cleared. Switching to **Use colour palette** restores
+saved palette colour is retained rather than cleared. Switching to **Colour palette** restores
 those saved project colours and reveals the picker. Unattributed All-projects allocations retain
 their resource-derived colours in both modes; attributed ones use their effective project's colour.
 
@@ -973,12 +973,11 @@ leaves, on the same contract as the sign-in screen; only a returned provider err
 
 **First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
-bootstrap account and closes the moment it exists), the login wall shows **Set up the first Owner**
-instead of sign-in. It explains that this creates a personal sign-in with the Owner role and that
-other people can be invited later. Fields are **Your name**
-(`data-testid="owner-setup-name"`), **Work email** (`data-testid="owner-setup-email"`), **Create a
-password** (`data-testid="owner-setup-password"`) with its length requirement, and **Owner setup
-token** (`data-testid="owner-setup-token"`) with installer guidance, plus a **Create my sign-in** button
+bootstrap account and closes the moment it exists), the login wall shows **Setup the account Owner**
+instead of sign-in. Fields are **name** (`data-testid="owner-setup-name"`), **email**
+(`data-testid="owner-setup-email"`), **Create a password** (`data-testid="owner-setup-password"`)
+with its length validation, and **Owner setup token** (`data-testid="owner-setup-token"`) with
+installer guidance, plus a **Create my sign-in** button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
 owner in and reloads into **Set up your company**, where the owner creates the first company before
 entering the app. Ordinary edge whitespace around a pasted setup token is ignored; a token containing

@@ -17,11 +17,11 @@ available without making every team configure it.
 
 ## How (end-to-end)
 
-1. Open **Settings**. In **Scheduling features → Internal work colours**, confirm **Grey** is selected.
+1. Open **Settings**. In **Scheduling features → Internal work colours**, confirm **Neutral grey** is selected.
 2. Open **Projects**, add `Quarterly planning`, and choose **Internal** as its Client.
 3. Confirm the existing **Colour** picker disappears and save the project.
 4. Confirm the project swatch is grey.
-5. Return to **Settings** and choose **Use colour palette**.
+5. Return to **Settings** and choose **Colour palette**.
 6. Return to **Projects**. Confirm the project's saved palette colour is restored and its edit form
    shows the **Colour** picker again.
 
@@ -30,10 +30,10 @@ available without making every team configure it.
 - ✅ The per-account `internalColourMode` setting offers only `grey` and `palette`; absent defaults
   to `grey`, and the value syncs and persists. Settings JSON exports omit company settings;
   importing scheduling records preserves the destination company's choice.
-- ✅ Grey mode renders `internal` activity bars and Internal-owned project bars/swatches neutral
+- ✅ Neutral grey mode renders `internal` activity bars and Internal-owned project bars/swatches neutral
   grey. Unattributed All-projects activities remain distinct and keep their existing colours;
   attributed ones use their effective project's colour.
 - ✅ The project form hides the picker only while its selected client is Internal and the setting is
-  Grey. The project colour remains stored and valid.
+  Neutral grey. The project colour remains stored and valid.
 - ✅ Palette mode reveals the same picker and restores the saved project colour immediately.
 - ✅ Viewers can see the selected setting but cannot change it.

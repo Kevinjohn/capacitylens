@@ -129,6 +129,7 @@ function AccountCreationPanel({
 interface CreateAccountPanelProps {
   showHeading: boolean;
   name: string;
+  language: string;
   weekStartsOn: 0 | 1;
   timezone: string;
   error: string | null;
@@ -148,6 +149,7 @@ interface CreateAccountPanelProps {
 interface CreateAccountFormState {
   createUnresolved: boolean;
   name: string;
+  language: string;
   setName: (name: string) => void;
   weekStartsOn: 0 | 1;
   setWeekStartsOn: (weekStartsOn: 0 | 1) => void;
@@ -170,6 +172,7 @@ function buildCreateAccountPanelProps(
   return {
     showHeading: onCancel !== undefined,
     name: form.name,
+    language: form.language,
     weekStartsOn: form.weekStartsOn,
     timezone: form.timezone,
     error: form.error,
@@ -187,17 +190,24 @@ function buildCreateAccountPanelProps(
   };
 }
 
-function AccountLanguageDisplay() {
+function AccountLanguageDisplay({ value }: { value: string }) {
   const labelId = useId();
   const descriptionId = useId();
+  const selectId = useId();
   return (
     <div role="group" aria-labelledby={labelId} aria-describedby={descriptionId}>
-      <p id={labelId} className="mb-1.5 text-xs font-medium text-ink">
+      <label htmlFor={selectId} id={labelId} className="mb-1.5 block text-xs font-medium text-ink">
         {m.picker_language()}
-      </p>
-      <p className="text-sm text-muted-foreground" data-testid="create-language">
-        {m.picker_language_english()}
-      </p>
+      </label>
+      <select
+        id={selectId}
+        value={value}
+        disabled
+        data-testid="create-language"
+        className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-(--input-background) px-3 py-2 text-sm text-ink shadow-xs outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <option value={value}>{m.picker_language_english()}</option>
+      </select>
       <p id={descriptionId} className="mt-1 text-xs text-muted-foreground">
         {m.picker_language_help()}
       </p>
@@ -206,7 +216,6 @@ function AccountLanguageDisplay() {
 }
 
 function CreateAccountPanel(input: CreateAccountPanelProps) {
-  const fixedSettingsHelpId = useId();
   const weekStartHelpId = useId();
   const changeName = (name: string) => {
     input.onNameChange(name);
@@ -222,25 +231,23 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
       className="mt-4"
     >
       <Card>
-        <CardHeader>
-          {input.showHeading && (
+        {input.showHeading && (
+          <CardHeader>
             <CardTitle>
               <h2>{m.picker_new()}</h2>
             </CardTitle>
-          )}
-          <CardDescription id={fixedSettingsHelpId}>{m.picker_fixed_settings_help()}</CardDescription>
-        </CardHeader>
+          </CardHeader>
+        )}
         <CardContent className="flex flex-col gap-3">
           <TextField
             label={m.picker_company_name()}
             value={input.name}
             onChange={changeName}
-            description={m.picker_company_name_help()}
             autoFocus
             invalid={input.errorField === "name"}
             describedById={input.errorId}
           />
-          <fieldset aria-describedby={fixedSettingsHelpId} className="flex flex-col gap-3">
+          <fieldset className="flex flex-col gap-3">
             <legend className="sr-only">{m.picker_fixed_settings_group()}</legend>
             <div>
               <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
@@ -264,7 +271,7 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
               options={input.timeZoneSelectOptions}
               description={m.picker_timezone_help()}
             />
-            <AccountLanguageDisplay />
+            <AccountLanguageDisplay value={input.language} />
           </fieldset>
           <FieldError id={input.errorId}>{input.error}</FieldError>
         </CardContent>

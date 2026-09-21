@@ -167,17 +167,35 @@ function useAccountSelectOptions() {
   return { timeZoneSelectOptions, weekStartSelectOptions };
 }
 
+function resetCreateAccountForm({
+  clear,
+  setCreating,
+  setName,
+  setWeekStartsOn,
+  setTimezone,
+}: {
+  clear: () => void;
+  setCreating: Dispatch<SetStateAction<boolean>>;
+  setName: Dispatch<SetStateAction<string>>;
+  setWeekStartsOn: Dispatch<SetStateAction<0 | 1>>;
+  setTimezone: Dispatch<SetStateAction<string>>;
+}) {
+  clear();
+  setCreating(false);
+  setName("");
+  setWeekStartsOn(DEFAULT_WEEK_STARTS_ON);
+  setTimezone(resolveBrowserTimeZone());
+}
+
 export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<typeof useAuth>["refreshAuth"] }) {
   const addAccount = useStore((state) => state.addAccount);
   const setAccountSummaries = useStore((state) => state.setAccountSummaries);
   const setActiveAccount = useStore((state) => state.setActiveAccount);
   const setNotice = useStore((state) => state.setNotice);
   const [creating, setCreating] = useState(false);
-  // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
-  // round-trip would otherwise allow (two companies from one form). Demo-mode create is synchronous.
+  // True while the server-mode create POST is in flight; guards duplicate requests while it runs.
   const [submitting, setSubmitting] = useState(false);
-  // Failed authoritative reconciliation after an indeterminate create blocks another POST.
-  // Reloading reconstructs this hook after the server directory has been checked again.
+  // Failed authoritative reconciliation blocks another POST until reload reconstructs this hook.
   const [createUnresolved, setCreateUnresolved] = useState(false);
   const [name, setName] = useState("");
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
@@ -185,14 +203,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
   const [timezone, setTimezone] = useState<string>(() => resolveBrowserTimeZone());
   const { error, errorField, errorId, fail, clear } = useFieldError();
   const { timeZoneSelectOptions, weekStartSelectOptions } = useAccountSelectOptions();
-  const resetForm = () => {
-    clear();
-    setCreating(false);
-    setName("");
-    setWeekStartsOn(DEFAULT_WEEK_STARTS_ON);
-    setTimezone(resolveBrowserTimeZone());
-  };
-
+  const resetForm = () => resetCreateAccountForm({ clear, setCreating, setName, setWeekStartsOn, setTimezone });
   const submit = createAccountSubmit({
     name,
     submitting,
@@ -210,7 +221,6 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
     setAccountSummaries,
     fail,
   });
-
   return {
     form: {
       creating,
@@ -218,6 +228,7 @@ export function useCreateAccountForm({ refreshAuth }: { refreshAuth: ReturnType<
       submitting,
       createUnresolved,
       name,
+      language: DEFAULT_LANGUAGE,
       setName,
       weekStartsOn,
       setWeekStartsOn,

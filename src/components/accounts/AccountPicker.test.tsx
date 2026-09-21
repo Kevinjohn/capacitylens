@@ -163,15 +163,9 @@ function registerCreateAndActivateTests() {
     const user = userEvent.setup();
     render(<AccountPicker />);
 
-    expect(
-      screen.getByText(
-        "Week start, timezone, and language apply to everyone and are fixed after creation. The company name is separate and can be changed later.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Company planning settings" })).toHaveAccessibleDescription(
-      "Week start, timezone, and language apply to everyone and are fixed after creation. The company name is separate and can be changed later.",
-    );
-    expect(screen.getByLabelText("Company name")).toHaveAccessibleDescription(
+    expect(screen.queryByText(/Week start, timezone, and language apply/)).not.toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Company planning settings" })).not.toHaveAttribute("aria-describedby");
+    expect(screen.getByLabelText("Company name")).not.toHaveAccessibleDescription(
       "You can change the company name later; the calendar choices below are fixed after creation.",
     );
     // The three frozen-after-creation fields render with concrete defaults.
@@ -184,10 +178,11 @@ function registerCreateAndActivateTests() {
     expect(screen.getByRole("radio", { name: "Monday" }).parentElement).toHaveAccessibleDescription(
       "Controls which day starts each calendar week and the order of days in the schedule for everyone.",
     );
+    expect(screen.getByRole("combobox", { name: "Language" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Language" })).toHaveTextContent("English");
     expect(screen.getByRole("group", { name: "Language" })).toHaveAccessibleDescription(
       "Sets the display language for everyone in this company. English is currently available.",
     );
-    expect(screen.getByTestId("create-language")).toHaveTextContent("English");
 
     // Change the two editable-at-creation ones, then create.
     await user.click(screen.getByRole("radio", { name: "Sunday" }));
@@ -216,8 +211,11 @@ function registerCreateAndActivateTests() {
     const timezone = screen.getByRole("combobox", { name: "Timezone" });
     expect(timezone).toHaveTextContent("London");
     await user.click(timezone);
-    expect(document.getElementById(timezone.getAttribute("aria-controls") ?? "")).toHaveAttribute("role", "dialog");
+    const popup = document.getElementById(timezone.getAttribute("aria-controls") ?? "");
+    expect(popup).toHaveAttribute("role", "dialog");
+    expect(popup).toHaveClass("max-w-[calc(100vw-1rem)]", "max-h-[calc(100dvh-1rem)]");
     const search = screen.getByRole("combobox", { name: "Search time zones" });
+    expect(search).toHaveClass("min-w-0");
     await user.type(search, "London");
     await user.keyboard("{Enter}");
 

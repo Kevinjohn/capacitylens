@@ -28,9 +28,16 @@ function TimeZoneMenu({
   onSelect: (value: string) => void;
 }) {
   return (
-    <PopoverContent id={popupId} aria-label={label} align="start" className="w-(--radix-popover-trigger-width) p-0">
-      <Command label={m.picker_timezone_search()}>
-        <div className="flex items-center border-b px-3">
+    <PopoverContent
+      id={popupId}
+      aria-label={label}
+      align="start"
+      sideOffset={8}
+      collisionPadding={8}
+      className="max-h-[calc(100dvh-1rem)] w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] overflow-hidden p-0"
+    >
+      <Command label={m.picker_timezone_search()} className="min-h-0 max-h-full">
+        <div className="flex min-w-0 shrink-0 items-center gap-2 border-b px-3 py-1">
           <CommandInput
             className="h-10"
             autoFocus
@@ -40,7 +47,7 @@ function TimeZoneMenu({
         </div>
         <CommandList
           aria-label={label}
-          className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height)-3rem))]"
+          className="min-h-0 max-h-[min(16rem,calc(var(--radix-popover-content-available-height)-3.5rem))]"
         >
           <CommandEmpty>{m.picker_timezone_no_results()}</CommandEmpty>
           {options.map((option) => (
