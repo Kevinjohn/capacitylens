@@ -109,7 +109,7 @@ describe("SettingsView — Overview access", () => {
       </PermissionContext.Provider>,
     );
 
-    const restricted = screen.getByRole("radio", { name: "Owner and Admin only" });
+    const restricted = screen.getByRole("radio", { name: "Admins" });
     const everyone = screen.getByRole("radio", { name: "Everyone" });
     expect(restricted).toHaveAttribute("aria-checked", "true");
 
@@ -128,8 +128,8 @@ describe("SettingsView — Overview access", () => {
       </PermissionContext.Provider>,
     );
 
-    expect(screen.getByRole("radio", { name: "Owner and Admin only" })).toBeDisabled();
-    expect(screen.getByRole("radio", { name: "Owner, Admin, and Editors" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Admins" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "Admins & Editors" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "Everyone" })).toBeDisabled();
   });
 });
@@ -281,12 +281,12 @@ describe("SettingsView — minimum company working week", () => {
 });
 
 describe("SettingsView — Internal work colours", () => {
-  it("defaults to Grey and stores Use colour palette on the active account", async () => {
+  it("defaults to Neutral grey and stores Colour palette on the active account", async () => {
     const user = userEvent.setup();
     render(<SettingsView />);
 
-    const grey = screen.getByRole("radio", { name: "Grey" });
-    const palette = screen.getByRole("radio", { name: "Use colour palette" });
+    const grey = screen.getByRole("radio", { name: "Neutral grey" });
+    const palette = screen.getByRole("radio", { name: "Colour palette" });
     expect(grey).toHaveAttribute("aria-checked", "true");
     expect(palette).toHaveAttribute("aria-checked", "false");
 

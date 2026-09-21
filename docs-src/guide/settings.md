@@ -103,7 +103,7 @@ by default; favourites stay first inside each engagement group. See [People and 
 ### Overview access
 
 Overview is limited to Owners and Admins by default. An Owner or Admin can choose
-**Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Overview
+**Admins**, **Admins & Editors**, or **Everyone** under **Overview
 access**. The setting controls both the sidebar link and direct access to the page. See
 [Find capacity across four, eight or twelve weeks](/guide/capacity-overview).
 
@@ -136,7 +136,7 @@ deleting it.
 
 ### Internal work colours
 
-Choose whether internal work uses **Grey** bars (the default) or **Use colour palette**, which
+Choose whether internal work uses **Neutral grey** bars (the default) or **Colour palette**, which
 shows its saved palette colours.
 
 ### Internal work visibility

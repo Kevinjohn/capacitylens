@@ -700,8 +700,8 @@ function registerServerModeTest20() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Set up the first Owner" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Your name")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Setup the account Owner" })).toBeInTheDocument();
+    expect(screen.getByLabelText("name")).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
 }

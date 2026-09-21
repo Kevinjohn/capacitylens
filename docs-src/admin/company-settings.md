@@ -31,7 +31,7 @@ Editors can change most company settings. Only Owners and Admins can change Over
 
 ## Scheduling features
 
-![Settings: Scheduling features with Internal work colours set to Grey and feature switches visible](../screenshots/flows/admin_company_settings_2.png)
+![Settings: Scheduling features with Internal work colours set to Neutral grey and feature switches visible](../screenshots/flows/admin_company_settings_2.png)
 
 | Setting                                           | What it changes                                                           |
 | ------------------------------------------------- | ------------------------------------------------------------------------- |
