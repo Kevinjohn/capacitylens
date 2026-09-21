@@ -339,28 +339,6 @@ export function ConfirmDialog({
   );
 }
 
-export function ListPage({
-  title,
-  addLabel,
-  onAdd,
-  children,
-}: {
-  title: string;
-  addLabel?: string;
-  onAdd?: () => void;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{title}</h1>
-        {onAdd && <AddButton label={addLabel ?? m.form_add()} onClick={onAdd} />}
-      </div>
-      {children}
-    </div>
-  );
-}
-
 export function EmptyState({
   children,
   icon,

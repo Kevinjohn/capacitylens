@@ -42,7 +42,11 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
     and **Diagnostics** appear in Data and support. When strict company login is configured,
     **SSO cutover readiness** appears as its own group after Company setup.
 12. Click **Account**. The URL is `/account` and the personal identity and available security
-    controls show independently of the active company.
+    controls show independently of the active company. The table has Name, Email, Access and Actions
+    columns, with the avatar beside the name. A long email is truncated, with its full address available on pointer
+    hover or keyboard focus. On narrow screens the row scrolls horizontally. Local-password users can open **Change password** from the identity row;
+    **Sign out** ends the session immediately. Required MFA status appears below the row.
+    See the [Account guide](../../docs-src/using/account.md).
 
 ## Acceptance criteria
 

@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Show Account identity and actions in aligned table columns, truncate long email with a full-address hover or focus hint,
+  move local password change into a dialog, and show MFA status only when required (#1231).
+
 - Removed legacy account environment aliases; the server refuses them and names the
   `SMALLSASS_ACCOUNT_*` replacement (#1201).
 - Managed-VPS builds now activate a production-only runtime artifact instead of retaining build and test dependencies in each release.

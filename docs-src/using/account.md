@@ -7,12 +7,14 @@ next: false
 
 # Account
 
-![Account showing the menu location, signed-in identity and account controls](../screenshots/flows/using_account_1.png)
+![Demo Account showing the identity row, truncated email, access label and Sign out button](../screenshots/flows/using_account_1.png)
 
 Open Account at the bottom of the left menu.
 
-It shows your signed-in identity and available security controls. These differ between password sign-in and company login.
+The table shows Name, Email, Access and Actions columns. Your avatar sits beside your name on one line. A long email is shortened to fit; hover over it or move keyboard focus to it to see the full address. On a narrow screen, scroll the row sideways to reach every column.
 
-Select Sign out on this page when you have finished.
+If you sign in with a local password, select **Change password** to open the password dialog. Enter your current password and confirm the new one. If your operator requires multi-factor authentication, its status appears below the row. Company login users can connect their provider when that option is available.
+
+Select **Sign out** on this page when you have finished.
 
 [Account controls](/guide/settings#your-personal-account)

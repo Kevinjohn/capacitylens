@@ -293,11 +293,12 @@ If a selected company cannot be loaded, a recovery screen hides the previously o
 data. **Retry** loads the selected company again without changing your selection, or you can choose
 another company.
 
-![The Account page showing Lucius Fox’s fictional identity and the Sign out action](../screenshots/flows/account.jpg)
+![The demo Account page showing Bruce Wayne’s identity row, truncated email and Sign out action](../screenshots/flows/account.jpg)
 
-In password mode, Account includes password changes, reported multi-factor authentication
-status and active sessions. Company single sign-on shows its connection and session controls
-without a local password form. Demo mode identifies the fictional persona; installations with
+For local-password identities, Account offers **Change password** in a dialog. It shows multi-factor
+authentication status when the operator requires it. Company single sign-on shows its connection
+without a local password control. A long email is truncated, and its full address is available on hover or keyboard focus. Active
+session details are hidden. Demo mode identifies the fictional persona; installations with
 sign-in off have no credential controls or sign-out action.
 
 ## What's next

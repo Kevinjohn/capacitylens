@@ -1,16 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
-import { accountClient, readUnknownAccountCommandOutcome } from "@/account/accountClient";
-import { readSessions } from "@/account/sessionClient";
-import type { SessionView } from "@/account/sessionClient";
+import { accountClient } from "@/account/accountClient";
 import { authClient } from "@/auth/authClient";
 import type { AuthProviderInfo } from "@/auth/authContext";
 import { useFieldError } from "@/hooks/useFieldError";
 import { m } from "@/i18n";
-import { reloadPage } from "@/lib/reloadPage";
 
-type SessionReloadResult = { kind: "loaded" | "unauthorized" | "failed" | "superseded" };
 type Fail = ReturnType<typeof useFieldError>["fail"];
 
 function readIdentityProviderStatus(body: unknown): { connected: boolean } {
@@ -96,61 +92,27 @@ function useProviderConnection(
   return { connected, error, connect };
 }
 
-function useSessions(fail: Fail, clear: () => void, setMessage: (message: string | null) => void) {
-  const [sessions, setSessions] = useState<SessionView[]>([]);
-  const generation = useRef(0);
-  const load = useCallback(async (): Promise<SessionReloadResult> => {
-    const requestGeneration = ++generation.current;
-    const result = await readSessions();
-    if (requestGeneration !== generation.current) return { kind: "superseded" };
-    if (result.kind === "loaded") {
-      setSessions(result.sessions);
-      clear();
-      return { kind: "loaded" };
-    }
-    fail(
-      null,
-      result.kind === "invalid" ? m.settings_security_err_sessions_invalid() : m.settings_security_err_sessions_load(),
-    );
-    return { kind: result.kind === "unauthorized" ? "unauthorized" : "failed" };
-  }, [clear, fail]);
-
-  useEffect(() => {
-    const requestGeneration = generation.current;
-    queueMicrotask(() => {
-      if (requestGeneration === generation.current) void load();
-    });
-    return () => {
-      generation.current += 1;
-    };
-  }, [load]);
-
-  const reconcileUnknown = async (mustReenter: boolean) => {
-    if (mustReenter) return reloadPage();
-    const outcome = await load();
-    if (outcome.kind === "unauthorized") return reloadPage();
-    setMessage(
-      outcome.kind === "loaded"
-        ? m.settings_security_revoke_unknown_refreshed()
-        : m.settings_security_revoke_unknown_unavailable(),
-    );
-  };
-
-  return { sessions, setSessions, load, reconcileUnknown };
-}
-
 interface PasswordChangeInput {
   fail: Fail;
   clear: () => void;
   setMessage: (message: string | null) => void;
-  loadSessions: () => Promise<SessionReloadResult>;
   setBusy: (busy: boolean) => void;
 }
 
-function usePasswordChange({ fail, clear, setMessage, loadSessions, setBusy }: PasswordChangeInput) {
+function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeInput) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const generation = useRef(0);
+
+  const reset = () => {
+    generation.current += 1;
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    clear();
+    setMessage(null);
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -161,18 +123,19 @@ function usePasswordChange({ fail, clear, setMessage, loadSessions, setBusy }: P
       return;
     }
     if (newPassword !== confirmPassword) return fail("confirm", m.settings_security_err_password_mismatch());
+    const requestGeneration = ++generation.current;
     setBusy(true);
     try {
       const result = await authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true });
+      if (requestGeneration !== generation.current) return;
       if (result.error) return fail("current", result.error.message ?? m.settings_security_err_password_change());
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setMessage(m.settings_security_password_changed());
-      await loadSessions();
     } catch (cause) {
       console.error("SecuritySection: password change failed", cause);
-      fail("current", m.settings_security_err_auth_unavailable());
+      if (requestGeneration === generation.current) fail("current", m.settings_security_err_auth_unavailable());
     } finally {
       setBusy(false);
     }
@@ -185,6 +148,7 @@ function usePasswordChange({ fail, clear, setMessage, loadSessions, setBusy }: P
     setNewPassword,
     confirmPassword,
     setConfirmPassword,
+    reset,
     submit,
   };
 }
@@ -193,39 +157,13 @@ export function useSecurityController(strictProvider: AuthProviderInfo | undefin
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const fieldError = useFieldError();
-  const sessionController = useSessions(fieldError.fail, fieldError.clear, setMessage);
   const password = usePasswordChange({
     fail: fieldError.fail,
     clear: fieldError.clear,
     setMessage,
-    loadSessions: sessionController.load,
     setBusy,
   });
   const provider = useProviderConnection(strictProvider, busy, setBusy);
 
-  const revoke = async (sessionId: string) => {
-    const revokingCurrent = sessionController.sessions.some((session) => session.id === sessionId && session.current);
-    setBusy(true);
-    fieldError.clear();
-    setMessage(null);
-    try {
-      const response = await accountClient.revokeOwnSession(sessionId);
-      if (!response.ok && (await readUnknownAccountCommandOutcome(response))) {
-        await sessionController.reconcileUnknown(revokingCurrent || response.status === 401);
-      } else if (!response.ok) {
-        fieldError.fail(null, m.settings_security_err_revoke());
-      } else {
-        sessionController.setSessions((current) => current.filter((session) => session.id !== sessionId));
-        setMessage(m.settings_security_revoked());
-        if (revokingCurrent) reloadPage();
-      }
-    } catch (cause) {
-      console.error("SecuritySection: session revoke failed", cause);
-      await sessionController.reconcileUnknown(revokingCurrent);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return { busy, message, fieldError, password, provider, sessions: sessionController.sessions, revoke };
+  return { busy, message, fieldError, password, provider };
 }
