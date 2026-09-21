@@ -192,10 +192,9 @@ function buildCreateAccountPanelProps(
 
 function AccountLanguageDisplay({ value }: { value: string }) {
   const labelId = useId();
-  const descriptionId = useId();
   const selectId = useId();
   return (
-    <div role="group" aria-labelledby={labelId} aria-describedby={descriptionId}>
+    <div role="group" aria-labelledby={labelId}>
       <label htmlFor={selectId} id={labelId} className="mb-1.5 block text-xs font-medium text-ink">
         {m.picker_language()}
       </label>
@@ -208,15 +207,11 @@ function AccountLanguageDisplay({ value }: { value: string }) {
       >
         <option value={value}>{m.picker_language_english()}</option>
       </select>
-      <p id={descriptionId} className="mt-1 text-xs text-muted-foreground">
-        {m.picker_language_help()}
-      </p>
     </div>
   );
 }
 
 function CreateAccountPanel(input: CreateAccountPanelProps) {
-  const weekStartHelpId = useId();
   const changeName = (name: string) => {
     input.onNameChange(name);
     if (input.errorField === "name") input.onClearError();
@@ -254,22 +249,17 @@ function CreateAccountPanel(input: CreateAccountPanelProps) {
               <SegmentedControl
                 variant="recessed"
                 ariaLabel={m.picker_week_start()}
-                ariaDescribedby={weekStartHelpId}
                 value={input.weekStartsOn}
                 onChange={input.onWeekStartChange}
                 options={input.weekStartSelectOptions}
                 fullWidth
               />
-              <p id={weekStartHelpId} className="mt-1 text-xs text-muted-foreground">
-                {m.picker_week_start_help()}
-              </p>
             </div>
             <TimeZoneField
               label={m.picker_timezone()}
               value={input.timezone}
               onChange={input.onTimeZoneChange}
               options={input.timeZoneSelectOptions}
-              description={m.picker_timezone_help()}
             />
             <AccountLanguageDisplay value={input.language} />
           </fieldset>

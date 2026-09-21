@@ -61,8 +61,9 @@ colour is automatic, so onboarding does not create an unnecessary design task.
   membership role only in authenticated mode, **Demo access** in the in-memory demo, or **Open
   access** on an auth-off persisted server.
 - ✅ The create form captures Company name, Week starts on, Timezone and a one-option Language
-  select (English). Help remains associated with the week-start, timezone and language controls;
-  the shared settings are submitted with the same defaults as before.
+  select (English) with concise labels and controls; redundant per-field explanations are omitted
+  while validation and error messaging remain available. The shared settings are submitted with the
+  same defaults as before.
   The three calendar choices cannot be changed later, then the form activates the created company
   and lands on Schedule.
 - ✅ When first-company creation is the caller's only next step, the form appears immediately, has

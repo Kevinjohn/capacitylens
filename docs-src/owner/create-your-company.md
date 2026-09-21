@@ -21,9 +21,9 @@ For company login, choose the configured provider and use the verified email app
 
 ## Create the company
 
-![Company form: Company name, Week starts on, Timezone and the disabled English language select](../screenshots/flows/owner_create_your_company_2.png)
+![Example of the New company form opened from a company chooser, with Company name, Week starts on, Timezone and Language fields](../screenshots/flows/owner_create_your_company_2.png)
 
-The first-company form opens after sign-in. Enter the Company name.
+The first-company form opens after sign-in. The image shows the same form opened later from a company chooser. Enter the Company name.
 
 Choose Week starts on and Timezone. These apply to everyone and cannot be changed after creation.
 

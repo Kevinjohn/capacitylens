@@ -172,17 +172,11 @@ function registerCreateAndActivateTests() {
     expect(screen.getByRole("radio", { name: "Monday" })).toHaveAttribute("aria-checked", "true");
     const tz = screen.getByLabelText("Timezone");
     expect(tz).toHaveTextContent(/(?:GMT|UTC|London)/);
-    expect(tz).toHaveAccessibleDescription(
-      "Sets the company-wide calendar boundary used for “today” and date-based scheduling.",
-    );
-    expect(screen.getByRole("radio", { name: "Monday" }).parentElement).toHaveAccessibleDescription(
-      "Controls which day starts each calendar week and the order of days in the schedule for everyone.",
-    );
+    expect(tz).not.toHaveAccessibleDescription();
+    expect(screen.getByRole("radio", { name: "Monday" }).parentElement).not.toHaveAccessibleDescription();
     expect(screen.getByRole("combobox", { name: "Language" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "Language" })).toHaveTextContent("English");
-    expect(screen.getByRole("group", { name: "Language" })).toHaveAccessibleDescription(
-      "Sets the display language for everyone in this company. English is currently available.",
-    );
+    expect(screen.getByRole("group", { name: "Language" })).not.toHaveAccessibleDescription();
 
     // Change the two editable-at-creation ones, then create.
     await user.click(screen.getByRole("radio", { name: "Sunday" }));

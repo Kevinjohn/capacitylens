@@ -11,7 +11,7 @@ next: false
 
 # Set up your company as the Owner
 
-![New company form with company name, week start, timezone and the disabled English language select](../screenshots/flows/owner_create_your_company_2.png)
+![Example of the New company form opened from a company chooser, with company name, week start, timezone and language fields](../screenshots/flows/owner_create_your_company_2.png)
 
 Create the company, appoint an Admin, and hand everyday setup to them.
 

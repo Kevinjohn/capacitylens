@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 - Clarify first-owner and first-company setup copy, keep the timezone picker usable in narrow
   viewports, expose English as the only language select option, and shorten Settings access and
   internal-colour option labels (#1227, #1228, #1232).
+- Remove redundant helper text from the first-company setup form so its labels and controls stay
+  concise (#1228).
 - Removed legacy account environment aliases; the server refuses them and names the
   `SMALLSASS_ACCOUNT_*` replacement (#1201).
 - Managed-VPS builds now activate a production-only runtime artifact instead of retaining build and test dependencies in each release.

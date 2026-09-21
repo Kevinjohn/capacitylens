@@ -2,7 +2,7 @@ import { ChevronDown } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { Button } from "../ui/button";
-import { Field, FieldDescription } from "../ui/field";
+import { Field } from "../ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { RequiredFieldLabel } from "../common/fields/fieldLayout";
 import type { Option } from "../common/ui";
@@ -14,7 +14,6 @@ interface TimeZoneFieldProps {
   value: string;
   onChange: (value: string) => void;
   options: Option[];
-  description?: string;
 }
 
 function TimeZoneMenu({
@@ -74,9 +73,8 @@ function TimeZoneMenu({
  * include friendly names, current abbreviations, and offsets. Closing the popover restores focus
  * to the trigger so form keyboard flow remains predictable.
  */
-export function TimeZoneField({ label, value, onChange, options, description }: TimeZoneFieldProps) {
+export function TimeZoneField({ label, value, onChange, options }: TimeZoneFieldProps) {
   const id = useId();
-  const descriptionId = `${id}-description`;
   const popupId = `${id}-options`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -101,7 +99,6 @@ export function TimeZoneField({ label, value, onChange, options, description }: 
             aria-expanded={open}
             aria-controls={open ? popupId : undefined}
             aria-haspopup="dialog"
-            aria-describedby={description ? descriptionId : undefined}
             className="w-full justify-between gap-2 font-normal"
             onKeyDown={(event) => {
               if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
@@ -125,7 +122,6 @@ export function TimeZoneField({ label, value, onChange, options, description }: 
           }}
         />
       </Popover>
-      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
     </Field>
   );
 }
