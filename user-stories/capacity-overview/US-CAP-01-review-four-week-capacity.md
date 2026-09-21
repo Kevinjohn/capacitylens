@@ -64,7 +64,7 @@ the schedule.
 - ✅ Switching **Ledger** and **Load curve** changes only the inside of week cells: header, group
   rows and column widths are untouched, and every figure remains available to assistive technology.
 - ✅ Blocks mode explains that the overview needs Hours or Days without showing capacity figures.
-- ✅ Owners and Admins can choose Owner/Admin, Owner/Admin/Editor or Everyone access in Settings; the default is Owner/Admin.
+- ✅ Owners and Admins can choose Admins, Admins & Editors or Everyone access in Settings; the default is Admins.
 - ✅ Selecting a person's avatar opens their read-only schedule drawer over the fixed 28-day window
   from its own start date, the same trigger and drawer used by the Schedule; the horizon does not
   change the drawer.

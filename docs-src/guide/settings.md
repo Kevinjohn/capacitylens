@@ -103,7 +103,7 @@ by default; favourites stay first inside each engagement group. See [People and 
 ### Overview access
 
 Overview is limited to Owners and Admins by default. An Owner or Admin can choose
-**Owner and Admin only**, **Owner, Admin, and Editors**, or **Everyone** under **Overview
+**Admins**, **Admins & Editors**, or **Everyone** under **Overview
 access**. The setting controls both the sidebar link and direct access to the page. See
 [Find capacity across four, eight or twelve weeks](/guide/capacity-overview).
 
@@ -136,7 +136,7 @@ deleting it.
 
 ### Internal work colours
 
-Choose whether internal work uses **Grey** bars (the default) or **Use colour palette**, which
+Choose whether internal work uses **Neutral grey** bars (the default) or **Colour palette**, which
 shows its saved palette colours.
 
 ### Internal work visibility
@@ -293,11 +293,12 @@ If a selected company cannot be loaded, a recovery screen hides the previously o
 data. **Retry** loads the selected company again without changing your selection, or you can choose
 another company.
 
-![The Account page showing Lucius Fox’s fictional identity and the Sign out action](../screenshots/flows/account.jpg)
+![Account page showing separate avatar, name, email and actions columns with Change password beside Sign out](../screenshots/flows/account.jpg)
 
-In password mode, Account includes password changes, reported multi-factor authentication
-status and active sessions. Company single sign-on shows its connection and session controls
-without a local password form. Demo mode identifies the fictional persona; installations with
+For local-password identities, Account offers **Change password** in a dialog. It shows multi-factor
+authentication status when the operator requires it. Company single sign-on shows its connection
+without a local password control. A long email is truncated, and its full address is available on hover or keyboard focus. Active
+session details are hidden. Demo mode identifies the fictional persona; installations with
 sign-in off have no credential controls or sign-out action.
 
 ## What's next

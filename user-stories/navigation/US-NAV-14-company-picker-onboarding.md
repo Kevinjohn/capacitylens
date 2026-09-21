@@ -20,12 +20,12 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 **Empty picker, caller may create:**
 
 1. Start from a clean device state and complete the demo sign-in if it appears.
-2. With no companies, confirm **Set up your company** and its mandatory create form appear
-   automatically. There is no preliminary choice or Cancel action.
-3. Confirm the form explains that its shared calendar choices are fixed while the company name can
-   change later, then asks for **Company name**, week start, a searchable
-   timezone combobox preselected to the browser's IANA zone, and the read-only English language
-   value; it does **not** ask the user to choose a company colour.
+2. With no companies, confirm its mandatory create form appears automatically under an accessible
+   **Set up your company** page name. The page name is not repeated as a visible heading. There is
+   no preliminary choice or Cancel action.
+3. Confirm the form asks for **Company name**, week start, a searchable timezone combobox
+   preselected to the browser's IANA zone, and a Language select containing only **English**; it
+   does **not** ask the user to choose a company colour or repeat fixed-settings guidance.
 4. Create the company and confirm it becomes active and opens the schedule.
 
 **Empty picker, caller cannot create:**
@@ -49,8 +49,9 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 
 ## Acceptance criteria
 
-- ✅ The empty, create-allowed state is headed **Set up your company** and shows the mandatory
-  company-create form immediately, with no preliminary **New company** choice and no Cancel action.
+- ✅ The empty, create-allowed state exposes **Set up your company** as its accessible page name and
+  shows the mandatory company-create form immediately, without repeating that name as a visible
+  heading or offering a preliminary **New company** choice or Cancel action.
 - ✅ The empty, create-forbidden state shows only the invite step and says the user should ask an
   admin; it does not render a disabled or hidden-behind-copy create promise.
 - ✅ The populated state uses **“Choose a company to plan, or create another one.”** only when
@@ -59,10 +60,10 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 - ✅ Every populated company row shows its honest access posture (`data-testid="company-role"`): a
   membership role only in authenticated mode, **Demo access** in the in-memory demo, or **Open
   access** on an auth-off persisted server.
-- ✅ The create form captures Company name, Week starts on, Timezone and read-only Language
-  (English). Help is associated with each control: the company name is separate from the fixed
-  calendar choices; week start controls displayed week order; timezone controls the company-wide
-  date boundary used for Today and date-based scheduling; and language is shared company-wide.
+- ✅ The create form captures Company name, Week starts on, Timezone and a one-option Language
+  select (English) with concise labels and controls; redundant per-field explanations are omitted
+  while validation and error messaging remain available. The shared settings are submitted with the
+  same defaults as before.
   The three calendar choices cannot be changed later, then the form activates the created company
   and lands on Schedule.
 - ✅ When first-company creation is the caller's only next step, the form appears immediately, has

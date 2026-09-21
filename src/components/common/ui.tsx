@@ -5,8 +5,8 @@
 // Product-level UI compositions. Generic primitives live in ../ui; this barrel exposes the
 // CapacityLens-specific behaviors layered on top of them.
 //
-//   ./dialogs           AddButton, EditButton, DeleteButton, Modal, ConfirmDialog,
-//                       ListPage, EmptyState
+//   ./dialogs           AddButton, EditButton, DeleteButton, Modal, ConfirmDialog, EmptyState
+//   ./ListPage          ListPage
 //   ./fields            Product field layouts and labelled text, textarea, number, date, select,
 //                       colour, switch, segmented and weekday controls
 //   ./badges            ColorSwatch, PLACEHOLDER_AVATAR_SYMBOL, Avatar
@@ -15,6 +15,7 @@
 //   ./FormActions       FormActions  (standard Cancel/submit footer actions)
 
 export * from "./dialogs";
+export * from "./ListPage";
 export * from "./fields";
 export * from "./badges";
 export * from "./SegmentedControl";

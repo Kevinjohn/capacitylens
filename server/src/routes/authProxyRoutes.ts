@@ -210,6 +210,7 @@ async function readAuthenticatedIdentity(
     authMode,
     user,
     mfaRequired: authMode === "password" && requireMfa && !dependencies.sessionSatisfiesRequiredMfa(session),
+    requireMfa: authMode === "password" && requireMfa,
     reauthMethod: session.assurance === "federated" ? "provider" : "password",
     reauthProviderId: session.providerId ?? null,
     providers: auth?.providers ?? [],

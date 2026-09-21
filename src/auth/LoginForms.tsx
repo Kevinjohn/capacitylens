@@ -1,9 +1,5 @@
 import { m } from "@/i18n";
-import {
-  MAX_PASSWORD_INPUT_CODE_UNITS,
-  MAX_PASSWORD_LENGTH,
-  MIN_PASSWORD_LENGTH,
-} from "@capacitylens/shared/domain/password";
+import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { Button } from "../components/ui/button";
@@ -14,7 +10,6 @@ type LoginIds = {
   name: string;
   email: string;
   password: string;
-  passwordHelp: string;
   setupToken: string;
   setupTokenHelp: string;
   error: string;
@@ -191,11 +186,8 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
         minLength={MIN_PASSWORD_LENGTH}
         maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
         onChange={(event) => passwordSignIn.setPassword(event.target.value)}
-        aria-describedby={[ids.passwordHelp, describedBy].filter(Boolean).join(" ")}
+        aria-describedby={describedBy}
       />
-      <p id={ids.passwordHelp} className="text-xs text-muted-foreground">
-        {m.login_setup_password_help({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH })}
-      </p>
       <LoginField
         id={ids.setupToken}
         label={m.login_setup_token()}

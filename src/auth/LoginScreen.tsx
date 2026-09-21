@@ -33,7 +33,6 @@ function useLoginIds() {
     name: useId(),
     email: useId(),
     password: useId(),
-    passwordHelp: useId(),
     setupToken: useId(),
     setupTokenHelp: useId(),
     error: useId(),
@@ -139,7 +138,6 @@ type LoginViewProps = {
     name: string;
     email: string;
     password: string;
-    passwordHelp: string;
     setupToken: string;
     setupTokenHelp: string;
     error: string;
@@ -214,7 +212,7 @@ function LoginHeading({ setup }: { setup: boolean }) {
     <div className="mb-6 text-center">
       <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
       <h1 className="text-lg font-semibold text-ink">{setup ? m.login_setup_heading() : m.login_sign_in()}</h1>
-      <p className="text-sm text-muted-foreground">{setup ? m.login_setup_intro() : m.login_subtitle()}</p>
+      {!setup && <p className="text-sm text-muted-foreground">{m.login_subtitle()}</p>}
     </div>
   );
 }

@@ -247,9 +247,13 @@ when two or more companies are accessible; with one accessible company they are 
 and demo builds retain their company context and switching exception. (Keeping the context at the
 bottom keeps the logo + collapse toggle as the first item in both the open menu and collapsed rail.)
 **Account** opens the signed-in person's identity and security page from every main app page. In
-password mode it shows password change, MFA status and active-session revocation; in SSO mode it
-shows the provider identity and active sessions without password controls. Demo and auth-off modes
-describe their actual local access and never invent credential controls. Company Settings contains
+its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
+Actions. The row scrolls horizontally on narrow screens. Long email
+addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
+In password mode it offers password change in a dialog for local-password identities and shows MFA
+status only when the operator requires it; in SSO mode it shows the provider identity without password controls.
+The page hides active-session details. Demo and auth-off modes
+never invent credential controls. Company Settings contains
 company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
 otherwise, and the demo persona's face in the demo build. The row always reads **Sign out**, never
 "Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
@@ -813,14 +817,14 @@ If the optional allocation Task field from #720 is available and populated under
 visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
 setting. See [US-ALL-10](allocation/US-ALL-10-task-field.md).
 
-**Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
+**Internal work colours (per-account, default neutral grey).** Settings → **Internal work colours** has a
 two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
-**Grey** (the default) or **Use colour palette**. It is stored as `internalColourMode` on the
-Account (absent = `grey`, syncs but is omitted from the scoped planning-data export). In **Grey** mode, allocation bars for `internal`
+**Neutral grey** (the default) or **Colour palette**. It is stored as `internalColourMode` on the
+Account (absent = `grey`, syncs but is omitted from the scoped planning-data export). In **Neutral grey** mode, allocation bars for `internal`
 activities and for projects owned by the built-in **Internal** client use the neutral grey, and an
 Internal-owned project's saved colour is overridden by grey in the Projects list. The project
 form hides its existing **Colour** swatch picker whenever the selected client is Internal; the
-saved palette colour is retained rather than cleared. Switching to **Use colour palette** restores
+saved palette colour is retained rather than cleared. Switching to **Colour palette** restores
 those saved project colours and reveals the picker. Unattributed All-projects allocations retain
 their resource-derived colours in both modes; attributed ones use their effective project's colour.
 
@@ -915,7 +919,7 @@ the failure detail is announced as an alert when it replaces the checking state.
 While signed in, the sidebar's **Account** destination shows who is signed in and the available
 personal security controls. **Account** contains the single **Sign out** action for real and demo
 sessions. With auth off (the default everywhere) or in
-local mode, no login screen exists, Account explains that sign-in is off, and local mode makes **no**
+local mode, no login screen exists, Account has no credential controls, and local mode makes **no**
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
@@ -952,11 +956,12 @@ challenge for sensitive actions offers the same **Use a recovery code** alternat
 one-time code can restore freshness without signing out or losing the current form. The enrollment
 wall deliberately outranks public-entry links for a signed-in identity: an invitation explains that
 MFA must be finished before it can be accepted, while a password-reset link explains that the user
-may finish enrollment or choose **Sign out** to redeem the link without the current session. Account gains a **Security** section
-(`data-testid="security-section"`) where password users can change their password only by supplying
-the current password and can view/revoke active sessions. Recovery codes and session tokens are
-never displayed after their one-time setup/use. Disabling MFA is deliberately not offered when the
-deployment requires it.
+may finish enrollment or choose **Sign out** to redeem the link without the current session.
+On Account, local-password users open **Change password** from the identity row and supply their
+current password in the dialog. The **Security** section (`data-testid="security-section"`) appears
+when required MFA status or a strict OIDC connection is available. Recovery codes and session
+tokens are never displayed after their one-time setup/use. Disabling MFA is deliberately not offered
+when the deployment requires it.
 
 On a `self-hosted-mixed` deployment with strict OIDC configured, the Account Security section also shows
 **Connect your SSO account** (`data-testid="sso-connection"`). **Connect with _provider_** starts a
@@ -970,12 +975,11 @@ leaves, on the same contract as the sign-in screen; only a returned provider err
 
 **First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
-bootstrap account and closes the moment it exists), the login wall shows **Set up the first Owner**
-instead of sign-in. It explains that this creates a personal sign-in with the Owner role and that
-other people can be invited later. Fields are **Your name**
-(`data-testid="owner-setup-name"`), **Work email** (`data-testid="owner-setup-email"`), **Create a
-password** (`data-testid="owner-setup-password"`) with its length requirement, and **Owner setup
-token** (`data-testid="owner-setup-token"`) with installer guidance, plus a **Create my sign-in** button
+bootstrap account and closes the moment it exists), the login wall shows **Setup the account Owner**
+instead of sign-in. Fields are **name** (`data-testid="owner-setup-name"`), **email**
+(`data-testid="owner-setup-email"`), **Create a password** (`data-testid="owner-setup-password"`)
+with its length validation, and **Owner setup token** (`data-testid="owner-setup-token"`) with
+installer guidance, plus a **Create my sign-in** button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
 owner in and reloads into **Set up your company**, where the owner creates the first company before
 entering the app. Ordinary edge whitespace around a pasted setup token is ignored; a token containing

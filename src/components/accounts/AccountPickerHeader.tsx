@@ -23,7 +23,7 @@ function PickerHeading({ accountCount, canCreateAccount, companySetupEligible }:
   return (
     <div className="mb-6 text-center">
       <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-      <h1 className="text-lg font-semibold text-ink">
+      <h1 className={companySetupEligible ? "sr-only" : "text-lg font-semibold text-ink"}>
         {resolvePickerTitle({ accountCount, canCreateAccount, companySetupEligible })}
       </h1>
       <p className="text-sm text-muted-foreground">

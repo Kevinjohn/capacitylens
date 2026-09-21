@@ -5,8 +5,8 @@ import { openApp, selectShadOption } from "./helpers";
 test("Internal work defaults grey and palette mode restores the project picker and colour", async ({ page }) => {
   await openApp(page, "Wayne Enterprises", "/settings");
 
-  await expect(page.getByRole("radio", { name: "Grey" })).toHaveAttribute("aria-checked", "true");
-  await expect(page.getByRole("radio", { name: "Use colour palette" })).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByRole("radio", { name: "Neutral grey" })).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByRole("radio", { name: "Colour palette" })).toHaveAttribute("aria-checked", "false");
 
   await page.getByRole("link", { name: "Projects" }).click();
   await page.getByRole("button", { name: "Add project" }).click();
@@ -22,7 +22,7 @@ test("Internal work defaults grey and palette mode restores the project picker a
   await expect(row.locator("span.inline-block.rounded-sm").first()).toHaveCSS("background-color", "rgb(156, 163, 175)");
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("radio", { name: "Use colour palette" }).click();
+  await page.getByRole("radio", { name: "Colour palette" }).click();
   await page.getByRole("link", { name: "Projects" }).click();
 
   // The project kept its original default pink while grey was displayed; palette mode restores it.

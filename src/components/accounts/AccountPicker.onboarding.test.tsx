@@ -40,6 +40,7 @@ describe("AccountPicker first-company onboarding", () => {
     render(<AccountPicker />);
 
     expect(screen.getByRole("heading", { name: "Set up your company" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Set up your company" })).toHaveClass("sr-only");
     expect(screen.getByText("Create your company to start planning.")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "New company" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Company name")).toHaveFocus();
