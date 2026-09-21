@@ -57,7 +57,7 @@ again. Nobody has to change anything on the company login side.
 | A way back to today's version     | If you change your mind, you want to start exactly what you're running right now.                  | Don't delete or overwrite whatever you installed from — the download, or the version tag if you run it in Docker.   |
 | A login app in your company login | This is what lets CapacityLens hand people over to Google (or Microsoft, or Okta) and back.        | Ten minutes in your provider's admin screens. See [Set up your company login](/company-login/set-up-company-login). |
 | Four values from it               | The client ID, client secret, discovery URL and issuer.                                            | Shown when you create the login app. Keep the secret in protected storage.                                          |
-| One address pasted back in        | Where your provider sends people after they've signed in. Without it, the very first click fails.  | `https://your-capacitylens-address/api/auth/oauth2/callback/sso`                                                    |
+| One address pasted back in        | Where your provider sends people after they've signed in. Without it, the very first click fails.  | `https://your-capacitylens-address/api/auth/callback/sso`                                                    |
 | A quiet hour                      | [Steps 7–9](#step-7) are the disruptive window; [step 8](#step-8) signs everybody out, once.       | Friday evening is traditional.                                                                                      |
 
 ### Do the company login part first

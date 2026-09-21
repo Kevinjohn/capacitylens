@@ -4,7 +4,7 @@ import { LoginScreen } from "./LoginScreen";
 
 vi.mock("./authClient", () => ({
   authClient: {
-    signIn: { email: vi.fn(), oauth2: vi.fn(), social: vi.fn() },
+    signIn: { email: vi.fn(), social: vi.fn() },
     signUp: { email: vi.fn() },
     twoFactor: { verifyTotp: vi.fn(), verifyBackupCode: vi.fn() },
   },

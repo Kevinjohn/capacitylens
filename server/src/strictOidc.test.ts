@@ -578,7 +578,7 @@ it("exchanges the code only at the validated endpoint with bounded no-redirect f
   await expect(
     client.exchangeCode({
       code: "authorization-code",
-      redirectURI: "https://app.example.test/api/auth/oauth2/callback/sso",
+      redirectURI: "https://app.example.test/api/auth/callback/sso",
       codeVerifier: "verifier",
     }),
   ).resolves.toMatchObject({
@@ -592,7 +592,7 @@ it("refuses code exchange before discovery when no client secret is configured",
   await expect(
     client.exchangeCode({
       code: "authorization-code",
-      redirectURI: "https://app.example.test/api/auth/oauth2/callback/sso",
+      redirectURI: "https://app.example.test/api/auth/callback/sso",
     }),
   ).rejects.toThrow("requires a client secret");
 });
@@ -626,7 +626,7 @@ it("rejects a non-object token response", async () => {
   await expect(
     client.exchangeCode({
       code: "authorization-code",
-      redirectURI: "https://app.example.test/api/auth/oauth2/callback/sso",
+      redirectURI: "https://app.example.test/api/auth/callback/sso",
     }),
   ).rejects.toThrow("token endpoint returned a non-object document");
 });

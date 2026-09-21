@@ -202,7 +202,7 @@ function readRequiredSetting(environment: Env, key: string, context: string): st
 }
 
 function isExternalIdentityPath(path: string | undefined): boolean {
-  return path?.startsWith("/callback/") === true || path?.startsWith("/oauth2/callback/") === true;
+  return path?.startsWith("/callback/") === true;
 }
 
 function readProviderIdFromExternalContext(context: {

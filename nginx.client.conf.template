@@ -33,7 +33,7 @@ server {
 
     # Fail closed if a server-mode bundle is accidentally placed in this static-only image. The
     # real client-only bundle either performs no API calls (demo) or calls its compiled remote origin.
-    location ~ ^/api/(invites/[^/]+/(accept|signup)|auth/(callback|oauth2/callback)/) {
+    location ~ ^/api/(invites/[^/]+/(accept|signup)|auth/callback/) {
         access_log off;
         return 404;
     }
