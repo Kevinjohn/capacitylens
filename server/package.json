@@ -42,7 +42,7 @@
     "@capacitylens/shared": "workspace:*",
     "@fastify/helmet": "^13.1.1",
     "@fastify/rate-limit": "^11.2.0",
-    "better-auth": "1.6.30",
+    "better-auth": "1.7.5",
     "fastify": "^5.12.3",
     "jose": "6.2.12"
   },

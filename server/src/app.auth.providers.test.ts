@@ -114,8 +114,8 @@ function registerSsoRedirectTests(): void {
       const app = await appWithAuth(SSO_ENV);
       const res = await call(app, {
         method: "POST",
-        url: "/api/auth/sign-in/oauth2",
-        payload: { providerId: "sso", callbackURL: "/" },
+        url: "/api/auth/sign-in/social",
+        payload: { provider: "sso", callbackURL: "/" },
       });
       expect(res.statusCode).toBe(200);
       const body = res.json() as { url: string; redirect: boolean };
@@ -210,8 +210,8 @@ describe("SMALLSASS_ACCOUNT_MODE sso", () => {
     const signIn = async () => {
       const start = await call(app, {
         method: "POST",
-        url: "/api/auth/sign-in/oauth2",
-        payload: { providerId: "sso", callbackURL: "/" },
+        url: "/api/auth/sign-in/social",
+        payload: { provider: "sso", callbackURL: "/" },
       });
       const proxy = new URL((start.json() as { url: string }).url);
       const startCookie = String(start.headers["set-cookie"] ?? "").split(";", 1)[0];
@@ -224,7 +224,7 @@ describe("SMALLSASS_ACCOUNT_MODE sso", () => {
       const callbackCookie = [startCookie, String(authorize.headers["set-cookie"] ?? "").split(";", 1)[0]].join("; ");
       return call(app, {
         method: "GET",
-        url: `/api/auth/oauth2/callback/sso?code=code&state=${encodeURIComponent(provider.searchParams.get("state") ?? "")}`,
+        url: `/api/auth/callback/sso?code=code&state=${encodeURIComponent(provider.searchParams.get("state") ?? "")}`,
         headers: { cookie: callbackCookie },
       });
     };
@@ -388,13 +388,25 @@ describe("social providers (P1.7)", () => {
       const mapped = await mapProfileToUser({ sub: "google-subject-1", picture } as never);
       return {
         user: {
-          id: "google-subject-1",
           name: providerName,
           email: providerEmail,
           emailVerified: true,
           ...mapped,
         },
-        data: {},
+        data: {
+          aud: "test-audience",
+          azp: "test-authorized-party",
+          email: providerEmail,
+          email_verified: true,
+          exp: 4_102_444_800,
+          family_name: "Wayne",
+          given_name: "Bruce",
+          iss: "https://accounts.google.com",
+          iat: 0,
+          name: providerName,
+          picture: picture ?? "",
+          sub: "google-subject-1",
+        },
       };
     };
     await runAuthMigrations(configured);

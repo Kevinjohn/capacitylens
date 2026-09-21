@@ -81,7 +81,7 @@ configure the strict [OIDC](/reference/glossary) provider CapacityLens supports.
 Strict OIDC needs four provider values: the client ID, client secret, discovery URL and
 issuer. The provider id, button label, presentation brand and scopes are optional settings around those four
 values. The default provider id is `sso`, so the callback URI is
-`https://your-capacitylens-address/api/auth/oauth2/callback/sso`. If you set
+`https://your-capacitylens-address/api/auth/callback/sso`. If you set
 `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID`, replace the final `sso` in the provider's callback
 URI with that exact id before restarting. The id is part of the route and is locked to the
 issuer after the first successful startup. Choose it before that first startup; changing

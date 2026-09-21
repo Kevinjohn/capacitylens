@@ -34,10 +34,10 @@ all mean "where do I send people back to?" Yours is your CapacityLens web addres
 a fixed tail on the end:
 
 ```text
-https://planning.your-agency.com/api/auth/oauth2/callback/sso
+https://planning.your-agency.com/api/auth/callback/sso
 ```
 
-Swap in your own address for the first part; leave the tail (`/api/auth/oauth2/callback/sso`)
+Swap in your own address for the first part; leave the tail (`/api/auth/callback/sso`)
 exactly as it is.
 
 The first part must be identical to the `SMALLSASS_ACCOUNT_PUBLIC_URL` you already run
