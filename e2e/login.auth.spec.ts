@@ -91,6 +91,16 @@ function registerSuiteScenario2() {
     await expect(page.getByRole("columnheader")).toHaveText(["Avatar", "Name", "Email", "Actions"]);
     const actions = page.getByTestId("account-identity-row").locator("td").nth(3);
     await expect(actions.getByRole("button")).toHaveText(["Change password", "Sign out"]);
+    await actions.getByRole("button", { name: "Change password" }).click();
+    const passwordDialog = page.getByRole("dialog", { name: "Change password" });
+    await expect(passwordDialog.locator('[data-product-layout="label-control"]')).toHaveCount(3);
+    await expect(passwordDialog.locator('[data-slot="dialog-footer"] button')).toHaveText([
+      "Cancel",
+      "Change password",
+    ]);
+    await expect(passwordDialog.getByLabel("Current password")).toBeFocused();
+    await passwordDialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(passwordDialog).toHaveCount(0);
     await page.getByRole("button", { name: "Sign out", exact: true }).click();
 
     // Session gone: back behind the wall, and a reload stays there.

@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import type { FormEvent } from "react";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { accountClient } from "@/account/accountClient";
 import { authClient } from "@/auth/authClient";
@@ -114,8 +113,7 @@ function usePasswordChange({ fail, clear, setMessage, setBusy }: PasswordChangeI
     setMessage(null);
   };
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submit = async () => {
     clear();
     setMessage(null);
     if (passwordLengthFailure(newPassword)) {

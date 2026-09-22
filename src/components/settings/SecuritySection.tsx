@@ -1,11 +1,10 @@
 import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { resolveStrictOidcProvider, useAuth } from "@/auth/authContext";
 import { m } from "@/i18n";
-import { TextField } from "../common/fields";
+import { FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
-import { FieldError, FieldGroup } from "../ui/field";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "../ui/dialog";
+import { FieldError } from "../ui/field";
 import { Separator } from "../ui/separator";
 import { SettingsSection } from "./SettingsSection";
 import { useSecurityController } from "./useSecurityController";
@@ -44,50 +43,53 @@ function ProviderConnection({
 function PasswordForm({ controller }: { controller: Controller }) {
   const { fieldError, password } = controller;
   return (
-    <form onSubmit={(event) => void password.submit(event)}>
-      <FieldGroup className="gap-3">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <TextField
-            label={m.settings_security_current_password()}
-            type="password"
-            autoComplete="current-password"
-            maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-            value={password.currentPassword}
-            onChange={password.setCurrentPassword}
-            invalid={fieldError.errorField === "current"}
-            describedById={fieldError.errorId}
-          />
-          <TextField
-            label={m.settings_security_new_password()}
-            type="password"
-            autoComplete="new-password"
-            minLength={MIN_PASSWORD_LENGTH}
-            maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-            value={password.newPassword}
-            onChange={password.setNewPassword}
-            invalid={fieldError.errorField === "new"}
-            describedById={fieldError.errorId}
-          />
-          <TextField
-            label={m.settings_security_confirm_password()}
-            type="password"
-            autoComplete="new-password"
-            maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
-            value={password.confirmPassword}
-            onChange={password.setConfirmPassword}
-            invalid={fieldError.errorField === "confirm"}
-            describedById={fieldError.errorId}
-          />
-        </div>
-        <Button
-          size="sm"
-          type="submit"
-          disabled={controller.busy || !password.currentPassword || !password.newPassword || !password.confirmPassword}
-        >
-          {m.settings_security_change_password()}
-        </Button>
-      </FieldGroup>
-    </form>
+    <>
+      <TextField
+        label={m.settings_security_current_password()}
+        type="password"
+        autoComplete="current-password"
+        autoFocus
+        required
+        layout="label-control"
+        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+        value={password.currentPassword}
+        onChange={password.setCurrentPassword}
+        invalid={fieldError.errorField === "current"}
+        describedById={fieldError.errorId}
+      />
+      <TextField
+        label={m.settings_security_new_password()}
+        type="password"
+        autoComplete="new-password"
+        required
+        layout="label-control"
+        minLength={MIN_PASSWORD_LENGTH}
+        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+        value={password.newPassword}
+        onChange={password.setNewPassword}
+        invalid={fieldError.errorField === "new"}
+        describedById={fieldError.errorId}
+      />
+      <TextField
+        label={m.settings_security_confirm_password()}
+        type="password"
+        autoComplete="new-password"
+        required
+        layout="label-control"
+        maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
+        value={password.confirmPassword}
+        onChange={password.setConfirmPassword}
+        invalid={fieldError.errorField === "confirm"}
+        describedById={fieldError.errorId}
+      />
+      <FieldError id={fieldError.errorId}>{fieldError.error}</FieldError>
+      {controller.message && (
+        <p role="status" className="text-sm text-ok">
+          {controller.message}
+        </p>
+      )}
+      <RequiredLegend />
+    </>
   );
 }
 
@@ -111,20 +113,28 @@ function PasswordDialog({
   onOpenChange: (open: boolean) => void;
   controller: Controller;
 }) {
+  const close = () => onOpenChange(false);
+  const password = controller.password;
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogTitle>{m.settings_security_change_password()}</DialogTitle>
-        <DialogDescription>{m.settings_security_description()}</DialogDescription>
+    open && (
+      <Modal
+        title={m.settings_security_change_password()}
+        onClose={close}
+        onSubmit={() => void password.submit()}
+        guardDirty={false}
+        footer={
+          <FormActions
+            onCancel={close}
+            submitLabel={m.settings_security_change_password()}
+            disabled={
+              controller.busy || !password.currentPassword || !password.newPassword || !password.confirmPassword
+            }
+          />
+        }
+      >
         <PasswordForm controller={controller} />
-        <FieldError id={controller.fieldError.errorId}>{controller.fieldError.error}</FieldError>
-        {controller.message && (
-          <p role="status" className="text-sm text-ok">
-            {controller.message}
-          </p>
-        )}
-      </DialogContent>
-    </Dialog>
+      </Modal>
+    )
   );
 }
 
