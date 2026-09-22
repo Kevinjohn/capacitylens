@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Show five data-derived Getting started milestones with progress on every page and company-wide dismissal (#1229, #1230).
 - Clarify first-owner and first-company setup copy, keep the timezone picker usable in narrow
   viewports, expose English as the only language select option, and shorten Settings access and
   internal-colour option labels (#1227, #1228, #1232).

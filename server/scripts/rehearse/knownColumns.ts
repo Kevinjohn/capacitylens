@@ -134,6 +134,8 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
       "terminalReason",
     ],
     account_member_sign_in_tracking: ["accountId"],
+    // Row presence is a company setting with no personal data to redact.
+    account_getting_started_dismissals: ["accountId"],
     closures: ["id", "accountId", "name", "startDate", "endDate", "createdAt", "updatedAt"],
     capacitylens_federated_link_ceremonies: [
       "id",

@@ -434,8 +434,9 @@ describe("account-boundary architecture", () => {
 
   it("centralizes executable browser account URLs in the account client", () => {
     const accountClient = resolve(browserRoot, "account/accountClient.ts");
+    const gettingStartedClient = resolve(browserRoot, "account/gettingStartedClient.ts");
     for (const file of sourceFiles(browserRoot)) {
-      if (file === accountClient) continue;
+      if (file === accountClient || file === gettingStartedClient) continue;
       const source = readFileSync(file, "utf8");
       expect(source, file).not.toMatch(/fetch\s*\([^\n]*(?:\/api\/(?:auth\/me|accounts|invites|orgs))/);
       expect(source, file).not.toMatch(/apiFetch(?:Reauth)?\s*\([^\n]*(?:\/api\/(?:accounts|invites|orgs))/);

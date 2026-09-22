@@ -1,6 +1,6 @@
 import { Suspense, type CSSProperties } from "react";
 import { matchPath, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { GettingStartedShortcut } from "./GettingStarted";
+import { GettingStarted } from "./GettingStarted";
 import { Toaster } from "sonner";
 import { useStore } from "../store/useStore";
 import { hasDisciplinesEnabled, resolveCapacityOverviewAccess } from "../store/selectors";
@@ -269,7 +269,7 @@ function GatedMain({
           onDismiss={orientation.dismiss}
         />
       )}
-      <GettingStartedShortcut />
+      <GettingStarted />
       {hydrated ? (
         <Suspense fallback={loader}>
           <Outlet />

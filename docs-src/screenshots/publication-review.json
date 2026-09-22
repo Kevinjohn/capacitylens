@@ -58,5 +58,9 @@
   {
     "path": "docs-src/screenshots/flows/owner_responsibilities_1.png",
     "sha256": "3130e6f93bae50d7f976f13bcda179b4ee0f7d1158bd80cf7f37b4821dd55304"
+  },
+  {
+    "path": "docs-src/screenshots/flows/getting_started_five_steps.png",
+    "sha256": "592b98248bad338f1b9ff79d1d4dc28eda81801165f6f02d87b3142c8c4561e7"
   }
 ]

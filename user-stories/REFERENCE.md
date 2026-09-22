@@ -113,26 +113,23 @@ accept responses never include it.
    dismisses it for this person and company on this device. It has no sidebar action for reopening.
    The versioned preference is implemented by
    `src/lib/productOrientation.ts`; it is never in `AppData` or an export.
-6. On a company that still has a first-use outcome to complete, the schedule shows a floating
-   **Getting started** card (`data-testid="getting-started"`) without shifting the toolbar or grid.
-   It offers **Import CapacityLens data** where permitted or **Set up manually**, then tracks three
-   real outcomes: a schedulable person, coherent work, and an allocation connecting them. Internal
-   work needs no client or project; project work needs active client and project ancestry. Following
-   the Import link alone completes nothing. The card self-hides once all three outcomes exist.
+6. Every application page shows a **Getting started** progress bar (`data-testid="getting-started-progress"`)
+   from 0 to 5. Its card (`data-testid="getting-started"`) opens by default on Schedule and can be
+   shown or hidden from the bar on any page. The five independent milestones are **Add someone to
+   the schedule**, **Add a client**, **Add a project to the client**, **Add an Activity**, and
+   **Schedule the first piece of work**. Completion comes from active, coherent company data,
+   including imports. Internal work remains available but does not skip the client or project steps.
+   The completed 5/5 bar remains visible until permanently dismissed.
    **Show me around** (`data-testid="getting-started-tour"`) runs a loose five-stop driver.js
    spotlight tour (schedule grid → toolbar → People → Clients & projects → Settings; Next/Back/
    Done buttons, Escape bails, never navigates). The button is busy and cannot start a duplicate
    tour while the lazy tour code is loading. If that code cannot load or start, the
    card remains usable and a persistent error says **The tour could not start. Check your connection
-   and try again.** **Dismiss**
-   (`data-testid="getting-started-dismiss"`) hides the card for good on this device
-   (`capacitylens/gettingStartedDismissed`, default off, never in `AppData`/export). Hidden for a
-   Viewer (every schedule-setup CTA is a write they can't do). In an authenticated company, Owner
-   and Admin additionally see an optional **Invite your team** link to `/team`; it is deliberately
-   outside the completion outcomes. Only Owner or open/demo access sees whole-company import.
-   **Adjust company settings** is also optional. Import and Settings links scroll to and focus their
-   destination section. Away
-   from Schedule, a compact progress link returns to the full card without covering page content.
+   and try again.** An Owner or Admin can permanently **Dismiss** Getting started for everyone in
+   the current company. Before 5/5, confirmation asks **Do you really want to hide this forever?**
+   with **Yes** and **No** choices. No leaves guidance available. A failed save leaves it available
+   and surfaces an error. Editors can view and toggle the card but cannot dismiss permanently;
+   Viewers see neither bar nor card. The old device-local dismissal never hides this guidance.
 7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
 8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these
@@ -1419,10 +1416,9 @@ shown for the few seconds of POST + re-hydrate; not dismissable, locks all editi
 `account-load-recovery` (failed selected-company hydration; replaces the application shell until
 Retry succeeds or another company is chosen),
 `product-orientation` (the non-blocking **How CapacityLens works** region),
-`getting-started` (the schedule's first-run checklist card; only while the active account has an
-incomplete onboarding step and it hasn't been dismissed), `getting-started-tour` (its **Show me
-around** button — runs the driver.js orientation tour), `getting-started-dismiss` (its **Dismiss**
-button; sets `capacitylens/gettingStartedDismissed`),
+`getting-started-progress` (the company-wide 0–5 bar), `getting-started` (the toggleable checklist
+card), `getting-started-tour` (its **Show me around** button — runs the driver.js orientation tour),
+`getting-started-dismiss` (the Owner/Admin **Dismiss** button; saves company-wide dismissal),
 `create-language` (company-create form's read-only Language row — **English**), `settings-language`
 (Settings → the Company details read-only Language cell — **English**; both
 frozen, P1.14),

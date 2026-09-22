@@ -1,22 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  buildGettingStartedSteps,
-  hasCompletedAllSteps,
-  hasExistingSetupData,
-  isGettingStartedComplete,
-  readGettingStartedProgress,
-  writeGettingStartedProgress,
-} from "./gettingStarted";
+import { describe, expect, it } from "vitest";
+import { buildGettingStartedSteps, hasCompletedAllSteps, isGettingStartedComplete } from "./gettingStarted";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Activity, Allocation, AppData, Client, Project, Resource } from "@capacitylens/shared/types/entities";
-import { buildInternalClient } from "@capacitylens/shared/data/internalClient";
 import { FIXTURE_RESOURCE_EXTERNAL } from "@capacitylens/shared/data/fixtures";
-
-beforeEach(() => localStorage.clear());
-afterEach(() => {
-  vi.restoreAllMocks();
-  vi.unstubAllGlobals();
-});
 
 const NOW = "2026-06-03T12:00:00.000Z";
 const entity = { accountId: "a1", createdAt: NOW, updatedAt: NOW };
@@ -69,36 +55,15 @@ const allocation = (over: Partial<Allocation> = {}): Allocation => ({
 });
 const dataWith = (slices: Partial<AppData>): AppData => ({ ...emptyAppData(), ...slices });
 
-function stubStorageMethod(method: "getItem" | "setItem", failure: Error): void {
-  const storage = globalThis.localStorage;
-  const clear = typeof storage.clear === "function" ? storage.clear.bind(storage) : () => {};
-  const getItem = typeof storage.getItem === "function" ? storage.getItem.bind(storage) : () => null;
-  const key = typeof storage.key === "function" ? storage.key.bind(storage) : () => null;
-  const removeItem = typeof storage.removeItem === "function" ? storage.removeItem.bind(storage) : () => {};
-  const setItem = typeof storage.setItem === "function" ? storage.setItem.bind(storage) : () => {};
-  vi.stubGlobal("localStorage", {
-    length: storage.length,
-    clear,
-    getItem:
-      method === "getItem"
-        ? () => {
-            throw failure;
-          }
-        : getItem,
-    key,
-    removeItem,
-    setItem:
-      method === "setItem"
-        ? () => {
-            throw failure;
-          }
-        : setItem,
-  } satisfies Storage);
-}
-
 describe("first-use outcome truth table", () => {
-  it("starts with all three outcomes incomplete", () => {
-    expect(buildGettingStartedSteps(emptyAppData())).toEqual({ person: false, work: false, scheduled: false });
+  it("starts with all five outcomes incomplete", () => {
+    expect(buildGettingStartedSteps(emptyAppData())).toEqual({
+      person: false,
+      client: false,
+      project: false,
+      activity: false,
+      scheduled: false,
+    });
   });
 
   it.each([
@@ -131,11 +96,9 @@ describe("first-use outcome truth table", () => {
     expect(
       buildGettingStartedSteps(
         dataWith({ clients: [malformedClient], projects: [malformedProject], activities: [malformedActivity] }),
-      ).work,
+      ).activity,
     ).toBe(true);
-    expect(
-      hasExistingSetupData(dataWith({ clients: [malformedClient] }), { person: false, work: false, scheduled: false }),
-    ).toBe(true);
+    expect(buildGettingStartedSteps(dataWith({ clients: [malformedClient] })).client).toBe(true);
   });
 
   it.each([
@@ -161,7 +124,8 @@ describe("first-use outcome truth table", () => {
       // eslint-disable-next-line max-params -- each named truth-table dimension is independently significant
     ) => {
       expect(
-        buildGettingStartedSteps(dataWith({ activities: [work], projects: [...projects], clients: [...clients] })).work,
+        buildGettingStartedSteps(dataWith({ activities: [work], projects: [...projects], clients: [...clients] }))
+          .activity,
       ).toBe(expected);
     },
   );
@@ -172,11 +136,11 @@ describe("first-use outcome truth table", () => {
         activities: [activity({ kind: "project", projectId: "missing" }), activity({ id: "t2", kind: "internal" })],
       }),
     );
-    expect(steps.work).toBe(true);
+    expect(steps.activity).toBe(true);
   });
 
   it("does not count inactive work or project ancestry", () => {
-    expect(buildGettingStartedSteps(dataWith({ activities: [activity({ archivedAt: NOW })] })).work).toBe(false);
+    expect(buildGettingStartedSteps(dataWith({ activities: [activity({ archivedAt: NOW })] })).activity).toBe(false);
     expect(
       buildGettingStartedSteps(
         dataWith({
@@ -184,7 +148,7 @@ describe("first-use outcome truth table", () => {
           projects: [project({ archivedAt: NOW })],
           clients: [client()],
         }),
-      ).work,
+      ).activity,
     ).toBe(false);
     expect(
       buildGettingStartedSteps(
@@ -193,7 +157,7 @@ describe("first-use outcome truth table", () => {
           projects: [project()],
           clients: [client({ deletedAt: NOW })],
         }),
-      ).work,
+      ).activity,
     ).toBe(false);
   });
 
@@ -266,92 +230,18 @@ describe("first-use outcome truth table", () => {
     },
   );
 
-  it("requires all useful outcomes regardless of legacy markers", () => {
-    const complete = { person: true, work: true, scheduled: true };
+  it("requires all five outcomes", () => {
+    const complete = { person: true, client: true, project: true, activity: true, scheduled: true };
     expect(hasCompletedAllSteps(complete)).toBe(true);
     expect(isGettingStartedComplete(complete)).toBe(true);
     expect(isGettingStartedComplete({ ...complete, scheduled: false })).toBe(false);
   });
 
-  it("treats partial meaningful data as existing setup data", () => {
-    const none = { person: false, work: false, scheduled: false };
-    expect(hasExistingSetupData(dataWith({ clients: [client()] }), none)).toBe(true);
-    expect(hasExistingSetupData(dataWith({ projects: [project()] }), none)).toBe(true);
-    expect(hasExistingSetupData(dataWith({ clients: [buildInternalClient("a1", NOW)] }), none)).toBe(false);
-    expect(hasExistingSetupData(emptyAppData(), none)).toBe(false);
-  });
-});
-
-describe("onboarding progress persistence", () => {
-  it("keeps the tolerant legacy payload parser", () => {
-    localStorage.setItem(
-      "capacitylens/gettingStartedProgress/a1",
-      JSON.stringify({
-        started: true,
-        importChosen: true,
-        scratchChosen: true,
-        settingsReviewed: true,
-        future: "ignored",
-      }),
-    );
-    expect(readGettingStartedProgress("a1")).toEqual({
-      started: true,
-      importChosen: true,
-      scratchChosen: true,
-    });
-  });
-
-  it("uses empty progress and a safe warning when saved JSON is malformed", () => {
-    localStorage.setItem("capacitylens/gettingStartedProgress/private-account-id", '{"started":true');
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(readGettingStartedProgress("private-account-id")).toEqual({
-      started: false,
-      importChosen: false,
-      scratchChosen: false,
-    });
-    expect(warning).toHaveBeenCalledWith("gettingStarted: saved progress could not be parsed; using empty progress");
-  });
-
-  it("does not throw when device storage rejects a read or write", () => {
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    stubStorageMethod("getItem", new Error("private"));
-    expect(readGettingStartedProgress("a1").started).toBe(false);
-    stubStorageMethod("setItem", new Error("private"));
-    expect(() =>
-      writeGettingStartedProgress("a1", {
-        started: true,
-        importChosen: false,
-        scratchChosen: false,
-      }),
-    ).not.toThrow();
-    expect(warning).toHaveBeenCalledTimes(2);
-  });
-
-  it("keeps every persistence diagnostic static when storage exposes sensitive values", () => {
-    const accountId = "sensitive-account-id";
-    const payload = '{"started":true,"payload":"sensitive-payload"';
-    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.stubGlobal("localStorage", { ...globalThis.localStorage, getItem: () => payload } satisfies Storage);
-    readGettingStartedProgress(accountId);
-    stubStorageMethod("getItem", new Error(`sensitive read exception for ${accountId}`));
-    readGettingStartedProgress(accountId);
-    stubStorageMethod("setItem", new Error(`sensitive write exception for ${accountId}`));
-    writeGettingStartedProgress(accountId, {
-      started: true,
-      importChosen: true,
-      scratchChosen: false,
-    });
-
-    for (const args of warning.mock.calls) {
-      expect(args.every((argument) => !String(argument).includes(accountId))).toBe(true);
-      expect(args.every((argument) => !String(argument).includes(payload))).toBe(true);
-      expect(args.every((argument) => !String(argument).includes("sensitive read exception"))).toBe(true);
-      expect(args.every((argument) => !String(argument).includes("sensitive write exception"))).toBe(true);
-    }
-    expect(warning.mock.calls).toEqual([
-      ["gettingStarted: saved progress could not be parsed; using empty progress"],
-      ["gettingStarted: progress could not be read; using empty progress"],
-      ["gettingStarted: progress could not be saved; continuing in memory"],
-    ]);
+  it("counts client and project independently, excluding the built-in client", () => {
+    expect(buildGettingStartedSteps(dataWith({ clients: [client()] })).client).toBe(true);
+    expect(buildGettingStartedSteps(dataWith({ projects: [project()] })).project).toBe(false);
+    const complete = buildGettingStartedSteps(dataWith({ clients: [client()], projects: [project()] }));
+    expect(complete.client).toBe(true);
+    expect(complete.project).toBe(true);
   });
 });

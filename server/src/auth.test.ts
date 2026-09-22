@@ -22,9 +22,8 @@ import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPor
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
 import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
-import { RESOURCE_AVATAR_URL_V42_PIN as AVATAR_MIGRATION } from "./db/migrations/resourceAvatarUrlV42";
-import { ACCOUNT_MEMBER_RESOURCES_V43_PIN as MEMBER_RESOURCE_MIGRATION } from "./db/migrations/accountMemberResourcesV43";
-import { INVITATION_PERSON_PROPOSALS_V44_PIN as V44_MIGRATION } from "./db/migrations/invitationPersonProposalsV44";
+import { GETTING_STARTED_DISMISSALS_V45_PIN as V45_MIGRATION } from "./db/migrations/gettingStartedDismissalsV45";
+import { CHECKSUM_PINNED_MIGRATIONS } from "./db/migrations/authPlanningPins.testSupport";
 const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
   hasLivePreauthorizedInvitation: (email: string) => hasLivePreauthorizedInvitation(db, email),
@@ -419,7 +418,7 @@ const registerStartupControlTests = () => {
     expect(configured.auth).not.toBeNull();
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(V44_MIGRATION));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(V45_MIGRATION));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -586,52 +585,6 @@ const registerStartupDiscoveryFailureTest = () => {
     expect(response.headers.get("location")).not.toContain("attacker.example");
   });
 };
-const CAPACITY_OVERVIEW_MIGRATION = {
-  version: 39,
-  name: "add-capacity-overview-access",
-  checksum: "098f2980febe986613c549b5f1a48c003d17528c34ea3c7deec706d6afdbae45",
-};
-const DATE_STYLE_MIGRATION = {
-  version: 40,
-  name: "add-account-date-style",
-  checksum: "5523524112cbd00936ed3fff90c0e00e142472abf78122e39dbc32f3bf59e2cc",
-};
-const RESOURCE_AVAILABILITY_MIGRATION = {
-  version: 38,
-  name: "add-resource-availability-dates",
-  checksum: "b3d53dc7052721fe8f6b2f9c7164ffabea06c0b10acc59792b474337fc2619dc",
-};
-const OWNERSHIP_TRANSFER_MIGRATION = {
-  version: 41,
-  name: "add-ownership-transfer-requests",
-  checksum: "d9dc51a48af818e1ccefcbb0fa0d7a703258c9149545f8cc62eaef5c6a5015e7",
-};
-/** Pending migrations with pinned checksums, newest last, shared by the plan assertions. */
-const CHECKSUM_PINNED_MIGRATIONS = [
-  {
-    version: 35,
-    name: "add-allocation-project-id",
-    checksum: "19c2729bf7048ca0a3e317f3d00088b29c7c7c2cd4d60febce28146d1c42c9a3",
-  },
-  {
-    version: 36,
-    name: "add-activity-lifecycle",
-    checksum: "84f944631288597d07740bd183ae549486c68dd642c001bced8108bc1c11b1f2",
-  },
-  {
-    version: 37,
-    name: "add-allocation-task-field",
-    checksum: "4258d2a701763cfe75ace2ab25f30ef1d0a242b7e42927e98fe582106e8c1480",
-  },
-  RESOURCE_AVAILABILITY_MIGRATION,
-  CAPACITY_OVERVIEW_MIGRATION,
-  DATE_STYLE_MIGRATION,
-  OWNERSHIP_TRANSFER_MIGRATION,
-  AVATAR_MIGRATION,
-  MEMBER_RESOURCE_MIGRATION,
-  V44_MIGRATION,
-];
-
 const registerStartupMigrationPlanningTest = () => {
   it("plans both the app-owned control migration and Better Auth DDL before executing either", async () => {
     const db = openDb(":memory:");

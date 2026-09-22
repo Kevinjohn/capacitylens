@@ -410,7 +410,7 @@ function createActiveMembershipRefusalTest(): void {
 }
 
 function createMigrationCompatibilityTests(): void {
-  it("allows the exact pending v42-v44 product-only migrations", async () => {
+  it("allows the exact pending v42-v45 product-only migrations", async () => {
     const prepared = await database();
     prepared.db.exec(`
       ALTER TABLE resources DROP COLUMN avatarUrl;

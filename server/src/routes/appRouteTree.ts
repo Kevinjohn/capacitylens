@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { type SsoCutoverIdentityPort } from "../accounts/betterAuthIdentityPort";
 import { registerSsoCutoverRoutes } from "../accounts/ssoCutoverRoutes";
 import { registerAccountRoutes } from "../accounts/accountRoutes";
+import { registerGettingStartedRoutes } from "./gettingStartedRoutes";
 import { readMemberSignInTrackingSnapshot, setMemberSignInTracking } from "../accounts/memberSignInTracking";
 import { registerLifecycleRoutes } from "./lifecycleRoutes";
 import { registerAuthProxyRoutes } from "./authProxyRoutes";
@@ -124,6 +125,7 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
   const { accountFail, sendFail } = rootHelpers;
   const { authorizeAllowed, fieldVisibilityFor, memberReadProjection, redactWriteEcho, resolveEffectiveRole } =
     authorization;
+  registerGettingStartedRoutes(app, { db, authorize: authorizeAllowed });
   registerAccountRoutes(app, {
     memberResources: runtime.memberResources,
     authMode,

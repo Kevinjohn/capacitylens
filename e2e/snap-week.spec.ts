@@ -95,7 +95,7 @@ test.describe("Snap to week start", () => {
     await page.getByRole("switch", { name: "Minimise weekends" }).click();
 
     await page.getByRole("link", { name: "Schedule" }).click();
-    await page.getByTestId("getting-started-dismiss").click();
+    await page.getByRole("button", { name: "Hide checklist", expanded: true }).click();
     await setZoom(page, 1);
 
     // The left edge now opens flush on a Sunday (the week start), not a Monday.
