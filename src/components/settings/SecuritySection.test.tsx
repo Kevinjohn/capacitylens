@@ -122,7 +122,7 @@ it("clears password values and errors when the dialog closes", async () => {
   });
   fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
   expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_password_mismatch());
-  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  fireEvent.click(screen.getByRole("button", { name: m.form_cancel() }));
   fireEvent.click(screen.getByRole("button", { name: "Open password dialog" }));
   expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue("");
   expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue("");
@@ -163,7 +163,7 @@ it("does not restore stale values or feedback after a pending password request f
   });
   fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
   await waitFor(() => expect(changePassword).toHaveBeenCalledOnce());
-  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  fireEvent.click(screen.getByRole("button", { name: m.form_cancel() }));
   fireEvent.click(screen.getByRole("button", { name: "Open password dialog" }));
   expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue("");
   const finishRequest = finish;
