@@ -1,5 +1,36 @@
 # CapacityLens repository guidance
 
+## Proportionality: smallest complete change
+
+CapacityLens is a small hobby project for small agencies. Optimise every task for the smallest
+complete, readable and maintainable change that meets the agreed success and quality criteria.
+This governs discretionary scope, architecture and process throughout the instructions below;
+it does not waive security, data integrity, released compatibility or required checks.
+
+- Use the accepted plan and current requirements as the boundary. Do not re-plan settled work or
+  implement future scale, hypothetical deployments, speculative migrations or optional features.
+  Supporting work must serve an agreed outcome or address a demonstrated risk in the changed path.
+- Prefer existing patterns, library capabilities and a direct implementation. Add an abstraction,
+  configuration option, fallback, dependency or recovery mechanism only when the current task
+  needs it. Explain the concrete need briefly; do not create a separate justification document.
+  Smallest means least ongoing complexity, not compressed code or omitted error handling.
+- Default to one implementation owner and one cohesive PR. Use additional workers only for
+  independent work whose benefit exceeds the handoff cost, or for a required independent review.
+  Do not create extra planning, review or delivery stages merely because tools or skills offer them.
+- Test observable outcomes, relevant failure paths and preserved invariants. Reuse existing
+  coverage where it proves the requirement. Avoid tests that merely mirror implementation or
+  duplicate the same guarantee without exercising a distinct boundary.
+- Before repeating an expensive suite or review, identify the change, failure or new evidence
+  that invalidated the previous result. Repeat only the affected checks unless shared behaviour
+  requires broader coverage. Required local and CI checks still apply; do not add discretionary
+  reruns for reassurance or merely because another worker takes over.
+- Report optional improvements separately; do not implement them or open follow-up issues unless
+  requested. Stop extending the change once acceptance criteria and required quality checks pass:
+  complete the authorised delivery and report any remaining limitations.
+- If new evidence materially expands the expected work, report what grew, why it is necessary and
+  the smallest viable way forward before taking on that expansion. Continue unaffected authorised
+  work. Do not silently trade a small task for a larger project or impose arbitrary time cutoffs.
+
 ## GitHub and execution access
 
 GitHub access is available on the user's machine. A failure in one sandbox or tool does not
@@ -84,9 +115,9 @@ Use this workflow when triaging and delivering a checklist of open GitHub issues
    expected files, acceptance test, affected story/documentation decision, known invariants and
    merge predecessor.
 3. **Route high-priority work deliberately.** P1 implementation uses the designated senior
-   implementation role and receives one independent architecture/correctness review in addition to
-   the standard severity review below. P2 work may use the normal implementation role. Reviewers
-   must be independent of the implementation they assess.
+   implementation role. Its independent review in step 4 covers architecture, correctness and
+   severity together; do not add a second review for the same scope. P2 work may use the normal
+   implementation role. Reviewers must be independent of the implementation they assess.
 4. **Test and review in a fixed sequence.** During implementation, add or update the focused test
    that proves the reported failure and run the applicable focused checks. Once the change is
    complete, run formatting, type-checking and linting before review. Every P1 and P2 change then
