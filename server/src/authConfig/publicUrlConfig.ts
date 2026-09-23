@@ -1,4 +1,4 @@
-import { isLoopbackHostname } from "../strictOidc";
+import { isLoopbackHostname } from "./loopbackHostname";
 import type * as AuthFacade from "../auth";
 
 type AuthConfigError = typeof AuthFacade.AuthConfigError;

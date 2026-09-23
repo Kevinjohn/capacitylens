@@ -246,7 +246,6 @@ function registerMembershipRouteTests(): void {
   it("owns member, invitation preview, acceptance, and signup routes", async () => {
     await accountClient.listMembers("workspace / one");
     await accountClient.listInvitations("workspace / one");
-    await accountClient.getSsoReadiness("workspace / one");
     await accountClient.startMasquerade("workspace / one", { targetUserId: "person / one" });
     await accountClient.masqueradeStatus();
     await accountClient.endMasquerade({ token: "token-1", reason: "explicit" });
@@ -261,14 +260,10 @@ function registerMembershipRouteTests(): void {
       "https://app.example/api/accounts/workspace%20%2F%20one/members",
       "https://app.example/api/accounts/workspace%20%2F%20one/invites",
     ]);
-    expect(mocks.apiFetch.mock.calls.map((call) => String(call[0]))).toContain(
-      "https://app.example/api/accounts/workspace%20%2F%20one/sso-readiness",
-    );
     const urls = mocks.apiFetch.mock.calls.map((call) => String(call[0]));
     expect(urls).toEqual([
       "https://app.example/api/accounts/workspace%20%2F%20one/members",
       "https://app.example/api/accounts/workspace%20%2F%20one/invites",
-      "https://app.example/api/accounts/workspace%20%2F%20one/sso-readiness",
       "https://app.example/api/accounts/workspace%20%2F%20one/masquerade",
       "https://app.example/api/masquerade",
       "https://app.example/api/masquerade",
@@ -276,19 +271,19 @@ function registerMembershipRouteTests(): void {
       "https://app.example/api/invites/token%20%2F%20one/accept",
       "https://app.example/api/invites/token%20%2F%20one/signup",
     ]);
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 3)).toMatchObject({
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 2)).toMatchObject({
       method: "POST",
       credentials: "include",
       body: JSON.stringify({ targetUserId: "person / one" }),
     });
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 4)).toEqual({ credentials: "include" });
-    expect(requestInitAt(mocks.apiFetch.mock.calls, 5)).toMatchObject({
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 3)).toEqual({ credentials: "include" });
+    expect(requestInitAt(mocks.apiFetch.mock.calls, 4)).toMatchObject({
       method: "DELETE",
       credentials: "include",
       body: JSON.stringify({ token: "token-1", reason: "explicit" }),
     });
+    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 6), "POST");
     expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 7), "POST");
-    expectCommand(requestInitAt(mocks.apiFetch.mock.calls, 8), "POST");
   });
 }
 

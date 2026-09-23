@@ -17,14 +17,14 @@ describe("Playwright server scope", () => {
   it("rejects contradictory run modes instead of selecting projects and servers from different modes", () => {
     expect(() =>
       resolvePlaywrightRunMode(
-        { CAPACITYLENS_OIDC_E2E: "1", CAPACITYLENS_REHEARSAL_URL: "http://rehearsal.test" },
+        { CAPACITYLENS_WEBKIT_ONLY: "1", CAPACITYLENS_REHEARSAL_URL: "http://rehearsal.test" },
         [],
         () => false,
       ),
-    ).toThrow(/mutually exclusive/);
+    ).toThrow(/cannot be combined|mutually exclusive/);
     expect(() =>
       resolvePlaywrightRunMode({ CAPACITYLENS_WEBKIT_ONLY: "1", CAPACITYLENS_FIREFOX_ONLY: "1" }, [], () => false),
-    ).toThrow(/mutually exclusive/);
+    ).toThrow(/cannot be combined|mutually exclusive/);
   });
 
   it("uses a non-empty report phase and rejects lossy or traversal-shaped aliases", () => {
@@ -39,7 +39,6 @@ describe("Playwright server scope", () => {
     expect(coreSpecPattern.test(`toolbar.spec.${extension}`)).toBe(true);
     expect(coreSpecPattern.test(`toolbar.db.spec.${extension}`)).toBe(false);
     expect(coreSpecPattern.test(`toolbar.auth.spec.${extension}`)).toBe(false);
-    expect(coreSpecPattern.test(`toolbar.oidc.spec.${extension}`)).toBe(false);
   });
 
   it("recognises one or more explicitly selected core specs", () => {

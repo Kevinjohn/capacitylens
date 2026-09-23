@@ -190,12 +190,12 @@ it.each([
   else expect(screen.queryByText(m.account_mfa_title())).not.toBeInTheDocument();
 });
 
-it("preserves strict OIDC identity-link status without password or session controls", async () => {
+it("preserves Microsoft identity-link status without password or session controls", async () => {
   renderSecurity({
     authMode: "sso",
-    providers: [{ id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false }],
+    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
   });
-  expect(await screen.findByText(m.settings_sso_connected({ provider: "Workforce SSO" }))).toBeInTheDocument();
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Microsoft" }))).toBeInTheDocument();
   expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
   expect(screen.queryByText(m.settings_security_active_sessions())).not.toBeInTheDocument();
 });

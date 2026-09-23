@@ -196,9 +196,6 @@ importers:
       fastify:
         specifier: ^5.12.5
         version: 5.12.5
-      jose:
-        specifier: 6.2.12
-        version: 6.2.12
       nodemailer:
         specifier: ^10.0.10
         version: 10.0.10

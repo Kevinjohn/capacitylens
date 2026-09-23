@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   LANE_CEILING,
-  OIDC_FIXED_PORTS,
+  ACCESS_LAB_FIXED_PORTS,
   portsForLane,
   reservationCeiling,
   resolveLane,
@@ -23,13 +23,13 @@ test("lane 0 reproduces the ports this repository bound before lanes existed", (
   });
 });
 
-test("no two services share a port anywhere in the lane range, including the fixed OIDC ports", () => {
+test("no two services share a port anywhere in the lane range, including the fixed access lab ports", () => {
   const seen = new Map();
   const claim = (port, owner) => {
     assert.equal(seen.get(port), undefined, `${port} is claimed by both ${seen.get(port)} and ${owner}`);
     seen.set(port, owner);
   };
-  for (const [service, port] of Object.entries(OIDC_FIXED_PORTS)) claim(port, service);
+  for (const [service, port] of Object.entries(ACCESS_LAB_FIXED_PORTS)) claim(port, service);
   for (let lane = 0; lane < LANE_CEILING; lane += 1) {
     for (const [service, port] of Object.entries(portsForLane(lane))) claim(port, `${service} lane ${lane}`);
   }

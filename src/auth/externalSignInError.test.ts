@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   clearExternalSignInError,
+  readExternalSignInErrorCode,
   resolveExternalSignInErrorMessage,
   buildExternalSignInErrorUrl,
   hasExternalSignInError,
@@ -25,11 +26,15 @@ describe("external sign-in browser error URL", () => {
 
 describe("externalSignInErrorMessage", () => {
   it("maps each application-owned code to its dedicated copy", () => {
-    expect(resolveExternalSignInErrorMessage("oidc_verification_failed")).toBe(m.login_sso_verification_failed());
     expect(resolveExternalSignInErrorMessage("account_link_conflict")).toBe(m.login_sso_account_link_conflict());
   });
 
   it("falls back to the generic failure copy when there is no recognized code", () => {
     expect(resolveExternalSignInErrorMessage(null)).toBe(m.login_sso_failed());
+    const retired = readExternalSignInErrorCode(
+      "https://app.example/?externalSignInError=1&error=OIDC_IDENTITY_VERIFICATION_FAILED",
+    );
+    expect(retired).toBeNull();
+    expect(resolveExternalSignInErrorMessage(retired)).toBe(m.login_sso_failed());
   });
 });

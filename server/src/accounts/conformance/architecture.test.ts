@@ -105,10 +105,7 @@ function isControlTable(file: string): boolean {
 }
 
 function isBetterAuthOwner(file: string): boolean {
-  return (
-    [resolve(serverRoot, "auth.ts"), resolve(serverRoot, "strictOidc.ts")].includes(file) ||
-    file.startsWith(resolve(serverRoot, "authConfig") + sep)
-  );
+  return file === resolve(serverRoot, "auth.ts") || file.startsWith(resolve(serverRoot, "authConfig") + sep);
 }
 
 interface IsRowMapperTypeInput {
@@ -271,7 +268,7 @@ describe("account-boundary architecture", () => {
 const identitySqlOwners = new Set([
   resolve(serverRoot, "auth.ts"),
   resolve(serverRoot, "authConfig/authAdapter.ts"),
-  resolve(serverRoot, "authConfig/betterAuthProfileCompatibility.ts"),
+  resolve(serverRoot, "authConfig/externalAvatar.ts"),
   resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
   resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
   resolve(serverRoot, "authConfig/sessionActivity.ts"),

@@ -15,12 +15,11 @@
     "scripts/verify-tls-renewal.mjs"
   ],
   "scripts": {
-    "build:runtime": "esbuild src/index.ts src/importWorker.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist --out-extension:.js=.mjs --external:fastify '--external:@fastify/*' --external:better-auth '--external:better-auth/*' --external:jose",
+    "build:runtime": "esbuild src/index.ts src/importWorker.ts --bundle --platform=node --format=esm --target=node24 --outdir=dist --out-extension:.js=.mjs --external:fastify '--external:@fastify/*' --external:better-auth '--external:better-auth/*'",
     "start": "node scripts/check-node.mjs && tsx src/index.ts",
     "dev": "node scripts/check-node.mjs && tsx watch src/index.ts",
     "start:e2e": "node scripts/check-node.mjs && node scripts/e2e-server.mjs db",
     "start:auth-e2e": "node scripts/check-node.mjs && node scripts/e2e-server.mjs auth",
-    "start:oidc-e2e": "node scripts/check-node.mjs && rm -f .oidc-e2e.db .oidc-e2e.db-wal .oidc-e2e.db-shm && PORT=8897 CAPACITYLENS_DB=.oidc-e2e.db SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=hosted-oidc-only SMALLSASS_ACCOUNT_MODE=sso SMALLSASS_ACCOUNT_SECRET=capacitylens-oidc-e2e-secret-0123456789abcdef SMALLSASS_ACCOUNT_PUBLIC_URL=http://localhost:5473 SMALLSASS_ACCOUNT_OIDC_CLIENT_ID=capacitylens-e2e SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET=capacitylens-e2e-secret SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL=http://127.0.0.1:5557/dex/.well-known/openid-configuration SMALLSASS_ACCOUNT_OIDC_ISSUER=http://127.0.0.1:5556/dex SMALLSASS_ACCOUNT_OIDC_SCOPES='openid profile email' SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS=oidc-owner@example.com CAPACITYLENS_CORS_ORIGIN=http://localhost:5473,http://127.0.0.1:5473 tsx src/index.ts",
     "rehearse:migrations": "node scripts/check-node.mjs && tsx scripts/rehearse-migrations.ts",
     "recover:audit-outbox": "node scripts/check-node.mjs && tsx scripts/recover-audit-outbox.ts",
     "recover:ownership-transfer": "node scripts/check-node.mjs && tsx scripts/recover-ownership-transfer.ts",
@@ -44,7 +43,6 @@
     "@fastify/rate-limit": "^11.2.0",
     "better-auth": "1.7.5",
     "fastify": "^5.12.5",
-    "jose": "6.2.12",
     "nodemailer": "^10.0.10"
   },
   "devDependencies": {

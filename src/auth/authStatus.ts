@@ -62,9 +62,7 @@ export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null
 export function isAuthMode(value: unknown): value is AccountMode {
   return value === "off" || value === "password" || value === "sso";
 }
-type AuthProviderCandidate =
-  | (Omit<Extract<AuthProviderInfo, { kind: "social" }>, "brand"> & { brand?: unknown })
-  | (Omit<Extract<AuthProviderInfo, { kind: "oidc" }>, "brand"> & { brand?: unknown });
+type AuthProviderCandidate = Omit<AuthProviderInfo, "brand"> & { brand?: unknown };
 
 function isAuthProvider(value: unknown): value is AuthProviderCandidate {
   if (typeof value !== "object" || value === null) return false;
@@ -74,7 +72,8 @@ function isAuthProvider(value: unknown): value is AuthProviderCandidate {
     provider.id.length > 0 &&
     typeof provider.label === "string" &&
     provider.label.length > 0 &&
-    (provider.kind === "oidc" || (provider.kind === "social" && isSupportedSocialProviderId(provider.id))) &&
+    provider.kind === "social" &&
+    isSupportedSocialProviderId(provider.id) &&
     typeof provider.experimental === "boolean"
   );
 }
@@ -82,13 +81,7 @@ function isAuthProvider(value: unknown): value is AuthProviderCandidate {
 const SOCIAL_PROVIDER_BRANDS: Record<string, AuthProviderBrand> = { google: "google", microsoft: "microsoft" };
 
 function parseProviderBrand(provider: AuthProviderCandidate): AuthProviderBrand {
-  // A social provider's presentation follows the id the click dispatches, so no payload can brand
-  // one social provider as another; only the strict OIDC provider carries configurable branding.
-  if (provider.kind === "social") return SOCIAL_PROVIDER_BRANDS[provider.id] ?? "generic";
-  if (provider.brand === "google" || provider.brand === "microsoft" || provider.brand === "generic") {
-    return provider.brand;
-  }
-  return "generic";
+  return SOCIAL_PROVIDER_BRANDS[provider.id] ?? "generic";
 }
 
 export function parseAuthProviders(value: unknown): AuthProviderInfo[] {

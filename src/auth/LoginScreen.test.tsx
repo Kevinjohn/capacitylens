@@ -50,7 +50,7 @@ async function showsStableRetryGuidanceAndRemovesProviderQueryValues() {
   render(
     <LoginScreen
       authMode="sso"
-      providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       onSignedIn={vi.fn()}
     />,
   );
@@ -67,7 +67,7 @@ async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, ex
   render(
     <LoginScreen
       authMode="sso"
-      providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       onSignedIn={vi.fn()}
     />,
   );
@@ -110,7 +110,7 @@ describe("LoginScreen — external callback failures", () => {
   );
 
   it.each([
-    ["OIDC_IDENTITY_VERIFICATION_FAILED", m.login_sso_verification_failed()],
+    ["OIDC_IDENTITY_VERIFICATION_FAILED", m.login_sso_failed()],
     ["account_link_conflict", m.login_sso_account_link_conflict()],
   ])(
     "maps the application-owned callback code %s to actionable copy",
@@ -125,7 +125,7 @@ describe("LoginScreen — external callback failures", () => {
 
 describe("LoginScreen — mixed-mode Google hierarchy", () => {
   const google = { id: "google", label: "Google", kind: "social", experimental: true } as const;
-  const companySso = { id: "sso", label: "Company SSO", kind: "oidc", experimental: false } as const;
+  const github = { id: "github", label: "GitHub", kind: "social", experimental: true } as const;
 
   it("puts Google before the password fallback with explicit wording", () => {
     render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
@@ -177,12 +177,12 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
     }
   });
 
-  it("keeps other configured providers after the password fallback", () => {
-    render(<LoginScreen authMode="password" providers={[google, companySso]} onSignedIn={vi.fn()} />);
+  it("keeps experimental GitHub after the password fallback", () => {
+    render(<LoginScreen authMode="password" providers={[google, github]} onSignedIn={vi.fn()} />);
 
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
     const signIn = screen.getByRole("button", { name: "Sign in" });
-    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+    const companyButton = screen.getByRole("button", { name: "Continue with GitHub" });
 
     expect(googleButton.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(signIn.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -196,11 +196,11 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
     expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
   });
 
-  it("keeps password-first behavior when Google is not configured", () => {
-    render(<LoginScreen authMode="password" providers={[companySso]} onSignedIn={vi.fn()} />);
+  it("keeps password-first behavior when only GitHub is configured", () => {
+    render(<LoginScreen authMode="password" providers={[github]} onSignedIn={vi.fn()} />);
 
     const email = screen.getByLabelText("Email");
-    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+    const companyButton = screen.getByRole("button", { name: "Continue with GitHub" });
     expect(email.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
   });
@@ -281,18 +281,18 @@ describe("LoginScreen — multi-factor challenge", () => {
     render(
       <LoginScreen
         authMode="password"
-        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: false }]}
+        providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(await screen.findByLabelText("Authentication code")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Continue with Company SSO" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in with Microsoft" })).not.toBeInTheDocument();
   });
 
   it("supports a recovery code without marking the browser as trusted", async () => {
@@ -445,13 +445,13 @@ function registerOwnerSetupDisplayTests() {
       <LoginScreen
         authMode="password"
         needsSetup
-        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: true }]}
+        providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
     );
 
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
     expect(
       screen.getByText(
         "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
@@ -463,7 +463,7 @@ function registerOwnerSetupDisplayTests() {
     render(
       <LoginScreen
         authMode="password"
-        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: false }]}
+        providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
     );

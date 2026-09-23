@@ -147,8 +147,7 @@ export function SecuritySection({
 }) {
   const auth = useAuth();
   const providers = (auth.providers ?? []).filter(
-    (provider) =>
-      !provider.experimental && (provider.kind === "oidc" || provider.id === "google" || provider.id === "microsoft"),
+    (provider) => !provider.experimental && (provider.id === "google" || provider.id === "microsoft"),
   );
   const controller = useSecurityController();
   const showPassword = auth.authMode === "password" && auth.reauthMethod !== "provider";

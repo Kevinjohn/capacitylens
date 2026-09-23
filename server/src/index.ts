@@ -24,7 +24,7 @@ import { resolveLegacyProxyTrustWarning, canTrustProxyHeaders } from "./proxyTru
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
-import { assertCompanyProviderCutoverReady, formatSsoCutoverRefusal, ssoCutoverReadiness } from "./accounts/ssoCutover";
+import { assertCompanyProviderCutoverReady } from "./accounts/ssoCutover";
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
 import { startServerRuntime } from "./boot/serverRuntime";
@@ -54,7 +54,6 @@ if (isResetForbidden(process.env)) {
 
 const accountResolution = tryOrRefuse(() => resolveAccountEnvironment(process.env));
 const accountEnv: Record<string, string | undefined> = accountResolution.env;
-const accountProfile: ReturnType<typeof resolveAccountEnvironment>["profile"] = accountResolution.profile;
 
 const dbPath = process.env.CAPACITYLENS_DB ?? "capacitylens.db";
 const port = parsePort(process.env.PORT);
@@ -133,10 +132,7 @@ try {
     application: ACCOUNT_APPLICATION,
     externalIdentityAdmission: (candidate) =>
       canAdmitLocalExternalIdentity({
-        bootstrapEmails:
-          candidate.providerId === "google" || candidate.providerId === "microsoft"
-            ? accountEnv.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS
-            : accountEnv.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
+        bootstrapEmails: accountEnv.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
         candidate,
         identityHasAnyPrincipal: () => countUsers(db) !== 0,
         hasLivePreauthorizedInvitation: (email) => hasLivePreauthorizedInvitation(db, email),
@@ -177,8 +173,7 @@ try {
     auth.reconcileFederatedLinks?.();
     stopStartupIfRequested({ startupSignals, openDb: db });
   }
-  if (auth && authMode === "sso" && (accountProfile === "self-hosted-sso-only" || accountProfile === null)) {
-    const provider = auth.strictProvider;
+  if (auth && authMode === "sso") {
     const companyProviders = auth.permittedCompanyProviderIds ?? new Set<string>();
     if (companyProviders.size === 0)
       throw new AuthConfigError("Provider-required mode has no configured company provider.");
@@ -198,20 +193,7 @@ try {
     // Reconfirm readiness under the same writer reservation that seals the boundary. This prevents
     // another server process from admitting a blocker between preflight and the cutover mutation.
     await identity.revokeAllForSsoCutover(() => {
-      if (!provider || companyProviders.size > 1) {
-        assertCompanyProviderCutoverReady({ providerIds: companyProviders, identity, administration });
-        return;
-      }
-      const readiness = ssoCutoverReadiness({
-        provider,
-        providers: auth.providers,
-        identity,
-        administration,
-        openSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
-      });
-      if (!readiness.ready) {
-        throw new AuthConfigError(`SSO cutover readiness failed. ${formatSsoCutoverRefusal(readiness)}`);
-      }
+      assertCompanyProviderCutoverReady({ providerIds: companyProviders, identity, administration });
     });
   }
   // First-run owner bootstrap — AFTER the auth tables exist, BEFORE the app serves a request. In

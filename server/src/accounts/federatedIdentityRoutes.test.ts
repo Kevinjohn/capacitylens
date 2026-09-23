@@ -4,20 +4,19 @@ import { AccountContractError, statusForAccountFailure } from "@capacitylens/sha
 import type { Auth } from "../auth";
 import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort } from "./sqliteAccountAdminPort";
-import { registerSsoCutoverRoutes } from "./ssoCutoverRoutes";
+import { registerFederatedIdentityRoutes } from "./federatedIdentityRoutes";
 
-const provider = { id: "workforce", label: "Workforce", kind: "oidc", experimental: false } as const;
+const provider = { id: "google", label: "Google", kind: "social", experimental: false } as const;
 
 function routeDependencies(overrides: Record<string, unknown> = {}) {
   return {
-    auth: { strictProvider: provider, providers: [provider] } as Auth,
+    auth: { defaultCompanyProvider: provider, providers: [provider] } as unknown as Auth,
     authMode: "password" as const,
     identity: {} as SsoCutoverIdentityPort,
     administration: {} as SsoCutoverAccountAdminPort,
     applicationId: "capacitylens",
-    openSignup: false,
     authorize: () => true,
-    fail: (reply: Parameters<Parameters<typeof registerSsoCutoverRoutes>[1]["fail"]>[0], error: unknown) => {
+    fail: (reply: Parameters<Parameters<typeof registerFederatedIdentityRoutes>[1]["fail"]>[0], error: unknown) => {
       if (error instanceof AccountContractError) {
         return reply.code(statusForAccountFailure(error.failure)).send(error.failure);
       }
@@ -25,7 +24,7 @@ function routeDependencies(overrides: Record<string, unknown> = {}) {
     },
     toWebHeaders: () => new Headers(),
     ...overrides,
-  } as Parameters<typeof registerSsoCutoverRoutes>[1];
+  } as Parameters<typeof registerFederatedIdentityRoutes>[1];
 }
 
 function authenticatedApp(overrides: Record<string, unknown> = {}) {
@@ -34,19 +33,12 @@ function authenticatedApp(overrides: Record<string, unknown> = {}) {
     request.user = { id: "owner-1", emailVerified: true } as never;
     request.accountActor = { principalId: "owner-1", fresh: true } as never;
   });
-  registerSsoCutoverRoutes(app, routeDependencies(overrides));
+  registerFederatedIdentityRoutes(app, routeDependencies(overrides));
   return app;
 }
 
-function readGlobalIssues(value: unknown): unknown[] {
-  if (typeof value !== "object" || value === null || !("globalIssues" in value) || !Array.isArray(value.globalIssues)) {
-    throw new Error("Expected SSO readiness global issues");
-  }
-  return value.globalIssues;
-}
-
-describe("SSO cutover routes", () => {
-  it("returns 404 when no strict provider is configured and maps provider inspection failures", async () => {
+describe("federated identity routes", () => {
+  it("returns 404 when no company provider is configured and maps provider inspection failures", async () => {
     const withoutProvider = authenticatedApp({ auth: {} as Auth });
     expect((await withoutProvider.inject({ method: "GET", url: "/api/identity/provider" })).statusCode).toBe(404);
     await withoutProvider.close();
@@ -63,28 +55,66 @@ describe("SSO cutover routes", () => {
 });
 
 describe("SSO provider linking", () => {
-  it("requires a verified local address before starting an external link", async () => {
-    const beginFederatedLink = vi.fn();
-    const app = Fastify();
-    app.addHook("preHandler", async (request) => {
-      request.user = { id: "owner-1", emailVerified: false } as never;
-      request.accountActor = { principalId: "owner-1", fresh: true } as never;
+  it.each(["google", "microsoft", undefined])(
+    "requires a verified local address when provider is %s",
+    async (providerId) => {
+      const beginFederatedLink = vi.fn();
+      const app = Fastify();
+      app.addHook("preHandler", async (request) => {
+        request.user = { id: "owner-1", emailVerified: false } as never;
+        request.accountActor = { principalId: "owner-1", fresh: true } as never;
+      });
+      registerFederatedIdentityRoutes(
+        app,
+        routeDependencies({ auth: { defaultCompanyProvider: provider, beginFederatedLink } as unknown as Auth }),
+      );
+      const response = await app.inject({
+        method: "POST",
+        url: "/api/identity/link-provider",
+        payload: { providerId, callbackURL: "https://app.test/ok", errorCallbackURL: "https://app.test/error" },
+      });
+      expect(response.statusCode).toBe(403);
+      expect(response.json()).toMatchObject({ code: "LOCAL_EMAIL_NOT_VERIFIED" });
+      expect(beginFederatedLink).not.toHaveBeenCalled();
+      await app.close();
+    },
+  );
+});
+
+describe("default provider linking", () => {
+  it.each(["google", "microsoft"])("resolves the default %s link before dispatch", async (id) => {
+    const selectedProvider = { ...provider, id };
+    const result = { url: "https://identity.test/authorize", setCookies: [] };
+    const beginFederatedLink = vi.fn(async () => result);
+    const start = vi.fn<(input: { body: { purpose: string } }) => Promise<typeof result>>().mockResolvedValue(result);
+    const app = authenticatedApp({
+      auth: {
+        defaultCompanyProvider: selectedProvider,
+        providers: [selectedProvider],
+        beginFederatedLink,
+        microsoftProof: { start },
+      },
+      identity: { inspectProviderLinks: () => [] },
     });
-    registerSsoCutoverRoutes(
-      app,
-      routeDependencies({ auth: { strictProvider: provider, beginFederatedLink } as unknown as Auth }),
-    );
     const response = await app.inject({
       method: "POST",
       url: "/api/identity/link-provider",
-      payload: { providerId: "google", callbackURL: "https://app.test/ok", errorCallbackURL: "https://app.test/error" },
+      payload: { callbackURL: "https://app.test/ok", errorCallbackURL: "https://app.test/error" },
     });
-    expect(response.statusCode).toBe(403);
-    expect(response.json()).toMatchObject({ code: "LOCAL_EMAIL_NOT_VERIFIED" });
-    expect(beginFederatedLink).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(200);
+    if (id === "microsoft") {
+      expect(start).toHaveBeenCalledOnce();
+      expect(start.mock.calls[0]?.[0].body.purpose).toBe("link");
+      expect(beginFederatedLink).not.toHaveBeenCalled();
+    } else {
+      expect(beginFederatedLink).toHaveBeenCalledWith(expect.objectContaining({ providerId: "google" }));
+      expect(start).not.toHaveBeenCalled();
+    }
     await app.close();
   });
+});
 
+describe("provider link request validation", () => {
   it("requires a fresh session and string callback URLs before beginning a provider link", async () => {
     const beginFederatedLink = vi.fn();
     const stale = Fastify();
@@ -92,9 +122,9 @@ describe("SSO provider linking", () => {
       request.user = { id: "owner-1", emailVerified: true } as never;
       request.accountActor = { principalId: "owner-1", fresh: false } as never;
     });
-    registerSsoCutoverRoutes(
+    registerFederatedIdentityRoutes(
       stale,
-      routeDependencies({ auth: { strictProvider: provider, beginFederatedLink } as unknown as Auth }),
+      routeDependencies({ auth: { defaultCompanyProvider: provider, beginFederatedLink } as unknown as Auth }),
     );
     const staleResponse = await stale.inject({
       method: "POST",
@@ -105,7 +135,7 @@ describe("SSO provider linking", () => {
     expect(staleResponse.json()).toMatchObject({ code: "SESSION_NOT_FRESH" });
     await stale.close();
 
-    const app = authenticatedApp({ auth: { strictProvider: provider, beginFederatedLink } as unknown as Auth });
+    const app = authenticatedApp({ auth: { defaultCompanyProvider: provider, beginFederatedLink } as unknown as Auth });
     for (const payload of [
       { callbackURL: 1, errorCallbackURL: "https://app.test/error" },
       { callbackURL: "https://app.test/ok", errorCallbackURL: {} },
@@ -130,7 +160,7 @@ describe("SSO provider-link failures", () => {
     const beginFederatedLink = vi.fn(async () => {
       throw Object.assign(new Error(`failure ${code}`), { body: { code, message: `failure ${code}` } });
     });
-    const app = authenticatedApp({ auth: { strictProvider: provider, beginFederatedLink } as unknown as Auth });
+    const app = authenticatedApp({ auth: { defaultCompanyProvider: provider, beginFederatedLink } as unknown as Auth });
     const response = await app.inject({
       method: "POST",
       url: "/api/identity/link-provider",
@@ -141,87 +171,6 @@ describe("SSO provider-link failures", () => {
       status === 500
         ? { error: "The identity-provider connection could not be started." }
         : { error: `failure ${code}`, code },
-    );
-    await app.close();
-  });
-});
-
-describe("SSO cutover readiness authorization", () => {
-  it("enforces readiness authorization and provider configuration before inventory reads", async () => {
-    const authorize = vi.fn((input: Parameters<Parameters<typeof registerSsoCutoverRoutes>[1]["authorize"]>[0]) => {
-      input.reply.code(403).send({ error: "Forbidden." });
-      return false;
-    });
-    const identity = { readSsoCutoverSnapshot: vi.fn() } as unknown as SsoCutoverIdentityPort;
-    const refused = authenticatedApp({ authorize, identity });
-    expect((await refused.inject({ method: "GET", url: "/api/accounts/workspace-1/sso-readiness" })).statusCode).toBe(
-      403,
-    );
-    const authorization = authorize.mock.calls[0]?.[0];
-    if (!authorization) throw new Error("Expected readiness authorization");
-    expect(authorize).toHaveBeenCalledWith({
-      req: authorization.req,
-      reply: authorization.reply,
-      accountId: "workspace-1",
-      action: "manageMembers",
-      options: { requireFreshSession: false },
-    });
-    expect(identity.readSsoCutoverSnapshot).not.toHaveBeenCalled();
-    await refused.close();
-
-    const noProvider = authenticatedApp({ auth: {} as Auth, identity });
-    expect(
-      (await noProvider.inject({ method: "GET", url: "/api/accounts/workspace-1/sso-readiness" })).statusCode,
-    ).toBe(400);
-    expect(identity.readSsoCutoverSnapshot).not.toHaveBeenCalled();
-    await noProvider.close();
-  });
-});
-
-describe("SSO cutover readiness disclosure", () => {
-  it("does not disclose absent or other workspaces and collapses principal-scoped issues", async () => {
-    const identity = {
-      readSsoCutoverSnapshot: (read: () => unknown) => read(),
-      inspectSsoCutover: () => ({
-        principals: [
-          { id: "owner-1", email: "owner@example.com", displayName: "Owner", providerIds: ["workforce"] },
-          { id: "secret-principal", email: "secret@example.com", displayName: "Secret", providerIds: [] },
-        ],
-        requiredProviderLinks: [{ rowId: "link-1", principalId: "owner-1", subject: "subject-1", verified: true }],
-        alternativeProviderLinks: [],
-        outstandingResetPrincipalIds: [],
-      }),
-    } as unknown as SsoCutoverIdentityPort;
-    const administration = {
-      inspectSsoCutoverWorkspaces: () => [
-        {
-          workspaceId: "workspace-1",
-          workspaceName: "Visible",
-          members: [{ principalId: "owner-1", role: "owner", status: "active" }],
-        },
-        {
-          workspaceId: "secret-workspace",
-          workspaceName: "Secret Workspace",
-          members: [{ principalId: "missing-secret", role: "owner", status: "active" }],
-        },
-      ],
-    } as unknown as SsoCutoverAccountAdminPort;
-    const app = authenticatedApp({ identity, administration });
-    const missing = await app.inject({ method: "GET", url: "/api/accounts/absent/sso-readiness" });
-    expect(missing.statusCode).toBe(404);
-
-    const response = await app.inject({ method: "GET", url: "/api/accounts/workspace-1/sso-readiness" });
-    const serialized = response.body;
-    expect(response.statusCode).toBe(200);
-    expect(serialized).not.toContain("secret-principal");
-    expect(serialized).not.toContain("secret@example.com");
-    expect(serialized).not.toContain("missing-secret");
-    expect(serialized).not.toContain("Secret Workspace");
-    expect(readGlobalIssues(response.json<unknown>())).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ reason: "operator_identity_repair_required" }),
-        expect.objectContaining({ reason: "other_workspace_not_ready" }),
-      ]),
     );
     await app.close();
   });
@@ -240,15 +189,14 @@ describe("SSO provider inspection", () => {
     const inspectSsoCutover = vi.fn(() => {
       throw new Error("full inventory must not run");
     });
-    registerSsoCutoverRoutes(app, {
+    registerFederatedIdentityRoutes(app, {
       auth: {
-        strictProvider: { id: "workforce", label: "Workforce", kind: "oidc", experimental: false },
-      } as Auth,
+        defaultCompanyProvider: { id: "google", label: "Google", kind: "social", experimental: false },
+      } as unknown as Auth,
       authMode: "password",
       identity: { inspectProviderLinks, inspectSsoCutover } as unknown as SsoCutoverIdentityPort,
       administration: {} as SsoCutoverAccountAdminPort,
       applicationId: "capacitylens",
-      openSignup: false,
       authorize: () => true,
       fail: (_reply, error) => {
         throw error;
@@ -260,13 +208,13 @@ describe("SSO provider inspection", () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ connected: true, verified: false });
-    expect(inspectProviderLinks).toHaveBeenCalledWith("principal-1", "workforce");
+    expect(inspectProviderLinks).toHaveBeenCalledWith("principal-1", "google");
     expect(inspectSsoCutover).not.toHaveBeenCalled();
     await app.close();
   });
 });
 
-describe("SSO cutover repairs", () => {
+describe("federated identity repairs", () => {
   it("rejects credential rows before the federated-link repair port", async () => {
     const app = Fastify();
     app.addHook("preHandler", async (request) => {
@@ -274,15 +222,14 @@ describe("SSO cutover repairs", () => {
       request.accountActor = { principalId: "owner-1", fresh: true } as never;
     });
     const removeFederatedLink = vi.fn();
-    registerSsoCutoverRoutes(app, {
+    registerFederatedIdentityRoutes(app, {
       auth: {
-        strictProvider: { id: "workforce", label: "Workforce", kind: "oidc", experimental: false },
-      } as Auth,
+        defaultCompanyProvider: { id: "google", label: "Google", kind: "social", experimental: false },
+      } as unknown as Auth,
       authMode: "password",
       identity: { removeFederatedLink } as unknown as SsoCutoverIdentityPort,
       administration: {} as SsoCutoverAccountAdminPort,
       applicationId: "capacitylens",
-      openSignup: false,
       authorize: () => true,
       fail: (_reply, error) => {
         throw error;
@@ -302,7 +249,7 @@ describe("SSO cutover repairs", () => {
   });
 });
 
-describe("SSO cutover repair identity", () => {
+describe("federated identity repair", () => {
   it("uses the authorized path principal when a link-removal body contains extra identity fields", async () => {
     const removeFederatedLink = vi.fn(async (input: Parameters<SsoCutoverIdentityPort["removeFederatedLink"]>[0]) => {
       void input;
@@ -325,7 +272,7 @@ describe("SSO cutover repair identity", () => {
       url: "/api/accounts/workspace-1/members/member-1/federated-link",
       payload: {
         rowId: "link-1",
-        providerId: "workforce",
+        providerId: "google",
         subject: "subject-1",
         principalId: "attacker-selected-principal",
       },
@@ -410,7 +357,7 @@ describe("SSO cutover repair transactions", () => {
       name: "provider-link removal",
       method: "DELETE" as const,
       url: "/api/accounts/workspace-1/members/member-1/federated-link",
-      payload: { rowId: "link-1", providerId: "workforce", subject: "subject-1" },
+      payload: { rowId: "link-1", providerId: "google", subject: "subject-1" },
       action: "remove-federated-link",
     },
   ])("reconfirms requested-workspace authority inside the $name transaction", async (testCase) => {
@@ -455,7 +402,7 @@ describe("SSO cutover repair preconditions", () => {
     [
       "DELETE",
       "/api/accounts/workspace-1/members/member-1/federated-link",
-      { rowId: "link-1", providerId: "workforce", subject: "subject-1" },
+      { rowId: "link-1", providerId: "google", subject: "subject-1" },
     ],
   ] as const)("rejects %s repairs outside password staging mode", async (method, url, payload) => {
     const app = authenticatedApp({ authMode: "sso" });
@@ -470,7 +417,7 @@ describe("SSO cutover repair preconditions", () => {
     [
       "DELETE",
       "/api/accounts/workspace-1/members/member-1/federated-link",
-      { rowId: "link-1", providerId: "workforce", subject: "subject-1" },
+      { rowId: "link-1", providerId: "google", subject: "subject-1" },
     ],
   ] as const)("requires a strict provider for %s repairs", async (method, url, payload) => {
     const app = authenticatedApp({ auth: {} as Auth });
@@ -507,7 +454,7 @@ describe("SSO cutover repair authority", () => {
       name: "provider-link removal",
       method: "DELETE" as const,
       url: "/api/accounts/workspace-1/members/member-1/federated-link",
-      payload: { rowId: "link-1", providerId: "workforce", subject: "subject-1" },
+      payload: { rowId: "link-1", providerId: "google", subject: "subject-1" },
       identityMethod: "removeFederatedLink" as const,
       action: "remove-federated-link",
     },
@@ -539,7 +486,7 @@ describe("SSO cutover repair failures", () => {
       name: "provider-link removal",
       method: "DELETE" as const,
       url: "/api/accounts/workspace-1/members/member-1/federated-link",
-      payload: { rowId: "link-1", providerId: "workforce", subject: "subject-1" },
+      payload: { rowId: "link-1", providerId: "google", subject: "subject-1" },
       identity: { removeFederatedLink: vi.fn(async () => Promise.reject(new Error("storage detail"))) },
     },
   ])("maps $name port failures through fail", async (testCase) => {
@@ -572,7 +519,7 @@ describe("SSO cutover repair conflicts", () => {
     const response = await app.inject({
       method: "DELETE",
       url: "/api/accounts/workspace-1/members/member-1/federated-link",
-      payload: { rowId: "link-1", providerId: "workforce", subject: "subject-1" },
+      payload: { rowId: "link-1", providerId: "google", subject: "subject-1" },
     });
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "CONFLICT" });

@@ -19,7 +19,7 @@ export const GUARDED_FILES = Object.freeze([
   "server/scripts/e2e-server.mjs",
 ]);
 
-// The lane bases, and the fixed OIDC ports that scripts/ports.mjs also owns.
+// The lane bases and fixed access-lab ports that scripts/ports.mjs also owns.
 const GUARDED_PORTS = Object.freeze([4173, 5173, 5273, 5373, 5473, 5900, 5910, 8787, 8887, 8897]);
 
 /**

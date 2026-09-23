@@ -3,7 +3,6 @@ import { DatabaseSync } from "node:sqlite";
 import { initializeOpenDb, openDb as openDbRaw, planDatabaseMigrations } from "./db";
 import {
   createAuthFromEnvironment,
-  assertStrictOidcEmailAdmission,
   assertFederatedIdentitySchemaCurrent,
   ensureAuthControlTables,
   planAuthSchemaMigrations,
@@ -20,8 +19,9 @@ import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { canAdmitLocalExternalIdentity } from "./accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
-import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
+import { assertCompanyProviderCutoverReady } from "./accounts/ssoCutover";
 import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
+import { readVerifiedMicrosoftProfile } from "./authConfig/socialProviders";
 import { CHECKSUM_PINNED_MIGRATIONS, MICROSOFT_PROOF_V46_PIN } from "./db/migrations/authPlanningPins.testSupport";
 const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
@@ -107,12 +107,12 @@ const createCompletedFederatedLinkFixture = (db: ReturnType<typeof openDbRaw>) =
   db.prepare(
     `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run("link-1", "workforce", "subject-1", "principal-1", timestamp, timestamp);
+  ).run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp);
   db.prepare(
     `INSERT INTO capacitylens_federated_link_ceremonies
       (id, principalId, providerId, createdAt, expiresAt, completedAt)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run("ceremony-1", "principal-1", "workforce", timestamp, "2099-01-01T00:00:00.000Z", timestamp);
+  ).run("ceremony-1", "principal-1", "google", timestamp, "2099-01-01T00:00:00.000Z", timestamp);
 };
 
 describe("password verification backpressure", () => {
@@ -162,57 +162,42 @@ const registerFederatedSchemaTests = () => {
     expect(() => assertFederatedIdentitySchemaCurrent(db)).toThrow(/invalid capacitylens_observe_federated_account/i);
   });
 
-  it("requires verified email for admission/linking unless a returning subject has durable proof", async () => {
+  it("requires verified email for first Google admission", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, {
-      ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
-    });
-    const auth = assertPresent(configured.auth, "password auth");
-    await runAuthMigrations(auth);
-    const timestamp = "2026-08-07T00:00:00.000Z";
-    db.prepare(
-      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
-       VALUES (?, ?, ?, 1, ?, ?)`,
-    ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("link-1", "workforce", "known-subject", "principal-1", timestamp, timestamp);
-
-    expect(() => assertStrictOidcEmailAdmission(db, "workforce", { sub: "new-subject", emailVerified: false })).toThrow(
-      /verified email/i,
+    const configured = createAuthFromEnvironment(
+      db,
+      {
+        ...PASSWORD_ENV,
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      },
+      {
+        deferDatabaseSetup: true,
+        externalIdentityAdmission: (candidate) => candidate.providerId === "google" && candidate.emailVerified === true,
+      },
     );
-    expect(() =>
-      assertStrictOidcEmailAdmission(db, "workforce", { sub: "known-subject", emailVerified: false }),
-    ).not.toThrow();
-    db.prepare(`DELETE FROM capacitylens_federated_link_observations WHERE accountRowId = ?`).run("link-1");
-    expect(() =>
-      assertStrictOidcEmailAdmission(db, "workforce", { sub: "known-subject", emailVerified: false }),
-    ).toThrow(/verified email/i);
-    expect(() =>
-      assertStrictOidcEmailAdmission(db, "workforce", { sub: "new-subject", emailVerified: true }),
-    ).not.toThrow();
+    const auth = assertPresent(configured.auth, "password auth");
+    const before = assertPresent(auth.options.databaseHooks?.user?.create?.before, "admission hook");
+    const context = { path: "/callback/:id", params: { id: "google" }, bootstrapClaimToken: "held" } as never;
+    await expect(before({ email: "bruce@example.com", emailVerified: false } as never, context)).rejects.toMatchObject({
+      body: { code: "EXTERNAL_IDENTITY_NOT_INVITED" },
+    });
+    await expect(before({ email: "bruce@example.com", emailVerified: true } as never, context)).resolves.toMatchObject({
+      data: { email: "bruce@example.com", emailVerified: true },
+    });
   });
 };
 
 const registerFederatedAuditTests = () => {
-  it("admits a direct OIDC identity as verified on SSO-only restart and emits one stable audit", async () => {
+  it("admits a direct provider identity as verified on SSO-only restart and emits one stable audit", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const auth = assertPresent(configured.auth, "password auth");
-    const strictProvider = assertPresent(auth.strictProvider, "strict OIDC provider");
     const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
     await runAuthMigrations(auth);
     createCompletedFederatedLinkFixture(db);
@@ -222,22 +207,22 @@ const registerFederatedAuditTests = () => {
       auth,
       authMode: "sso",
       db,
-    }).inspectSsoCutover("workforce");
-    expect(
-      evaluateSsoCutoverReadiness({
-        provider: strictProvider,
-        providers: auth.providers,
-        identity,
-        workspaces: [
-          {
-            workspaceId: "workspace-1",
-            workspaceName: "Studio",
-            members: [{ principalId: "principal-1", role: "owner", status: "active" }],
-          },
-        ],
-        openSignup: false,
-      }).ready,
-    ).toBe(true);
+    }).inspectSsoCutover("google");
+    expect(() =>
+      assertCompanyProviderCutoverReady({
+        providerIds: new Set(["google"]),
+        identity: { inspectSsoCutover: () => identity } as never,
+        administration: {
+          inspectSsoCutoverWorkspaces: () => [
+            {
+              workspaceId: "workspace-1",
+              workspaceName: "Studio",
+              members: [{ principalId: "principal-1", role: "owner", status: "active" }],
+            },
+          ],
+        } as never,
+      }),
+    ).not.toThrow();
 
     reconcileFederatedLinks();
     reconcileFederatedLinks();
@@ -253,7 +238,7 @@ const registerFederatedAuditTests = () => {
     }).toEqual({
       accountRowId: "link-1",
       principalId: "principal-1",
-      providerId: "workforce",
+      providerId: "google",
       subject: "subject-1",
     });
     expect(typeof observation.verifiedAt).toBe("string");
@@ -268,16 +253,14 @@ const registerFederatedReconciliationTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const auth = assertPresent(configured.auth, "password auth");
     const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
     await runAuthMigrations(auth);
-    const ceremony = createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce" });
+    const ceremony = createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "google" });
 
     reconcileFederatedLinks();
     expect(db.prepare(`SELECT id FROM capacitylens_federated_link_ceremonies`).all()).toEqual([{ id: ceremony.id }]);
@@ -320,15 +303,13 @@ const registerFederatedCeremonyConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const auth = assertPresent(configured.auth, "password auth");
     await runAuthMigrations(auth);
-    createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce", ceremonyId: "abandoned" });
+    createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "google", ceremonyId: "abandoned" });
     db.prepare(
       `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -345,7 +326,7 @@ const registerFederatedCeremonyConflictTests = () => {
       createFederatedLinkCeremony({
         db,
         principalId: "principal-1",
-        providerId: "workforce",
+        providerId: "google",
         ceremonyId: "replacement",
         revokeSupersededProviderStateInTransaction: () => revokeFederatedLinkStateInTx(db, "principal-1"),
       }).id,
@@ -362,11 +343,9 @@ const registerFederatedSubjectConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const auth = assertPresent(configured.auth, "password auth");
     const reconcileFederatedLinks = assertPresent(auth.reconcileFederatedLinks, "federated-link reconciler");
@@ -376,11 +355,11 @@ const registerFederatedSubjectConflictTests = () => {
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
        VALUES (?, ?, ?, 1, ?, ?)`,
     ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
-    createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "workforce" });
+    createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "google" });
     db.prepare(
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("link-1", "workforce", "subject-1", "principal-1", timestamp, timestamp);
+    ).run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp);
 
     expect(() =>
       db
@@ -388,11 +367,11 @@ const registerFederatedSubjectConflictTests = () => {
           `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
            VALUES (?, ?, ?, ?, ?, ?)`,
         )
-        .run("link-2", "workforce", "subject-2", "principal-1", timestamp, timestamp),
+        .run("link-2", "google", "subject-2", "principal-1", timestamp, timestamp),
     ).toThrow(/unique constraint/i);
     reconcileFederatedLinks();
 
-    expect(db.prepare(`SELECT id, accountId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
+    expect(db.prepare(`SELECT id, accountId FROM account WHERE providerId = 'google'`).all()).toEqual([
       { id: "link-1", accountId: "subject-1" },
     ]);
     expect(db.prepare(`SELECT accountRowId FROM capacitylens_federated_link_observations`).all()).toEqual([
@@ -464,34 +443,31 @@ const registerStartupConfigurationRefusalTests = () => {
     );
   });
 
-  it("refuses an OIDC issuer with query or fragment identity ambiguity", () => {
-    expect(() =>
-      createAuthFromEnvironment(openDb(":memory:"), {
-        ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
-        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example/tenant?version=2",
-      }),
-    ).toThrow(/query string or fragment/i);
+  it("rejects a Microsoft issuer with a query or fragment", () => {
+    const tenant = "01234567-89ab-cdef-0123-456789abcdef";
+    const profile = {
+      iss: `https://login.microsoftonline.com/${tenant}/v2.0`,
+      aud: "client",
+      tid: tenant,
+      oid: "stable-object-id",
+      exp: Math.floor(Date.now() / 1000) + 600,
+    };
+    for (const suffix of ["?version=2", "#fragment"]) {
+      expect(() =>
+        readVerifiedMicrosoftProfile({ ...profile, iss: `${profile.iss}${suffix}` }, tenant, "client"),
+      ).toThrow();
+    }
   });
 
   it.each([
-    ["openid profile", "email"],
-    ["openid email", "profile"],
-    ["profile email", "openid"],
-    ["openid", "profile, email"],
-  ])("refuses strict OIDC scopes %j because %s is required", (scopes, missing) => {
-    expect(() =>
-      createAuthFromEnvironment(openDb(":memory:"), {
-        ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
-        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-        SMALLSASS_ACCOUNT_OIDC_SCOPES: scopes,
-      }),
-    ).toThrow(new RegExp(`requires the ${missing} scope`));
+    "SMALLSASS_ACCOUNT_OIDC_CLIENT_ID",
+    "SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL",
+    "SMALLSASS_ACCOUNT_OIDC_SCOPES",
+  ])("refuses retired generic setting %s before creating storage", (key) => {
+    const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
+    expect(() => createAuthFromEnvironment(db, { ...PASSWORD_ENV, [key]: "retired" })).toThrow(`${key} was removed`);
+    expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
+    db.close();
   });
 
   it("refuses public URLs that are not a bare origin", () => {
@@ -512,78 +488,33 @@ const registerStartupConfigurationRefusalTests = () => {
 };
 
 const registerStartupDiscoverySuccessTest = () => {
-  it("issuer-validates discovery before the browser reaches its authorization endpoint", async () => {
-    const discoveryUrl = "https://idp.example/.well-known/openid-configuration";
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          issuer: "https://idp.example",
-          response_types_supported: ["code"],
-          subject_types_supported: ["public"],
-          authorization_endpoint: "https://login.idp.example/authorize",
-          token_endpoint: "https://idp.example/token",
-          jwks_uri: "https://idp.example/keys",
-          userinfo_endpoint: "https://idp.example/userinfo",
-          id_token_signing_alg_values_supported: ["RS256"],
-        }),
-      ),
-    );
-    const { auth } = createAuthFromEnvironment(openDb(":memory:"), {
+  it("binds a named Google provider to its stable issuer before serving requests", () => {
+    const db = openDb(":memory:");
+    const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: discoveryUrl,
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
-    const ssoAuth = assertPresent(auth, "SSO auth");
-    const response = await ssoAuth.handler(
-      new Request("http://localhost:8787/api/auth/oidc/authorize/sso?client_id=client&state=opaque&scope=openid"),
-    );
-
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      "https://login.idp.example/authorize?client_id=client&state=opaque&scope=openid",
-    );
-    expect(response.headers.get("cache-control")).toBe("no-store");
+    const configured = assertPresent(auth, "Google auth");
+    expect(configured.federatedIssuers.get("google")).toBe("https://accounts.google.com");
+    expect(configured.options.plugins?.some((plugin) => plugin.id === "generic-oauth")).toBe(false);
   });
 };
 
 const registerStartupDiscoveryFailureTest = () => {
-  it("fails closed before redirect when discovery does not match the pinned issuer", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json({
-          issuer: "https://attacker.example",
-          authorization_endpoint: "https://attacker.example/authorize",
-          token_endpoint: "https://attacker.example/token",
-          jwks_uri: "https://attacker.example/keys",
-          userinfo_endpoint: "https://attacker.example/userinfo",
-          id_token_signing_alg_values_supported: ["RS256"],
-        }),
-      ),
-    );
-    const { auth } = createAuthFromEnvironment(openDb(":memory:"), {
-      ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-    });
-
-    const ssoAuth = assertPresent(auth, "SSO auth");
-    const response = await ssoAuth.handler(
-      new Request("http://localhost:8787/api/auth/oidc/authorize/sso?client_id=client&state=opaque"),
-    );
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      "http://localhost:8787/?externalSignInError=1&error=provider_unavailable",
-    );
-    expect(response.headers.get("location")).not.toContain("attacker.example");
+  it("rejects a Microsoft profile whose issuer differs from the configured tenant", () => {
+    const tenant = "01234567-89ab-cdef-0123-456789abcdef";
+    const profile = {
+      iss: "https://login.microsoftonline.com/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/v2.0",
+      aud: "client",
+      tid: tenant,
+      oid: "stable-object-id",
+      exp: Math.floor(Date.now() / 1000) + 600,
+    };
+    expect(() => readVerifiedMicrosoftProfile(profile, tenant, "client")).toThrow();
   });
 };
+
 const registerStartupMigrationPlanningTest = () => {
   it("plans both the app-owned control migration and Better Auth DDL before executing either", async () => {
     const db = openDb(":memory:");
@@ -682,11 +613,10 @@ describe("first-owner database-hook races", () => {
 });
 
 describe("resolved auth options", () => {
-  const strictProviderEnv = {
-    SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "strict-client",
-    SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "strict-secret",
-    SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-    SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+  const companyProviderEnv = {
+    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
   };
 
   it.each([
@@ -700,18 +630,18 @@ describe("resolved auth options", () => {
       name: "password with providers",
       env: {
         ...PASSWORD_ENV,
-        ...strictProviderEnv,
+        ...companyProviderEnv,
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
       },
       trustedOrigins: ["https://admin.example", "https://capacity.example"],
-      pluginIds: ["generic-oauth", "two-factor"],
+      pluginIds: ["two-factor"],
     },
     {
       name: "sso",
-      env: { ...PASSWORD_ENV, ...strictProviderEnv, SMALLSASS_ACCOUNT_MODE: "sso" },
+      env: { ...PASSWORD_ENV, ...companyProviderEnv, SMALLSASS_ACCOUNT_MODE: "sso" },
       trustedOrigins: ["https://capacity.example"],
-      pluginIds: ["generic-oauth"],
+      pluginIds: [],
     },
   ])("pins security-sensitive option fields in $name mode", ({ env, trustedOrigins, pluginIds }) => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
@@ -822,9 +752,9 @@ const registerExternalProviderConfigurationTests = () => {
     expect(
       parseProviderIdFromExternalContext({
         path: "/callback/:id",
-        params: { id: "sso" },
+        params: { id: "google" },
       }),
-    ).toBe("sso");
+    ).toBe("google");
     expect(parseProviderIdFromExternalContext({ path: "/callback/google" })).toBe("google");
     expect(parseProviderIdFromExternalContext({ path: "/oauth2/callback/:providerId" })).toBeNull();
   });
@@ -885,10 +815,6 @@ const registerExternalSsoProviderTest = () => {
         SMALLSASS_ACCOUNT_MODE: "sso",
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "strict-client",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "strict-secret",
-        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-        SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
       },
       { externalIdentityAdmission: async () => true },
     );
@@ -918,15 +844,14 @@ const registerExternalSsoProviderTest = () => {
 };
 
 const registerExternalSessionAssuranceTest = () => {
-  it("creates a strict-OIDC session without querying password-only MFA columns", async () => {
+  it("creates a company-provider session without querying password-only MFA columns", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
       SMALLSASS_ACCOUNT_MODE: "sso",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "strict-client",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "strict-secret",
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
     const ssoAuth = assertPresent(auth, "SSO auth");
     await runAuthMigrations(ssoAuth);
@@ -951,12 +876,12 @@ const registerExternalSessionAssuranceTest = () => {
     await expect(
       after(
         { token: "strict-session-token", userId: "strict-principal" } as never,
-        { path: "/callback/:id", params: { id: "sso" } } as never,
+        { path: "/callback/:id", params: { id: "google" } } as never,
       ),
     ).resolves.toBeUndefined();
     expect(db.prepare("SELECT assurance, providerId FROM account_session_assurance").get()).toEqual({
       assurance: "federated",
-      providerId: "sso",
+      providerId: "google",
     });
   });
 };
@@ -979,25 +904,25 @@ const registerExternalBootstrapAdmissionTests = () => {
   it("allows only a verified, explicitly allow-listed first identity", () => {
     const db = openDb(":memory:");
     createAuthFromEnvironment(db, PASSWORD_ENV); // initializes Better Auth's user table
-    const env = { SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS: " owner@example.com, second@example.com " };
+    const env = { SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: " owner@example.com, second@example.com " };
     expect(
       canAdmitLocalExternalIdentity({
         ...admissionDependencies(db),
-        bootstrapEmails: env.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
+        bootstrapEmails: env.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
         candidate: { email: "OWNER@example.com", emailVerified: true },
       }),
     ).toBe(true);
     expect(
       canAdmitLocalExternalIdentity({
         ...admissionDependencies(db),
-        bootstrapEmails: env.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
+        bootstrapEmails: env.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
         candidate: { email: "owner@example.com", emailVerified: false },
       }),
     ).toBe(false);
     expect(
       canAdmitLocalExternalIdentity({
         ...admissionDependencies(db),
-        bootstrapEmails: env.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
+        bootstrapEmails: env.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
         candidate: { email: "stranger@example.com", emailVerified: true },
       }),
     ).toBe(false);

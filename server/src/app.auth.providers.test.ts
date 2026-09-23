@@ -11,7 +11,6 @@ import {
   upsertMember,
 } from "./controlTables";
 import { microsoftCallbackCapture } from "./authConfig/captureContexts";
-import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
 // P3.1/P3.2/P3.5 (flag SMALLSASS_ACCOUNT_MODE → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
@@ -23,15 +22,6 @@ function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>[
   if (auth === null) throw new Error("Expected authentication to be configured.");
   return auth;
 }
-
-const SSO_ENV = {
-  ...PASSWORD_ENV,
-  SMALLSASS_ACCOUNT_MODE: "sso",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
-};
 
 const MICROSOFT_ENV = {
   SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "ms-id",
@@ -59,21 +49,20 @@ async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance
 }
 
 function registerSsoClosedRouteTests(): void {
-  it("publishes the configured strict OIDC presentation brand to signed-out clients", async () => {
-    const app = await appWithAuth({ ...SSO_ENV, SMALLSASS_ACCOUNT_OIDC_BRAND: "google" });
+  it("publishes the configured Google provider to signed-out clients", async () => {
+    const app = await appWithAuth(NAMED_SSO_ENV);
     const response = await call(app, { method: "GET", url: "/api/auth/me" });
 
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({
-      providers: [{ id: "sso", label: "Single sign-on", kind: "oidc", brand: "google", experimental: false }],
+      providers: [{ id: "google", kind: "social", experimental: false }],
     });
     await app.close();
   });
 
-  it.each([SSO_ENV, NAMED_SSO_ENV])(
-    "keeps password mutation and invitation password signup closed (profile %#)",
-    async (environment) => {
-      const app = await appWithAuth(environment);
+  it("keeps password mutation and invitation password signup closed", async () => {
+    const app = await appWithAuth(NAMED_SSO_ENV);
+    try {
       expect(
         (
           await call(app, {
@@ -105,8 +94,10 @@ function registerSsoClosedRouteTests(): void {
           })
         ).statusCode,
       ).toBe(404);
-    },
-  );
+    } finally {
+      await app.close();
+    }
+  });
 }
 
 it("publishes Microsoft first-owner setup in provider-required mode", async () => {
@@ -124,189 +115,31 @@ it("publishes Microsoft first-owner setup in provider-required mode", async () =
   }
 });
 
-function registerSsoRedirectTests(): void {
-  it("discovers strict OIDC and issues a stateful PKCE redirect", async () => {
-    const originalFetch = globalThis.fetch;
-    vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-      const url = input instanceof Request ? input.url : String(input);
-      if (url === SSO_ENV.SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL) {
-        return new Response(
-          JSON.stringify({
-            issuer: "https://idp.test",
-            authorization_endpoint: "https://idp.test/authorize",
-            token_endpoint: "https://idp.test/token",
-            userinfo_endpoint: "https://idp.test/userinfo",
-            jwks_uri: "https://idp.test/jwks",
-            response_types_supported: ["code"],
-            subject_types_supported: ["public"],
-            id_token_signing_alg_values_supported: ["RS256"],
-            code_challenge_methods_supported: ["S256"],
-          }),
-          { headers: { "content-type": "application/json" } },
-        );
-      }
-      return originalFetch(input, init);
-    });
+// SSO mode retains named company-provider sign-in and closes password routes.
+describe("SMALLSASS_ACCOUNT_MODE sso", () => {
+  registerSsoClosedRouteTests();
+
+  it("issues a stateful Google authorization redirect", async () => {
+    const app = await appWithAuth(NAMED_SSO_ENV);
     try {
-      const app = await appWithAuth(SSO_ENV);
-      const res = await call(app, {
+      const response = await call(app, {
         method: "POST",
         url: "/api/auth/sign-in/social",
-        payload: { provider: "sso", callbackURL: "/" },
+        payload: { provider: "google", callbackURL: "/" },
       });
-      expect(res.statusCode).toBe(200);
-      const body = res.json() as { url: string; redirect: boolean };
-      const proxy = new URL(body.url);
+      expect(response.statusCode).toBe(200);
+      const body = response.json() as { url: string; redirect: boolean };
       expect(body.redirect).toBe(true);
-      expect(proxy.origin + proxy.pathname).toBe("http://localhost:8787/api/auth/oidc/authorize/sso");
-      const resolved = await call(app, {
-        method: "GET",
-        url: proxy.pathname + proxy.search,
-      });
-      expect(resolved.statusCode).toBe(302);
-      const redirect = new URL(String(resolved.headers.location));
-      expect(redirect.origin + redirect.pathname).toBe("https://idp.test/authorize");
+      const redirect = new URL(body.url);
+      expect(redirect.origin + redirect.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
       expect(redirect.searchParams.get("response_type")).toBe("code");
       expect(redirect.searchParams.get("scope")?.split(" ")).toEqual(expect.arrayContaining(["openid"]));
       expect(redirect.searchParams.get("state")).toBeTruthy();
       expect(redirect.searchParams.get("code_challenge")).toBeTruthy();
       expect(redirect.searchParams.get("code_challenge_method")).toBe("S256");
     } finally {
-      vi.stubGlobal("fetch", originalFetch);
+      await app.close();
     }
-  });
-}
-
-// The suite owns one contiguous configured strict-OIDC lifecycle in addition to the small route checks.
-// eslint-disable-next-line max-lines-per-function
-describe("SMALLSASS_ACCOUNT_MODE sso", () => {
-  registerSsoClosedRouteTests();
-  registerSsoRedirectTests();
-
-  // One stateful runtime sequence proves the configured generic OAuth plugin actually invokes
-  // strict discovery, token and userinfo validation and persists the adapter's null clears.
-  // eslint-disable-next-line max-lines-per-function
-  it("persists strict-OIDC avatar updates and clears through the configured callback", async () => {
-    const pair = await generateKeyPair("RS256");
-    const publicJwk = { ...(await exportJWK(pair.publicKey)), kid: "strict-key", use: "sig", alg: "RS256" };
-    let picture: unknown = "https://images.example/strict-a.png";
-    let providerEmail = "bruce@wayne.test";
-    let providerName = "Bruce Wayne";
-    const token = () =>
-      new SignJWT({ email: providerEmail, email_verified: true })
-        .setProtectedHeader({ alg: "RS256", kid: "strict-key" })
-        .setIssuer(SSO_ENV.SMALLSASS_ACCOUNT_OIDC_ISSUER)
-        .setAudience(SSO_ENV.SMALLSASS_ACCOUNT_OIDC_CLIENT_ID)
-        .setSubject("strict-subject")
-        .setIssuedAt()
-        .setExpirationTime("5m")
-        .sign(pair.privateKey);
-    vi.stubGlobal("fetch", async (input: Parameters<typeof fetch>[0]) => {
-      const url = input instanceof Request ? input.url : String(input);
-      if (url === SSO_ENV.SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL)
-        return Response.json({
-          issuer: SSO_ENV.SMALLSASS_ACCOUNT_OIDC_ISSUER,
-          authorization_endpoint: "https://idp.test/authorize",
-          token_endpoint: "https://idp.test/token",
-          userinfo_endpoint: "https://idp.test/userinfo",
-          jwks_uri: "https://idp.test/jwks",
-          response_types_supported: ["code"],
-          subject_types_supported: ["public"],
-          id_token_signing_alg_values_supported: ["RS256"],
-          code_challenge_methods_supported: ["S256"],
-        });
-      if (url === "https://idp.test/token")
-        return Response.json({ access_token: "strict-access", token_type: "Bearer", id_token: await token() });
-      if (url === "https://idp.test/jwks") return Response.json({ keys: [publicJwk] });
-      if (url === "https://idp.test/userinfo")
-        return Response.json({
-          sub: "strict-subject",
-          email: providerEmail,
-          email_verified: true,
-          name: providerName,
-          ...(picture === undefined ? {} : { picture }),
-        });
-      throw new Error(`Unexpected strict OIDC fetch: ${url}`);
-    });
-    const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, SSO_ENV, { externalIdentityAdmission: async () => true });
-    const auth = parseConfiguredAuth(configured.auth);
-    await runAuthMigrations(auth);
-    db.prepare(
-      `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
-       VALUES ('collision-user', 'Clark Kent', 'collision@wayne.test', 1, ?, ?)`,
-    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
-    db.prepare(
-      `INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a1', 'Wayne Enterprises', '#6366f1', ?, ?)`,
-    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
-    db.prepare(
-      `INSERT INTO resources (id, accountId, kind, name, role, color, employmentType, engagement, workingHoursPerDay, workingDays, halfDays, createdAt, updatedAt)
-       VALUES ('bruce', 'a1', 'person', 'Bruce Wayne', 'Director', '#6366f1', 'employee', 'studio', 8, '[1,2,3,4,5]', '[]', ?, ?)`,
-    ).run("2026-09-14T10:00:00.000Z", "2026-09-14T10:00:00.000Z");
-    const app = createApp(db, { authMode: configured.mode, auth });
-    const signIn = async () => {
-      const start = await call(app, {
-        method: "POST",
-        url: "/api/auth/sign-in/social",
-        payload: { provider: "sso", callbackURL: "/" },
-      });
-      const proxy = new URL((start.json() as { url: string }).url);
-      const startCookie = String(start.headers["set-cookie"] ?? "").split(";", 1)[0];
-      const authorize = await call(app, {
-        method: "GET",
-        url: proxy.pathname + proxy.search,
-        headers: { cookie: startCookie },
-      });
-      const provider = new URL(String(authorize.headers.location));
-      const callbackCookie = [startCookie, String(authorize.headers["set-cookie"] ?? "").split(";", 1)[0]].join("; ");
-      return call(app, {
-        method: "GET",
-        url: `/api/auth/callback/sso?code=code&state=${encodeURIComponent(provider.searchParams.get("state") ?? "")}`,
-        headers: { cookie: callbackCookie },
-      });
-    };
-    let principalId: string | null = null;
-    for (const [claim, expected, assertedEmail] of [
-      ["https://images.example/strict-a.png", "https://images.example/strict-a.png", "bruce@wayne.test"],
-      ["https://images.example/strict-b.png", "https://images.example/strict-b.png", "changed@wayne.test"],
-      [undefined, null, "collision@wayne.test"],
-      [null, null, "changed-again@wayne.test"],
-      ["https://images.example/strict-a.png", "https://images.example/strict-a.png", "bruce@wayne.test"],
-      ["javascript:alert(1)", null, "collision@wayne.test"],
-    ] as const) {
-      picture = claim;
-      providerEmail = assertedEmail;
-      providerName = assertedEmail === "bruce@wayne.test" ? "Bruce Wayne" : "Provider Renamed Bruce";
-      expect((await signIn()).statusCode).toBe(302);
-      principalId ??= (db.prepare(`SELECT id FROM user WHERE email = 'bruce@wayne.test'`).get() as { id: string }).id;
-      expect(db.prepare(`SELECT email, name, image FROM user WHERE id = ?`).get(principalId)).toEqual({
-        email: "bruce@wayne.test",
-        name: "Bruce Wayne",
-        image: expected,
-      });
-      if (!db.prepare(`SELECT 1 FROM account_member_resources WHERE userId = ?`).get(principalId)) {
-        upsertMember(db, {
-          accountId: "a1",
-          userId: principalId,
-          role: "viewer",
-          status: "active",
-          createdAt: "2026-09-14T10:00:00.000Z",
-        });
-        setAccountMemberResourceLink({
-          db,
-          accountId: "a1",
-          userId: principalId,
-          resourceId: "bruce",
-          expectedRevision: null,
-          now: "2026-09-14T10:00:00.000Z",
-        });
-      }
-      expect(listResourceAvatarProjection(db, "a1")).toEqual(
-        expected === null ? [] : [{ resourceId: "bruce", imageUrl: expected }],
-      );
-    }
-    await app.close();
-    db.close();
   });
 });
 

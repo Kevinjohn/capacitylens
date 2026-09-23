@@ -1055,11 +1055,9 @@ async function createSsoProviderInviteContext() {
   const db = openDb(":memory:");
   const configured = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-    SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-    SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-    SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-    SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-client-id",
     SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-client-secret",
   });
@@ -1104,13 +1102,13 @@ function registerSsoProviderInviteTest(): void {
     db.prepare(
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("workforce-link", "workforce", "workforce-subject", joiner.userId, timestamp, timestamp);
+    ).run("workforce-link", "google", "workforce-subject", joiner.userId, timestamp, timestamp);
     recordSessionAssurance({
       db,
       sessionId: sessionHandle,
       principalId: joiner.userId,
       assurance: "federated",
-      providerId: "workforce",
+      providerId: "google",
     });
     const strictProvision = await call(ssoApp, {
       method: "POST",
@@ -1151,7 +1149,7 @@ function registerSsoProviderInviteTest(): void {
       sessionId: sessionHandle,
       principalId: joiner.userId,
       assurance: "federated",
-      providerId: "workforce",
+      providerId: "google",
     });
     const accepted = await acceptReq(ssoApp, "sso-provider-invite", { cookie: joiner.cookie });
     expect(accepted.statusCode).toBe(200);

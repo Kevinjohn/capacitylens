@@ -43,7 +43,7 @@ export interface SsoWorkspaceReadiness {
   issues: readonly SsoReadinessIssue[];
 }
 
-/** Installation-wide strict-OIDC cutover projection. */
+/** Installation-wide single-provider cutover diagnostic projection. */
 export interface SsoCutoverReadiness {
   ready: boolean;
   provider: AuthProviderInfo;
@@ -51,8 +51,7 @@ export interface SsoCutoverReadiness {
   issues: readonly SsoReadinessIssue[];
 }
 
-/** Check the provider-required cutover against the configured company-provider set. The legacy
- * operator readiness projection below remains single-provider until generic OIDC is retired. */
+/** Check the provider-required cutover against the configured company-provider set. */
 export function assertCompanyProviderCutoverReady(input: {
   providerIds: ReadonlySet<string>;
   identity: SsoCutoverIdentityPort;
@@ -323,7 +322,7 @@ function workspaceReadiness(
   for (const member of members.filter((candidate) => candidate.blocking)) {
     issues.push({
       reason: member.reason,
-      message: `${memberLabel(member)} is not ready for strict OIDC cutover (${member.reason}).`,
+      message: `${memberLabel(member)} is not ready for company-provider cutover (${member.reason}).`,
       blocking: true,
       critical: member.critical,
       workspaceId: workspace.workspaceId,

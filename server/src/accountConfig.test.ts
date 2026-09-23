@@ -1,225 +1,135 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { resolveAccountEnvironment } from "./accountConfig";
 
-const hosted = {
-  SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "hosted-oidc-only",
+const GOOGLE = {
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+};
+const MICROSOFT = {
+  SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
+  SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+  SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
+};
+const HOSTED = {
+  SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "hosted-sso-only",
   SMALLSASS_ACCOUNT_MODE: "sso",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+  ...GOOGLE,
 };
 
-function expectHostedConfigError(override: Record<string, string | undefined>, message: string | RegExp): void {
-  expect(() => resolveAccountEnvironment({ ...hosted, ...override })).toThrow(message);
-}
-
-const retiredAccountNames = [
-  ["CAPACITYLENS_AUTH", "SMALLSASS_ACCOUNT_MODE"],
-  ["BETTER_AUTH_SECRET", "SMALLSASS_ACCOUNT_SECRET"],
-  ["BETTER_AUTH_URL", "SMALLSASS_ACCOUNT_PUBLIC_URL"],
-  ["CAPACITYLENS_SETUP_TOKEN", "SMALLSASS_ACCOUNT_SETUP_TOKEN"],
-  ["CAPACITYLENS_ALLOW_OPEN_SIGNUP", "SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP"],
-  ["CAPACITYLENS_REQUIRE_MFA", "SMALLSASS_ACCOUNT_REQUIRE_MFA"],
-  ["CAPACITYLENS_PASSWORD_BREACH_CHECK", "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK"],
-  ["CAPACITYLENS_SSO_MFA_ENFORCED", "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED"],
-  ["CAPACITYLENS_SSO_CLIENT_ID", "SMALLSASS_ACCOUNT_OIDC_CLIENT_ID"],
-  ["CAPACITYLENS_SSO_CLIENT_SECRET", "SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET"],
-  ["CAPACITYLENS_SSO_DISCOVERY_URL", "SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL"],
-  ["CAPACITYLENS_SSO_ISSUER", "SMALLSASS_ACCOUNT_OIDC_ISSUER"],
-  ["CAPACITYLENS_SSO_AUTHORIZATION_URL", "SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL"],
-  ["CAPACITYLENS_SSO_TOKEN_URL", "SMALLSASS_ACCOUNT_OIDC_TOKEN_URL"],
-  ["CAPACITYLENS_SSO_SCOPES", "SMALLSASS_ACCOUNT_OIDC_SCOPES"],
-  ["CAPACITYLENS_SSO_PROVIDER_ID", "SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID"],
-  ["CAPACITYLENS_SSO_LABEL", "SMALLSASS_ACCOUNT_OIDC_LABEL"],
-  ["CAPACITYLENS_SSO_BRAND", "SMALLSASS_ACCOUNT_OIDC_BRAND"],
-  ["CAPACITYLENS_SSO_BOOTSTRAP_EMAILS", "SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS"],
-  ["CAPACITYLENS_GOOGLE_CLIENT_ID", "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID"],
-  ["CAPACITYLENS_GOOGLE_CLIENT_SECRET", "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET"],
-  ["CAPACITYLENS_MICROSOFT_CLIENT_ID", "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID"],
-  ["CAPACITYLENS_MICROSOFT_CLIENT_SECRET", "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET"],
-  ["CAPACITYLENS_MICROSOFT_TENANT_ID", "SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID"],
-  ["CAPACITYLENS_GITHUB_CLIENT_ID", "SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID"],
-  ["CAPACITYLENS_GITHUB_CLIENT_SECRET", "SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET"],
+const retiredGenericKeys = [
+  "SMALLSASS_ACCOUNT_OIDC_CLIENT_ID",
+  "SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET",
+  "SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL",
+  "SMALLSASS_ACCOUNT_OIDC_ISSUER",
+  "SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL",
+  "SMALLSASS_ACCOUNT_OIDC_TOKEN_URL",
+  "SMALLSASS_ACCOUNT_OIDC_SCOPES",
+  "SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID",
+  "SMALLSASS_ACCOUNT_OIDC_LABEL",
+  "SMALLSASS_ACCOUNT_OIDC_BRAND",
+  "SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS",
 ] as const;
 
-it.each(retiredAccountNames)("refuses retired %s and names %s", (retired, canonical) => {
-  expect(() => resolveAccountEnvironment({ [retired]: "configured" })).toThrow(
-    `${retired} was removed; use ${canonical}`,
-  );
+it.each(retiredGenericKeys)("rejects retired %s even when empty and another provider is valid", (key) => {
+  for (const value of ["", "configured"]) {
+    expect(() => resolveAccountEnvironment({ ...HOSTED, [key]: value })).toThrow(`${key} was removed`);
+  }
 });
 
-it("treats empty retired Compose placeholders as absent", () => {
+it("rejects retired hosted profile before choosing a fallback", () => {
   expect(() =>
-    resolveAccountEnvironment({
-      CAPACITYLENS_AUTH: "",
-      BETTER_AUTH_SECRET: "",
-      BETTER_AUTH_URL: "",
-    }),
-  ).not.toThrow();
+    resolveAccountEnvironment({ ...GOOGLE, SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "hosted-oidc-only" }),
+  ).toThrow("hosted-oidc-only deployment profile was removed");
 });
 
-it("refuses whitespace-only retired values", () => {
-  expect(() => resolveAccountEnvironment({ CAPACITYLENS_AUTH: " \t" })).toThrow(
-    "CAPACITYLENS_AUTH was removed; use SMALLSASS_ACCOUNT_MODE",
-  );
-});
+it.each(["CAPACITYLENS_SSO_CLIENT_ID", "CAPACITYLENS_SSO_ISSUER", "CAPACITYLENS_SSO_BOOTSTRAP_EMAILS"])(
+  "rejects %s without recommending a removed key",
+  (key) => {
+    for (const value of ["", "configured"]) {
+      expect(() => resolveAccountEnvironment({ [key]: value })).toThrow(
+        /configure Google or tenant-specific Microsoft/,
+      );
+    }
+  },
+);
 
-it("refuses a retired name even when its canonical value matches", () => {
-  expect(() =>
-    resolveAccountEnvironment({
-      CAPACITYLENS_AUTH: "password",
-      SMALLSASS_ACCOUNT_MODE: "password",
-    }),
-  ).toThrow("CAPACITYLENS_AUTH was removed; use SMALLSASS_ACCOUNT_MODE");
-});
-
-it("normalizes canonical settings without compatibility writes", () => {
-  const resolved = resolveAccountEnvironment({
-    SMALLSASS_ACCOUNT_MODE: " password ",
-    SMALLSASS_ACCOUNT_OIDC_SCOPES: " openid   profile  email ",
+describe("hosted provider-only profile", () => {
+  it("accepts Google, tenant-specific Microsoft, or both", () => {
+    for (const providers of [GOOGLE, MICROSOFT, { ...GOOGLE, ...MICROSOFT }]) {
+      expect(
+        resolveAccountEnvironment({
+          SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "hosted-sso-only",
+          SMALLSASS_ACCOUNT_MODE: "sso",
+          ...providers,
+        }).profile,
+      ).toBe("hosted-sso-only");
+    }
   });
-  expect(resolved.env.SMALLSASS_ACCOUNT_MODE).toBe("password");
-  expect(resolved.env.SMALLSASS_ACCOUNT_OIDC_SCOPES).toBe("openid profile email");
-  expect(resolved.env.CAPACITYLENS_AUTH).toBeUndefined();
-  expect(resolved.env.CAPACITYLENS_SSO_SCOPES).toBeUndefined();
+
+  it.each([
+    [{ SMALLSASS_ACCOUNT_MODE: "password" }, /hosted password accounts are prohibited/i],
+    [{ SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1" }, /forbids open signup/i],
+    [{ SMALLSASS_ACCOUNT_SETUP_TOKEN: "setup" }, /password-account configuration/i],
+    [{ SMALLSASS_ACCOUNT_REQUIRE_MFA: "1" }, /password-account configuration/i],
+    [{ CAPACITYLENS_CREATE_ADMIN_ADMIN: "1" }, /password-account configuration/i],
+    [{ SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "partial" }, /forbids GitHub/i],
+    [{ SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "partial" }, /forbids GitHub/i],
+  ] as const)("rejects incompatible hosted configuration %#", (override, error) => {
+    expect(() => resolveAccountEnvironment({ ...HOSTED, ...override })).toThrow(error);
+  });
+
+  it("rejects a missing company provider", () => {
+    expect(() =>
+      resolveAccountEnvironment({
+        ...HOSTED,
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: undefined,
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: undefined,
+      }),
+    ).toThrow(/Google or tenant-specific Microsoft/);
+  });
 });
 
-it("returns an already resolved canonical environment unchanged", () => {
-  const first = resolveAccountEnvironment({ SMALLSASS_ACCOUNT_MODE: "off" });
-  const second = resolveAccountEnvironment(first.env);
-
-  expect(second.env).toBe(first.env);
-  expect(second.profile).toBe(first.profile);
-});
-
-it("refuses a retired name added to an already resolved environment", () => {
-  const resolved = resolveAccountEnvironment({ SMALLSASS_ACCOUNT_MODE: "off" });
-  resolved.env.CAPACITYLENS_AUTH = "off";
-
-  expect(() => resolveAccountEnvironment(resolved.env)).toThrow(
-    "CAPACITYLENS_AUTH was removed; use SMALLSASS_ACCOUNT_MODE",
-  );
-});
-
-it.each([
-  ["SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP", "1"],
-  ["SMALLSASS_ACCOUNT_REQUIRE_MFA", "1"],
-  ["SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK", "off"],
-  ["SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED", "1"],
-] as const)("trims padded %s values", (canonical, value) => {
-  const resolved = resolveAccountEnvironment({ [canonical]: `  ${value} \n` });
-  expect(resolved.env[canonical]).toBe(value);
-});
-
-it("keeps secret values byte-exact while normalizing non-secret settings", () => {
+it("normalizes supported settings and preserves secrets", () => {
   const secret = `  ${"x".repeat(32)}  `;
-  const resolved = resolveAccountEnvironment({
+  const result = resolveAccountEnvironment({
+    SMALLSASS_ACCOUNT_MODE: " password ",
     SMALLSASS_ACCOUNT_SECRET: secret,
-    SMALLSASS_ACCOUNT_PUBLIC_URL: "  https://capacity.example.test  ",
+    SMALLSASS_ACCOUNT_PUBLIC_URL: " https://capacity.example.test ",
   });
-  expect(resolved.env.SMALLSASS_ACCOUNT_SECRET).toBe(secret);
-  expect(resolved.env.SMALLSASS_ACCOUNT_PUBLIC_URL).toBe("https://capacity.example.test");
+  expect(result.env.SMALLSASS_ACCOUNT_MODE).toBe("password");
+  expect(result.env.SMALLSASS_ACCOUNT_SECRET).toBe(secret);
+  expect(result.env.SMALLSASS_ACCOUNT_PUBLIC_URL).toBe("https://capacity.example.test");
+  expect(resolveAccountEnvironment(result.env).env).toBe(result.env);
 });
 
-it("treats empty Compose placeholders as absent", () => {
-  const resolved = resolveAccountEnvironment({
-    SMALLSASS_ACCOUNT_MODE: "",
-    SMALLSASS_ACCOUNT_SECRET: "   ",
-  });
-  expect(resolved.env.SMALLSASS_ACCOUNT_MODE).toBeUndefined();
-  expect(resolved.env.SMALLSASS_ACCOUNT_SECRET).toBeUndefined();
+it("rejects whitespace-only mode", () => {
+  expect(() => resolveAccountEnvironment({ SMALLSASS_ACCOUNT_MODE: "   " })).toThrow(/contains only whitespace/);
 });
 
-it("refuses a whitespace-only mode instead of resolving trusted-local mode", () => {
-  expect(() => resolveAccountEnvironment({ SMALLSASS_ACCOUNT_MODE: "   " })).toThrow(
-    "SMALLSASS_ACCOUNT_MODE contains only whitespace",
-  );
+it("requires a company provider in self-hosted mixed and SSO-only profiles", () => {
+  for (const [profile, mode] of [
+    ["self-hosted-mixed", "password"],
+    ["self-hosted-sso-only", "sso"],
+  ]) {
+    expect(() =>
+      resolveAccountEnvironment({ SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: profile, SMALLSASS_ACCOUNT_MODE: mode }),
+    ).toThrow(/Google or tenant-specific Microsoft/);
+    expect(() =>
+      resolveAccountEnvironment({
+        SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: profile,
+        SMALLSASS_ACCOUNT_MODE: mode,
+        ...GOOGLE,
+      }),
+    ).not.toThrow();
+  }
 });
 
-it("accepts a complete hosted OIDC-only discovery configuration", () => {
-  const resolved = resolveAccountEnvironment({
-    ...hosted,
-    SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS: "owner@example.com",
-  });
-  expect(resolved.profile).toBe("hosted-oidc-only");
-  expect(resolved.env.SMALLSASS_ACCOUNT_MODE).toBe("sso");
-});
-
-it.each([
-  [{ SMALLSASS_ACCOUNT_MODE: "password" }, /hosted password accounts are prohibited/i],
-  [{ SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: undefined }, /discovery/i],
-  [{ SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1" }, /open signup/i],
-  [{ SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google" }, /strict OIDC provider/i],
-  [{ SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "tenant-only" }, /strict OIDC provider/i],
-  [{ SMALLSASS_ACCOUNT_SETUP_TOKEN: "password-setup" }, /password-account configuration/i],
-  [{ SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL: "https://idp.example/authorize" }, /endpoint overrides/i],
-] as const)("refuses invalid hosted OIDC-only configuration %#", (override, message) => {
-  expectHostedConfigError(override, message);
-});
-
-it("requires strict OIDC material for mixed and SSO-only named profiles", () => {
-  expect(() =>
-    resolveAccountEnvironment({
-      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-mixed",
-      SMALLSASS_ACCOUNT_MODE: "password",
-    }),
-  ).toThrow(/strict OIDC/i);
-  expect(() =>
-    resolveAccountEnvironment({
-      ...hosted,
-      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-mixed",
-      SMALLSASS_ACCOUNT_MODE: "password",
-    }),
-  ).not.toThrow();
-  expect(() =>
-    resolveAccountEnvironment({
-      ...hosted,
-      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-sso-only",
-    }),
-  ).not.toThrow();
-});
-
-it("keeps experimental social providers compatible while requiring closed signup in self-hosted SSO-only", () => {
-  expect(() =>
-    resolveAccountEnvironment({
-      ...hosted,
-      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-sso-only",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-    }),
-  ).not.toThrow();
-  expect(() =>
-    resolveAccountEnvironment({
-      ...hosted,
-      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-sso-only",
-      SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
-    }),
-  ).toThrow(/forbids open signup/i);
-});
-
-it("refuses external provider configuration in the password-only profile", () => {
+it("rejects external providers in self-hosted password-only profile", () => {
   expect(() =>
     resolveAccountEnvironment({
       SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-password",
       SMALLSASS_ACCOUNT_MODE: "password",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+      ...GOOGLE,
     }),
-  ).toThrow(/does not permit external identity providers/i);
-  expect(() =>
-    resolveAccountEnvironment({
-      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-password",
-      SMALLSASS_ACCOUNT_MODE: "password",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-      SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-    }),
-  ).toThrow(/does not permit external identity providers/i);
-  expect(() =>
-    resolveAccountEnvironment({
-      SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-password",
-      SMALLSASS_ACCOUNT_MODE: "password",
-      SMALLSASS_ACCOUNT_OIDC_LABEL: "unused-but-misleading",
-    }),
-  ).toThrow(/does not permit external identity providers/i);
+  ).toThrow(/does not permit external identity providers/);
 });

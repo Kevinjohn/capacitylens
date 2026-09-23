@@ -39,38 +39,10 @@ export function isSupportedSocialProviderId(value: unknown): value is SupportedS
   return typeof value === "string" && supportedSocialProviderIds.has(value);
 }
 
-export type AuthProviderInfo =
-  | (AuthProviderBase & { id: SupportedSocialProviderId; kind: "social" })
-  | (AuthProviderBase & { id: string; kind: "oidc" });
+export type AuthProviderInfo = AuthProviderBase & { id: SupportedSocialProviderId; kind: "social" };
 
 export function hasGoogleProviderBrand(provider: Pick<AuthProviderInfo, "id" | "kind" | "brand">): boolean {
-  return (
-    provider.brand === "google" ||
-    (provider.brand === undefined && provider.kind === "social" && provider.id === "google")
-  );
-}
-
-/**
- * The one NON-experimental OIDC provider, or `undefined`.
- *
- * "Strict" = a real, generally-available enterprise IdP: `kind === 'oidc'` AND `experimental` false.
- * Several surfaces (Settings → Members' SSO-readiness panel, Settings → Security's identity-provider
- * link) gate themselves on that fact, and each of them held its own copy of the same
- * `providers?.find(...)`. Single-sourced here, beside {@link isSupportedSocialProviderId},
- * so "which provider counts as the strict one" cannot drift between the surfaces that ask.
- *
- * FIRST match wins, deliberately: the server publishes at most one strict OIDC provider today, and
- * taking the first keeps this byte-identical to the inline finds it replaces rather than inventing a
- * multi-provider rule the callers have no UI for.
- *
- * @param providers - the context's `providers` list exactly as components hold it; `undefined`/`null`
- *                    (no provider metadata yet, or no provider at all) yields `undefined`, not a throw.
- * @returns the first strict OIDC provider, or `undefined` when there is none.
- */
-export function resolveStrictOidcProvider(
-  providers: readonly AuthProviderInfo[] | null | undefined,
-): AuthProviderInfo | undefined {
-  return providers?.find((provider) => provider.kind === "oidc" && !provider.experimental);
+  return provider.brand === "google" || (provider.brand === undefined && provider.id === "google");
 }
 
 export interface AuthContextValue {

@@ -2,7 +2,7 @@
   "name": "capacitylens",
   "private": true,
   "version": "0.70.1-alpha.1",
-  "description": "Agency resource & capacity scheduler — a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
+  "description": "Agency resource & capacity scheduler \u2014 a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
   "license": "AGPL-3.0-only",
   "author": "Kevinjohn Gallagher",
   "repository": {
@@ -67,9 +67,7 @@
     "coverage:files": "node scripts/check-file-coverage.mjs",
     "dev:api": "pnpm run paraglide:compile && CAPACITYLENS_VITE_SERVICE=dbWeb vite",
     "dev:auth": "pnpm run paraglide:compile && CAPACITYLENS_VITE_SERVICE=authWeb vite",
-    "dev:oidc": "pnpm run paraglide:compile && vite --port 5473",
     "e2e": "node scripts/with-lane.mjs playwright test",
-    "e2e:oidc": "node scripts/e2e-oidc.mjs",
     "e2e:webkit": "node scripts/with-lane.mjs node scripts/run-preset.mjs webkit",
     "e2e:firefox": "node scripts/with-lane.mjs node scripts/run-preset.mjs firefox",
     "e2e:browsers": "node scripts/with-lane.mjs node scripts/e2e-browsers.mjs",

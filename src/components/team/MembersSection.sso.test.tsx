@@ -9,8 +9,8 @@ import { authValue, mockApi } from "./MembersSection.testSupport";
 
 vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
 
-const workforce = { id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false } as const;
-const partner = { id: "partner", label: "Partner SSO", kind: "oidc", experimental: false } as const;
+const workforce = { id: "microsoft", label: "Microsoft", kind: "social", experimental: false } as const;
+const partner = { id: "google", label: "Google", kind: "social", experimental: false } as const;
 
 beforeEach(() => {
   resetStoreWithAccount();

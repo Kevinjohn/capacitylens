@@ -8,9 +8,8 @@
 // Configuration files must only ever READ: see the note on LANE_ENVIRONMENT_KEY below.
 import { availableParallelism } from "node:os";
 
-// Ten lanes, deliberately. The bases below are spaced 100 apart except the auth/OIDC API pair
-// (8887/8897), which is spaced 10 — so a ceiling above 10 would make lane 10's auth API collide
-// with the OIDC API. Move 8897 before raising this.
+// Ten lanes, deliberately. The auth API base is spaced from other lane bases so each
+// checkout receives a disjoint service set.
 export const LANE_CEILING = 10;
 
 // Set by scripts/with-lane.mjs on the child environment; read by every config and helper. A config
@@ -32,14 +31,9 @@ const BASES = Object.freeze({
   docsPreview: 5910, // VitePress preview — pinned OFF 4173, which it would otherwise default to
 });
 
-// The OIDC flavour is deliberately absent. e2e/oidc/dex.yaml pins the issuer to 127.0.0.1:5556 and
-// the callback to localhost:5473, and scripts/e2e-oidc.mjs maps that host port fixedly in a
-// container; moving them is Docker work. `pnpm run e2e:oidc` therefore stays single-flight
-// machine-wide on its historical ports and is excluded from the ten-lane guarantee.
-export const OIDC_FIXED_PORTS = Object.freeze({ oidcWeb: 5473, oidcApi: 8897, dex: 5556, dexFaultProxy: 5557 });
+// The local access lab keeps a fixed, exclusive pair of ports outside the lane system.
+export const ACCESS_LAB_FIXED_PORTS = Object.freeze({ web: 5473, api: 8897 });
 
-// `pnpm run e2e:oidc` and `pnpm run dev:access` both bind the ports above, so they have to exclude
-// each other as well as a second run of themselves. One lock file, held by whichever starts first.
 export const FIXED_PORTS_LOCK_FILE = "server/.fixed-ports.lock";
 
 export function assertLane(lane) {

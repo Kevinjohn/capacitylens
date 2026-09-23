@@ -11,7 +11,7 @@ import {
 
 const assertCapabilityMetadataIsReadonlyAtCompileTime = (): void => {
   // @ts-expect-error Published capability objects are readonly at compile time as well as runtime.
-  ACCOUNT_PROFILE_CAPABILITIES["hosted-oidc-only"].passwordSignIn = true;
+  ACCOUNT_PROFILE_CAPABILITIES["hosted-sso-only"].passwordSignIn = true;
 };
 void assertCapabilityMetadataIsReadonlyAtCompileTime;
 
@@ -27,13 +27,13 @@ describe("account conformance metadata", () => {
       "self-hosted-password",
       "self-hosted-mixed",
       "self-hosted-sso-only",
-      "hosted-oidc-only",
+      "hosted-sso-only",
     ]);
     expect(ACCOUNT_PROFILE_CAPABILITIES).toEqual({
-      "self-hosted-password": { passwordSignIn: true, strictOidc: false, hosted: false },
-      "self-hosted-mixed": { passwordSignIn: true, strictOidc: true, hosted: false },
-      "self-hosted-sso-only": { passwordSignIn: false, strictOidc: true, hosted: false },
-      "hosted-oidc-only": { passwordSignIn: false, strictOidc: true, hosted: true },
+      "self-hosted-password": { passwordSignIn: true, companyProviderRequired: false, hosted: false },
+      "self-hosted-mixed": { passwordSignIn: true, companyProviderRequired: true, hosted: false },
+      "self-hosted-sso-only": { passwordSignIn: false, companyProviderRequired: true, hosted: false },
+      "hosted-sso-only": { passwordSignIn: false, companyProviderRequired: true, hosted: true },
     });
     expect(Object.isFrozen(ACCOUNT_PROFILE_CAPABILITIES)).toBe(true);
     expect(Object.isFrozen(ACCOUNT_DEPLOYMENT_PROFILES)).toBe(true);
@@ -59,7 +59,7 @@ describe("account deployment-profile runtime guard", () => {
       {},
       "self-hosted-password ",
       "Self-hosted-password",
-      "HOSTED-OIDC-ONLY",
+      "HOSTED-SSO-ONLY",
       "unknown-profile",
     ];
 
