@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Prepare experimental Node 26 compatibility checks while retaining Node 24 as the default;
+  official fixed-runtime acceptance remains pending (#710).
 - Present Google and Microsoft together above the password fallback. Provider-required
   installations reject password and GitHub sign-in; mixed installations retain existing
   password and GitHub behavior. Microsoft live-tenant validation remains pending (#1219).

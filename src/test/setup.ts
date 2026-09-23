@@ -27,24 +27,43 @@ class MemoryStorage implements Storage {
 // Node >=25 exposes an experimental global localStorage accessor that resolves to undefined unless
 // the process receives --localstorage-file, and under a jsdom opaque origin `window.localStorage`
 // itself comes through as undefined — so the value captured here must never be trusted blindly.
-// Fall back to an in-memory Storage whenever the environment's own storage is missing or unusable,
-// pinning the globals so tests that intercept Storage.prototype still exercise their
-// quota/SecurityError paths when a real storage exists.
-function usableStorage(candidate: unknown): Storage {
-  return candidate && typeof (candidate as Storage).getItem === "function"
-    ? (candidate as Storage)
-    : new MemoryStorage();
+function readBrowserStorage(getter: () => Storage): Storage | undefined {
+  try {
+    return getter();
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "SecurityError") return undefined;
+    throw error;
+  }
 }
-Object.defineProperties(globalThis, {
-  localStorage: {
-    configurable: true,
-    value: usableStorage(typeof window === "undefined" ? undefined : window.localStorage),
-  },
-  sessionStorage: {
-    configurable: true,
-    value: usableStorage(typeof window === "undefined" ? undefined : window.sessionStorage),
-  },
-});
+
+// Node 26 can expose Storage globals whose instances do not share Storage.prototype with jsdom.
+// Use independent memory stores in that case so prototype spies observe both browser boundaries.
+const storagePrototype = typeof Storage === "function" ? Storage.prototype : undefined;
+const candidateLocalStorage = typeof window === "undefined" ? undefined : readBrowserStorage(() => window.localStorage);
+const candidateSessionStorage =
+  typeof window === "undefined" ? undefined : readBrowserStorage(() => window.sessionStorage);
+const useMemoryStorage = [candidateLocalStorage, candidateSessionStorage].some(
+  (candidate) =>
+    !candidate || typeof candidate.getItem !== "function" || Object.getPrototypeOf(candidate) !== storagePrototype,
+);
+if (useMemoryStorage) {
+  const memoryStorageDescriptor = { configurable: true, value: MemoryStorage };
+  Object.defineProperty(globalThis, "Storage", memoryStorageDescriptor);
+  if (typeof window !== "undefined" && window !== globalThis) {
+    Object.defineProperty(window, "Storage", memoryStorageDescriptor);
+  }
+}
+const localStorageValue = useMemoryStorage ? new MemoryStorage() : candidateLocalStorage;
+const sessionStorageValue = useMemoryStorage ? new MemoryStorage() : candidateSessionStorage;
+const storageDescriptors = {
+  localStorage: { configurable: true, value: localStorageValue },
+  sessionStorage: { configurable: true, value: sessionStorageValue },
+};
+
+Object.defineProperties(globalThis, storageDescriptors);
+if (useMemoryStorage && typeof window !== "undefined" && window !== globalThis) {
+  Object.defineProperties(window, storageDescriptors);
+}
 
 // jsdom ships neither of these browser APIs, but cmdk (the command-palette engine) hard-depends on
 // both: CommandList observes its size via ResizeObserver, and the active item is scrolled into view.
