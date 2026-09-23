@@ -1,11 +1,11 @@
 ---
 title: CapacityLens threat model
-description: The alpha4 security objectives, assets, actors, abuse cases and accepted risks that shape CapacityLens's design.
+description: The security objectives, assets, actors, abuse cases and accepted risks that shape CapacityLens's design, updated 2026-09-23.
 ---
 
 # CapacityLens threat model
 
-Version: 2026-08-18. Review this model after changes to authentication, tenancy, imports, offline
+Version: 2026-09-23. Review this model after changes to authentication, tenancy, imports, offline
 storage, deployment topology or external services.
 
 ## Security objectives
@@ -68,19 +68,19 @@ must not be publicly reachable and the proxy must overwrite rather than append f
 | Offline cache disclosure/tampering        | Role-filtered input; non-extractable device key; AES-GCM with random IV/AAD; tamper/expiry deletion; viewer-only                                                                                                                                                                                                       | offline cache tests                                                       |
 | Database corruption/partial write         | Startup foreign-key check; WAL; transactions; optimistic concurrency; sync-session ordering/provenance; atomic imports/backups                                                                                                                                                                                         | migration, ordering, transaction and restore-drill tests                  |
 | Log erasure/injection or invisible attack | Structured serialization, no values/credentials, restrictive modes, health degradation latch and optional separate JSON forwarding                                                                                                                                                                                     | audit/log/production-guard tests                                          |
-| SSRF/provider substitution                | Operator-only exact issuer/discovery; endpoints validated before redirect or secret use; HTTPS outside loopback; no credentials/redirects; 10-second and 1 MiB provider-response bounds; signed ID-token issuer/audience/timestamp verification; JWKS rotation and user-info subject binding                           | strict OIDC crypto/exchange tests and pinned Dex browser conformance      |
-| Federated identity takeover or unsafe cutover | Verified matching email for explicit links; implicit linking disabled; provider/subject uniqueness; durable admission evidence; preflight/repair; SSO-only startup interlock and atomic incompatible-state revocation                                                                                                | identity-port, cutover, migration and strict-OIDC tests                   |
+| Provider substitution or invalid claims | Google/Microsoft provider-specific OAuth flow; Microsoft tenant, issuer, audience, expiry, identity and nonce checks; no email-based account merging | provider callback and account-admission tests                             |
+| Federated identity takeover             | Verified matching email for explicit links; implicit linking disabled; provider/subject uniqueness; invitation/bootstrap admission; provider-required access checks | identity-port, onboarding and provider integration tests                  |
 | Operator recovery misuse                 | Stopped server and exclusive SQLite lock; unique sole-Owner eligibility; ordinary expiring single-use reset; rollback on partial failure; token-free audit record                                                                                                                                                      | Owner-recovery CLI and audit tests                                        |
 | Resource exhaustion                       | 512 accepted-socket ceiling; per-IP application/CSP rate limit with constant-work health exempt; bounded scrypt, HIBP and import queues; 5,000-operation batch and 200,000-record import caps; request/queue/provider timeouts                                                                                           | resource-queue/rate-limit/health/import/CSP tests                         |
 | Supply-chain compromise                   | Exact lockfile, pinned action/base-image commits/digests, Dependabot, CodeQL, Gitleaks, dependency review, SBOM, Trivy, ZAP and tagged provenance                                                                                                                                                                      | local gates and public/manual workflows                                   |
 
 ## Residual and accepted risks
 
-- Strict OIDC is first-class. Better Auth owns state, PKCE and cookies; the account adapter owns
-  issuer-pinned endpoint selection, the bounded no-redirect code exchange, ID-token
-  signature/audience/timestamp checks, JWKS rotation and user-info subject equality. Named social
-  providers remain experimental and every
-  IdP still needs staging interoperability, MFA-policy and logout/session-lifetime testing.
+- Google and Microsoft use Better Auth's provider OAuth flow for state, PKCE and cookies. CapacityLens
+  checks provider-specific claims and account admission before creating a local identity. GitHub
+  remains experimental in mixed mode and cannot meet provider-required sign-in.
+  Provider configuration still needs installation-specific interoperability, MFA-policy and
+  logout/session-lifetime testing.
 - IdP disablement does not revoke already-issued local sessions. The accepted maximum is the
   remaining twelve-hour absolute lifetime or thirty minutes inactivity; local revocation is an
   incident-response requirement and back-channel logout must be reconsidered before hosted GA.
@@ -90,9 +90,9 @@ must not be publicly reachable and the proxy must overwrite rather than append f
   registry deliberately disappears on restart, which ends access rather than restoring uncertain
   state. Start and end events are audited, with the start event carrying the session expiry that
   bounds a record if the process stops before an end event can be written.
-- SSO-only cutover retains dormant password credentials for the documented mixed-mode rollback.
-  Protecting the host/database and using the stopped-server repair tooling carefully remain operator
-  responsibilities.
+- SSO-only mode leaves local password credentials available if the operator restores password
+  mode. Protecting the host/database and using the stopped-server recovery procedures carefully
+  remain operator responsibilities.
 - The sole-Owner recovery command is deliberate host-operator authority. It cannot be contained from
   an attacker who already controls the application database and process environment.
 - Required TOTP is optional. Password-only deployments do not meet ASVS 5.0 Level 2 requirement

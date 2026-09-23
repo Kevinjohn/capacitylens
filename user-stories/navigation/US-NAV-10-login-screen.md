@@ -44,17 +44,17 @@ self-registration closes automatically and only the Sign in form below is reacha
 - Unauthenticated: the Sign in screen replaces the whole app — no company picker, no nav,
   no data; direct API reads (e.g. `GET /api/state`) return 401.
 - The form submits with Enter; a failed sign-in shows an inline alert and no navigation.
-- When either the experimental Google provider or a strict OIDC provider explicitly branded as
-  Google is configured, its action is visibly Google-branded, remains sharp on high-density
-  displays without an outer wrapper shadow, and is named exactly **Sign in with Google**
+- When the named Google provider is configured, its action is visibly Google-branded, remains
+  sharp on high-density displays without an outer wrapper shadow, and is named exactly **Sign in with Google**
   (including while disabled during the provider hand-off).
 - In mixed password mode with Google configured, **Sign in with Google** is the first sign-in
   action, with breathing room from helper copy above and the explicit **or use your password**
   separator below. The password form follows the separator at the standard form spacing. SSO-only
   mode still omits password controls, while password-only mode and other providers retain their
   existing order.
-- A strict OIDC label does not select presentation: an OIDC provider labelled Google remains generic
-  unless its brand is explicitly set, and its sign-in continues through strict OIDC in either case.
+- Microsoft appears alongside the primary Google action above the password fallback. First
+  connection may require an emailed proof in the initiating browser; ordinary returning sign-in
+  reuses the established identity without repeated mailbox verification.
 - A successful sign-in resumes the normal company flow: the picker lists the user's memberships;
   when none are available, the documented first-company or invitation path is shown instead.
 - Account shows the signed-in identity and personal security controls only while signed in on an
@@ -67,3 +67,6 @@ self-registration closes automatically and only the Sign in form below is reacha
 - Account presents Sign out as a red action aligned to the right of the identity card; using it
   invalidates the session (subsequent loads show Sign in again).
 - The Sign in screen passes an axe accessibility audit (no serious/critical violations).
+
+**Guide:** [Set up company login](../../docs-src/company-login/set-up-company-login.md) and
+[Require company sign-in](../../docs-src/company-login/move-to-single-sign-on.md).

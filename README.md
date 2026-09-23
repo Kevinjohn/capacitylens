@@ -91,8 +91,8 @@ including TLS, backups and upgrades — follow the
 ## Sign-in, in short
 
 Password sign-in is the stable self-hosted default, with breached-password screening, optional
-required TOTP MFA and user-controlled session revocation. Strict OIDC is first-class; the named
-Google, Microsoft and GitHub providers are still experimental. Optional offline access keeps a
+required TOTP MFA and user-controlled session revocation. Google Workspace and Microsoft Entra ID
+are the supported company sign-in providers; GitHub remains experimental in mixed mode. Optional offline access keeps a
 read-only snapshot for up to seven days — it never queues or syncs edits, and SQLite stays the
 source of truth.
 
@@ -109,8 +109,8 @@ no build — or read the Markdown sources under [`docs-src/`](docs-src/) on GitH
   installation routes, first Owner and schedule, invites and roles.
 - [Using CapacityLens](docs-src/guide/the-schedule.md) — the schedule, people and placeholders,
   projects and allocations, time off and settings.
-- [Company login (SSO)](docs-src/company-login/index.md) — connecting your provider and the guided
-  password-to-SSO cutover.
+- [Company login (SSO)](docs-src/company-login/index.md) — setting up Google or Microsoft and
+  connecting existing accounts.
 - [Self-hosting](docs-src/self-hosting/index.md) — Docker, direct Node and
   [managed VPS](docs-src/self-hosting/managed-vps/index.md) deployment, plus configuration,
   TLS, backups, monitoring and incident response.

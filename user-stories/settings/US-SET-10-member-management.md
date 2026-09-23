@@ -12,7 +12,8 @@ status column are unavailable in this UI. Ownership transfer is not part of this
 (since #175) and now has its own three-step ceremony and section — see
 [US-SET-18](US-SET-18-ownership-transfer.md).
 
-**Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md)
+**Guide:** [Invite your team](../../docs-src/getting-started/invite-your-team.md) and
+[Company sign-in](../../docs-src/company-login/set-up-company-login.md).
 
 An Owner or Admin opens **Team & access** from the sidebar. Linking, changing or removing a
 Resource association and creating invitations happen only here. Navigation does not submit a
@@ -193,6 +194,12 @@ the non-blocking product orientation if it is open.
   atomically. The company, role consequences and expiry remain fully readable throughout. Addressed
   invitations show a recipient hint containing only the part before `@` followed by `@…`; recipients
   enter the full email address themselves, and the domain stays hidden in the preview.
+- New Google or Microsoft identities require an unused invitation addressed to their verified
+  email. Microsoft may require a one-time mailbox proof in the same browser before onboarding;
+  returning sign-in does not repeat it. Provider sign-in does not silently accept an invitation.
+  In company-sign-in-only mode, the recipient must use a configured company provider; password
+  and GitHub sessions cannot accept it. Existing accounts connect providers explicitly without
+  creating another person or changing their memberships.
 - The invite token is shown **once** at creation (`/invite/<token>`), is stored only as a one-way
   hash, and the invites list carries no token. Accepted (used) invites remain listed (marked _used_)
   for admin visibility; an expired, unaccepted link is pruned.
@@ -200,10 +207,6 @@ the non-blocking product orientation if it is open.
   **400**; touching or removing the Owner outside the ownership-transfer ceremony is **403**;
   revoking another account's invite is a no-op; and reading another
   account's members is **403** (no cross-tenant member leak).
-- SSO cutover readiness is not fetched or rendered on Team & access. It is presented as its own
-  company-level Settings table with **Member**, **Role**, **Status**, and **Actions** columns, where
-  its existing authorization, loading/error, repair confirmation, fresh-session,
-  provider/account switching, offline, reconciliation, and audit behavior remain unchanged.
 - API routes: `GET /api/accounts/:accountId/members` (returns
   `{members, signInTrackingEnabled}`; each member carries `status` and nullable
   `signInConfirmed`), `PUT …/member-sign-in-tracking {enabled}` (Owner only),

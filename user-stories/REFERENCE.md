@@ -74,8 +74,8 @@ accept responses never include it.
    SOME account — or any user on a zero-account instance — may create, so an editor-only or
    membership-less login never sees the button (its empty picker says "ask an admin for an
    invite" instead of "create your first one"). In SSO-only mode the current session must also come
-   from the required strict provider; an experimental social-provider session cannot provision an
-   Owner membership that would fail the next readiness check. A direct `POST /api/accounts` still 403s
+   from a configured company provider. An existing GitHub session is rejected in provider-required
+   mode; it cannot provision an Owner membership. A direct `POST /api/accounts` still 403s
    regardless, so this is UX only. The
    button stays visible whenever the fact is unavailable or doesn't apply: the demo build (no
    server, no cap), a zero-account instance (the bootstrap exemption — you must be able to create
@@ -183,34 +183,10 @@ that section. Unknown extensionless URLs still reach the in-app
 **Page not found** screen; missing asset and API paths remain real HTTP errors.
 
 Settings is one page with four permanent groups in order: **Company setup**, **Scheduling features**,
-**My display**, and **Data and support**. When strict OIDC is configured, **SSO cutover readiness**
-appears as its own group directly after Company setup. Compact rows stack their labels and controls on narrow
+**My display**, and **Data and support**. Compact rows stack their labels and controls on narrow
 screens. Group descriptions distinguish company-wide settings from preferences saved in this browser.
 Editors and above can change ordinary company settings; Owners and Admins manage Overview access.
-Everyone can adjust their device preferences. The conditional company-keyed **SSO cutover
-readiness** group owns readiness loading, errors, and
-the existing Owner/Admin repair and confirmation flows. See [Settings](../docs-src/guide/settings.md).
-
-**SSO cutover readiness** (`data-testid="sso-readiness-section"` containing
-`data-testid="sso-readiness"`, with strict OIDC configured) is a company-level Settings section.
-It shows whether every active member of the company has one verified link to the required provider.
-Its table has **Member**, **Role**, **Status**, and **Actions** columns. It names each member and role,
-highlights Owner and integrity blockers, and includes installation-wide
-blockers such as unsupported providers, unverified strict-provider links held by non-members,
-configured-social-only non-members, or providerless or credential-only orphan identities. Live reset
-ceremonies are reported as pending cutover revocations, but do not block the transaction that
-atomically revokes them. This is an advisory view; the operator CLI and SSO-only startup interlock
-independently evaluate every company. A failed or malformed readiness response remains visible as
-`data-testid="sso-readiness-error"`; it never silently removes the cutover warning. Admin-approved
-email correction and wrong-subject unlink repair are available only during mixed-mode staging,
-require a fresh identity-global administrative session, revoke the affected member's sessions and
-pending link/reset ceremonies, and are durably audited. Link repair is offered only for coordinates
-implicated by the reported blocker, supports both the required and alternative providers, confirms
-the exact provider row and subject, and refuses to remove a principal's only viable sign-in method.
-In SSO-only mode the readiness view remains visible, but repair controls are hidden. Its controls are **Correct email**
-(`data-testid="sso-correct-email"`), the correction input (`data-testid="sso-correct-email-input"`),
-**Save and revoke sessions** (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
-(`data-testid="sso-remove-link"`).
+Everyone can adjust their device preferences. See [Settings](../docs-src/guide/settings.md).
 
 The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
 in **Data and support**, below **Deleted items** and above the compact company-details
@@ -261,7 +237,7 @@ It appears on any auth-enabled deploy and in the demo build; an auth-off server 
 
 **Badge shape.** Shared role and status badges use a compact pill silhouette. This applies to the
 company picker and sidebar roles, invite roles, Team & access posture, placeholder resources,
-company-login connection state and cutover readiness. Their semantic colour remains independent:
+company-login connection state. Their semantic colour remains independent:
 brand/default, neutral, warning, danger and outline badges keep their existing meanings.
 
 **Collapse / expand.** A toggle button at the **top-left** of the sidebar (accessible name
@@ -903,7 +879,7 @@ server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a dif
 `sso`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
-and a `Sign in` button in password mode; a `Continue with SSO` button in sso mode; failures
+and a `Sign in` button in password mode; configured company-provider buttons in sso mode; failures
 show an inline alert. Starting an external sign-in clears an earlier provider error, announces
 **Redirecting to _provider_…** as a neutral status, and keeps the provider controls disabled while
 the browser hands off to the provider). If a mid-session 401 arrives while server writes are still unsaved, the
@@ -923,21 +899,20 @@ local mode, no login screen exists, Account has no credential controls, and loca
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
-**External provider action labels (login, invitation acceptance and reauthentication).** A
-configured Google social provider or strict OIDC provider explicitly branded as Google uses the
+**External provider action labels (login, invitation acceptance and reauthentication).** The
+configured Google provider uses the
 exact branded action **Sign in with Google** and the
 recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
 reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
-providers retain **Continue with _provider_** and their caller-supplied accessible label.
-Brand is server-owned presentation metadata and is never inferred from the editable provider label;
-an unbranded strict OIDC provider remains generic. On a password-mode installation with Google
+providers use their branded accessible action, including **Sign in with Microsoft**.
+Provider presentation is server-owned and is never inferred from a user-editable provider label.
+On a password-mode installation with Google
 configured, the sign-in wall puts that Google action
 first, rendered sharply on high-density displays without an outer wrapper shadow and with breathing
 room from helper copy above and the explicit **or use your password** separator below. The password
-form follows at the standard spacing. SSO-only
-still omits password controls; password-only installations and installations without Google keep
-their existing order. If several providers are configured, the remaining provider actions stay
-available below the password fallback.
+form follows at the standard spacing. Microsoft is presented alongside the primary Google action,
+above the password fallback, including when Microsoft is the only company provider. SSO-only
+still omits password controls. Additional provider actions retain their existing order.
 
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
 character even though browser `maxlength` uses two UTF-16 code units. Email admission applies the
@@ -959,19 +934,28 @@ MFA must be finished before it can be accepted, while a password-reset link expl
 may finish enrollment or choose **Sign out** to redeem the link without the current session.
 On Account, local-password users open **Change password** from the identity row and supply their
 current password in the dialog. The **Security** section (`data-testid="security-section"`) appears
-when required MFA status or a strict OIDC connection is available. Recovery codes and session
+when required MFA status or a configured company-provider connection is available. Recovery codes and session
 tokens are never displayed after their one-time setup/use. Disabling MFA is deliberately not offered
 when the deployment requires it.
 
-On a `self-hosted-mixed` deployment with strict OIDC configured, the Account Security section also shows
-**Connect your SSO account** (`data-testid="sso-connection"`). **Connect with _provider_** starts a
-fresh-session-gated, self-service provider ceremony; the member authenticates at the IdP and returns
-to the same page. The provider must assert `email_verified: true`, its email must match the local
-sign-in email, and its immutable subject must not belong to another principal. A successful callback
-shows **Connected to _provider_**. Raw provider link/unlink routes are unavailable. A federated
-session in mixed mode uses that same provider—not a password it may not have—for **Confirm it's you**.
-That provider hand-off announces **Redirecting to _provider_…** and keeps the dialog busy while the browser
-leaves, on the same contract as the sign-in screen; only a returned provider error is reported and retryable.
+On a mixed deployment, Account's Security section shows **Company sign-in**
+(`data-testid="sso-connection"`) for each configured company provider. **Connect _provider_**
+requires a fresh session and connects the provider to that same principal. Named Google and Microsoft
+connections require a verified local email and matching proof of the provider address; Microsoft may
+ask for the one-time mailbox verification below. A conflicting identity is rejected without merging
+accounts. A successful callback shows **Connected to _provider_**. The same verified provider identity
+is used for subsequent sign-in. GitHub retains its existing experimental sign-in behavior.
+
+**Microsoft mailbox verification (`/verify-microsoft`, with an optional trailing slash).** This is a
+public entry before auth or company-data hydration. If the first connection needs email proof, the
+person opens the emailed link in the browser that started the request and chooses **Confirm and
+continue**. The secret fragment is removed from the address bar and retained only in memory. After
+confirmation, **Continue to Microsoft** can resume an approved request without the email token.
+The flow checks the same Microsoft identity and the still-valid invitation or local session before
+creating its connection. Expired, replaced and consumed proofs cannot be reused. Delivery failures
+are shown honestly; **Resend verification email**, retry and cancellation provide recovery. Ordinary
+returning sign-in uses the established identity and does not repeat this mailbox check. See
+[Set up company login](../docs-src/company-login/set-up-company-login.md).
 
 **First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
@@ -992,10 +976,12 @@ zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential 
 production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/auth-helpers.ts`),
 so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
-On a mixed password/OIDC deployment, every configured external provider remains available below
+On a mixed deployment, every configured external provider remains available below
 the setup form. Google uses the branded **Sign in with Google** action; other providers use
-**Continue with _provider_**. A verified email on the OIDC bootstrap allow-list may therefore
-create the first owner directly; the operator does not need a temporary password identity.
+their branded sign-in action. Named Google/Microsoft bootstrap uses
+`SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
+and proves it during first connection; provider-required setup does not ask for a password. The
+operator does not need a temporary password identity.
 
 **Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
 carries a pre-set Admin, Editor or Viewer role for one company; Owner is never invitational.
@@ -1017,9 +1003,9 @@ under that identity, sees the signed-in email/name, then chooses **Accept invite
 account** signs out without discarding the bearer URL. If a pre-authorised invite rejects the current
 identity, the page explains the mismatch and retains that same recovery action instead of suggesting
 a retry as the wrong identity. In SSO-only mode the accepting session must come from the required
-strict-OIDC provider; configured experimental social providers remain sign-in doors for existing
-principals but cannot create a new local principal or membership that would fail the next startup
-readiness check. A brand-new invitee chooses **Create account and
+company provider. GitHub cannot enter a provider-required deployment, including through an
+older session. Google and Microsoft sign-in do not themselves claim the invitation: the signed-in
+person still explicitly accepts it, with its address and expiry checked again. A brand-new invitee chooses **Create account and
 accept** (POST `/invite/:token/signup`), which creates the identity and claims the invite atomically,
 then refreshes the authenticated company list, activates that company and enters it directly.
 A fresh authenticated boot is required because the pre-session invite page deliberately starts
@@ -1084,8 +1070,8 @@ company, importing or purging data, and linking or repairing an SSO identity. Th
 you** dialog names the requested action. Cancelling leaves the directory visible and does not apply
 the requested change.
 
-Team & access does not fetch or render SSO cutover readiness; the company-keyed Settings section is
-the sole UI owner of readiness loading, display, and repair actions.
+Team & access manages members and invitations. Company sign-in connections are managed from
+Account → Security.
 
 Team administration dialogs use the same bordered header, body and footer as other product modals.
 Form dialogs place explanatory labels in the left column and their controls in the wider right
@@ -1231,11 +1217,7 @@ while the administrative directory keeps listing them),
 every caller — ownership is transferred, never invited — and
 `POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password mode
 only — sso/OFF → 400; admin resetting an owner → 403; 404 non-member; 201 `{token, expiresAt}`,
-write-once) mints the reset link. SSO staging additionally exposes
-`GET /api/accounts/:accountId/sso-readiness`,
-`PATCH /api/accounts/:accountId/members/:userId/email`, and
-`DELETE /api/accounts/:accountId/members/:userId/federated-link`; the two repair writes are
-mixed-mode-only and identity-global. The management UI is
+write-once) mints the reset link. The management UI is
 `src/components/team/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.

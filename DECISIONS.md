@@ -208,41 +208,55 @@ This is the short, present-tense record of decisions that constrain future work.
   product process, SQLite file and checksummed product migration ledger unless a separately approved
   future trigger changes topology.
 - Each installation owns its local principals, sessions and memberships. Siblings share
-  implementation/conformance, never account records. Federated correlation is exact
-  `(issuer, subject)`, never email; local deprovisioning cannot delete an upstream IdP identity.
-- Email/password is stable for self-hosting. Strict OIDC is first-class; named Google, Microsoft and
-  GitHub providers remain experimental. Arbitrary generic OAuth is unsupported.
+  implementation/conformance, never account records. Federated correlation uses the exact provider
+  and provider-owned stable identifier, never email; local deprovisioning cannot delete an upstream
+  provider identity.
+- Email/password and named Google/Microsoft company providers are implemented for self-hosting.
+  GitHub retains its experimental mixed-mode behavior. Generic OIDC support and the
+  `hosted-oidc-only` profile are retired. Their settings and profile are rejected at startup
+  before storage or bootstrap writes; the server never falls back to password or sign-in-off mode.
+  Deterministic and library evidence never substitutes for live-provider checks.
 - Named profiles are `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` and
-  `hosted-oidc-only`. Hosted is SSO-only and refuses password configuration. A future product
-  grouping layer may integrate only as an external OIDC provider, never through account internals.
+  `hosted-sso-only`. Hosted SSO requires `mode=sso`, complete Google and/or tenant-specific
+  Microsoft configuration, and refuses passwords, GitHub, open signup or incomplete provider
+  settings. Its shared conformance capability is `companyProviderRequired`; it has an independent
+  contract version. A future product grouping layer must use the public named-provider boundary,
+  never account internals.
 - IdP disablement stops new authentication but not an already-issued local session. Hosted accepts
   the bounded lag of thirty minutes inactivity or twelve hours absolute; back-channel logout or an
   equivalent must be reconsidered before hosted GA.
 - Email self-registration is closed by default. External identities require a verified email and
   a live invitation; initial SSO ownership requires an operator email allow-list.
 - External-identity admission and explicit linking are distinct. Creating a new local principal
-  requires a verified IdP email plus a live pre-authorised invitation (or the first-principal
-  bootstrap allow-list). An already-admitted principal may explicitly attach strict OIDC without a
-  second invitation, but only through their own fresh session and a callback assertion whose email
-  is verified and matches the local identity.
-- Password-to-SSO conversion uses the existing `self-hosted-mixed` → `self-hosted-sso-only` ladder.
-  Cutover readiness is installation-wide and is proved before the first-cutover session and
-  reset/verification revocation commits with its audit. A durable application-scoped activation
-  marker distinguishes that first boundary even when no live password session or ceremony remains;
-  the deployment profile remains authoritative, while clean restarts preserve sessions already
-  issued with federated assurance. Open signup is prohibited, the required strict-OIDC provider is
-  continuously non-unlinkable, and experimental named social providers remain compatible sign-in
-  doors for existing principals of self-hosted installations but cannot admit a new local principal
-  after cutover (hosted OIDC-only still refuses them).
-  SSO-only invitation acceptance requires a session from the strict provider so social-only admission
-  cannot make the next readiness check fail. Credentials remain dormant for break-glass:
-  recovery is an explicit configuration revert to mixed mode plus restart, never an in-place
-  password door in SSO-only mode.
-- Strict OIDC requires `email_verified: true` when admitting or explicitly linking a subject. A
-  returning subject may sign in when the IdP omits the claim only when its exact provider row has
-  durable verified-admission evidence. Legacy rows without that proof must be removed and relinked;
-  invalid cryptographic or identity assertions still fail closed with the stable
-  verification-specific error.
+  requires verified control of an email plus a live pre-authorised invitation (or the first-principal
+  bootstrap allow-list). Named Google/Microsoft bootstrap uses
+  `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. An already-admitted principal may explicitly attach
+  a company provider without a second invitation, through their own fresh session and matching
+  verified email. Named-provider linking also requires the local address to be verified.
+- Microsoft uses the configured work/school tenant and provider-owned `oid`, not `sub`. When native
+  claims do not adequately prove the intended email, an operator-configured SMTP transport sends a
+  15-minute, single-use verification link. Confirmation is bound to the initiating browser,
+  purpose, principal or invitation and the same Microsoft identity. The final provider callback
+  rechecks live authorization before creating a binding. Stored challenges are hashed and return
+  URLs encrypted; verification state is removed by anonymisation. This is not passwordless login.
+  Returning sign-in preserves the established proven email even when profile claims change; it
+  does not repeat verification or merge identities by email. No deployed social-user conversion is
+  required under the operator's confirmed alpha deployment context.
+- Self-hosted provider-required access uses `self-hosted-sso-only` and requires a configured Google
+  or Microsoft company-provider session, including for invitation acceptance. GitHub and password
+  sessions cannot satisfy that requirement. Existing password credentials remain available if an
+  operator returns the installation to `mode=password`; that restores the password entrance but
+  does not reset credentials or change provider connections. The in-app readiness panel is retired;
+  the read-only `cutover:preflight` and guarded stopped-server `cutover:repair` operator commands
+  remain available for named-provider preparation and recovery. Preflight checks the full configured
+  Google/Microsoft provider set against the same provider-required conditions as startup. Operators
+  and teams verify provider access directly before changing mode.
+- The named-provider replacement supersedes the earlier generic OIDC and staged-cutover decisions
+  below. Those dated entries preserve implementation history, not current configuration or
+  operator procedure. No identity conversion or deleted-staging migration is required.
+- The earlier generic-OIDC email-claim policy below is historical and superseded. Current named
+  Google/Microsoft admission and linking use their provider-specific verified-email evidence and
+  the explicit Microsoft mailbox-proof flow described above; identities are never merged by email.
 - Every configured federated provider is treated as satisfying CapacityLens's local required-MFA
   gate. CapacityLens cannot infer upstream MFA from a provider link, so operator enforcement and
   testing at the IdP is required; this responsibility also applies to experimental named providers

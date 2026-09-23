@@ -168,7 +168,11 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 
 ## Authentication
 
-- Password auth and strict OIDC are supported; named social providers remain experimental.
+- Password authentication and named Google/Microsoft company providers are implemented. GitHub
+  remains experimental in mixed mode. `hosted-sso-only` requires mode `sso` and complete Google
+  and/or tenant-specific Microsoft configuration; it forbids password, GitHub and open signup.
+  Retired generic OIDC settings and the `hosted-oidc-only` profile fail startup before writes.
+  Deterministic checks are not evidence of live-provider validation.
 - Production password mode lets operators require TOTP MFA and defaults to breached-password
   screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory. The
   fresh-session gate applies only to: transferring company ownership, resetting another member's
@@ -176,9 +180,12 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   link/repair. Other administrative actions need only the actor's role and MFA policy. Data export
   is served under the `read` action, which the freshness check short-circuits; it is not gated.
 - New external principals require verified email plus an unused pre-authorised invitation. The
-  first SSO identity requires `SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS`. An already-authenticated local
-  principal may explicitly link a verified, email-matching strict-OIDC identity without consuming
-  another invitation.
+  first named-provider identity uses `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. Explicit
+  named-provider linking requires a fresh,
+  verified local principal and proof of the matching address without another invitation. Microsoft
+  may establish mailbox proof through its single-use, same-browser email ceremony. Returning
+  Microsoft sign-in uses stable `oid` and the stored proven email; never merge by email or repeat
+  mailbox proof for an established identity.
 - Password mode may include providers; `sso` mode removes password sign-in.
 - Never weaken server authorization because the UI hides an action.
 - Password/session reset authority is identity-global: enforce it across every account the target
@@ -218,7 +225,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   Other prose, such as this file or task notes, needs formatting and content/link review; rebuild
   the documentation only if it consumes those files.
 - The operator set lives in `docs-src/self-hosting/` (install, configuration, TLS, backups,
-  upgrades, monitoring, incidents) and `docs-src/company-login/` (sign-in modes, SSO cutover).
+  upgrades, monitoring, incidents) and `docs-src/company-login/` (provider setup and sign-in modes).
 - Update `user-stories/REFERENCE.md` first for user-visible route, label, test-id or seed changes.
 - Add user-visible changes under `CHANGELOG.md` → `Unreleased`.
 - Authorised issue, pull-request and documentation work includes permission to publish reviewed
@@ -313,8 +320,8 @@ validation failures.
   isolation before discounting a failure. Concurrent runs share the machine through port lanes:
   `pnpm run e2e`, `gate`, `gate:server`, `test`, `dev` and the documentation servers claim a lane
   (and a CPU share) through `scripts/with-lane.mjs`, so up to ten worktrees can run at once without
-  colliding or oversubscribing. `pnpm run e2e:oidc` and `pnpm run dev:access` are the exceptions:
-  they keep fixed ports and are single-flight machine-wide. Never hardcode a port in a file that
+  colliding or oversubscribing. `pnpm run dev:access` is the exception:
+  it keeps fixed ports and is single-flight machine-wide. Never hardcode a port in a file that
   binds or addresses one — `pnpm run policy:ports` names the files that must derive theirs.
 
 ## Green gate
