@@ -73,7 +73,7 @@ export function mockMicrosoftToken(claims: Record<string, unknown>): void {
           expires_in: 3600,
         });
       }
-      if (url.includes("graph.microsoft.com")) return new Response(null, { status: 404 });
+      if (new URL(url).origin === "https://graph.microsoft.com") return new Response(null, { status: 404 });
       throw new Error(`Unexpected outbound request: ${url}`);
     }),
   );
