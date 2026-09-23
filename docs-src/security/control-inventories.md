@@ -1,11 +1,11 @@
 ---
 title: Security control inventories
-description: Alpha4 entry points, sensitive-data classes, cryptographic controls, service limits and audit events — reviewed 2026-08-18.
+description: Entry points, sensitive-data classes, cryptographic controls, service limits and audit events — reviewed 2026-09-23.
 ---
 
 # Security control inventories
 
-Version: 2026-08-18. These inventories support ASVS architecture requirements; they are not a
+Version: 2026-09-23. These inventories support ASVS architecture requirements; they are not a
 substitute for deployment-specific data classification, key inventory or log-retention policy.
 
 ## Entry points and untrusted input
@@ -17,9 +17,9 @@ substitute for deployment-specific data classification, key inventory or log-ret
 | Password                          | 15–128 Unicode code points                                     | Auth callbacks                | context-word and HIBP check, exact-byte versioned scrypt hashing, generic failure paths; HIBP response is time/size bounded and redirects are refused |
 | TOTP/recovery code                | Better Auth bounded formats                                    | Auth plugin                   | timed TOTP, lockout, encrypted recovery material, one-time use                                                                                        |
 | Sign-up/setup/invite/reset values | Bounded JSON/path/header values                                | Auth/API                      | first-owner or invite gate, token expiry/hash/revocation, generic lookup behavior                                                                     |
-| Federated callback/link/cutover   | Provider claims and bounded callback state                     | Auth/account boundary         | signed issuer/audience/time checks, verified email admission, explicit linking, unique subject/provider rows, preflight and SSO-only startup interlock |
-| Stopped-server recovery/repair    | Operator CLI arguments and current SQLite state                | Exclusive SQLite transaction  | sole-Owner/exact-identity eligibility or explicit cutover repair coordinates; ordinary reset flow; audit; partial-operation rollback                  |
-| Provider configuration            | Environment and discovered JSON                               | Startup/OIDC client           | safe provider id; HTTPS; no credentials/redirects; public issuers cannot advertise private/reserved endpoints; bounded responses; partial config fails |
+| Federated callback/link           | Provider claims and bounded callback state                     | Auth/account boundary         | provider-specific claim checks, verified-email admission, explicit linking, unique subject/provider rows and provider-required access checks          |
+| Stopped-server recovery/repair    | Operator CLI arguments and current SQLite state                | Exclusive SQLite transaction  | sole-Owner reset eligibility; exact named-provider identity, ownerless-company or empty-company targets; audit; partial-operation rollback             |
+| Provider configuration            | Environment and provider responses                             | Startup/provider integration | complete named-provider credentials; exact Microsoft tenant; partial or retired configuration fails closed                                           |
 | CORS/origin/forwarding headers    | HTTP headers                                                   | Root API hook/proxy           | exact origin allow-list, unsafe cross-site rejection, forwarded IP trusted only in packaged single-proxy shape                                        |
 | CSP violation report              | bounded CSP/Reporting API JSON                                 | Public rate-limited API route | 64 KiB, maximum 1 projected event/request, origin/directive only; URL paths, queries and fragments discarded                                           |
 | Offline snapshot                  | Previously authorized API response                             | Browser cache layer           | account/user/origin scoped, schema validation, AES-GCM integrity, seven-day expiry, read-only projection                                              |
@@ -97,7 +97,7 @@ path check cannot inspect.
 | Import worker threads             |            2 active + 8 queued per process; 5-second wait | FIFO queue; overflow/wait timeout returns retryable 503; disconnected requests cancel queued/active work; slots release after exit   |
 | Batch mutation                    |                           5,000 operations/request | one SQLite transaction; authorization/validation per operation; stale conflict rolls the complete batch back                         |
 | CSP report ingestion              |                      64 KiB and 1 emitted event/request | malformed/oversize rejected; excess array entries discarded; normal IP rate limit applies                                            |
-| Strict OIDC provider              |                  10 seconds and 1 MiB per response | no redirects; discovery/token/JWKS/user-info failures fail closed; publicly reachable issuers cannot pivot to private/reserved hosts |
+| Google and Microsoft providers    | Provider-controlled OAuth round trip               | Provider-owned flow; Microsoft issuer, audience, time, tenant, identity and nonce claims are checked before identity use                   |
 | Backup operation                  |                                            one in flight | scheduler skips overlap; shutdown waits for completion before closing SQLite                                                        |
 
 ## Security and audit event inventory
@@ -106,7 +106,7 @@ path check cannot inspect.
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
 | API request log    | method, route, status, latency and request metadata                                                                                                          | Pino JSON stdout when enabled                                                                        | no request/response bodies, cookie or authorization values                                                                |
 | Security log       | auth outcomes, MFA/fresh-session rejection, authorization/CSRF denial, CSP reports, queue saturation, 429/500, process failure and session revocation        | `capacitylens.security` JSON stdout                                                                  | ids/outcomes and bounded source metadata only; never credential/bearer values, exception details or CSP URL paths/queries |
-| Mutation audit     | actor, account, action, entity, id and changed fields; SSO cutover/link/repair and operator Owner-recovery outcomes                                          | transactional SQLite outbox → fsynced mode-0600 JSONL plus optional `capacitylens.audit` JSON stdout | field names and non-secret ceremony digests only; never field values or bearer tokens; stable `auditId` supports deduplication |
+| Mutation audit     | actor, account, action, entity, id and changed fields; company-provider cutover/link/repair and operator Owner-recovery outcomes                              | transactional SQLite outbox → fsynced mode-0600 JSONL plus optional `capacitylens.audit` JSON stdout | field names and non-secret ceremony digests only; never field values or bearer tokens; stable `auditId` supports deduplication |
 | Proxy/IdP/platform | TLS/access/WAF/container/identity/collector events                                                                                                           | deployment-defined separate systems                                                                  | operator must classify, redact, restrict, retain and correlate in UTC                                                     |
 
 Production requires application audit to remain enabled. Forwarding security events to a separate
@@ -117,8 +117,8 @@ review, but the operator must document retention, access groups, time synchroniz
 ## Third parties and build inputs
 
 - Runtime: Node.js 24, Better Auth, `jose`, Fastify/server packages, React/UI packages, SQLite in
-  Node, nginx and the HIBP range service; strict OIDC is first-class and named social providers are
-  optional/experimental.
+  Node, nginx and the HIBP range service; Google and Microsoft company providers are supported,
+  while GitHub remains experimental in mixed mode.
 - Build/test: pnpm registry packages, GitHub Actions, CodeQL, Playwright browsers, Vitest, ESLint,
   Stryker, Gitleaks, Syft/Anchore, Trivy and OWASP ZAP.
 - `pnpm-lock.yaml` pins the dependency graph. Reviewed overrides keep vulnerable transitive packages

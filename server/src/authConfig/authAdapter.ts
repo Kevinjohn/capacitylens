@@ -11,7 +11,7 @@ import {
   deleteFederatedLinkCeremony,
   reconcileObservedFederatedLinks,
 } from "../federatedLinkLifecycle";
-import { buildProviders } from "./providers";
+import { companyProviderIds } from "./providers";
 import { createErrorRedirect } from "./errorRedirect";
 import type { Auth, AuthProviderInfo, RawSessionUser } from "./authTypes";
 import { SESSION_ABSOLUTE_TTL_SECONDS } from "./authConstants";
@@ -19,6 +19,7 @@ import { buildSessionUser } from "./sessionActivity";
 import { verifiedUnauditedFederatedLinks, sqliteTableExists } from "./federatedIdentitySchema";
 import { createCredentialUserWith } from "./bootstrapAdmin";
 import { createAuthRequestHandler } from "./authRequestHandler";
+import type { MicrosoftProof } from "./microsoftProof";
 
 type AdapterFactoryDependencies = {
   revokeFederatedLinkStateInTx: typeof AuthFacade.revokeFederatedLinkStateInTx;
@@ -41,9 +42,8 @@ type AdapterOptions = {
   publicUrl: URL;
   browserAuthErrorUrl: URL;
   trustedOrigins: string[] | undefined;
-  strictOidcClient: ReturnType<typeof buildProviders>["strictOidcClient"];
-  strictOidcAuthorizationProxyPath: string | null;
   sessionDeletionLifecycleRef: LifecycleRef;
+  microsoftProof: MicrosoftProof | null;
 };
 type RawAuth = {
   handler: Auth["handler"];
@@ -159,13 +159,33 @@ function createAdapterApi(options: AdapterOptions, raw: RawAuth): Auth["api"] {
   };
 }
 
-function assertStrictProvider(provider: AuthProviderInfo | null): AuthProviderInfo {
+function assertCompanyProvider(provider: AuthProviderInfo | null): AuthProviderInfo {
   if (!provider)
     throw APIError.from("BAD_REQUEST", {
-      message: "No strict OIDC provider is configured for account linking.",
+      message: "No company provider is configured for account linking.",
       code: "PROVIDER_NOT_FOUND",
     });
   return provider;
+}
+
+function selectLinkProvider(
+  providers: readonly AuthProviderInfo[],
+  requestedProviderId: string | undefined,
+  defaultProvider: AuthProviderInfo | null,
+): AuthProviderInfo {
+  const selected =
+    requestedProviderId === undefined
+      ? assertCompanyProvider(defaultProvider)
+      : providers.find((candidate) => candidate.id === requestedProviderId && !candidate.experimental);
+  if (!selected || selected.id === "microsoft") {
+    throw APIError.from("BAD_REQUEST", {
+      message: selected
+        ? "Microsoft connection requires the mailbox-proof ceremony."
+        : "This company provider is not configured.",
+      code: selected ? "MICROSOFT_PROOF_REQUIRED" : "PROVIDER_NOT_FOUND",
+    });
+  }
+  return selected;
 }
 
 function assertProviderLinkAbsent(options: AdapterOptions, provider: AuthProviderInfo, principalId: string): void {
@@ -204,7 +224,7 @@ async function beginLink(
     reconcile(): void;
   },
 ) {
-  const provider = assertStrictProvider(context.provider);
+  const provider = selectLinkProvider(context.options.configuredProviderInfo, input.providerId, context.provider);
   // A previous callback may have committed its provider row immediately before a process stop.
   // Repair that durable observation before starting another mutating link ceremony. Readiness
   // reads remain side-effect free.
@@ -240,11 +260,11 @@ async function beginLink(
   const headers = new Headers(input.headers);
   headers.set("content-type", "application/json");
   const response = await context.raw.handler(
-    new Request(new URL("/api/auth/oauth2/link", context.options.publicUrl), {
+    new Request(new URL("/api/auth/link-social", context.options.publicUrl), {
       method: "POST",
       headers,
       body: JSON.stringify({
-        providerId: provider.id,
+        provider: provider.id,
         callbackURL: success.toString(),
         errorCallbackURL: failure.toString(),
       }),
@@ -253,21 +273,8 @@ async function beginLink(
   return readLinkResponse(response, context.options.db, ceremony.id);
 }
 
-function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactoryDependencies): Auth {
-  // Collapse the invariant generic to the structural Auth surface (see Auth), AND normalize at
-  // this single narrowing boundary (P1.7a): Better Auth's full user carries the richer fields we
-  // drop here, so this is exactly where `emailVerified` is read and defaulted before everything
-  // downstream sees only the {id,email,emailVerified,name} SessionUser.
-  // Better Auth's async init context (reverified against better-auth 1.6.23,
-  // dist/auth/base.mjs:37 `$context: authContext`, dist/db/internal-adapter.mjs for deletion, and
-  // dist/context/create-context.mjs for `password.hash`). Read only through the narrow Auth
-  // methods below.
-  const raw = options.instance as RawAuth;
-  const provider = options.configuredProviderInfo.find((candidate) => candidate.kind === "oidc") ?? null;
-  const trustedOrigins = buildTrustedOrigins(options, dependencies.AuthConfigError);
-  // The verification lookup stays here so identity SQL keeps a single owner (see the account
-  // boundary conformance test); the builder only decides what to do with the rows.
-  const callbackErrorUrl = createErrorRedirect({
+function buildCallbackErrorUrl(options: AdapterOptions, trustedOrigins: ReadonlySet<string>) {
+  return createErrorRedirect({
     browserAuthErrorUrl: options.browserAuthErrorUrl,
     trustedLinkOrigins: trustedOrigins,
     readVerificationValues: (identifier) => {
@@ -278,6 +285,23 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
       return rows.map((row) => row.value);
     },
   });
+}
+
+function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactoryDependencies): Auth {
+  // Collapse the invariant generic to the structural Auth surface (see Auth), AND normalize at
+  // this single narrowing boundary (P1.7a): Better Auth's full user carries the richer fields we
+  // drop here, so this is exactly where `emailVerified` is read and defaulted before everything
+  // downstream sees only the {id,email,emailVerified,name} SessionUser.
+  // Better Auth's async init context (reverified against better-auth 1.7.5,
+  // dist/auth/base.mjs:37 `$context: authContext`, dist/db/internal-adapter.mjs for deletion, and
+  // dist/context/create-context.mjs for `password.hash`). Read only through the narrow Auth
+  // methods below.
+  const raw = options.instance as RawAuth;
+  const provider = options.configuredProviderInfo.find((candidate) => !candidate.experimental) ?? null;
+  const trustedOrigins = buildTrustedOrigins(options, dependencies.AuthConfigError);
+  // The verification lookup stays here so identity SQL keeps a single owner (see the account
+  // boundary conformance test); the builder only decides what to do with the rows.
+  const callbackErrorUrl = buildCallbackErrorUrl(options, trustedOrigins);
   const reconcile = () =>
     reconcileObservedFederatedLinks(options.db, options.application.applicationId, () =>
       verifiedUnauditedFederatedLinks(options.db),
@@ -287,17 +311,18 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
     providerIdFromExternalContext: dependencies.providerIdFromExternalContext,
     callbackErrorUrl,
     browserAuthErrorUrl: options.browserAuthErrorUrl,
-    strictOidcClient: options.strictOidcClient,
-    strictOidcAuthorizationProxyPath: options.strictOidcAuthorizationProxyPath,
     commitResetSessions: (handles) => options.sessionDeletionLifecycleRef.current?.commit(handles),
     reconcileFederatedLinks: reconcile,
+    microsoftProof: options.microsoftProof,
   });
   return {
     handler,
     options: raw.options,
     providers: options.configuredProviderInfo,
+    permittedCompanyProviderIds: companyProviderIds(options.configuredProviderInfo),
     federatedIssuers: options.configuredFederatedIssuers,
-    strictProvider: provider,
+    defaultCompanyProvider: provider,
+    microsoftProof: options.microsoftProof,
     ...createBindingMethods(options),
     api: createAdapterApi(options, raw),
     createCredentialUser: ({ email, name, password, emailVerified = false, correlateInTransaction }) =>

@@ -9,7 +9,7 @@ import { isTransportFailure } from "../data/requestTimeout";
 import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
 import { m } from "@/i18n";
 
-// The AccountPicker's data source (production plan P1.13). It populates `store.accountSummaries` — the
+// The AccountPicker's data source populates `store.accountSummaries` — the
 // list of accounts the login may OPEN — from the right source for the deploy:
 //
 //   - SERVER mode (the default, OFF *or* auth-on): fetch `GET /api/accounts`. Auth-on
@@ -222,7 +222,7 @@ export async function refreshAccountSummaries(requestOptions?: {
 }
 
 /**
- * Keep {@link useStore}.accountSummaries — the AccountPicker's account list — in sync (P1.13).
+ * Keep {@link useStore}.accountSummaries — the AccountPicker's account list — in sync.
  *
  * - SERVER mode: own picker reads and auth-off active-account reads. Authenticated active-account
  *   generations are yielded to PermissionProvider, which uses the same validated refresh and

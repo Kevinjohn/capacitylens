@@ -1,259 +1,67 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { StrictMode, useState } from "react";
+import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { m } from "@/i18n";
+import { SecuritySection } from "./SecuritySection";
 
-import type { SessionListResult } from "../../account/sessionClient";
-
-const listSessions = vi.fn<() => Promise<SessionListResult>>();
 const changePassword = vi.fn();
-const revokeOwnSession = vi.fn();
+const readSessions = vi.fn();
 const getIdentityProvider = vi.fn();
-const linkIdentityProvider = vi.fn();
 vi.mock("../../auth/authClient", () => ({
-  authClient: {
-    changePassword: (...args: unknown[]) => changePassword(...args),
-  },
+  authClient: { changePassword: (...args: unknown[]) => changePassword(...args) },
 }));
+vi.mock("../../account/sessionClient", () => ({ readSessions: () => readSessions() }));
 vi.mock("../../account/accountClient", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../account/accountClient")>();
   return {
     ...original,
     accountClient: {
       ...original.accountClient,
-      revokeOwnSession: (...args: unknown[]) => revokeOwnSession(...args),
       getIdentityProvider: (...args: unknown[]) => getIdentityProvider(...args),
-      linkIdentityProvider: (...args: unknown[]) => linkIdentityProvider(...args),
     },
   };
 });
-
-vi.mock("../../account/sessionClient", () => ({
-  readSessions: () => listSessions(),
-}));
-
-import { SecuritySection } from "./SecuritySection";
-import { m } from "@/i18n";
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
-import { AuthContext, type AuthContextValue } from "../../auth/authContext";
-import { jsonResponse } from "../../test/fixtures";
-
-const SESSION = {
-  id: "opaque-session-handle",
-  createdAt: "2026-07-14T12:00:00.000Z",
-  expiresAt: "2026-07-15T00:00:00.000Z",
-  current: false,
-};
-
-function deferred<T>() {
-  let resolve: ((value: T) => void) | undefined;
-  const promise = new Promise<T>((done) => {
-    resolve = done;
-  });
-  return {
-    promise,
-    resolve: (value: T) => {
-      if (!resolve) throw new Error("Deferred promise resolver was not initialized");
-      resolve(value);
-    },
-  };
-}
 
 beforeEach(() => {
-  listSessions.mockReset().mockResolvedValue({ kind: "loaded", sessions: [SESSION] });
   changePassword.mockReset();
-  revokeOwnSession.mockReset();
-  getIdentityProvider.mockReset();
-  linkIdentityProvider.mockReset();
-});
-
-function renderWithSso() {
-  const value: AuthContextValue = {
-    authMode: "password",
-    user: { id: "member-1", email: "member@example.com" },
-    providers: [{ id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false }],
-    canCreateAccount: false,
-    multiAccount: false,
-    refreshAuth: async () => {},
-    signOut: async () => {},
-  };
-  return render(
-    <AuthContext.Provider value={value}>
-      <SecuritySection />
-    </AuthContext.Provider>,
-  );
-}
-
-function renderSsoOnly() {
-  const value: AuthContextValue = {
-    authMode: "sso",
-    user: { id: "member-1", email: "member@example.com" },
-    providers: [{ id: "workforce", label: "Workforce SSO", kind: "oidc", experimental: false }],
-    canCreateAccount: false,
-    multiAccount: false,
-    refreshAuth: async () => {},
-    signOut: async () => {},
-  };
-  return render(
-    <AuthContext.Provider value={value}>
-      <SecuritySection />
-    </AuthContext.Provider>,
-  );
-}
-
-it("shows sessions but no password form for SSO-only identities", async () => {
-  getIdentityProvider.mockResolvedValue(jsonResponse({ connected: true, verified: true }));
-  renderSsoOnly();
-  expect(await screen.findByText(m.settings_security_signed_in_session())).toBeInTheDocument();
-  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
-  expect(screen.getByText(m.settings_sso_connected({ provider: "Workforce SSO" }))).toBeInTheDocument();
-});
-
-it("shows the MFA status already reported for a password identity", () => {
-  const value: AuthContextValue = {
-    authMode: "password",
-    user: { id: "member-1", twoFactorEnabled: true },
-    providers: [],
-    canCreateAccount: false,
-    multiAccount: false,
-    refreshAuth: async () => {},
-    signOut: async () => {},
-  };
-  render(
-    <AuthContext.Provider value={value}>
-      <SecuritySection />
-    </AuthContext.Provider>,
-  );
-  expect(screen.getByText(m.account_mfa_enabled())).toBeInTheDocument();
-});
-
-it("shows verified provider-link status and starts the wrapped self-service ceremony", async () => {
-  getIdentityProvider.mockResolvedValue(jsonResponse({ connected: false, verified: false }));
-  linkIdentityProvider.mockResolvedValue(jsonResponse({ url: "https://idp.example/authorize" }));
-  const realLocation = window.location;
-  const assign = vi.fn();
-  Object.defineProperty(window, "location", {
-    configurable: true,
-    value: { ...realLocation, href: realLocation.href, assign },
-  });
-  try {
-    renderWithSso();
-
-    expect(await screen.findByTestId("sso-connection")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Connect Workforce SSO" }));
-
-    await waitFor(() => expect(linkIdentityProvider).toHaveBeenCalledWith(window.location.href));
-    expect(assign).toHaveBeenCalledWith("https://idp.example/authorize");
-  } finally {
-    Object.defineProperty(window, "location", { configurable: true, value: realLocation });
-  }
-});
-
-it("does not offer provider linking while connection status is pending or unavailable", async () => {
-  const pending = deferred<Response>();
-  getIdentityProvider.mockReturnValueOnce(pending.promise);
-  const first = renderWithSso();
-  expect(await screen.findByTestId("sso-connection")).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Connect Workforce SSO" })).not.toBeInTheDocument();
-  first.unmount();
-
-  getIdentityProvider.mockResolvedValueOnce(jsonResponse({ error: "Unavailable" }, 503));
-  renderWithSso();
-  expect(await screen.findByText(m.settings_sso_status_error())).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Connect Workforce SSO" })).not.toBeInTheDocument();
-});
-
-it("treats an unverified or duplicate provider row as connected instead of offering a conflicting link", async () => {
-  getIdentityProvider.mockResolvedValue(jsonResponse({ connected: true, verified: false }));
-  renderWithSso();
-
-  expect(await screen.findByText(m.settings_sso_connected({ provider: "Workforce SSO" }))).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Connect Workforce SSO" })).not.toBeInTheDocument();
-});
-
-it("reconciles an already-linked race from the link endpoint", async () => {
-  getIdentityProvider.mockResolvedValue(jsonResponse({ connected: false, verified: false }));
-  linkIdentityProvider.mockResolvedValue(
-    jsonResponse({ error: "Already linked", code: "PROVIDER_ALREADY_LINKED" }, 409),
-  );
-  renderWithSso();
-
-  fireEvent.click(await screen.findByRole("button", { name: "Connect Workforce SSO" }));
-  expect(await screen.findByText(m.settings_sso_connected({ provider: "Workforce SSO" }))).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: "Connect Workforce SSO" })).not.toBeInTheDocument();
-});
-
-it("renders its security controls from the message catalogue", async () => {
-  render(<SecuritySection />);
-
-  expect(
-    screen.getByRole("heading", {
-      level: 2,
-      name: m.settings_security_title(),
-    }),
-  ).toBeInTheDocument();
-  expect(screen.queryByText(m.settings_security_description())).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: `About ${m.settings_security_title()}` }));
-  const help = screen.getByRole("dialog", { name: m.settings_security_title() });
-  expect(help).toHaveTextContent(m.settings_security_description());
-  fireEvent.click(screen.getByRole("button", { name: m.settings_help_close() }));
-  expect(screen.getByLabelText(m.settings_security_current_password())).toBeInTheDocument();
-  expect(screen.getByLabelText(m.settings_security_new_password())).toBeInTheDocument();
-  expect(screen.getByLabelText(m.settings_security_confirm_password())).toBeInTheDocument();
-  expect(screen.getAllByText(m.settings_security_change_password())).toHaveLength(2);
-  expect(screen.getByText(m.settings_security_active_sessions())).toBeInTheDocument();
-  expect(await screen.findByText(m.settings_security_signed_in_session())).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: m.settings_security_revoke() })).toBeInTheDocument();
-});
-
-it("lists active sessions without rendering their bearer tokens and revokes the selected session", async () => {
-  revokeOwnSession.mockResolvedValue(new Response(null, { status: 204 }));
-  render(<SecuritySection />);
-  expect(await screen.findByText(m.settings_security_signed_in_session())).toBeInTheDocument();
-  expect(document.body).not.toHaveTextContent(SESSION.id);
-
-  fireEvent.click(screen.getByRole("button", { name: m.settings_security_revoke() }));
-  await waitFor(() => expect(revokeOwnSession).toHaveBeenCalledWith(SESSION.id));
-  expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_revoked());
-});
-
-it("changes a password only with matching policy-compliant values and revokes other sessions", async () => {
-  changePassword.mockResolvedValue({ data: { status: true }, error: null });
-  render(<SecuritySection />);
-  await screen.findByText(m.settings_security_signed_in_session());
-  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
-    target: { value: "current-password" },
-  });
-  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
-    target: { value: "a-strong-new-password" },
-  });
-  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
-    target: { value: "a-strong-new-password" },
-  });
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: m.settings_security_change_password(),
-    }),
-  );
-
-  await waitFor(() =>
-    expect(changePassword).toHaveBeenCalledWith({
-      currentPassword: "current-password",
-      newPassword: "a-strong-new-password",
-      revokeOtherSessions: true,
-    }),
-  );
-  expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_password_changed());
-});
-
-it("does not let an older session request replace the post-password-change directory", async () => {
-  const initial = deferred<SessionListResult>();
-  const refreshed = deferred<SessionListResult>();
-  listSessions
+  readSessions.mockReset().mockResolvedValue({ kind: "loaded", sessions: [] });
+  getIdentityProvider
     .mockReset()
-    .mockImplementationOnce(() => initial.promise)
-    .mockImplementationOnce(() => refreshed.promise);
-  changePassword.mockResolvedValue({ data: { status: true }, error: null });
-  render(<SecuritySection />);
+    .mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ connected: true, verified: true }), { status: 200 })),
+    );
+});
 
+const passwordAuth: AuthContextValue = {
+  authMode: "password",
+  user: { id: "u1", email: "diana@example.test", twoFactorEnabled: true },
+  providers: [],
+  canCreateAccount: false,
+  multiAccount: false,
+  refreshAuth: async () => {},
+  signOut: async () => {},
+};
+
+function renderSecurity(overrides: Partial<AuthContextValue> = {}, passwordOpen = false) {
+  const auth: AuthContextValue = { ...passwordAuth, ...overrides };
+  return render(
+    <AuthContext.Provider value={auth}>
+      <SecuritySection passwordOpen={passwordOpen} />
+    </AuthContext.Provider>,
+  );
+}
+
+it("keeps password and session controls hidden until the password dialog is opened", () => {
+  renderSecurity();
+  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
+  expect(screen.queryByText(m.settings_security_active_sessions())).not.toBeInTheDocument();
+  expect(readSessions).not.toHaveBeenCalled();
+});
+
+it("changes a password through the dialog and revokes other sessions", async () => {
+  changePassword.mockResolvedValue({ data: { status: true }, error: null });
+  renderSecurity({}, true);
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: "current-password" },
   });
@@ -264,71 +72,88 @@ it("does not let an older session request replace the post-password-change direc
     target: { value: "a-strong-new-password" },
   });
   fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
-  await waitFor(() => expect(listSessions).toHaveBeenCalledTimes(2));
+  await waitFor(() =>
+    expect(changePassword).toHaveBeenCalledWith({
+      currentPassword: "current-password",
+      newPassword: "a-strong-new-password",
+      revokeOtherSessions: true,
+    }),
+  );
+  expect(await screen.findByRole("status")).toHaveTextContent(m.settings_security_password_changed());
+});
 
-  await act(async () => {
-    refreshed.resolve({ kind: "loaded", sessions: [{ ...SESSION, id: "new-current-session", current: true }] });
+it("keeps password mismatch validation in the dialog", async () => {
+  renderSecurity({}, true);
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
   });
-  expect(await screen.findByText(m.settings_security_current_session())).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+    target: { value: "different-password" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_password_mismatch());
+  expect(changePassword).not.toHaveBeenCalled();
+});
 
-  await act(async () => {
-    initial.resolve({ kind: "loaded", sessions: [SESSION] });
+it("clears password values and errors when the dialog closes", async () => {
+  function Harness() {
+    const [open, setOpen] = useState(true);
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Open password dialog</button>
+        <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
+      </>
+    );
+  }
+  render(
+    <AuthContext.Provider value={passwordAuth}>
+      <Harness />
+    </AuthContext.Provider>,
+  );
+  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
+    target: { value: "current-password" },
   });
-  expect(screen.getByText(m.settings_security_current_session())).toBeInTheDocument();
-  expect(screen.queryByText(m.settings_security_signed_in_session())).not.toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
+    target: { value: "a-strong-new-password" },
+  });
+  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
+    target: { value: "different-password" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+  expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_password_mismatch());
+  fireEvent.click(screen.getByRole("button", { name: m.form_cancel() }));
+  fireEvent.click(screen.getByRole("button", { name: "Open password dialog" }));
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue("");
+  expect(screen.getByLabelText(m.settings_security_new_password())).toHaveValue("");
+  expect(screen.getByLabelText(m.settings_security_confirm_password())).toHaveValue("");
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
 
-it("reloads through the authentication wall when the current session is revoked", async () => {
-  const realLocation = window.location;
-  const reload = vi.fn();
-  Object.defineProperty(window, "location", {
-    configurable: true,
-    value: { ...realLocation, reload },
-  });
-  listSessions.mockResolvedValue({ kind: "loaded", sessions: [{ ...SESSION, current: true }] });
-  revokeOwnSession.mockResolvedValue(new Response(null, { status: 204 }));
-  try {
-    render(<SecuritySection />);
-    await screen.findByText(m.settings_security_current_session());
-    fireEvent.click(screen.getByRole("button", { name: m.settings_security_revoke() }));
-    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
-  } finally {
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: realLocation,
-    });
+it("does not restore stale values or feedback after a pending password request finishes", async () => {
+  let finish: ((value: unknown) => void) | undefined;
+  changePassword.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  function Harness() {
+    const [open, setOpen] = useState(true);
+    return (
+      <>
+        <button onClick={() => setOpen(true)}>Open password dialog</button>
+        <SecuritySection passwordOpen={open} onPasswordOpenChange={setOpen} />
+      </>
+    );
   }
-});
-
-it("reloads through the authentication wall when current-session revocation has an unknown outcome", async () => {
-  const realLocation = window.location;
-  const reload = vi.fn();
-  Object.defineProperty(window, "location", {
-    configurable: true,
-    value: { ...realLocation, reload },
-  });
-  listSessions.mockResolvedValue({ kind: "loaded", sessions: [{ ...SESSION, current: true }] });
-  revokeOwnSession.mockRejectedValueOnce(new TypeError("network failed"));
-  try {
-    render(<SecuritySection />);
-    await screen.findByText(m.settings_security_current_session());
-    fireEvent.click(screen.getByRole("button", { name: m.settings_security_revoke() }));
-    await waitFor(() => expect(reload).toHaveBeenCalledOnce());
-    expect(listSessions).toHaveBeenCalledTimes(1);
-  } finally {
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: realLocation,
-    });
-  }
-});
-
-it("rejects mismatched new passwords without contacting the authentication service", async () => {
-  render(<SecuritySection />);
-  // Let the mount-time session load settle first: it shares this section's error surface, so a
-  // refresh landing mid-assertion would otherwise clear the very error being inspected.
-  await screen.findByText(m.settings_security_signed_in_session());
+  render(
+    <AuthContext.Provider value={passwordAuth}>
+      <Harness />
+    </AuthContext.Provider>,
+  );
   fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
     target: { value: "current-password" },
   });
@@ -336,152 +161,225 @@ it("rejects mismatched new passwords without contacting the authentication servi
     target: { value: "a-strong-new-password" },
   });
   fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
-    target: { value: "a-different-password" },
-  });
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: m.settings_security_change_password(),
-    }),
-  );
-  const error = await screen.findByRole("alert");
-  const confirmation = screen.getByLabelText(m.settings_security_confirm_password());
-  expect(error).toHaveTextContent(m.settings_security_err_password_mismatch());
-  expect(confirmation).toHaveAttribute("aria-invalid", "true");
-  expect(confirmation).toHaveAttribute("aria-describedby", error.id);
-  expect(screen.getByLabelText(m.settings_security_new_password())).not.toHaveAttribute("aria-invalid");
-  expect(changePassword).not.toHaveBeenCalled();
-});
-
-it("associates a password-length error with the new-password input", async () => {
-  render(<SecuritySection />);
-  await screen.findByText(m.settings_security_signed_in_session()); // as above: settle the session load first
-  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
-    target: { value: "current-password" },
-  });
-  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), { target: { value: "short" } });
-  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), { target: { value: "short" } });
-  const form = screen.getByLabelText(m.settings_security_new_password()).closest("form");
-  if (!form) throw new Error("Expected password form");
-  fireEvent.submit(form);
-
-  const error = await screen.findByRole("alert");
-  const password = screen.getByLabelText(m.settings_security_new_password());
-  expect(error).toHaveTextContent(
-    m.settings_security_err_password_length({
-      min: MIN_PASSWORD_LENGTH,
-      max: MAX_PASSWORD_LENGTH,
-    }),
-  );
-  expect(password).toHaveAttribute("aria-invalid", "true");
-  expect(password).toHaveAttribute("aria-describedby", error.id);
-  expect(screen.getByLabelText(m.settings_security_confirm_password())).not.toHaveAttribute("aria-invalid");
-  expect(changePassword).not.toHaveBeenCalled();
-});
-
-it("surfaces session-list failures instead of silently presenting an empty device list", async () => {
-  listSessions.mockResolvedValue({ kind: "failed" });
-  render(<SecuritySection />);
-
-  expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_sessions_load());
-});
-
-it("rejects an invalid session list without rendering its valid subset", async () => {
-  listSessions.mockResolvedValue({ kind: "invalid" });
-  render(<SecuritySection />);
-
-  expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_sessions_invalid());
-  expect(screen.queryByText(m.settings_security_signed_in_session())).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: m.settings_security_revoke() })).not.toBeInTheDocument();
-});
-
-it("surfaces password and session-revocation failures without reporting success", async () => {
-  changePassword.mockResolvedValue({
-    data: null,
-    error: { message: "Current password is incorrect." },
-  });
-  revokeOwnSession.mockResolvedValue(jsonResponse({ error: "That session no longer exists." }, 404));
-  render(<SecuritySection />);
-  await screen.findByText(m.settings_security_signed_in_session());
-
-  fireEvent.change(screen.getByLabelText(m.settings_security_current_password()), {
-    target: { value: "wrong-current-password" },
-  });
-  fireEvent.change(screen.getByLabelText(m.settings_security_new_password()), {
     target: { value: "a-strong-new-password" },
   });
-  fireEvent.change(screen.getByLabelText(m.settings_security_confirm_password()), {
-    target: { value: "a-strong-new-password" },
-  });
-  fireEvent.click(
-    screen.getByRole("button", {
-      name: m.settings_security_change_password(),
-    }),
-  );
-  const passwordError = await screen.findByRole("alert");
-  const currentPassword = screen.getByLabelText(m.settings_security_current_password());
-  expect(passwordError).toHaveTextContent("Current password is incorrect.");
-  expect(currentPassword).toHaveAttribute("aria-invalid", "true");
-  expect(currentPassword).toHaveAttribute("aria-describedby", passwordError.id);
+  fireEvent.click(screen.getByRole("button", { name: m.settings_security_change_password() }));
+  await waitFor(() => expect(changePassword).toHaveBeenCalledOnce());
+  fireEvent.click(screen.getByRole("button", { name: m.form_cancel() }));
+  fireEvent.click(screen.getByRole("button", { name: "Open password dialog" }));
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue("");
+  const finishRequest = finish;
+  if (!finishRequest) throw new Error("Password request was not started");
+  await act(async () => finishRequest({ data: { status: true }, error: null }));
   expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  expect(screen.getByLabelText(m.settings_security_current_password())).toHaveValue("");
+});
 
-  fireEvent.click(screen.getByRole("button", { name: m.settings_security_revoke() }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(m.settings_security_err_revoke());
-  expect(screen.queryByRole("status")).not.toBeInTheDocument();
+it("does not mount a password dialog for a federated identity in password mode", () => {
+  renderSecurity({ reauthMethod: "provider" }, true);
+  expect(screen.queryByRole("dialog", { name: m.settings_security_change_password() })).not.toBeInTheDocument();
 });
 
 it.each([
-  {
-    name: "a refreshed session list",
-    result: {
-      kind: "loaded",
-      sessions: [{ ...SESSION, id: "refreshed-session", current: true }],
-    } satisfies SessionListResult,
-    expected: "refreshed",
-  },
-  {
-    name: "an unauthorized session list",
-    result: { kind: "unauthorized" } satisfies SessionListResult,
-    expected: "reload",
-  },
-  {
-    name: "a failed session list",
-    result: { kind: "failed" } satisfies SessionListResult,
-    expected: "unavailable",
-  },
-])("reconciles a transport-level revoke failure with $name", async ({ result, expected }) => {
-  const realLocation = window.location;
-  const reload = vi.fn();
-  Object.defineProperty(window, "location", {
-    configurable: true,
-    value: { ...realLocation, reload },
+  { required: true, enrolled: true, expected: m.account_mfa_enabled() },
+  { required: true, enrolled: false, expected: m.account_mfa_not_enabled() },
+  { required: false, enrolled: true, expected: null },
+])("shows MFA status only under operator policy ($required, $enrolled)", ({ required, enrolled, expected }) => {
+  renderSecurity({ requireMfa: required, user: { id: "u1", twoFactorEnabled: enrolled } });
+  if (expected) expect(screen.getByText(expected)).toBeInTheDocument();
+  else expect(screen.queryByText(m.account_mfa_title())).not.toBeInTheDocument();
+});
+
+it("preserves Microsoft identity-link status without password or session controls", async () => {
+  renderSecurity({
+    authMode: "sso",
+    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
   });
-  revokeOwnSession.mockRejectedValueOnce(new TypeError("network failed"));
-  listSessions.mockResolvedValueOnce({ kind: "loaded", sessions: [SESSION] }).mockResolvedValueOnce(result);
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Microsoft" }))).toBeInTheDocument();
+  expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
+  expect(screen.queryByText(m.settings_security_active_sessions())).not.toBeInTheDocument();
+});
+
+it("shows Google and Microsoft connection status independently", async () => {
+  getIdentityProvider.mockImplementation((providerId: string) =>
+    Promise.resolve(
+      new Response(JSON.stringify({ connected: providerId === "google", verified: providerId === "google" })),
+    ),
+  );
+  renderSecurity({
+    providers: [
+      { id: "google", label: "Google", kind: "social", experimental: false },
+      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
+      { id: "github", label: "GitHub", kind: "social", experimental: true },
+    ],
+  });
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+  expect(
+    await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Microsoft" }) }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(m.settings_sso_connected({ provider: "Microsoft" }))).not.toBeInTheDocument();
+  expect(getIdentityProvider).not.toHaveBeenCalledWith("github");
+});
+
+it("keeps a Microsoft callback error on its own connection", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/account?capacitylensIdentityProvider=microsoft&capacitylensSsoLinkFailed=attempt",
+  );
+  renderSecurity({
+    providers: [
+      { id: "google", label: "Google", kind: "social", experimental: false },
+      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
+    ],
+  });
+  expect(await screen.findAllByText(m.settings_sso_connect_error())).toHaveLength(1);
+  expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+  expect(window.location.search).toBe("");
+});
+
+it("preserves a provider callback error through StrictMode replay and provider refresh", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/account?capacitylensIdentityProvider=google&capacitylensSsoLinkFailed=attempt",
+  );
+  const auth: AuthContextValue = {
+    ...passwordAuth,
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+  };
+  const view = render(
+    <StrictMode>
+      <AuthContext.Provider value={auth}>
+        <SecuritySection />
+      </AuthContext.Provider>
+    </StrictMode>,
+  );
+
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+  expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+
+  view.rerender(
+    <StrictMode>
+      <AuthContext.Provider
+        value={{
+          ...auth,
+          providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+        }}
+      >
+        <SecuritySection />
+      </AuthContext.Provider>
+    </StrictMode>,
+  );
+
+  await waitFor(() => expect(getIdentityProvider).toHaveBeenCalledTimes(3));
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+  expect(window.location.search).toBe("");
+});
+
+it("does not restore a callback error after an already-linked retry and provider refresh", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/account?capacitylensIdentityProvider=google&capacitylensSsoLinkFailed=attempt",
+  );
+  const auth: AuthContextValue = {
+    ...passwordAuth,
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+  };
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "PROVIDER_ALREADY_LINKED" }, { status: 409 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+  let finishPendingStatus: ((response: Response) => void) | undefined;
+  getIdentityProvider.mockResolvedValueOnce(Response.json({ connected: false, verified: false }));
+  getIdentityProvider.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishPendingStatus = resolve;
+      }),
+  );
+
+  const view = render(
+    <AuthContext.Provider value={auth}>
+      <SecuritySection />
+    </AuthContext.Provider>,
+  );
   try {
-    render(<SecuritySection />);
-    await screen.findByText(m.settings_security_signed_in_session());
+    expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+    view.rerender(
+      <AuthContext.Provider
+        value={{
+          ...auth,
+          providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+        }}
+      >
+        <SecuritySection />
+      </AuthContext.Provider>,
+    );
+    await waitFor(() => expect(getIdentityProvider).toHaveBeenCalledTimes(2));
 
-    fireEvent.click(screen.getByRole("button", { name: m.settings_security_revoke() }));
+    fireEvent.click(screen.getByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) }));
+    expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
 
-    await waitFor(() => expect(listSessions).toHaveBeenCalledTimes(2));
-    if (expected === "reload") {
-      await waitFor(() => expect(reload).toHaveBeenCalledOnce());
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    } else {
-      expect(await screen.findByRole("status")).toHaveTextContent(
-        expected === "refreshed"
-          ? m.settings_security_revoke_unknown_refreshed()
-          : m.settings_security_revoke_unknown_unavailable(),
-      );
-      if (expected === "refreshed") {
-        expect(screen.getByText(m.settings_security_current_session())).toBeInTheDocument();
-      }
-      expect(reload).not.toHaveBeenCalled();
-    }
-  } finally {
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: realLocation,
+    const finishStatus = finishPendingStatus;
+    if (!finishStatus) throw new Error("Provider status refresh was not started");
+    await act(async () => finishStatus(Response.json({ connected: false, verified: false })));
+    expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
+
+    getIdentityProvider.mockResolvedValue(Response.json({ connected: true, verified: true }));
+    view.rerender(
+      <AuthContext.Provider
+        value={{
+          ...auth,
+          providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+        }}
+      >
+        <SecuritySection />
+      </AuthContext.Provider>,
+    );
+    await waitFor(() => expect(getIdentityProvider).toHaveBeenCalledTimes(3));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
     });
+    expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
+  } finally {
+    errorLog.mockRestore();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("dispatches Microsoft connection through the shared identity route and retains its return marker", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "PROVIDER_UNAVAILABLE" }, { status: 502 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+  window.history.replaceState(null, "", "/account");
+  getIdentityProvider.mockResolvedValue(Response.json({ connected: false, verified: false }));
+  try {
+    renderSecurity({
+      providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Microsoft" }) }),
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/api/identity/link-provider");
+    expect(init.credentials).toBe("include");
+    const body = JSON.parse(String(init.body)) as { providerId: string; callbackURL: string; errorCallbackURL: string };
+    expect(body.providerId).toBe("microsoft");
+    expect(new URL(body.callbackURL).searchParams.get("capacitylensIdentityProvider")).toBe("microsoft");
+    expect(body.errorCallbackURL).toBe(body.callbackURL);
+    expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+  } finally {
+    errorLog.mockRestore();
+    vi.unstubAllGlobals();
   }
 });

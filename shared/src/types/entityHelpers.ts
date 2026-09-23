@@ -1,12 +1,9 @@
 import type { AppData, Resource, ResourceKind, SchedulingMode, ScopedEntity, ScopedEntityKey } from "./entities";
 import { APP_DATA_KEYS, FULL_DAY_HOURS, MAX_HOURS_PER_DAY, SCOPED_KEYS } from "./entityKeys";
 
-/** Does an allocation entered in this mode carry an HOURLY load? Only 'blocks' does not — a block
- *  records placement and its load is projected as `blockHoursPerDay` instead of the typed hours.
- *  This is the SINGLE predicate every load-sensitive surface gates on (capacity projection, the
- *  bar's hours suffix, reassignment reconciliation, the modal's hours validation), so the four
- *  local spellings that used to re-test `mode === "blocks"` — blocksMode / isBlocks / zeroLoadMode —
- *  now all resolve from one place. */
+/** Does an allocation entered in this mode carry an hourly load? Blocks record placement and use
+ *  `blockHoursPerDay` instead of typed hours. Capacity projections, labels, reassignment, and
+ *  validation use this predicate for a consistent distinction. */
 export function carriesHourlyLoad(mode: SchedulingMode): boolean {
   return mode !== "blocks";
 }
@@ -16,11 +13,9 @@ export function isScopedEntityKey(key: string): key is ScopedEntityKey {
   return (SCOPED_KEYS as readonly string[]).includes(key);
 }
 
-/** A uniform `ScopedEntity[]` view of AppData's scoped tables. The SCOPED_KEYS
- *  loops (scope-to-account, cascade-delete, import) process every scoped table as
- *  the common supertype; this isolates into ONE named seam the single cast
- *  TypeScript can't infer through a heterogeneous-union index — replacing the
- *  scattered `as never` / `as unknown as` casts the loops used to need. */
+/** A uniform `ScopedEntity[]` view of AppData's scoped tables for operations that process every
+ *  scoped table. This named seam contains the cast TypeScript cannot infer through a
+ *  heterogeneous-union index. */
 export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntity[]> {
   return data;
 }

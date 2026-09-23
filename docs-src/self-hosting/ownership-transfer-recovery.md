@@ -47,8 +47,9 @@ that record does not replace your protected operations log.
    automatic ownerless-workspace repair cancels any live transfer while promoting a new
    Owner, and fails with the same error when that transfer's revision is unusable. See
    [A company has no Owner](/self-hosting/incidents#a-company-has-no-owner) — resolve the
-   exhausted or corrupt revision here first, then let that repair (or the
-   `assign-workspace-owner` command) proceed.
+   exhausted or corrupt revision here first. If startup still leaves the company without an
+   Owner, follow the guarded owner-assignment procedure there; this recovery procedure only
+   cancels the exact pending transfer.
 
 2. Ask the current Owner to confirm that the named transfer should be cancelled. If the
    Owner cannot confirm it, preserve the evidence and restore a known-good snapshot or

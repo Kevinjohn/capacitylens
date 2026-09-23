@@ -66,8 +66,7 @@ matching five-column tables ordered by role priority.
 
 ## Settings
 
-**Settings** contains company-wide planning rules, company-login cutover readiness and device
-preferences.
+**Settings** contains company-wide planning rules and device preferences.
 
 ![The Settings page showing allocation units, working days, date format and Overview access](../screenshots/flows/settings_page.png)
 

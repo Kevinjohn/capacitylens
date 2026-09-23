@@ -15,7 +15,7 @@ takes its own pre-migration snapshot automatically. See
 [Backups and restore](/self-hosting/backups-and-restore).
 :::
 
-## Upgrading to 0.71.0-alpha.1
+## Upgrading to 0.70.1-alpha.1
 
 This release removes the older account environment names. Rename them in the environment
 file before restarting: the previous release accepts the new names, while this release
@@ -31,11 +31,6 @@ refuses every configured removed name and prints its replacement.
 | `CAPACITYLENS_REQUIRE_MFA` | `SMALLSASS_ACCOUNT_REQUIRE_MFA` |
 | `CAPACITYLENS_PASSWORD_BREACH_CHECK` | `SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK` |
 | `CAPACITYLENS_SSO_MFA_ENFORCED` | `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED` |
-| `CAPACITYLENS_SSO_CLIENT_ID`, `CAPACITYLENS_SSO_CLIENT_SECRET` | `SMALLSASS_ACCOUNT_OIDC_CLIENT_ID`, `SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET` |
-| `CAPACITYLENS_SSO_DISCOVERY_URL`, `CAPACITYLENS_SSO_ISSUER` | `SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL`, `SMALLSASS_ACCOUNT_OIDC_ISSUER` |
-| `CAPACITYLENS_SSO_AUTHORIZATION_URL`, `CAPACITYLENS_SSO_TOKEN_URL` | `SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL`, `SMALLSASS_ACCOUNT_OIDC_TOKEN_URL` |
-| `CAPACITYLENS_SSO_SCOPES`, `CAPACITYLENS_SSO_PROVIDER_ID` | `SMALLSASS_ACCOUNT_OIDC_SCOPES`, `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID` |
-| `CAPACITYLENS_SSO_LABEL`, `CAPACITYLENS_SSO_BRAND`, `CAPACITYLENS_SSO_BOOTSTRAP_EMAILS` | `SMALLSASS_ACCOUNT_OIDC_LABEL`, `SMALLSASS_ACCOUNT_OIDC_BRAND`, `SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS` |
 | `CAPACITYLENS_GOOGLE_CLIENT_ID`, `CAPACITYLENS_GOOGLE_CLIENT_SECRET` | `SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID`, `SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET` |
 | `CAPACITYLENS_MICROSOFT_CLIENT_ID`, `CAPACITYLENS_MICROSOFT_CLIENT_SECRET`, `CAPACITYLENS_MICROSOFT_TENANT_ID` | `SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID`, `SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET`, `SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID` |
 | `CAPACITYLENS_GITHUB_CLIENT_ID`, `CAPACITYLENS_GITHUB_CLIENT_SECRET` | `SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID`, `SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET` |
@@ -43,13 +38,41 @@ refuses every configured removed name and prints its replacement.
 Check the environment file from the directory where the service reads it:
 
 ```bash
-grep -Eo '^[[:space:]]*(export[[:space:]]+)?(CAPACITYLENS_AUTH|BETTER_AUTH_(SECRET|URL)|CAPACITYLENS_(SETUP_TOKEN|ALLOW_OPEN_SIGNUP|REQUIRE_MFA|PASSWORD_BREACH_CHECK|SSO_(MFA_ENFORCED|CLIENT_ID|CLIENT_SECRET|DISCOVERY_URL|ISSUER|AUTHORIZATION_URL|TOKEN_URL|SCOPES|PROVIDER_ID|LABEL|BRAND|BOOTSTRAP_EMAILS)|GOOGLE_(CLIENT_ID|CLIENT_SECRET)|MICROSOFT_(CLIENT_ID|CLIENT_SECRET|TENANT_ID)|GITHUB_(CLIENT_ID|CLIENT_SECRET)))[[:space:]]*=' .env
+grep -Eo '^[[:space:]]*(export[[:space:]]+)?(CAPACITYLENS_AUTH|BETTER_AUTH_(SECRET|URL)|CAPACITYLENS_(SETUP_TOKEN|ALLOW_OPEN_SIGNUP|REQUIRE_MFA|PASSWORD_BREACH_CHECK|SSO_MFA_ENFORCED|GOOGLE_(CLIENT_ID|CLIENT_SECRET)|MICROSOFT_(CLIENT_ID|CLIENT_SECRET|TENANT_ID)|GITHUB_(CLIENT_ID|CLIENT_SECRET)))[[:space:]]*=' .env
 ```
 
 Rename every reported key without changing its value, restart, verify health and sign in.
 Empty grep output means the inspected file contains none of the removed names. Don't keep
 both spellings. To roll back, redeploy the previous release; it accepts the replacement
 names too.
+
+## Better Auth 1.7.5 authentication changes
+
+This release upgrades Better Auth from 1.6.30 to 1.7.5. The upgrade keeps the
+CapacityLens authentication policy and identity-admission checks, but changes the
+underlying OAuth route and provider integration.
+
+Google and Microsoft use the current callback paths `/api/auth/callback/google` and
+`/api/auth/callback/microsoft`. Register the one you configure as described in
+[Set up Google or Microsoft sign-in](/company-login/set-up-company-login). Older generic OIDC
+settings and `hosted-oidc-only` are retired; remove those settings and profile instead of mapping
+them to a replacement key. The server reports retired settings before any storage or bootstrap
+write. There is no identity-conversion step.
+
+The 1.7.0–1.7.2 releases temporarily required an `issuer` column in Better Auth's
+`account` table. Better Auth 1.7.3 removed that requirement. A direct upgrade from the
+CapacityLens release using Better Auth 1.6.30 to 1.7.5 does not need that temporary
+column. If an installation actually ran one of
+those intermediate Better Auth releases, follow the [upstream 1.7 upgrade guide](https://better-auth.com/docs/guides/1-7-upgrade-guide)
+before continuing.
+
+Better Auth 1.7 uses Microsoft's directory-stable `oid` claim as its account identifier.
+Returning sign-in is correlated to that identity; CapacityLens does not convert or merge
+identities by email.
+
+Microsoft's `email` claim is not by itself proof that an address is verified. When the
+native callback does not prove the intended address, CapacityLens uses the one-time mailbox
+proof described in the [company-login guide](/company-login/set-up-company-login#microsoft-mailbox-proof).
 
 ## One-time check for older Compose installations
 
@@ -119,7 +142,7 @@ columns or edit the migration ledger by hand.
 ### Stored credential effects
 
 Some releases change how CapacityLens stores credentials rather than the schema. When a
-release begins encrypting OAuth/OIDC tokens at rest, tokens written in plaintext by an earlier
+release begins encrypting OAuth tokens at rest, tokens written in plaintext by an earlier
 version keep working unchanged and are transparently re-encrypted the next time they are
 refreshed — this is a content-only change with no database migration and no operator action.
 Sign-in is unaffected. The `CHANGELOG.md` Security section calls out the specific release where

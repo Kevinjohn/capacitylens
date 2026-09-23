@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { AuthProviderInfo } from "../auth";
 import type { SsoCutoverIdentityFacts } from "./betterAuthIdentityPort";
 import type { SsoCutoverWorkspaceFact } from "./sqliteAccountAdminPort";
-import { evaluateSsoCutoverReadiness, formatSsoCutoverRefusal } from "./ssoCutover";
+import { assertCompanyProviderCutoverReady, evaluateSsoCutoverReadiness, formatSsoCutoverRefusal } from "./ssoCutover";
 
 const provider: AuthProviderInfo = {
-  id: "workforce",
-  label: "Workforce SSO",
-  kind: "oidc",
+  id: "google",
+  label: "Google",
+  kind: "social",
   experimental: false,
 };
 
@@ -37,6 +37,29 @@ const identity: SsoCutoverIdentityFacts = {
   alternativeProviderLinks: [],
   outstandingResetPrincipalIds: [],
 };
+
+describe("company-provider cutover", () => {
+  it("accepts an owner connected through either configured provider and refuses a credential-only principal", () => {
+    const providerIds = new Set(["google", "microsoft"]);
+    const google = { ...identity, requiredProviderLinks: [] };
+    const microsoft = { ...identity, requiredProviderLinks: [{ ...requiredProviderLink, subject: "microsoft-oid" }] };
+    const administration = { inspectSsoCutoverWorkspaces: () => [workspace] };
+    const ready = {
+      providerIds,
+      administration: administration as never,
+      identity: {
+        inspectSsoCutover: (providerId: string) => (providerId === "google" ? google : microsoft),
+      } as never,
+    };
+    expect(() => assertCompanyProviderCutoverReady(ready)).not.toThrow();
+    expect(() =>
+      assertCompanyProviderCutoverReady({
+        ...ready,
+        identity: { inspectSsoCutover: () => google } as never,
+      }),
+    ).toThrow(/verified company-provider connection/);
+  });
+});
 
 function evaluate(
   overrides: {
@@ -312,7 +335,7 @@ function registerNonMemberLinkIssueTests(): void {
       }),
     );
     expect(formatSsoCutoverRefusal(result)).toContain("pending@example.com");
-    expect(formatSsoCutoverRefusal(result)).toContain("workforce link with subject legacy-subject");
+    expect(formatSsoCutoverRefusal(result)).toContain("google link with subject legacy-subject");
   });
 }
 

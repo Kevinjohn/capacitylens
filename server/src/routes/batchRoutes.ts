@@ -145,7 +145,7 @@ function createBatchHandler(dependencies: BatchRouteDependencies) {
     // account slices the request can actually touch; an ordered empty batch deliberately has no
     // slice but still reaches the lightweight sync-sequence transaction below.
     const affectedAccountIds = listAffectedAccountIds(ops);
-    // P1.5 write gate — PRE-SCAN before the tx opens so the batch is rejected WHOLE (one 403, no
+    // Pre-scan before the transaction opens so the batch is rejected as a whole (one 403, no
     // partial write) if ANY op targets an account the caller may not write. A scoped PUT derives
     // its accountId from op.row.accountId, a scoped DELETE from op.accountId. The unscoped
     // Account deletion is accepted only by the dedicated erasure route and was rejected during

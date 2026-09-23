@@ -22,14 +22,13 @@ export function hasExternalSignInError(url: string): boolean {
 }
 
 /** Stable application-owned provider failure categories safe to show in browser copy. */
-export type ExternalSignInErrorCode = "oidc_verification_failed" | "account_link_conflict";
+export type ExternalSignInErrorCode = "account_link_conflict";
 
 /** Map only application-owned callback codes; provider-controlled values remain untrusted. */
 export function readExternalSignInErrorCode(url: string): ExternalSignInErrorCode | null {
   const parsed = new URL(url);
   if (parsed.searchParams.get(MARKER) !== "1") return null;
   const code = parsed.searchParams.get(PROVIDER_ERROR);
-  if (code === "OIDC_IDENTITY_VERIFICATION_FAILED") return "oidc_verification_failed";
   if (code === "account_already_linked_to_different_user" || code === "account_link_conflict") {
     return "account_link_conflict";
   }
@@ -41,7 +40,6 @@ export function readExternalSignInErrorCode(url: string): ExternalSignInErrorCod
  *  pre-session initial error state. Calls m.login_sso_*() at call time, same as both former inline
  *  copies — never cache the result across renders. */
 export function resolveExternalSignInErrorMessage(code: ExternalSignInErrorCode | null): string {
-  if (code === "oidc_verification_failed") return m.login_sso_verification_failed();
   if (code === "account_link_conflict") return m.login_sso_account_link_conflict();
   return m.login_sso_failed();
 }

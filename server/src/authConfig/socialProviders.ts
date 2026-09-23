@@ -1,19 +1,102 @@
 import type { SocialProviders } from "better-auth/social-providers";
 import type { AuthConfigError } from "../auth";
-import { persistLinkedExternalAvatar } from "./betterAuthProfileCompatibility";
+import { persistLinkedExternalAvatar } from "./externalAvatar";
 import type { Db } from "../db";
+import type { MicrosoftProof } from "./microsoftProof";
+import { MicrosoftProofError } from "./microsoftProofPrimitives";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
 
-function resolveMicrosoftTenantId(value: string | undefined): string {
-  return value === undefined || value === "" ? "common" : value;
+const MICROSOFT_CONSUMER_TENANT_ID = "9188040d-6c67-4c5b-b112-36a304b66dad";
+
+function matchesMicrosoftAudience(audience: unknown, clientId: string): boolean {
+  return audience === clientId || (Array.isArray(audience) && audience.length === 1 && audience[0] === clientId);
 }
 
-function readMicrosoftAvatarProfile(value: unknown): { subject: string; picture: unknown } {
-  if (typeof value !== "object" || value === null) return { subject: "", picture: null };
+function hasLiveMicrosoftExpiry(expiresAt: unknown): boolean {
+  return typeof expiresAt === "number" && Number.isFinite(expiresAt) && expiresAt > Math.floor(Date.now() / 1000);
+}
+
+export function resolveMicrosoftTenantId(value: string | undefined, ErrorType: AuthConfigErrorConstructor): string {
+  const tenant = value?.trim().toLowerCase();
+  if (
+    !tenant ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(tenant) ||
+    tenant === MICROSOFT_CONSUMER_TENANT_ID
+  ) {
+    throw new ErrorType("SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID must be a specific work or school tenant GUID.");
+  }
+  return tenant;
+}
+
+export function readVerifiedMicrosoftProfile(
+  value: unknown,
+  tenant: string,
+  clientId: string,
+): {
+  subject: string;
+  picture: unknown;
+} {
+  if (typeof value !== "object" || value === null) throw new MicrosoftProofError("MICROSOFT_IDENTITY_INVALID", 403);
   const profile = value as Record<string, unknown>;
-  return { subject: typeof profile.sub === "string" ? profile.sub : "", picture: profile.picture };
+  const issuer = `https://login.microsoftonline.com/${tenant}/v2.0`;
+  const validTokenBoundary =
+    profile.iss === issuer && matchesMicrosoftAudience(profile.aud, clientId) && profile.tid === tenant;
+  const validExpiry = hasLiveMicrosoftExpiry(profile.exp);
+  const validIdentity = typeof profile.oid === "string" && profile.oid.trim() !== "";
+  if (!validTokenBoundary || !validExpiry || !validIdentity) {
+    throw new MicrosoftProofError("MICROSOFT_IDENTITY_INVALID", 403);
+  }
+  return { subject: profile.oid as string, picture: profile.picture };
+}
+
+function configuredMicrosoftProvider({
+  pair,
+  tenantId,
+  db,
+  proof,
+}: {
+  pair: [string, string];
+  tenantId: string;
+  db: Db;
+  proof: MicrosoftProof | null;
+}): NonNullable<SocialProviders["microsoft"]> {
+  return {
+    clientId: pair[0],
+    clientSecret: pair[1],
+    mapProfileToUser: async (profile) => {
+      const { subject, picture } = readVerifiedMicrosoftProfile(profile, tenantId, pair[0]);
+      if (proof) {
+        const proven = await proof.onProfile(profile, subject);
+        return {
+          ...persistLinkedExternalAvatar({ db, providerId: "microsoft", subject, value: picture }),
+          ...proven,
+        };
+      }
+      const existing = db
+        .prepare(
+          `SELECT user.email
+           FROM account AS linked
+           JOIN user ON user.id = linked.userId
+           JOIN capacitylens_federated_link_observations AS proof
+             ON proof.accountRowId = linked.id
+            AND proof.principalId = linked.userId
+            AND proof.providerId = linked.providerId
+            AND proof.subject = linked.accountId
+          WHERE linked.providerId = 'microsoft' AND linked.accountId = ?
+          LIMIT 1`,
+        )
+        .get(subject) as { email: string } | undefined;
+      if (!existing) return { emailVerified: false };
+      return {
+        ...persistLinkedExternalAvatar({ db, providerId: "microsoft", subject, value: picture }),
+        email: existing.email,
+        emailVerified: true,
+      };
+    },
+    tenantId,
+  };
 }
 
 function parseCredentialPair(input: {
@@ -32,11 +115,17 @@ function parseCredentialPair(input: {
 }
 
 /** Assemble configured native social providers with safe avatar claim projection. */
-export function parseSocialProvidersFromEnvironment(
-  environment: Env,
-  ErrorType: AuthConfigErrorConstructor,
-  db: Db,
-): SocialProviders {
+export function parseSocialProvidersFromEnvironment({
+  environment,
+  ErrorType,
+  db,
+  microsoftProof = null,
+}: {
+  environment: Env;
+  ErrorType: AuthConfigErrorConstructor;
+  db: Db;
+  microsoftProof?: MicrosoftProof | null;
+}): SocialProviders {
   const providers: SocialProviders = {};
   const pair = (idKey: string, secretKey: string, label: string) =>
     parseCredentialPair({ environment, idKey, secretKey, label, ErrorType });
@@ -53,16 +142,10 @@ export function parseSocialProvidersFromEnvironment(
     "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET",
     "Microsoft sign-in",
   );
-  if (microsoft)
-    providers.microsoft = {
-      clientId: microsoft[0],
-      clientSecret: microsoft[1],
-      mapProfileToUser: (profile) => {
-        const { subject, picture } = readMicrosoftAvatarProfile(profile);
-        return persistLinkedExternalAvatar({ db, providerId: "microsoft", subject, value: picture });
-      },
-      tenantId: resolveMicrosoftTenantId(environment.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID),
-    };
+  if (microsoft) {
+    const tenantId = resolveMicrosoftTenantId(environment.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID, ErrorType);
+    providers.microsoft = configuredMicrosoftProvider({ pair: microsoft, tenantId, db, proof: microsoftProof });
+  }
   const github = pair("SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID", "SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET", "GitHub sign-in");
   if (github)
     providers.github = {

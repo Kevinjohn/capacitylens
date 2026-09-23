@@ -1,15 +1,10 @@
 import { m } from "@/i18n";
 import { DEFAULT_TIME_ZONE } from "../../lib/timezones";
 
-// Onboarding capture (P1.14): the create-company form sets language, week-start and time zone —
-// the three fields the server FREEZES after creation (a later change → 409). They're captured here,
-// with concrete defaults (never undefined: an unset frozen value can't be set later), and disabled
-// in Settings. English-only until P1.5.1 (Paraglide), so Language is a fixed display, not a chooser.
-// Company colour keeps the default preset automatically; there is no one-off colour decision in
-// the onboarding path.
-// Each option's `label` is a GETTER (`() => m.key()`), not a pre-resolved string — the AppShell LINKS
-// pattern (P1.5.2). Resolving at import would freeze the label to the load-time locale; the getter
-// defers it to render so an account/locale switch re-resolves the text (mapped at the call site).
+// The create-company form sets the language, week start, and time zone fields that the server
+// freezes after creation. Defaults are always concrete, and Settings does not edit them. Company
+// colour uses the default preset. Option labels are getters so they resolve at render time after a
+// locale change rather than at module import.
 export const WEEK_START_OPTIONS: { value: 0 | 1; label: () => string }[] = [
   { value: 1, label: () => m.picker_week_monday() },
   { value: 0, label: () => m.picker_week_sunday() },

@@ -33,7 +33,7 @@ in-product override.
 ## Where do I change company-login settings?
 
 Provider credentials and service mode are deployment configuration. Coordinate the
-member-facing cutover with an Admin and follow [How sign-in works](/company-login/).
+change with an Admin and follow [Require company sign-in](/company-login/move-to-single-sign-on).
 
 ## What should I collect during an incident?
 

@@ -9,6 +9,7 @@ import { ExternalProviderButton } from "../components/common/ExternalProviderBut
 import { hasGoogleProviderBrand, type AuthProviderInfo } from "./authContext";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import {
+  buildExternalSignInErrorUrl,
   clearExternalSignInError,
   hasExternalSignInError,
   readExternalSignInErrorCode,
@@ -18,6 +19,8 @@ import { LoginForm } from "./LoginForms";
 import { useOwnerSetup } from "./useOwnerSetup";
 import { usePasswordSignIn } from "./usePasswordSignIn";
 import { useSecondFactor } from "./useSecondFactor";
+import { startMicrosoftConnection } from "./microsoftConnectionClient";
+import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 
 type LoginScreenProps = {
   authMode: "password" | "sso";
@@ -33,7 +36,6 @@ function useLoginIds() {
     name: useId(),
     email: useId(),
     password: useId(),
-    passwordHelp: useId(),
     setupToken: useId(),
     setupTokenHelp: useId(),
     error: useId(),
@@ -95,17 +97,55 @@ export function LoginScreen({
       secondFactor={secondFactor}
       passwordSignIn={passwordSignIn}
       ownerSetup={ownerSetup}
-      signInWithProvider={createProviderSignIn(setBusy, setError, setPendingProvider)}
+      signInWithProvider={createProviderSignIn({
+        setBusy,
+        setError,
+        setPendingProvider,
+        bootstrap: needsSetup && !ownerSetup.setupClosed,
+        email: passwordSignIn.email,
+      })}
     />
   );
 }
 
-function createProviderSignIn(
-  setBusy: Dispatch<SetStateAction<boolean>>,
-  setError: Dispatch<SetStateAction<string | null>>,
-  setPendingProvider: Dispatch<SetStateAction<AuthProviderInfo | null>>,
-) {
+function createProviderSignIn({
+  setBusy,
+  setError,
+  setPendingProvider,
+  bootstrap,
+  email,
+}: {
+  setBusy: Dispatch<SetStateAction<boolean>>;
+  setError: Dispatch<SetStateAction<string | null>>;
+  setPendingProvider: Dispatch<SetStateAction<AuthProviderInfo | null>>;
+  bootstrap: boolean;
+  email: string;
+}) {
   return async (provider: AuthProviderInfo) => {
+    if (provider.id === "microsoft" && bootstrap) {
+      const normalizedEmail = normalizeAccountEmail(email);
+      if (!isAccountEmail(normalizedEmail)) {
+        setError(m.identity_err_email());
+        return;
+      }
+      setBusy(true);
+      setError(null);
+      setPendingProvider(provider);
+      try {
+        const result = await startMicrosoftConnection({
+          purpose: "bootstrap",
+          email: normalizedEmail,
+          callbackURL: window.location.href,
+          errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
+        });
+        window.location.assign(result.data.url);
+      } catch {
+        setPendingProvider(null);
+        setError(m.microsoft_verify_action_failed());
+        setBusy(false);
+      }
+      return;
+    }
     setBusy(true);
     setError(null);
     setPendingProvider(provider);
@@ -139,7 +179,6 @@ type LoginViewProps = {
     name: string;
     email: string;
     password: string;
-    passwordHelp: string;
     setupToken: string;
     setupTokenHelp: string;
     error: string;
@@ -152,12 +191,13 @@ type LoginViewProps = {
 
 function LoginView(props: LoginViewProps) {
   const setup = props.authMode === "password" && props.needsSetup && !props.ownerSetup.setupClosed;
-  const promotedGoogle =
-    !setup && props.authMode === "password" ? props.providers.find(hasGoogleProviderBrand) : undefined;
-  const trailingProviders = promotedGoogle
-    ? props.providers.filter((provider) => provider !== promotedGoogle)
-    : props.providers;
-  const showPromotedGoogle = promotedGoogle !== undefined && !props.secondFactor.twoFactorPending;
+  const promotedGoogle = props.providers.find(hasGoogleProviderBrand);
+  const promotedProviders =
+    !setup && props.authMode === "password"
+      ? props.providers.filter((provider) => provider === promotedGoogle || provider.id === "microsoft")
+      : [];
+  const trailingProviders = props.providers.filter((provider) => !promotedProviders.includes(provider));
+  const showPromotedProviders = promotedProviders.length > 0 && !props.secondFactor.twoFactorPending;
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
@@ -165,11 +205,11 @@ function LoginView(props: LoginViewProps) {
         <Card className="gap-4 py-4">
           <CardContent className="px-4">
             <LoginNotices degraded={props.degraded} hadUnsavedChanges={props.hadUnsavedChanges} />
-            {showPromotedGoogle && (
+            {showPromotedProviders && (
               <ProviderButtons
                 authMode={props.authMode}
                 setup={setup}
-                providers={[promotedGoogle]}
+                providers={promotedProviders}
                 busy={props.busy}
                 pendingProvider={props.pendingProvider}
                 error={props.error}
@@ -179,11 +219,16 @@ function LoginView(props: LoginViewProps) {
                 surroundButtons
               />
             )}
-            {showPromotedGoogle && <PasswordFallbackSeparator />}
+            {showPromotedProviders && <PasswordFallbackSeparator />}
             <LoginForm
               authMode={props.authMode}
               setup={setup}
-              passwordAutoFocus={!showPromotedGoogle}
+              microsoftBootstrap={
+                props.authMode === "sso" &&
+                props.needsSetup &&
+                props.providers.some((provider) => provider.id === "microsoft")
+              }
+              passwordAutoFocus={!showPromotedProviders}
               busy={props.busy}
               error={props.error}
               setError={props.setError}
@@ -196,6 +241,7 @@ function LoginView(props: LoginViewProps) {
               authMode={props.authMode}
               setup={setup}
               providers={trailingProviders}
+              errorId={props.ids.error}
               busy={props.busy}
               pendingProvider={props.pendingProvider}
               error={props.error}
@@ -214,7 +260,7 @@ function LoginHeading({ setup }: { setup: boolean }) {
     <div className="mb-6 text-center">
       <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
       <h1 className="text-lg font-semibold text-ink">{setup ? m.login_setup_heading() : m.login_sign_in()}</h1>
-      <p className="text-sm text-muted-foreground">{setup ? m.login_setup_intro() : m.login_subtitle()}</p>
+      {!setup && <p className="text-sm text-muted-foreground">{m.login_subtitle()}</p>}
     </div>
   );
 }
@@ -248,6 +294,7 @@ type ProviderButtonsProps = Pick<
   twoFactorPending: boolean;
   showSeparator?: boolean;
   surroundButtons?: boolean;
+  errorId?: string;
 };
 
 function ProviderButtons({
@@ -261,6 +308,7 @@ function ProviderButtons({
   signInWithProvider,
   showSeparator = true,
   surroundButtons,
+  errorId,
 }: ProviderButtonsProps) {
   if (twoFactorPending) return null;
   if (providers.length === 0)
@@ -275,13 +323,13 @@ function ProviderButtons({
   return (
     <div className="mt-4 flex flex-col gap-3">
       {showSeparator && <Separator />}
-      {setup && providers.some((provider) => provider.kind === "oidc") && (
+      {setup && providers.some((provider) => !provider.experimental) && (
         <p className="text-xs text-muted-foreground">{m.login_setup_external_hint()}</p>
       )}
       {providers.some((provider) => provider.experimental) && (
         <p className="text-xs text-muted-foreground">{m.login_external_experimental()}</p>
       )}
-      <FieldError>{authMode === "sso" ? error : null}</FieldError>
+      <FieldError id={errorId}>{authMode === "sso" ? error : null}</FieldError>
       {pendingProvider && (
         <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
           {m.login_external_redirecting({ provider: pendingProvider.label })}
@@ -319,7 +367,7 @@ function providerButtonsHaveSupportingText({
   setup,
 }: Pick<ProviderButtonsProps, "authMode" | "error" | "pendingProvider" | "providers" | "setup">) {
   return (
-    (setup && providers.some((provider) => provider.kind === "oidc")) ||
+    (setup && providers.some((provider) => !provider.experimental)) ||
     providers.some((provider) => provider.experimental) ||
     (authMode === "sso" && Boolean(error)) ||
     pendingProvider !== null

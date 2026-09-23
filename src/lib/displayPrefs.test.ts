@@ -17,8 +17,6 @@ import {
   readStoredBarLabelPrefs,
   writeStoredBarLabelPrefs,
   DEFAULT_BAR_LABEL_PREFS,
-  readStoredGettingStartedDismissed,
-  writeStoredGettingStartedDismissed,
 } from "./displayPrefs";
 
 describe("sidebar preference", () => {
@@ -357,27 +355,5 @@ describe("sidebar default (viewport-derived)", () => {
       throw new Error("blocked");
     }) as unknown as typeof window.matchMedia;
     expect(readDefaultSidebarOpen()).toBe(true);
-  });
-});
-
-describe("getting-started-dismissed preference", () => {
-  beforeEach(() => {
-    localStorage.removeItem("capacitylens/gettingStartedDismissed");
-  });
-
-  it("defaults to FALSE (not dismissed) when never chosen", () => {
-    expect(readStoredGettingStartedDismissed()).toBe(false);
-  });
-
-  it("round-trips an explicit on/off choice", () => {
-    writeStoredGettingStartedDismissed(true);
-    expect(readStoredGettingStartedDismissed()).toBe(true);
-    writeStoredGettingStartedDismissed(false);
-    expect(readStoredGettingStartedDismissed()).toBe(false);
-  });
-
-  it("persists under the documented storage key", () => {
-    writeStoredGettingStartedDismissed(true);
-    expect(localStorage.getItem("capacitylens/gettingStartedDismissed")).toBe("on");
   });
 });

@@ -2,7 +2,7 @@ import { canSeePrivateNames, canSeeTimeOffNote, type Role } from "@capacitylens/
 import { redactPrivateName } from "@capacitylens/shared/domain/privateNames";
 import type { Client, Project } from "@capacitylens/shared/types/entities";
 
-// THE SINGLE SOURCE OF ROLE-GATED FIELD POLICY (Finding 8).
+// Single source of role-gated field policy.
 //
 // Three independent behaviours enforce the SAME two field-confidentiality rules (owner/admin-only
 // time-off `note`; owner-only private client/project real names):
@@ -11,21 +11,18 @@ import type { Client, Project } from "@capacitylens/shared/types/entities";
 //   2. PIN ON WRITE — a redaction-blind writer's round-trip has NO key for the field the server
 //      redacted from them; without a pin, upsertRow would store NULL and SILENTLY ERASE data the
 //      writer never saw (sanitizeWrite → pinGatedFields).
-//   3. INCLUDE/EXCLUDE ON EXPORT — the per-account read (/api/state, the P2.6 export) decides the
+//   3. INCLUDE/EXCLUDE ON EXPORT — the per-account read decides the
 //      readSlice `include*` flags from the caller's role (visibilityForRole).
 //
-// The three used to hand-code the table names, field names and role predicate SEPARATELY. That was
-// a latent data-integrity trap: miss the write-pin and a redacted editor's save silently erases a
-// field they never saw; miss the export/include branch and the field LEAKS. This map is the single
-// catalogue every site derives from, so a NEW gated field cannot be added to fewer than all three
-// sites — one entry here wires redact + pin + include everywhere at once.
+// This catalogue supplies every path with the same table, field, and role predicates. A gated field
+// is defined once and used for redaction, write pinning, and export visibility.
 
 /** Caller-context options for {@link sanitizeWrite} and the read echo — facts about the WRITER/READER
  *  the row body alone cannot carry, so field-level gating runs at the single write funnel (not as
  *  per-route hacks). Owns the type here because the field-policy map is its single source of truth. */
 export interface SanitizeWriteOptions {
   /**
-   * P1.6 write-side counterpart of the read redaction: `false` when the caller's role may NOT see
+   * Write-side counterpart of read redaction: `false` when the caller's role may not see
    * the time-off `note` (the same `canSeeTimeOffNote` rule readSlice applies; auth OFF ⇒ always
    * `true`). A note-blind writer round-trips rows the server REDACTED — their PUT body has no
    * `note` key — so without a pin, upsertRow would store NULL (rowCodec: absent optional → SQL

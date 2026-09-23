@@ -152,10 +152,9 @@ function totpCode(secret: string, at = Date.now()): string {
 const SSO_ENV = {
   ...PASSWORD_ENV,
   SMALLSASS_ACCOUNT_MODE: "sso",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -294,6 +293,7 @@ async function createRequiredMfaFixture() {
   expect(before.statusCode).toBe(200);
   expect(before.json()).toMatchObject({
     mfaRequired: true,
+    requireMfa: true,
     user: { twoFactorEnabled: false },
   });
   return { app, email, password, signupCookie };
@@ -330,6 +330,7 @@ async function completeRequiredMfaEnrollment(options: {
   expect(after.statusCode).toBe(200);
   expect(after.json()).toMatchObject({
     mfaRequired: false,
+    requireMfa: true,
     user: { twoFactorEnabled: true },
   });
   expect(
@@ -376,13 +377,13 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     db.prepare(
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("federated-link", "sso", "subject-1", principalId, TS, TS);
+    ).run("federated-link", "google", "subject-1", principalId, TS, TS);
     recordSessionAssurance({
       db,
       sessionId: "federated-session",
       principalId,
       assurance: "federated",
-      providerId: "sso",
+      providerId: "google",
       now: TS,
     });
     const auth = {
@@ -411,7 +412,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     expect(me.json()).toMatchObject({
       mfaRequired: false,
       reauthMethod: "provider",
-      reauthProviderId: "sso",
+      reauthProviderId: "google",
     });
   });
 });
@@ -497,6 +498,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     expect(parseAuthMeResponse(me).authMode).toBe("password");
     expect(parseAuthMeResponse(me).user.email).toBe("tester@capacitylens.dev");
     expect(parseAuthMeResponse(me).mfaRequired).toBe(false);
+    expect(me.json()).toMatchObject({ requireMfa: false });
     // P1.7a: emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
     // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
     // is present and defaults correctly (the P1.10 invite-bind gate depends on it).

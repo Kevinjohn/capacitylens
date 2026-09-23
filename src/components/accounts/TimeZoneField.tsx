@@ -2,7 +2,7 @@ import { ChevronDown } from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "../ui/command";
 import { Button } from "../ui/button";
-import { Field, FieldDescription } from "../ui/field";
+import { Field } from "../ui/field";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { RequiredFieldLabel } from "../common/fields/fieldLayout";
 import type { Option } from "../common/ui";
@@ -14,7 +14,6 @@ interface TimeZoneFieldProps {
   value: string;
   onChange: (value: string) => void;
   options: Option[];
-  description?: string;
 }
 
 function TimeZoneMenu({
@@ -28,9 +27,16 @@ function TimeZoneMenu({
   onSelect: (value: string) => void;
 }) {
   return (
-    <PopoverContent id={popupId} aria-label={label} align="start" className="w-(--radix-popover-trigger-width) p-0">
-      <Command label={m.picker_timezone_search()}>
-        <div className="flex items-center border-b px-3">
+    <PopoverContent
+      id={popupId}
+      aria-label={label}
+      align="start"
+      sideOffset={8}
+      collisionPadding={8}
+      className="max-h-[calc(100dvh-1rem)] w-(--radix-popover-trigger-width) max-w-[calc(100vw-1rem)] overflow-hidden p-0"
+    >
+      <Command label={m.picker_timezone_search()} className="min-h-0 max-h-full">
+        <div className="flex min-w-0 shrink-0 items-center gap-2 border-b px-3 py-1">
           <CommandInput
             className="h-10"
             autoFocus
@@ -40,7 +46,7 @@ function TimeZoneMenu({
         </div>
         <CommandList
           aria-label={label}
-          className="max-h-[min(16rem,calc(var(--radix-popover-content-available-height)-3rem))]"
+          className="min-h-0 max-h-[min(16rem,calc(var(--radix-popover-content-available-height)-3.5rem))]"
         >
           <CommandEmpty>{m.picker_timezone_no_results()}</CommandEmpty>
           {options.map((option) => (
@@ -67,9 +73,8 @@ function TimeZoneMenu({
  * include friendly names, current abbreviations, and offsets. Closing the popover restores focus
  * to the trigger so form keyboard flow remains predictable.
  */
-export function TimeZoneField({ label, value, onChange, options, description }: TimeZoneFieldProps) {
+export function TimeZoneField({ label, value, onChange, options }: TimeZoneFieldProps) {
   const id = useId();
-  const descriptionId = `${id}-description`;
   const popupId = `${id}-options`;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -94,7 +99,6 @@ export function TimeZoneField({ label, value, onChange, options, description }: 
             aria-expanded={open}
             aria-controls={open ? popupId : undefined}
             aria-haspopup="dialog"
-            aria-describedby={description ? descriptionId : undefined}
             className="w-full justify-between gap-2 font-normal"
             onKeyDown={(event) => {
               if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
@@ -118,7 +122,6 @@ export function TimeZoneField({ label, value, onChange, options, description }: 
           }}
         />
       </Popover>
-      {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
     </Field>
   );
 }

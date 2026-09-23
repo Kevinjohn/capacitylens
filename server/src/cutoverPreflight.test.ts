@@ -2,7 +2,7 @@ import { constants, DatabaseSync } from "node:sqlite";
 import type { SsoCutoverAccountAdminPort } from "./accounts/adminPort/contracts";
 import type { SsoCutoverIdentityPort } from "./accounts/identityPort/contracts";
 import type { assertAccountControlPlaneCurrent } from "./accounts/sqliteAccountAdminPort";
-import type { ssoCutoverReadiness } from "./accounts/ssoCutover";
+import type { assertCompanyProviderCutoverReady, ssoCutoverReadiness } from "./accounts/ssoCutover";
 import type { Auth, AuthProviderInfo } from "./authConfig/authTypes";
 import type { assertAuditOutboxCurrent } from "./auditOutbox";
 import type { assertFederatedIdentitySchemaCurrent } from "./auth";
@@ -18,13 +18,17 @@ const dependencies = vi.hoisted(() => ({
   assertFederatedIdentitySchemaCurrent: vi.fn<typeof assertFederatedIdentitySchemaCurrent>(),
   mixedModeCutoverContext: vi.fn<typeof mixedModeCutoverContext>(),
   planDatabaseMigrations: vi.fn<typeof planDatabaseMigrations>(),
+  assertCompanyProviderCutoverReady: vi.fn<typeof assertCompanyProviderCutoverReady>(),
   ssoCutoverReadiness: vi.fn<typeof ssoCutoverReadiness>(),
 }));
 
 vi.mock("./accounts/sqliteAccountAdminPort", () => ({
   assertAccountControlPlaneCurrent: dependencies.assertAccountControlPlaneCurrent,
 }));
-vi.mock("./accounts/ssoCutover", () => ({ ssoCutoverReadiness: dependencies.ssoCutoverReadiness }));
+vi.mock("./accounts/ssoCutover", () => ({
+  assertCompanyProviderCutoverReady: dependencies.assertCompanyProviderCutoverReady,
+  ssoCutoverReadiness: dependencies.ssoCutoverReadiness,
+}));
 vi.mock("./auditOutbox", () => ({ assertAuditOutboxCurrent: dependencies.assertAuditOutboxCurrent }));
 vi.mock("./auth", () => ({ assertFederatedIdentitySchemaCurrent: dependencies.assertFederatedIdentitySchemaCurrent }));
 vi.mock("./cutoverContext", () => ({ mixedModeCutoverContext: dependencies.mixedModeCutoverContext }));
@@ -33,12 +37,12 @@ vi.mock("./db", () => ({ planDatabaseMigrations: dependencies.planDatabaseMigrat
 import { inspectSsoCutoverPreflight } from "./cutoverPreflight";
 
 const provider = {
-  id: "workforce",
-  label: "Wayne Enterprises",
-  kind: "oidc",
+  id: "google",
+  label: "Google",
+  kind: "social",
   experimental: false,
 } satisfies AuthProviderInfo;
-const otherProvider = { ...provider, id: "partner", label: "Stark Industries" } satisfies AuthProviderInfo;
+const otherProvider = { ...provider, id: "microsoft", label: "Microsoft" } satisfies AuthProviderInfo;
 const environment = { DISTINCTIVE_PREFLIGHT_ENVIRONMENT: "forwarded" };
 
 function unused(): never {
@@ -120,8 +124,8 @@ const auth = {
   },
   options: {} as Auth["options"],
   providers: [otherProvider, provider],
-  federatedIssuers: new Map([[provider.id, "https://identity.wayne.example"]]),
-  strictProvider: provider,
+  federatedIssuers: new Map([[provider.id, "https://accounts.google.com"]]),
+  defaultCompanyProvider: provider,
   ensureProviderBindings: unused,
   assertProviderBindings: unused,
   createCredentialUser: unusedAsync,
@@ -235,7 +239,37 @@ describe("inspectSsoCutoverPreflight refusals", () => {
   });
 });
 
+// The retained preflight cases share one named-provider context and call-order fixture.
+// eslint-disable-next-line max-lines-per-function
 describe("inspectSsoCutoverPreflight valid context", () => {
+  it("reports the same company-provider cutover refusal as startup", async () => {
+    dependencies.assertCompanyProviderCutoverReady.mockImplementation(() => {
+      throw new Error("Provider-required cutover needs a verified company-provider connection for 1 principal(s).");
+    });
+    const result = await inspectSsoCutoverPreflight(db, environment);
+    expect(result.ready).toBe(false);
+    expect(result.issues).toEqual([
+      { message: "Provider-required cutover needs a verified company-provider connection for 1 principal(s)." },
+    ]);
+  });
+
+  it("keeps detailed diagnostics for a single named provider", async () => {
+    dependencies.mixedModeCutoverContext.mockImplementation(async () => ({
+      ...createContext(undefined),
+      auth: { ...auth, providers: [provider] },
+    }));
+    const result = await inspectSsoCutoverPreflight(db, environment);
+    expect(result.ready).toBe(true);
+    expect(result.diagnostics).toBe(readiness);
+    expect(dependencies.ssoCutoverReadiness).toHaveBeenCalledWith({
+      provider,
+      providers: [provider],
+      identity,
+      administration,
+      openSignup: false,
+    });
+  });
+
   it.each([
     ["1", true],
     ["0", false],
@@ -243,25 +277,28 @@ describe("inspectSsoCutoverPreflight valid context", () => {
   ])("maps a valid context with open signup %s", async (openSignup, expectedOpenSignup) => {
     dependencies.mixedModeCutoverContext.mockImplementation(async () => createContext(openSignup));
 
-    await expect(inspectSsoCutoverPreflight(db, environment)).resolves.toBe(readiness);
+    await expect(inspectSsoCutoverPreflight(db, environment)).resolves.toMatchObject({
+      ready: !expectedOpenSignup,
+      providers: [otherProvider, provider],
+      diagnostics: null,
+    });
 
     expect(dependencies.assertAccountControlPlaneCurrent).toHaveBeenCalledWith(db);
     expect(dependencies.assertAuditOutboxCurrent).toHaveBeenCalledWith(db);
     expect(dependencies.assertFederatedIdentitySchemaCurrent).toHaveBeenCalledWith(db);
-    expect(dependencies.ssoCutoverReadiness).toHaveBeenCalledWith({
-      provider,
-      providers: [otherProvider, provider],
+    expect(dependencies.assertCompanyProviderCutoverReady).toHaveBeenCalledWith({
+      providerIds: new Set([otherProvider.id, provider.id]),
       identity,
       administration,
-      openSignup: expectedOpenSignup,
     });
+    expect(dependencies.ssoCutoverReadiness).not.toHaveBeenCalled();
     const callOrder = [
       dependencies.planDatabaseMigrations,
       dependencies.mixedModeCutoverContext,
       dependencies.assertAccountControlPlaneCurrent,
       dependencies.assertAuditOutboxCurrent,
       dependencies.assertFederatedIdentitySchemaCurrent,
-      dependencies.ssoCutoverReadiness,
+      dependencies.assertCompanyProviderCutoverReady,
     ].map((mock) => {
       const order = mock.mock.invocationCallOrder[0];
       if (order === undefined) throw new Error("Expected preflight dependency to be called.");
@@ -277,7 +314,7 @@ describe("inspectSsoCutoverPreflight valid context", () => {
       return constants.SQLITE_DENY;
     });
 
-    await expect(inspectSsoCutoverPreflight(db, environment)).resolves.toBe(readiness);
+    await expect(inspectSsoCutoverPreflight(db, environment)).resolves.toMatchObject({ ready: true });
 
     expect(authorizationEvents).toEqual([]);
   });

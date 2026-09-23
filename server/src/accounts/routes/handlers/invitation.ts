@@ -1,13 +1,12 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { Role } from "@capacitylens/shared/account/types";
-import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
-import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
-import { cleanText } from "@capacitylens/shared/lib/strings";
+import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import { NO_REPROMPT } from "../../../routes/routeShared";
 import { parseStrictIsoInstant } from "../isoInstant";
 import type { AccountRouteContext } from "../createReplyHelpers";
+import { parseSignupInvitationInput } from "./invitationSignupInput";
 
 function createAuthenticationRequiredError() {
   return new AccountContractError({
@@ -112,24 +111,6 @@ function parseCreateInvitationAuthorizationInput({
   };
 }
 
-function parseSignupInvitationInput(
-  req: FastifyRequest,
-): ParseResult<{ email: string; name: string; password: string }, string> {
-  const body = (req.body ?? {}) as {
-    email?: unknown;
-    name?: unknown;
-    password?: unknown;
-  };
-  const email = typeof body.email === "string" ? normalizeAccountEmail(body.email) : "";
-  if (!isAccountEmail(email)) return { failure: "A valid email address is required." };
-  const name = typeof body.name === "string" ? cleanText(body.name) : "";
-  if (name.length === 0) return { failure: "Name is required." };
-  if (typeof body.password !== "string" || passwordLengthFailure(body.password)) {
-    return { failure: `Password must be ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters.` };
-  }
-  return { value: { email, name, password: body.password } };
-}
-
 export async function createInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
@@ -214,10 +195,18 @@ export async function previewInvitation(req: FastifyRequest, reply: FastifyReply
   }
 }
 
+function permitsInvitationProvider(req: FastifyRequest, context: AccountRouteContext): boolean {
+  if (context.authMode !== "sso") return true;
+  const providerId = req.authenticationProviderId;
+  return (
+    providerId !== null &&
+    (context.permittedCompanyProviderIds?.has(providerId) ?? providerId === context.requiredSsoProviderId)
+  );
+}
+
 export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
-    requiredSsoProviderId,
     administration: accountAdminPort,
     command: accountCommand,
     fail: accountFail,
@@ -228,10 +217,7 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
   const { accountActor: actor, user } = req;
   if (!actor || !user) return accountFail(reply, createAuthenticationRequiredError());
   try {
-    if (
-      authMode === "sso" &&
-      (requiredSsoProviderId === null || req.authenticationProviderId !== requiredSsoProviderId)
-    ) {
+    if (!permitsInvitationProvider(req, context)) {
       // Preserve the route's unknown/used/expired precedence without consuming the invitation.
       // A valid token then receives the provider-specific refusal before any membership write.
       await accountAdminPort.previewInvitation({ token });

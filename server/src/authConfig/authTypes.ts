@@ -2,6 +2,7 @@ import type { BetterAuthOptions } from "better-auth";
 import type { AccountMode, BoundApplication } from "@capacitylens/shared/account/types";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { PASSWORD_CONTEXT_WORDS } from "../passwordSecurity";
+import type { MicrosoftProof } from "./microsoftProof";
 
 export type { AccountMode } from "@capacitylens/shared/account/types";
 
@@ -11,12 +12,12 @@ export type AuthMode = AccountMode;
 export type AuthProviderBrand = "generic" | "google" | "microsoft";
 
 /** Public, non-secret provider metadata exposed by `/api/auth/me` so the login screen never
- * hardcodes a provider id or advertises a provider the server did not configure. Every external
- * named social providers remain experimental; the strict generic OIDC path is first-class. */
+ * hardcodes a provider id or advertises a provider the server did not configure.
+ * GitHub remains experimental; Google and Microsoft are company providers. */
 export interface AuthProviderInfo {
   id: string;
   label: string;
-  kind: "social" | "oidc";
+  kind: "social";
   brand?: AuthProviderBrand;
   experimental: boolean;
 }
@@ -35,6 +36,7 @@ export interface CreateCredentialUserInput {
  *  structural interface once at creation — everything downstream stays decoupled from
  *  the library's generics. */
 export interface Auth {
+  microsoftProof?: MicrosoftProof | null;
   /** Web-standard Request → Response handler, mounted at /api/auth/* when mode ≠ off. */
   handler: (request: Request) => Promise<Response>;
   api: {
@@ -56,10 +58,12 @@ export interface Auth {
   options: BetterAuthOptions;
   /** Configured external identity providers, safe to return to unauthenticated clients. */
   providers: AuthProviderInfo[];
+  /** Configured company providers accepted by the current policy. GitHub is excluded. */
+  permittedCompanyProviderIds?: ReadonlySet<string>;
   /** Configured upstream issuer for each local provider alias. Used for `(issuer, subject)` keys. */
   federatedIssuers: ReadonlyMap<string, string>;
-  /** The one strict OIDC provider used by the supported SSO cutover ceremony. */
-  strictProvider?: AuthProviderInfo | null;
+  /** The first configured company provider, used for the default linking choice. */
+  defaultCompanyProvider?: AuthProviderInfo | null;
   /** Validate and persist immutable issuer-to-provider aliases after app migrations complete. */
   ensureProviderBindings: () => void;
   /** Verify every configured issuer/provider alias without writing (operator preflight). */
@@ -101,6 +105,7 @@ export interface Auth {
   beginFederatedLink?: (input: {
     headers: Headers;
     principalId: string;
+    providerId?: string;
     callbackURL: string;
     errorCallbackURL: string;
   }) => Promise<{ url: string; setCookies: string[] }>;
@@ -148,9 +153,8 @@ export interface SessionUser {
   emailVerified: boolean;
   twoFactorEnabled?: boolean;
   name: string;
-  /** The IdP-asserted avatar URL (OIDC `picture` claim) mapped into Better Auth's `user.image`
-   *  column. Already https-validated at capture time by strictOidc's `optionalPictureUrl`; `null`
-   *  for accounts/providers that carry no picture. */
+  /** A provider avatar URL mapped into Better Auth's `user.image` column.
+   *  `null` for accounts/providers that carry no picture. The session boundary checks HTTPS. */
   image: string | null;
   /** Server-only freshness input for step-up checks; never used as an authenticator. */
   sessionCreatedAt?: string;

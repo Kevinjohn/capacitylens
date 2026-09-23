@@ -26,8 +26,7 @@ export function isSameRequestOrigin({ req, reqOrigin, trustForwarded }: IsSameRe
   // Total function: BOTH the browser-set Origin AND the reconstructed `${protocol}://${host}` are
   // untrusted, attacker-/proxy-influenced strings. A broken reverse proxy (or a hand-forged request)
   // can present a Host that `new URL` rejects — 'exa mple.com', '[', 'host:port:port' — so the
-  // reconstruct MUST stay inside the guard alongside the Origin parse. A prior refactor moved it out,
-  // which turned an unparseable Host into an uncaught TypeError → unhandled 500. Either parse failing
+  // reconstructed URL stays inside the guard alongside the Origin parse. Either parse failing
   // means "cannot prove same-origin", which fails CLOSED: return false so the CSRF gate answers a
   // clean 403, never a 500.
   try {

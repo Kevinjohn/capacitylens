@@ -97,7 +97,7 @@ Hours or Days in **Settings** to use the overview.
 ## Control access
 
 Overview is available to Owners and Admins by default. An Owner or Admin can open **Settings**,
-find **Overview access**, and choose **Owner and Admin only**, **Owner, Admin, and Editors**, or
+find **Overview access**, and choose **Admins**, **Admins & Editors**, or
 **Everyone**.
 
 The chosen access applies to both the sidebar link and the direct `/overview` route.

@@ -1,5 +1,4 @@
-export type PlaywrightProjectName =
-  "chromium" | "db-backed" | "auth-backed" | "oidc-backed" | "webkit" | "firefox" | "rehearsal";
+export type PlaywrightProjectName = "chromium" | "db-backed" | "auth-backed" | "webkit" | "firefox" | "rehearsal";
 
 export interface E2ERunPreset {
   environment: Readonly<Record<string, string>>;
@@ -16,5 +15,5 @@ export function resolvePlaywrightRunMode(
   selectsOnlyExplicitCoreSpecs: (argv: readonly string[]) => boolean,
 ): {
   projects: readonly PlaywrightProjectName[];
-  serverProfile: "rehearsal" | "oidc" | "vite" | "standard";
+  serverProfile: "rehearsal" | "vite" | "standard";
 };

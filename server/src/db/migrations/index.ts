@@ -13,7 +13,6 @@ import {
   assertSchemaV36,
   assertSchemaV37,
   assertSchemaV38,
-  assertSchemaV39,
 } from "../../schema";
 import { ensureControlTables, assertControlTablesCurrent, SINGLE_OWNER_INDEX } from "../../controlTables";
 import { migrateSingleOwnerControlPlaneV10, assertSingleOwnerControlPlaneV10 } from "../../controlTables";
@@ -34,15 +33,21 @@ import {
   ACTIVITY_LIFECYCLE_V36_DEFINITION,
   ALLOCATION_TASK_V37_DEFINITION,
   RESOURCE_AVAILABILITY_V38_DEFINITION,
-  CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION,
   ACCOUNT_DATE_STYLE_V40_DEFINITION,
   runAccountDateStyleV40,
 } from "./definitions";
 import { RESOURCE_AVATAR_URL_V42_MIGRATION } from "./resourceAvatarUrlV42";
+import { CAPACITY_OVERVIEW_ACCESS_V39_MIGRATION } from "./capacityOverviewAccessV39";
 import { ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION } from "./accountMemberResourcesV43";
 import { INVITATION_PERSON_PROPOSALS_V44_MIGRATION } from "./invitationPersonProposalsV44";
-import { migrateTimeOffResourceNullableV33, COMPANY_CLOSURES_V34_DEFINITION } from "./definitions";
-import { migrateCompanyClosuresV34 } from "./definitions";
+import { GETTING_STARTED_DISMISSALS_V45_MIGRATION } from "./gettingStartedDismissalsV45";
+import { MICROSOFT_PROOF_V46_MIGRATION } from "./microsoftProofV46";
+import { validateMigrationSequence } from "./validateSequence";
+import {
+  migrateTimeOffResourceNullableV33,
+  COMPANY_CLOSURES_V34_DEFINITION,
+  migrateCompanyClosuresV34,
+} from "./definitions";
 import { ACCOUNT_BOUNDARY_STATE_V15_SQL, assertAccountBoundaryStateCurrent } from "../../accounts/state";
 import { AUDIT_OUTBOX_SQL, assertAuditOutboxCurrent } from "../../auditOutbox";
 import { SYNC_ORDERING_SQL, assertSyncOrderingCurrent } from "../../syncOrdering";
@@ -56,8 +61,11 @@ import { TENANT_ENTITY_INDEXES_V21_SQL, assertTenantAccountIndexesV21 } from "..
 import { FOREIGN_KEY_CHILD_INDEXES_V23_SQL, assertTenantEntityIndexesV23 } from "../../tenantIndexes";
 import { assertTenantEntityIndexesV34, ALLOCATION_PROJECT_INDEX_V35_SQL } from "../../tenantIndexes";
 import { assertTenantEntityIndexesCurrent } from "../../tenantIndexes";
-import { FEDERATED_IDENTITY_V25_DEFINITION, migrateFederatedIdentityV25 } from "../../auth";
-import { assertFederatedIdentitySchemaCurrent } from "../../auth";
+import {
+  FEDERATED_IDENTITY_V25_DEFINITION,
+  migrateFederatedIdentityV25,
+  assertFederatedIdentitySchemaCurrent,
+} from "../../auth";
 import { MEMBER_SIGN_IN_TRACKING_V26_DEFINITION } from "../../accounts/memberSignInTracking";
 import { migrateMemberSignInTrackingV26 } from "../../accounts/memberSignInTracking";
 import { assertMemberSignInTrackingSchemaCurrent } from "../../accounts/memberSignInTracking";
@@ -374,27 +382,13 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     assertTenantRelationshipIntegrityCurrent(db);
     assertTenantEntityIndexesCurrent(db);
   }),
-  defineMigration(39, "add-capacity-overview-access", CAPACITY_OVERVIEW_ACCESS_V39_DEFINITION, (db) => {
-    assertSchemaV38(db);
-    if (!tableHasColumns(db, "accounts", ["capacityOverviewAccess"])) {
-      db.exec("ALTER TABLE accounts ADD COLUMN capacityOverviewAccess TEXT;");
-    }
-    assertSchemaV39(db);
-    assertTenantRelationshipIntegrityCurrent(db);
-    assertTenantEntityIndexesCurrent(db);
-  }),
+  CAPACITY_OVERVIEW_ACCESS_V39_MIGRATION,
   defineMigration(40, "add-account-date-style", ACCOUNT_DATE_STYLE_V40_DEFINITION, runAccountDateStyleV40),
   defineMigration(41, "add-ownership-transfer-requests", OWNERSHIP_TRANSFER_REQUESTS_V41_SQL, runOwnershipTransfersV41),
   RESOURCE_AVATAR_URL_V42_MIGRATION,
   ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION,
   INVITATION_PERSON_PROPOSALS_V44_MIGRATION,
+  GETTING_STARTED_DISMISSALS_V45_MIGRATION,
+  MICROSOFT_PROOF_V46_MIGRATION,
 ];
-if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION)
-  throw new Error("DB_SCHEMA_VERSION must equal the newest explicit database migration.");
-for (let index = 1; index < DATABASE_MIGRATIONS.length; index += 1) {
-  const migration = DATABASE_MIGRATIONS[index];
-  const previous = DATABASE_MIGRATIONS[index - 1];
-  if (!migration || !previous || migration.version !== previous.version + 1) {
-    throw new Error("Explicit database migration versions must be contiguous and ordered.");
-  }
-}
+validateMigrationSequence(DATABASE_MIGRATIONS, DB_SCHEMA_VERSION);

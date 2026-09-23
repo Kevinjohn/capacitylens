@@ -50,10 +50,10 @@ describe("ExternalProviderButton", () => {
     }
   });
 
-  it("uses Google presentation for a branded strict OIDC provider", () => {
+  it("uses Google presentation for a explicitly branded Google provider", () => {
     render(
       <ExternalProviderButton
-        provider={{ id: "sso", kind: "oidc", brand: "google" }}
+        provider={{ id: "google", kind: "social", brand: "google" }}
         label="Continue with Google"
         googleLabel="Sign in with Google"
         microsoftLabel="Sign in with Microsoft"
@@ -66,7 +66,7 @@ describe("ExternalProviderButton", () => {
     expect(screen.getByTestId("google-mark-light")).toBeInTheDocument();
   });
 
-  it("uses Microsoft presentation for social and branded strict OIDC providers", () => {
+  it("uses Microsoft presentation for social and explicitly branded Google providers", () => {
     const { rerender } = render(
       <ExternalProviderButton
         provider={{ id: "microsoft", kind: "social" }}
@@ -81,7 +81,7 @@ describe("ExternalProviderButton", () => {
 
     rerender(
       <ExternalProviderButton
-        provider={{ id: "sso", kind: "oidc", brand: "microsoft" }}
+        provider={{ id: "microsoft", kind: "social", brand: "microsoft" }}
         label="Continue with Microsoft"
         googleLabel="Sign in with Google"
         microsoftLabel="Sign in with Microsoft"
@@ -107,22 +107,5 @@ describe("ExternalProviderButton", () => {
     expect(button).toHaveTextContent("Continue with GitHub");
     expect(button).toHaveClass("w-[215px]", "bg-[#24292f]", "text-white");
     expect(screen.getByTestId("github-mark")).toBeInTheDocument();
-  });
-
-  it("keeps configured copy and caller labels for generic OIDC providers", () => {
-    render(
-      <ExternalProviderButton
-        provider={{ id: "sso", kind: "oidc", brand: "generic" }}
-        label="Continue with Northwind Identity"
-        googleLabel="Sign in with Google"
-        microsoftLabel="Sign in with Microsoft"
-        aria-label="Use company SSO"
-      />,
-    );
-
-    const button = screen.getByRole("button", { name: "Use company SSO" });
-    expect(button).toHaveTextContent("Continue with Northwind Identity");
-    expect(screen.queryByTestId("microsoft-mark")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("github-mark")).not.toBeInTheDocument();
   });
 });

@@ -42,10 +42,9 @@ const SSO_ENV = {
   SMALLSASS_ACCOUNT_MODE: "sso",
   SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123",
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 async function appWith(

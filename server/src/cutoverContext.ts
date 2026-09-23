@@ -17,8 +17,8 @@ export async function mixedModeCutoverContext(db: Db, environment: Record<string
     deferDatabaseSetup: true,
     application: DEFAULT_ACCOUNT_APPLICATION,
   });
-  if (!configured.auth || configured.mode !== "password" || !configured.auth.strictProvider) {
-    throw new Error("The mixed profile did not resolve a strict OIDC provider.");
+  if (!configured.auth || configured.mode !== "password" || !configured.auth.defaultCompanyProvider) {
+    throw new Error("The mixed profile did not resolve a company provider.");
   }
   const authPlan = await planAuthSchemaMigrations(configured.auth);
   if (authPlan.pending) throw new Error(`Better Auth schema is not current: ${authPlan.tables.join(", ")}.`);
@@ -29,7 +29,7 @@ export async function mixedModeCutoverContext(db: Db, environment: Record<string
   return {
     resolvedEnvironment: resolved,
     auth: configured.auth,
-    provider: configured.auth.strictProvider,
+    provider: configured.auth.defaultCompanyProvider,
     identity: createBetterAuthIdentityPort({
       applicationId: DEFAULT_ACCOUNT_APPLICATION.applicationId,
       auth: configured.auth,

@@ -6,7 +6,7 @@
  * product version alone.
  */
 export const ACCOUNT_CONTRACT_VERSION = "1.1.0";
-export const ACCOUNT_CONFORMANCE_VERSION = "1.1.0";
+export const ACCOUNT_CONFORMANCE_VERSION = "2.0.0";
 export const MINIMUM_ACCOUNT_SECURITY_VERSION = "1.1.0";
 export const ACCOUNT_SECURITY_BASELINE_ID = "ACCOUNT-SEC-2026-08-07-01";
 
@@ -14,7 +14,7 @@ export const ACCOUNT_DEPLOYMENT_PROFILES = Object.freeze([
   "self-hosted-password",
   "self-hosted-mixed",
   "self-hosted-sso-only",
-  "hosted-oidc-only",
+  "hosted-sso-only",
 ] as const);
 
 export type AccountDeploymentProfile = (typeof ACCOUNT_DEPLOYMENT_PROFILES)[number];
@@ -25,14 +25,14 @@ export function isAccountDeploymentProfile(value: unknown): value is AccountDepl
 
 export interface AccountProfileCapabilities {
   readonly passwordSignIn: boolean;
-  readonly strictOidc: boolean;
+  readonly companyProviderRequired: boolean;
   readonly hosted: boolean;
 }
 
 export const ACCOUNT_PROFILE_CAPABILITIES: Readonly<Record<AccountDeploymentProfile, AccountProfileCapabilities>> =
   Object.freeze({
-    "self-hosted-password": Object.freeze({ passwordSignIn: true, strictOidc: false, hosted: false }),
-    "self-hosted-mixed": Object.freeze({ passwordSignIn: true, strictOidc: true, hosted: false }),
-    "self-hosted-sso-only": Object.freeze({ passwordSignIn: false, strictOidc: true, hosted: false }),
-    "hosted-oidc-only": Object.freeze({ passwordSignIn: false, strictOidc: true, hosted: true }),
+    "self-hosted-password": Object.freeze({ passwordSignIn: true, companyProviderRequired: false, hosted: false }),
+    "self-hosted-mixed": Object.freeze({ passwordSignIn: true, companyProviderRequired: true, hosted: false }),
+    "self-hosted-sso-only": Object.freeze({ passwordSignIn: false, companyProviderRequired: true, hosted: false }),
+    "hosted-sso-only": Object.freeze({ passwordSignIn: false, companyProviderRequired: true, hosted: true }),
   });

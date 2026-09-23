@@ -134,7 +134,7 @@ function readStateRoute(req: FastifyRequest, reply: FastifyReply, dependencies: 
 }
 
 function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDependencies): void {
-  // The login → account list that drives the AccountPicker (P1.13). OFF mode is trusted-local:
+  // The login → account list drives the AccountPicker. OFF mode is trusted-local:
   // EVERY account is accessible, so return all summaries with NO membership gate — branch on
   // authMode === 'off' BEFORE touching membership (the OFF guarantee). Auth-on returns ONLY the
   // caller's memberships through AccountAdminPort. Returns AccountSummary[] = [{ id, name, role }].
@@ -143,14 +143,13 @@ function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDepend
   // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES are entity-level;
   // reads stay whole-tree so hydration is one round-trip.
   //
-  // P1.4: when `?accountId=` is PRESENT, return that account's scoped slice via the TenantStore
-  // (OFF mode: no gate — trusted-local; auth-on: a thin membership-existence guard — a null role
-  // null ⇒ 403, so auth-on can't cross-tenant-read; the richer per-action can() gate is P1.5).
+  // With `?accountId=`, return that account's scoped slice through TenantStore. OFF mode is
+  // trusted-local; auth-on requires read authorization and cannot cross tenant boundaries.
   app.get("/api/state", (req, reply) => {
     // Refuse a cross-tenant read before any data leaves the DB. The authorize seam is the
     // single source of truth: OFF mode short-circuits to allow-all (trusted-local), auth-on
     // requires membership (read = any member, via can()) and 403s a non-member.
-    // P1.6 field-level redaction: the time-off `note` is owner/admin-only. Decide visibility from
+    // The time-off `note` is owner/admin-only. Decide visibility from
     // the caller's role and redact it SERVER-SIDE so it never serializes for an Editor/Viewer.
     // OFF mode = trusted-local ⇒ include. Auth-on: owner/admin include, editor/viewer omit.
     // The port role is non-null here (authorize('read') already proved membership); the `role !==
@@ -158,31 +157,31 @@ function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDepend
     // Derive the export/read include flags from the SAME GATED_FIELD_POLICIES predicates that
     // drive the write-pin and read-echo, so the three can never disagree. OFF is trusted-local ⇒
     // include everything; otherwise each gated field is included iff the role may see it.
-    // P2.5a admin "Archived & deleted" read. `?includeInactive=1` asks for the FULL slice
+    // `?includeInactive=1` asks for the full slice
     // (archived + soft-deleted rows retained), which is privileged: it is gated at the SAME tier as
     // purge (admin+ with a fresh session) — the lifecycle-management tier — so an editor/viewer or
     // stale privileged session cannot pull tombstones. OFF mode is trusted-local ⇒ always allowed.
     // A refusal is explicit rather than silently falling back to the active-only read.
     //
-    // P2.6 COMPLETE PER-TENANT EXPORT. This same admin/'purge'-gated `?includeInactive=1` read IS
-    // the roadmap's "complete per-tenant backup": exactly ONE account's slice (the accountId guard
+    // This admin/'purge'-gated `?includeInactive=1` read is the complete per-tenant backup: exactly
+    // one account's slice (the accountId guard
     // above), retaining archived + soft-deleted rows so nothing is silently dropped from the backup
-    // — UNLIKE the client's active-only "Export JSON" (P2.4), which projects via activeOnly and so
+    // — unlike the client's active-only "Export JSON", which projects via activeOnly and so
     // omits tombstones. The server-control tables (account_members / invites / Better Auth user|
     // session|account) are STRUCTURALLY excluded: readSlice only ever reads `accounts` + the scoped
     // tables, never the control plane, so membership/invite secrets/PII can never ride the export.
     // The slice composition is locked by app.export.test.ts.
-    // P2.4: the NORMAL app read HIDES archived/soft-deleted resources/clients/projects — pass
+    // The normal app read hides archived/soft-deleted resources/clients/projects: pass
     // includeInactive:false so readSlice drops them server-side (the same rule the client views
-    // apply via useActiveScopedData). The P2.5a admin read passes true to retain them.
-    // No ?accountId=. The auth-on cross-tenant whole-read is now CLOSED (P1.13 — the P1.4
-    // carry-forward): a logged-in user must hydrate PER ACCOUNT via ?accountId= (the client picker
+    // apply via useActiveScopedData). The privileged read passes true to retain them.
+    // Without ?accountId=, auth-on whole reads are closed: a logged-in user hydrates one account
+    // via ?accountId= (the client picker
     // → GET /api/accounts → GET /api/state?accountId=). Returning the whole DB to any authed user
     // was a tenant-isolation leak; 400 it. OFF mode is trusted-local, so it RETAINS the whole read
     // (db-helpers, the OFF db-backed e2e, and the OFF app.accounts tests all rely on it). The client
     // adapter treats this 400 on the NO-ARG read as "hydrate empty, show the picker" (see
     // ServerSyncAdapter.loadAll), so a no-arg bootstrap in auth-on lands on the picker, not an error.
-    // OFF: trusted-local whole read RETAINED. (P1.6 note: this whole read does NOT redact the
+    // OFF retains its trusted-local whole read. This whole read does not redact the
     // time-off `note` — fine, OFF is trusted-local and includes it everywhere.)
     return readStateRoute(req, reply, dependencies);
   });
@@ -214,8 +213,8 @@ async function provisionOrganisation(input: OrganisationProvisionInput): Promise
     bootstrapAuthorized,
     canonicalProductPayload: canonicalAccountRow,
     provisionProductData: () => {
-      // Finding 9: accounts validation is name-only (validate.ts), so it needs no cross-table
-      // data — a full-DB loadState here was pure waste. Scope to this account's (empty) slice.
+      // Account validation is name-only, so it needs no cross-table data. Validate against this
+      // account's empty slice.
       assertValidWrite({ state: emptyAppData(), table: "accounts", row: accountRow });
       insertRow(db, "accounts", accountRow);
       insertRow(db, "clients", buildInternalClient(id, now) as unknown as Record<string, unknown>);
@@ -235,6 +234,11 @@ async function provisionOrganisation(input: OrganisationProvisionInput): Promise
   return reply.code(201).send(provisioned.product);
 }
 
+function isPermittedCompanyProvider(auth: Auth | null, providerId: string | null): boolean {
+  if (providerId === null) return false;
+  return auth?.permittedCompanyProviderIds?.has(providerId) ?? providerId === auth?.defaultCompanyProvider?.id;
+}
+
 async function createOrganisation(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -242,7 +246,7 @@ async function createOrganisation(
 ): Promise<unknown> {
   const { authMode, auth, bootstrapToken, accountCommand, accountFail, sendFail } = dependencies;
 
-  // Constrained org-creation (P1.8): the ATOMIC "create a usable account" path, and — with auth
+  // Constrained org creation is the atomic "create a usable account" path and, with auth
   // on — the ONLY account-create path: the generic vectors (POST /api/accounts, PUT-as-create,
   // batch PUT-as-create) now refuse auth-on creates with a 403 directing here (see
   // ACCOUNT_CREATE_CLOSED_MESSAGE; they stay open in OFF mode for the trusted-local client).
@@ -277,10 +281,7 @@ async function createOrganisation(
     // persist a row the generic path would reject. The id is generated server-side when the body
     // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
     // is accepted and validated like any other write.
-    if (
-      authMode === "sso" &&
-      (auth?.strictProvider?.id === undefined || req.authenticationProviderId !== auth.strictProvider.id)
-    ) {
+    if (authMode === "sso" && !isPermittedCompanyProvider(auth, req.authenticationProviderId)) {
       return accountFail(
         reply,
         new AccountContractError({

@@ -32,7 +32,7 @@ selects Confirm the transfer.
 
 ## Why can I not choose a language when I create the company?
 
-The Language field shows English and is read-only. You choose Week starts on and Timezone during creation, and those settings are fixed afterward.
+The Language select contains only English and is read-only. You choose Week starts on and Timezone during creation, and those settings are fixed afterward.
 
 ## Why is there no Admin to choose as Next Owner?
 

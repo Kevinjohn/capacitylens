@@ -1,9 +1,5 @@
 import { m } from "@/i18n";
-import {
-  MAX_PASSWORD_INPUT_CODE_UNITS,
-  MAX_PASSWORD_LENGTH,
-  MIN_PASSWORD_LENGTH,
-} from "@capacitylens/shared/domain/password";
+import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 import { Button } from "../components/ui/button";
@@ -14,7 +10,6 @@ type LoginIds = {
   name: string;
   email: string;
   password: string;
-  passwordHelp: string;
   setupToken: string;
   setupTokenHelp: string;
   error: string;
@@ -23,6 +18,7 @@ type LoginIds = {
 type LoginFormProps = {
   authMode: "password" | "sso";
   setup: boolean;
+  microsoftBootstrap?: boolean;
   passwordAutoFocus: boolean;
   busy: boolean;
   error: string | null;
@@ -86,7 +82,40 @@ export function LoginForm(props: LoginFormProps) {
       />
     );
   }
+  if (props.microsoftBootstrap) {
+    return (
+      <MicrosoftBootstrapEmail
+        ids={props.ids}
+        passwordSignIn={props.passwordSignIn}
+        busy={props.busy}
+        error={props.error}
+      />
+    );
+  }
   return null;
+}
+
+function MicrosoftBootstrapEmail({
+  ids,
+  passwordSignIn,
+  busy,
+  error,
+}: Pick<LoginFormProps, "ids" | "passwordSignIn" | "busy" | "error">) {
+  return (
+    <LoginField
+      id={ids.email}
+      label={m.login_setup_email()}
+      type="email"
+      autoComplete="email"
+      value={passwordSignIn.email}
+      maxLength={MAX_EMAIL_LENGTH}
+      onChange={(event) => passwordSignIn.setEmail(event.target.value)}
+      disabled={busy}
+      aria-invalid={Boolean(error)}
+      aria-describedby={error ? ids.error : undefined}
+      autoFocus
+    />
+  );
 }
 
 type SecondFactorFormProps = Pick<LoginFormProps, "busy" | "error" | "setError"> & {
@@ -191,11 +220,8 @@ function OwnerSetupFields({ error, ids, ownerSetup, passwordSignIn }: OwnerSetup
         minLength={MIN_PASSWORD_LENGTH}
         maxLength={MAX_PASSWORD_INPUT_CODE_UNITS}
         onChange={(event) => passwordSignIn.setPassword(event.target.value)}
-        aria-describedby={[ids.passwordHelp, describedBy].filter(Boolean).join(" ")}
+        aria-describedby={describedBy}
       />
-      <p id={ids.passwordHelp} className="text-xs text-muted-foreground">
-        {m.login_setup_password_help({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH })}
-      </p>
       <LoginField
         id={ids.setupToken}
         label={m.login_setup_token()}

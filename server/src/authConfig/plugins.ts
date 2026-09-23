@@ -3,15 +3,12 @@ import { twoFactor } from "better-auth/plugins";
 
 export function buildPlugins({
   mode,
-  genericOidcPlugin,
   totpIssuer,
 }: {
   mode: "password" | "sso";
-  genericOidcPlugin: BetterAuthPlugin | null;
   totpIssuer: string;
 }): Pick<BetterAuthOptions, "plugins"> {
   const plugins: BetterAuthPlugin[] = [];
-  if (genericOidcPlugin) plugins.push(genericOidcPlugin);
   if (mode === "password") {
     plugins.push(
       twoFactor({

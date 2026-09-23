@@ -85,10 +85,9 @@ function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>[
 const SSO_ENV = {
   ...PASSWORD_ENV,
   SMALLSASS_ACCOUNT_MODE: "sso",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 const SETUP_TOKEN = "unit-test-owner-setup-token-0123456789abcdef";

@@ -105,7 +105,7 @@ to make it look substantial.
 - **Plain language.** Prefer the everyday word: "sign in" not "authenticate", "company
   login" not "IdP-initiated SSO", "link" not "federate". The first use of any term in
   the [glossary](reference/glossary.md) links to it. Jargon that has no everyday
-  substitute (OIDC, TOTP) is allowed _after_ the glossary link.
+  substitute (such as TOTP) is allowed _after_ the glossary link.
 - **Short sentences, active voice.** If a sentence needs a second comma, try splitting it.
 - **Time estimates are honest.** "Two minutes" means two minutes on a laptop with
   Docker already installed, and the page says so.

@@ -123,9 +123,9 @@ for a bug:
   [Upgrades](/self-hosting/upgrades).
 - **After any sign-in or cryptography change**: exercise enrolment,
   recovery-code storage, session revocation, password-reset invalidation and the
-  breached-password-service outage path in staging. For strict OIDC, also run
-  issuer/audience/signature/key-rotation tests and `pnpm run e2e:oidc` against the pinned
-  reference provider.
+  breached-password-service outage path in a test environment. For Google or
+  Microsoft company sign-in, verify the registered callback, admission, linking
+  and returning sign-in with the provider configuration used by that installation.
 
 ## What's next
 

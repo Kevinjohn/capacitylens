@@ -14,10 +14,6 @@ import { formatInviteExpiry } from "./inviteExpiry";
 
 const authClientMock = vi.hoisted(() => ({
   signInEmail: vi.fn(async (): Promise<{ error: { message?: string } | null }> => ({ error: null })),
-  signInOauth2: vi.fn(async (input?: { fetchOptions?: { signal?: AbortSignal } }) => {
-    void input;
-    return { error: null };
-  }),
   signInSocial: vi.fn(async (input?: { fetchOptions?: { signal?: AbortSignal } }) => {
     void input;
     return { error: null };
@@ -36,7 +32,6 @@ vi.mock("../../auth/authClient", () => ({
   authClient: {
     signIn: {
       email: authClientMock.signInEmail,
-      oauth2: authClientMock.signInOauth2,
       social: authClientMock.signInSocial,
     },
   },
@@ -407,7 +402,7 @@ registerInviteAcceptTest(() =>
         ...signedInAuth,
         authMode: "sso",
         user: null,
-        providers: [{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }],
+        providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
       },
       false,
       "/invite/secret-token?externalSignInError=1&error=provider-secret",
@@ -507,15 +502,15 @@ registerInviteAcceptTest(() =>
 );
 
 registerInviteAcceptTest(() =>
-  it("starts strict OIDC from the invite URL so the callback returns to the bearer route", async () => {
+  it("starts Google from the invite URL so the callback returns to the bearer route", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
-    authClientMock.signInOauth2.mockImplementationOnce(() => new Promise(() => {}));
+    authClientMock.signInSocial.mockImplementationOnce(() => new Promise(() => {}));
     const user = userEvent.setup();
     renderInvite({
       ...signedInAuth,
       authMode: "sso",
       user: null,
-      providers: [{ id: "sso", label: "Google", kind: "oidc", brand: "google", experimental: false }],
+      providers: [{ id: "google", label: "Google", kind: "social", brand: "google", experimental: false }],
     });
 
     await screen.findByTestId("invite-preview");
@@ -525,16 +520,16 @@ registerInviteAcceptTest(() =>
       }),
     );
     window.dispatchEvent(new Event("pagehide"));
-    const oauthCall = readProviderSignInCall(authClientMock.signInOauth2.mock.calls[0]?.[0] as unknown);
-    if (!oauthCall) throw new Error("Expected OIDC sign-in call");
-    expect(authClientMock.signInOauth2).toHaveBeenCalledWith({
-      providerId: "sso",
+    const socialCall = readProviderSignInCall(authClientMock.signInSocial.mock.calls[0]?.[0] as unknown);
+    if (!socialCall) throw new Error("Expected Google sign-in call");
+    expect(authClientMock.signInSocial).toHaveBeenCalledWith({
+      provider: "google",
       callbackURL: window.location.href,
       errorCallbackURL: "http://localhost:3000/?externalSignInError=1",
       disableRedirect: true,
       fetchOptions: { signal: expect.any(AbortSignal) as unknown as AbortSignal },
     });
-    expect(oauthCall.fetchOptions?.signal).toBeInstanceOf(AbortSignal);
+    expect(socialCall.fetchOptions?.signal).toBeInstanceOf(AbortSignal);
     expect(authClientMock.signInEmail).not.toHaveBeenCalled();
   }),
 );
@@ -1010,17 +1005,17 @@ registerInviteAcceptTest(() =>
 registerInviteAcceptTest(() =>
   it("surfaces a provider request rejection and re-enables the provider button", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    authClientMock.signInOauth2.mockRejectedValueOnce(new TypeError("offline"));
+    authClientMock.signInSocial.mockRejectedValueOnce(new TypeError("offline"));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     renderInvite({
       ...signedInAuth,
       authMode: "sso",
       user: null,
-      providers: [{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }],
+      providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
     });
 
     const button = await screen.findByRole("button", {
-      name: m.invite_continue_provider({ provider: "Single sign-on" }),
+      name: "Sign in with Google",
     });
     fireEvent.click(button);
 

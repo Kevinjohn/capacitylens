@@ -55,8 +55,8 @@ or themselves. Disabling or archiving someone stops them opening the company str
 away while keeping their role and history, and it can be undone from the same menu. Those
 people leave the main member list and move into the **No longer active** group beneath it,
 which stays closed until you open it. If a company somehow ends up with no Owner at all, see [A company has
-no Owner](/self-hosting/incidents#a-company-has-no-owner) — CapacityLens repairs that
-automatically in almost every case.
+no Owner](/self-hosting/incidents#a-company-has-no-owner) for the automatic upgrade repair and
+the guarded operator procedure.
 
 ![Members table showing roles, Resource links and row actions](../screenshots/flows/team_access_members.png)
 

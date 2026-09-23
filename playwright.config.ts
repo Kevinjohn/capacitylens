@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwright-server-scope";
 import { resolvePlaywrightRunMode } from "./scripts/playwright-run-mode.mjs";
-import { OIDC_FIXED_PORTS, ports, testShare } from "./scripts/ports.mjs";
+import { ports, testShare } from "./scripts/ports.mjs";
 
 // Playwright drives the real app via Vite. Three project flavours:
 //   chromium    — the in-memory DEMO build on the lane web port (VITE_CAPACITYLENS_DEMO=1).
@@ -21,15 +21,9 @@ const API_PORT = lanePorts.dbApi;
 const DB_WEB_PORT = lanePorts.dbWeb;
 const AUTH_API_PORT = lanePorts.authApi;
 const AUTH_WEB_PORT = lanePorts.authWeb;
-// OIDC is deliberately NOT lane-derived: e2e/oidc/dex.yaml pins the issuer and callback, and
-// scripts/e2e-oidc.mjs maps the dex host port fixedly in a container. `pnpm run e2e:oidc` is
-// single-flight machine-wide and keeps its historical ports.
-const OIDC_API_PORT = OIDC_FIXED_PORTS.oidcApi;
-const OIDC_WEB_PORT = OIDC_FIXED_PORTS.oidcWeb;
 const specExtension = String.raw`(?:ts|tsx|mts|cts)`;
 const coreSpec = coreSpecPattern;
-const flavourSpec = (flavour: "db" | "auth" | "oidc") =>
-  new RegExp(String.raw`\.${flavour}\.spec\.${specExtension}$`, "i");
+const flavourSpec = (flavour: "db" | "auth") => new RegExp(String.raw`\.${flavour}\.spec\.${specExtension}$`, "i");
 
 // Cross-browser opt-in (WebKit/Safari + Firefox/Gecko). `e2e:webkit` / `e2e:firefox` set the
 // matching *_ONLY flag: each runs ONLY that browser's twin of the core in-memory demo specs against
@@ -51,15 +45,9 @@ const reportPhase = reportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
 const devWebServer = {
   command: "pnpm run dev:demo",
   url: `http://localhost:${WEB_PORT}`,
-  // Never reuse: Playwright matches a running server by URL only — it can't see the persistence
-  // flavour. Post-flip, `pnpm run dev` boots a SERVER-mode dev server on the same port; reusing that
-  // for the in-memory demo specs would run them against the wrong backend. Always spawn a fresh
-  // demo build (the CI guard is moot now that we never reuse).
-  // CONSEQUENCE: if something is already holding this lane's web port, the spawn collides
-  // (strictPort) and the run fails to start rather than reusing it — BY DESIGN. Lanes are what stop
-  // that being another worktree: scripts/with-lane.mjs gives each concurrent run its own port, and
-  // clears this worktree's own orphans first. A full-stack `pnpm run dev` in THIS worktree still
-  // holds this lane's port, so stop it first.
+  // Never reuse: Playwright identifies a running server by URL, not persistence mode. Reusing a
+  // server-mode process would run in-memory demo specs against the wrong backend. Each run starts
+  // a fresh demo build; lane allocation prevents concurrent worktrees from colliding.
   reuseExistingServer: false,
   timeout: 120_000,
 };
@@ -78,8 +66,8 @@ export default defineConfig({
   workers: testShare(),
   retries: process.env.CI ? 2 : 0,
   // No global override here on purpose: only db-backed and rehearsal share a mutable SQLite
-  // fixture across tests (see their own `workers: 1`, below) — chromium, auth-backed, and
-  // oidc-backed are per-test-isolated (fresh browser context; auth specs mint unique
+  // fixture across tests (see their own `workers: 1`, below) — chromium and auth-backed
+  // are per-test-isolated (fresh browser context; auth specs mint unique
   // emails/orgs per test, e.g. login.auth.spec.ts's `${Date.now()}-${testInfo.workerIndex}`
   // suffix) and are safe at Playwright's default parallelism, including on CI.
   reporter: process.env.CI
@@ -128,18 +116,6 @@ export default defineConfig({
           },
         ]
       : []),
-    ...(projectEnabled("oidc-backed")
-      ? [
-          {
-            name: "oidc-backed",
-            testMatch: flavourSpec("oidc"),
-            use: {
-              ...devices["Desktop Chrome"],
-              baseURL: `http://localhost:${OIDC_WEB_PORT}`,
-            },
-          },
-        ]
-      : []),
     // Safari/WebKit & Firefox twins of the core in-memory demo specs (owner; WebKit 2026-06-13,
     // Firefox 2026-06-16): the exact same specs as `chromium` (testIgnore matches), run on the
     // other engines to catch Safari-/Gecko-only rendering and interaction regressions. Kept OUT of
@@ -175,7 +151,7 @@ export default defineConfig({
           },
         ]
       : []),
-    // Phase 6 rehearsal (docs-src/self-hosting/upgrades.md): exists only when CAPACITYLENS_REHEARSAL_URL is set —
+    // Upgrade rehearsal (docs-src/self-hosting/upgrades.md): exists only when CAPACITYLENS_REHEARSAL_URL is set —
     // the PRODUCTION build served behind a local /api proxy (scripts/serve-dist.mjs), with
     // the droplet's flags ON in the daemon. Reuses the db-backed specs verbatim; the
     // baseURL override is the only difference. Started by hand per the runbook, so the
@@ -205,66 +181,48 @@ export default defineConfig({
   webServer:
     runMode.serverProfile === "rehearsal"
       ? []
-      : runMode.serverProfile === "oidc"
-        ? [
+      : runMode.serverProfile === "vite"
+        ? [devWebServer]
+        : [
+            devWebServer,
             {
-              command: "pnpm run start:oidc-e2e",
+              command: "pnpm run start:e2e",
               cwd: "./server",
-              url: `http://localhost:${OIDC_API_PORT}/api/health`,
+              url: `http://localhost:${API_PORT}/api/health`,
               reuseExistingServer: false,
               timeout: 120_000,
             },
             {
-              command: "pnpm run dev:oidc",
-              // Readiness must traverse Vite's /api proxy, not merely prove that Vite can serve HTML.
-              url: `http://localhost:${OIDC_WEB_PORT}/api/health`,
+              command: "pnpm run dev:api",
+              // Warm and verify the browser's real Vite → API path before the first page mounts.
+              // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
+              url: `http://localhost:${DB_WEB_PORT}/api/health`,
               reuseExistingServer: false,
               timeout: 120_000,
-              env: { CAPACITYLENS_DEV_API_PORT: String(OIDC_API_PORT) },
+              // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
+              // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
+              // cross-origin exception that the shipped app never has.
+              env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT) },
             },
-          ]
-        : runMode.serverProfile === "vite"
-          ? [devWebServer]
-          : [
-              devWebServer,
-              {
-                command: "pnpm run start:e2e",
-                cwd: "./server",
-                url: `http://localhost:${API_PORT}/api/health`,
-                reuseExistingServer: false,
-                timeout: 120_000,
-              },
-              {
-                command: "pnpm run dev:api",
-                // Warm and verify the browser's real Vite → API path before the first page mounts.
-                // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
-                url: `http://localhost:${DB_WEB_PORT}/api/health`,
-                reuseExistingServer: false,
-                timeout: 120_000,
-                // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
-                // /api. This keeps the production CSP meaningful in E2E instead of granting a test-only
-                // cross-origin exception that the shipped app never has.
-                env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT) },
-              },
-              {
-                // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
-                // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
-                // already-running auth API — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
-                // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
-                // bootstrap-credential spec with a confusing red (same lesson as the web-port block
-                // above and the 2026-07-08 orphaned-:8787 war story in the decisions log).
-                command: "pnpm run start:auth-e2e",
-                cwd: "./server",
-                url: `http://localhost:${AUTH_API_PORT}/api/health`,
-                reuseExistingServer: false,
-                timeout: 120_000,
-              },
-              {
-                command: "pnpm run dev:auth",
-                url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
-                reuseExistingServer: false,
-                timeout: 120_000,
-                env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },
-              },
-            ],
+            {
+              // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
+              // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
+              // already-running auth API — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
+              // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
+              // bootstrap-credential spec with a confusing red (same lesson as the web-port block
+              // above and the 2026-07-08 orphaned-:8787 war story in the decisions log).
+              command: "pnpm run start:auth-e2e",
+              cwd: "./server",
+              url: `http://localhost:${AUTH_API_PORT}/api/health`,
+              reuseExistingServer: false,
+              timeout: 120_000,
+            },
+            {
+              command: "pnpm run dev:auth",
+              url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
+              reuseExistingServer: false,
+              timeout: 120_000,
+              env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },
+            },
+          ],
 });

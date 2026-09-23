@@ -18,7 +18,7 @@ export function bindFederatedProvider({ db, applicationId, issuer, providerId }:
     .get(applicationId, issuer) as { providerId: string } | undefined;
   if (byIssuer && byIssuer.providerId !== providerId) {
     throw new Error(
-      `OIDC provider id is immutable for issuer ${issuer}; expected ${byIssuer.providerId}, received ${providerId}.`,
+      `External provider id is immutable for issuer ${issuer}; expected ${byIssuer.providerId}, received ${providerId}.`,
     );
   }
   const byProvider = db
@@ -30,7 +30,7 @@ export function bindFederatedProvider({ db, applicationId, issuer, providerId }:
     )
     .get(applicationId, providerId) as { issuer: string } | undefined;
   if (byProvider && byProvider.issuer !== issuer) {
-    throw new Error(`OIDC provider id ${providerId} is already bound to issuer ${byProvider.issuer}.`);
+    throw new Error(`External provider id ${providerId} is already bound to issuer ${byProvider.issuer}.`);
   }
   db.prepare(
     `

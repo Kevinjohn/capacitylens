@@ -1,5 +1,36 @@
 # CapacityLens repository guidance
 
+## Proportionality: smallest complete change
+
+CapacityLens is a small hobby project for small agencies. Optimise every task for the smallest
+complete, readable and maintainable change that meets the agreed success and quality criteria.
+This governs discretionary scope, architecture and process throughout the instructions below;
+it does not waive security, data integrity, released compatibility or required checks.
+
+- Use the accepted plan and current requirements as the boundary. Do not re-plan settled work or
+  implement future scale, hypothetical deployments, speculative migrations or optional features.
+  Supporting work must serve an agreed outcome or address a demonstrated risk in the changed path.
+- Prefer existing patterns, library capabilities and a direct implementation. Add an abstraction,
+  configuration option, fallback, dependency or recovery mechanism only when the current task
+  needs it. Explain the concrete need briefly; do not create a separate justification document.
+  Smallest means least ongoing complexity, not compressed code or omitted error handling.
+- Default to one implementation owner and one cohesive PR. Use additional workers only for
+  independent work whose benefit exceeds the handoff cost, or for a required independent review.
+  Do not create extra planning, review or delivery stages merely because tools or skills offer them.
+- Test observable outcomes, relevant failure paths and preserved invariants. Reuse existing
+  coverage where it proves the requirement. Avoid tests that merely mirror implementation or
+  duplicate the same guarantee without exercising a distinct boundary.
+- Before repeating an expensive suite or review, identify the change, failure or new evidence
+  that invalidated the previous result. Repeat only the affected checks unless shared behaviour
+  requires broader coverage. Required local and CI checks still apply; do not add discretionary
+  reruns for reassurance or merely because another worker takes over.
+- Report optional improvements separately; do not implement them or open follow-up issues unless
+  requested. Stop extending the change once acceptance criteria and required quality checks pass:
+  complete the authorised delivery and report any remaining limitations.
+- If new evidence materially expands the expected work, report what grew, why it is necessary and
+  the smallest viable way forward before taking on that expansion. Continue unaffected authorised
+  work. Do not silently trade a small task for a larger project or impose arbitrary time cutoffs.
+
 ## GitHub and execution access
 
 GitHub access is available on the user's machine. A failure in one sandbox or tool does not
@@ -84,9 +115,9 @@ Use this workflow when triaging and delivering a checklist of open GitHub issues
    expected files, acceptance test, affected story/documentation decision, known invariants and
    merge predecessor.
 3. **Route high-priority work deliberately.** P1 implementation uses the designated senior
-   implementation role and receives one independent architecture/correctness review in addition to
-   the standard severity review below. P2 work may use the normal implementation role. Reviewers
-   must be independent of the implementation they assess.
+   implementation role. Its independent review in step 4 covers architecture, correctness and
+   severity together; do not add a second review for the same scope. P2 work may use the normal
+   implementation role. Reviewers must be independent of the implementation they assess.
 4. **Test and review in a fixed sequence.** During implementation, add or update the focused test
    that proves the reported failure and run the applicable focused checks. Once the change is
    complete, run formatting, type-checking and linting before review. Every P1 and P2 change then
@@ -168,7 +199,11 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 
 ## Authentication
 
-- Password auth and strict OIDC are supported; named social providers remain experimental.
+- Password authentication and named Google/Microsoft company providers are implemented. GitHub
+  remains experimental in mixed mode. `hosted-sso-only` requires mode `sso` and complete Google
+  and/or tenant-specific Microsoft configuration; it forbids password, GitHub and open signup.
+  Retired generic OIDC settings and the `hosted-oidc-only` profile fail startup before writes.
+  Deterministic checks are not evidence of live-provider validation.
 - Production password mode lets operators require TOTP MFA and defaults to breached-password
   screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory. The
   fresh-session gate applies only to: transferring company ownership, resetting another member's
@@ -176,9 +211,12 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   link/repair. Other administrative actions need only the actor's role and MFA policy. Data export
   is served under the `read` action, which the freshness check short-circuits; it is not gated.
 - New external principals require verified email plus an unused pre-authorised invitation. The
-  first SSO identity requires `SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS`. An already-authenticated local
-  principal may explicitly link a verified, email-matching strict-OIDC identity without consuming
-  another invitation.
+  first named-provider identity uses `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. Explicit
+  named-provider linking requires a fresh,
+  verified local principal and proof of the matching address without another invitation. Microsoft
+  may establish mailbox proof through its single-use, same-browser email ceremony. Returning
+  Microsoft sign-in uses stable `oid` and the stored proven email; never merge by email or repeat
+  mailbox proof for an established identity.
 - Password mode may include providers; `sso` mode removes password sign-in.
 - Never weaken server authorization because the UI hides an action.
 - Password/session reset authority is identity-global: enforce it across every account the target
@@ -218,7 +256,7 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
   Other prose, such as this file or task notes, needs formatting and content/link review; rebuild
   the documentation only if it consumes those files.
 - The operator set lives in `docs-src/self-hosting/` (install, configuration, TLS, backups,
-  upgrades, monitoring, incidents) and `docs-src/company-login/` (sign-in modes, SSO cutover).
+  upgrades, monitoring, incidents) and `docs-src/company-login/` (provider setup and sign-in modes).
 - Update `user-stories/REFERENCE.md` first for user-visible route, label, test-id or seed changes.
 - Add user-visible changes under `CHANGELOG.md` → `Unreleased`.
 - Authorised issue, pull-request and documentation work includes permission to publish reviewed
@@ -313,8 +351,8 @@ validation failures.
   isolation before discounting a failure. Concurrent runs share the machine through port lanes:
   `pnpm run e2e`, `gate`, `gate:server`, `test`, `dev` and the documentation servers claim a lane
   (and a CPU share) through `scripts/with-lane.mjs`, so up to ten worktrees can run at once without
-  colliding or oversubscribing. `pnpm run e2e:oidc` and `pnpm run dev:access` are the exceptions:
-  they keep fixed ports and are single-flight machine-wide. Never hardcode a port in a file that
+  colliding or oversubscribing. `pnpm run dev:access` is the exception:
+  it keeps fixed ports and is single-flight machine-wide. Never hardcode a port in a file that
   binds or addresses one — `pnpm run policy:ports` names the files that must derive theirs.
 
 ## Green gate

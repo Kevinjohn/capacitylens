@@ -12,17 +12,15 @@ import { API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 import { notifyInactiveDataChanged } from "../data/inactiveDataEvents";
 import type { ReauthAction } from "../auth/reauthCoordinator";
 
-// The SINGLE dispatch seam for the Active → Archived → Soft-deleted → Purged data-lifecycle (P2.5b),
-// shared by BOTH the management lists' Archive affordance (ResourceList/ClientList/ProjectList) and
-// the inline archive sections and Settings deleted-items view. Extracted so the server/local
-// branch + the post-mutation reload live in ONE place rather than being duplicated across four call
-// sites.
+// The dispatch seam for the Active → Archived → Soft-deleted → Purged lifecycle is shared by
+// management lists, inline archive sections, and Settings. It owns the server/local branch and
+// post-mutation reload.
 //
-// THE BRANCH (the decided architecture — see CLAUDE.md / P2.5b brief):
+// Behavior:
 //   • SERVER mode (`isServerConfigured()` true): lifecycle mutations are SERVER-AUTHORITATIVE so the
 //     interlocks (delete-needs-archived, purge tier + 30-day grace, resource-name PII obfuscation)
-//     stay enforced server-side. The UI POSTs the dedicated P2.5a route (modeled on MembersSection's
-//     hand-rolled fetches) and then RELOADS the active slice from the server — those routes write the
+//     stay enforced server-side. The UI posts the dedicated route and then reloads the active slice;
+//     those routes write the
 //     DB OUT-OF-BAND from the snapshot-diff sync, so without a reload the scheduler/lists wouldn't
 //     reflect the change AND the adapter's diff snapshot would desync (next ordinary edit would emit a
 //     spurious/garbage delta). On a non-OK response we surface `body.error` (a <30d purge → 409, a
@@ -230,7 +228,7 @@ function dispatchLocalLifecycle(
 }
 
 /**
- * The lifecycle dispatch hook (P2.5b). Returns {@link LifecycleActions} whose methods branch
+ * The lifecycle dispatch hook. Returns {@link LifecycleActions} whose methods branch
  * server-vs-local per the module header. An optional `onReloaded` callback fires after a SUCCESSFUL
  * server-mode mutation + reload — the admin section passes a `reloadKey` bump so its own
  * `?includeInactive=1` list re-fetches (the MembersSection idiom); the lists pass nothing (the active

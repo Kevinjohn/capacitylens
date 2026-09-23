@@ -4,42 +4,29 @@ import { LoginScreen } from "./LoginScreen";
 
 vi.mock("./authClient", () => ({
   authClient: {
-    signIn: { email: vi.fn(), oauth2: vi.fn(), social: vi.fn() },
+    signIn: { email: vi.fn(), social: vi.fn() },
     signUp: { email: vi.fn() },
     twoFactor: { verifyTotp: vi.fn(), verifyBackupCode: vi.fn() },
   },
 }));
 
 describe("LoginScreen provider brands", () => {
-  const googleSocial = { id: "google", label: "Google", kind: "social", experimental: true } as const;
-  const googleOidc = {
-    id: "sso",
-    label: "Google",
-    kind: "oidc",
-    brand: "google",
-    experimental: false,
-  } as const;
+  const google = { id: "google", label: "Google", kind: "social", experimental: false } as const;
+  const microsoft = { id: "microsoft", label: "Microsoft", kind: "social", experimental: false } as const;
 
-  it("puts branded Google OIDC before the password fallback", () => {
-    render(<LoginScreen authMode="password" providers={[googleOidc]} onSignedIn={vi.fn()} />);
-
+  it("puts Google before the password fallback", () => {
+    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
-    const email = screen.getByLabelText("Email");
-    expect(googleButton.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      googleButton.compareDocumentPosition(screen.getByLabelText("Email")) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByText("or use your password")).toBeInTheDocument();
   });
 
-  it("keeps both Google methods when social and OIDC are configured", () => {
-    render(<LoginScreen authMode="password" providers={[googleSocial, googleOidc]} onSignedIn={vi.fn()} />);
-
-    const googleButtons = screen.getAllByRole("button", { name: "Sign in with Google" });
-    expect(googleButtons).toHaveLength(2);
-    const socialButton = googleButtons[0];
-    const oidcButton = googleButtons[1];
-    if (!socialButton || !oidcButton) throw new Error("Expected both Google sign-in methods.");
-    const email = screen.getByLabelText("Email");
-    const passwordButton = screen.getByRole("button", { name: "Sign in" });
-    expect(socialButton.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(passwordButton.compareDocumentPosition(oidcButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  it("renders both configured company providers once with their own branding", () => {
+    render(<LoginScreen authMode="sso" providers={[google, microsoft]} onSignedIn={vi.fn()} />);
+    expect(screen.getAllByRole("button", { name: "Sign in with Google" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Sign in with Microsoft" })).toHaveLength(1);
+    expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
   });
 });

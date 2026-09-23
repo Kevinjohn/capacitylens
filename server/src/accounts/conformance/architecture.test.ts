@@ -37,7 +37,7 @@ function sourceFiles(directory: string): string[] {
     const path = resolve(directory, entry.name);
     if (entry.isDirectory()) return sourceFiles(path);
     const source = /\.(?:[cm]?[jt]sx?)$/.test(entry.name);
-    const test = /\.(?:test|spec)\.(?:[cm]?[jt]sx?)$/.test(entry.name);
+    const test = /\.(?:test|spec|testSupport)\.(?:[cm]?[jt]sx?)$/.test(entry.name);
     return source && !test ? [path] : [];
   });
 }
@@ -105,10 +105,7 @@ function isControlTable(file: string): boolean {
 }
 
 function isBetterAuthOwner(file: string): boolean {
-  return (
-    [resolve(serverRoot, "auth.ts"), resolve(serverRoot, "strictOidc.ts")].includes(file) ||
-    file.startsWith(resolve(serverRoot, "authConfig") + sep)
-  );
+  return file === resolve(serverRoot, "auth.ts") || file.startsWith(resolve(serverRoot, "authConfig") + sep);
 }
 
 interface IsRowMapperTypeInput {
@@ -271,10 +268,14 @@ describe("account-boundary architecture", () => {
 const identitySqlOwners = new Set([
   resolve(serverRoot, "auth.ts"),
   resolve(serverRoot, "authConfig/authAdapter.ts"),
-  resolve(serverRoot, "authConfig/betterAuthProfileCompatibility.ts"),
+  resolve(serverRoot, "authConfig/externalAvatar.ts"),
   resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
   resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
   resolve(serverRoot, "authConfig/sessionActivity.ts"),
+  resolve(serverRoot, "authConfig/microsoftProof.ts"),
+  resolve(serverRoot, "authConfig/microsoftProofAuthorization.ts"),
+  resolve(serverRoot, "authConfig/socialProviders.ts"),
+  resolve(serverRoot, "db/microsoftProofGateSql.ts"),
   resolve(serverRoot, "accounts/identityPort/credentials.ts"),
   resolve(serverRoot, "accounts/identityPort/cutover.ts"),
   resolve(serverRoot, "accounts/identityPort/erasure.ts"),
@@ -298,6 +299,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "db/migrations/index.ts"),
       resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
       resolve(serverRoot, "db/migrations/invitationPersonProposalsV44.ts"),
+      resolve(serverRoot, "db/microsoftProofGateSql.ts"),
       resolve(serverRoot, "controlTables/assert.ts"),
       resolve(serverRoot, "controlTables/inviteRetention.ts"),
       resolve(serverRoot, "controlTables/invites.ts"),
@@ -309,6 +311,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/proofInvitationPort.ts"),
     ]);
     // Database bootstrap and the concrete account-admin adapter compose control-table operations.
     // Routes and coordinators consume their ports instead; this list never grants directory access.
@@ -331,6 +334,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/cutover.ts"),
       resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/proofInvitationPort.ts"),
       resolve(serverRoot, "accounts/adminPort/membership.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransfer.ts"),
       resolve(serverRoot, "accounts/adminPort/ownershipTransferRequests.ts"),
@@ -434,8 +438,9 @@ describe("account-boundary architecture", () => {
 
   it("centralizes executable browser account URLs in the account client", () => {
     const accountClient = resolve(browserRoot, "account/accountClient.ts");
+    const gettingStartedClient = resolve(browserRoot, "account/gettingStartedClient.ts");
     for (const file of sourceFiles(browserRoot)) {
-      if (file === accountClient) continue;
+      if (file === accountClient || file === gettingStartedClient) continue;
       const source = readFileSync(file, "utf8");
       expect(source, file).not.toMatch(/fetch\s*\([^\n]*(?:\/api\/(?:auth\/me|accounts|invites|orgs))/);
       expect(source, file).not.toMatch(/apiFetch(?:Reauth)?\s*\([^\n]*(?:\/api\/(?:accounts|invites|orgs))/);
@@ -462,9 +467,11 @@ describe("scanner calibration", () => {
       fixture(`${boundary}/${facade}`, "export {};");
       const sibling = fixture(`${boundary}/${directory}/new/nested.ts`, "export {};");
       const test = fixture(`${boundary}/${directory}/new/nested.test.ts`, "export {};");
+      const testSupport = fixture(`${boundary}/${directory}/new/nested.testSupport.ts`, "export {};");
       const paths = boundaryPaths(root, boundary);
       expect(paths).toEqual([facade, relative(root, sibling)]);
       expect(paths).not.toContain(relative(root, test));
+      expect(paths).not.toContain(relative(root, testSupport));
     },
   );
 

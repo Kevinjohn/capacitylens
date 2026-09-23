@@ -2,16 +2,9 @@ import { SINGLE_COMPANY_CAP_MESSAGE } from "@capacitylens/shared/account/policy"
 import { type Db } from "../../db";
 import { IMMUTABLE_ACCOUNT_FIELDS } from "../../validate";
 
-/** Auth-on closure of the generic account-create paths. Now that POST /api/orgs exists (P1.8 — the
- * ATOMIC account + built-in Internal client + owner-membership create), the old "onboarding
- * exemption" was an authz bypass: any authenticated user (even one with NO membership anywhere)
- * could mint bare `accounts` rows that NEVER become usable — no membership is ever backfilled (only
- * the Internal client backfills, at restart), so each row is a permanent orphan its own creator
- * cannot read. With auth on, both remaining create vectors (PUT-as-create here, batch PUT-as-create)
- * refuse with this message; /api/orgs covers every legitimate case (first-run bootstrap at zero
- * accounts, an Owner/Admin or bootstrap-token caller under multiAccount). authMode 'off' keeps the
- * open generic create — trusted-local parity: the demo/local/e2e client syncs new companies through
- * the entity routes. */
+/** Auth-on closure of generic account-create paths. POST /api/orgs atomically creates an account,
+ * built-in Internal client, and owner membership. Generic create vectors refuse in auth-on mode so
+ * accounts cannot be created without membership; trusted-local OFF mode retains generic creation. */
 export const ACCOUNT_CREATE_CLOSED_MESSAGE =
   "Accounts cannot be created through this endpoint when authentication is on. Use POST /api/orgs.";
 
@@ -22,8 +15,7 @@ export const ACCOUNT_CREATE_CLOSED_MESSAGE =
 // import keeps working unchanged.
 export { SINGLE_COMPANY_CAP_MESSAGE };
 
-/** The P1.14 frozen-field refusal, shared by PUT, PATCH and the batch loop (it was three identical
- * string literals, which is exactly how a message drifts between vectors). */
+/** Frozen-field refusal shared by PUT, PATCH, and the batch loop. */
 export const ACCOUNT_FROZEN_FIELDS_MESSAGE =
   "Language, week start and time zone are set when the company is created and cannot be changed.";
 
@@ -58,7 +50,7 @@ export function buildCanonicalAccountProductPayload(row: Record<string, unknown>
 }
 
 /**
- * True when a sanitised accounts write would CHANGE an already-set frozen field (P1.14) — the
+ * True when a sanitised accounts write would change an already-set frozen field — the
  * violation signal the PUT/PATCH/batch handlers all turn into a 409 — the batch path throws an
  * AccountContractError with code CONFLICT, which the sync client maps through
  * statusForAccountFailure to the same 409 (its authoritative-reload trigger), not a 400.

@@ -24,6 +24,7 @@ function auth(getSession: Auth["api"]["getSession"]): Auth {
     },
     options: {},
     providers: [],
+    permittedCompanyProviderIds: new Set(["sso"]),
     federatedIssuers: new Map([["sso", "https://issuer.example"]]),
     ensureProviderBindings: vi.fn(),
     createCredentialUser: vi.fn(async () => ({ id: "created-principal" })),
@@ -174,6 +175,42 @@ it("normalizes a federated application session without exposing provider records
       },
     },
   });
+});
+
+it("rejects a pre-existing GitHub session after switching to company-provider-only sign-in", async () => {
+  insertIdentityUser({ db, id: sessionUser.id, name: sessionUser.name, email: sessionUser.email });
+  insertIdentityAccount({
+    db,
+    id: "github-link",
+    providerId: "github",
+    accountId: "github-subject",
+    userId: sessionUser.id,
+  });
+  recordSessionAssurance({
+    db,
+    sessionId: "github-session",
+    principalId: sessionUser.id,
+    assurance: "federated",
+    providerId: "github",
+  });
+  const port = identityPort({
+    auth: {
+      ...auth(async () => ({
+        user: sessionUser,
+        session: {
+          id: "github-session",
+          createdAt: NOW,
+          expiresAt: LATER,
+        },
+      })),
+      federatedIssuers: new Map([
+        ["sso", "https://issuer.example"],
+        ["github", "https://github.com"],
+      ]),
+    },
+    authMode: "sso",
+  });
+  await expect(port.verifyApplicationSession({ headers: new Headers() })).resolves.toBeNull();
 });
 
 it("correlates only by the exact issuer and subject", async () => {

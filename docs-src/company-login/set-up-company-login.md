@@ -1,329 +1,209 @@
 ---
-title: Set up your company login
-description: Create one app inside Google, Microsoft, Okta or Keycloak and copy four values into CapacityLens — about ten minutes, no certificates.
+title: Set up Google or Microsoft sign-in
+description: Register CapacityLens with Google Workspace or Microsoft Entra ID, add its callback address, and configure the matching server settings.
 ---
 
-# Set up your company login
+# Set up Google or Microsoft sign-in
 
-You're going to create one "app" inside the system your company already uses to sign
-people in — Google, Microsoft, Okta, Keycloak — and copy four values out of it into
-CapacityLens. It takes about ten minutes. Nothing to install, no certificates, no XML.
+This guide connects CapacityLens to the Google Workspace or Microsoft Entra ID
+account your team already uses. You need access to your provider's admin console
+and to the CapacityLens server settings.
 
-You need to be an administrator of that system — the person who can add users to
-Google Workspace or Microsoft 365. If that isn't you, this is a ten-minute favour to
-ask of whoever it is.
+CapacityLens sends people to the provider to sign in, then receives them at a
+provider-specific callback address. The provider must have the exact callback
+address registered. For Google, use `/api/auth/callback/google`; for Microsoft,
+use `/api/auth/callback/microsoft`.
 
-## What you're actually doing
+## Before you start
 
-When someone clicks **"Continue with company login"** in CapacityLens, they get bounced
-over to Google (or Microsoft, or Okta), sign in there exactly as they do for email, and
-get bounced back. CapacityLens never sees their password. For that handshake to work,
-the two systems have to know about each other: your provider needs to know CapacityLens
-exists and where to send people back to, and CapacityLens needs to know where your
-provider lives and what its password — sorry, its [client
-secret](/reference/glossary#client-secret) — is.
+Write down the public CapacityLens address from
+`SMALLSASS_ACCOUNT_PUBLIC_URL`. Use the same HTTPS address that people use in
+their browser, without a trailing slash. For example:
 
-So the job is: create the app in your provider, paste one address _into_ it, and copy
-four values _out_ of it. That's the whole thing.
+`https://planning.example.com`
 
-## 1. Work out the one address you'll paste in
+Keep the client secret in your secret manager or protected server environment.
+Never put it in browser code, a public issue, or a committed configuration file.
 
-Every provider asks for the same thing, under a slightly different name — "[redirect
-URI](/reference/glossary#redirect-uri)", "callback URL", "sign-in redirect URI". They
-all mean "where do I send people back to?" Yours is your CapacityLens web address with
-a fixed tail on the end:
+## Google Workspace
 
-```text
-https://planning.your-agency.com/api/auth/oauth2/callback/sso
-```
+1. Open the [Google Cloud Console](https://console.cloud.google.com/) and
+   select or create a project for CapacityLens.
+2. Open **Google Auth Platform**. Complete the app's branding details and set
+   **Audience** to **Internal**. This limits the company application to your
+   Google Workspace organisation. If Internal is unavailable, ask your Workspace
+   administrator to resolve the organisation/project setup before continuing.
+3. Under **Clients**, create an OAuth client. Choose **Web application**.
+4. Add this value under **Authorised redirect URIs**, replacing the host with
+   your public CapacityLens address:
 
-Swap in your own address for the first part; leave the tail (`/api/auth/oauth2/callback/sso`)
-exactly as it is.
+   `https://planning.example.com/api/auth/callback/google`
 
-The first part must be identical to the `SMALLSASS_ACCOUNT_PUBLIC_URL` you already run
-CapacityLens on — same `https`, same hostname, no trailing slash. The tail is fixed.
-Providers compare this character for character, so a stray slash or an `http` where you
-meant `https` is the single most common reason the first click fails.
+5. Create the client and copy its **Client ID** and **Client secret**. Google
+   shows the client secret when it is created; store it securely.
 
-::: tip
-Write your redirect URI down now, in a note you can copy from. You'll paste it once
-into your provider and never think about it again.
-:::
+Google requires the redirect address to match the registered address exactly,
+including its scheme, hostname, path, and trailing slash. See Google's guide to
+[OAuth for web server applications](https://developers.google.com/identity/protocols/oauth2/web-server)
+and [OAuth client setup](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid).
 
-## 2. Collect four values from your provider
-
-Whichever provider you use, you're hunting for the same four things. Everything after
-this section is just where each provider hides them.
-
-| What it's called | What it looks like                                                                         | What it's for                                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| Client ID        | A longish public string. Not secret.                                                       | CapacityLens introduces itself with this.                                                                  |
-| Client secret    | A random string, usually shown **once**. Genuinely secret — treat it like a root password. | Proves the introduction is really from your server.                                                        |
-| Discovery URL    | An address ending `/.well-known/openid-configuration`                                      | One address that tells CapacityLens all the others. It's why you never have to type web addresses by hand. |
-| Issuer           | The exact `"issuer"` value in the discovery document.                                     | Ties stored identities to this provider.                                                                    |
-
-::: tip The trick that saves you an hour
-Open the discovery URL in a browser. You'll get a wall of JSON. Near the top is a field
-called `"issuer"`. Copy its value exactly — that's the
-[issuer](/reference/glossary#issuer), and it has to match to the character. Guessing
-the issuer instead of reading it is the number one reason the first sign-in click fails.
-:::
-
-## 3. Find your provider and follow the clicks
-
-Open the section for the provider you use. If yours isn't listed, [Anything
-else](#anything-else) tells you what to look for — the steps are almost identical
-everywhere, because they're all doing the same job.
-
-### Google Workspace
-
-For teams that use Gmail for work.
-
-::: tip
-Provider consoles change their layout often, so treat the numbered steps below as
-approximate breadcrumbs, not an exact map. If a screen doesn't match, [Google's own
-guide to creating an OpenID Connect
-app](https://developers.google.com/identity/protocols/oauth2/openid-connect) is the
-authoritative source.
-:::
-
-1. Go to `console.cloud.google.com` and sign in with an administrator account. (Yes,
-   the cloud console, not the Workspace admin console — logins live here.)
-2. At the top, **pick a project or create one**. If in doubt, create one called
-   `CapacityLens`. A project is just a folder.
-3. In the left menu open **APIs & Services → OAuth consent screen**. Choose
-   **Internal** — that means only people in your own organisation can ever use this
-   login. Put in an app name your staff will recognise and a support email. Save.
-4. Now **APIs & Services → Credentials → Create credentials → OAuth client ID**.
-   Application type: **Web application**.
-5. Under **Authorised redirect URIs**, click **Add URI** and paste the address you
-   wrote down. Click **Create**.
-6. Google shows your **Client ID** and **Client secret** in a box. Copy both now. The
-   secret can be regenerated later, but not re-read.
-
-Your other two values are the same for every Google customer:
-
-```text
-Discovery URL   https://accounts.google.com/.well-known/openid-configuration
-Issuer          https://accounts.google.com
-```
-
-### Microsoft 365 / Entra ID
-
-For teams that use Outlook for work.
-
-::: tip
-Provider consoles change their layout often, so treat the numbered steps below as
-approximate breadcrumbs, not an exact map. If a screen doesn't match, [Microsoft's own
-guide to registering an
-app](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
-is the authoritative source.
-:::
-
-1. Go to `entra.microsoft.com` and sign in as an administrator.
-2. Open **Applications → App registrations → New registration**.
-3. Name it `CapacityLens`. For account types choose **"Accounts in this
-   organizational directory only"** — your staff, nobody else.
-4. Under **Redirect URI**, pick the platform **Web** and paste your address. Click
-   **Register**.
-5. You land on the Overview page. Copy the **Application (client) ID** — that's your
-   client ID — and also the **Directory (tenant) ID**, which is Microsoft's name for
-   "your company". You need it in a moment.
-6. Go to **Certificates & secrets → Client secrets → New client secret**. Copy the
-   **Value** column immediately — not the "Secret ID". It is hidden forever once you
-   leave the page. Note the expiry date in your calendar; Microsoft secrets expire and
-   your login stops working the day they do.
-
-Build your last two values from the tenant ID you copied:
-
-```text
-Discovery URL   https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration
-Issuer          https://login.microsoftonline.com/<tenant-id>/v2.0
-```
-
-::: warning
-Microsoft is the one provider that sometimes doesn't tell CapacityLens whether an email
-address is verified, and CapacityLens insists on being told. If sign-in gets refused
-with a message about a verified email address, open **Token configuration** on the app
-you just made, add the optional `email` item, and try again.
-:::
-
-### Okta
-
-For teams that already have a dedicated login product.
-
-::: tip
-Provider consoles change their layout often, so treat the numbered steps below as
-approximate breadcrumbs, not an exact map. If a screen doesn't match, [Okta's own guide
-to creating an OIDC app
-integration](https://help.okta.com/en-us/content/topics/apps/apps-app-integration-wizard-oidc.htm)
-is the authoritative source.
-:::
-
-1. In the Okta admin console open **Applications → Applications → Create App
-   Integration**.
-2. Sign-in method: **OIDC — OpenID Connect**. Application type: **Web Application**.
-   Next.
-3. Name it `CapacityLens`. Leave the grant type as **Authorization Code**.
-4. **Sign-in redirect URIs**: paste your address. The sign-out redirect can be your
-   plain CapacityLens address.
-5. Under assignments, limit it to the groups who should be able to get in. Save.
-6. On the **General** tab, copy the **Client ID** and **Client secret**.
-
-Okta gives you a choice of authorisation server, so read the issuer rather than
-guessing it. The usual one is:
-
-```text
-Discovery URL   https://<your-org>.okta.com/oauth2/default/.well-known/openid-configuration
-Issuer          https://<your-org>.okta.com/oauth2/default
-```
-
-Open that discovery URL in a browser and copy the `"issuer"` value it actually
-reports. If your Okta uses the org authorisation server instead, both addresses lose
-the `/oauth2/default` part.
-
-### Keycloak
-
-For teams that self-host their logins too.
-
-::: tip
-Provider consoles change their layout often, so treat the numbered steps below as
-approximate breadcrumbs, not an exact map. If a screen doesn't match, [Keycloak's own
-guide to OIDC clients](https://www.keycloak.org/docs/latest/server_admin/#_oidc_clients)
-is the authoritative source.
-:::
-
-1. Open the Keycloak admin console and pick the realm your staff are in — Keycloak's
-   word for a set of users.
-2. **Clients → Create client**. Type: **OpenID Connect**. Client ID: `capacitylens`.
-   Next.
-3. Turn **Client authentication** on, leave **Standard flow** ticked. Next.
-4. Put your address into **Valid redirect URIs**. Save.
-5. Open the **Credentials** tab and copy the **Client secret**.
-
-Your client ID is whatever you typed in step 2. The other two follow the realm name:
-
-```text
-Discovery URL   https://<your-keycloak>/realms/<realm>/.well-known/openid-configuration
-Issuer          https://<your-keycloak>/realms/<realm>
-```
-
-::: warning
-Users you created by hand in Keycloak usually have **Email verified** switched off, and
-CapacityLens will refuse them. Switch it on for each person, or have them verify by
-email, before you send anyone to sign in.
-:::
-
-### Anything else
-
-Authentik, Auth0, Ping, or your own — every provider above speaks the same standard
-language, called OpenID Connect, so anything else that speaks it works too. Create a
-"web application", paste in your redirect address, and collect the same four values.
-
-::: tip This part is for whoever runs your login system
-The checklist below gets technical fast, on purpose — it's not written for a general
-reader. If that isn't you, stop here and forward this section to whoever administers
-your [identity provider](/reference/glossary), word for word. They'll recognise every term in it; virtually
-every provider ticks all of it by default anyway.
-:::
-
-- It publishes a **discovery document** at `/.well-known/openid-configuration`.
-  CapacityLens reads every endpoint from there and won't accept hand-typed ones.
-- It supports the **authorisation code flow with [PKCE](/reference/glossary#pkce)**.
-  That's the normal choice for a "web application". Not implicit, not device code.
-- It signs tokens with **RS256, PS256, ES256 or EdDSA**. Shared-secret signing (HS256)
-  is rejected outright — it's the weak option, and it isn't offered by anything modern.
-- It reports whether an email address is **verified**, and says yes for your staff. An
-  unverified address is never admitted.
-- It gives each person a **stable ID** that doesn't change (both "public" and
-  "pairwise" styles are fine), and it's served over **HTTPS**.
-
-Ask for the scopes `openid profile email` — that's "who you are, your name, your email
-address", and it's all CapacityLens ever wants to know.
-
-## 4. Paste the values into CapacityLens
-
-Six lines in the settings file CapacityLens reads when it starts (the `.env` file, or
-however you set environment variables where you run it). Four are the values you just
-collected; the last two say what the button should be called and what to ask for.
+Set these server values:
 
 ```dotenv
-SMALLSASS_ACCOUNT_OIDC_CLIENT_ID=<the client ID you copied>
-SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET=<the client secret you copied>
-SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL=https://identity.your-agency.com/.well-known/openid-configuration
-SMALLSASS_ACCOUNT_OIDC_ISSUER=https://identity.your-agency.com
-SMALLSASS_ACCOUNT_OIDC_SCOPES=openid profile email
-SMALLSASS_ACCOUNT_OIDC_LABEL=Northwind Identity
+SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID=<Google client ID>
+SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET=<Google client secret>
 ```
 
-`LABEL` is simply the words printed on the button your staff will click, so use the
-name they'd recognise: "Google", "Company login", "Northwind Identity". Keep the client
-secret wherever you keep your other secrets — not in a file you commit.
+## Microsoft 365 / Entra ID
 
-If this strict OIDC connection is Google Workspace, also set
-`SMALLSASS_ACCOUNT_OIDC_BRAND=google`. The brand selects the Google button presentation;
-CapacityLens never guesses it from `LABEL`. Other strict OIDC connections default to the
-generic presentation. The `microsoft` value reserves Microsoft presentation metadata for
-supported Microsoft styling without changing the OIDC sign-in flow.
+1. Sign in to the [Microsoft Entra admin center](https://entra.microsoft.com/)
+   with an account that can register applications.
+2. Open **Entra ID → App registrations → New registration**. Choose **Single
+   tenant only — _your tenant_** (older admin center labels say **Accounts in
+   this organisational directory only**), then register the app.
+3. On the app's **Overview** page, copy **Application (client) ID** and
+   **Directory (tenant) ID**. The tenant ID must be the GUID for your work or
+   school tenant. CapacityLens does not accept `common`, `organizations`, or a
+   personal Microsoft account tenant.
+4. Open **Authentication**, add a **Web** platform, and register this redirect
+   URI. Replace the host with your public CapacityLens address:
 
-A branded button tells people which company they are about to sign in to, so the issuer should
-be that company. If you set `google` or `microsoft` against an issuer that is not theirs, the
-server prints a configuration warning at startup and still starts — it does not assume the
-pairing is a mistake.
+   `https://planning.example.com/api/auth/callback/microsoft`
 
-::: warning Use these settings, not the separate Google or Microsoft buttons
-CapacityLens also has stand-alone `..._GOOGLE_...` and `..._MICROSOFT_...` settings for
-people who want a social sign-in button. They're a different door, and connections made
-through them don't count towards an SSO cutover. If you're setting up your company's
-login, the `..._OIDC_...` settings above are the ones you want — even when the company
-is on Google.
-:::
+5. Open **Certificates & secrets → Client secrets**, create a client secret,
+   and copy its **Value** immediately. The **Secret ID** is not the secret
+   value. Record the expiry date and plan to replace the secret before it
+   expires.
 
-## 5. Check it worked
+Microsoft recommends single-tenant registrations for apps used by one
+organisation. See Microsoft's [application registration
+guide](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
+and [web app sign-in
+quickstart](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-web-app-sign-in).
 
-Restart CapacityLens and load the sign-in page. You should see a new button with your
-label on it. Click it: you should land on your provider's own sign-in screen, and come
-straight back.
+Set these server values:
 
-![The CapacityLens sign-in page in mixed mode, showing the email and password form above a Continue with Northwind Identity button](../screenshots/flows/sso-login-mixed.jpg)
+```dotenv
+SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID=<Application client ID>
+SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET=<client secret Value>
+SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID=<Directory tenant GUID>
+```
 
-Two different things can go wrong, and CapacityLens handles them differently. If a
-setting is **missing or malformed** — no client secret, no discovery URL — **the server
-refuses to start rather than starting half-configured**, and names the setting it
-didn't like in its own terminal output. That's a feature — nothing has changed in your
-database, so fix the line and start it again. If every setting is _present_ but one of
-the _values_ is wrong — a stale issuer, an unreachable discovery URL, a provider
-offering the wrong signing algorithm — the server starts normally, and the failure only
-shows up the first time someone clicks the button: they land back on the CapacityLens
-sign-in screen with a general apology, and the specific reason is written to the
-server's own log at that moment, not to the screen.
+Microsoft sign-in also needs outbound SMTP so CapacityLens can send a mailbox
+proof when Entra does not return a verified matching email address. Set all five
+mail values before enabling the Microsoft provider:
 
-Some rows below quote the exact words you'll see; others describe what's happening in
-plain language because the real text is provider-specific or only ever written to a
-log. The **Where** column says which is which: _sign-in screen_ is the CapacityLens
-page everyone sees; _server log_ is your terminal or log file, for the operator only;
-_provider's page_ is a screen CapacityLens doesn't control.
+```dotenv
+SMALLSASS_ACCOUNT_MAIL_HOST=<SMTP host>
+SMALLSASS_ACCOUNT_MAIL_PORT=587
+SMALLSASS_ACCOUNT_MAIL_USER=<SMTP username>
+SMALLSASS_ACCOUNT_MAIL_PASSWORD=<SMTP password>
+SMALLSASS_ACCOUNT_MAIL_FROM=<verified sender address>
+```
 
-| What you see                                                                                                                                                         | Where                                                                                            | What it means                                                                                                                                                                                              | What to do                                                                                                                                                                                      |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `capacitylens-server: refusing to start —` followed by the setting it didn't like                                                                                    | Server log (paraphrase of the general shape; the exact wording depends which setting is missing) | A required setting — client ID, client secret, discovery URL or issuer — is missing or empty.                                                                                                              | Add the missing line to your settings file and start the server again.                                                                                                                          |
-| "Single sign-on was not completed. Try again or contact your administrator."                                                                                         | Sign-in screen (quoted verbatim)                                                                 | The generic message shown for most first-click failures, including a stale issuer, an unreachable discovery URL, and a rejected signing algorithm.                                                         | Check the server's own log at the moment of the click — it names the specific reason, for example "OIDC discovery issuer does not match the configured issuer." Fix that setting and try again. |
-| The provider says "redirect_uri_mismatch"                                                                                                                            | Provider's page (their own wording, not CapacityLens's)                                          | The address you registered isn't exactly the one CapacityLens sends.                                                                                                                                       | Compare them character by character — trailing slash, `http` vs `https`, www or not.                                                                                                            |
-| "Your identity provider returned information that could not be verified. Ask your administrator to check the OIDC issuer, claims, and verified-email configuration." | Sign-in screen (quoted verbatim)                                                                 | The provider isn't telling CapacityLens the address is verified. Usually Keycloak's **Email verified** switch is off, or Microsoft isn't sending the `email_verified` [claim](/reference/glossary#claims). | Mark the address verified in your provider (Keycloak), or add the `email` item (Microsoft), then have the person try again.                                                                     |
-| Button works, but the person can't get in                                                                                                                            | Sign-in screen (plain-language description; access control shows its own separate message)       | Sign-in succeeded; they're just not a member yet, or not invited.                                                                                                                                          | That's access control doing its job — invite them, or connect their existing account.                                                                                                           |
+CapacityLens uses TLS for SMTP submission. Port `587` uses required STARTTLS;
+port `465` uses implicit TLS. The sender must be a valid email address accepted
+by your mail service. See [Company login in server
+configuration](/self-hosting/configuration#company-login) for the complete
+setting reference.
 
-## What happens next depends on where you started
+## Permissions, consent and profile pictures
 
-**Brand-new install?** You're finished — carry on with [Invite your
-team](/getting-started/invite-your-team).
+Google requests basic sign-in information through `openid`, `profile` and `email`.
+It does not request access to Drive, Calendar or Gmail. Your Workspace administrator
+can still block the application under the organisation's
+[OAuth app access policy](https://developers.google.com/identity/protocols/oauth2/production-readiness/overview).
 
-**Already have people signed up with email and password?** Don't switch everyone over
-yet. There's a staged, reversible procedure for that, and it starts by running both
-doors open at once so nobody gets locked out: [Move from passwords to single
-sign-on](/company-login/move-to-single-sign-on).
+Microsoft requests `openid`, `profile`, `email`, `User.Read` and `offline_access`.
+These cover sign-in details, the signed-in person's profile and refresh-token
+access. They do not request mailbox contents or calendars. Tenant policy may require
+administrator consent. If Microsoft shows an approval request, ask the tenant
+administrator to review the registered application's permissions; changing
+CapacityLens invitations cannot grant that approval. See Microsoft's
+[scopes and permissions reference](https://learn.microsoft.com/en-us/entra/identity-platform/scopes-oidc).
 
-## What's next
+Requesting an email claim does not prove control of that address. CapacityLens
+still requires verified-email evidence or the Microsoft mailbox proof below.
 
-[Move from passwords to single sign-on](/company-login/move-to-single-sign-on) if you
-already have a password team, or back to [How sign-in works](/company-login/) for the
-concepts behind company login.
+Google can supply an HTTPS profile-picture address. The current Microsoft
+integration also requests the person's small profile photo from Microsoft Graph,
+but receives it as inline image data, which CapacityLens does not accept as an
+avatar URL. Do not expect the Microsoft photo to appear automatically. Missing
+pictures do not prevent sign-in; CapacityLens uses its normal avatar fallback.
+An explicitly configured person avatar takes precedence over a linked sign-in
+picture on the schedule.
+
+The final Microsoft consent screens and photo behaviour still need confirmation
+in the partner tenant. These permissions describe the installed integration,
+not a completed live-tenant test.
+
+## Allow the first person and invite teammates
+
+External sign-in does not make an account eligible by itself. New people need a
+verified matching email address and either the first-owner allowance on an
+empty installation or an unused CapacityLens invitation.
+
+For the first Owner on a new installation, set
+`SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` to the exact email address the
+person will use at Google or Microsoft. This allowance only applies while there
+are no users. The first sign-in creates the first identity and closes bootstrap access.
+The person then follows **Set up your company** to create their company as Owner.
+
+For everyone else, an Owner or Admin creates an invitation in **Team & access**
+and copies its link to send to the intended person. CapacityLens does not email
+company invitations. The
+invited person opens that invitation and continues with the configured provider.
+The verified address must match the invitation. Google supplies verified-email
+evidence; Microsoft may need the mailbox proof below. A different address cannot
+use that invitation to create an identity.
+
+Connecting a provider to an existing account is a separate action. While signed
+in to CapacityLens, open **Account → Security** and, under
+**Company sign-in**, choose **Connect Google** or **Connect Microsoft**, and complete provider sign-in. The session must be fresh and the local account email must already be verified.
+The provider connection must prove the same email, using Microsoft's mailbox
+proof where needed. CapacityLens
+does not merge accounts just because their email addresses happen to match.
+
+## Microsoft mailbox proof
+
+When Microsoft does not provide a verified email claim that matches the intended
+CapacityLens address, CapacityLens sends a one-time proof link to that mailbox.
+The link expires after 15 minutes. Open it in the same browser session to confirm
+the mailbox and continue the Microsoft connection. Once the Microsoft identity
+is linked, later sign-ins use that saved link and do not send another proof
+email.
+
+If the email does not arrive, check the spam folder and ask the server operator
+to check the SMTP host, port, username, password, sender address, and delivery
+logs. The verification screen offers **Resend verification email** after a
+delivery failure; retry is rate limited. If the link has expired, start the
+provider connection again. You can cancel the current attempt from the
+verification screen and restart it later.
+
+If you cancel Microsoft's own sign-in page, CapacityLens ends that connection
+attempt. Return to CapacityLens and start the sign-in or connection again. An
+expired or cancelled invitation must be replaced by an Owner or Admin before
+the invited person can continue.
+
+## Choose the sign-in mode
+
+On a self-hosted installation, `SMALLSASS_ACCOUNT_MODE=password` keeps password
+sign-in alongside configured providers. Google and Microsoft appear above the
+password form. GitHub remains an experimental additional option in this mode.
+
+`SMALLSASS_ACCOUNT_MODE=sso` requires a configured company provider and removes
+password sign-in. GitHub cannot satisfy this requirement, including through an
+older GitHub session. Keep the Google or Microsoft credentials configured.
+Connect existing accounts and test the replacement before changing modes; see
+[Require company sign-in](/company-login/move-to-single-sign-on).
+
+## Finish setup
+
+Add the settings for the provider you chose to the server's protected
+environment, then restart CapacityLens. Open the sign-in page and check that the
+matching provider button appears. Complete one sign-in with an allowed account
+or an invitation before asking the team to use it.
+
+Google and Microsoft are the supported company sign-in providers. Generic OIDC
+configuration is retired; see [company-login configuration](/self-hosting/configuration#company-login)
+for the active settings.

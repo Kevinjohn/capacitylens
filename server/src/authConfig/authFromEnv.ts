@@ -6,8 +6,7 @@ import { boundApplicationFailure } from "@capacitylens/shared/account/validation
 import type { Db } from "../db";
 import type * as AuthFacade from "../auth";
 import { resolveAccountEnvironment } from "../accountConfig";
-import { isLoopbackHostname } from "../strictOidc";
-import { buildProviders, prepareProviders } from "./providers";
+import { buildProviders, companyProviderIds } from "./providers";
 import { buildPasswordPolicy } from "./passwordPolicy";
 import { buildDatabaseHooks } from "./databaseHooks";
 import { buildRequestHooks } from "./requestHooks";
@@ -20,10 +19,18 @@ import {
   SESSION_ABSOLUTE_TTL_SECONDS,
   SESSION_FRESH_AGE_SECONDS,
 } from "./authConstants";
-import { authHandlerErrorCapture, passwordResetSessionCapture, captureResetToken } from "./captureContexts";
+import {
+  authHandlerErrorCapture,
+  passwordResetSessionCapture,
+  captureResetToken,
+  microsoftCallbackCapture,
+} from "./captureContexts";
 import { hashPasswordWithBackpressure, verifyPasswordWithBackpressure } from "./passwordBackpressure";
 import { enforceSessionActivity, createTwoFactorEnabledLookupStatement } from "./sessionActivity";
 import type { createAuthAdapterFactory } from "./authAdapter";
+import type { MicrosoftProof } from "./microsoftProof";
+import { createConfiguredMicrosoftProof } from "./microsoftProofSetup";
+import { parsePublicUrl } from "./publicUrlConfig";
 
 type Env = Record<string, string | undefined>;
 type AuthFromEnvOptions = {
@@ -32,13 +39,16 @@ type AuthFromEnvOptions = {
   application?: BoundApplication;
   /** Account-boundary admission decision for a prospective external local principal. Omission
    * fails closed; ordinary sign-in for an already-linked principal does not use this hook. */
-  externalIdentityAdmission?: (candidate: { email?: string; emailVerified?: boolean }) => boolean | Promise<boolean>;
+  externalIdentityAdmission?: (candidate: {
+    email?: string;
+    emailVerified?: boolean;
+    providerId: string | null;
+  }) => boolean | Promise<boolean>;
 };
 type FactoryDependencies = {
   AuthConfigError: typeof AuthFacade.AuthConfigError;
   parseAuthMode: typeof AuthFacade.parseAuthMode;
   required: (environment: Env, key: string, context: string) => string;
-  assertStrictOidcEmailAdmission: typeof AuthFacade.assertStrictOidcEmailAdmission;
   isSqliteConstraintCollision: (sqlite: { code?: unknown; errcode?: unknown }) => boolean;
   providerIdFromExternalContext: typeof AuthFacade.parseProviderIdFromExternalContext;
   countUsers: typeof AuthFacade.countUsers;
@@ -67,48 +77,6 @@ type EnabledAuthContext = {
   publicUrl: URL;
   sessionDeletionLifecycleRef: SessionDeletionLifecycleRef;
 };
-
-function parsePublicUrl(
-  baseURL: string,
-  runtimeEnvironment: string | undefined,
-  AuthConfigError: FactoryDependencies["AuthConfigError"],
-): URL {
-  let publicUrl: URL;
-  try {
-    publicUrl = new URL(baseURL);
-  } catch (cause) {
-    throw new AuthConfigError("SMALLSASS_ACCOUNT_PUBLIC_URL must be an absolute http:// or https:// URL.", { cause });
-  }
-  if (publicUrl.protocol !== "http:" && publicUrl.protocol !== "https:") {
-    throw new AuthConfigError("SMALLSASS_ACCOUNT_PUBLIC_URL must use http:// or https://.");
-  }
-  if (publicUrl.username || publicUrl.password || publicUrl.search || publicUrl.hash) {
-    throw new AuthConfigError(
-      "SMALLSASS_ACCOUNT_PUBLIC_URL must be an origin without credentials, a query string, or a fragment.",
-    );
-  }
-  if (publicUrl.pathname !== "/" && publicUrl.pathname !== "") {
-    throw new AuthConfigError("SMALLSASS_ACCOUNT_PUBLIC_URL must be an origin without a path.");
-  }
-  assertProductionPublicUrl(publicUrl, runtimeEnvironment, AuthConfigError);
-  return publicUrl;
-}
-
-function assertProductionPublicUrl(
-  publicUrl: URL,
-  runtimeEnvironment: string | undefined,
-  AuthConfigError: FactoryDependencies["AuthConfigError"],
-): void {
-  if (
-    runtimeEnvironment === "production" &&
-    publicUrl.protocol !== "https:" &&
-    !isLoopbackHostname(publicUrl.hostname)
-  ) {
-    throw new AuthConfigError(
-      "SMALLSASS_ACCOUNT_PUBLIC_URL must use https:// for a non-loopback production origin; credentials and session cookies must not cross plaintext HTTP.",
-    );
-  }
-}
 
 function requireApplication(
   application: BoundApplication,
@@ -140,6 +108,8 @@ function createBootstrapClaim(db: Db, dependencies: FactoryDependencies): () => 
         new Date().toISOString(),
         claimToken,
       );
+      const microsoftCallback = microsoftCallbackCapture.getStore();
+      if (microsoftCallback) microsoftCallback.bootstrapClaimToken = claimToken;
       return claimToken;
     } catch (error) {
       if (!isSqliteError(error)) throw error;
@@ -226,21 +196,10 @@ export function createAuthFromEnvironmentFactory(dependencies: FactoryDependenci
   };
 }
 
-function buildProviderPolicies(context: EnabledAuthContext) {
-  const { db, environment, mode, publicUrl, application, options, dependencies } = context;
-  const preparedProviderConfig = prepareProviders({
-    db,
-    env: environment,
-    mode,
-    publicUrl,
-    authHandlerErrorCapture,
-    AuthConfigError: dependencies.AuthConfigError,
-    required: dependencies.required,
-    assertStrictOidcEmailAdmission: dependencies.assertStrictOidcEmailAdmission,
-  });
+function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: MicrosoftProof | null) {
+  const { db, environment, mode, application, options, dependencies } = context;
   const pluginOptions = buildPlugins({
     mode,
-    genericOidcPlugin: preparedProviderConfig.genericOidcPlugin,
     totpIssuer: application.branding.totpIssuer,
   });
   // SECURE DEFAULT (P1.7) + FIRST-RUN SETUP: self-service signup is closed / invite-only by
@@ -258,13 +217,18 @@ function buildProviderPolicies(context: EnabledAuthContext) {
   const setupToken = requireSetupToken(environment, mode, dependencies.AuthConfigError);
   const providerConfig = buildProviders({
     env: environment,
-    defaultProviderLabel: application.branding.defaultProviderLabel,
     trustedOrigins: options.trustedOrigins,
-    prepared: preparedProviderConfig,
     AuthConfigError: dependencies.AuthConfigError,
     db,
+    microsoftProof,
   });
   return { pluginOptions, allowOpenSignup, setupToken, providerConfig };
+}
+
+function browserAuthErrorTarget(publicUrl: URL): URL {
+  const target = new URL("/", publicUrl);
+  target.searchParams.set("externalSignInError", "1");
+  return target;
 }
 
 function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<typeof buildProviderPolicies>) {
@@ -284,8 +248,7 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
   });
   const cookiePrefix =
     publicUrl.protocol === "https:" ? `__Host-${application.applicationId}` : application.applicationId;
-  const browserAuthErrorUrl = new URL("/", publicUrl);
-  browserAuthErrorUrl.searchParams.set("externalSignInError", "1");
+  const browserAuthErrorUrl = browserAuthErrorTarget(publicUrl);
 
   const sessionPolicy = buildSessionPolicy({
     db,
@@ -300,8 +263,8 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
     db,
     mode,
     application,
-    genericProviderId: providers.providerConfig.genericProviderId,
     configuredFederatedIssuers: providers.providerConfig.configuredFederatedIssuers,
+    permittedCompanyProviderIds: companyProviderIds(providers.providerConfig.configuredProviderInfo),
     allowOpenSignup: providers.allowOpenSignup,
     requirePasswordMfa: mode === "password" && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1",
     ...(options.externalIdentityAdmission === undefined
@@ -347,7 +310,7 @@ function createBetterAuthInstance(
     account: sessionPolicy.account,
     emailAndPassword: passwordPolicy.emailAndPassword,
     // Native Google/Microsoft/GitHub sign-in, each only when its env is set (see helper).
-    // Independent of the 'sso' genericOAuth plugin above; an empty object = none configured.
+    // An empty object means no provider is configured.
     socialProviders: providerConfig.configuredSocialProviders,
     hooks: requestHookOptions.hooks,
     plugins: pluginOptions.plugins,
@@ -360,7 +323,18 @@ function createBetterAuthInstance(
 }
 
 function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; auth: Auth } {
-  const providers = buildProviderPolicies(context);
+  let activeAuth: Auth | null = null;
+  const microsoftProof = createConfiguredMicrosoftProof({
+    db: context.db,
+    environment: context.environment,
+    secret: context.secret,
+    publicUrl: context.publicUrl,
+    applicationId: context.application.applicationId,
+    trustedOrigins: context.options.trustedOrigins ?? [],
+    AuthConfigError: context.dependencies.AuthConfigError,
+    getAuth: () => activeAuth,
+  });
+  const providers = buildProviderPolicies(context, microsoftProof);
   const policies = buildAuthPolicies(context, providers);
   const instance = createBetterAuthInstance(providers, policies, context.db);
   // betterAuth construction validates its resolved options but does not own this app-specific
@@ -377,10 +351,10 @@ function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; aut
     publicUrl: context.publicUrl,
     browserAuthErrorUrl: policies.browserAuthErrorUrl,
     trustedOrigins: providers.providerConfig.trustedOrigins,
-    strictOidcClient: providers.providerConfig.strictOidcClient,
-    strictOidcAuthorizationProxyPath: providers.providerConfig.strictOidcAuthorizationProxyPath,
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
+    microsoftProof,
   });
+  activeAuth = auth;
   if (!context.options.deferDatabaseSetup) auth.ensureProviderBindings();
   return { mode: context.mode, auth };
 }

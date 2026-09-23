@@ -26,9 +26,10 @@ Read this when completing or checking the project's public OpenSSF badge entry.
 
 ## [Security review — 2026-08-18](/security/security-review-2026-08-18)
 
-The alpha4 reassessment covers the complete current source and the security-relevant delta since
-July. It records the fixed session-idle, strict-OIDC SSRF and provider-token findings, refreshes the
-threat model and inventories, and reconciles all 345 ASVS controls with current CI and ZAP evidence.
+The alpha4 reassessment covered the complete source at that time and the security-relevant delta
+since July. It records the fixed session-idle, strict-OIDC SSRF and provider-token findings, refreshed
+the threat model and inventories, and reconciled all 345 ASVS controls with the CI and ZAP evidence
+available then.
 
 ## [Security review — 2026-07-14](/security/security-review-2026-07-14)
 

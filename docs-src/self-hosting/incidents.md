@@ -84,7 +84,7 @@ account or session is no longer trustworthy.
    decision against the preserved evidence before re-enabling access.
 6. Follow your organisation's notification and disclosure obligations.
 
-## A leaver or compromised company-login (OIDC) identity
+## A leaver or compromised company-login identity
 
 **Symptom**: someone who signed in through company login needs to be cut off
 immediately — an offboarded employee, or a compromised upstream identity.
@@ -100,10 +100,9 @@ session — it doesn't promise to end the browser's session at the company login
 1. Disable the identity and revoke provider sessions at your company login provider.
 2. In Team & access, revoke that person's local sessions. Do this in every affected
    CapacityLens installation — one installation's revocation doesn't propagate to others.
-3. Review `(issuer, subject)` pairs, memberships, outstanding invitations, the account
-   audit log and provider logs. Don't correlate or merge identities by email address
-   alone.
-4. For a broader compromise, restrict the proxy, rotate the OIDC client secret and the
+3. Review provider identities, memberships, outstanding invitations, the account audit
+   log and provider logs. Don't correlate or merge identities by email address alone.
+4. For a broader compromise, restrict the proxy, rotate the affected provider client secret and the
    local `SMALLSASS_ACCOUNT_SECRET`, then require everyone to sign in fresh. Coordinate
    the rotation — changing the local secret signs out every session at once.
 5. Record the actual containment time against the twelve-hour/thirty-minute maximum
@@ -153,8 +152,7 @@ session revocation — and never writes a credential directly.
 ## Membership changes fail with `nextOwnershipTransferRevision`
 
 **Symptom**: changing a role or status, removing a member, or acting on an ownership
-transfer fails. The server log (or, for the `assign-workspace-owner` repair command, its
-own console output) says that `nextOwnershipTransferRevision` cannot advance safely — only
+transfer fails. The server log says that `nextOwnershipTransferRevision` cannot advance safely — only
 when the stored revision is exactly `9007199254740991` — or, for every other unusable
 value, that the stored revision is not a non-negative integer.
 
@@ -172,12 +170,11 @@ ownership transfer](/self-hosting/ownership-transfer-recovery) to rehearse and r
 guarded stopped-server command. It cancels only the exact request approved by the Owner;
 it does not change any membership or invent a replacement revision.
 
-If the company also has zero active Owners, this incident can be the *cause* of that one:
-the automatic ownerless-workspace repair itself cancels any live transfer as part of
-promoting a new Owner, and fails with the same error when that transfer's revision is
-unusable. See [A company has no Owner](#a-company-has-no-owner) — resolve the exhausted
-or corrupt revision in the focused recovery procedure first, then let that repair (or
-the `assign-workspace-owner` command) proceed.
+If the company also has zero active Owners, this incident can be the cause: startup's
+automatic owner repair can fail when it encounters that unusable revision. See [A company
+has no Owner](#a-company-has-no-owner). Resolve the revision only through the ownership-
+transfer recovery procedure first. If startup still leaves the company without an Owner,
+follow the guarded owner-assignment procedure in [A company has no Owner](#a-company-has-no-owner).
 
 ## Malformed or corrupted audit outbox record
 
@@ -279,34 +276,40 @@ guessing at a repair.
 **Symptom**: a company shows no Owner in Team & access, or startup logs a structured
 security event about an ownership repair.
 
-**Cause**: CapacityLens enforces exactly one active Owner per company two ways — a
-database index that blocks a second one from ever being created, and a boot check that
-refuses to start with a member-bearing company that has zero Owners. If an existing
-company reaches startup with no Owner (only possible through legacy data, an import, or
-a hand-edited database), migration repairs it automatically: it promotes that company's
-highest-tier active member, breaking ties by whoever has been a member longest, and
-promotes a Viewer only if every active member is a Viewer. Every automatic promotion
-like this emits a structured security event so an operator can review it.
+**Cause**: CapacityLens enforces one active Owner per company. A database index blocks a
+second active Owner, and startup checks the membership invariant. During upgrade, an
+ownerless company with active members may be repaired automatically by promoting the
+highest-tier active member (breaking ties by membership age); if every active member is a
+Viewer, a Viewer can be promoted. Each automatic promotion emits a structured security
+event. For an ownerless company that still needs repair, a guarded stopped-server command
+can assign an existing active member as Owner.
 
 **Fix**:
 
 1. If this appeared right after an upgrade, check the audit/security log for the
-   automatic promotion event first — the migration has usually already fixed it. Confirm
-   the promoted person is the right one; if not, use the in-app [ownership
-   transfer](/getting-started/roles-and-permissions#hand-the-company-to-someone-else) to
-   move it to the right person (that's the only ordinary ownership-change operation —
-   Owner can never be assigned through an invite or a regular role change). It needs the
-   nominated Admin to agree, so it is not an instant fix; the repair command below is
-   what to reach for when nobody can act as Owner at all.
-2. If a company still has no Owner and the automatic repair doesn't apply (for example,
-   mid SSO cutover), use the stopped-server `assign-workspace-owner` repair command
-   documented under [Cutover repair
-   commands](/company-login/move-to-single-sign-on#a-company-with-no-owner). It promotes
-   one existing active member you name by exact company id and email, takes an exclusive
-   lock, and records an operator audit event with the change. This repair also cancels any
-   live ownership transfer for that company; if it fails with the error described in
-   [Membership changes fail with `nextOwnershipTransferRevision`](#membership-changes-fail-with-nextownershiptransferrevision),
-   resolve that transfer's revision first, then retry.
+   automatic promotion event first. Confirm the promoted person is appropriate. If the
+   company has an Owner but you need to change who holds that role, use the in-app
+   [ownership transfer](/getting-started/roles-and-permissions#hand-the-company-to-someone-else).
+2. If the company remains ownerless, preserve the database and audit logs and stop the
+   server. While the deployment remains in `self-hosted-mixed` with
+   `SMALLSASS_ACCOUNT_MODE=password` and a company provider configured, assign an existing
+   active member using the guarded repair command:
+
+   ```bash
+   pnpm --filter capacitylens-server cutover:repair -- /path/to/capacitylens.db \
+     assign-workspace-owner <company-id> <member-email> --confirm-server-stopped
+   ```
+
+   The command refuses to run without the explicit stopped-server flag, takes an exclusive
+   database lock, and verifies that the exact company has no active Owner and that the
+   selected email resolves unambiguously to one of its active members. It records the
+   change in the audit outbox and ends any pending ownership transfer for that company.
+   If those checks do not match the incident, preserve the evidence and restore a compatible
+   backup or escalate; do not edit the database by hand.
+   The separate [Owner password recovery procedure](#the-sole-owner-has-lost-their-password)
+   applies only when an existing sole Owner still exists but cannot sign in.
+   [Ownership-transfer recovery](/self-hosting/ownership-transfer-recovery) only handles
+   a pending transfer.
 
 ## Disk-full or a failed snapshot
 

@@ -2,7 +2,7 @@ import { createContext, useContext } from "react";
 import { can, type Action, type Role } from "@capacitylens/shared/domain/access";
 import { useStore } from "../store/useStore";
 
-// Client permission context (production plan P1.12), kept separate from PermissionProvider so this
+// Client permission context, kept separate from PermissionProvider so this
 // file exports only the context + hooks (react-refresh clean) and consumers (affordance hubs:
 // dialogs, the scheduler, the toolbar) don't import the provider machinery. It mirrors the split in
 // authContext.ts / AuthProvider.tsx.
@@ -52,7 +52,7 @@ export function usePermissionStatus(): NonNullable<PermissionContextValue["statu
 /**
  * May the current user perform `action` in the active account?
  *
- * The single client affordance gate (P1.12) for EVERY capability, not just editing: a surface asks
+ * The single client affordance gate for every capability, not just editing: a surface asks
  * for the one {@link Action} it is gating (`'write'`, `'purge'`, `'manageMembers'`, …) instead of
  * re-deriving a role test inline. It is single-sourced from the pure {@link can} matrix, the SAME
  * authority the server's route guard uses, so client and server can't drift.

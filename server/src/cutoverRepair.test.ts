@@ -12,11 +12,8 @@ const env = {
   SMALLSASS_ACCOUNT_MODE: "password",
   SMALLSASS_ACCOUNT_SECRET: "cutover-repair-secret-0123456789abcdef",
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-  SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 const timestamp = "2026-08-07T00:00:00.000Z";
@@ -66,7 +63,7 @@ async function prepareDuplicateSubjectState(): Promise<string> {
   insertAccount({
     db: prepared.db,
     id: "wrong-link",
-    providerId: "workforce",
+    providerId: "google",
     subject: "duplicate-subject",
     principalId: "wrong-principal",
   });
@@ -83,13 +80,14 @@ async function prepareDuplicateSubjectState(): Promise<string> {
     DROP INDEX idx_account_provider_subject_unique;
     DROP TRIGGER capacitylens_observe_federated_account;
     DELETE FROM capacitylens_federated_link_observations;
+    DROP TABLE microsoft_identity_proofs;
     DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
     PRAGMA user_version = 24;
   `);
   insertAccount({
     db: prepared.db,
     id: "right-link",
-    providerId: "workforce",
+    providerId: "google",
     subject: "duplicate-subject",
     principalId: "right-principal",
   });
@@ -108,7 +106,7 @@ function createDuplicateSubjectRepairTest(): void {
         operation: {
           kind: "remove-provider-link",
           email: "wrong@example.com",
-          providerId: "workforce",
+          providerId: "google",
           subject: "duplicate-subject",
         },
         env,
@@ -116,12 +114,12 @@ function createDuplicateSubjectRepairTest(): void {
     ).resolves.toMatchObject({
       operation: "remove-provider-link",
       principalId: "wrong-principal",
-      providerId: "workforce",
+      providerId: "google",
       subject: "duplicate-subject",
     });
 
     const verified = openDb(path);
-    expect(verified.prepare(`SELECT id, userId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
+    expect(verified.prepare(`SELECT id, userId FROM account WHERE providerId = 'google'`).all()).toEqual([
       { id: "right-link", userId: "right-principal" },
     ]);
     expect(verified.prepare(`PRAGMA user_version`).get()).toEqual({ user_version: DB_SCHEMA_VERSION });
@@ -225,20 +223,21 @@ function createLegacyMultiLinkRepairTest(): void {
     prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "credential-link");
     prepared.db.exec(`
       DROP INDEX idx_account_principal_provider_unique;
+      DROP TABLE microsoft_identity_proofs;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
       PRAGMA user_version = 24;
     `);
     insertAccount({
       db: prepared.db,
       id: "keep-link",
-      providerId: "workforce",
+      providerId: "google",
       subject: "subject-correct",
       principalId: "principal-1",
     });
     insertAccount({
       db: prepared.db,
       id: "wrong-link",
-      providerId: "workforce",
+      providerId: "google",
       subject: "subject-wrong",
       principalId: "principal-1",
     });
@@ -251,15 +250,15 @@ function createLegacyMultiLinkRepairTest(): void {
         operation: {
           kind: "remove-provider-link",
           email: "owner@example.com",
-          providerId: "workforce",
+          providerId: "google",
           subject: "subject-wrong",
         },
         env,
       }),
-    ).resolves.toMatchObject({ providerId: "workforce", subject: "subject-wrong" });
+    ).resolves.toMatchObject({ providerId: "google", subject: "subject-wrong" });
 
     const verified = openDb(prepared.path);
-    expect(verified.prepare(`SELECT id, accountId FROM account WHERE providerId = 'workforce'`).all()).toEqual([
+    expect(verified.prepare(`SELECT id, accountId FROM account WHERE providerId = 'google'`).all()).toEqual([
       { id: "keep-link", accountId: "subject-correct" },
     ]);
     verified.close();
@@ -410,7 +409,7 @@ function createActiveMembershipRefusalTest(): void {
 }
 
 function createMigrationCompatibilityTests(): void {
-  it("allows the exact pending v42-v44 product-only migrations", async () => {
+  it("allows the exact pending v42-v45 product-only migrations", async () => {
     const prepared = await database();
     prepared.db.exec(`
       ALTER TABLE resources DROP COLUMN avatarUrl;
@@ -475,7 +474,7 @@ describe("SSO cutover preflight prerequisites", () => {
       const prepared = await database();
       prepared.db
         .prepare(`UPDATE account_federated_provider_bindings SET issuer = ? WHERE providerId = ?`)
-        .run("https://wrong-idp.example", "workforce");
+        .run("https://wrong-idp.example", "google");
 
       await expect(inspectSsoCutoverPreflight(prepared.db, env)).rejects.toThrow(/provider binding does not match/i);
       prepared.db.close();

@@ -3,14 +3,13 @@ import { fileURLToPath } from "node:url";
 import { buildAccessLabEnv } from "./access-lab-env.mjs";
 import { spawnPnpm } from "./pnpm-spawn.mjs";
 import { acquireExclusiveFile, portInUse, requireNode24, terminateProcessTrees } from "./dev-processes.mjs";
-import { FIXED_PORTS_LOCK_FILE, OIDC_FIXED_PORTS } from "./ports.mjs";
+import { FIXED_PORTS_LOCK_FILE, ACCESS_LAB_FIXED_PORTS } from "./ports.mjs";
 
 requireNode24((version) => `dev:access needs Node 24+ — found ${version}. Run \`nvm use\` and retry.`);
 
-// The access lab shares the OIDC flavour's fixed ports, which are deliberately outside the lane
-// system (see scripts/ports.mjs). Its own exclusive lock below is what keeps it single-flight.
-const API_PORT = OIDC_FIXED_PORTS.oidcApi;
-const WEB_PORT = OIDC_FIXED_PORTS.oidcWeb;
+// The access lab uses fixed ports outside the lane system. Its exclusive lock keeps it single-flight.
+const API_PORT = ACCESS_LAB_FIXED_PORTS.api;
+const WEB_PORT = ACCESS_LAB_FIXED_PORTS.web;
 const dbUrl = new URL("../server/.access-lab.db", import.meta.url);
 const dbPath = fileURLToPath(dbUrl);
 const ownershipPath = fileURLToPath(new URL(`../${FIXED_PORTS_LOCK_FILE}`, import.meta.url));
@@ -20,8 +19,8 @@ try {
 } catch (error) {
   if (error.code !== "EEXIST") throw error;
   console.error(
-    "dev:access shares fixed ports with `pnpm run e2e:oidc`, and one of them is already running. " +
-      "Stop it and retry — these two are deliberately single-flight, outside the port-lane system.",
+    "dev:access fixed ports are already reserved. " +
+      "Stop it and retry — this lab is deliberately single-flight, outside the port-lane system.",
   );
   process.exit(1);
 }

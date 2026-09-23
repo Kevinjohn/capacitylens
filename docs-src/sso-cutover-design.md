@@ -1,10 +1,11 @@
-# Password → SSO cutover
+# Historical generic-identity implementation record
 
-> **IMPLEMENTED.** The consensus design in §§5–10 shipped as the supported self-hosted cutover path.
-> Operate from [Move from passwords to single sign-on](company-login/move-to-single-sign-on.md),
-> [self-hosted configuration](self-hosting/configuration.md), and the
-> [development reference](reference/development.md); this document remains the detailed threat model,
-> evidence record, and rejected-alternative history.
+> **Superseded.** This design describes the former generic OIDC flow and readiness interface.
+> Generic OIDC configuration and the in-app readiness panel are retired. The read-only
+> `cutover:preflight` and guarded stopped-server `cutover:repair` commands remain as operator tools
+> for the named Google and Microsoft provider contract. This record is historical, not current
+> configuration guidance; see [Set up Google or Microsoft sign-in](company-login/set-up-company-login.md)
+> and [Require company sign-in](company-login/move-to-single-sign-on.md).
 
 **Design record for CapacityLens self-hosted deployments**
 Status: implemented revision 4 · Date: 2026-08-07

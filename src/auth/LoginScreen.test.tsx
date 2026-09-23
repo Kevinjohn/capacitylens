@@ -14,7 +14,6 @@ vi.mock("./authClient", () => ({
   authClient: {
     signIn: {
       email: (...args: unknown[]) => signInEmail(...args),
-      oauth2: vi.fn(),
       social: (...args: unknown[]) => signInSocial(...args),
     },
     signUp: { email: (...args: unknown[]) => signUpEmail(...args) },
@@ -51,7 +50,7 @@ async function showsStableRetryGuidanceAndRemovesProviderQueryValues() {
   render(
     <LoginScreen
       authMode="sso"
-      providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       onSignedIn={vi.fn()}
     />,
   );
@@ -68,7 +67,7 @@ async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, ex
   render(
     <LoginScreen
       authMode="sso"
-      providers={[{ id: "sso", label: "Single sign-on", kind: "oidc", experimental: false }]}
+      providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       onSignedIn={vi.fn()}
     />,
   );
@@ -111,7 +110,7 @@ describe("LoginScreen — external callback failures", () => {
   );
 
   it.each([
-    ["OIDC_IDENTITY_VERIFICATION_FAILED", m.login_sso_verification_failed()],
+    ["OIDC_IDENTITY_VERIFICATION_FAILED", m.login_sso_failed()],
     ["account_link_conflict", m.login_sso_account_link_conflict()],
   ])(
     "maps the application-owned callback code %s to actionable copy",
@@ -126,7 +125,7 @@ describe("LoginScreen — external callback failures", () => {
 
 describe("LoginScreen — mixed-mode Google hierarchy", () => {
   const google = { id: "google", label: "Google", kind: "social", experimental: true } as const;
-  const companySso = { id: "sso", label: "Company SSO", kind: "oidc", experimental: false } as const;
+  const github = { id: "github", label: "GitHub", kind: "social", experimental: true } as const;
 
   it("puts Google before the password fallback with explicit wording", () => {
     render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
@@ -165,7 +164,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   it("keeps the owner name autofocus during first-owner setup", () => {
     render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
 
-    expect(screen.getByLabelText("Your name")).toHaveFocus();
+    expect(screen.getByLabelText("name")).toHaveFocus();
   });
 
   it("lets the fallback separator rails share the remaining row width", () => {
@@ -178,12 +177,12 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
     }
   });
 
-  it("keeps other configured providers after the password fallback", () => {
-    render(<LoginScreen authMode="password" providers={[google, companySso]} onSignedIn={vi.fn()} />);
+  it("keeps experimental GitHub after the password fallback", () => {
+    render(<LoginScreen authMode="password" providers={[google, github]} onSignedIn={vi.fn()} />);
 
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
     const signIn = screen.getByRole("button", { name: "Sign in" });
-    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+    const companyButton = screen.getByRole("button", { name: "Continue with GitHub" });
 
     expect(googleButton.compareDocumentPosition(signIn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(signIn.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -197,11 +196,11 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
     expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
   });
 
-  it("keeps password-first behavior when Google is not configured", () => {
-    render(<LoginScreen authMode="password" providers={[companySso]} onSignedIn={vi.fn()} />);
+  it("keeps password-first behavior when only GitHub is configured", () => {
+    render(<LoginScreen authMode="password" providers={[github]} onSignedIn={vi.fn()} />);
 
     const email = screen.getByLabelText("Email");
-    const companyButton = screen.getByRole("button", { name: "Continue with Company SSO" });
+    const companyButton = screen.getByRole("button", { name: "Continue with GitHub" });
     expect(email.compareDocumentPosition(companyButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
   });
@@ -209,7 +208,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   it("keeps first-owner setup ahead of the promoted provider", () => {
     render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
 
-    const name = screen.getByLabelText("Your name");
+    const name = screen.getByLabelText("name");
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
     expect(name.compareDocumentPosition(googleButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
@@ -282,18 +281,18 @@ describe("LoginScreen — multi-factor challenge", () => {
     render(
       <LoginScreen
         authMode="password"
-        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: false }]}
+        providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(await screen.findByLabelText("Authentication code")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Continue with Company SSO" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in with Microsoft" })).not.toBeInTheDocument();
   });
 
   it("supports a recovery code without marking the browser as trusted", async () => {
@@ -418,26 +417,22 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
 // First-run owner setup: needsSetup (server-reported: password mode + zero users) swaps the
 // sign-in form for a create-the-owner-account form; success proceeds exactly like a sign-in.
 function fillOwnerSetup({ name = "Owner", password = "a-strong-password" }: { name?: string; password?: string } = {}) {
-  fireEvent.change(screen.getByLabelText("Your name"), { target: { value: name } });
-  fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+  fireEvent.change(screen.getByLabelText("name"), { target: { value: name } });
+  fireEvent.change(screen.getByLabelText("email"), { target: { value: "owner@x.test" } });
   fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: password } });
 }
 
 function registerOwnerSetupDisplayTests() {
   it("renders the owner-setup form instead of sign-in when needsSetup", () => {
     render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
-    expect(screen.getByRole("heading", { name: "Set up the first Owner" })).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Create your personal sign-in for this new installation. You’ll become its first Owner, then create the first company.",
-      ),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText("Your name")).toBeInTheDocument();
-    expect(screen.getByLabelText("Work email")).toBeInTheDocument();
-    expect(screen.getByLabelText("Create a password")).toHaveAccessibleDescription("Use 15–128 characters.");
+    expect(screen.getByRole("heading", { name: "Setup the account Owner" })).toBeInTheDocument();
+    expect(screen.queryByText(/Create your personal sign-in/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("name")).toBeInTheDocument();
+    expect(screen.getByLabelText("email")).toBeInTheDocument();
+    expect(screen.getByLabelText("Create a password")).not.toHaveAccessibleDescription("Use 15–128 characters.");
     expect(screen.getByLabelText("Owner setup token")).toHaveAttribute("placeholder", "Paste the setup token");
     expect(screen.getByLabelText("Owner setup token")).toHaveAccessibleDescription(
-      "Paste the one-time value supplied during installation (SMALLSASS_ACCOUNT_SETUP_TOKEN). It authorises first-owner setup for this installation; it does not create the company.",
+      "Paste the value of SMALLSASS_ACCOUNT_SETUP_TOKEN from the .env file, on the server. Ask the person who installed it for you. You cannot proceed without it.",
     );
     expect(screen.queryByText(/server has no users/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
@@ -450,13 +445,13 @@ function registerOwnerSetupDisplayTests() {
       <LoginScreen
         authMode="password"
         needsSetup
-        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: true }]}
+        providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
     );
 
     expect(screen.getByRole("button", { name: "Create my sign-in" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Continue with Company SSO" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
     expect(
       screen.getByText(
         "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
@@ -468,12 +463,12 @@ function registerOwnerSetupDisplayTests() {
     render(
       <LoginScreen
         authMode="password"
-        providers={[{ id: "sso", label: "Company SSO", kind: "oidc", experimental: false }]}
+        providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
     );
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("name")).not.toBeInTheDocument();
     expect(
       screen.queryByText(
         "Company login is a separate route. If your installer configured it, choose its button below to create the first Owner without a local password.",
@@ -487,8 +482,8 @@ function registerOwnerSetupSubmissionTests() {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("email"), { target: { value: "owner@x.test" } });
     fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
     fireEvent.change(screen.getByLabelText("Owner setup token"), {
       target: { value: "operator-secret" },
@@ -627,8 +622,8 @@ function registerOwnerSetupValidationTests() {
     // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "a​🙂@example.com" } });
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("email"), { target: { value: "a​🙂@example.com" } });
     fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
     const alert = await screen.findByRole("alert");
@@ -641,8 +636,8 @@ function registerOwnerSetupValidationTests() {
     signUpEmail.mockResolvedValue({ error: { message: "Password too short" } });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("email"), { target: { value: "owner@x.test" } });
     fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
     const alert = await screen.findByRole("alert");
@@ -650,8 +645,8 @@ function registerOwnerSetupValidationTests() {
     expect(onSignedIn).not.toHaveBeenCalled();
     const errorId = alert.getAttribute("id");
     await waitFor(() => {
-      expect(screen.getByLabelText("Your name")).toHaveAttribute("aria-describedby", errorId);
-      expect(screen.getByLabelText("Work email")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("name")).toHaveAttribute("aria-describedby", errorId);
+      expect(screen.getByLabelText("email")).toHaveAttribute("aria-describedby", errorId);
       expect(screen.getByLabelText("Create a password").getAttribute("aria-describedby")).toContain(errorId);
       expect(screen.getByLabelText("Owner setup token").getAttribute("aria-describedby")).toContain(errorId);
     });
@@ -669,8 +664,8 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
     });
     const onSignedIn = vi.fn();
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
-    fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Owner" } });
-    fireEvent.change(screen.getByLabelText("Work email"), { target: { value: "owner@x.test" } });
+    fireEvent.change(screen.getByLabelText("name"), { target: { value: "Owner" } });
+    fireEvent.change(screen.getByLabelText("email"), { target: { value: "owner@x.test" } });
     fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
     fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
 
@@ -683,7 +678,7 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
       expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     });
     // ...the create-owner fields are gone, replaced by the sign-in ones...
-    expect(screen.queryByLabelText("Your name")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("name")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
     expect(screen.getByLabelText("Password")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();

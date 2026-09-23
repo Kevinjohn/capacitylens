@@ -1,7 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { Db } from "./db";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
-import { StrictOidcVerificationError } from "./strictOidc";
 import type { AccountMode, Auth } from "./authConfig/authTypes";
 import { resetTokenCapture } from "./authConfig/captureContexts";
 import { createAuthFromEnvironmentFactory } from "./authConfig/authFromEnv";
@@ -30,18 +29,10 @@ export {
 } from "./authConfig/federatedIdentitySchema";
 export { runAuthMigrations, planAuthSchemaMigrations, BOOTSTRAP_ADMIN_EMAIL } from "./authConfig/bootstrapAdmin";
 
-// Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
-// OSS library owns the session/credential/OIDC machinery — accepted precisely so we
-// don't own crypto/session code. THE OFF GUARANTEE: with SMALLSASS_ACCOUNT_MODE unset or 'off',
-// nothing in this module runs — Better Auth is never initialised, no account credential env
-// is read, no auth tables are created, zero new attack surface (authFromEnv returns
-// { mode: 'off', auth: null } before touching anything else).
-//
-// Storage (P3.1 spike, verified 2026-06-12 on Node 24 / better-auth 1.6.18): Better
-// Auth's own tables — user, session, account, verification — live in the SAME SQLite
-// file, created by runAuthMigrations from the node:sqlite DatabaseSync handle directly
-// (no extra driver; better-sqlite3 stays the pre-approved fallback if that regresses).
-// These tables are NOT AppData entities: the entity drift-proofing lists (KNOWN_KEYS /
+// Better Auth owns session, credential, and named provider sign-in. With SMALLSASS_ACCOUNT_MODE unset or
+// `off`, authFromEnv returns before initializing Better Auth, reading credentials, or creating auth
+// tables. Better Auth tables — user, session, account, and verification — share the SQLite file
+// and are created by runAuthMigrations. They are not AppData entities: the entity lists (KNOWN_KEYS /
 // tables.ts / sanitize) deliberately do not cover them, and db.ts wipe()/loadState()
 // never touch them.
 
@@ -49,7 +40,7 @@ export { runAuthMigrations, planAuthSchemaMigrations, BOOTSTRAP_ADMIN_EMAIL } fr
  *  the entrypoint catches this, prints the message, and exits 1. */
 export class AuthConfigError extends Error {}
 
-// Constant-time secret compare shared by the first-run setup token and the P1.8 bootstrap
+// Constant-time secret compare shared by the first-run setup token and bootstrap
 // token. Returns false UNLESS the configured token is a non-empty string AND the presented
 // value is a non-empty string of the SAME byte length whose bytes match — so an unset/empty
 // token (the default) never allows the token path, and the length-equality short-circuit
@@ -66,7 +57,7 @@ export function isMatchingSecretToken(configured: string | undefined, presented:
   return timingSafeEqual(a, b);
 }
 
-// ── Admin-issued password-reset links (P1.18) ──────────────────────────────────────────────────
+// ── Admin-issued password-reset links ──────────────────────────────────────────────────────────
 // CapacityLens deliberately has NO email infrastructure (docs-src/security/privacy.md — a standing
 // non-goal), so Better Auth's reset flow is repurposed: `sendResetPassword` (the "send the email"
 // hook) doesn't send anything — it CAPTURES the minted token and hands it back to the admin-gated
@@ -77,7 +68,7 @@ export function isMatchingSecretToken(configured: string | undefined, presented:
 
 /**
  * Mint a single-use, {@link RESET_LINK_TTL_SECONDS}-lived password-reset token for `email` via
- * Better Auth's own verification store (P1.18). Returns the token, or `null` when Better Auth
+ * Better Auth's verification store. Returns the token, or `null` when Better Auth
  * matched no user for the email (its anti-enumeration success tells us nothing, so "callback never
  * fired" IS the no-such-user signal). The caller (the admin-gated route in app.ts) turns the token
  * into a link and returns it exactly once. Better Auth persists only a digest of the identifier;
@@ -96,7 +87,7 @@ export async function mintPasswordResetToken(auth: Auth, email: string): Promise
 }
 
 /**
- * Delete every OUTSTANDING (unredeemed) password-reset token for `userId` (P1.18 escalation fix).
+ * Delete every outstanding (unredeemed) password-reset token for `userId`.
  *
  * A reset link is authorized at MINT time, but it lives for {@link RESET_LINK_TTL_SECONDS}; if the
  * member is PROMOTED within that window (an editor made owner, or handed ownership), a link minted
@@ -131,6 +122,12 @@ export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void 
       WHERE json_valid(value)
         AND json_extract(value, '$.link.userId') = ?`,
   ).run(principalId);
+  if (microsoftProofTableExists(db)) {
+    db.prepare(
+      `UPDATE microsoft_identity_proofs SET state = 'cancelled', tokenHash = NULL, updatedAt = ?
+      WHERE principalId = ? AND state IN ('started', 'mail-sent', 'approved')`,
+    ).run(Date.now(), principalId);
+  }
 }
 
 /**
@@ -161,6 +158,7 @@ export function createTableExistenceProbe(table: string): (db: Db) => boolean {
 // handle when an existing auth-off database first enables password auth; caching that pre-auth
 // `false` would permanently suppress reset-token revocation for the rest of the process.
 const verificationTableExists = createTableExistenceProbe("verification");
+const microsoftProofTableExists = createTableExistenceProbe("microsoft_identity_proofs");
 
 // {@link countUsers} is consulted BEFORE runAuthMigrations as well as after it — authFromEnv makes
 // its boot-time minPasswordLength decision on the pre-migration handle, where the table does not
@@ -210,7 +208,7 @@ function readRequiredSetting(environment: Env, key: string, context: string): st
 }
 
 function isExternalIdentityPath(path: string | undefined): boolean {
-  return path?.startsWith("/callback/") === true || path?.startsWith("/oauth2/callback/") === true;
+  return path?.startsWith("/callback/") === true;
 }
 
 function readProviderIdFromExternalContext(context: {
@@ -246,35 +244,6 @@ export function parseProviderIdFromExternalContext(
     // A malformed percent escape is attacker-controlled path input, not an internal failure.
     // Returning no provider keeps assurance fail-closed while Better Auth renders its normal 4xx.
     return null;
-  }
-}
-
-/** Accept a false/missing verification claim only for an exact row with durable verified-admission evidence. */
-export function assertStrictOidcEmailAdmission(
-  db: Db,
-  providerId: string,
-  profile: { sub: string; emailVerified: boolean },
-): void {
-  if (profile.emailVerified) return;
-  // Only a durable observation created by the v25 trigger proves that this exact provider row was
-  // admitted under the verified-email invariant. Legacy rows predate that proof and must relink.
-  const existing = db
-    .prepare(
-      `SELECT 1
-         FROM account AS account
-         JOIN capacitylens_federated_link_observations AS observation
-           ON observation.accountRowId = account.id
-          AND observation.principalId = account.userId
-          AND observation.providerId = account.providerId
-          AND observation.subject = account.accountId
-        WHERE account.providerId = ? AND account.accountId = ?
-        LIMIT 1`,
-    )
-    .get(providerId, profile.sub);
-  if (!existing) {
-    throw new StrictOidcVerificationError(
-      "OIDC user-info response must assert a verified email address for admission or linking.",
-    );
   }
 }
 
@@ -314,7 +283,6 @@ export const createAuthFromEnvironment = createAuthFromEnvironmentFactory({
   AuthConfigError,
   parseAuthMode,
   required: readRequiredSetting,
-  assertStrictOidcEmailAdmission,
   isSqliteConstraintCollision,
   providerIdFromExternalContext: parseProviderIdFromExternalContext,
   countUsers,

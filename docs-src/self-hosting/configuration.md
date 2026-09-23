@@ -37,10 +37,10 @@ The server binds to localhost by default. Set the host explicitly to expose it o
 | Variable                                | What it does                                                                                                                                                                                    |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SMALLSASS_ACCOUNT_MODE`                | `off`, `password` or `sso`. `off` creates no sign-in at all; production refuses to boot with it unset unless you explicitly opt in (see below).                                                 |
-| `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE`  | An optional named policy: `self-hosted-password`, `self-hosted-mixed` or `self-hosted-sso-only`. Enforced at startup.                                                                           |
+| `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE`  | An optional named policy: `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` or `hosted-sso-only`. Enforced at startup.                                                       |
 | `SMALLSASS_ACCOUNT_SECRET`              | The session-signing secret. Required for `password` or `sso` mode. Generate with `openssl rand -base64 48` — anything 32 characters or longer is fine; the install guide's command produces 48. |
 | `SMALLSASS_ACCOUNT_PUBLIC_URL`          | The exact browser-facing origin, for example `https://capacity.example.com`. Required for `password` or `sso` mode.                                                                             |
-| `SMALLSASS_ACCOUNT_SETUP_TOKEN`         | The one-time secret the first owner enters on a fresh password-mode instance. For SSO, use `SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS` for the first identity or a pre-authorised invitation after that. |
+| `SMALLSASS_ACCOUNT_SETUP_TOKEN`         | The one-time secret the first owner enters on a fresh password-mode instance. For Google/Microsoft setup, use `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` for the first identity or a pre-authorised invitation after that. |
 | `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP`   | Re-opens self-service sign-up. Closed by default — CapacityLens is invite-only unless you set this. Leave it unset in production.                                                               |
 | `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` | Deliberately allows the auth-off (`off`) posture under production. Off by default; without it, a production instance with no sign-in refuses to start.                                          |
 
@@ -64,39 +64,51 @@ handoff material instead of leaving it available to operators or future processe
 
 ## Company login
 
-Read [Set up company login](/company-login/set-up-company-login) first. These variables
-configure the strict [OIDC](/reference/glossary) provider CapacityLens supports.
+Use [Set up company login](/company-login/set-up-company-login) for the registration steps.
+Google and Microsoft are company providers. Configure either or both; a partial credential pair
+refuses startup. `password` mode retains the password form, while `sso` mode permits only configured
+company providers. GitHub remains experimental in mixed mode and cannot provide company-only access.
 
-| Variable                                                                    | What it does                                                                                                                                                                                   |
-| --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SMALLSASS_ACCOUNT_OIDC_CLIENT_ID` / `SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET` | The client credentials from your company login provider. Both required for `sso` mode.                                                                                                         |
-| `SMALLSASS_ACCOUNT_OIDC_ISSUER`                                             | The exact issuer URL your provider reports. Required.                                                                                                                                          |
-| `SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL`                                      | The provider's `.well-known/openid-configuration` URL. Required — the authorisation, token, JWKS and user-info endpoints all come from discovery, not from manual overrides.                   |
-| `SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS`                                   | Comma-separated verified emails allowed to create the first company-login identity. Every identity after that needs a pre-authorised invitation instead.                                       |
-| `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID`                                        | Optional id used in the sign-in route. Defaults to `sso`. Can't be a name CapacityLens already uses internally (`credential`, `generic-oauth`, `two-factor`, `google`, `microsoft`, `github`). |
-| `SMALLSASS_ACCOUNT_OIDC_LABEL`                                              | Optional button label. Defaults to "Single sign-on".                                                                                                                                           |
-| `SMALLSASS_ACCOUNT_OIDC_BRAND`                                              | Optional presentation brand: `google`, `microsoft` or `generic` (default). It changes presentation only; strict OIDC remains the authentication mechanism. The server warns at startup if `google` or `microsoft` is paired with an issuer that is not that company's own.                                    |
-| `SMALLSASS_ACCOUNT_OIDC_SCOPES`                                             | Space-separated scopes. Defaults to `openid profile email`, all of which are required.                                                                                                         |
-| `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED`                                        | An attestation that your company login provider requires multi-factor sign-in for every admitted identity. Set it only after testing that policy.                                              |
+| Variable | What it does |
+| --- | --- |
+| `SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID` / `SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET` | Credentials for a Google web application. Use an Internal audience restricted to your Workspace organisation. |
+| `SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID` / `SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET` | Application ID and secret value from your Microsoft Entra app registration. |
+| `SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID` | Required organisation tenant GUID. `common`, `organizations`, personal-account tenants and a missing value are refused. |
+| `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` | Comma-separated company email addresses allowed to create the first named-provider identity. Later new identities require an unused invitation addressed to them. |
+| `SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID` / `SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET` | Optional credentials for the existing experimental GitHub sign-in in mixed mode. |
+| `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED` | Operator attestation that the company provider requires multi-factor sign-in. Set it only after checking the upstream policy. |
 
-Strict OIDC needs four provider values: the client ID, client secret, discovery URL and
-issuer. The provider id, button label, presentation brand and scopes are optional settings around those four
-values. The default provider id is `sso`, so the callback URI is
-`https://your-capacitylens-address/api/auth/oauth2/callback/sso`. If you set
-`SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID`, replace the final `sso` in the provider's callback
-URI with that exact id before restarting. The id is part of the route and is locked to the
-issuer after the first successful startup. Choose it before that first startup; changing
-it later refuses startup, so do not edit stored provider ids or attempt an ad hoc repair.
+Register `https://your-capacitylens-address/api/auth/callback/google` for Google and
+`https://your-capacitylens-address/api/auth/callback/microsoft` for Microsoft, using your actual
+HTTPS origin. These paths must match exactly. Restart after changing server settings.
 
-See [Move to single sign-on](/company-login/move-to-single-sign-on) for converting an
-existing password installation.
+### Microsoft verification email
 
-Google, Microsoft and GitHub sign-in buttons are available and experimental through
-`SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID`/`SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET` and the
-equivalent Microsoft and GitHub pairs (Microsoft also takes an optional
-`SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID`, defaulting to `common`). Each provider needs
-both its id and secret set, or it's off. Strict OIDC above is the supported,
-provider-neutral path.
+Microsoft first connections may need a one-time email verification. All five SMTP settings are
+required whenever Microsoft is configured, even if a particular identity arrives with adequate
+verified-email claims. An SMTP failure blocks completion without granting access and allows retry.
+Ordinary returning Microsoft sign-in does not require another verification email.
+
+| Variable | What it does |
+| --- | --- |
+| `SMALLSASS_ACCOUNT_MAIL_HOST` | Your SMTP service hostname. |
+| `SMALLSASS_ACCOUNT_MAIL_PORT` | SMTP port. Port 465 uses implicit TLS; other ports require STARTTLS. Certificate verification remains enabled. |
+| `SMALLSASS_ACCOUNT_MAIL_USER` | SMTP authentication username. |
+| `SMALLSASS_ACCOUNT_MAIL_PASSWORD` | SMTP password or service credential. Keep it in the server's secret configuration. |
+| `SMALLSASS_ACCOUNT_MAIL_FROM` | A valid sender email address authorised by the SMTP service; use the address without a display name. |
+
+The verification link expires after 15 minutes and must be confirmed in the browser that started
+sign-in. See the [company-login guide](/company-login/set-up-company-login) for resend, expiry and
+account-connection recovery.
+
+`hosted-sso-only` is reserved for hosted deployments. It requires `mode=sso` and complete
+Google and/or tenant-specific Microsoft configuration; it rejects passwords, GitHub, open signup
+and incomplete provider settings. Self-hosted installations that require company sign-in use
+`self-hosted-sso-only`. See [Require company sign-in](/company-login/move-to-single-sign-on).
+
+The retired generic OIDC settings and `hosted-oidc-only` profile are rejected at startup. Remove
+those settings and configure Google and/or Microsoft explicitly; CapacityLens does not fall back
+to password or sign-in-off mode.
 
 ## The database and backups
 

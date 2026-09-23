@@ -74,8 +74,8 @@ accept responses never include it.
    SOME account — or any user on a zero-account instance — may create, so an editor-only or
    membership-less login never sees the button (its empty picker says "ask an admin for an
    invite" instead of "create your first one"). In SSO-only mode the current session must also come
-   from the required strict provider; an experimental social-provider session cannot provision an
-   Owner membership that would fail the next readiness check. A direct `POST /api/accounts` still 403s
+   from a configured company provider. An existing GitHub session is rejected in provider-required
+   mode; it cannot provision an Owner membership. A direct `POST /api/accounts` still 403s
    regardless, so this is UX only. The
    button stays visible whenever the fact is unavailable or doesn't apply: the demo build (no
    server, no cap), a zero-account instance (the bootstrap exemption — you must be able to create
@@ -113,26 +113,23 @@ accept responses never include it.
    dismisses it for this person and company on this device. It has no sidebar action for reopening.
    The versioned preference is implemented by
    `src/lib/productOrientation.ts`; it is never in `AppData` or an export.
-6. On a company that still has a first-use outcome to complete, the schedule shows a floating
-   **Getting started** card (`data-testid="getting-started"`) without shifting the toolbar or grid.
-   It offers **Import CapacityLens data** where permitted or **Set up manually**, then tracks three
-   real outcomes: a schedulable person, coherent work, and an allocation connecting them. Internal
-   work needs no client or project; project work needs active client and project ancestry. Following
-   the Import link alone completes nothing. The card self-hides once all three outcomes exist.
+6. Every application page shows a **Getting started** progress bar (`data-testid="getting-started-progress"`)
+   from 0 to 5. Its card (`data-testid="getting-started"`) opens by default on Schedule and can be
+   shown or hidden from the bar on any page. The five independent milestones are **Add someone to
+   the schedule**, **Add a client**, **Add a project to the client**, **Add an Activity**, and
+   **Schedule the first piece of work**. Completion comes from active, coherent company data,
+   including imports. Internal work remains available but does not skip the client or project steps.
+   The completed 5/5 bar remains visible until permanently dismissed.
    **Show me around** (`data-testid="getting-started-tour"`) runs a loose five-stop driver.js
    spotlight tour (schedule grid → toolbar → People → Clients & projects → Settings; Next/Back/
    Done buttons, Escape bails, never navigates). The button is busy and cannot start a duplicate
    tour while the lazy tour code is loading. If that code cannot load or start, the
    card remains usable and a persistent error says **The tour could not start. Check your connection
-   and try again.** **Dismiss**
-   (`data-testid="getting-started-dismiss"`) hides the card for good on this device
-   (`capacitylens/gettingStartedDismissed`, default off, never in `AppData`/export). Hidden for a
-   Viewer (every schedule-setup CTA is a write they can't do). In an authenticated company, Owner
-   and Admin additionally see an optional **Invite your team** link to `/team`; it is deliberately
-   outside the completion outcomes. Only Owner or open/demo access sees whole-company import.
-   **Adjust company settings** is also optional. Import and Settings links scroll to and focus their
-   destination section. Away
-   from Schedule, a compact progress link returns to the full card without covering page content.
+   and try again.** An Owner or Admin can permanently **Dismiss** Getting started for everyone in
+   the current company. Before 5/5, confirmation asks **Do you really want to hide this forever?**
+   with **Yes** and **No** choices. No leaves guidance available. A failed save leaves it available
+   and surfaces an error. Editors can view and toggle the card but cannot dismiss permanently;
+   Viewers see neither bar nor card. The old device-local dismissal never hides this guidance.
 7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
 8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these
@@ -186,34 +183,10 @@ that section. Unknown extensionless URLs still reach the in-app
 **Page not found** screen; missing asset and API paths remain real HTTP errors.
 
 Settings is one page with four permanent groups in order: **Company setup**, **Scheduling features**,
-**My display**, and **Data and support**. When strict OIDC is configured, **SSO cutover readiness**
-appears as its own group directly after Company setup. Compact rows stack their labels and controls on narrow
+**My display**, and **Data and support**. Compact rows stack their labels and controls on narrow
 screens. Group descriptions distinguish company-wide settings from preferences saved in this browser.
 Editors and above can change ordinary company settings; Owners and Admins manage Overview access.
-Everyone can adjust their device preferences. The conditional company-keyed **SSO cutover
-readiness** group owns readiness loading, errors, and
-the existing Owner/Admin repair and confirmation flows. See [Settings](../docs-src/guide/settings.md).
-
-**SSO cutover readiness** (`data-testid="sso-readiness-section"` containing
-`data-testid="sso-readiness"`, with strict OIDC configured) is a company-level Settings section.
-It shows whether every active member of the company has one verified link to the required provider.
-Its table has **Member**, **Role**, **Status**, and **Actions** columns. It names each member and role,
-highlights Owner and integrity blockers, and includes installation-wide
-blockers such as unsupported providers, unverified strict-provider links held by non-members,
-configured-social-only non-members, or providerless or credential-only orphan identities. Live reset
-ceremonies are reported as pending cutover revocations, but do not block the transaction that
-atomically revokes them. This is an advisory view; the operator CLI and SSO-only startup interlock
-independently evaluate every company. A failed or malformed readiness response remains visible as
-`data-testid="sso-readiness-error"`; it never silently removes the cutover warning. Admin-approved
-email correction and wrong-subject unlink repair are available only during mixed-mode staging,
-require a fresh identity-global administrative session, revoke the affected member's sessions and
-pending link/reset ceremonies, and are durably audited. Link repair is offered only for coordinates
-implicated by the reported blocker, supports both the required and alternative providers, confirms
-the exact provider row and subject, and refuses to remove a principal's only viable sign-in method.
-In SSO-only mode the readiness view remains visible, but repair controls are hidden. Its controls are **Correct email**
-(`data-testid="sso-correct-email"`), the correction input (`data-testid="sso-correct-email-input"`),
-**Save and revoke sessions** (`data-testid="sso-correct-email-save"`), and **Remove incorrect link**
-(`data-testid="sso-remove-link"`).
+Everyone can adjust their device preferences. See [Settings](../docs-src/guide/settings.md).
 
 The **Import and export** row (**Export JSON** / **Import JSON**) is a closed-by-default disclosure
 in **Data and support**, below **Deleted items** and above the compact company-details
@@ -250,9 +223,13 @@ when two or more companies are accessible; with one accessible company they are 
 and demo builds retain their company context and switching exception. (Keeping the context at the
 bottom keeps the logo + collapse toggle as the first item in both the open menu and collapsed rail.)
 **Account** opens the signed-in person's identity and security page from every main app page. In
-password mode it shows password change, MFA status and active-session revocation; in SSO mode it
-shows the provider identity and active sessions without password controls. Demo and auth-off modes
-describe their actual local access and never invent credential controls. Company Settings contains
+its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
+Actions. The row scrolls horizontally on narrow screens. Long email
+addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
+In password mode it offers password change in a dialog for local-password identities and shows MFA
+status only when the operator requires it; in SSO mode it shows the provider identity without password controls.
+The page hides active-session details. Demo and auth-off modes
+never invent credential controls. Company Settings contains
 company and device configuration only. The avatar is the signed-in user's own picture when the identity provider supplied one, initials
 otherwise, and the demo persona's face in the demo build. The row always reads **Sign out**, never
 "Sign in": the sign-in wall means the sidebar only ever renders for someone already signed in.
@@ -260,7 +237,7 @@ It appears on any auth-enabled deploy and in the demo build; an auth-off server 
 
 **Badge shape.** Shared role and status badges use a compact pill silhouette. This applies to the
 company picker and sidebar roles, invite roles, Team & access posture, placeholder resources,
-company-login connection state and cutover readiness. Their semantic colour remains independent:
+company-login connection state. Their semantic colour remains independent:
 brand/default, neutral, warning, danger and outline badges keep their existing meanings.
 
 **Collapse / expand.** A toggle button at the **top-left** of the sidebar (accessible name
@@ -816,14 +793,14 @@ If the optional allocation Task field from #720 is available and populated under
 visibility rule, this vertical view shows it above Notes; this drawer does not create that field or
 setting. See [US-ALL-10](allocation/US-ALL-10-task-field.md).
 
-**Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
+**Internal work colours (per-account, default neutral grey).** Settings → **Internal work colours** has a
 two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
-**Grey** (the default) or **Use colour palette**. It is stored as `internalColourMode` on the
-Account (absent = `grey`, syncs but is omitted from the scoped planning-data export). In **Grey** mode, allocation bars for `internal`
+**Neutral grey** (the default) or **Colour palette**. It is stored as `internalColourMode` on the
+Account (absent = `grey`, syncs but is omitted from the scoped planning-data export). In **Neutral grey** mode, allocation bars for `internal`
 activities and for projects owned by the built-in **Internal** client use the neutral grey, and an
 Internal-owned project's saved colour is overridden by grey in the Projects list. The project
 form hides its existing **Colour** swatch picker whenever the selected client is Internal; the
-saved palette colour is retained rather than cleared. Switching to **Use colour palette** restores
+saved palette colour is retained rather than cleared. Switching to **Colour palette** restores
 those saved project colours and reveals the picker. Unattributed All-projects allocations retain
 their resource-derived colours in both modes; attributed ones use their effective project's colour.
 
@@ -902,7 +879,7 @@ server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a dif
 `sso`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
-and a `Sign in` button in password mode; a `Continue with SSO` button in sso mode; failures
+and a `Sign in` button in password mode; configured company-provider buttons in sso mode; failures
 show an inline alert. Starting an external sign-in clears an earlier provider error, announces
 **Redirecting to _provider_…** as a neutral status, and keeps the provider controls disabled while
 the browser hands off to the provider). If a mid-session 401 arrives while server writes are still unsaved, the
@@ -918,25 +895,24 @@ the failure detail is announced as an alert when it replaces the checking state.
 While signed in, the sidebar's **Account** destination shows who is signed in and the available
 personal security controls. **Account** contains the single **Sign out** action for real and demo
 sessions. With auth off (the default everywhere) or in
-local mode, no login screen exists, Account explains that sign-in is off, and local mode makes **no**
+local mode, no login screen exists, Account has no credential controls, and local mode makes **no**
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
-**External provider action labels (login, invitation acceptance and reauthentication).** A
-configured Google social provider or strict OIDC provider explicitly branded as Google uses the
+**External provider action labels (login, invitation acceptance and reauthentication).** The
+configured Google provider uses the
 exact branded action **Sign in with Google** and the
 recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
 reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
-providers retain **Continue with _provider_** and their caller-supplied accessible label.
-Brand is server-owned presentation metadata and is never inferred from the editable provider label;
-an unbranded strict OIDC provider remains generic. On a password-mode installation with Google
+providers use their branded accessible action, including **Sign in with Microsoft**.
+Provider presentation is server-owned and is never inferred from a user-editable provider label.
+On a password-mode installation with Google
 configured, the sign-in wall puts that Google action
 first, rendered sharply on high-density displays without an outer wrapper shadow and with breathing
 room from helper copy above and the explicit **or use your password** separator below. The password
-form follows at the standard spacing. SSO-only
-still omits password controls; password-only installations and installations without Google keep
-their existing order. If several providers are configured, the remaining provider actions stay
-available below the password fallback.
+form follows at the standard spacing. Microsoft is presented alongside the primary Google action,
+above the password fallback, including when Microsoft is the only company provider. SSO-only
+still omits password controls. Additional provider actions retain their existing order.
 
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
 character even though browser `maxlength` uses two UTF-16 code units. Email admission applies the
@@ -955,30 +931,39 @@ challenge for sensitive actions offers the same **Use a recovery code** alternat
 one-time code can restore freshness without signing out or losing the current form. The enrollment
 wall deliberately outranks public-entry links for a signed-in identity: an invitation explains that
 MFA must be finished before it can be accepted, while a password-reset link explains that the user
-may finish enrollment or choose **Sign out** to redeem the link without the current session. Account gains a **Security** section
-(`data-testid="security-section"`) where password users can change their password only by supplying
-the current password and can view/revoke active sessions. Recovery codes and session tokens are
-never displayed after their one-time setup/use. Disabling MFA is deliberately not offered when the
-deployment requires it.
+may finish enrollment or choose **Sign out** to redeem the link without the current session.
+On Account, local-password users open **Change password** from the identity row and supply their
+current password in the dialog. The **Security** section (`data-testid="security-section"`) appears
+when required MFA status or a configured company-provider connection is available. Recovery codes and session
+tokens are never displayed after their one-time setup/use. Disabling MFA is deliberately not offered
+when the deployment requires it.
 
-On a `self-hosted-mixed` deployment with strict OIDC configured, the Account Security section also shows
-**Connect your SSO account** (`data-testid="sso-connection"`). **Connect with _provider_** starts a
-fresh-session-gated, self-service provider ceremony; the member authenticates at the IdP and returns
-to the same page. The provider must assert `email_verified: true`, its email must match the local
-sign-in email, and its immutable subject must not belong to another principal. A successful callback
-shows **Connected to _provider_**. Raw provider link/unlink routes are unavailable. A federated
-session in mixed mode uses that same provider—not a password it may not have—for **Confirm it's you**.
-That provider hand-off announces **Redirecting to _provider_…** and keeps the dialog busy while the browser
-leaves, on the same contract as the sign-in screen; only a returned provider error is reported and retryable.
+On a mixed deployment, Account's Security section shows **Company sign-in**
+(`data-testid="sso-connection"`) for each configured company provider. **Connect _provider_**
+requires a fresh session and connects the provider to that same principal. Named Google and Microsoft
+connections require a verified local email and matching proof of the provider address; Microsoft may
+ask for the one-time mailbox verification below. A conflicting identity is rejected without merging
+accounts. A successful callback shows **Connected to _provider_**. The same verified provider identity
+is used for subsequent sign-in. GitHub retains its existing experimental sign-in behavior.
+
+**Microsoft mailbox verification (`/verify-microsoft`, with an optional trailing slash).** This is a
+public entry before auth or company-data hydration. If the first connection needs email proof, the
+person opens the emailed link in the browser that started the request and chooses **Confirm and
+continue**. The secret fragment is removed from the address bar and retained only in memory. After
+confirmation, **Continue to Microsoft** can resume an approved request without the email token.
+The flow checks the same Microsoft identity and the still-valid invitation or local session before
+creating its connection. Expired, replaced and consumed proofs cannot be reused. Delivery failures
+are shown honestly; **Resend verification email**, retry and cancellation provide recovery. Ordinary
+returning sign-in uses the established identity and does not repeat this mailbox check. See
+[Set up company login](../docs-src/company-login/set-up-company-login.md).
 
 **First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
-bootstrap account and closes the moment it exists), the login wall shows **Set up the first Owner**
-instead of sign-in. It explains that this creates a personal sign-in with the Owner role and that
-other people can be invited later. Fields are **Your name**
-(`data-testid="owner-setup-name"`), **Work email** (`data-testid="owner-setup-email"`), **Create a
-password** (`data-testid="owner-setup-password"`) with its length requirement, and **Owner setup
-token** (`data-testid="owner-setup-token"`) with installer guidance, plus a **Create my sign-in** button
+bootstrap account and closes the moment it exists), the login wall shows **Setup the account Owner**
+instead of sign-in. Fields are **name** (`data-testid="owner-setup-name"`), **email**
+(`data-testid="owner-setup-email"`), **Create a password** (`data-testid="owner-setup-password"`)
+with its length validation, and **Owner setup token** (`data-testid="owner-setup-token"`) with
+installer guidance, plus a **Create my sign-in** button
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
 owner in and reloads into **Set up your company**, where the owner creates the first company before
 entering the app. Ordinary edge whitespace around a pasted setup token is ignored; a token containing
@@ -991,10 +976,12 @@ zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential 
 production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/auth-helpers.ts`),
 so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
-On a mixed password/OIDC deployment, every configured external provider remains available below
+On a mixed deployment, every configured external provider remains available below
 the setup form. Google uses the branded **Sign in with Google** action; other providers use
-**Continue with _provider_**. A verified email on the OIDC bootstrap allow-list may therefore
-create the first owner directly; the operator does not need a temporary password identity.
+their branded sign-in action. Named Google/Microsoft bootstrap uses
+`SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS`. Microsoft asks for the intended email before starting
+and proves it during first connection; provider-required setup does not ask for a password. The
+operator does not need a temporary password identity.
 
 **Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
 carries a pre-set Admin, Editor or Viewer role for one company; Owner is never invitational.
@@ -1016,9 +1003,9 @@ under that identity, sees the signed-in email/name, then chooses **Accept invite
 account** signs out without discarding the bearer URL. If a pre-authorised invite rejects the current
 identity, the page explains the mismatch and retains that same recovery action instead of suggesting
 a retry as the wrong identity. In SSO-only mode the accepting session must come from the required
-strict-OIDC provider; configured experimental social providers remain sign-in doors for existing
-principals but cannot create a new local principal or membership that would fail the next startup
-readiness check. A brand-new invitee chooses **Create account and
+company provider. GitHub cannot enter a provider-required deployment, including through an
+older session. Google and Microsoft sign-in do not themselves claim the invitation: the signed-in
+person still explicitly accepts it, with its address and expiry checked again. A brand-new invitee chooses **Create account and
 accept** (POST `/invite/:token/signup`), which creates the identity and claims the invite atomically,
 then refreshes the authenticated company list, activates that company and enters it directly.
 A fresh authenticated boot is required because the pre-session invite page deliberately starts
@@ -1083,8 +1070,8 @@ company, importing or purging data, and linking or repairing an SSO identity. Th
 you** dialog names the requested action. Cancelling leaves the directory visible and does not apply
 the requested change.
 
-Team & access does not fetch or render SSO cutover readiness; the company-keyed Settings section is
-the sole UI owner of readiness loading, display, and repair actions.
+Team & access manages members and invitations. Company sign-in connections are managed from
+Account → Security.
 
 Team administration dialogs use the same bordered header, body and footer as other product modals.
 Form dialogs place explanatory labels in the left column and their controls in the wider right
@@ -1230,11 +1217,7 @@ while the administrative directory keeps listing them),
 every caller — ownership is transferred, never invited — and
 `POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password mode
 only — sso/OFF → 400; admin resetting an owner → 403; 404 non-member; 201 `{token, expiresAt}`,
-write-once) mints the reset link. SSO staging additionally exposes
-`GET /api/accounts/:accountId/sso-readiness`,
-`PATCH /api/accounts/:accountId/members/:userId/email`, and
-`DELETE /api/accounts/:accountId/members/:userId/federated-link`; the two repair writes are
-mixed-mode-only and identity-global. The management UI is
+write-once) mints the reset link. The management UI is
 `src/components/team/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
 story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
@@ -1415,10 +1398,9 @@ shown for the few seconds of POST + re-hydrate; not dismissable, locks all editi
 `account-load-recovery` (failed selected-company hydration; replaces the application shell until
 Retry succeeds or another company is chosen),
 `product-orientation` (the non-blocking **How CapacityLens works** region),
-`getting-started` (the schedule's first-run checklist card; only while the active account has an
-incomplete onboarding step and it hasn't been dismissed), `getting-started-tour` (its **Show me
-around** button — runs the driver.js orientation tour), `getting-started-dismiss` (its **Dismiss**
-button; sets `capacitylens/gettingStartedDismissed`),
+`getting-started-progress` (the company-wide 0–5 bar), `getting-started` (the toggleable checklist
+card), `getting-started-tour` (its **Show me around** button — runs the driver.js orientation tour),
+`getting-started-dismiss` (the Owner/Admin **Dismiss** button; saves company-wide dismissal),
 `create-language` (company-create form's read-only Language row — **English**), `settings-language`
 (Settings → the Company details read-only Language cell — **English**; both
 frozen, P1.14),

@@ -182,11 +182,10 @@ function sanitizeScopedWrite({ table, copy, existing, options }: SanitizeScopedW
   }
   assertScopedWriteFields(table, copy, options);
   const cleaned = sanitizeImportedRecord(table, copy);
-  // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated
+  // Lifecycle tombstones (archivedAt/deletedAt) are owned only by the dedicated
   // archive/unarchive/delete/purge routes, which build rows via the pure lifecycle transitions and
   // persist them through TenantStore.writeLifecycleRow without passing through sanitizeWrite. So
-  // across every GENERIC write
-  // (POST/PUT/PATCH/batch) they are IMMUTABLE in BOTH directions — PIN them to whatever is already
+  // Across every generic write (POST/PUT/PATCH/batch), they are immutable in both directions: pin them to what is already
   // stored (`existing`), ignoring the body. A crafted body can't SET a tombstone on an active row,
   // and an unrelated edit can't CLEAR one and silently resurrect a row. On CREATE both fields are
   // stripped, so new rows start active. Imports remain untouched because they use

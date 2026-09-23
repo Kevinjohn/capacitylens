@@ -1,11 +1,13 @@
 import type { LifecycleRedactionInput } from "./lifecycleRoutes";
 import type { FastifyInstance } from "fastify";
 import { type SsoCutoverIdentityPort } from "../accounts/betterAuthIdentityPort";
-import { registerSsoCutoverRoutes } from "../accounts/ssoCutoverRoutes";
+import { registerFederatedIdentityRoutes } from "../accounts/federatedIdentityRoutes";
 import { registerAccountRoutes } from "../accounts/accountRoutes";
+import { registerGettingStartedRoutes } from "./gettingStartedRoutes";
 import { readMemberSignInTrackingSnapshot, setMemberSignInTracking } from "../accounts/memberSignInTracking";
 import { registerLifecycleRoutes } from "./lifecycleRoutes";
 import { registerAuthProxyRoutes } from "./authProxyRoutes";
+import { registerMicrosoftProofRoutes } from "./microsoftProofRoutes";
 import { registerBatchRoutes } from "./batchRoutes";
 import { registerEntityRoutes } from "./entityRoutes";
 import { registerImportRoutes } from "./importRoutes";
@@ -124,11 +126,15 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
   const { accountFail, sendFail } = rootHelpers;
   const { authorizeAllowed, fieldVisibilityFor, memberReadProjection, redactWriteEcho, resolveEffectiveRole } =
     authorization;
+  registerGettingStartedRoutes(app, { db, authorize: authorizeAllowed });
   registerAccountRoutes(app, {
     memberResources: runtime.memberResources,
     authMode,
     authenticationConfigured: auth !== null,
-    requiredSsoProviderId: authMode === "sso" ? (auth?.strictProvider?.id ?? null) : null,
+    requiredSsoProviderId: authMode === "sso" ? (auth?.defaultCompanyProvider?.id ?? null) : null,
+    ...(auth?.permittedCompanyProviderIds === undefined
+      ? {}
+      : { permittedCompanyProviderIds: auth.permittedCompanyProviderIds }),
     administration: accountAdminPort,
     identity: identityPort,
     flows: accountFlows,
@@ -231,16 +237,17 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
   registerSystemRoutes(app, { ...dependencies.system, section: "public" });
   registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "identity" });
   if (authMode !== "off" && auth) {
-    registerSsoCutoverRoutes(app, {
+    registerMicrosoftProofRoutes(app, auth, options.trustProxyHeaders === true);
+    registerFederatedIdentityRoutes(app, {
       auth,
       authMode,
       identity: identityPort as SsoCutoverIdentityPort,
       administration: accountAdminPort,
       applicationId: application.applicationId,
-      openSignup: options.allowOpenSignup === true,
       authorize: authorization.authorizeAllowed,
       fail: rootHelpers.accountFail,
       toWebHeaders,
+      trustProxyHeaders: options.trustProxyHeaders === true,
     });
     registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "proxy" });
   }

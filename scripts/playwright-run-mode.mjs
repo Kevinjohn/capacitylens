@@ -22,18 +22,15 @@ export function resolvePlaywrightRunMode(environment, argv, selectsOnlyExplicitC
   const firefoxOnly = enabled(environment, "CAPACITYLENS_FIREFOX_ONLY");
   if (webkitOnly && firefoxOnly) throw new Error("WebKit-only and Firefox-only modes are mutually exclusive.");
 
-  const oidcOnly = enabled(environment, "CAPACITYLENS_OIDC_E2E");
   const rehearsal = Boolean(environment.CAPACITYLENS_REHEARSAL_URL);
-  if (oidcOnly && rehearsal) throw new Error("OIDC and rehearsal modes are mutually exclusive.");
-  if ((oidcOnly || rehearsal) && (webkitOnly || firefoxOnly)) {
-    throw new Error("OIDC/rehearsal modes cannot be combined with a single-browser core mode.");
+  if (rehearsal && (webkitOnly || firefoxOnly)) {
+    throw new Error("Rehearsal mode cannot be combined with a single-browser core mode.");
   }
 
   const explicitCoreOnly = selectsOnlyExplicitCoreSpecs(argv);
   const viteOnly = enabled(environment, "CAPACITYLENS_VITE_ONLY") || webkitOnly || firefoxOnly || explicitCoreOnly;
   const projects = [];
-  if (oidcOnly) projects.push("oidc-backed");
-  else if (rehearsal) projects.push("rehearsal");
+  if (rehearsal) projects.push("rehearsal");
   else if (webkitOnly) projects.push("webkit");
   else if (firefoxOnly) projects.push("firefox");
   else {
@@ -45,6 +42,6 @@ export function resolvePlaywrightRunMode(environment, argv, selectsOnlyExplicitC
 
   return Object.freeze({
     projects: Object.freeze(projects),
-    serverProfile: rehearsal ? "rehearsal" : oidcOnly ? "oidc" : viteOnly ? "vite" : "standard",
+    serverProfile: rehearsal ? "rehearsal" : viteOnly ? "vite" : "standard",
   });
 }

@@ -155,6 +155,22 @@ const V44_MIGRATION = {
   name: "add-invitation-person-proposals",
   checksum: "5d8954d0ad867841f181d9da2742345bf49d016a35634ebde542778004b2fa42",
 } as const;
+const V45_MIGRATION = {
+  version: 45,
+  name: "add-getting-started-dismissals",
+  checksum: "bef033bdac24187ba63dbe24c3af0167113962e5c08edf7a8f14cde7b80de62c",
+} as const;
+const V46_MIGRATION = {
+  version: 46,
+  name: "add-microsoft-identity-proof",
+  checksum: "856bd5d5e8d0fc95182d2c2b0c37acb5ce5739fce5c679cf8b5f65270a76b02f",
+} as const;
+// Synthetic historical databases must not retain the new operational proof table or its runtime gates.
+const MICROSOFT_PROOF_ROLLBACK_SQL = `
+  DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_before;
+  DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_after;
+  DROP TABLE IF EXISTS microsoft_identity_proofs;
+`;
 const RELEASED_MIGRATION_HISTORY = [
   {
     version: 8,
@@ -265,6 +281,8 @@ const RELEASED_MIGRATION_HISTORY = [
   V42_MIGRATION,
   V43_MIGRATION,
   V44_MIGRATION,
+  V45_MIGRATION,
+  V46_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -291,11 +309,13 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V42_MIGRATION,
   V43_MIGRATION,
   V44_MIGRATION,
+  V45_MIGRATION,
+  V46_MIGRATION,
 ] as const;
 /** The same list without its v25 head — what a database rolled back to v25 still has pending. */
 const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
 const fixture = (name: string): string => join(process.cwd(), "src", "fixtures", "databases", name);
-const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34, 42] as const;
+const DATABASE_FIXTURE_VERSIONS = [7, 8, 9, 12, 13, 14, 15, 16, 23, 25, 34, 42, 46] as const;
 const RELEASED_FIXTURE_NAMES = DATABASE_FIXTURE_VERSIONS.flatMap((version) => [
   `v${version}-off.db`,
   `v${version}-password.db`,
@@ -547,7 +567,8 @@ function rollbackColourFixtureToV12(db: DatabaseSync): void {
   dropAllocationProjectAttribution(db);
   dropActivityLifecycleColumns(db);
   db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
-  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`);
+  db.exec(`${MICROSOFT_PROOF_ROLLBACK_SQL}
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`);
   db.exec(`PRAGMA user_version = 12`);
 }
 
@@ -586,7 +607,8 @@ function prepareV14ResetCeremonyFixture(path: string): void {
   dropAllocationProjectAttribution(db);
   dropActivityLifecycleColumns(db);
   db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
-  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
+  db.exec(`${MICROSOFT_PROOF_ROLLBACK_SQL}
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`);
   db.exec(`PRAGMA user_version = 13`);
   db.close();
 }
@@ -613,7 +635,8 @@ function prepareV16AccountViewPreferencesFixture(path: string): void {
   dropAllocationProjectAttribution(db);
   dropActivityLifecycleColumns(db);
   db.exec(`ALTER TABLE allocations DROP COLUMN seriesId`);
-  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
+  db.exec(`${MICROSOFT_PROOF_ROLLBACK_SQL}
+    DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`);
   db.exec(`PRAGMA user_version = 15`);
   db.close();
 }
@@ -629,6 +652,7 @@ function rollBackCurrentDatabaseToV25(db: DatabaseSync): void {
     ALTER TABLE resources DROP COLUMN engagement;
     ALTER TABLE resources DROP COLUMN halfDays;
     ALTER TABLE resources DROP COLUMN isFavourite;
+    ${MICROSOFT_PROOF_ROLLBACK_SQL}
     DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 26;
     PRAGMA user_version = 25;
   `);
@@ -666,6 +690,7 @@ function prepareV23InvitationHistory(db: Db): void {
   db.exec(`
     DROP INDEX idx_invites_account_usedAt_id;
     DROP INDEX idx_invites_live_preauthEmail;
+    ${MICROSOFT_PROOF_ROLLBACK_SQL}
     DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 24;
     PRAGMA user_version = 23;
   `);
@@ -751,6 +776,7 @@ function prepareV21TombstonedInternalClients(db: Db, priorRevision: string): voi
     "internal:a-deleted",
   );
   db.exec(`
+    ${MICROSOFT_PROOF_ROLLBACK_SQL}
     DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 22;
     PRAGMA user_version = 21;
   `);
@@ -804,6 +830,7 @@ function prepareV24IdentitySchema(db: Db): void {
     DROP TABLE capacitylens_federated_link_observations;
     DROP TABLE capacitylens_federated_link_ceremonies;
     DROP TABLE capacitylens_sso_cutover_state;
+    ${MICROSOFT_PROOF_ROLLBACK_SQL}
     DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
     PRAGMA user_version = 24;
     CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL);
@@ -1787,6 +1814,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
       expect(plannedBeforeWinner).toEqual([
         17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
+        45, 46,
       ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
@@ -1812,6 +1840,7 @@ describe("schema migration of an existing on-disk DB", () => {
       DROP TABLE capacitylens_sync_row_provenance;
       DROP TABLE capacitylens_sync_sessions;
       DROP TABLE capacitylens_audit_outbox;
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 17;
       PRAGMA user_version = 16;
     `);
@@ -1819,6 +1848,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
       17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
+      45, 46,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -1849,6 +1879,7 @@ describe("schema migration of an existing on-disk DB", () => {
     db.exec(`
       DROP TABLE capacitylens_sync_row_provenance;
       DROP TABLE capacitylens_sync_sessions;
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 18;
       PRAGMA user_version = 17;
     `);
@@ -1899,6 +1930,7 @@ describe("schema migration of an existing on-disk DB", () => {
       .all() as Array<{ name: string }>;
     for (const { name } of triggers) db.exec(`DROP TRIGGER ${name}`);
     db.exec(`
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 19;
       PRAGMA user_version = 18;
       INSERT INTO accounts (id, name, color, createdAt, updatedAt)
@@ -1948,6 +1980,7 @@ describe("schema migration of an existing on-disk DB", () => {
     dropTenantEntityIndexes(db);
     db.exec(`
       DROP TABLE capacitylens_bootstrap_claim;
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 20;
       PRAGMA user_version = 19;
     `);
@@ -2010,6 +2043,7 @@ describe("schema migration of an existing on-disk DB", () => {
       DROP TABLE capacitylens_bootstrap_claim;
       ${ddl};
       ${insert};
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 20;
       PRAGMA user_version = 19;
     `);
@@ -2038,6 +2072,7 @@ describe("schema migration of an existing on-disk DB", () => {
     );
     dropTenantEntityIndexes(db);
     db.exec(`
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 20;
       PRAGMA user_version = 19;
     `);
@@ -2125,12 +2160,13 @@ describe("schema migration of an existing on-disk DB", () => {
       CREATE TABLE capacitylens_bootstrap_claim (
         id INTEGER PRIMARY KEY CHECK (id = 1), claimToken TEXT NOT NULL
       );
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 20;
       PRAGMA user_version = 19;
     `);
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
-      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2151,6 +2187,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const db = openDb(":memory:");
     dropTenantEntityIndexes(db);
     db.exec(`
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 21;
       PRAGMA user_version = 20;
     `);
@@ -2199,6 +2236,8 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
+      V46_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2259,6 +2298,8 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
+      V46_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2286,6 +2327,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const db = openDb(":memory:");
     for (const { index } of FOREIGN_KEY_CHILD_INDEXES_V23) db.exec(`DROP INDEX ${index}`);
     db.exec(`
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 23;
       PRAGMA user_version = 22;
     `);
@@ -2324,6 +2366,8 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
+      V46_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2372,6 +2416,8 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
+      V46_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2651,6 +2697,7 @@ describe("schema migration of an existing on-disk DB", () => {
       ALTER TABLE resources DROP COLUMN isFavourite;
       ALTER TABLE resources DROP COLUMN engagement;
       ALTER TABLE allocations DROP COLUMN seriesId;
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 27;
       PRAGMA user_version = 26;
     `);
@@ -2673,6 +2720,8 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
+      V46_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2820,6 +2869,7 @@ function registerActivityLifecycleMigrationTest(): void {
     db.exec(`
       ALTER TABLE activities DROP COLUMN archivedAt;
       ALTER TABLE activities DROP COLUMN deletedAt;
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 36;
       PRAGMA user_version = 35;
     `);
@@ -2832,6 +2882,8 @@ function registerActivityLifecycleMigrationTest(): void {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
+      V46_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
@@ -2867,6 +2919,7 @@ describe("schema migration of an existing on-disk DB", () => {
       ALTER TABLE accounts DROP COLUMN capacityOverviewAccess;
       ALTER TABLE resources DROP COLUMN avatarUrl;
       DROP TABLE account_ownership_transfers;
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 39;
       PRAGMA user_version = 38;
     `);
@@ -2878,6 +2931,8 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
+      V46_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2900,6 +2955,7 @@ describe("schema migration of an existing on-disk DB", () => {
       ALTER TABLE accounts DROP COLUMN dateStyle;
       ALTER TABLE resources DROP COLUMN avatarUrl;
       DROP TABLE IF EXISTS account_ownership_transfers;
+      ${MICROSOFT_PROOF_ROLLBACK_SQL}
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 40;
       PRAGMA user_version = 39;
     `);
@@ -2918,6 +2974,8 @@ describe("schema migration of an existing on-disk DB", () => {
       V42_MIGRATION,
       V43_MIGRATION,
       V44_MIGRATION,
+      V45_MIGRATION,
+      V46_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2964,6 +3022,8 @@ describe("schema migration of an existing on-disk DB", () => {
           V42_MIGRATION,
           V43_MIGRATION,
           V44_MIGRATION,
+          V45_MIGRATION,
+          V46_MIGRATION,
         ]);
         initializeOpenDb(db, copied.path);
 

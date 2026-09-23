@@ -117,11 +117,9 @@ function buildSsoEnvironment(profile?: string): NodeJS.ProcessEnv {
     SMALLSASS_ACCOUNT_MODE: "sso",
     SMALLSASS_ACCOUNT_SECRET: "startup-test-secret-0123456789abcdef",
     SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
-    SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-    SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-    SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.example/.well-known/openid-configuration",
-    SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.example",
-    SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "workforce",
+    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+    SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
   };
   return profile === undefined ? environment : { ...environment, SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: profile };
 }
@@ -136,10 +134,51 @@ function assertPreservedSsoState(database: string): void {
   preserved.close();
 }
 
+async function acceptsNamedCompanyConnection(): Promise<void> {
+  const { database, directory } = await createSsoCutoverDatabase();
+  try {
+    const db = openDb(database);
+    try {
+      const now = new Date().toISOString();
+      db.prepare(
+        `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+          VALUES ('google-owner', 'google', 'google-subject', 'owner-1', ?, ?)`,
+      ).run(now, now);
+    } finally {
+      db.close();
+    }
+    // Stop after readiness, before listening, using an independently tested backup refusal.
+    const backupPath = join(directory, "not-a-backup-directory");
+    writeFileSync(backupPath, "filesystem obstruction");
+    const result = boot({
+      CAPACITYLENS_DB: database,
+      CAPACITYLENS_BACKUP_DIR: backupPath,
+      ...buildSsoEnvironment("self-hosted-sso-only"),
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+    });
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("could not be initialized");
+    expect(result.stderr).not.toContain("SSO cutover readiness failed");
+    const inspected = openDb(database);
+    try {
+      expect(inspected.prepare("SELECT id FROM session").all()).toEqual([]);
+      expect(inspected.prepare("SELECT applicationId FROM capacitylens_sso_cutover_state").all()).toEqual([
+        { applicationId: "capacitylens" },
+      ]);
+    } finally {
+      inspected.close();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 // Each `boot` is a full entrypoint spawn through tsx with a 10 s budget of its own, and the SSO
 // refusal case boots twice. The per-test budget must cover the spawn budgets, not vitest's 5 s
 // default: on the shared CI runner the two-boot case already sat near that default before the
 // server module graph grew.
+// eslint-disable-next-line max-lines-per-function
 describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
   it("refuses a retired account name and identifies its canonical replacement", () => {
     const result = boot({ CAPACITYLENS_AUTH: "password" });
@@ -149,7 +188,7 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
     expect(result.stderr).not.toContain("at resolveAccountEnvironment");
   });
 
-  it("refuses a direct SSO-only flip and names an Owner without a verified provider link", async () => {
+  it("refuses a direct SSO-only flip without a verified provider link", async () => {
     const { database, directory } = await createSsoCutoverDatabase();
     try {
       const result = boot({
@@ -158,8 +197,9 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
       });
 
       expect(result.status, result.stderr).toBe(1);
-      expect(result.stderr).toContain("SSO cutover readiness failed");
-      expect(result.stderr).toContain("owner@example.com (owner)");
+      expect(result.stderr).toContain(
+        "Provider-required cutover needs a verified company-provider connection for 1 principal(s).",
+      );
       expect(result.stderr).not.toContain("at ");
 
       const repeated = boot({
@@ -168,12 +208,16 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
         ...buildSsoEnvironment(),
       });
       expect(repeated.status, repeated.stderr).toBe(1);
-      expect(repeated.stderr).toContain("SSO cutover readiness failed");
+      expect(repeated.stderr).toContain(
+        "Provider-required cutover needs a verified company-provider connection for 1 principal(s).",
+      );
       assertPreservedSsoState(database);
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  it("accepts a named company connection for SSO cutover", acceptsNamedCompanyConnection);
 
   it("frames a buildApp configuration failure without a raw stack", () => {
     const result = boot({

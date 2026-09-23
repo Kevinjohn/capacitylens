@@ -287,10 +287,8 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   // Derived from the model only — memoise so opening a modal / measuring the
   // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
   const overallUtil = useMemo(
-    // Exclude external / 3rd-party rows: they carry no capacity (utilisation 0) and would
-    // otherwise drag the headline average down. NOTE the group figure below guards on the whole
-    // BAND instead, so a mixed group still averages an external row in at 0% — a known
-    // inconsistency between the two figures, deliberately left alone by this refactor.
+    // Exclude external / 3rd-party rows: they carry no capacity and do not contribute to the
+    // headline utilisation average.
     () =>
       buildAverageUtilizationLabel(
         model.flatMap((group) => group.rows).filter((row) => isCapacityTracked(row.resource)),

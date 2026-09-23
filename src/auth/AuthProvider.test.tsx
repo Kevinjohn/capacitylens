@@ -316,7 +316,7 @@ function registerServerModeTest06() {
 }
 
 function registerServerModeTest07() {
-  it("surfaces and clears an OIDC step-up failure for an authenticated session", async () => {
+  it("surfaces and clears a Microsoft step-up failure for an authenticated session", async () => {
     window.history.replaceState(
       {},
       "",
@@ -332,9 +332,9 @@ function registerServerModeTest07() {
             user: { id: "owner", name: "Owner", email: "owner@example.com" },
             providers: [
               {
-                id: "sso",
-                label: "Single sign-on",
-                kind: "oidc",
+                id: "microsoft",
+                label: "Microsoft",
+                kind: "social",
                 experimental: false,
               },
             ],
@@ -450,15 +450,15 @@ function registerServerModeTest11() {
           authMode: "sso",
           providers: [
             {
-              id: "work",
-              label: "Work SSO",
-              kind: "oidc",
+              id: "microsoft",
+              label: "Microsoft",
+              kind: "social",
               experimental: false,
             },
             {
-              id: "work",
+              id: "microsoft",
               label: "Other label",
-              kind: "oidc",
+              kind: "social",
               experimental: false,
             },
           ],
@@ -473,7 +473,7 @@ function registerServerModeTest11() {
     );
 
     expect(await screen.findByRole("heading", { name: "Sign in" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /continue with/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /sign in with|continue with/i })).not.toBeInTheDocument();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("duplicate provider identities"));
   });
 }
@@ -495,9 +495,9 @@ function registerServerModeTest12() {
               experimental: true,
             },
             {
-              id: "work-sso",
-              label: "Work SSO",
-              kind: "oidc",
+              id: "microsoft",
+              label: "Microsoft",
+              kind: "social",
               experimental: false,
             },
           ],
@@ -511,7 +511,7 @@ function registerServerModeTest12() {
       </AuthProvider>,
     );
 
-    expect(await screen.findByRole("button", { name: "Continue with Work SSO" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Continue with Mastodon" })).not.toBeInTheDocument();
     expect(warn).toHaveBeenCalledWith("AuthProvider: dropped an unsupported or malformed /api/auth/me provider", {
       id: "mastodon",
@@ -664,9 +664,9 @@ function registerServerModeTest19() {
             authMode: "sso",
             providers: [
               {
-                id: "sso",
-                label: "Single sign-on",
-                kind: "oidc",
+                id: "microsoft",
+                label: "Microsoft",
+                kind: "social",
                 experimental: false,
               },
             ],
@@ -700,8 +700,8 @@ function registerServerModeTest20() {
         <div>app-content</div>
       </AuthProvider>,
     );
-    expect(await screen.findByRole("heading", { name: "Set up the first Owner" })).toBeInTheDocument();
-    expect(screen.getByLabelText("Your name")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Setup the account Owner" })).toBeInTheDocument();
+    expect(screen.getByLabelText("name")).toBeInTheDocument();
     expect(screen.queryByText("app-content")).not.toBeInTheDocument();
   });
 }

@@ -33,15 +33,11 @@ function isBetterAuthProxyRouteAllowed(
   method: string,
   pathname: string,
 ): boolean {
-  const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/oauth2", "POST /sign-in/social"]);
+  const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/social"]);
   if (common.has(`${method} ${pathname}`)) return true;
-  if (
-    (method === "GET" || method === "POST") &&
-    (/^\/oauth2\/callback\/[a-z0-9_-]+$/.test(pathname) || /^\/callback\/[a-z0-9_-]+$/.test(pathname))
-  ) {
+  if ((method === "GET" || method === "POST") && /^\/callback\/[a-z0-9_-]+$/.test(pathname)) {
     return true;
   }
-  if (method === "GET" && /^\/oidc\/authorize\/[a-z0-9_-]+$/.test(pathname)) return true;
   if (authMode !== "password") return false;
   return new Set([
     "POST /sign-up/email",
@@ -186,7 +182,10 @@ async function canAuthenticatedUserCreateAccount({
   // The capability mirrors POST /api/orgs: masquerades and untrusted SSO sessions fail closed,
   // then both the account cap and workspace authority must allow creation.
   const trustedSsoSession =
-    authMode !== "sso" || (session.assurance === "federated" && session.providerId === auth?.strictProvider?.id);
+    authMode !== "sso" ||
+    (session.assurance === "federated" &&
+      (auth?.permittedCompanyProviderIds?.has(session.providerId) ??
+        session.providerId === auth?.defaultCompanyProvider?.id));
   if (masquerades.lookup(session.id) !== undefined || !capAllows || !trustedSsoSession) return false;
   return canUserCreateAccount({
     administration: accountAdminPort,
@@ -213,6 +212,7 @@ async function readAuthenticatedIdentity(
     authMode,
     user,
     mfaRequired: authMode === "password" && requireMfa && !dependencies.sessionSatisfiesRequiredMfa(session),
+    requireMfa: authMode === "password" && requireMfa,
     reauthMethod: session.assurance === "federated" ? "provider" : "password",
     reauthProviderId: session.providerId ?? null,
     providers: auth?.providers ?? [],
@@ -230,7 +230,9 @@ async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependenci
   const resolution = await resolveIncomingSession({ req, force: true });
   if (resolution.kind === "absent_or_invalid") {
     // Zero users is only a bootstrap-availability signal; no tenant facts enter the 401 response.
-    const needsSetup = authMode === "password" && countUsers(db) === 0;
+    const needsSetup =
+      countUsers(db) === 0 &&
+      (authMode === "password" || auth?.providers.some((provider) => provider.id === "microsoft"));
     return reply.code(401).send({
       authMode,
       providers: auth?.providers ?? [],
@@ -283,6 +285,54 @@ function shouldResolveIssuedSession(req: FastifyRequest, response: Response, coo
   return req.authenticationUserId === null && response.status < 400 && cookies.length > 0;
 }
 
+function submitsDirectMicrosoftIdToken(req: FastifyRequest, authPath: string): boolean {
+  if (authPath !== "/sign-in/social" || req.method !== "POST") return false;
+  const body = req.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return false;
+  const social = body as Record<string, unknown>;
+  return social.provider === "microsoft" && (social.idToken !== undefined || social.id_token !== undefined);
+}
+
+function rejectsNonCompanySocialSignIn(input: {
+  req: FastifyRequest;
+  authPath: string;
+  auth: Auth;
+  authMode: AccountMode;
+}): boolean {
+  const { req, authPath, auth, authMode } = input;
+  if (authMode !== "sso" || authPath !== "/sign-in/social" || req.method !== "POST") return false;
+  const body = req.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return true;
+  const providerId = (body as Record<string, unknown>).provider;
+  return typeof providerId !== "string" || !auth.permittedCompanyProviderIds?.has(providerId);
+}
+
+function socialSignInError(input: { req: FastifyRequest; authPath: string; auth: Auth; authMode: AccountMode }): {
+  status: number;
+  error: string;
+  code: string;
+} | null {
+  const { req, authPath, auth, authMode } = input;
+  if (submitsDirectMicrosoftIdToken(req, authPath)) {
+    return {
+      status: 400,
+      error: "Microsoft sign-in requires the authorization-code callback.",
+      code: "CODE_FLOW_REQUIRED",
+    };
+  }
+  if (rejectsNonCompanySocialSignIn({ req, authPath, auth, authMode })) {
+    return { status: 403, error: "Sign in with a configured company provider.", code: "COMPANY_PROVIDER_REQUIRED" };
+  }
+  return null;
+}
+
+function collectProxyCookies(input: { auth: Auth; authPath: string; response: Response; headers: Headers }): string[] {
+  const { auth, authPath, response, headers } = input;
+  const cookies = response.headers.getSetCookie();
+  if (authPath === "/sign-out" && response.ok && auth.microsoftProof) cookies.push(auth.microsoftProof.cancel(headers));
+  return cookies;
+}
+
 async function forwardAuthenticationRequest(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -296,6 +346,8 @@ async function forwardAuthenticationRequest(
   if (!isBetterAuthProxyRouteAllowed(authMode, req.method, authPath)) {
     return reply.code(404).send({ error: "Not found." });
   }
+  const socialError = socialSignInError({ req, authPath, auth, authMode });
+  if (socialError) return reply.code(socialError.status).send({ error: socialError.error, code: socialError.code });
   if (isMasqueradeWrite(req, authPath, masquerades)) {
     return reply.code(403).send({ error: "Masquerade is read-only.", code: MASQUERADE_ERROR_CODES.readOnly });
   }
@@ -311,7 +363,7 @@ async function forwardAuthenticationRequest(
       ...(req.body === undefined || req.body === null ? {} : { body: JSON.stringify(req.body) }),
     }),
   );
-  const cookies = response.headers.getSetCookie();
+  const cookies = collectProxyCookies({ auth, authPath, response, headers: requestHeaders });
   if (shouldResolveIssuedSession(req, response, cookies)) {
     req.authenticationUserId = await resolveAuthenticationUserId({
       auth,

@@ -70,6 +70,10 @@
       "purpose": "Independent 192-bit CSPRNG credential user and account identifiers and first-owner bootstrap claim tokens"
     },
     {
+      "path": "server/src/authConfig/microsoftProofPrimitives.ts",
+      "purpose": "256-bit CSPRNG browser and mailbox challenges with SHA-256 hash-only storage and constant-time comparison; HMAC-SHA-256 source-IP rate-limit keys; AES-256-GCM encryption of invitation-bearing callback URLs with a domain-separated key and random 96-bit nonce; verified SMTP TLS"
+    },
+    {
       "path": "server/src/authConfig/errorRedirect.ts",
       "purpose": "SHA-256 of the OAuth state parameter to look up the stored verification row when redirecting a failed federated sign-in"
     },
@@ -112,10 +116,6 @@
     {
       "path": "server/src/productionGuard.ts",
       "purpose": "Production warning when internal TLS is absent and posture handling for configured identities"
-    },
-    {
-      "path": "server/src/strictOidc.ts",
-      "purpose": "JOSE verification of asymmetric signed OIDC ID tokens with issuer, audience, timestamp and remotely rotated JWKS enforcement"
     },
     {
       "path": "server/src/syncOrdering.ts",
