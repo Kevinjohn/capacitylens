@@ -7,49 +7,72 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.70.1-alpha.1] - 2026-09-23
+
+**Alpha 7 — Final Alpha.** This is the final Alpha release and the pinned baseline before the
+planned company-sign-in simplification. For everything added since the published Alpha 6,
+read this section together with the 0.70.0 and 0.69.0 entries below.
+
 ### Changed
 
-- Show five data-derived Getting started milestones with progress on every page and company-wide dismissal (#1229, #1230).
-- Clarify first-owner and first-company setup copy, keep the timezone picker usable in narrow
-  viewports, expose English as the only language select option, and shorten Settings access and
-  internal-colour option labels (#1227, #1228, #1232).
-- Remove redundant helper text from the first-company setup form so its labels and controls stay
-  concise (#1228).
-- Show Account identity and actions in aligned table columns, truncate long email with a full-address hover or focus hint,
-  move local password change into a dialog, and show MFA status only when required (#1231).
-- Removed legacy account environment aliases; the server refuses them and names the
-  `SMALLSASS_ACCOUNT_*` replacement (#1201).
-- Managed-VPS builds now activate a production-only runtime artifact instead of retaining build and test dependencies in each release.
-- Give every supported social sign-in provider a recognisable, consistently aligned button, with
-  Microsoft and GitHub joining the existing Google treatment across sign-in, invitations and
-  reauthentication.
-- Add an icon button below Settings in the sidebar for quickly switching between light and dark
-  modes, while retaining the full Match system preference in Settings (#1146).
-- Rework Team & access into matching five-column member and invitation tables, keep row actions
-  stable while dialogs are open, place invitations before the member table, simplify immediate
-  Resource linking, give SSO cutover readiness its own Settings table, move company ownership into
-  a dialog, and align every Team dialog with the shared bordered modal shell and the product's
-  left-label/right-control form layout (#1198).
-- Update the Overview guide for individual week columns and the Ledger and Load curve displays.
-  Refresh screenshots of Overview, Schedule filters, Settings and forms to match the current
-  controls (#1143, #1144).
+- Follow five Getting started milestones based on your company's actual scheduling data, see
+  progress from every page, and dismiss the checklist for the whole company (#1229, #1230).
+- Set up the first Owner and company with clearer, shorter instructions. The timezone picker
+  remains usable in narrow windows, and language selection accurately shows English as the
+  available choice (#1227, #1228, #1232).
+- Find Account details and actions in aligned columns, reveal a long email address by hovering
+  or focusing it, and change your password in a focused dialog. MFA status appears when required
+  (#1231, #1236).
+- Manage invitations and members in matching Team & access tables, with invitations first and
+  stable row actions while dialogs are open. Link people to scheduled Resources more directly,
+  manage company ownership in a dialog, and review SSO cutover readiness in its own Settings
+  table (#1198).
+- Switch quickly between light and dark appearance using the sidebar button. The full
+  **Match system** preference remains in Settings (#1146).
+- Recognise Google, Microsoft and GitHub sign-in actions through consistent branded buttons
+  on sign-in, invitation and reauthentication screens. Named providers remain experimental;
+  this presentation update does not complete the planned company-sign-in changes (#1189).
+- Use refreshed Overview, Schedule, Settings and form guides with screenshots of the current
+  controls, including the Overview's individual weeks, Ledger and Load curve displays
+  (#1143, #1144).
+- Managed-VPS deployments now activate a smaller production runtime without retaining build
+  and test dependencies in each deployed release (#1182).
+- Update Better Auth to 1.7.5 and refresh application dependencies. Company-login admission
+  rules remain in place; the callback registration changes are described below (#1223, #1225).
 
 ### Fixed
 
-- Align the Account Change password dialog with the standard form layout and footer (#1236).
-- Include the Docker internal-TLS renewal verifier in the production API image so Compose deployments can validate coordinated certificate renewal (#1192).
-- Pass strict OIDC presentation brand settings through Docker Compose so container installations
-  can use the documented Google, Microsoft or generic sign-in treatment (#1170).
-- Render Google sign-in actions sharply on high-density displays, remove the transparent wrapper's
-  full-width shadow, and add breathing room above and below the promoted action (#1164).
-- Align the Team & access member table with the Resources list by grouping its outlined actions,
-  reducing email text size, and removing the table's outer card (#1150).
-- Present the Account page's **Sign out** action in red and align it to the right (#1151).
-- Apply Google sign-in presentation and mixed-mode ordering to strict OIDC providers explicitly
-  configured with the Google brand, without changing their authentication mechanism (#1152).
-- Warn at startup when a company login is branded `google` or `microsoft` but its issuer belongs
-  to neither, so people are not offered a branded button that signs them in somewhere else
-  (#1154).
+- Keep Google sign-in actions sharp on high-density screens, with consistent spacing and no
+  oversized shadow around the button (#1164).
+- Show the Google-branded company-login button and password fallback in the intended order
+  when strict OIDC is explicitly configured with Google branding (#1152).
+- Warn operators when a Google- or Microsoft-branded company login points to a different
+  provider, helping avoid a misleading sign-in button (#1154).
+- Make Team & access member actions easier to scan and keep the Account **Sign out** action
+  visibly distinct (#1150, #1151).
+- Align the Change password dialog with the application's other forms and action footers
+  (#1236).
+- Include the internal-TLS renewal verifier in the production API image, so existing Compose
+  deployments can validate coordinated certificate renewal (#1192).
+- Pass company-login branding settings through Compose so existing container installations
+  can display the configured Google, Microsoft or generic sign-in treatment (#1170).
+
+### Upgrading and rollback
+
+- Rename retired account environment settings to their `SMALLSASS_ACCOUNT_*` replacements
+  before restarting. The server refuses old names and identifies the required replacement;
+  see the [upgrade guide](docs-src/self-hosting/upgrades.md) for the complete mapping (#1201).
+- For generic company login, register `/api/auth/callback/<provider-id>` in place of
+  `/api/auth/oauth2/callback/<provider-id>` before upgrading. The usual provider ID is `sso`.
+  Existing native Microsoft identities need the conditional identity-compatibility check
+  described in the upgrade guide; installations without those identities need no conversion.
+- Back up the SQLite database and deployment configuration before upgrading from Alpha 6.
+  Database schema 44 advances to 45; portable exports remain at format 23. Use the pinned
+  Node.js 24 runtime and pnpm version.
+- Keep this release and a matching configuration/database backup as the final Alpha recovery
+  baseline. To return from a later release, restore a compatible backup and configuration
+  with the older build; do not open a newer migrated database with it. Restoring a backup
+  also restores the data to that backup's point in time.
 
 ## [0.70.0-alpha.1] - 2026-09-17
 
@@ -4579,7 +4602,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.1-alpha.1...HEAD
+[0.70.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.70.1-alpha.1
 [0.70.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.69.0-alpha.1...v0.70.0-alpha.1
 [0.69.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.69.0-alpha.1
 [0.68.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.67.0-alpha.1...v0.68.0-alpha.1
