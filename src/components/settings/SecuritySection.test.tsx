@@ -1,6 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
 import { m } from "@/i18n";
 import { SecuritySection } from "./SecuritySection";
@@ -236,6 +236,124 @@ it("keeps a Microsoft callback error on its own connection", async () => {
   expect(await screen.findAllByText(m.settings_sso_connect_error())).toHaveLength(1);
   expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
   expect(window.location.search).toBe("");
+});
+
+it("preserves a provider callback error through StrictMode replay and provider refresh", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/account?capacitylensIdentityProvider=google&capacitylensSsoLinkFailed=attempt",
+  );
+  const auth: AuthContextValue = {
+    ...passwordAuth,
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+  };
+  const view = render(
+    <StrictMode>
+      <AuthContext.Provider value={auth}>
+        <SecuritySection />
+      </AuthContext.Provider>
+    </StrictMode>,
+  );
+
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+  expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+
+  view.rerender(
+    <StrictMode>
+      <AuthContext.Provider
+        value={{
+          ...auth,
+          providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+        }}
+      >
+        <SecuritySection />
+      </AuthContext.Provider>
+    </StrictMode>,
+  );
+
+  await waitFor(() => expect(getIdentityProvider).toHaveBeenCalledTimes(3));
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+  expect(window.location.search).toBe("");
+});
+
+it("does not restore a callback error after an already-linked retry and provider refresh", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/account?capacitylensIdentityProvider=google&capacitylensSsoLinkFailed=attempt",
+  );
+  const auth: AuthContextValue = {
+    ...passwordAuth,
+    providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+  };
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "PROVIDER_ALREADY_LINKED" }, { status: 409 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+  let finishPendingStatus: ((response: Response) => void) | undefined;
+  getIdentityProvider.mockResolvedValueOnce(Response.json({ connected: false, verified: false }));
+  getIdentityProvider.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        finishPendingStatus = resolve;
+      }),
+  );
+
+  const view = render(
+    <AuthContext.Provider value={auth}>
+      <SecuritySection />
+    </AuthContext.Provider>,
+  );
+  try {
+    expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+    view.rerender(
+      <AuthContext.Provider
+        value={{
+          ...auth,
+          providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+        }}
+      >
+        <SecuritySection />
+      </AuthContext.Provider>,
+    );
+    await waitFor(() => expect(getIdentityProvider).toHaveBeenCalledTimes(2));
+
+    fireEvent.click(screen.getByRole("button", { name: m.settings_sso_connect_button({ provider: "Google" }) }));
+    expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
+
+    const finishStatus = finishPendingStatus;
+    if (!finishStatus) throw new Error("Provider status refresh was not started");
+    await act(async () => finishStatus(Response.json({ connected: false, verified: false })));
+    expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
+
+    getIdentityProvider.mockResolvedValue(Response.json({ connected: true, verified: true }));
+    view.rerender(
+      <AuthContext.Provider
+        value={{
+          ...auth,
+          providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
+        }}
+      >
+        <SecuritySection />
+      </AuthContext.Provider>,
+    );
+    await waitFor(() => expect(getIdentityProvider).toHaveBeenCalledTimes(3));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+    expect(screen.queryByText(m.settings_sso_connect_error())).not.toBeInTheDocument();
+  } finally {
+    errorLog.mockRestore();
+    vi.unstubAllGlobals();
+  }
 });
 
 it("dispatches Microsoft connection through the shared identity route and retains its return marker", async () => {
