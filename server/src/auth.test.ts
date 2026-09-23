@@ -22,8 +22,7 @@ import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPor
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
 import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
-import { GETTING_STARTED_DISMISSALS_V45_PIN as V45_MIGRATION } from "./db/migrations/gettingStartedDismissalsV45";
-import { CHECKSUM_PINNED_MIGRATIONS } from "./db/migrations/authPlanningPins.testSupport";
+import { CHECKSUM_PINNED_MIGRATIONS, MICROSOFT_PROOF_V46_PIN } from "./db/migrations/authPlanningPins.testSupport";
 const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
   hasLivePreauthorizedInvitation: (email: string) => hasLivePreauthorizedInvitation(db, email),
@@ -418,7 +417,7 @@ const registerStartupControlTests = () => {
     expect(configured.auth).not.toBeNull();
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(V45_MIGRATION));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(MICROSOFT_PROOF_V46_PIN));
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -591,6 +590,7 @@ const registerStartupMigrationPlanningTest = () => {
     for (const { index } of TENANT_ENTITY_ACCOUNT_INDEXES_V21) db.exec(`DROP INDEX ${index}`);
     db.exec(`
       DROP TABLE capacitylens_bootstrap_claim;
+      DROP TABLE microsoft_identity_proofs;
       DELETE FROM capacitylens_schema_migrations WHERE version >= 20;
       PRAGMA user_version = 19;
     `);
@@ -876,7 +876,7 @@ const registerExternalOpenSignupTest = () => {
 };
 
 const registerExternalSsoProviderTest = () => {
-  it("keeps named social providers as existing-principal sign-in doors in SSO-only mode", async () => {
+  it("admits configured company providers while preserving bootstrap and provider restrictions", async () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(
       db,
@@ -898,15 +898,22 @@ const registerExternalSsoProviderTest = () => {
     );
     expect(before).toBeTypeOf("function");
 
-    const error = parseApiErrorFields(
-      await readRejectedValue(
-        before(
-          { email: "new-social@example.com", emailVerified: true } as never,
-          { path: "/callback/google" } as never,
-        ),
+    const candidate = { name: "Bruce Wayne", email: "new-social@example.com", emailVerified: true };
+    await expect(
+      before(
+        candidate as never,
+        {
+          path: "/callback/google",
+          bootstrapClaimToken: "request-held-claim",
+        } as never,
       ),
-    );
-    expect(error.code).toBe("STRICT_PROVIDER_REQUIRED");
+    ).resolves.toEqual({ data: candidate });
+    await expect(before(candidate as never, { path: "/callback/google" } as never)).rejects.toMatchObject({
+      body: { code: "BOOTSTRAP_ALREADY_IN_PROGRESS" },
+    });
+    await expect(before(candidate as never, { path: "/callback/github" } as never)).rejects.toMatchObject({
+      body: { code: "STRICT_PROVIDER_REQUIRED" },
+    });
   });
 };
 

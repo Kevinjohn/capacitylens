@@ -6,6 +6,7 @@ import type { Db } from "../db";
 import { recordSessionAssurance, removeSessionAssurance } from "../accounts/state";
 import { buildApplicationSessionHandle } from "../accounts/buildApplicationSessionHandle";
 import { confirmTrackedMemberSignIn } from "../accounts/memberSignInTracking";
+import { sqliteTableExists } from "./federatedIdentitySchema";
 
 interface HookOptions {
   db: Db;
@@ -13,9 +14,14 @@ interface HookOptions {
   application: BoundApplication;
   genericProviderId: string | null;
   configuredFederatedIssuers: Map<string, string>;
+  permittedCompanyProviderIds: ReadonlySet<string>;
   allowOpenSignup: boolean;
   requirePasswordMfa: boolean;
-  externalIdentityAdmission?: (candidate: { email?: string; emailVerified?: boolean }) => boolean | Promise<boolean>;
+  externalIdentityAdmission?: (candidate: {
+    email?: string;
+    emailVerified?: boolean;
+    providerId: string | null;
+  }) => boolean | Promise<boolean>;
   providerIdFromExternalContext: (
     context: { path?: string; params?: Record<string, unknown> } | null | undefined,
   ) => string | null;
@@ -50,13 +56,13 @@ async function admitExternalIdentity(
     path: context.path,
     ...(context.params === undefined ? {} : { params: context.params }),
   });
-  if (options.mode === "sso" && providerId !== options.genericProviderId) {
+  if (options.mode === "sso" && (providerId === null || !options.permittedCompanyProviderIds.has(providerId))) {
     throw APIError.from("FORBIDDEN", {
-      message: "New SSO-only identities must sign in through the required OIDC provider.",
+      message: "New SSO-only identities must sign in through a configured company provider.",
       code: "STRICT_PROVIDER_REQUIRED",
     });
   }
-  if (!(await options.externalIdentityAdmission?.(user))) {
+  if (!(await options.externalIdentityAdmission?.({ ...user, providerId }))) {
     throw APIError.from("FORBIDDEN", {
       message: `This identity is not invited to this ${options.application.displayName} instance.`,
       code: "EXTERNAL_IDENTITY_NOT_INVITED",
@@ -150,10 +156,16 @@ function buildSessionAfter(options: HookOptions): SessionAfter {
 
 function buildSessionDeleteAfter(options: HookOptions): SessionDeleteAfter {
   return async (session) => {
-    removeSessionAssurance(
-      options.db,
-      buildApplicationSessionHandle(options.application.applicationId, String(session.token)),
-    );
+    const sessionHandle = buildApplicationSessionHandle(options.application.applicationId, String(session.token));
+    if (sqliteTableExists(options.db, "microsoft_identity_proofs")) {
+      options.db
+        .prepare(
+          `UPDATE microsoft_identity_proofs SET state = 'cancelled', tokenHash = NULL, updatedAt = ?
+        WHERE sessionId = ? AND state IN ('started', 'mail-sent', 'approved')`,
+        )
+        .run(Date.now(), sessionHandle);
+    }
+    removeSessionAssurance(options.db, sessionHandle);
   };
 }
 
@@ -163,6 +175,7 @@ export function buildDatabaseHooks({
   application,
   genericProviderId,
   configuredFederatedIssuers,
+  permittedCompanyProviderIds,
   allowOpenSignup,
   requirePasswordMfa,
   externalIdentityAdmission,
@@ -177,6 +190,7 @@ export function buildDatabaseHooks({
     application,
     genericProviderId,
     configuredFederatedIssuers,
+    permittedCompanyProviderIds,
     allowOpenSignup,
     requirePasswordMfa,
     ...(externalIdentityAdmission === undefined ? {} : { externalIdentityAdmission }),

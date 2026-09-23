@@ -31,7 +31,7 @@ function routeDependencies(overrides: Record<string, unknown> = {}) {
 function authenticatedApp(overrides: Record<string, unknown> = {}) {
   const app = Fastify();
   app.addHook("preHandler", async (request) => {
-    request.user = { id: "owner-1" } as never;
+    request.user = { id: "owner-1", emailVerified: true } as never;
     request.accountActor = { principalId: "owner-1", fresh: true } as never;
   });
   registerSsoCutoverRoutes(app, routeDependencies(overrides));
@@ -63,11 +63,33 @@ describe("SSO cutover routes", () => {
 });
 
 describe("SSO provider linking", () => {
+  it("requires a verified local address before starting an external link", async () => {
+    const beginFederatedLink = vi.fn();
+    const app = Fastify();
+    app.addHook("preHandler", async (request) => {
+      request.user = { id: "owner-1", emailVerified: false } as never;
+      request.accountActor = { principalId: "owner-1", fresh: true } as never;
+    });
+    registerSsoCutoverRoutes(
+      app,
+      routeDependencies({ auth: { strictProvider: provider, beginFederatedLink } as unknown as Auth }),
+    );
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/identity/link-provider",
+      payload: { providerId: "google", callbackURL: "https://app.test/ok", errorCallbackURL: "https://app.test/error" },
+    });
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({ code: "LOCAL_EMAIL_NOT_VERIFIED" });
+    expect(beginFederatedLink).not.toHaveBeenCalled();
+    await app.close();
+  });
+
   it("requires a fresh session and string callback URLs before beginning a provider link", async () => {
     const beginFederatedLink = vi.fn();
     const stale = Fastify();
     stale.addHook("preHandler", async (request) => {
-      request.user = { id: "owner-1" } as never;
+      request.user = { id: "owner-1", emailVerified: true } as never;
       request.accountActor = { principalId: "owner-1", fresh: false } as never;
     });
     registerSsoCutoverRoutes(

@@ -78,6 +78,8 @@ function isMasqueradeWriteExempt(method: string, path: string): boolean {
 
 function isUnauthenticatedApplicationPath(method: string, path: string): boolean {
   return (
+    ((method === "GET" || method === "POST") &&
+      /^\/api\/account\/microsoft\/(start|status|confirm|resend|cancel)$/.test(path)) ||
     /^\/api\/invites\/[^/]+\/signup$/.test(path) ||
     (method === "GET" && /^\/api\/invites\/[^/]+\/preview$/.test(path)) ||
     (method === "POST" && path === "/api/account-commands/reconcile")

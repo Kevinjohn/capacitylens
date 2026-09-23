@@ -136,6 +136,46 @@ function assertPreservedSsoState(database: string): void {
   preserved.close();
 }
 
+async function acceptsNamedConnectionWithGenericOidc(): Promise<void> {
+  const { database, directory } = await createSsoCutoverDatabase();
+  try {
+    const db = openDb(database);
+    try {
+      const now = new Date().toISOString();
+      db.prepare(
+        `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+          VALUES ('google-owner', 'google', 'google-subject', 'owner-1', ?, ?)`,
+      ).run(now, now);
+    } finally {
+      db.close();
+    }
+    // Stop after readiness, before listening, using an independently tested backup refusal.
+    const backupPath = join(directory, "not-a-backup-directory");
+    writeFileSync(backupPath, "filesystem obstruction");
+    const result = boot({
+      CAPACITYLENS_DB: database,
+      CAPACITYLENS_BACKUP_DIR: backupPath,
+      ...buildSsoEnvironment("self-hosted-sso-only"),
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+    });
+    expect(result.status, result.stderr).toBe(1);
+    expect(result.stderr).toContain("could not be initialized");
+    expect(result.stderr).not.toContain("SSO cutover readiness failed");
+    const inspected = openDb(database);
+    try {
+      expect(inspected.prepare("SELECT id FROM session").all()).toEqual([]);
+      expect(inspected.prepare("SELECT applicationId FROM capacitylens_sso_cutover_state").all()).toEqual([
+        { applicationId: "capacitylens" },
+      ]);
+    } finally {
+      inspected.close();
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 // Each `boot` is a full entrypoint spawn through tsx with a 10 s budget of its own, and the SSO
 // refusal case boots twice. The per-test budget must cover the spawn budgets, not vitest's 5 s
 // default: on the shared CI runner the two-boot case already sat near that default before the
@@ -174,6 +214,8 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  it("accepts a named company connection while generic OIDC remains configured", acceptsNamedConnectionWithGenericOidc);
 
   it("frames a buildApp configuration failure without a raw stack", () => {
     const result = boot({

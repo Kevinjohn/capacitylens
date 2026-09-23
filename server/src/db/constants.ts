@@ -1,5 +1,5 @@
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 45;
+export const DB_SCHEMA_VERSION = 46;
 
 /** First physical schema version that owns the account↔person association table. */
 export const ACCOUNT_MEMBER_RESOURCES_SCHEMA_VERSION = 43;

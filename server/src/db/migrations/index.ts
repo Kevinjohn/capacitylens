@@ -41,6 +41,8 @@ import { CAPACITY_OVERVIEW_ACCESS_V39_MIGRATION } from "./capacityOverviewAccess
 import { ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION } from "./accountMemberResourcesV43";
 import { INVITATION_PERSON_PROPOSALS_V44_MIGRATION } from "./invitationPersonProposalsV44";
 import { GETTING_STARTED_DISMISSALS_V45_MIGRATION } from "./gettingStartedDismissalsV45";
+import { MICROSOFT_PROOF_V46_MIGRATION } from "./microsoftProofV46";
+import { validateMigrationSequence } from "./validateSequence";
 import {
   migrateTimeOffResourceNullableV33,
   COMPANY_CLOSURES_V34_DEFINITION,
@@ -387,13 +389,6 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION,
   INVITATION_PERSON_PROPOSALS_V44_MIGRATION,
   GETTING_STARTED_DISMISSALS_V45_MIGRATION,
+  MICROSOFT_PROOF_V46_MIGRATION,
 ];
-if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION)
-  throw new Error("DB_SCHEMA_VERSION must equal the newest explicit database migration.");
-for (let index = 1; index < DATABASE_MIGRATIONS.length; index += 1) {
-  const migration = DATABASE_MIGRATIONS[index];
-  const previous = DATABASE_MIGRATIONS[index - 1];
-  if (!migration || !previous || migration.version !== previous.version + 1) {
-    throw new Error("Explicit database migration versions must be contiguous and ordered.");
-  }
-}
+validateMigrationSequence(DATABASE_MIGRATIONS, DB_SCHEMA_VERSION);

@@ -65,17 +65,14 @@ function narrowProviderImage(value: unknown): string | null {
 function buildVerifiedApplicationSession(
   context: SessionsContext,
   resolved: ResolvedProviderSession,
-): ApplicationSession {
+): ApplicationSession | null {
   const { applicationId, authMode, db } = context.input;
   const { createdAt, expiresAt } = resolveSessionInstants(resolved);
   const authentication = getSessionAuthentication(db, resolved.session?.id ?? "");
   assertTrustworthyLegacySession(context, resolved.user.id, authentication);
   const federatedIdentity = resolveFederatedIdentity(context, resolved.user.id, authentication);
-  if (authMode === "sso" && !federatedIdentity) {
-    throw createInvalidProviderSessionError(
-      "The SSO-only profile received a session without federated assurance metadata.",
-    );
-  }
+  assertSsoFederatedIdentity(authMode, federatedIdentity);
+  if (isDisallowedCompanyAuthentication(context, authentication)) return null;
   const base = {
     id: resolved.session?.id ?? buildStableFallbackSessionId(applicationId, resolved.user.id, createdAt),
     principal: {
@@ -94,6 +91,28 @@ function buildVerifiedApplicationSession(
   let assurance: "password" | "mfa" = "password";
   if (authentication?.assurance === "mfa") assurance = "mfa";
   return { ...base, assurance, providerId: null };
+}
+
+function assertSsoFederatedIdentity(
+  mode: SessionsContext["input"]["authMode"],
+  identity: ReturnType<typeof resolveFederatedIdentity>,
+): void {
+  if (mode === "sso" && !identity) {
+    throw createInvalidProviderSessionError(
+      "The SSO-only profile received a session without federated assurance metadata.",
+    );
+  }
+}
+
+function isDisallowedCompanyAuthentication(
+  context: SessionsContext,
+  authentication: RecordedSessionAuthentication | null,
+): boolean {
+  return (
+    context.input.authMode === "sso" &&
+    authentication?.assurance === "federated" &&
+    !context.input.auth.permittedCompanyProviderIds?.has(authentication.providerId ?? "")
+  );
 }
 
 function resolveSessionInstants(resolved: ResolvedProviderSession): { createdAt: string; expiresAt: string } {
@@ -182,7 +201,12 @@ async function signOut(
     // Better Auth's session-delete database hook removes the assurance row in the same delete
     // path. Do not pre-resolve the session here: the sign-out endpoint already resolves it and a
     // second lookup would double the authenticated request's database work.
-    return { setCookies: response.headers.getSetCookie() };
+    return {
+      setCookies: [
+        ...response.headers.getSetCookie(),
+        ...(auth.microsoftProof ? [auth.microsoftProof.cancel(headers)] : []),
+      ],
+    };
   } catch (error) {
     throw createProviderFailure("Sign-out is temporarily unavailable.", error);
   }

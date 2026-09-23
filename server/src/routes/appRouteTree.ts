@@ -7,6 +7,7 @@ import { registerGettingStartedRoutes } from "./gettingStartedRoutes";
 import { readMemberSignInTrackingSnapshot, setMemberSignInTracking } from "../accounts/memberSignInTracking";
 import { registerLifecycleRoutes } from "./lifecycleRoutes";
 import { registerAuthProxyRoutes } from "./authProxyRoutes";
+import { registerMicrosoftProofRoutes } from "./microsoftProofRoutes";
 import { registerBatchRoutes } from "./batchRoutes";
 import { registerEntityRoutes } from "./entityRoutes";
 import { registerImportRoutes } from "./importRoutes";
@@ -131,6 +132,9 @@ function registerAccountControlRoutes(input: RegisterRouteGroupInput): void {
     authMode,
     authenticationConfigured: auth !== null,
     requiredSsoProviderId: authMode === "sso" ? (auth?.strictProvider?.id ?? null) : null,
+    ...(auth?.permittedCompanyProviderIds === undefined
+      ? {}
+      : { permittedCompanyProviderIds: auth.permittedCompanyProviderIds }),
     administration: accountAdminPort,
     identity: identityPort,
     flows: accountFlows,
@@ -233,6 +237,7 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
   registerSystemRoutes(app, { ...dependencies.system, section: "public" });
   registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "identity" });
   if (authMode !== "off" && auth) {
+    registerMicrosoftProofRoutes(app, auth, options.trustProxyHeaders === true);
     registerSsoCutoverRoutes(app, {
       auth,
       authMode,
@@ -243,6 +248,7 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
       authorize: authorization.authorizeAllowed,
       fail: rootHelpers.accountFail,
       toWebHeaders,
+      trustProxyHeaders: options.trustProxyHeaders === true,
     });
     registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "proxy" });
   }

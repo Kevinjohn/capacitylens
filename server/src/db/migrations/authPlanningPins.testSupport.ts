@@ -3,6 +3,12 @@ import { ACCOUNT_MEMBER_RESOURCES_V43_PIN } from "./accountMemberResourcesV43";
 import { INVITATION_PERSON_PROPOSALS_V44_PIN } from "./invitationPersonProposalsV44";
 import { GETTING_STARTED_DISMISSALS_V45_PIN } from "./gettingStartedDismissalsV45";
 
+export const MICROSOFT_PROOF_V46_PIN = {
+  version: 46,
+  name: "add-microsoft-identity-proof",
+  checksum: "856bd5d5e8d0fc95182d2c2b0c37acb5ce5739fce5c679cf8b5f65270a76b02f",
+} as const;
+
 /** Pending app migrations asserted before authentication DDL runs. */
 export const CHECKSUM_PINNED_MIGRATIONS = [
   {
@@ -44,4 +50,5 @@ export const CHECKSUM_PINNED_MIGRATIONS = [
   ACCOUNT_MEMBER_RESOURCES_V43_PIN,
   INVITATION_PERSON_PROPOSALS_V44_PIN,
   GETTING_STARTED_DISMISSALS_V45_PIN,
+  MICROSOFT_PROOF_V46_PIN,
 ];

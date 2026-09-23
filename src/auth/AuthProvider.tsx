@@ -28,6 +28,11 @@ const MfaEnrollmentScreen = lazy(() =>
     default: screenModule.MfaEnrollmentScreen,
   })),
 );
+const MicrosoftVerificationScreen = lazy(() =>
+  import("./MicrosoftVerificationScreen").then((screenModule) => ({
+    default: screenModule.MicrosoftVerificationScreen,
+  })),
+);
 
 type CheckAuth = (onNull: "fail-open" | "keep-previous") => Promise<AuthStatusResult | null>;
 
@@ -217,6 +222,27 @@ export function AuthProvider({
   children: ReactNode;
   /** Starts tenant-data hydration only after /me admits this boot. The callback must be idempotent
    * because React development StrictMode deliberately replays effects. */
+  onTenantAccessReady?: () => void;
+}) {
+  if (/^\/verify-microsoft\/?$/.test(window.location.pathname)) {
+    return (
+      <Suspense fallback={<AuthLoading message={m.auth_loading_confirmation()} />}>
+        <MicrosoftVerificationScreen />
+      </Suspense>
+    );
+  }
+  return (
+    <AuthenticatedAppProvider {...(onTenantAccessReady ? { onTenantAccessReady } : {})}>
+      {children}
+    </AuthenticatedAppProvider>
+  );
+}
+
+function AuthenticatedAppProvider({
+  children,
+  onTenantAccessReady,
+}: {
+  children: ReactNode;
   onTenantAccessReady?: () => void;
 }) {
   const serverMode = isServerConfigured();

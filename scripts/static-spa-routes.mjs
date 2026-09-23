@@ -10,4 +10,5 @@ export const STATIC_SPA_ROUTES = [
   "team",
   "settings",
   "account",
+  "verify-microsoft",
 ];

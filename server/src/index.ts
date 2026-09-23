@@ -24,7 +24,7 @@ import { resolveLegacyProxyTrustWarning, canTrustProxyHeaders } from "./proxyTru
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
-import { formatSsoCutoverRefusal, ssoCutoverReadiness } from "./accounts/ssoCutover";
+import { assertCompanyProviderCutoverReady, formatSsoCutoverRefusal, ssoCutoverReadiness } from "./accounts/ssoCutover";
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
 import { startServerRuntime } from "./boot/serverRuntime";
@@ -133,7 +133,10 @@ try {
     application: ACCOUNT_APPLICATION,
     externalIdentityAdmission: (candidate) =>
       canAdmitLocalExternalIdentity({
-        bootstrapEmails: accountEnv.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
+        bootstrapEmails:
+          candidate.providerId === "google" || candidate.providerId === "microsoft"
+            ? accountEnv.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS
+            : accountEnv.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS,
         candidate,
         identityHasAnyPrincipal: () => countUsers(db) !== 0,
         hasLivePreauthorizedInvitation: (email) => hasLivePreauthorizedInvitation(db, email),
@@ -176,7 +179,9 @@ try {
   }
   if (auth && authMode === "sso" && (accountProfile === "self-hosted-sso-only" || accountProfile === null)) {
     const provider = auth.strictProvider;
-    if (!provider) throw new AuthConfigError("The SSO-only cutover has no configured strict OIDC provider.");
+    const companyProviders = auth.permittedCompanyProviderIds ?? new Set<string>();
+    if (companyProviders.size === 0)
+      throw new AuthConfigError("Provider-required mode has no configured company provider.");
     const identity = createBetterAuthIdentityPort({
       applicationId: ACCOUNT_APPLICATION.applicationId,
       auth,
@@ -193,6 +198,10 @@ try {
     // Reconfirm readiness under the same writer reservation that seals the boundary. This prevents
     // another server process from admitting a blocker between preflight and the cutover mutation.
     await identity.revokeAllForSsoCutover(() => {
+      if (!provider || companyProviders.size > 1) {
+        assertCompanyProviderCutoverReady({ providerIds: companyProviders, identity, administration });
+        return;
+      }
       const readiness = ssoCutoverReadiness({
         provider,
         providers: auth.providers,

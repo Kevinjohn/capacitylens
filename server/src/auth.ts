@@ -123,6 +123,12 @@ export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void 
       WHERE json_valid(value)
         AND json_extract(value, '$.link.userId') = ?`,
   ).run(principalId);
+  if (microsoftProofTableExists(db)) {
+    db.prepare(
+      `UPDATE microsoft_identity_proofs SET state = 'cancelled', tokenHash = NULL, updatedAt = ?
+      WHERE principalId = ? AND state IN ('started', 'mail-sent', 'approved')`,
+    ).run(Date.now(), principalId);
+  }
 }
 
 /**
@@ -153,6 +159,7 @@ export function createTableExistenceProbe(table: string): (db: Db) => boolean {
 // handle when an existing auth-off database first enables password auth; caching that pre-auth
 // `false` would permanently suppress reset-token revocation for the rest of the process.
 const verificationTableExists = createTableExistenceProbe("verification");
+const microsoftProofTableExists = createTableExistenceProbe("microsoft_identity_proofs");
 
 // {@link countUsers} is consulted BEFORE runAuthMigrations as well as after it — authFromEnv makes
 // its boot-time minPasswordLength decision on the pre-migration handle, where the table does not

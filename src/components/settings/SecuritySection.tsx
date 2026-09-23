@@ -1,5 +1,5 @@
 import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
-import { resolveStrictOidcProvider, useAuth } from "@/auth/authContext";
+import { useAuth, type AuthProviderInfo } from "@/auth/authContext";
 import { m } from "@/i18n";
 import { FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
 import { Badge } from "../ui/badge";
@@ -8,33 +8,29 @@ import { FieldError } from "../ui/field";
 import { Separator } from "../ui/separator";
 import { SettingsSection } from "./SettingsSection";
 import { useSecurityController } from "./useSecurityController";
+import { useProviderConnection } from "./useProviderConnection";
 
 type Controller = ReturnType<typeof useSecurityController>;
 
-function ProviderConnection({
-  provider,
-  controller,
-}: {
-  provider: NonNullable<ReturnType<typeof resolveStrictOidcProvider>>;
-  controller: Controller;
-}) {
+function ProviderConnection({ provider, controller }: { provider: AuthProviderInfo; controller: Controller }) {
+  const connection = useProviderConnection(provider, controller.busy, controller.setBusy);
   return (
     <div className="flex flex-col gap-2" data-testid="sso-connection">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-medium text-ink">{m.settings_sso_connect_heading()}</h3>
-        {controller.provider.connected && (
+        {connection.connected && (
           <Badge variant="secondary">{m.settings_sso_connected({ provider: provider.label })}</Badge>
         )}
       </div>
       <p className="text-sm text-muted-foreground">
         {m.settings_sso_connect_description({ provider: provider.label })}
       </p>
-      {controller.provider.connected === false && (
-        <Button size="sm" type="button" disabled={controller.busy} onClick={() => void controller.provider.connect()}>
+      {connection.connected === false && (
+        <Button size="sm" type="button" disabled={controller.busy} onClick={() => void connection.connect()}>
           {m.settings_sso_connect_button({ provider: provider.label })}
         </Button>
       )}
-      <FieldError>{controller.provider.error}</FieldError>
+      <FieldError>{connection.error}</FieldError>
       <Separator />
     </div>
   );
@@ -150,15 +146,18 @@ export function SecuritySection({
   onPasswordOpenChange?: (open: boolean) => void;
 }) {
   const auth = useAuth();
-  const strictProvider = resolveStrictOidcProvider(auth.providers);
-  const controller = useSecurityController(strictProvider);
+  const providers = (auth.providers ?? []).filter(
+    (provider) =>
+      !provider.experimental && (provider.kind === "oidc" || provider.id === "google" || provider.id === "microsoft"),
+  );
+  const controller = useSecurityController();
   const showPassword = auth.authMode === "password" && auth.reauthMethod !== "provider";
   const changePasswordOpen = (open: boolean) => {
     if (!open) controller.password.reset();
     onPasswordOpenChange(open);
   };
   const showMfa = shouldShowMfa(auth);
-  const showSection = strictProvider !== undefined || showMfa;
+  const showSection = providers.length > 0 || showMfa;
   return (
     <>
       {showSection && (
@@ -168,7 +167,9 @@ export function SecuritySection({
           testId="security-section"
           contentClassName="gap-5"
         >
-          {strictProvider && <ProviderConnection provider={strictProvider} controller={controller} />}
+          {providers.map((provider) => (
+            <ProviderConnection key={provider.id} provider={provider} controller={controller} />
+          ))}
           {showMfa && <MfaStatus enabled={auth.user?.twoFactorEnabled === true} />}
         </SettingsSection>
       )}

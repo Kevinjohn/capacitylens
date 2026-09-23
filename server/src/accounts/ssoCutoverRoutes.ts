@@ -8,6 +8,8 @@ import type { Auth, AccountMode } from "../auth";
 import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort } from "./sqliteAccountAdminPort";
 import { ssoCutoverReadiness } from "./ssoCutover";
+import { providerLinkBodyError, sendProviderLinkFailure } from "./providerLinkFailure";
+import { startMicrosoftProviderLink } from "./microsoftProviderLink";
 
 type AuthorizeMemberManagementInput = Omit<AuthorizeRouteInput, "action"> & { action: "manageMembers" };
 
@@ -57,6 +59,7 @@ interface SsoCutoverRouteDependencies {
   authorize(input: AuthorizeMemberManagementInput): boolean;
   fail(reply: FastifyReply, error: unknown): unknown;
   toWebHeaders(headers: FastifyRequest["headers"]): Headers;
+  trustProxyHeaders?: boolean;
 }
 
 type RouteRequest = FastifyRequest;
@@ -64,8 +67,15 @@ type RouteRequest = FastifyRequest;
 function registerProviderRoutes(app: FastifyInstance, dependencies: SsoCutoverRouteDependencies): void {
   const { auth, identity, fail } = dependencies;
   app.get("/api/identity/provider", async (req, reply) => {
-    const provider = auth.strictProvider;
-    if (!provider) return reply.code(404).send({ error: "No strict OIDC provider is configured." });
+    const requestedProviderId = (req.query as { providerId?: unknown } | undefined)?.providerId;
+    if (requestedProviderId !== undefined && typeof requestedProviderId !== "string") {
+      return reply.code(400).send({ error: "A valid provider id is required." });
+    }
+    const provider =
+      requestedProviderId === undefined
+        ? auth.strictProvider
+        : auth.providers.find((candidate) => candidate.id === requestedProviderId && !candidate.experimental);
+    if (!provider) return reply.code(404).send({ error: "No configured company provider was found." });
     try {
       const links = identity.inspectProviderLinks(requireAuthenticatedUser(req).id, provider.id);
       return { provider, connected: links.length > 0, verified: links.length === 1 && links[0]?.verified === true };
@@ -89,44 +99,39 @@ async function beginProviderLink(req: RouteRequest, reply: FastifyReply, depende
       }),
     );
   }
-  const body = (req.body ?? {}) as { callbackURL?: unknown; errorCallbackURL?: unknown };
-  if (typeof body.callbackURL !== "string" || typeof body.errorCallbackURL !== "string") {
-    return reply.code(400).send({ error: "Valid callback and error return URLs are required." });
+  const body = (req.body ?? {}) as { callbackURL?: unknown; errorCallbackURL?: unknown; providerId?: unknown };
+  const bodyError = providerLinkBodyError(body);
+  if (bodyError) return reply.code(400).send({ error: bodyError });
+  const validBody = body as { callbackURL: string; errorCallbackURL: string; providerId?: string };
+  if (validBody.providerId !== undefined && req.user?.emailVerified !== true) {
+    return reply.code(403).send({
+      error: "Verify the local account address before connecting an identity provider.",
+      code: "LOCAL_EMAIL_NOT_VERIFIED",
+    });
   }
   try {
-    const result = await requireFederatedLink(auth)({
-      headers: toWebHeaders(req.headers),
-      principalId: req.accountActor.principalId,
-      callbackURL: body.callbackURL,
-      errorCallbackURL: body.errorCallbackURL,
-    });
+    const headers = toWebHeaders(req.headers);
+    const result =
+      (await startMicrosoftProviderLink({
+        auth,
+        identity: dependencies.identity,
+        request: req,
+        body: validBody,
+        headers,
+        trustProxyHeaders: dependencies.trustProxyHeaders === true,
+      })) ??
+      (await requireFederatedLink(auth)({
+        headers,
+        principalId: req.accountActor.principalId,
+        ...(validBody.providerId === undefined ? {} : { providerId: validBody.providerId }),
+        callbackURL: validBody.callbackURL,
+        errorCallbackURL: validBody.errorCallbackURL,
+      }));
     if (result.setCookies.length > 0) reply.header("set-cookie", result.setCookies);
     return { url: result.url };
   } catch (error) {
     return sendProviderLinkFailure(req, reply, error);
   }
-}
-
-const providerLinkFailureStatuses = new Map([
-  ["SESSION_EXPIRED", 401],
-  ["INVALID_CALLBACK_URL", 400],
-  ["PROVIDER_NOT_FOUND", 400],
-  ["PROVIDER_ALREADY_LINKED", 409],
-  ["MULTIPLE_PROVIDER_LINKS", 409],
-  ["PROVIDER_UNAVAILABLE", 502],
-]);
-
-function sendProviderLinkFailure(req: RouteRequest, reply: FastifyReply, error: unknown) {
-  const body =
-    error && typeof error === "object" && (error as { body?: unknown }).body
-      ? (error as { body: { code?: unknown; message?: unknown } }).body
-      : null;
-  const code = body && typeof body.code === "string" ? body.code : null;
-  const message = body && typeof body.message === "string" ? body.message : null;
-  const status = code ? providerLinkFailureStatuses.get(code) : undefined;
-  if (status) return reply.code(status).send({ error: message, code });
-  req.log.error(error, "identity provider link initiation failed");
-  return reply.code(500).send({ error: "The identity-provider connection could not be started." });
 }
 
 function registerReadinessRoute(app: FastifyInstance, dependencies: SsoCutoverRouteDependencies): void {
