@@ -7,6 +7,26 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Use Google or Microsoft for company sign-in, including first-owner setup, invitations and
+  explicit connection to an existing account. Microsoft verifies your company email once when
+  needed, with retry and recovery for expired or undelivered verification links (#1216, #1240).
+
+### Changed
+
+- Present Google and Microsoft together above the password fallback. Provider-required
+  installations reject password and GitHub sign-in; mixed installations retain existing
+  password and GitHub behavior. Microsoft live-tenant validation remains pending (#1219).
+- Require named Google and/or tenant-specific Microsoft configuration for hosted SSO. Retire
+  generic OIDC settings and the in-app member-readiness panel. Keep the read-only preflight and
+  guarded stopped-server repair commands for named-provider preparation and recovery (#1218).
+
+### Fixed
+
+- Keep failed company-sign-in connection messages visible after returning from the provider,
+  and clear the previous failure when retrying (#1216).
+
 ## [0.70.1-alpha.1] - 2026-09-23
 
 **Alpha 7 — Final Alpha.** This is the final Alpha release and the pinned baseline before the

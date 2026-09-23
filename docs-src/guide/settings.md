@@ -6,12 +6,11 @@ description: The company-wide switches that control what's visible on the schedu
 # Settings
 
 Open **Settings** to find company rules, scheduling features and display preferences on one
-scrollable page. Four groups are always present; a fifth appears during company-login cutover:
+scrollable page. Four groups are always present:
 
 | Group | Scope and access |
 | --- | --- |
 | Company setup | Allocation units, working days, date format, disciplines, engagement grouping and Overview access. Editors and above can change planning settings; only Owners and Admins manage Overview access. |
-| SSO cutover readiness | A conditional member-readiness table shown when strict company login is configured. Owners and Admins can use its repair actions during mixed-mode staging. |
 | Scheduling features | Company-wide visibility and behaviour options. Editors and above can change them. |
 | My display | Preferences saved in this browser. Everyone can adjust them without changing a teammate's display. |
 | Data and support | Device data, company data, read-only company details and support information. Each row states its scope; available actions depend on your access. |
@@ -106,16 +105,6 @@ Overview is limited to Owners and Admins by default. An Owner or Admin can choos
 **Admins**, **Admins & Editors**, or **Everyone** under **Overview
 access**. The setting controls both the sidebar link and direct access to the page. See
 [Find capacity across four, eight or twelve weeks](/guide/capacity-overview).
-
-## SSO cutover readiness
-
-When a strict company-login provider is configured, Owners and Admins see **SSO cutover
-readiness** as its own Settings group after Company setup. Its **Member**, **Role**, **Status**, and
-**Actions** table reports whether every active member has connected the configured provider and
-keeps failures visible until they are resolved. **Correct email** and **Remove incorrect link** retain their
-confirmation and recent-sign-in checks. The section refreshes when you enter Settings, change
-company or change the configured provider. See
-[Move from passwords to single sign-on](/company-login/move-to-single-sign-on).
 
 ## Scheduling features
 

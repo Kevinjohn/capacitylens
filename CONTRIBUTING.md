@@ -25,13 +25,12 @@ pnpm run e2e
 ```
 
 Authentication, account, invitation, membership, authorization, session and erasure changes must
-also run the portable account boundary check. Identity-provider and OIDC changes additionally run
-the pinned reference-provider browser suite. The OIDC suite requires a working Docker installation
-because it starts the digest-pinned Dex reference provider in a local container:
+also run the portable account boundary check. For changes to Google or Microsoft integration, use
+controlled provider responses in the focused tests; any live-provider check must use an authorized
+test registration and must be reported separately from deterministic evidence:
 
 ```bash
 pnpm run test:account-conformance
-pnpm run e2e:oidc
 ```
 
 Run `pnpm run rehearse:migrations` whenever a change touches a database migration, persisted
@@ -70,9 +69,10 @@ pnpm run e2e:all
 ```
 
 These conditions are local-development guidance for choosing extra checks before opening a pull
-request. Pull-request CI deliberately runs account conformance, released-database rehearsal, the
-complete Chromium/Firefox/WebKit suite and strict OIDC conformance on every change, regardless of
-paths, so required checks always exist and cross-cutting regressions cannot evade them.
+request. Pull requests run static analysis and CodeQL; documentation changes also run the docs
+build. The full gate, account-conformance checks, migration rehearsal and Chromium/Firefox/WebKit
+E2E suites run on `main` pushes, schedules or manual dispatch. Check the workflow files for the
+current triggers and dispatch any required pre-merge evidence explicitly.
 
 User-visible changes should update `user-stories/REFERENCE.md`, the matching story and its E2E
 spec. New domain fields must flow through shared types, full fixtures, server table columns and
@@ -89,9 +89,9 @@ Read [DEFENSIVE-CODING.md](DEFENSIVE-CODING.md) before changing a data path. In 
 - Add tests that fail without the change.
 - Never commit secrets, production data, generated output or personal deployment notes.
 
-Authentication and offline-cache changes need explicit threat-oriented tests. Social/OIDC support
-is experimental, so provider-specific changes must remain secure when configuration is missing,
-partial or malicious.
+Authentication and offline-cache changes need explicit threat-oriented tests. GitHub remains an
+experimental provider, while Google and Microsoft are the supported company providers. Provider
+changes must remain secure when configuration is missing, partial or malicious.
 
 ## Pull requests
 

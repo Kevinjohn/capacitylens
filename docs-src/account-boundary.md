@@ -25,8 +25,8 @@ service, account database, shared runtime identity or common portal. Those would
 and failure semantics and remain behind their recorded triggers.
 
 All asynchronous port implementations must settle in bounded time. The embedded adapters satisfy
-that contract through bounded local database waits; network-facing password-screening and OIDC work
-has its own abort deadline. Request cancellation is intentionally not propagated into an accepted
+that contract through bounded local database waits; network-facing password-screening calls use
+their own abort deadline. Request cancellation is intentionally not propagated into an accepted
 durable account command: after reservation, the coordinator must record a terminal or
 reconciliation-required outcome even when the client disconnects. Before adding any remote account
 adapter, extend the operation context with an `AbortSignal`/deadline, define how expiry interacts
@@ -219,22 +219,23 @@ model is a release gate:
 Package promotion may break the pre-1.0 repository-local contract after mandatory first-sibling
 review. A separate account database or service is not implied by promotion.
 
-## OIDC boundary
+## Company-provider boundary
 
-Strict OIDC is the supported external identity front door and is tested independently of named
-social providers. Better Auth owns authorization state, PKCE, cookies and local link persistence.
-The strict adapter owns validated-endpoint selection and the bounded, no-redirect code exchange.
-The strict profile additionally verifies discovery issuer, signed ID token, client audience,
-asymmetric algorithm, timestamps, remotely refreshed JWKS and user-info subject equality.
+Google Workspace and tenant-specific Microsoft Entra ID are the supported company sign-in
+providers. Better Auth owns provider authorization state, PKCE, cookies and local link persistence.
+CapacityLens applies provider-specific identity checks, explicit admission and linking policy, and
+the Microsoft first-connection mailbox-proof flow. Returning identities are correlated by their
+provider-owned stable identifier, not by email.
 
 The auth vendor hook receives an injected admission decision. It does not read membership or
 invitation tables. The account adapter exposes only the live-preauthorized-invitation fact, while
 identity storage owns the first-local-principal fact. Missing verification or missing admission
 facts fail closed.
 
-Hosted uses `hosted-oidc-only`, which refuses password configuration, open signup and named social
-providers. A future bundling layer must register as an ordinary external OIDC provider; it may not
-integrate with these internals.
+Hosted uses `hosted-sso-only`, which requires `mode=sso` and complete Google and/or
+tenant-specific Microsoft configuration. It rejects passwords, GitHub, open signup and incomplete
+provider settings. A future bundling layer must use the named-provider boundary and may not
+integrate with account internals.
 
 ## Conformance and drift control
 
@@ -246,10 +247,9 @@ gate. One capability-aware identity contract runs unchanged against the Better A
 trusted-local adapter and vendor-free fake; a profile may omit credentials, reset or administrative
 revocation only through the normalized fail-closed `UNSUPPORTED_CAPABILITY` result.
 
-The independent `Strict OIDC conformance · pinned Dex` E2E job adds a fault-controlled discovery
-front door. It proves bootstrap,
-preauthorized invitation, stable issuer/subject re-entry, local sign-out, provider denial, callback
-failure, malformed discovery and provider unavailability through the real product browser surface.
+Provider integration checks cover bootstrap, preauthorized invitation, explicit linking, stable
+provider identity re-entry, local sign-out, provider denial, callback failure and provider
+unavailability through the product boundary.
 
 Identical behavior means identical within the same named deployment profile. Password and SSO-only
 products intentionally expose different credential ceremonies.

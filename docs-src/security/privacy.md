@@ -16,6 +16,14 @@ The SQLite database can contain company names, member names and email addresses,
 projects, activities, allocations, time off and free-text notes. The authentication tables
 contain identities, linked sign-in providers, sessions, invitations and password-reset state.
 
+When Microsoft sign-in needs mailbox proof, CapacityLens temporarily stores the
+intended email, the Microsoft tenant and account identifiers, the attempt's status
+and expiry, and a hash of the email token. It also stores a hash of the source IP
+address for rate limiting. Return addresses for that attempt are encrypted in the
+database. The proof link expires after 15 minutes; a successful link is retained
+as the person's Microsoft sign-in identity so later sign-ins do not need another
+email proof.
+
 An Owner can optionally record whether each company member successfully signs in. This setting is
 off by default. When it is on, CapacityLens stores one yes-or-no confirmation on each membership,
 not the sign-in time or any site activity. Turning the setting off removes every live confirmation.
@@ -59,9 +67,18 @@ owner's laptop or browser profile accordingly.
 
 ## Network behaviour
 
-CapacityLens includes no product analytics, advertising, crash-reporting service or outbound
-email service, and telemetry from its authentication library is turned off. The browser only
-talks to its own server (same-origin).
+CapacityLens includes no product analytics, advertising or crash-reporting
+service, and telemetry from its authentication library is turned off. Scheduling
+requests normally use the application server on the same origin. External avatar
+URLs can cause the browser to request images from the configured image host.
+Provider sign-in also uses the external services described below.
+
+If Microsoft sign-in is configured,
+the server uses the operator's SMTP service to send a one-time mailbox proof when
+Microsoft does not return a verified matching email address. That message goes to
+the intended CapacityLens email address and contains a link that expires after 15
+minutes. The operator is responsible for the SMTP provider's processing and
+retention terms.
 
 When password creation, change or reset is turned on, the server checks the candidate password
 against the Have I Been Pwned breached-password list by default. It sends only the first five
@@ -72,9 +89,14 @@ isolated, non-production deployment can turn this check off; a production deploy
 gets a startup warning. If you self-host, include this outbound check in your own network and
 privacy assessment.
 
-If an operator turns on [company login](/company-login/) (social or OIDC sign-in), your browser
-is sent to that identity provider to sign in, and the server exchanges the result for a session.
-That provider becomes a processor of your identity data, so review its own privacy terms.
+If an operator turns on [company login](/company-login/) (Google or Microsoft
+sign-in), your browser is sent to that provider to sign in, and the
+server exchanges the result for a session. That provider becomes a processor of
+your identity data, so review its own privacy terms. The Microsoft integration
+requests the signed-in person's photo from Microsoft Graph on the server, even
+though its inline image format is not accepted as a CapacityLens avatar. See
+[Permissions, consent and profile pictures](/company-login/set-up-company-login#permissions-consent-and-profile-pictures)
+for the exact requested permissions and current picture behaviour.
 
 ## Keeping and deleting data
 

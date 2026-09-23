@@ -1,134 +1,99 @@
 ---
 title: How sign-in works
-description: The three ways to sign in to CapacityLens, how they stay linked to the same person, and how sessions and two-factor codes work.
+description: Sign in with a password, Google Workspace or Microsoft, connect an existing account, and manage access safely.
 ---
 
 # How sign-in works
 
-An auth-enabled CapacityLens installation supports one or more of three ways to sign in:
-a password, a social sign-in button, or your company's own login system (single sign-on).
-The demo and trusted-local mode deliberately have no sign-in; most self-hosted installations
-start on passwords and move to company login later. This page explains what each mode is, how a person stays
-"the same person" no matter which one they use, and how sessions and two-factor codes
-work. If you're ready to set company login up, skip to [Set up your company
-login](/company-login/set-up-company-login); if you're moving an existing team off
-passwords, go to [Move from passwords to single sign-on](/company-login/move-to-single-sign-on).
+CapacityLens can use passwords, Google Workspace or Microsoft Entra ID for
+company sign-in. The person running the server chooses which options appear.
+The demo and trusted-local mode have no sign-in.
 
-## The three ways to sign in
+With company sign-in, CapacityLens sends you to Google or Microsoft and receives
+you back after authentication. It never sees your provider password. An agency
+account alone does not grant access: new people also need an invitation, except
+for the explicitly allowed first person on an empty installation.
 
-**Password.** The person types an email address and password they created. On a fresh
-self-hosted install, the first person in signs up with a one-time setup token; everyone
-after that needs an invitation. This is the fastest way to start, and it's the default
-for a new installation.
+## Passwords and company sign-in
 
-**Social sign-in.** A recognisable Google, Microsoft or GitHub button. Each configured provider
-uses the same branded treatment on the sign-in wall, invitation acceptance and identity
-confirmation prompts.
-These are marked **experimental** in CapacityLens: they work, but they're a lighter-weight
-option than company login. In mixed password mode, a configured Google action is shown first on
-the sign-in wall, followed by **or use your password** and the password form; other configured
-providers remain available below that fallback. A self-hosted company-login-only installation may
-keep configured social buttons as sign-in doors for existing people, but they cannot create a new
-identity or accept an invitation. The hosted company-login-only profile refuses social-provider settings.
-To make company login the only door,
-remove every named social provider's client-id and client-secret pair, restart CapacityLens, and
-check that the buttons are gone. See the [cutover FAQ](/company-login/move-to-single-sign-on#what-about-the-sign-in-with-google-continue-with-microsoft-github-style-buttons)
-and [Configuration](/self-hosting/configuration#company-login) for the exact settings.
+![Sign-in screen with Google, a password form and the experimental GitHub option](../screenshots/company_sign_in_password.png)
 
-![The CapacityLens sign-in page in light mode, showing branded Google, Microsoft and GitHub buttons](../screenshots/flows/social_provider_buttons_light.jpg)
+In password mode, configured Google and Microsoft buttons appear above the
+password form. This lets an existing team connect their accounts before changing
+how everyone signs in. GitHub is an experimental additional option in this mode.
 
-![The CapacityLens sign-in page in dark mode, showing branded Google, Microsoft and GitHub buttons](../screenshots/flows/social_provider_buttons_dark.jpg)
+In company-sign-in-only mode, people must use a configured company provider.
+Passwords and GitHub cannot satisfy this requirement, including through older
+sessions. Keep the chosen Google or Microsoft credentials configured when
+changing modes.
 
-**Company login.** Also called single sign-on, or SSO. The person clicks "Continue with
-[your company]" and is sent to the [identity provider](/reference/glossary) your
-company already uses to sign people into everything else — Google Workspace, Microsoft
-365, Okta, Keycloak — signs in there exactly as normal, and is sent back signed in to
-CapacityLens. CapacityLens never sees their password. Behind the scenes this uses a
-standard called OIDC (OpenID Connect), the same one almost every modern identity
-provider speaks.
+See [Set up Google or Microsoft sign-in](/company-login/set-up-company-login)
+for registration and server settings. To require one of those providers for
+everyone, see [Require company sign-in](/company-login/move-to-single-sign-on).
 
-![The CapacityLens sign-in page in mixed mode, showing the email and password form above a Continue with Northwind Identity button](../screenshots/flows/sso-login-mixed.jpg)
+## Invitations and the first Owner
 
-Company login is the recommended mode once your team is bigger than a handful of
-people, because it means nobody has a CapacityLens-specific password to remember, lose,
-or reuse — and when someone leaves the company, disabling their account at the identity
-provider is most of the job done. See [Set up your company
-login](/company-login/set-up-company-login) to configure it.
+On an empty installation, the operator can allow specific email addresses to
+create the first Google or Microsoft identity. That person then follows **Set up
+your company** to become its Owner. The allowance closes when the first identity
+exists.
 
-## How accounts link together
+After that, an Owner or Admin creates an invitation in **Team & access** and
+shares its link. A new provider identity needs an unused invitation addressed to
+its verified email. Signing in to the provider does not silently accept a company
+invitation: follow the invitation screen to complete admission.
 
-Whichever mode someone signs in with, they're still one person: the same membership,
-the same role, the same allocations on the schedule. CapacityLens keeps that link by
-having each person **prove** the connection themselves, rather than guessing from an
-email address.
+## Connect an existing account
 
-For example: Dave signed up for CapacityLens with the password `dave@agency.com`, but
-his company's login system knows him as `david.smith@agency.co.uk`. CapacityLens
-won't silently treat those as the same person just because they sound alike. Instead,
-Dave signs in with his password as usual, opens **Account → Security → Company sign-in**
-and clicks **Connect**. He's sent to that login system, signs in there, and comes back —
-and only then are the two identities linked. From that point on, CapacityLens
-remembers him by a stable ID the login system issues (not by his email address), so
-even if his email changes again later, the link holds.
+Sign in to your existing CapacityLens account first. Open **Account → Security**
+and, under **Company sign-in**, choose **Connect Google** or **Connect Microsoft**.
+Complete the provider sign-in using the same email address as your CapacityLens
+account. Your local email must already be verified, and CapacityLens may ask you
+to confirm your identity again before connecting.
 
-The one rule that can't be skipped: at the moment someone connects, the email their
-login system reports has to be **identical** to their CapacityLens email. If it
-isn't, an Owner or Admin can correct the CapacityLens side to match — see [Move from
-passwords to single sign-on](/company-login/move-to-single-sign-on) for that repair
-step. Nobody has to change anything on the login system's side.
+CapacityLens does not merge accounts because their email addresses match.
+Explicit connection preserves your existing memberships and work. A provider
+identity already connected to another person cannot be connected again.
 
-## Sessions and staying signed in
+Microsoft may need a one-time email link to prove that you control the matching
+mailbox. Open it in the same browser session within 15 minutes and confirm the
+connection. Returning Microsoft sign-in uses the saved identity and does not
+repeat that mailbox check. See [Mailbox proof and recovery](/company-login/set-up-company-login#microsoft-mailbox-proof).
 
-A CapacityLens session lasts at most twelve hours from the moment someone signs in, and
-doesn't renew itself just because they're active — after twelve hours, they sign in
-again regardless. Separately, thirty minutes with no activity also signs someone out.
+## Sessions and sensitive actions
 
-A handful of sensitive actions — resetting someone else's password, signing someone out of
-every session, connecting, correcting or removing a company-login identity, transferring company
-ownership, deleting a company, and importing or purging company data — need a session that's
-"fresh": if it's been more than fifteen minutes since the person last proved who they are,
-CapacityLens asks them to confirm again with their password, a local two-factor code, or the company
-login provider before letting the action through. This doesn't sign them out or lose their place;
-it's a quick check in place. Other administrative actions — inviting or removing a member, changing
-a role or status, and similar day-to-day admin work — only need the right role and, where required,
-two-factor sign-in; they don't ask for this extra confirmation.
+A session lasts at most twelve hours from sign-in. Activity does not extend that
+limit. Thirty minutes without activity also signs you out.
 
-## Extra security: two-factor sign-in
+Sensitive actions require a recent identity confirmation: connecting or repairing
+a company identity, transferring ownership, resetting another member's password,
+revoking another member's sessions, deleting a company, and importing or purging
+company data. CapacityLens asks you to confirm again when needed. Routine member
+invitations, role changes and membership removal need the appropriate role, but
+do not require this extra confirmation.
 
-In password mode, an Owner or Admin can require everyone to enroll in two-factor
-sign-in — [TOTP](/reference/glossary), the six-digit code from an authenticator app
-that changes every thirty seconds. Once required, a new person has to finish
-enrolling before they can see any company data. Enrolling also gives them one-time
-recovery codes to use if they lose their authenticator; five wrong codes in a row locks
-the account for fifteen minutes.
+## Two-factor sign-in
 
-There's deliberately no administrator override for lost two-factor codes: if someone
-loses both their authenticator and their recovery codes, getting them back in requires
-the person who runs the server, not a button in the product. This is covered in the
-self-hosting documentation.
+In password mode, the server operator can require authenticator-app codes before
+people can access company data. Save the recovery codes when enrolling. If you
+lose both the authenticator and those codes, contact the server operator; there
+is no administrator button to bypass them.
 
-Company login sidesteps this entirely — CapacityLens treats every company-login session
-as already meeting its two-factor requirement, because your identity provider is
-responsible for its own sign-in policy (including whether it requires two-factor
-codes). If your identity provider doesn't enforce two-factor sign-in, turning it on
-there gives your team the same protection.
+For company sign-in, configure and verify multi-factor authentication at Google
+or Microsoft. Do not assume that enabling a provider also enables its MFA policy.
+The server's MFA attestation records the operator's assurance; it does not switch
+on MFA at the provider.
 
-## Which mode is right for you
+## When someone leaves
 
-| Situation                                                                                | Recommended mode                                                                                            |
-| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Trying CapacityLens out, or a very small trusted team                                    | Password, or [the demo](/getting-started/try-the-demo) with no sign-in at all                               |
-| A self-hosted team without a shared identity provider                                    | Password, with two-factor sign-in required                                                                  |
-| A team that already signs into Google, Microsoft, Okta or Keycloak for everything else   | [Company login](/company-login/set-up-company-login)                                                        |
-| An existing password team that wants to move to company login without locking anyone out | Run both at once first — see [Move from passwords to single sign-on](/company-login/move-to-single-sign-on) |
+Disable their work account at the provider and remove or disable their
+CapacityLens membership in **Team & access**. Provider disablement alone does not
+immediately revoke existing CapacityLens sessions. Use **Revoke sessions** when
+all of the person's CapacityLens sessions must end; that action applies across
+their accounts and requires the corresponding authority.
 
-Self-hosted installations can run password-only, company-login-only, or both at once
-(useful for keeping contractors on passwords while staff use company login). Whichever
-you choose is a setting on your own server — see
-[Configuration](/self-hosting/configuration) for the full list of options.
+## Next steps
 
-## What's next
-
-[Set up your company login](/company-login/set-up-company-login) to connect
-CapacityLens to Google, Microsoft, Okta or Keycloak, or [Move from passwords to single
-sign-on](/company-login/move-to-single-sign-on) if you already have a password team.
+[Set up Google or Microsoft sign-in](/company-login/set-up-company-login), or
+[require company sign-in](/company-login/move-to-single-sign-on) for an
+existing team.

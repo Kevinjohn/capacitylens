@@ -98,20 +98,18 @@ logs, and an off-server copy of the snapshot. For Docker Compose, run only the
 volumes, then copy the resulting bundle off-server. Do not continue to the restore steps. A
 database file copied by itself is not a complete SSO recovery point.
 
-Complete [Set up your company login](/company-login/set-up-company-login) only after the
-final public origin is stable. Register this exact [redirect URI](/reference/glossary) with the
-company login provider:
+Complete [Set up Google or Microsoft sign-in](/company-login/set-up-company-login) only
+after the final public origin is stable. Register the provider's exact callback address.
+For Google:
 
 ```text
-https://capacity.example.com/api/auth/callback/sso
+https://capacity.example.com/api/auth/callback/google
 ```
 
-The origin must match `SMALLSASS_ACCOUNT_PUBLIC_URL` character for character. The final
-`sso` segment is the default `SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID`; if you configured a
-different provider id, replace that segment with the exact configured value. Strict OIDC
-also needs the client id, client secret, discovery URL and issuer. Provider ids and
-issuers become linked to stored identities after first use, so read the complete
-company-login cutover guide before changing them.
+For Microsoft, use `https://capacity.example.com/api/auth/callback/microsoft`.
+The origin must match `SMALLSASS_ACCOUNT_PUBLIC_URL` character for character. Configure
+the Google web client or Microsoft tenant-specific app as described in the setup guide.
+If you want to require company sign-in, read [Require company sign-in](/company-login/move-to-single-sign-on).
 
 Company login does not make the two installations share sessions, identities, queues, secrets or
 databases. They remain separate processes on separate loopback ports.

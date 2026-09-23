@@ -129,7 +129,7 @@ fail loudly. The `openssl rand -base64 48` values above are safe unquoted. Anyth
 elsewhere — a company-login client secret, for example — must be wrapped in single quotes:
 
 ```dotenv
-SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET='the value exactly as issued'
+SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET='the value exactly as issued'
 ```
 
 A single quote inside the value itself cannot be escaped between single quotes. If one appears, ask

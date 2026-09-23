@@ -20,8 +20,7 @@ minutes; running the full check suite takes longer.
 
 - Node 24, pinned in `.nvmrc`.
 - pnpm, through Corepack — the version is pinned in `package.json`'s `packageManager` field.
-- Docker, only if you plan to run the strict-OIDC end-to-end suite (`e2e:oidc`) or the
-  Docker Compose smoke tests.
+- Docker, only if you plan to run the Docker Compose smoke tests.
 
 ## Set up the repository
 
@@ -63,9 +62,7 @@ that arrives when the pool is empty still gets one worker — nothing queues.
 
 Two deliberate exceptions:
 
-- `pnpm run e2e:oidc` and `pnpm run dev:access` keep fixed ports, because the dex container pins its
-  issuer and callback. They share one lock, so they are single-flight machine-wide and exclude each
-  other; starting one while the other runs fails immediately with that explanation.
+- `pnpm run dev:access` keeps fixed ports, so it is single-flight machine-wide.
 - Documentation screenshots are captured by hand on `:5199`, which no automated run binds.
 
 If a lane's port is still held when a run claims it, the launcher clears the process only when it
@@ -358,8 +355,8 @@ Package exports and externally consumed symbols need explicit compatibility exce
 until a separately authorized migration changes the contract. Existing filenames outside
 these categories are migration debt, not an open-ended naming exemption.
 
-Use ordinary acronym casing in new internal names: `OidcProvider`, `parseOidcClaims`,
-`HttpResponse`, `accountId`. Preserve existing exported semantic aliases, including `ID`,
+Use readable acronym casing in new internal names: `HttpResponse`, `accountId`.
+Preserve existing exported semantic aliases, including `ID`,
 `ISODate`, `ISOTimestamp`, `PrincipalId`, `WorkspaceId` and `IsoInstant`. Use the alias owned
 by the relevant contract rather than replacing it with `string` or inventing a parallel
 alias. This convention introduces no branded IDs and changes no wire fields.
@@ -430,7 +427,6 @@ Run these before proposing a change:
 pnpm run gate:all
 pnpm run test:account-conformance
 pnpm run e2e
-pnpm run e2e:oidc
 pnpm run rehearse:migrations
 pnpm run coverage
 pnpm run mutation
@@ -567,10 +563,6 @@ destructive description text for the verified contrast boundary.
 It runs the shared contract/policy tests, the same `IdentityPort` contract against Better
 Auth, trusted-local and vendor-free implementations, the coordinator invariants, SQLite
 account-adapter tests, profile validation and whole-tree architecture rules.
-
-`e2e:oidc` runs the real browser flow against the digest-pinned Dex provider, including
-malformed and unavailable discovery paths. It needs a working Docker installation and
-starts Dex in a local container for the duration of the suite.
 
 ### Resilience browser tests
 
@@ -770,11 +762,10 @@ gh pr merge <number> --merge --delete-branch
 
 ### CI jobs
 
-The `e2e` workflow runs cross-browser behavior and strict OIDC/Dex conformance as
-independent jobs. Each Playwright phase writes a distinct HTML report, JUnit result and
-trace directory; failed jobs retain those artifacts for seven days, and the OIDC artifact
-includes timestamped Dex logs. Docker Compose smoke tests stay separate so the README
-badges report independent status.
+The `e2e` workflow runs cross-browser behavior. Each Playwright phase writes a distinct
+HTML report, JUnit result and trace directory; failed jobs retain those artifacts for seven
+days. Docker Compose smoke tests stay separate so the README badges report independent
+status.
 
 CodeQL runs on pull requests targeting `main`, on `main` itself and on its weekly schedule.
 Its commit-specific concurrency key preserves analysis for each revision even when changes arrive
@@ -887,34 +878,11 @@ migration transaction open. Use `--keep` only in a protected development environ
 the anonymised artifacts are needed for diagnosis; never commit an installation-derived
 database.
 
-Schema v25 adds the CapacityLens-owned federated-link observation/ceremony and SSO
-activation-state tables, an atomic observation trigger, and Better Auth
+Schema v25 historically added the CapacityLens-owned federated-link observation/ceremony
+and SSO activation-state tables, an atomic observation trigger, and Better Auth
 `UNIQUE(providerId, accountId)` plus `UNIQUE(userId, providerId)` concurrency backstops.
-Established external account rows are not backfilled, because their historical admission
-path can't prove verified email — mixed-mode readiness requires removing and relinking
-them. Its committed off/password compatibility fixtures are generated from the last
-released pair with the release-candidate source and Node 24+:
-
-```bash
-pnpm --dir server fixtures:database 23 25
-```
-
-The generator refuses to overwrite an existing artifact, migrates copies only, converges
-the password fixture through Better Auth, runs `quick_check` and `foreign_key_check`,
-switches to delete journal mode, and vacuums both files. Record the generator revision,
-runtime versions and SHA-256 digests in `server/src/fixtures/databases/README.md`.
-
-The SSO cutover's read-only all-company verifier is exercised manually against an upgraded
-staging copy with:
-
-```bash
-pnpm --filter capacitylens-server cutover:preflight -- /absolute/path/to/staging.db
-```
-
-The destructive `cutover:repair` tool is deliberately excluded from routine development
-flows. Its tests create disposable on-disk databases and prove exclusive-lock,
-exact-coordinate, membership, provider-set, session-cleanup and audit constraints;
-operators use it only through the runbook.
+Its migration and released database fixtures are historical records; preserve their exact
+definitions and use the checked-in fixture ledger when rehearsing a later schema version.
 
 App-owned control tables share the application migration stream. Better Auth stays pinned
 and owns its own tables; startup reruns its introspection migration and then verifies that
@@ -1019,18 +987,17 @@ The complete E2E matrix also uses web/API ports 5273, 5373 and 8887. Stop an exi
 stack before E2E — Playwright intentionally refuses to reuse the demo/auth servers because
 persistence flavour matters. When a focused Playwright command explicitly names only
 ordinary core spec files (for example, `pnpm exec playwright test e2e/timeoff.spec.ts`),
-the harness starts only the demo Vite server. Unfiltered, directory-filtered, mixed and
-`.db`/`.auth`/`.oidc` selections retain the complete server set unless an explicit scope
+the harness starts only the demo Vite server. Unfiltered, directory-filtered and mixed selections
+retain the complete server set unless an explicit scope
 flag selects a narrower supported matrix.
 
-The access lab and strict-OIDC E2E harness both reserve web/API 5473/8897 and can't run
-together; stop the access lab before OIDC certification.
+The access lab reserves web/API 5473/8897 and is single-flight machine-wide.
 
 Development/test environment controls are intentionally separate from production
 configuration. `API_PORT` belongs only to `scripts/serve-dist.mjs`; Playwright/package
 orchestration owns `CAPACITYLENS_E2E_PHASE`, `CAPACITYLENS_WEBKIT`,
 `CAPACITYLENS_WEBKIT_ONLY`, `CAPACITYLENS_FIREFOX`, `CAPACITYLENS_FIREFOX_ONLY`,
-`CAPACITYLENS_VITE_ONLY` and `CAPACITYLENS_OIDC_E2E`. `CAPACITYLENS_REHEARSAL_URL` is the
+`CAPACITYLENS_VITE_ONLY`. `CAPACITYLENS_REHEARSAL_URL` is the
 one operator-supplied test control: it points the rehearsal browser project at the staged
 upgraded deployment. CI pins `ACTIONLINT_VERSION`; update that pin alongside its
 download/checksum workflow review. `CAPACITYLENS_E2E_PHASE` must contain only letters,
