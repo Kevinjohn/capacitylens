@@ -11,14 +11,12 @@ import { cwd } from "node:process";
 
 // P2.7 privacy posture — dependency guard against analytics/telemetry/email vendor SDKs.
 //
-// CapacityLens has no product analytics, telemetry, email or browser-side third-party egress. The
-// server's explicitly documented k-anonymous breached-password range lookup is implemented with
-// native fetch and is outside this dependency check. The CSP half
-// (server/src/app.helmet.test.ts) keeps the browser policy-bound to same-origin requests; this
-// test guards the supply chain. If an analytics, telemetry, or email package is ever added to any
-// workspace manifest — or pulled in transitively via the root lockfile — this test FAILS LOUDLY,
-// naming the offending package and where it appeared, so the "we send nothing out" claim can't
-// quietly rot as the dependency tree grows. See docs-src/security/privacy.md.
+// Product analytics, telemetry and browser-side third-party egress remain prohibited. The server
+// may send Microsoft identity verification through operator-configured SMTP, using nodemailer;
+// this is the sole email transport exception. Vendor email SDKs remain denied. The server's
+// k-anonymous breached-password lookup uses native fetch and is outside this dependency check.
+// Browser CSP coverage remains in server/src/app.helmet.test.ts. User-facing privacy guidance is
+// updated with the separately delivered sign-in documentation.
 //
 // Matching is EXACT package name only (no substring matching), so a legitimately-named package
 // (e.g. some hypothetical "react-analytics-table" UI helper) can't be killed by a denylist entry
@@ -57,8 +55,7 @@ const DENYLIST: string[] = [
   "rollbar",
   "logrocket",
 
-  // --- email infrastructure (the product never sends email — see docs-src/security/privacy.md) ---
-  "nodemailer",
+  // --- vendor email SDKs (operator-configured server SMTP is the sole exception) ---
   "@sendgrid/mail",
   "@sendgrid/client",
   "sendgrid",
@@ -114,6 +111,12 @@ describe("P2.7 privacy posture — no analytics/telemetry/email vendor dependenc
     for (const m of manifests) {
       expect(Array.isArray(m.deps)).toBe(true);
       expect(m.deps.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("limits the SMTP transport exception to the server manifest", () => {
+    for (const manifest of manifests) {
+      expect(manifest.deps.includes("nodemailer"), manifest.name).toBe(manifest.name === "server/package.json");
     }
   });
 

@@ -234,6 +234,11 @@ async function provisionOrganisation(input: OrganisationProvisionInput): Promise
   return reply.code(201).send(provisioned.product);
 }
 
+function isPermittedCompanyProvider(auth: Auth | null, providerId: string | null): boolean {
+  if (providerId === null) return false;
+  return auth?.permittedCompanyProviderIds?.has(providerId) ?? providerId === auth?.strictProvider?.id;
+}
+
 async function createOrganisation(
   req: FastifyRequest,
   reply: FastifyReply,
@@ -276,10 +281,7 @@ async function createOrganisation(
     // persist a row the generic path would reject. The id is generated server-side when the body
     // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
     // is accepted and validated like any other write.
-    if (
-      authMode === "sso" &&
-      (auth?.strictProvider?.id === undefined || req.authenticationProviderId !== auth.strictProvider.id)
-    ) {
+    if (authMode === "sso" && !isPermittedCompanyProvider(auth, req.authenticationProviderId)) {
       return accountFail(
         reply,
         new AccountContractError({

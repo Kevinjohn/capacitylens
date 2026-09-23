@@ -1,3 +1,4 @@
+import { getIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
 import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
@@ -72,22 +73,8 @@ export const accountClient = {
     });
   },
 
-  getIdentityProvider(): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/identity/provider`, { credentials: "include" });
-  },
-
-  linkIdentityProvider(callbackURL: string): Promise<Response> {
-    return apiFetchReauth(
-      `${API_BASE}/api/identity/link-provider`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ callbackURL, errorCallbackURL: callbackURL }),
-      },
-      { action: "connect-provider" satisfies ReauthAction },
-    );
-  },
+  getIdentityProvider,
+  linkIdentityProvider,
 
   getSsoReadiness(workspaceId: string): Promise<Response> {
     return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/sso-readiness`, {

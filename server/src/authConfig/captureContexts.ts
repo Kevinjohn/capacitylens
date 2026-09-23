@@ -13,6 +13,13 @@ export const passwordResetSessionCapture = new AsyncLocalStorage<{ sessionHandle
  * two federated-account uniqueness races from unrelated provider or network failures. */
 export const authHandlerErrorCapture = new AsyncLocalStorage<{ error: unknown }>();
 
+export const microsoftCallbackCapture = new AsyncLocalStorage<{
+  request: Request;
+  proofId: string | null;
+  bootstrapClaimToken: string | null;
+  pending: boolean;
+}>();
+
 function isObject(value: unknown): value is object {
   return typeof value === "object" && value !== null;
 }

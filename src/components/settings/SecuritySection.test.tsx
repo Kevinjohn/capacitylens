@@ -28,7 +28,9 @@ beforeEach(() => {
   readSessions.mockReset().mockResolvedValue({ kind: "loaded", sessions: [] });
   getIdentityProvider
     .mockReset()
-    .mockResolvedValue(new Response(JSON.stringify({ connected: true, verified: true }), { status: 200 }));
+    .mockImplementation(() =>
+      Promise.resolve(new Response(JSON.stringify({ connected: true, verified: true }), { status: 200 })),
+    );
 });
 
 const passwordAuth: AuthContextValue = {
@@ -196,4 +198,70 @@ it("preserves strict OIDC identity-link status without password or session contr
   expect(await screen.findByText(m.settings_sso_connected({ provider: "Workforce SSO" }))).toBeInTheDocument();
   expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
   expect(screen.queryByText(m.settings_security_active_sessions())).not.toBeInTheDocument();
+});
+
+it("shows Google and Microsoft connection status independently", async () => {
+  getIdentityProvider.mockImplementation((providerId: string) =>
+    Promise.resolve(
+      new Response(JSON.stringify({ connected: providerId === "google", verified: providerId === "google" })),
+    ),
+  );
+  renderSecurity({
+    providers: [
+      { id: "google", label: "Google", kind: "social", experimental: false },
+      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
+      { id: "github", label: "GitHub", kind: "social", experimental: true },
+    ],
+  });
+  expect(await screen.findByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+  expect(
+    await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Microsoft" }) }),
+  ).toBeInTheDocument();
+  expect(screen.queryByText(m.settings_sso_connected({ provider: "Microsoft" }))).not.toBeInTheDocument();
+  expect(getIdentityProvider).not.toHaveBeenCalledWith("github");
+});
+
+it("keeps a Microsoft callback error on its own connection", async () => {
+  window.history.replaceState(
+    null,
+    "",
+    "/account?capacitylensIdentityProvider=microsoft&capacitylensSsoLinkFailed=attempt",
+  );
+  renderSecurity({
+    providers: [
+      { id: "google", label: "Google", kind: "social", experimental: false },
+      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
+    ],
+  });
+  expect(await screen.findAllByText(m.settings_sso_connect_error())).toHaveLength(1);
+  expect(screen.getByText(m.settings_sso_connected({ provider: "Google" }))).toBeInTheDocument();
+  expect(window.location.search).toBe("");
+});
+
+it("dispatches Microsoft connection through the shared identity route and retains its return marker", async () => {
+  const fetchMock = vi.fn().mockResolvedValue(Response.json({ code: "PROVIDER_UNAVAILABLE" }, { status: 502 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+  window.history.replaceState(null, "", "/account");
+  getIdentityProvider.mockResolvedValue(Response.json({ connected: false, verified: false }));
+  try {
+    renderSecurity({
+      providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: m.settings_sso_connect_button({ provider: "Microsoft" }) }),
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toContain("/api/identity/link-provider");
+    expect(init.credentials).toBe("include");
+    const body = JSON.parse(String(init.body)) as { providerId: string; callbackURL: string; errorCallbackURL: string };
+    expect(body.providerId).toBe("microsoft");
+    expect(new URL(body.callbackURL).searchParams.get("capacitylensIdentityProvider")).toBe("microsoft");
+    expect(body.errorCallbackURL).toBe(body.callbackURL);
+    expect(await screen.findByText(m.settings_sso_connect_error())).toBeInTheDocument();
+  } finally {
+    errorLog.mockRestore();
+    vi.unstubAllGlobals();
+  }
 });

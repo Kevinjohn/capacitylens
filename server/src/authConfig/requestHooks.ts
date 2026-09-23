@@ -2,6 +2,7 @@ import type { AsyncLocalStorage } from "node:async_hooks";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import type { Db } from "../db";
+import { MicrosoftProofError } from "./microsoftProof";
 
 type SessionDeletionLifecycleRef = {
   current: {
@@ -168,7 +169,9 @@ export function buildRequestHooks(options: RequestHookOptions): Pick<BetterAuthO
         if (capture) capture.error = error;
         // Supplying onError replaces Better Auth's default logger, so retain a breadcrumb for the
         // dependency failures that it has already normalized to a generic response.
-        if (!(error instanceof APIError)) console.error("Better Auth request failed.", error);
+        if (!(error instanceof APIError) && !(error instanceof MicrosoftProofError)) {
+          console.error("Better Auth request failed.", error);
+        }
       },
     },
     // The LIVE sign-up gate (see the SECURE DEFAULT comment above): allowed when the operator

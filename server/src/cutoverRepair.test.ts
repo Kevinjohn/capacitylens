@@ -83,6 +83,7 @@ async function prepareDuplicateSubjectState(): Promise<string> {
     DROP INDEX idx_account_provider_subject_unique;
     DROP TRIGGER capacitylens_observe_federated_account;
     DELETE FROM capacitylens_federated_link_observations;
+    DROP TABLE microsoft_identity_proofs;
     DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
     PRAGMA user_version = 24;
   `);
@@ -225,6 +226,7 @@ function createLegacyMultiLinkRepairTest(): void {
     prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "credential-link");
     prepared.db.exec(`
       DROP INDEX idx_account_principal_provider_unique;
+      DROP TABLE microsoft_identity_proofs;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 25;
       PRAGMA user_version = 24;
     `);

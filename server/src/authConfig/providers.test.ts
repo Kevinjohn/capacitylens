@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createAuthFromEnvironment } from "../auth";
 import { openDb } from "../db";
 import { PASSWORD_ENV } from "../testHelpers";
+import { readVerifiedMicrosoftProfile } from "./socialProviders";
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
@@ -39,7 +40,7 @@ describe("provider presentation metadata", () => {
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
       }),
     ).toEqual([
-      { id: "google", label: "Google", kind: "social", brand: "google", experimental: true },
+      { id: "google", label: "Google", kind: "social", brand: "google", experimental: false },
       { id: "company-sso", label: "Single sign-on", kind: "oidc", brand: "google", experimental: false },
     ]);
   });
@@ -79,5 +80,46 @@ describe("provider presentation metadata", () => {
     expect(() => configuredProviders({ ...SSO_ENV, SMALLSASS_ACCOUNT_OIDC_BRAND: "label-guess" })).toThrow(
       /OIDC_BRAND.*google.*microsoft.*generic/i,
     );
+  });
+});
+
+describe("Microsoft tenant claim boundary", () => {
+  const tenant = "01234567-89ab-cdef-0123-456789abcdef";
+  const clientId = "company-client";
+  const claims = () => ({
+    iss: `https://login.microsoftonline.com/${tenant}/v2.0`,
+    aud: clientId,
+    exp: Math.floor(Date.now() / 1000) + 600,
+    tid: tenant,
+    oid: "immutable-object-id",
+    sub: "different-pairwise-subject",
+    picture: "https://example.test/avatar.png",
+  });
+
+  it("correlates the account and avatar by oid rather than sub", () => {
+    expect(readVerifiedMicrosoftProfile(claims(), tenant, clientId)).toEqual({
+      subject: "immutable-object-id",
+      picture: "https://example.test/avatar.png",
+    });
+  });
+
+  it.each([
+    ["issuer", { iss: "https://login.microsoftonline.com/other/v2.0" }],
+    ["audience", { aud: "other-client" }],
+    ["expiry", { exp: Math.floor(Date.now() / 1000) - 1 }],
+    ["tenant", { tid: "9188040d-6c67-4c5b-b112-36a304b66dad" }],
+    ["object id", { oid: "" }],
+  ])("refuses a mismatched %s", (_label, changed) => {
+    expect(() => readVerifiedMicrosoftProfile({ ...claims(), ...changed }, tenant, clientId)).toThrow();
+  });
+
+  it("requires a specific non-consumer tenant at startup", () => {
+    expect(() =>
+      configuredProviders({
+        ...SSO_ENV,
+        SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: clientId,
+        SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "secret",
+      }),
+    ).toThrow(/MICROSOFT_TENANT_ID/);
   });
 });

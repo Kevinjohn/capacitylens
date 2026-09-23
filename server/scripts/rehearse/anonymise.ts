@@ -63,6 +63,8 @@ function anonymiseSchedulingData(db: DatabaseSync): void {
 }
 
 function anonymiseOperationalData(db: DatabaseSync): void {
+  // Proof intents are short-lived operational secrets and have no rehearsal value.
+  if (hasTable(db, "microsoft_identity_proofs")) db.exec("DELETE FROM microsoft_identity_proofs");
   // `applicationId` names one logical value ("capacitylens") shared across this table,
   // account_commands and capacitylens_sso_cutover_state, but each is remapped into its own
   // per-table rehearsal namespace independently. Deliberate: nothing joins across these tables on

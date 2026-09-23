@@ -18,6 +18,7 @@ type LoginIds = {
 type LoginFormProps = {
   authMode: "password" | "sso";
   setup: boolean;
+  microsoftBootstrap?: boolean;
   passwordAutoFocus: boolean;
   busy: boolean;
   error: string | null;
@@ -81,7 +82,40 @@ export function LoginForm(props: LoginFormProps) {
       />
     );
   }
+  if (props.microsoftBootstrap) {
+    return (
+      <MicrosoftBootstrapEmail
+        ids={props.ids}
+        passwordSignIn={props.passwordSignIn}
+        busy={props.busy}
+        error={props.error}
+      />
+    );
+  }
   return null;
+}
+
+function MicrosoftBootstrapEmail({
+  ids,
+  passwordSignIn,
+  busy,
+  error,
+}: Pick<LoginFormProps, "ids" | "passwordSignIn" | "busy" | "error">) {
+  return (
+    <LoginField
+      id={ids.email}
+      label={m.login_setup_email()}
+      type="email"
+      autoComplete="email"
+      value={passwordSignIn.email}
+      maxLength={MAX_EMAIL_LENGTH}
+      onChange={(event) => passwordSignIn.setEmail(event.target.value)}
+      disabled={busy}
+      aria-invalid={Boolean(error)}
+      aria-describedby={error ? ids.error : undefined}
+      autoFocus
+    />
+  );
 }
 
 type SecondFactorFormProps = Pick<LoginFormProps, "busy" | "error" | "setError"> & {

@@ -42,7 +42,15 @@ const RETIRED_ACCOUNT_NAMES = {
   CAPACITYLENS_GITHUB_CLIENT_SECRET: "SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET",
 } as const;
 
-const CANONICAL_ACCOUNT_NAMES = Object.values(RETIRED_ACCOUNT_NAMES);
+const CANONICAL_ACCOUNT_NAMES: string[] = [
+  ...Object.values(RETIRED_ACCOUNT_NAMES),
+  "SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS",
+  "SMALLSASS_ACCOUNT_MAIL_HOST",
+  "SMALLSASS_ACCOUNT_MAIL_PORT",
+  "SMALLSASS_ACCOUNT_MAIL_USER",
+  "SMALLSASS_ACCOUNT_MAIL_PASSWORD",
+  "SMALLSASS_ACCOUNT_MAIL_FROM",
+];
 
 const SECRET_KEYS = new Set<string>([
   "SMALLSASS_ACCOUNT_SECRET",
@@ -51,6 +59,7 @@ const SECRET_KEYS = new Set<string>([
   "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET",
   "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET",
   "SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET",
+  "SMALLSASS_ACCOUNT_MAIL_PASSWORD",
 ]);
 
 const resolvedAccountEnvironments = new WeakMap<object, AccountDeploymentProfile | null>();
@@ -128,6 +137,12 @@ const EXTERNAL_IDENTITY_KEYS = [
   "SMALLSASS_ACCOUNT_OIDC_LABEL",
   "SMALLSASS_ACCOUNT_OIDC_BRAND",
   "SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS",
+  "SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS",
+  "SMALLSASS_ACCOUNT_MAIL_HOST",
+  "SMALLSASS_ACCOUNT_MAIL_PORT",
+  "SMALLSASS_ACCOUNT_MAIL_USER",
+  "SMALLSASS_ACCOUNT_MAIL_PASSWORD",
+  "SMALLSASS_ACCOUNT_MAIL_FROM",
   "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID",
   "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET",
   "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID",
@@ -224,7 +239,15 @@ function assertProfileProviderPolicy(profile: AccountDeploymentProfile, environm
     }
     return;
   }
-  assertStrictOidcMaterial(environment, `${profile} requires a strict OIDC client, issuer, and discovery document.`);
+  const namedCompanyProvider =
+    Boolean(environment.SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID && environment.SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET) ||
+    Boolean(environment.SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID && environment.SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET);
+  if (!namedCompanyProvider) {
+    assertStrictOidcMaterial(
+      environment,
+      `${profile} requires a configured Google or Microsoft provider, or a strict OIDC client, issuer, and discovery document.`,
+    );
+  }
   if (!capabilities.passwordSignIn && environment.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1") {
     throw new AccountConfigError("The SSO-only deployment profile forbids open signup.");
   }
@@ -257,6 +280,9 @@ export function resolveAccountEnvironment(source: Record<string, string | undefi
     return { env: source, profile: resolvedAccountEnvironments.get(source) ?? null };
   }
   const environment = resolveCanonicalSettings(source);
+  if (environment.SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS && environment.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS) {
+    throw new AccountConfigError("Configure only one bootstrap address setting for each provider migration phase.");
+  }
   const profile = readDeploymentProfile(source);
   assertDeploymentProfile(profile, environment, source);
 

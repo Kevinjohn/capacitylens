@@ -2,6 +2,7 @@ import type { BetterAuthOptions } from "better-auth";
 import type { AccountMode, BoundApplication } from "@capacitylens/shared/account/types";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { PASSWORD_CONTEXT_WORDS } from "../passwordSecurity";
+import type { MicrosoftProof } from "./microsoftProof";
 
 export type { AccountMode } from "@capacitylens/shared/account/types";
 
@@ -35,6 +36,7 @@ export interface CreateCredentialUserInput {
  *  structural interface once at creation — everything downstream stays decoupled from
  *  the library's generics. */
 export interface Auth {
+  microsoftProof?: MicrosoftProof | null;
   /** Web-standard Request → Response handler, mounted at /api/auth/* when mode ≠ off. */
   handler: (request: Request) => Promise<Response>;
   api: {
@@ -56,6 +58,8 @@ export interface Auth {
   options: BetterAuthOptions;
   /** Configured external identity providers, safe to return to unauthenticated clients. */
   providers: AuthProviderInfo[];
+  /** Configured company providers accepted by the current policy. GitHub is excluded. */
+  permittedCompanyProviderIds?: ReadonlySet<string>;
   /** Configured upstream issuer for each local provider alias. Used for `(issuer, subject)` keys. */
   federatedIssuers: ReadonlyMap<string, string>;
   /** The one strict OIDC provider used by the supported SSO cutover ceremony. */
@@ -101,6 +105,7 @@ export interface Auth {
   beginFederatedLink?: (input: {
     headers: Headers;
     principalId: string;
+    providerId?: string;
     callbackURL: string;
     errorCallbackURL: string;
   }) => Promise<{ url: string; setCookies: string[] }>;

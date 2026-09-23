@@ -6,11 +6,16 @@ import { createStrictOidcClient, isLoopbackHostname, StrictOidcVerificationError
 import type { AuthConfigError, AuthProviderInfo } from "../auth";
 import { adaptStrictOidcProfileForBetterAuth, persistLinkedExternalAvatar } from "./betterAuthProfileCompatibility";
 import { warnOnBrandIssuerMismatch, type WarnFn } from "./brandIssuerWarning";
-import { parseSocialProvidersFromEnvironment } from "./socialProviders";
+import { parseSocialProvidersFromEnvironment, resolveMicrosoftTenantId } from "./socialProviders";
 import type { AuthProviderBrand } from "./authTypes";
+import type { MicrosoftProof } from "./microsoftProof";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
+
+export function companyProviderIds(providers: readonly AuthProviderInfo[]): ReadonlySet<string> {
+  return new Set(providers.filter((provider) => !provider.experimental).map((provider) => provider.id));
+}
 function resolveNonEmptyValue(value: string | undefined, fallback: string): string {
   if (value) return value;
   return fallback;
@@ -97,7 +102,7 @@ function buildExternalProviderInfo({
 }): AuthProviderInfo[] {
   const providers: AuthProviderInfo[] = [];
   const addSocialProvider = (id: string, label: string, brand: AuthProviderBrand): void => {
-    providers.push({ id, label, kind: "social", brand, experimental: true });
+    providers.push({ id, label, kind: "social", brand, experimental: id === "github" });
   };
   if (hasCredentialPair(environment, "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID", "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET")) {
     addSocialProvider("google", "Google", "google");
@@ -164,9 +169,12 @@ function resolveGenericProviderId(
       E: AuthConfigError,
     });
   }
-  if (mode === "sso" && !configured) {
+  const hasCompanyProvider =
+    hasCredentialPair(env, "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID", "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET") ||
+    hasCredentialPair(env, "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID", "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET");
+  if (mode === "sso" && !configured && !hasCompanyProvider) {
     throw new AuthConfigError(
-      "SMALLSASS_ACCOUNT_MODE=sso requires SMALLSASS_ACCOUNT_OIDC_CLIENT_ID and SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET.",
+      "SMALLSASS_ACCOUNT_MODE=sso requires a configured Google, Microsoft, or strict OIDC company provider.",
     );
   }
   if (!configured) return null;
@@ -336,6 +344,7 @@ export function buildProviders({
   db,
   prepared,
   AuthConfigError,
+  microsoftProof,
   warn = console.warn,
 }: {
   env: Env;
@@ -344,13 +353,19 @@ export function buildProviders({
   prepared: ReturnType<typeof prepareProviders>;
   AuthConfigError: AuthConfigErrorConstructor;
   db: Db;
+  microsoftProof?: MicrosoftProof | null;
   /** Startup configuration warnings; the server's console by default. */
   warn?: WarnFn;
 }) {
   // Resolve every remaining provider configuration before the first explicit database DDL below.
   // An invalid provider/URL must not leave a bootstrap-control table behind on an otherwise
   // untouched database merely because validation happened in an unfortunate order.
-  const configuredSocialProviders = parseSocialProvidersFromEnvironment(env, AuthConfigError, db);
+  const configuredSocialProviders = parseSocialProvidersFromEnvironment({
+    environment: env,
+    ErrorType: AuthConfigError,
+    db,
+    microsoftProof: microsoftProof ?? null,
+  });
   const configuredProviderInfo = buildExternalProviderInfo({
     environment: env,
     genericProviderId: prepared.genericProviderId,
@@ -366,7 +381,7 @@ export function buildProviders({
   if (configuredSocialProviders.microsoft) {
     configuredFederatedIssuers.set(
       "microsoft",
-      `urn:better-auth:microsoft:${resolveNonEmptyValue(env.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID, "common")}`,
+      `urn:better-auth:microsoft:${resolveMicrosoftTenantId(env.SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID, AuthConfigError)}`,
     );
   }
   if (configuredSocialProviders.github) configuredFederatedIssuers.set("github", "urn:better-auth:github");

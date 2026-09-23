@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import type { InviteAcceptState } from "./InviteAcceptView";
 import { m } from "@/i18n";
 import type { AuthProviderInfo } from "../../auth/authContext";
+import { startMicrosoftConnection } from "../../auth/microsoftConnectionClient";
 import { authClient } from "../../auth/authClient";
 import { reloadPage } from "../../lib/reloadPage";
 import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
@@ -12,6 +13,7 @@ import { runExternalSignIn } from "./externalSignIn";
 import type { FormEvent } from "react";
 
 interface Dependencies {
+  token: string | undefined;
   email: string;
   password: string;
   refreshAuth: () => Promise<void>;
@@ -26,7 +28,19 @@ function resolveJoinedAccount(list: Awaited<ReturnType<typeof refreshAccountSumm
   return undefined;
 }
 
-function startProviderSignIn(provider: AuthProviderInfo, signal: AbortSignal) {
+function startProviderSignIn(provider: AuthProviderInfo, token: string | undefined, signal: AbortSignal) {
+  if (provider.id === "microsoft") {
+    if (!token) throw new Error("The invitation link is missing.");
+    return startMicrosoftConnection(
+      {
+        purpose: "invite",
+        inviteToken: token,
+        callbackURL: window.location.href,
+        errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
+      },
+      signal,
+    );
+  }
   const options = {
     callbackURL: window.location.href,
     errorCallbackURL: buildExternalSignInErrorUrl(window.location.href),
@@ -36,7 +50,7 @@ function startProviderSignIn(provider: AuthProviderInfo, signal: AbortSignal) {
   return authClient.signIn.social({ ...options, provider: provider.id });
 }
 
-export function createInviteSignInActions({ email, password, refreshAuth, setState, setBusy }: Dependencies) {
+export function createInviteSignInActions({ token, email, password, refreshAuth, setState, setBusy }: Dependencies) {
   const signInAndReload = async (): Promise<void> => {
     const { error } = await authClient.signIn.email({ email, password });
     if (error) throw new Error(error.message ?? m.login_failed());
@@ -85,9 +99,9 @@ export function createInviteSignInActions({ email, password, refreshAuth, setSta
     setBusy(true);
     setState({ kind: "auth" });
     await runExternalSignIn({
-      // Keep redirect ownership in runExternalSignIn: Better Auth returns the provider URL without
-      // running its navigation hook, and an aborted request must settle before retry is available.
-      start: (signal) => startProviderSignIn(provider, signal),
+      // Keep redirect ownership in runExternalSignIn so Better Auth and the Microsoft start
+      // endpoint share the same abort-before-retry and navigation lifecycle.
+      start: (signal) => startProviderSignIn(provider, token, signal),
       onFailure: (message) => {
         setState({ kind: "auth", message: message ?? m.login_failed() });
         setBusy(false);

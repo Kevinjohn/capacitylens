@@ -36,6 +36,7 @@ export interface AccountRouteDependencies {
   /** SSO-only invitation acceptance must arrive through this provider so a new membership cannot
    * make the installation fail its next strict-provider readiness check. */
   requiredSsoProviderId: string | null;
+  permittedCompanyProviderIds?: ReadonlySet<string>;
   administration: AccountAdminPort;
   identity: IdentityPort;
   flows: AccountFlows;

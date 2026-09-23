@@ -1085,15 +1085,15 @@ async function createSsoProviderInviteContext() {
   });
   const ssoApp = buildApp(db, { authMode: "sso", auth: configuredAuth });
   const socialMe = await call(ssoApp, { method: "GET", url: "/api/auth/me", headers: { cookie: joiner.cookie } });
-  expect(readResponseObject(socialMe).canCreateAccount).toBe(false);
+  expect(socialMe.statusCode).toBe(401);
+  expect(readResponseObject(socialMe).error).toMatch(/sign in/i);
   const socialProvision = await call(ssoApp, {
     method: "POST",
     url: "/api/orgs",
     headers: { cookie: joiner.cookie },
     payload: { id: "founded", name: "Founded", color: "#3b82f6" },
   });
-  expect(socialProvision.statusCode).toBe(403);
-  expect(readResponseObject(socialProvision).error).toMatch(/required SSO provider/i);
+  expect(socialProvision.statusCode).toBe(401);
   return { db, joiner, sessionHandle, ssoApp, timestamp };
 }
 
@@ -1141,8 +1141,8 @@ function registerSsoProviderInviteTest(): void {
     });
 
     const refused = await acceptReq(ssoApp, "sso-provider-invite", { cookie: joiner.cookie });
-    expect(refused.statusCode).toBe(403);
-    expect(readResponseObject(refused).error).toMatch(/required SSO provider/i);
+    expect(refused.statusCode).toBe(401);
+    expect(readResponseObject(refused).error).toMatch(/sign in/i);
     expect(getMemberRole(db, "a1", joiner.userId)).toBeNull();
     expect(readInvite(db, "sso-provider-invite").usedAt).toBeNull();
 
