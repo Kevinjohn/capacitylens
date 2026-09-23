@@ -15,7 +15,7 @@ takes its own pre-migration snapshot automatically. See
 [Backups and restore](/self-hosting/backups-and-restore).
 :::
 
-## Upgrading to 0.71.0-alpha.1
+## Upgrading to 0.70.1-alpha.1
 
 This release removes the older account environment names. Rename them in the environment
 file before restarting: the previous release accepts the new names, while this release
