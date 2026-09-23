@@ -236,7 +236,7 @@ async function provisionOrganisation(input: OrganisationProvisionInput): Promise
 
 function isPermittedCompanyProvider(auth: Auth | null, providerId: string | null): boolean {
   if (providerId === null) return false;
-  return auth?.permittedCompanyProviderIds?.has(providerId) ?? providerId === auth?.strictProvider?.id;
+  return auth?.permittedCompanyProviderIds?.has(providerId) ?? providerId === auth?.defaultCompanyProvider?.id;
 }
 
 async function createOrganisation(

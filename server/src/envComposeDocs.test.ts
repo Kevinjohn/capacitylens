@@ -28,15 +28,28 @@ const inviteActionsAt = (source: string, anchor: RegExp): string[] => {
   return actions ? [...new Set(actions.split("|").map((value) => value.trim()))].sort() : [];
 };
 
-const registerOidcBrandComposeTest = (): void => {
-  it("passes the documented OIDC presentation brand settings into the API container", () => {
+const registerNamedProviderComposeTest = (): void => {
+  it("passes company-provider bootstrap and mailbox settings without retired OIDC settings", () => {
     const apiService = compose.split("\n  api:\n")[1]?.split("\n  web:\n")[0];
     expect(apiService).toBeDefined();
     const apiLines = apiService?.split("\n").map((line) => line.trim());
-
-    const name = "SMALLSASS_ACCOUNT_OIDC_BRAND";
-    expect(envExample).toContain(name);
-    expect(apiLines).toContain(`${name}: ${"${"}${name}:-}`);
+    for (const name of [
+      "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID",
+      "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET",
+      "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID",
+      "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET",
+      "SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID",
+      "SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS",
+      "SMALLSASS_ACCOUNT_MAIL_HOST",
+      "SMALLSASS_ACCOUNT_MAIL_PORT",
+      "SMALLSASS_ACCOUNT_MAIL_USER",
+      "SMALLSASS_ACCOUNT_MAIL_PASSWORD",
+      "SMALLSASS_ACCOUNT_MAIL_FROM",
+    ]) {
+      expect(apiLines).toContain(`${name}: ${"${"}${name}:-}`);
+    }
+    expect(apiService).not.toMatch(/SMALLSASS_ACCOUNT_OIDC_/);
+    expect(apiService).not.toMatch(/CAPACITYLENS_SSO_(?!MFA_ENFORCED)/);
   });
 };
 
@@ -61,7 +74,7 @@ describe("Compose exceptions in the environment register", () => {
     }
   });
 
-  registerOidcBrandComposeTest();
+  registerNamedProviderComposeTest();
 
   it("keeps production mode out of Vite-loaded env files and sets it on the API process", () => {
     expect(envExample).toMatch(/Node environment is set on the API process for bare-metal runs/);

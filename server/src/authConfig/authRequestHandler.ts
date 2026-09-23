@@ -1,4 +1,3 @@
-import { APIError } from "better-auth/api";
 import type { Auth } from "./authTypes";
 import {
   authHandlerErrorCapture,
@@ -8,17 +7,11 @@ import {
 } from "./captureContexts";
 import { MicrosoftProofError, type MicrosoftProof } from "./microsoftProof";
 
-type StrictOidcClient = {
-  metadata(): Promise<{ authorization_endpoint: string }>;
-};
-
 type CreateAuthRequestHandlerOptions = {
   rawHandler: Auth["handler"];
   providerIdFromExternalContext: (input: { path: string }) => string | null;
   callbackErrorUrl: (request: Request) => URL;
   browserAuthErrorUrl: URL;
-  strictOidcClient: StrictOidcClient | null;
-  strictOidcAuthorizationProxyPath: string | null;
   commitResetSessions: (sessionHandles: readonly string[]) => void;
   reconcileFederatedLinks: () => void;
   microsoftProof: MicrosoftProof | null;
@@ -29,34 +22,6 @@ function redirectWithError(target: URL, error: string): Response {
   return Response.redirect(target, 302);
 }
 
-async function proxyStrictOidcAuthorization(options: {
-  requestUrl: URL;
-  strictOidcClient: StrictOidcClient;
-  browserAuthErrorUrl: URL;
-}): Promise<Response> {
-  try {
-    const metadata = await options.strictOidcClient.metadata();
-    const target = new URL(metadata.authorization_endpoint);
-    for (const [key, value] of options.requestUrl.searchParams) target.searchParams.append(key, value);
-    return new Response(null, {
-      status: 302,
-      headers: { location: target.toString(), "cache-control": "no-store", pragma: "no-cache" },
-    });
-  } catch (error) {
-    console.error("Strict OIDC authorization initialization failed.", error);
-    const target = new URL(options.browserAuthErrorUrl);
-    target.searchParams.set("error", "provider_unavailable");
-    return new Response(null, {
-      status: 302,
-      headers: { location: target.toString(), "cache-control": "no-store", pragma: "no-cache" },
-    });
-  }
-}
-
-function isStrictOidcVerificationFailure(error: unknown): boolean {
-  return error instanceof APIError && error.body?.code === "OIDC_IDENTITY_VERIFICATION_FAILED";
-}
-
 function redirectCapturedCallbackError(options: {
   callbackProviderId: string | null;
   capturedError: unknown;
@@ -65,9 +30,6 @@ function redirectCapturedCallbackError(options: {
 }): Response | null {
   if (!options.callbackProviderId) return null;
   const target = options.failureTarget ?? new URL(options.browserAuthErrorUrl);
-  if (isStrictOidcVerificationFailure(options.capturedError)) {
-    return redirectWithError(target, "OIDC_IDENTITY_VERIFICATION_FAILED");
-  }
   if (isFederatedAccountCoordinateConstraint(options.capturedError)) {
     return redirectWithError(target, "account_already_linked_to_different_user");
   }
@@ -137,25 +99,6 @@ function resolveProviderRedirect(
 ): Response {
   const { request, providerId, response } = input;
   return providerId === "microsoft" ? rewriteMicrosoftReturn(options, request, response) : response;
-}
-
-function maybeProxyStrictOidc(
-  options: CreateAuthRequestHandlerOptions,
-  request: Request,
-  requestUrl: URL,
-): Promise<Response> | null {
-  if (
-    !options.strictOidcClient ||
-    !options.strictOidcAuthorizationProxyPath ||
-    request.method !== "GET" ||
-    requestUrl.pathname !== options.strictOidcAuthorizationProxyPath
-  )
-    return null;
-  return proxyStrictOidcAuthorization({
-    requestUrl,
-    strictOidcClient: options.strictOidcClient,
-    browserAuthErrorUrl: options.browserAuthErrorUrl,
-  });
 }
 
 async function runCapturedHandler(
@@ -267,7 +210,7 @@ async function runAuthenticatedRequest(
   }
 }
 
-// Owns provider callback/proxy HTTP behavior; persistence and identity state stay with the adapter.
+// Owns provider callback HTTP behavior; persistence and identity state stay with the adapter.
 export function createAuthRequestHandler(options: CreateAuthRequestHandlerOptions): Auth["handler"] {
   return async (request) => {
     // Enforce inactivity even when a caller goes directly to an authenticated Better Auth route
@@ -280,8 +223,6 @@ export function createAuthRequestHandler(options: CreateAuthRequestHandlerOption
       const preflight = preflightMicrosoftCallback(options, request, failureTarget);
       if (preflight) return preflight;
     }
-    const proxyResponse = maybeProxyStrictOidc(options, request, requestUrl);
-    if (proxyResponse) return proxyResponse;
     return runAuthenticatedRequest(options, { request, requestUrl, callbackProviderId, failureTarget });
   };
 }

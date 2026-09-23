@@ -3,11 +3,9 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { newId } from "@capacitylens/shared/lib/id";
-import type { SsoReadinessReason } from "@capacitylens/shared/account/ssoCutover";
 import type { Auth, AccountMode } from "../auth";
 import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort } from "./sqliteAccountAdminPort";
-import { ssoCutoverReadiness } from "./ssoCutover";
 import { providerLinkBodyError, sendProviderLinkFailure } from "./providerLinkFailure";
 import { startMicrosoftProviderLink } from "./microsoftProviderLink";
 
@@ -36,26 +34,21 @@ function requireFederatedLink(auth: Auth): NonNullable<Auth["beginFederatedLink"
   return auth.beginFederatedLink;
 }
 
-/** The 400 "no strict provider" guard shared byte-for-byte by the two write endpoints below (email
- *  correction, federated-link removal). Distinct from the 404 variant on GET /api/identity/provider
- *  and the pre-derived check inside sso-readiness — those are left untouched. Sends the response and
- *  returns undefined on failure so a call site that needs the provider can use it directly; neither
- *  current call site does, so both just test the return value. */
-function requireStrictProvider(auth: Auth, reply: FastifyReply): Auth["strictProvider"] | undefined {
-  if (!auth.strictProvider) {
-    reply.code(400).send({ error: "No strict OIDC provider is configured." });
+/** Keep provider repair restricted to an installation with a configured company provider. */
+function requireCompanyProvider(auth: Auth, reply: FastifyReply): Auth["defaultCompanyProvider"] | undefined {
+  if (!auth.defaultCompanyProvider) {
+    reply.code(400).send({ error: "No company provider is configured." });
     return undefined;
   }
-  return auth.strictProvider;
+  return auth.defaultCompanyProvider;
 }
 
-interface SsoCutoverRouteDependencies {
+interface FederatedIdentityRouteDependencies {
   auth: Auth;
   authMode: Exclude<AccountMode, "off">;
   identity: SsoCutoverIdentityPort;
   administration: SsoCutoverAccountAdminPort;
   applicationId: string;
-  openSignup: boolean;
   authorize(input: AuthorizeMemberManagementInput): boolean;
   fail(reply: FastifyReply, error: unknown): unknown;
   toWebHeaders(headers: FastifyRequest["headers"]): Headers;
@@ -64,7 +57,7 @@ interface SsoCutoverRouteDependencies {
 
 type RouteRequest = FastifyRequest;
 
-function registerProviderRoutes(app: FastifyInstance, dependencies: SsoCutoverRouteDependencies): void {
+function registerProviderRoutes(app: FastifyInstance, dependencies: FederatedIdentityRouteDependencies): void {
   const { auth, identity, fail } = dependencies;
   app.get("/api/identity/provider", async (req, reply) => {
     const requestedProviderId = (req.query as { providerId?: unknown } | undefined)?.providerId;
@@ -73,7 +66,7 @@ function registerProviderRoutes(app: FastifyInstance, dependencies: SsoCutoverRo
     }
     const provider =
       requestedProviderId === undefined
-        ? auth.strictProvider
+        ? auth.defaultCompanyProvider
         : auth.providers.find((candidate) => candidate.id === requestedProviderId && !candidate.experimental);
     if (!provider) return reply.code(404).send({ error: "No configured company provider was found." });
     try {
@@ -87,7 +80,20 @@ function registerProviderRoutes(app: FastifyInstance, dependencies: SsoCutoverRo
   app.post("/api/identity/link-provider", async (req, reply) => beginProviderLink(req, reply, dependencies));
 }
 
-async function beginProviderLink(req: RouteRequest, reply: FastifyReply, dependencies: SsoCutoverRouteDependencies) {
+function resolveProviderLinkBody(
+  body: { callbackURL?: unknown; errorCallbackURL?: unknown; providerId?: unknown },
+  defaultProvider: Auth["defaultCompanyProvider"],
+): { callbackURL: string; errorCallbackURL: string; providerId?: string } {
+  const validBody = { ...body } as { callbackURL: string; errorCallbackURL: string; providerId?: string };
+  if (validBody.providerId === undefined && defaultProvider) validBody.providerId = defaultProvider.id;
+  return validBody;
+}
+
+async function beginProviderLink(
+  req: RouteRequest,
+  reply: FastifyReply,
+  dependencies: FederatedIdentityRouteDependencies,
+) {
   const { auth, fail, toWebHeaders } = dependencies;
   if (!req.accountActor?.fresh) {
     return fail(
@@ -102,7 +108,7 @@ async function beginProviderLink(req: RouteRequest, reply: FastifyReply, depende
   const body = (req.body ?? {}) as { callbackURL?: unknown; errorCallbackURL?: unknown; providerId?: unknown };
   const bodyError = providerLinkBodyError(body);
   if (bodyError) return reply.code(400).send({ error: bodyError });
-  const validBody = body as { callbackURL: string; errorCallbackURL: string; providerId?: string };
+  const validBody = resolveProviderLinkBody(body, auth.defaultCompanyProvider);
   if (validBody.providerId !== undefined && req.user?.emailVerified !== true) {
     return reply.code(403).send({
       error: "Verify the local account address before connecting an identity provider.",
@@ -134,81 +140,7 @@ async function beginProviderLink(req: RouteRequest, reply: FastifyReply, depende
   }
 }
 
-function registerReadinessRoute(app: FastifyInstance, dependencies: SsoCutoverRouteDependencies): void {
-  app.get("/api/accounts/:accountId/sso-readiness", async (req, reply) => {
-    const { accountId } = req.params as { accountId: string };
-    if (
-      !dependencies.authorize({
-        req,
-        reply,
-        accountId,
-        action: "manageMembers",
-        options: { requireFreshSession: false },
-      })
-    )
-      return;
-    const provider = dependencies.auth.strictProvider;
-    if (!provider) return reply.code(400).send({ error: "No strict OIDC provider is configured." });
-    try {
-      const readiness = ssoCutoverReadiness({
-        provider,
-        providers: dependencies.auth.providers,
-        identity: dependencies.identity,
-        administration: dependencies.administration,
-        openSignup: dependencies.openSignup,
-      });
-      const workspace = readiness.workspaces.find((candidate) => candidate.workspaceId === accountId);
-      if (!workspace) return reply.code(404).send({ error: "The workspace does not exist." });
-      return {
-        ...workspace,
-        ready: readiness.ready,
-        provider,
-        globalIssues: safeReadinessIssues(readiness, accountId),
-      };
-    } catch (error) {
-      return dependencies.fail(reply, error);
-    }
-  });
-}
-
-function safeReadinessIssues(readiness: ReturnType<typeof ssoCutoverReadiness>, accountId: string) {
-  const issues = readiness.issues.filter((issue) => issue.workspaceId === null && issue.principalId === null);
-  if (readiness.issues.some((issue) => issue.blocking && issue.workspaceId === null && issue.principalId !== null)) {
-    issues.push(operatorRepairIssue());
-  }
-  if (
-    readiness.issues.some((issue) => issue.blocking && issue.workspaceId !== null && issue.workspaceId !== accountId)
-  ) {
-    issues.push(otherWorkspaceIssue());
-  }
-  return issues;
-}
-
-type ReadinessIssue = ReturnType<typeof ssoCutoverReadiness>["issues"][number];
-
-function operatorRepairIssue(): ReadinessIssue {
-  return {
-    reason: "operator_identity_repair_required" satisfies SsoReadinessReason,
-    message: "Installation-wide identity repair is required; run the operator preflight for details.",
-    blocking: true,
-    critical: true,
-    workspaceId: null,
-    principalId: null,
-  };
-}
-
-function otherWorkspaceIssue(): ReadinessIssue {
-  return {
-    reason: "other_workspace_not_ready" satisfies SsoReadinessReason,
-    message: "Another company has cutover blockers; run the operator preflight for details.",
-    blocking: true,
-    critical: true,
-    workspaceId: null,
-    principalId: null,
-  };
-}
-
-function registerRepairRoutes(app: FastifyInstance, dependencies: SsoCutoverRouteDependencies): void {
+function registerRepairRoutes(app: FastifyInstance, dependencies: FederatedIdentityRouteDependencies): void {
   app.patch("/api/accounts/:accountId/members/:userId/email", async (req, reply) =>
     correctEmail(req, reply, dependencies),
   );
@@ -217,7 +149,7 @@ function registerRepairRoutes(app: FastifyInstance, dependencies: SsoCutoverRout
   );
 }
 
-async function correctEmail(req: RouteRequest, reply: FastifyReply, dependencies: SsoCutoverRouteDependencies) {
+async function correctEmail(req: RouteRequest, reply: FastifyReply, dependencies: FederatedIdentityRouteDependencies) {
   const { accountId, userId } = req.params as { accountId: string; userId: string };
   if (!dependencies.authorize({ req, reply, accountId, action: "manageMembers" })) return;
   if (dependencies.authMode !== "password") {
@@ -226,7 +158,7 @@ async function correctEmail(req: RouteRequest, reply: FastifyReply, dependencies
       code: "CONFLICT",
     });
   }
-  if (!requireStrictProvider(dependencies.auth, reply)) return;
+  if (!requireCompanyProvider(dependencies.auth, reply)) return;
   const body = (req.body ?? {}) as { email?: unknown };
   const email = typeof body.email === "string" ? normalizeAccountEmail(body.email) : "";
   if (!isAccountEmail(email)) return reply.code(400).send({ error: "A valid email address is required." });
@@ -246,7 +178,7 @@ interface EmailCorrectionInput {
 
 async function correctPrincipalEmail(
   req: RouteRequest,
-  dependencies: SsoCutoverRouteDependencies,
+  dependencies: FederatedIdentityRouteDependencies,
   input: EmailCorrectionInput,
 ): Promise<void> {
   const { administration, identity, applicationId } = dependencies;
@@ -310,7 +242,11 @@ function parseFederatedLinkCoordinate(body: unknown): FederatedLinkCoordinate | 
   };
 }
 
-async function removeFederatedLink(req: RouteRequest, reply: FastifyReply, dependencies: SsoCutoverRouteDependencies) {
+async function removeFederatedLink(
+  req: RouteRequest,
+  reply: FastifyReply,
+  dependencies: FederatedIdentityRouteDependencies,
+) {
   const { accountId, userId } = req.params as { accountId: string; userId: string };
   if (!dependencies.authorize({ req, reply, accountId, action: "manageMembers" })) return;
   if (dependencies.authMode !== "password") {
@@ -319,7 +255,7 @@ async function removeFederatedLink(req: RouteRequest, reply: FastifyReply, depen
       code: "CONFLICT",
     });
   }
-  if (!requireStrictProvider(dependencies.auth, reply)) return;
+  if (!requireCompanyProvider(dependencies.auth, reply)) return;
   const coordinate = parseFederatedLinkCoordinate(req.body);
   if (!coordinate) return reply.code(400).send({ error: "An exact provider-link coordinate is required." });
   try {
@@ -338,7 +274,7 @@ interface FederatedLinkRemovalInput {
 
 async function removePrincipalFederatedLink(
   req: RouteRequest,
-  dependencies: SsoCutoverRouteDependencies,
+  dependencies: FederatedIdentityRouteDependencies,
   input: FederatedLinkRemovalInput,
 ): Promise<void> {
   const { administration, identity, applicationId } = dependencies;
@@ -390,10 +326,11 @@ async function removePrincipalFederatedLink(
   }
 }
 
-/** Register the authenticated provider-link and cutover-repair HTTP adapter. Provider lifecycle,
- * readiness policy, and storage remain behind their dedicated domain/port seams. */
-export function registerSsoCutoverRoutes(app: FastifyInstance, dependencies: SsoCutoverRouteDependencies): void {
+/** Register authenticated provider linking and identity repair routes. */
+export function registerFederatedIdentityRoutes(
+  app: FastifyInstance,
+  dependencies: FederatedIdentityRouteDependencies,
+): void {
   registerProviderRoutes(app, dependencies);
-  registerReadinessRoute(app, dependencies);
   registerRepairRoutes(app, dependencies);
 }

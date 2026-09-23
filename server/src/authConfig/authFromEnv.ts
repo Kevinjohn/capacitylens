@@ -6,7 +6,7 @@ import { boundApplicationFailure } from "@capacitylens/shared/account/validation
 import type { Db } from "../db";
 import type * as AuthFacade from "../auth";
 import { resolveAccountEnvironment } from "../accountConfig";
-import { buildProviders, companyProviderIds, prepareProviders } from "./providers";
+import { buildProviders, companyProviderIds } from "./providers";
 import { buildPasswordPolicy } from "./passwordPolicy";
 import { buildDatabaseHooks } from "./databaseHooks";
 import { buildRequestHooks } from "./requestHooks";
@@ -49,7 +49,6 @@ type FactoryDependencies = {
   AuthConfigError: typeof AuthFacade.AuthConfigError;
   parseAuthMode: typeof AuthFacade.parseAuthMode;
   required: (environment: Env, key: string, context: string) => string;
-  assertStrictOidcEmailAdmission: typeof AuthFacade.assertStrictOidcEmailAdmission;
   isSqliteConstraintCollision: (sqlite: { code?: unknown; errcode?: unknown }) => boolean;
   providerIdFromExternalContext: typeof AuthFacade.parseProviderIdFromExternalContext;
   countUsers: typeof AuthFacade.countUsers;
@@ -198,20 +197,9 @@ export function createAuthFromEnvironmentFactory(dependencies: FactoryDependenci
 }
 
 function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: MicrosoftProof | null) {
-  const { db, environment, mode, publicUrl, application, options, dependencies } = context;
-  const preparedProviderConfig = prepareProviders({
-    db,
-    env: environment,
-    mode,
-    publicUrl,
-    authHandlerErrorCapture,
-    AuthConfigError: dependencies.AuthConfigError,
-    required: dependencies.required,
-    assertStrictOidcEmailAdmission: dependencies.assertStrictOidcEmailAdmission,
-  });
+  const { db, environment, mode, application, options, dependencies } = context;
   const pluginOptions = buildPlugins({
     mode,
-    genericOidcPlugin: preparedProviderConfig.genericOidcPlugin,
     totpIssuer: application.branding.totpIssuer,
   });
   // SECURE DEFAULT (P1.7) + FIRST-RUN SETUP: self-service signup is closed / invite-only by
@@ -229,9 +217,7 @@ function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: Micr
   const setupToken = requireSetupToken(environment, mode, dependencies.AuthConfigError);
   const providerConfig = buildProviders({
     env: environment,
-    defaultProviderLabel: application.branding.defaultProviderLabel,
     trustedOrigins: options.trustedOrigins,
-    prepared: preparedProviderConfig,
     AuthConfigError: dependencies.AuthConfigError,
     db,
     microsoftProof,
@@ -277,7 +263,6 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
     db,
     mode,
     application,
-    genericProviderId: providers.providerConfig.genericProviderId,
     configuredFederatedIssuers: providers.providerConfig.configuredFederatedIssuers,
     permittedCompanyProviderIds: companyProviderIds(providers.providerConfig.configuredProviderInfo),
     allowOpenSignup: providers.allowOpenSignup,
@@ -325,7 +310,7 @@ function createBetterAuthInstance(
     account: sessionPolicy.account,
     emailAndPassword: passwordPolicy.emailAndPassword,
     // Native Google/Microsoft/GitHub sign-in, each only when its env is set (see helper).
-    // Independent of the 'sso' genericOAuth plugin above; an empty object = none configured.
+    // An empty object means no provider is configured.
     socialProviders: providerConfig.configuredSocialProviders,
     hooks: requestHookOptions.hooks,
     plugins: pluginOptions.plugins,
@@ -366,8 +351,6 @@ function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; aut
     publicUrl: context.publicUrl,
     browserAuthErrorUrl: policies.browserAuthErrorUrl,
     trustedOrigins: providers.providerConfig.trustedOrigins,
-    strictOidcClient: providers.providerConfig.strictOidcClient,
-    strictOidcAuthorizationProxyPath: providers.providerConfig.strictOidcAuthorizationProxyPath,
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
     microsoftProof,
   });

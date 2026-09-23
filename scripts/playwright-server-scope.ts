@@ -1,6 +1,6 @@
 const explicitSpecPath = /(?:^|[/\\])e2e[/\\].+\.spec\.(?:ts|tsx|mts|cts)$/i;
-const serverBackedSpec = /\.(?:db|auth|oidc)\.spec\.(?:ts|tsx|mts|cts)$/i;
-export const coreSpecPattern = /^(?!.*\.(?:db|auth|oidc)\.spec\.(?:ts|tsx|mts|cts)$).*\.spec\.(?:ts|tsx|mts|cts)$/i;
+const serverBackedSpec = /\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$/i;
+export const coreSpecPattern = /^(?!.*\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$).*\.spec\.(?:ts|tsx|mts|cts)$/i;
 
 /** Keep report paths non-empty and reject lossy aliases instead of merging nominally distinct runs. */
 export function reportPhaseName(value: string | undefined): string {

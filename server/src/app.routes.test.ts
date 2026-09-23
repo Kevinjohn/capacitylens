@@ -111,8 +111,6 @@ const EXPECTED_AUTH_ROUTES = [
   "GET /api/identity/provider",
   "HEAD /api/identity/provider",
   "POST /api/identity/link-provider",
-  "GET /api/accounts/:accountId/sso-readiness",
-  "HEAD /api/accounts/:accountId/sso-readiness",
   "PATCH /api/accounts/:accountId/members/:userId/email",
   "DELETE /api/accounts/:accountId/members/:userId/federated-link",
   "GET /api/auth/*",

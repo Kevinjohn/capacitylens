@@ -28,8 +28,6 @@ describe("Microsoft callback uniqueness error returns", () => {
           callbackErrorUrl: () =>
             new URL(`${origin}/api/auth/microsoft-proof-return?intent=${proof.id}&outcome=failure`),
           browserAuthErrorUrl: new URL(`${origin}/sign-in`),
-          strictOidcClient: null,
-          strictOidcAuthorizationProxyPath: null,
           commitResetSessions: () => undefined,
           reconcileFederatedLinks: () => undefined,
           microsoftProof: auth.microsoftProof,

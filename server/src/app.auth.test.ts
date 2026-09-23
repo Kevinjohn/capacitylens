@@ -124,10 +124,8 @@ function parseFederatedLink(auth: ReturnType<typeof createAuthFromEnvironment>["
 const SSO_ENV = {
   ...PASSWORD_ENV,
   SMALLSASS_ACCOUNT_MODE: "sso",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -431,7 +429,7 @@ describe("normalizeSessionUser (P1.7a)", () => {
     expect(buildSessionUser({ ...RAW, image: "https://cdn.example/u1.png" }).image).toBe("https://cdn.example/u1.png");
   });
 
-  it("nulls image when absent or non-https (the https backstop mirrors strictOidc)", () => {
+  it("nulls image when absent or non-https (the session boundary requires HTTPS)", () => {
     expect(buildSessionUser(RAW).image).toBeNull();
     expect(buildSessionUser({ ...RAW, image: null }).image).toBeNull();
     expect(buildSessionUser({ ...RAW, image: "http://cdn.example/u1.png" }).image).toBeNull();
@@ -485,7 +483,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
 });
 
 describe("SMALLSASS_ACCOUNT_MODE password", () => {
-  it("refuses to relink a principal who already has the strict provider", async () => {
+  it("refuses to relink a principal who already has the company provider", async () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
@@ -499,8 +497,9 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     db.prepare(
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("strict-link", "sso", "subject-1", principal.id, TS, TS);
+    ).run("strict-link", "google", "subject-1", principal.id, TS, TS);
 
+    db.prepare("UPDATE user SET emailVerified = 1").run();
     const response = await call(app, {
       method: "POST",
       url: "/api/identity/link-provider",
@@ -518,7 +517,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
 });
 
 describe("SMALLSASS_ACCOUNT_MODE password", () => {
-  it("refuses a corrupted principal with multiple strict-provider links", async () => {
+  it("refuses a corrupted principal with multiple company-provider links", async () => {
     const raw = openDb(":memory:");
     const observed = new Proxy(raw, {
       get(target, property) {
@@ -550,6 +549,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
       payload: { email: "multiple-links@example.com", password: "password-123456", name: "Multiple" },
     });
 
+    raw.prepare("UPDATE user SET emailVerified = 1").run();
     const response = await call(app, {
       method: "POST",
       url: "/api/identity/link-provider",
@@ -567,7 +567,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
 });
 
 describe("SMALLSASS_ACCOUNT_MODE password", () => {
-  it("guards provider-link initiation when no strict provider exists or the session principal does not match", async () => {
+  it("guards provider-link initiation when no company provider exists or the session principal does not match", async () => {
     const passwordDb = openDb(":memory:");
     const password = createAuthFromEnvironment(passwordDb, PASSWORD_ENV);
     await runAuthMigrations(parseConfiguredAuth(password.auth));
@@ -607,6 +607,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
       payload: { email: "linker@example.com", password: "password-123456", name: "Linker" },
     });
 
+    db.prepare("UPDATE user SET emailVerified = 1").run();
     const response = await call(app, {
       method: "POST",
       url: "/api/identity/link-provider",
@@ -637,6 +638,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
         payload: { email: `link-url-${callbackURL.length}@example.com`, password: "password-123456", name: "Linker" },
       });
 
+      db.prepare("UPDATE user SET emailVerified = 1").run();
       const response = await call(app, {
         method: "POST",
         url: "/api/identity/link-provider",
@@ -666,6 +668,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
       payload: { email: "link-cookie@example.com", password: "password-123456", name: "Link Cookie" },
     });
 
+    db.prepare("UPDATE user SET emailVerified = 1").run();
     const response = await call(app, {
       method: "POST",
       url: "/api/identity/link-provider",
@@ -677,7 +680,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(parseResponseUrl(response)).toContain("/api/auth/oidc/authorize/sso");
+    expect(parseResponseUrl(response)).toContain("accounts.google.com/o/oauth2/v2/auth");
     expect(response.headers["set-cookie"]).toBeDefined();
     expect(cookiesOf(response)).toMatch(/state=/);
     expect(db.prepare(`SELECT principalId, providerId FROM capacitylens_federated_link_ceremonies`).all()).toHaveLength(
@@ -724,7 +727,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     });
 
     expect(response.statusCode).toBe(400);
-    expect(parseErrorMessage(response)).toMatch(/no strict OIDC provider/i);
+    expect(parseErrorMessage(response)).toMatch(/no company provider/i);
     expect(db.prepare(`SELECT email FROM user WHERE id = ?`).get(principalId)).toEqual({
       email: "owner@example.com",
     });
@@ -794,100 +797,25 @@ function registerCredentialAndDiscoveryConfigurationTests(): void {
     ).toThrow(/setup_token must be at least 32 bytes/i);
   });
 
-  it("sso mode without OIDC discovery refuses", () => {
-    const db = openDb(":memory:");
+  it("sso mode without a complete company provider refuses", () => {
     expect(() =>
-      createAuthFromEnvironment(db, {
+      createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
         SMALLSASS_ACCOUNT_MODE: "sso",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "id",
-        SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "secret",
-        // no discovery URL
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
       }),
     ).toThrow(AuthConfigError);
   });
 }
 
-function registerOidcEndpointRefusalTests(): void {
-  it("rejects explicit authorization or token endpoint overrides for strict OIDC", () => {
-    expect(() =>
-      createAuthFromEnvironment(openDb(":memory:"), {
-        ...SSO_ENV,
-        SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL: "https://idp.test/authorize",
-      }),
-    ).toThrow(/endpoints must come from discovery/i);
-    expect(() =>
-      createAuthFromEnvironment(openDb(":memory:"), {
-        ...SSO_ENV,
-        SMALLSASS_ACCOUNT_OIDC_TOKEN_URL: "https://idp.test/token",
-      }),
-    ).toThrow(/endpoints must come from discovery/i);
-  });
-
-  it("rejects plaintext, credential-bearing, and non-HTTP identity-provider endpoints", () => {
-    for (const endpoint of [
-      "http://identity.example/.well-known/openid-configuration",
-      "https://user:secret@identity.example/.well-known/openid-configuration",
-      "javascript:alert(1)",
-    ]) {
-      expect(() =>
-        createAuthFromEnvironment(openDb(":memory:"), {
-          ...SSO_ENV,
-          SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL: undefined,
-          SMALLSASS_ACCOUNT_OIDC_TOKEN_URL: undefined,
-          SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: endpoint,
-        }),
-      ).toThrow(/https|credentials|URL/i);
-    }
-  });
-
-  it("permits plaintext provider endpoints only on explicit loopback development hosts", () => {
-    expect(() =>
-      createAuthFromEnvironment(openDb(":memory:"), {
-        ...SSO_ENV,
-        SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "http://localhost:9999/.well-known/openid-configuration",
-      }),
-    ).not.toThrow();
-  });
-}
-
-function registerOidcProviderIdTests(): void {
-  it("restricts provider ids to route-safe lowercase identifiers", () => {
-    for (const providerId of ["UPPER", "../callback", "sso space", "-sso"]) {
-      expect(() =>
-        createAuthFromEnvironment(openDb(":memory:"), {
-          ...SSO_ENV,
-          SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: providerId,
-        }),
-      ).toThrow(/PROVIDER_ID/);
-    }
-  });
-
-  it.each(["credential", "generic-oauth", "two-factor", "google", "microsoft", "github"])(
-    "rejects the reserved generic OIDC provider id %s",
-    (providerId) => {
-      expect(() =>
-        createAuthFromEnvironment(openDb(":memory:"), {
-          ...SSO_ENV,
-          SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: providerId,
-        }),
-      ).toThrow(new RegExp(`reserved provider id.*${providerId}`, "i"));
-    },
-  );
-
-  it("keeps a distinct generic OIDC provider alongside a native provider", () => {
-    const configured = createAuthFromEnvironment(openDb(":memory:"), {
-      ...SSO_ENV,
-      SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "company-sso",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-      SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
-    });
-
-    expect(parseConfiguredAuth(configured.auth).providers.map(({ id }) => id)).toEqual(["google", "company-sso"]);
-    expect(parseConfiguredAuth(configured.auth).federatedIssuers.get("google")).toBe("https://accounts.google.com");
-    expect(parseConfiguredAuth(configured.auth).federatedIssuers.get("company-sso")).toBe(
-      SSO_ENV.SMALLSASS_ACCOUNT_OIDC_ISSUER,
-    );
+function registerRetiredProviderRefusalTests(): void {
+  it.each([
+    ["SMALLSASS_ACCOUNT_OIDC_AUTHORIZATION_URL", "https://idp.test/authorize"],
+    ["SMALLSASS_ACCOUNT_OIDC_TOKEN_URL", "https://idp.test/token"],
+    ["SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL", "https://idp.test/.well-known/openid-configuration"],
+    ["SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID", "company-sso"],
+  ])("rejects retired generic provider setting %s", (key, value) => {
+    expect(() => createAuthFromEnvironment(openDb(":memory:"), { ...SSO_ENV, [key]: value })).toThrow(new RegExp(key));
   });
 
   it("buildApp refuses authMode ≠ off without an auth instance", () => {
@@ -898,6 +826,5 @@ function registerOidcProviderIdTests(): void {
 describe("boot refusal (AuthConfigError)", () => {
   registerAuthModeRefusalTests();
   registerCredentialAndDiscoveryConfigurationTests();
-  registerOidcEndpointRefusalTests();
-  registerOidcProviderIdTests();
+  registerRetiredProviderRefusalTests();
 });

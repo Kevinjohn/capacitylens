@@ -74,11 +74,6 @@
       "reason": "test-size ratchet baseline; split when touched"
     },
     {
-      "path": "server/src/strictOidc.test.ts",
-      "baseline": 885,
-      "reason": "test-size ratchet baseline; split when touched"
-    },
-    {
       "path": "shared/src/domain/lifecycle.test.ts",
       "baseline": 1028,
       "reason": "test-size ratchet baseline; split when touched"

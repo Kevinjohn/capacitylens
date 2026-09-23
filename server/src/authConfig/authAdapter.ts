@@ -11,7 +11,7 @@ import {
   deleteFederatedLinkCeremony,
   reconcileObservedFederatedLinks,
 } from "../federatedLinkLifecycle";
-import { buildProviders, companyProviderIds } from "./providers";
+import { companyProviderIds } from "./providers";
 import { createErrorRedirect } from "./errorRedirect";
 import type { Auth, AuthProviderInfo, RawSessionUser } from "./authTypes";
 import { SESSION_ABSOLUTE_TTL_SECONDS } from "./authConstants";
@@ -42,8 +42,6 @@ type AdapterOptions = {
   publicUrl: URL;
   browserAuthErrorUrl: URL;
   trustedOrigins: string[] | undefined;
-  strictOidcClient: ReturnType<typeof buildProviders>["strictOidcClient"];
-  strictOidcAuthorizationProxyPath: string | null;
   sessionDeletionLifecycleRef: LifecycleRef;
   microsoftProof: MicrosoftProof | null;
 };
@@ -161,10 +159,10 @@ function createAdapterApi(options: AdapterOptions, raw: RawAuth): Auth["api"] {
   };
 }
 
-function assertStrictProvider(provider: AuthProviderInfo | null): AuthProviderInfo {
+function assertCompanyProvider(provider: AuthProviderInfo | null): AuthProviderInfo {
   if (!provider)
     throw APIError.from("BAD_REQUEST", {
-      message: "No strict OIDC provider is configured for account linking.",
+      message: "No company provider is configured for account linking.",
       code: "PROVIDER_NOT_FOUND",
     });
   return provider;
@@ -173,10 +171,12 @@ function assertStrictProvider(provider: AuthProviderInfo | null): AuthProviderIn
 function selectLinkProvider(
   providers: readonly AuthProviderInfo[],
   requestedProviderId: string | undefined,
-  legacyProvider: AuthProviderInfo | null,
+  defaultProvider: AuthProviderInfo | null,
 ): AuthProviderInfo {
-  if (requestedProviderId === undefined) return assertStrictProvider(legacyProvider);
-  const selected = providers.find((candidate) => candidate.id === requestedProviderId && !candidate.experimental);
+  const selected =
+    requestedProviderId === undefined
+      ? assertCompanyProvider(defaultProvider)
+      : providers.find((candidate) => candidate.id === requestedProviderId && !candidate.experimental);
   if (!selected || selected.id === "microsoft") {
     throw APIError.from("BAD_REQUEST", {
       message: selected
@@ -297,7 +297,7 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
   // dist/context/create-context.mjs for `password.hash`). Read only through the narrow Auth
   // methods below.
   const raw = options.instance as RawAuth;
-  const provider = options.configuredProviderInfo.find((candidate) => candidate.kind === "oidc") ?? null;
+  const provider = options.configuredProviderInfo.find((candidate) => !candidate.experimental) ?? null;
   const trustedOrigins = buildTrustedOrigins(options, dependencies.AuthConfigError);
   // The verification lookup stays here so identity SQL keeps a single owner (see the account
   // boundary conformance test); the builder only decides what to do with the rows.
@@ -311,8 +311,6 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
     providerIdFromExternalContext: dependencies.providerIdFromExternalContext,
     callbackErrorUrl,
     browserAuthErrorUrl: options.browserAuthErrorUrl,
-    strictOidcClient: options.strictOidcClient,
-    strictOidcAuthorizationProxyPath: options.strictOidcAuthorizationProxyPath,
     commitResetSessions: (handles) => options.sessionDeletionLifecycleRef.current?.commit(handles),
     reconcileFederatedLinks: reconcile,
     microsoftProof: options.microsoftProof,
@@ -323,7 +321,7 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
     providers: options.configuredProviderInfo,
     permittedCompanyProviderIds: companyProviderIds(options.configuredProviderInfo),
     federatedIssuers: options.configuredFederatedIssuers,
-    strictProvider: provider,
+    defaultCompanyProvider: provider,
     microsoftProof: options.microsoftProof,
     ...createBindingMethods(options),
     api: createAdapterApi(options, raw),

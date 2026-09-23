@@ -8,14 +8,8 @@ export type { MemberConfirmation, MemberConfirmationAction } from "./memberConfi
 import { resolveRoleSummary } from "../../lib/accessCopy";
 import { ConfirmDialog, Modal, SelectField } from "../common/ui";
 import { Button } from "../ui/button";
-import {
-  resolveReadinessMemberLabel,
-  type ReadinessMember,
-  type ReadinessRepairLink,
-} from "@/components/settings/ssoReadiness";
 
 export type MemberRoleEdit = { member: TeamMember; nextRole: Role };
-export type UnlinkRepair = { member: ReadinessMember; link: ReadinessRepairLink };
 
 type MemberConfirmationsProps = {
   memberConfirmation: MemberConfirmation | null;
@@ -119,30 +113,5 @@ export function MemberConfirmations({
         />
       )}
     </>
-  );
-}
-
-export function SsoUnlinkConfirmation({
-  unlinkRepair,
-  setUnlinkRepair,
-  removeIncorrectSsoLink,
-}: {
-  unlinkRepair: UnlinkRepair | null;
-  setUnlinkRepair: Dispatch<SetStateAction<UnlinkRepair | null>>;
-  removeIncorrectSsoLink(member: ReadinessMember, link: ReadinessRepairLink): Promise<void>;
-}) {
-  if (!unlinkRepair) return null;
-  return (
-    <ConfirmDialog
-      title={m.settings_sso_remove_link_title()}
-      confirmLabel={m.settings_sso_remove_link()}
-      message={m.settings_sso_remove_link_message({ member: resolveReadinessMemberLabel(unlinkRepair.member) })}
-      onConfirm={() => {
-        const pending = unlinkRepair;
-        setUnlinkRepair(null);
-        void removeIncorrectSsoLink(pending.member, pending.link);
-      }}
-      onCancel={() => setUnlinkRepair(null)}
-    />
   );
 }

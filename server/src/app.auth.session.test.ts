@@ -152,10 +152,9 @@ function totpCode(secret: string, at = Date.now()): string {
 const SSO_ENV = {
   ...PASSWORD_ENV,
   SMALLSASS_ACCOUNT_MODE: "sso",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
+
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -378,13 +377,13 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     db.prepare(
       `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
        VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("federated-link", "sso", "subject-1", principalId, TS, TS);
+    ).run("federated-link", "google", "subject-1", principalId, TS, TS);
     recordSessionAssurance({
       db,
       sessionId: "federated-session",
       principalId,
       assurance: "federated",
-      providerId: "sso",
+      providerId: "google",
       now: TS,
     });
     const auth = {
@@ -413,7 +412,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     expect(me.json()).toMatchObject({
       mfaRequired: false,
       reauthMethod: "provider",
-      reauthProviderId: "sso",
+      reauthProviderId: "google",
     });
   });
 });

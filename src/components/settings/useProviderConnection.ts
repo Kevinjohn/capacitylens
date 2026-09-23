@@ -29,6 +29,16 @@ function clearIdentityLinkParams(url: URL) {
   window.history.replaceState(window.history.state, "", url);
 }
 
+function readIdentityCallbackStatus(url: URL, providerId: string, failedCallbackProvider: { current: string | null }) {
+  const returnedProvider = url.searchParams.get("capacitylensIdentityProvider");
+  const isProviderReturn = returnedProvider === null || returnedProvider === providerId;
+  const linkFailed =
+    failedCallbackProvider.current === providerId ||
+    (isProviderReturn && url.searchParams.has("capacitylensSsoLinkFailed"));
+  if (linkFailed) failedCallbackProvider.current = providerId;
+  return { isProviderReturn, linkFailed };
+}
+
 export function useProviderConnection(
   provider: AuthProviderInfo | undefined,
   busy: boolean,
@@ -37,14 +47,13 @@ export function useProviderConnection(
   const [connected, setConnected] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   const generation = useRef(0);
+  const failedCallbackProvider = useRef<string | null>(null);
 
   useEffect(() => {
     if (!provider) return;
     const requestGeneration = ++generation.current;
     const url = new URL(window.location.href);
-    const returnedProvider = url.searchParams.get("capacitylensIdentityProvider");
-    const isProviderReturn = returnedProvider === null || returnedProvider === provider.id;
-    const linkFailed = isProviderReturn && url.searchParams.has("capacitylensSsoLinkFailed");
+    const { isProviderReturn, linkFailed } = readIdentityCallbackStatus(url, provider.id, failedCallbackProvider);
     void accountClient
       .getIdentityProvider(provider.id)
       .then(async (response) => {
@@ -67,6 +76,8 @@ export function useProviderConnection(
 
   const connect = async () => {
     if (!provider || busy) return;
+    failedCallbackProvider.current = null;
+    generation.current += 1;
     setBusy(true);
     setError(null);
     try {

@@ -323,7 +323,7 @@ function ProviderButtons({
   return (
     <div className="mt-4 flex flex-col gap-3">
       {showSeparator && <Separator />}
-      {setup && providers.some((provider) => provider.kind === "oidc") && (
+      {setup && providers.some((provider) => !provider.experimental) && (
         <p className="text-xs text-muted-foreground">{m.login_setup_external_hint()}</p>
       )}
       {providers.some((provider) => provider.experimental) && (
@@ -367,7 +367,7 @@ function providerButtonsHaveSupportingText({
   setup,
 }: Pick<ProviderButtonsProps, "authMode" | "error" | "pendingProvider" | "providers" | "setup">) {
   return (
-    (setup && providers.some((provider) => provider.kind === "oidc")) ||
+    (setup && providers.some((provider) => !provider.experimental)) ||
     providers.some((provider) => provider.experimental) ||
     (authMode === "sso" && Boolean(error)) ||
     pendingProvider !== null

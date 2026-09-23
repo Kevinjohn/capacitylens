@@ -38,7 +38,6 @@ function isBetterAuthProxyRouteAllowed(
   if ((method === "GET" || method === "POST") && /^\/callback\/[a-z0-9_-]+$/.test(pathname)) {
     return true;
   }
-  if (method === "GET" && /^\/oidc\/authorize\/[a-z0-9_-]+$/.test(pathname)) return true;
   if (authMode !== "password") return false;
   return new Set([
     "POST /sign-up/email",
@@ -185,7 +184,8 @@ async function canAuthenticatedUserCreateAccount({
   const trustedSsoSession =
     authMode !== "sso" ||
     (session.assurance === "federated" &&
-      (auth?.permittedCompanyProviderIds?.has(session.providerId) ?? session.providerId === auth?.strictProvider?.id));
+      (auth?.permittedCompanyProviderIds?.has(session.providerId) ??
+        session.providerId === auth?.defaultCompanyProvider?.id));
   if (masquerades.lookup(session.id) !== undefined || !capAllows || !trustedSsoSession) return false;
   return canUserCreateAccount({
     administration: accountAdminPort,

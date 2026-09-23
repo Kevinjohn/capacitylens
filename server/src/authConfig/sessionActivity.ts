@@ -213,10 +213,8 @@ export function buildSessionUser(raw: RawSessionUser): SessionUser {
   };
 }
 
-/** `user.image` is only ever written by strictOidc's `optionalPictureUrl` (https-only, no embedded
- *  credentials, ≤2048 chars — see server/src/strictOidc.ts), so a stored value is already validated.
- *  This backstop re-asserts the https invariant at the narrowing boundary so a non-https value (a
- *  hand-edited row, a future writer) can never reach the client as an `<img src>`. */
+/** Re-assert HTTPS at the session boundary so a malformed provider or hand-edited value
+ *  cannot reach the client as an image source. */
 function parseImageUrl(value: unknown): string | null {
   return typeof value === "string" && value.startsWith("https://") ? value : null;
 }

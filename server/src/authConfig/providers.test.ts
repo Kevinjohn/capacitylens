@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createAuthFromEnvironment } from "../auth";
 import { openDb } from "../db";
 import { PASSWORD_ENV } from "../testHelpers";
@@ -7,10 +7,8 @@ import { readVerifiedMicrosoftProfile } from "./socialProviders";
 const SSO_ENV = {
   ...PASSWORD_ENV,
   SMALLSASS_ACCOUNT_MODE: "sso",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_ID: "client-id",
-  SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET: "client-secret",
-  SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://idp.test/.well-known/openid-configuration",
-  SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://idp.test",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-id",
+  SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
 };
 
 function configuredProviders(environment: Record<string, string>) {
@@ -25,61 +23,26 @@ function configuredProviders(environment: Record<string, string>) {
 }
 
 describe("provider presentation metadata", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("publishes explicit brands without changing provider mechanisms", () => {
+  it("publishes named company providers and keeps GitHub experimental", () => {
     expect(
       configuredProviders({
         ...SSO_ENV,
-        SMALLSASS_ACCOUNT_MODE: "password",
-        SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID: "company-sso",
-        SMALLSASS_ACCOUNT_OIDC_BRAND: "google",
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
-        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
+        SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-id",
+        SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
+        SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID: "01234567-89ab-cdef-0123-456789abcdef",
+        SMALLSASS_ACCOUNT_MAIL_HOST: "mail.example.test",
+        SMALLSASS_ACCOUNT_MAIL_PORT: "587",
+        SMALLSASS_ACCOUNT_MAIL_USER: "mailer",
+        SMALLSASS_ACCOUNT_MAIL_PASSWORD: "test-mail-password",
+        SMALLSASS_ACCOUNT_MAIL_FROM: "identity@example.test",
+        SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "github-id",
+        SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: "github-secret",
       }),
     ).toEqual([
       { id: "google", label: "Google", kind: "social", brand: "google", experimental: false },
-      { id: "company-sso", label: "Single sign-on", kind: "oidc", brand: "google", experimental: false },
+      { id: "microsoft", label: "Microsoft", kind: "social", brand: "microsoft", experimental: false },
+      { id: "github", label: "GitHub", kind: "social", brand: "generic", experimental: true },
     ]);
-  });
-
-  it("warns when a branded provider points somewhere other than that brand's issuer", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    configuredProviders({ ...SSO_ENV, SMALLSASS_ACCOUNT_OIDC_BRAND: "google" });
-
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("idp.test"));
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("accounts.google.com"));
-  });
-
-  it("stays quiet when the branded provider is that brand's own issuer", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    configuredProviders({
-      ...SSO_ENV,
-      SMALLSASS_ACCOUNT_OIDC_BRAND: "google",
-      SMALLSASS_ACCOUNT_OIDC_ISSUER: "https://accounts.google.com",
-      SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL: "https://accounts.google.com/.well-known/openid-configuration",
-    });
-
-    expect(warn).not.toHaveBeenCalled();
-  });
-
-  it("stays quiet for a generic provider whatever its issuer", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    configuredProviders(SSO_ENV);
-
-    expect(warn).not.toHaveBeenCalled();
-  });
-
-  it("defaults strict OIDC to generic and rejects unknown brands", () => {
-    expect(configuredProviders(SSO_ENV)[0]).toMatchObject({ kind: "oidc", brand: "generic" });
-    expect(() => configuredProviders({ ...SSO_ENV, SMALLSASS_ACCOUNT_OIDC_BRAND: "label-guess" })).toThrow(
-      /OIDC_BRAND.*google.*microsoft.*generic/i,
-    );
   });
 });
 

@@ -76,12 +76,6 @@ export const accountClient = {
   getIdentityProvider,
   linkIdentityProvider,
 
-  getSsoReadiness(workspaceId: string): Promise<Response> {
-    return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/sso-readiness`, {
-      credentials: "include",
-    });
-  },
-
   correctMemberEmail(workspaceId: string, principalId: string, email: string): Promise<Response> {
     return apiFetchReauth(
       `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/email`,

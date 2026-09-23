@@ -1,7 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import type { Db } from "./db";
 import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
-import { StrictOidcVerificationError } from "./strictOidc";
 import type { AccountMode, Auth } from "./authConfig/authTypes";
 import { resetTokenCapture } from "./authConfig/captureContexts";
 import { createAuthFromEnvironmentFactory } from "./authConfig/authFromEnv";
@@ -30,7 +29,7 @@ export {
 } from "./authConfig/federatedIdentitySchema";
 export { runAuthMigrations, planAuthSchemaMigrations, BOOTSTRAP_ADMIN_EMAIL } from "./authConfig/bootstrapAdmin";
 
-// Better Auth owns session, credential, and OIDC machinery. With SMALLSASS_ACCOUNT_MODE unset or
+// Better Auth owns session, credential, and named provider sign-in. With SMALLSASS_ACCOUNT_MODE unset or
 // `off`, authFromEnv returns before initializing Better Auth, reading credentials, or creating auth
 // tables. Better Auth tables — user, session, account, and verification — share the SQLite file
 // and are created by runAuthMigrations. They are not AppData entities: the entity lists (KNOWN_KEYS /
@@ -248,35 +247,6 @@ export function parseProviderIdFromExternalContext(
   }
 }
 
-/** Accept a false/missing verification claim only for an exact row with durable verified-admission evidence. */
-export function assertStrictOidcEmailAdmission(
-  db: Db,
-  providerId: string,
-  profile: { sub: string; emailVerified: boolean },
-): void {
-  if (profile.emailVerified) return;
-  // Only a durable observation created by the v25 trigger proves that this exact provider row was
-  // admitted under the verified-email invariant. Legacy rows predate that proof and must relink.
-  const existing = db
-    .prepare(
-      `SELECT 1
-         FROM account AS account
-         JOIN capacitylens_federated_link_observations AS observation
-           ON observation.accountRowId = account.id
-          AND observation.principalId = account.userId
-          AND observation.providerId = account.providerId
-          AND observation.subject = account.accountId
-        WHERE account.providerId = ? AND account.accountId = ?
-        LIMIT 1`,
-    )
-    .get(providerId, profile.sub);
-  if (!existing) {
-    throw new StrictOidcVerificationError(
-      "OIDC user-info response must assert a verified email address for admission or linking.",
-    );
-  }
-}
-
 /** Verify and maintain CapacityLens's versioned first-owner claim control after application
  * migrations have succeeded. Schema changes belong exclusively to the application migration ledger. */
 export function ensureAuthControlTables(db: Db, environment: Env): void {
@@ -313,7 +283,6 @@ export const createAuthFromEnvironment = createAuthFromEnvironmentFactory({
   AuthConfigError,
   parseAuthMode,
   required: readRequiredSetting,
-  assertStrictOidcEmailAdmission,
   isSqliteConstraintCollision,
   providerIdFromExternalContext: parseProviderIdFromExternalContext,
   countUsers,

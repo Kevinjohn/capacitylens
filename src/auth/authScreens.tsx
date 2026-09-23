@@ -72,7 +72,7 @@ export function AuthLoading({ message, overlay = false }: { message: string; ove
   );
 }
 
-/** Consume an OIDC failure that returned to an already-authenticated product route. Signed-out and
+/** Consume an external sign-in failure that returned to an already-authenticated product route. Signed-out and
  * invitation routes own the same marker in their local surfaces; this host covers step-up failures,
  * where the existing session means the login wall is intentionally not rendered. */
 export function AuthenticatedExternalSignInFailure() {

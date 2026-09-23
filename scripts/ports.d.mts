@@ -4,7 +4,7 @@ export const LANE_CEILING: number;
 export const LANE_ENVIRONMENT_KEY: string;
 export const SHARE_ENVIRONMENT_KEY: string;
 export const FIXED_PORTS_LOCK_FILE: string;
-export const OIDC_FIXED_PORTS: Readonly<Record<"oidcWeb" | "oidcApi" | "dex" | "dexFaultProxy", number>>;
+export const ACCESS_LAB_FIXED_PORTS: Readonly<Record<"web" | "api", number>>;
 
 export function assertLane(lane: number): number;
 export function portsForLane(lane: number): Readonly<Record<LanePortName, number>>;

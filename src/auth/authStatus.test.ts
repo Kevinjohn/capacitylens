@@ -2,25 +2,14 @@ import { describe, expect, it } from "vitest";
 import { parseAuthProviders } from "./authStatus";
 
 describe("parseAuthProviders", () => {
-  it.each([undefined, "unrecognised"])("keeps a provider with %s brand metadata as generic", (brand) => {
-    expect(
-      parseAuthProviders([
-        {
-          id: "sso",
-          label: "Google",
-          kind: "oidc",
-          experimental: false,
-          ...(brand === undefined ? {} : { brand }),
-        },
-      ]),
-    ).toEqual([{ id: "sso", label: "Google", kind: "oidc", experimental: false, brand: "generic" }]);
-  });
-
-  it("keeps an explicit Google brand on a strict OIDC provider", () => {
-    expect(
-      parseAuthProviders([{ id: "sso", label: "Google", kind: "oidc", brand: "google", experimental: false }]),
-    ).toEqual([{ id: "sso", label: "Google", kind: "oidc", brand: "google", experimental: false }]);
-  });
+  it.each([undefined, "generic", "google", "microsoft"])(
+    "rejects retired generic providers regardless of brand %s",
+    (brand) => {
+      expect(parseAuthProviders([{ id: "sso", label: "Google", kind: "oidc", experimental: false, brand }])).toEqual(
+        [],
+      );
+    },
+  );
 
   it("brands a social provider from its id, not from the payload", () => {
     expect(

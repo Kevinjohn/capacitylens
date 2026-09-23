@@ -5,9 +5,9 @@ import type { SsoCutoverWorkspaceFact } from "./sqliteAccountAdminPort";
 import { assertCompanyProviderCutoverReady, evaluateSsoCutoverReadiness, formatSsoCutoverRefusal } from "./ssoCutover";
 
 const provider: AuthProviderInfo = {
-  id: "workforce",
-  label: "Workforce SSO",
-  kind: "oidc",
+  id: "google",
+  label: "Google",
+  kind: "social",
   experimental: false,
 };
 
@@ -335,7 +335,7 @@ function registerNonMemberLinkIssueTests(): void {
       }),
     );
     expect(formatSsoCutoverRefusal(result)).toContain("pending@example.com");
-    expect(formatSsoCutoverRefusal(result)).toContain("workforce link with subject legacy-subject");
+    expect(formatSsoCutoverRefusal(result)).toContain("google link with subject legacy-subject");
   });
 }
 

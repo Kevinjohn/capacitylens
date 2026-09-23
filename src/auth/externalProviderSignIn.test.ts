@@ -20,16 +20,16 @@ afterEach(() => {
 });
 
 describe("dispatchExternalProviderSignIn", () => {
-  it("dispatches an oidc-kind provider through signIn.social with the marked callback URLs", async () => {
+  it("dispatches Microsoft through signIn.social with the marked callback URLs", async () => {
     window.history.replaceState({}, "", "/team?tab=access");
     const outcome = { data: {}, error: null };
     signInSocial.mockResolvedValue(outcome);
-    const provider: AuthProviderInfo = { id: "sso", label: "Single sign-on", kind: "oidc", experimental: false };
+    const provider: AuthProviderInfo = { id: "microsoft", label: "Microsoft", kind: "social", experimental: false };
 
     const result = await dispatchExternalProviderSignIn(provider);
 
     expect(signInSocial).toHaveBeenCalledWith({
-      provider: "sso",
+      provider: "microsoft",
       callbackURL: "http://localhost:3000/team?tab=access",
       errorCallbackURL: "http://localhost:3000/team?tab=access&externalSignInError=1",
     });

@@ -1,22 +1,5 @@
-import type { StrictOidcProfile } from "./strictOidcErrors";
 import { parseResourceAvatarUrl } from "@capacitylens/shared/domain/resourceAvatarUrl";
 import type { Db } from "../db";
-
-type BetterAuthProfileCompatibility = {
-  id: string;
-  email: string;
-  emailVerified: boolean;
-  name: string;
-  image?: string;
-};
-
-/**
- * Bridge the strict OIDC profile to Better Auth's generic OAuth profile shape. Existing principals
- * refresh only through persistLinkedExternalAvatar; this adapter supplies initial-create fields.
- */
-export function adaptStrictOidcProfileForBetterAuth(profile: StrictOidcProfile): BetterAuthProfileCompatibility {
-  return profile as unknown as BetterAuthProfileCompatibility;
-}
 
 /** Map a provider picture claim: valid HTTPS updates while absent or invalid input clears. */
 export function mapExternalAvatar(value: unknown): { image?: string } {

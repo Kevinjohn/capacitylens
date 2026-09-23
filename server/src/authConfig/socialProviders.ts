@@ -1,6 +1,6 @@
 import type { SocialProviders } from "better-auth/social-providers";
 import type { AuthConfigError } from "../auth";
-import { persistLinkedExternalAvatar } from "./betterAuthProfileCompatibility";
+import { persistLinkedExternalAvatar } from "./externalAvatar";
 import type { Db } from "../db";
 import type { MicrosoftProof } from "./microsoftProof";
 import { MicrosoftProofError } from "./microsoftProofPrimitives";

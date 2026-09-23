@@ -12,7 +12,6 @@ interface HookOptions {
   db: Db;
   mode: "password" | "sso";
   application: BoundApplication;
-  genericProviderId: string | null;
   configuredFederatedIssuers: Map<string, string>;
   permittedCompanyProviderIds: ReadonlySet<string>;
   allowOpenSignup: boolean;
@@ -173,7 +172,6 @@ export function buildDatabaseHooks({
   db,
   mode,
   application,
-  genericProviderId,
   configuredFederatedIssuers,
   permittedCompanyProviderIds,
   allowOpenSignup,
@@ -188,7 +186,6 @@ export function buildDatabaseHooks({
     db,
     mode,
     application,
-    genericProviderId,
     configuredFederatedIssuers,
     permittedCompanyProviderIds,
     allowOpenSignup,

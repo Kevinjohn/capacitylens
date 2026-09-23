@@ -89,7 +89,7 @@ function createNavigationLifecycle(navigationTimeoutMs: number, onCachedReturn: 
 }
 
 /**
- * Own the redirect lifecycle shared by social and OIDC invite sign-in.
+ * Own the redirect lifecycle used by named-provider invite sign-in.
  *
  * The caller disables Better Auth's internal redirect, so this helper owns both the abortable
  * provider request and the single navigation requested from its returned URL. Keep the action busy

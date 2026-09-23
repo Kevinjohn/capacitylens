@@ -11,13 +11,12 @@ type ExternalProviderButtonProps = Omit<ComponentProps<typeof Button>, "children
   label: string;
   /** The localized Google action label, which is also the accessible name. */
   googleLabel: string;
-  /** Microsoft's prescribed action label, used for social and branded OIDC providers. */
+  /** Microsoft's prescribed action label. */
   microsoftLabel: string;
 };
 
 /**
- * Renders recognisable sign-in actions for every supported social provider and preserves configured
- * copy for generic OIDC providers. Branded OIDC providers share their matching presentation.
+ * Renders recognisable sign-in actions for every supported named provider.
  */
 export function ExternalProviderButton({
   provider,
@@ -76,12 +75,9 @@ function resolveProviderPresentation(
   provider: Pick<AuthProviderInfo, "id" | "kind" | "brand">,
 ): ProviderPresentation | null {
   if (hasGoogleProviderBrand(provider)) return "google";
-  if (
-    provider.brand === "microsoft" ||
-    (provider.brand === undefined && provider.kind === "social" && provider.id === "microsoft")
-  )
+  if (provider.brand === "microsoft" || (provider.brand === undefined && provider.id === "microsoft"))
     return "microsoft";
-  if (provider.kind === "social" && provider.id === "github") return "github";
+  if (provider.id === "github") return "github";
   return null;
 }
 
