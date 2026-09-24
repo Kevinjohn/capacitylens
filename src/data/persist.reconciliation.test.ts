@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, ReloadDiscardedEditError, flushPendingWrites, switchAndAwaitHydration } from "./persist";
 import {
@@ -140,7 +141,7 @@ describe("a successful reload clears the failure state (cross-tenant leak + stuc
       await loadStarted.promise;
       const releaseB = readReleaseB();
       expect(releaseB).not.toBeNull();
-      const midSwitchEdit = useStore.getState().addClient({ name: "New in B", color: "#333333" });
+      const midSwitchEdit = requireCreated(useStore.getState().addClient({ name: "New in B", color: "#333333" }));
       requireCallback(releaseB, "account B load release")();
       await vi.advanceTimersByTimeAsync(5);
 

@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { hasActiveFilters, useStore } from "./useStore";
 import {
@@ -44,7 +45,7 @@ function registerStoreCrudPart1(): void {
   });
 
   it("adds entities with a generated id and timestamps", () => {
-    const r = s().addResource({ ...personDraft });
+    const r = requireCreated(s().addResource({ ...personDraft }));
     expect(r.id).toBeTruthy();
     expect(r.createdAt).toBeTruthy();
     expect(r.updatedAt).toBeTruthy();
@@ -52,7 +53,7 @@ function registerStoreCrudPart1(): void {
   });
 
   it("generates a bounded revision when an existing timestamp has no representable successor", () => {
-    const client = s().addClient({ name: "Boundary", color: "#111111" });
+    const client = requireCreated(s().addClient({ name: "Boundary", color: "#111111" }));
     const data = s().data;
     s().replaceAll({
       ...data,
@@ -81,7 +82,7 @@ function registerStoreCrudPart1(): void {
 
 function registerStoreCrudPart2(): void {
   it("updates fields, advances updatedAt and emits a sync PUT", () => {
-    const r = s().addResource({ ...personDraft });
+    const r = requireCreated(s().addResource({ ...personDraft }));
     const before = s().data;
     s().updateResource(r.id, { name: "Tyler" });
     const updated = s().data.resources[0];
@@ -94,34 +95,40 @@ function registerStoreCrudPart2(): void {
   });
 
   it("rejects assigning a placeholder to an activity outside its bound project", () => {
-    const client = s().addClient({ name: "Acme", color: "#1" });
-    const p1 = s().addProject({ name: "P1", clientId: client.id, color: "#2" });
-    const p2 = s().addProject({ name: "P2", clientId: client.id, color: "#3" });
-    const activityP2 = s().addActivity({
-      name: "T2",
-      kind: "project",
-      projectId: p2.id,
-    });
-    const ph = s().addResource({
-      kind: "placeholder",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: WORKDAYS,
-      halfDays: [],
-      color: "#1",
-      projectId: p1.id,
-    });
-    expect(() =>
-      s().addAllocation({
-        resourceId: ph.id,
-        activityId: activityP2.id,
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
+    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p1 = requireCreated(s().addProject({ name: "P1", clientId: client.id, color: "#2" }));
+    const p2 = requireCreated(s().addProject({ name: "P2", clientId: client.id, color: "#3" }));
+    const activityP2 = requireCreated(
+      s().addActivity({
+        name: "T2",
+        kind: "project",
+        projectId: p2.id,
       }),
+    );
+    const ph = requireCreated(
+      s().addResource({
+        kind: "placeholder",
+        role: "Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: WORKDAYS,
+        halfDays: [],
+        color: "#1",
+        projectId: p1.id,
+      }),
+    );
+    expect(() =>
+      requireCreated(
+        s().addAllocation({
+          resourceId: ph.id,
+          activityId: activityP2.id,
+          startDate: "2026-06-01",
+          endDate: "2026-06-02",
+          hoursPerDay: 8,
+          status: "confirmed",
+        }),
+      ),
     ).toThrow(/placeholder.*bound project/i);
     expect(s().data.allocations).toHaveLength(0);
   });
@@ -262,7 +269,7 @@ function registerSchedulerUiPart2(): void {
   });
 
   it("clears history when a same-account replacement contains a remote revision", () => {
-    const client = s().addClient({ name: "Local", color: "#111111" });
+    const client = requireCreated(s().addClient({ name: "Local", color: "#111111" }));
     const replacement = structuredClone(s().data);
     replacement.clients = replacement.clients.map((row) =>
       row.id === client.id ? { ...row, name: "Remote", updatedAt: "2099-01-01T00:00:00.000Z" } : row,
@@ -365,7 +372,7 @@ function registerSchedulerUiPart3(): void {
 function registerSchedulerUiPart4(): void {
   it("undo and redo move through mutation history", () => {
     resetStoreWithAccount();
-    const c = s().addClient({ name: "Acme", color: "#1" });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
     expect(s().data.clients).toHaveLength(1);
     s().undo();
     expect(s().data.clients).toHaveLength(0);
@@ -376,7 +383,9 @@ function registerSchedulerUiPart4(): void {
 
   it("re-stamps a changed revision without serializing content unnecessarily", () => {
     resetStoreWithAccount();
-    const clients = Array.from({ length: 100 }, (_, index) => s().addClient({ name: `Client ${index}`, color: "#1" }));
+    const clients = Array.from({ length: 100 }, (_, index) =>
+      requireCreated(s().addClient({ name: `Client ${index}`, color: "#1" })),
+    );
     useStore.setState({ past: [], future: [] });
     s().updateClient(requireValue(clients[0], "first client").id, { name: "Changed" });
     const stringify = vi.spyOn(JSON, "stringify");
@@ -422,17 +431,17 @@ function registerSchedulerUiPart6(): void {
     expect(s().ui.filters.activityId).toBeNull();
   });
   it("clears a stale project when the client filter changes", () => {
-    const queen = s().addClient({ name: "Queen Consolidated", color: "#111" });
-    const lex = s().addClient({ name: "LexCorp", color: "#222" });
-    const project = s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    const queen = requireCreated(s().addClient({ name: "Queen Consolidated", color: "#111" }));
+    const lex = requireCreated(s().addClient({ name: "LexCorp", color: "#222" }));
+    const project = requireCreated(s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }));
     s().setFilters({ clientId: queen.id, projectId: project.id });
     s().setFilters({ clientId: lex.id });
     expect(s().ui.filters).toMatchObject({ clientId: lex.id, projectId: null });
   });
 
   it("keeps a project when the client filter changes to its client", () => {
-    const queen = s().addClient({ name: "Queen Consolidated", color: "#111" });
-    const project = s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    const queen = requireCreated(s().addClient({ name: "Queen Consolidated", color: "#111" }));
+    const project = requireCreated(s().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }));
     s().setFilters({ projectId: project.id });
     s().setFilters({ clientId: queen.id });
     expect(s().ui.filters).toMatchObject({ clientId: queen.id, projectId: project.id });

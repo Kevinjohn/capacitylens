@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
@@ -17,10 +18,10 @@ beforeEach(() => resetStoreWithAccount());
 
 function seedConflictPair() {
   const st = useStore.getState();
-  const c = st.addClient({ name: "Acme", color: "#1" });
-  const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-  const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-  const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
+  const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+  const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+  const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+  const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
   st.addAllocation({
     resourceId: r.id,
     activityId: t.id,
@@ -29,14 +30,16 @@ function seedConflictPair() {
     hoursPerDay: 8,
     status: "confirmed",
   });
-  return st.addAllocation({
-    resourceId: r.id,
-    activityId: t.id,
-    startDate: "2026-06-01",
-    endDate: "2026-06-02",
-    hoursPerDay: 8,
-    status: "confirmed",
-  });
+  return requireCreated(
+    st.addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 8,
+      status: "confirmed",
+    }),
+  );
 }
 
 function registerCapacityAnnouncementTests() {
@@ -93,10 +96,10 @@ function registerVisibleWindowAnnouncementTest() {
     // Pin a deterministic, narrow visible window to early June, independent of "today".
     useStore.setState((s) => ({ ui: { ...s.ui, originDate: "2026-06-01", rangeDays: 14 } })); // [2026-06-01 .. 2026-06-14]
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // A fixed on Wed 2026-09-02; B starts Tue 09-01 (no overlap). ArrowRight slides B onto 09-02 →
     // a REAL over-day (16h vs 8h), but 09-02 is far OUTSIDE the [06-01..06-14] visible window.
     st.addAllocation({
@@ -107,14 +110,16 @@ function registerVisibleWindowAnnouncementTest() {
       hoursPerDay: 8,
       status: "confirmed",
     });
-    const b = st.addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-09-01",
-      endDate: "2026-09-01",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const b = requireCreated(
+      st.addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-09-01",
+        endDate: "2026-09-01",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
 
     const { rerender } = render(
       <AllocationBar bar={barFor(b)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />,

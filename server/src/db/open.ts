@@ -4,7 +4,7 @@ import { chmodSync, existsSync } from "node:fs";
 import { type DatabaseMigrationHooks, type DatabaseMigrationPlan, MIGRATION_HISTORY_SQL } from "./migrationLedger";
 import { DATABASE_MIGRATIONS } from "./migrations/index";
 import { planDatabaseMigrations } from "./migrationPlan";
-import { databasePaths } from "./filePermissions";
+import { databasePaths, restrictIdentifiedDatabasePermissions } from "./filePermissions";
 import { tx } from "../txn";
 import { pragmaNumber } from "./introspection";
 import { DB_SCHEMA_VERSION, DATABASE_MIGRATION_TABLE, CAPACITYLENS_APPLICATION_ID } from "./constants";
@@ -208,6 +208,7 @@ function restrictDatabaseFilePermissions(path: string): void {
  * owns one BEGIN IMMEDIATE transaction and advances user_version inside that same commit. */
 export function initializeOpenDb(db: Db, path: string, hooks: DatabaseMigrationHooks = {}): DatabaseMigrationPlan {
   const plan = planDatabaseMigrations(db);
+  restrictIdentifiedDatabasePermissions(db);
   assertQuickCheckBeforeMigration(db, plan.fresh);
   configureDatabaseForMigration(db, path);
   initializeWithForeignKeysDisabled(db, () => initializeSchema(db, plan, hooks));

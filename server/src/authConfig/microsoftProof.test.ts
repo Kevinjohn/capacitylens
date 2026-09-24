@@ -1,9 +1,11 @@
+import { inspect } from "node:util";
 import {
   begin,
   callback,
   claims,
   configured,
   cookieHeader,
+  insertProofAccount,
   mailFailure,
   mockMicrosoftToken,
   origin,
@@ -13,7 +15,6 @@ import {
   tenant,
 } from "./microsoftProof.testSupport";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { insertRow } from "../db";
 import { inviteTokenHash } from "../controlTables/inviteTokens";
 import { microsoftCallbackCapture } from "./captureContexts";
 import { createApp } from "../app";
@@ -90,7 +91,6 @@ describe("Microsoft native callback proof", () => {
     }
   });
 
-  // eslint-disable-next-line max-lines-per-function -- The established invitation case covers native return and membership acceptance together.
   it("lets an established Microsoft principal accept a new workspace invitation without rebinding", async () => {
     const { db, auth } = await configured();
     const app = createApp(db, { authMode: "sso", auth });
@@ -98,13 +98,7 @@ describe("Microsoft native callback proof", () => {
       const initial = await begin(auth);
       mockMicrosoftToken(claims("bruce@example.com"));
       await callback(auth, initial.state, initial.cookies);
-      insertRow(db, "accounts", {
-        id: "a-loft",
-        name: "Stark Industries",
-        color: "#6366f1",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      });
+      insertProofAccount(db, "a-loft");
       const inviteToken = "second-workspace-invite";
       db.prepare(
         `INSERT INTO invites (tokenHash,id,accountId,role,preauthEmail,expiresAt,usedAt,createdAt)
@@ -160,13 +154,7 @@ describe("Microsoft native callback proof", () => {
     const { db, auth } = await configured();
     const app = createApp(db, { authMode: "sso", auth });
     try {
-      insertRow(db, "accounts", {
-        id: "a-studio",
-        name: "Wayne Enterprises",
-        color: "#6366f1",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      });
+      insertProofAccount(db, "a-studio");
       const inviteToken = "new-microsoft-invite";
       db.prepare(
         `INSERT INTO invites (tokenHash,id,accountId,role,preauthEmail,expiresAt,usedAt,createdAt)
@@ -307,13 +295,7 @@ describe("Microsoft native callback proof", () => {
       db.prepare(
         "INSERT INTO user (id,name,email,emailVerified,createdAt,updatedAt) VALUES ('existing','Clark Kent','clark@example.com',1,?,?)",
       ).run(Date.now(), Date.now());
-      insertRow(db, "accounts", {
-        id: "a-studio",
-        name: "Wayne Enterprises",
-        color: "#6366f1",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      });
+      insertProofAccount(db, "a-studio");
       const token = "controlled-invite-token";
       db.prepare(
         `INSERT INTO invites (tokenHash,id,accountId,role,preauthEmail,expiresAt,usedAt,createdAt)
@@ -389,13 +371,7 @@ describe("Microsoft native callback proof", () => {
   it("rolls back a provisional native principal when the invitation is revoked at account insertion", async () => {
     const { db, auth } = await configured();
     try {
-      insertRow(db, "accounts", {
-        id: "a-studio",
-        name: "Wayne Enterprises",
-        color: "#6366f1",
-        createdAt: "2026-01-01T00:00:00.000Z",
-        updatedAt: "2026-01-01T00:00:00.000Z",
-      });
+      insertProofAccount(db, "a-studio");
       const inviteToken = "race-invite-token";
       db.prepare(
         `INSERT INTO invites (tokenHash,id,accountId,role,preauthEmail,expiresAt,usedAt,createdAt)
@@ -554,6 +530,40 @@ describe("Microsoft native callback proof", () => {
       expect(late.headers.get("location")).toContain("MICROSOFT_PROOF_CALLBACK_MISMATCH");
       expect(db.prepare("SELECT id FROM account WHERE providerId = 'microsoft'").get()).toBeUndefined();
     } finally {
+      db.close();
+    }
+  });
+
+  it("keeps delivery failure retryable without issuing a user or claiming verification", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { db, auth } = await configured();
+    try {
+      const started = await begin(auth);
+      mockMicrosoftToken(claims());
+      mailFailure.enabled = true;
+      const first = await callback(auth, started.state, started.cookies);
+      expect(log).toHaveBeenCalledWith("Microsoft mailbox proof delivery failed.", {
+        code: "EAUTH",
+        responseCode: 535,
+      });
+      expect(inspect(log.mock.calls, { depth: 10 })).not.toMatch(/private credential|token=|bruce@example/);
+      expect(first.headers.get("location")).toContain("/verify-microsoft?state=check-email");
+      expect(auth.microsoftProof.status(new Headers({ cookie: started.cookies }))).toMatchObject({
+        state: "pending",
+        deliveryUnavailable: true,
+      });
+      expect(db.prepare("SELECT COUNT(*) AS count FROM user").get()).toEqual({ count: 0 });
+      expect(db.prepare("SELECT state, tokenHash FROM microsoft_identity_proofs").get()).toEqual({
+        state: "started",
+        tokenHash: null,
+      });
+      db.prepare("UPDATE microsoft_identity_proofs SET lastSentAt = 0").run();
+      await expect(auth.microsoftProof.resend(new Headers({ cookie: started.cookies }))).rejects.toMatchObject({
+        code: "MAIL_DELIVERY_UNAVAILABLE",
+        cause: { code: "EAUTH", responseCode: 535 },
+      });
+    } finally {
+      log.mockRestore();
       db.close();
     }
   });

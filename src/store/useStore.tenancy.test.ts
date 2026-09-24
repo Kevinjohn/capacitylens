@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useStore } from "./useStore";
 import { makeAccount, makeAppData, WORKDAYS } from "../test/fixtures";
@@ -59,10 +60,10 @@ beforeEach(() => {
 describe("active-account replacement invariant", () => {
   it("rejects scoped writes only while the active account's hydration is marked failed", () => {
     useStore.setState({ activeAccountLoadFailed: A });
-    expect(() => s().addClient({ name: "Wayne Enterprises", color: "#111111" })).toThrow(/not loaded/i);
+    expect(() => requireCreated(s().addClient({ name: "Wayne Enterprises", color: "#111111" }))).toThrow(/not loaded/i);
 
     useStore.setState({ activeAccountLoadFailed: B });
-    expect(() => s().addClient({ name: "Wayne Foundation", color: "#111111" })).not.toThrow();
+    expect(() => requireCreated(s().addClient({ name: "Wayne Foundation", color: "#111111" }))).not.toThrow();
   });
 
   it("atomically returns to the picker when a replacement omits the selected account", () => {
@@ -94,7 +95,7 @@ describe("active-account replacement invariant", () => {
     expect(s().draggingAllocationId).toBeNull();
     expect(s().srAnnouncement).toBeNull();
     expect(s().ui.scrollToResource).toBeNull();
-    expect(() => s().addClient({ name: "Orphan", color: "#111111" })).toThrow(/no active account/i);
+    expect(() => requireCreated(s().addClient({ name: "Orphan", color: "#111111" }))).toThrow(/no active account/i);
     expect(s().data.clients).toEqual([]);
   });
 
@@ -104,7 +105,7 @@ describe("active-account replacement invariant", () => {
     s().setAccountSummaries([]);
     useStore.setState({ activeAccountId: "missing-account" });
 
-    expect(() => s().addClient({ name: "Orphan", color: "#111111" })).toThrow(/not loaded/i);
+    expect(() => requireCreated(s().addClient({ name: "Orphan", color: "#111111" }))).toThrow(/not loaded/i);
     expect(s().data.clients).toEqual(twoAccountData().clients);
   });
 });
@@ -134,7 +135,7 @@ describe("active-account permission publication", () => {
     s().setActiveAccount(B);
 
     expect(s().activeRole).toBeNull();
-    const added = s().addClient({ name: "Open-mode client", color: "#111111" });
+    const added = requireCreated(s().addClient({ name: "Open-mode client", color: "#111111" }));
     expect(s().data.clients.some((client) => client.id === added.id)).toBe(true);
   });
 });
@@ -243,49 +244,53 @@ describe("ownership guard on update/delete", () => {
 
 describe("foreign-key refs must stay in the active account", () => {
   it("addProject rejects a client from another account", () => {
-    expect(() => s().addProject({ name: "X", clientId: "cB", color: "#444444" })).toThrow(
+    expect(() => requireCreated(s().addProject({ name: "X", clientId: "cB", color: "#444444" }))).toThrow(
       /project must reference a client in this company/i,
     );
     expect(s().data.projects.some((p) => p.name === "X")).toBe(false);
   });
 
   it("addActivity rejects a project from another account", () => {
-    expect(() => s().addActivity({ name: "X", kind: "project", projectId: "pB" })).toThrow(
+    expect(() => requireCreated(s().addActivity({ name: "X", kind: "project", projectId: "pB" }))).toThrow(
       /activity must reference a project in this company/i,
     );
   });
 
   it("addPhase rejects a project from another account", () => {
-    expect(() => s().addPhase({ name: "X", projectId: "pB" })).toThrow(
+    expect(() => requireCreated(s().addPhase({ name: "X", projectId: "pB" }))).toThrow(
       /phase must reference a project in this company/i,
     );
   });
 
   it("addAllocation rejects a resource/activity from another account", () => {
     expect(() =>
-      s().addAllocation({
-        resourceId: "rB",
-        activityId: "tB",
-        startDate: "2026-01-01",
-        endDate: "2026-01-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      }),
+      requireCreated(
+        s().addAllocation({
+          resourceId: "rB",
+          activityId: "tB",
+          startDate: "2026-01-01",
+          endDate: "2026-01-02",
+          hoursPerDay: 8,
+          status: "confirmed",
+        }),
+      ),
     ).toThrow(/allocation must reference an existing resource and activity in this company/i);
     expect(s().data.allocations).toHaveLength(0);
   });
 
   it("addTimeOff rejects a resource from another account", () => {
     expect(() =>
-      s().addTimeOff({ resourceId: "rB", startDate: "2026-01-01", endDate: "2026-01-02", type: "holiday" }),
+      requireCreated(
+        s().addTimeOff({ resourceId: "rB", startDate: "2026-01-01", endDate: "2026-01-02", type: "holiday" }),
+      ),
     ).toThrow(/time off must reference an existing resource in this company/i);
     expect(s().data.timeOff).toHaveLength(0);
   });
 
   it("still allows valid in-account references", () => {
-    const c = s().addClient({ name: "A Client", color: "#555555" });
-    const p = s().addProject({ name: "A Project", clientId: c.id, color: "#666666" });
-    const t = s().addActivity({ name: "An Activity", kind: "project", projectId: p.id });
+    const c = requireCreated(s().addClient({ name: "A Client", color: "#555555" }));
+    const p = requireCreated(s().addProject({ name: "A Project", clientId: c.id, color: "#666666" }));
+    const t = requireCreated(s().addActivity({ name: "An Activity", kind: "project", projectId: p.id }));
     expect(t.accountId).toBe(A);
     const project = assertDefined(
       s().data.projects.find((x) => x.id === p.id),

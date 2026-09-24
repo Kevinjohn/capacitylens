@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { StrictMode } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -66,18 +67,20 @@ describe("ResourceForm layout", () => {
 describe("ResourceForm availability dates", () => {
   it("preserves an existing avatar URL when a manager edits resource metadata", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource({
-      kind: "person",
-      name: "Barbara Gordon",
-      role: "Designer",
-      avatarUrl: "https://images.example/barbara.png",
-      employmentType: "permanent",
-      engagement: "studio",
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#737373",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "person",
+        name: "Barbara Gordon",
+        role: "Designer",
+        avatarUrl: "https://images.example/barbara.png",
+        employmentType: "permanent",
+        engagement: "studio",
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#737373",
+      }),
+    );
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
 
     expect(screen.queryByLabelText("Avatar URL")).not.toBeInTheDocument();
@@ -111,19 +114,21 @@ describe("ResourceForm availability dates", () => {
   it("clears one existing boundary while preserving the other and metadata", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
-    const resource = useStore.getState().addResource({
-      kind: "person",
-      name: "Dinah Lance",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio",
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#737373",
-      firstAvailableDate: "2026-09-01",
-      lastAvailableDate: "2026-09-30",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "person",
+        name: "Dinah Lance",
+        role: "Designer",
+        employmentType: "permanent",
+        engagement: "studio",
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#737373",
+        firstAvailableDate: "2026-09-01",
+        lastAvailableDate: "2026-09-30",
+      }),
+    );
     render(<ResourceForm resource={resource} onClose={onClose} />);
 
     await user.clear(screen.getByLabelText("Start date"));
@@ -177,19 +182,23 @@ describe("ResourceForm disciplines", () => {
 
   it("preserves an existing discipline when the disabled control is hidden", async () => {
     const user = userEvent.setup();
-    const discipline = useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 });
-    const resource = useStore.getState().addResource({
-      kind: "person",
-      name: "Barbara Gordon",
-      role: "Designer",
-      disciplineId: discipline.id,
-      employmentType: "permanent",
-      engagement: "studio",
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#737373",
-    });
+    const discipline = requireCreated(
+      useStore.getState().addDiscipline({ name: "Design", color: "#737373", sortOrder: 0 }),
+    );
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "person",
+        name: "Barbara Gordon",
+        role: "Designer",
+        disciplineId: discipline.id,
+        employmentType: "permanent",
+        engagement: "studio",
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#737373",
+      }),
+    );
     useStore
       .getState()
       .updateAccount(requireValue(useStore.getState().data.accounts[0], "account").id, { disciplinesEnabled: false });
@@ -210,17 +219,19 @@ describe("ResourceForm disciplines", () => {
 it("rejects a stale person edit instead of overwriting a concurrent change", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const resource = useStore.getState().addResource({
-    kind: "person",
-    name: "Alice",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#737373",
-  });
+  const resource = requireCreated(
+    useStore.getState().addResource({
+      kind: "person",
+      name: "Alice",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+    }),
+  );
   render(<ResourceForm resource={resource} onClose={onClose} />);
 
   useStore.getState().updateResource(resource.id, { role: "Design lead" });
@@ -340,17 +351,19 @@ it("retries a transient rejected save without adding a duplicate person", async 
 it("retries an existing edit from its latest optimistic snapshot", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const resource = useStore.getState().addResource({
-    kind: "person",
-    name: "Bruce Wayne",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio",
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#737373",
-  });
+  const resource = requireCreated(
+    useStore.getState().addResource({
+      kind: "person",
+      name: "Bruce Wayne",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio",
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+    }),
+  );
   vi.spyOn(persistence, "flushPendingWrites")
     .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure.") })
     .mockResolvedValueOnce({ kind: "failed", error: new Error("Temporary server failure again.") })
@@ -486,8 +499,10 @@ it("saves a placeholder once a bound project is chosen", async () => {
   useStore
     .getState()
     .updateAccount(requireValue(useStore.getState().data.accounts[0], "account").id, { workingDays: [1, 3, 5] });
-  const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-  const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+  const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+  const project = requireCreated(
+    useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+  );
   render(<ResourceForm kind="placeholder" onClose={onClose} />);
 
   await user.type(screen.getByLabelText("Role"), "Senior Designer");
@@ -512,19 +527,23 @@ it("saves a placeholder once a bound project is chosen", async () => {
 it("edits a placeholder bound to an archived project without forcing a reassignment", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-  const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
-  const placeholder = useStore.getState().addResource({
-    kind: "placeholder",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    projectId: project.id,
-    color: "#333",
-  });
+  const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+  const project = requireCreated(
+    useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+  );
+  const placeholder = requireCreated(
+    useStore.getState().addResource({
+      kind: "placeholder",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      projectId: project.id,
+      color: "#333",
+    }),
+  );
   useStore.getState().archiveEntity("projects", project.id);
   render(<ResourceForm resource={placeholder} onClose={onClose} />);
 
@@ -569,17 +588,19 @@ describe("ResourceForm engagement", () => {
 
   it("preserves hidden employment data when engagement is edited", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource({
-      kind: "person",
-      name: "Barry Allen",
-      role: "Developer",
-      employmentType: "freelancer",
-      engagement: "studio",
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#737373",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "person",
+        name: "Barry Allen",
+        role: "Developer",
+        employmentType: "freelancer",
+        engagement: "studio",
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#737373",
+      }),
+    );
     render(<ResourceForm resource={resource} onClose={vi.fn()} />);
 
     const engagement = screen.getByRole("radiogroup", { name: "Engagement" });
@@ -633,17 +654,19 @@ it("persists a mutually exclusive mixed full, half and non-working pattern", asy
 it("hides working hours and normalises a legacy custom value to eight on edit", async () => {
   const user = userEvent.setup();
   const onClose = vi.fn();
-  const resource = useStore.getState().addResource({
-    kind: "person",
-    name: "Alice",
-    role: "Designer",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 6,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#737373",
-  });
+  const resource = requireCreated(
+    useStore.getState().addResource({
+      kind: "person",
+      name: "Alice",
+      role: "Designer",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 6,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#737373",
+    }),
+  );
   render(<ResourceForm resource={resource} onClose={onClose} />);
 
   expect(screen.queryByLabelText("Working hours / day")).not.toBeInTheDocument();

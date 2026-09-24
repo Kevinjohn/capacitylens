@@ -72,6 +72,10 @@ company data. CapacityLens asks you to confirm again when needed. Routine member
 invitations, role changes and membership removal need the appropriate role, but
 do not require this extra confirmation.
 
+If confirming through Google or Microsoft sends you away from the page, return
+to the action you were taking and submit it again. Signing in confirms your
+identity; it does not apply the original change.
+
 ## Two-factor sign-in
 
 In password mode, the server operator can require authenticator-app codes before

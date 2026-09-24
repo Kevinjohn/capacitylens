@@ -33,24 +33,33 @@ function discardRecoveryForDifferentAccount(owner: AttachmentState, id: string):
   owner.discardFailedAccountLoadRecovery();
 }
 
+function settleSwitchWaiters(
+  owner: AttachmentState,
+  matches: (attempt: number) => boolean,
+  outcome: RefreshOutcome,
+): void {
+  for (let index = owner.current.switchWaiters.length - 1; index >= 0; index -= 1) {
+    const waiter = owner.current.switchWaiters[index];
+    if (!waiter || !matches(waiter.attempt)) continue;
+    owner.current.switchWaiters.splice(index, 1);
+    waiter.resolve(outcome);
+  }
+}
+
 export function attachAccountSwitch({ store, owner, writes, refresh, serverMode }: AttachAccountSwitchInput) {
   const { save } = writes;
   const { refreshActive } = refresh;
   const { cancelDebounce } = owner;
-  const settleSwitch = (id: string | null, outcome: RefreshOutcome) => {
-    for (let index = owner.current.switchWaiters.length - 1; index >= 0; index -= 1) {
-      const waiter = owner.current.switchWaiters[index];
-      if (!waiter) continue;
-      if (waiter.id !== id) continue;
-      owner.current.switchWaiters.splice(index, 1);
-      waiter.resolve(outcome);
-    }
-  };
+  let attempt = 0;
+  const settleSwitch = (settledAttempt: number, outcome: RefreshOutcome) =>
+    settleSwitchWaiters(owner, (issued) => issued === settledAttempt, outcome);
 
   const unsubscribeSwitch = serverMode
     ? store.subscribe((state) => {
         const newId = state.activeAccountId;
         if (newId === owner.current.lastActiveAccountId) return;
+        const currentAttempt = ++attempt;
+        settleSwitchWaiters(owner, (issued) => issued < currentAttempt, { kind: "skipped" });
         owner.update({ lastActiveAccountId: newId });
         // Null (dropped to the picker / sign-out) loads nothing — the picker shows accountSummaries,
         // and the next non-null pick will hydrate. Cancel any in-flight switch so its late load can't
@@ -71,7 +80,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
               save(owner.current.pending);
               if (owner.current.inFlightSave) await owner.current.inFlightSave;
             }
-            settleSwitch(null, { kind: "reloaded" });
+            settleSwitch(currentAttempt, { kind: "reloaded" });
           })();
           return;
         }
@@ -80,7 +89,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
           // A successful company switch just loaded this same slice. Count it as a refresh so a
           // focus event delivered by the picker transition cannot immediately load it again.
           if (outcome.kind === "reloaded") owner.update({ lastRefreshAt: Date.now() });
-          settleSwitch(newId, outcome);
+          settleSwitch(currentAttempt, outcome);
         });
       })
     : null;
@@ -93,9 +102,10 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
             resolve({ kind: "skipped" });
             return;
           }
-          owner.current.switchWaiters.push({ id, resolve });
+          const currentAttempt = attempt + 1;
+          owner.current.switchWaiters.push({ attempt: currentAttempt, resolve });
           store.getState().setActiveAccount(id);
-          if (store.getState().activeAccountId !== id) settleSwitch(id, { kind: "skipped" });
+          if (store.getState().activeAccountId !== id) settleSwitch(currentAttempt, { kind: "skipped" });
         })
     : null;
 

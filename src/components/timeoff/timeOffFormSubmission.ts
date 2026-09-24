@@ -68,8 +68,11 @@ function persistNewTimeOff(options: {
   if (options.acceptedSubmission.current) return false;
   options.acceptedSubmission.current = true;
   try {
-    if (options.repeat === "none") options.add(options.baseDraft);
-    else options.addMany(options.repeatedDrafts);
+    const result = options.repeat === "none" ? options.add(options.baseDraft) : options.addMany(options.repeatedDrafts);
+    if (result.kind === "blocked") {
+      options.acceptedSubmission.current = false;
+      return false;
+    }
     return true;
   } catch (error) {
     options.acceptedSubmission.current = false;

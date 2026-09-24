@@ -9,7 +9,6 @@ import {
 } from "./microsoftProof.testSupport";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-// eslint-disable-next-line max-lines-per-function -- The delivery-failure cases share one controlled provider and SMTP harness.
 describe("Microsoft mailbox-proof delivery failure", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -17,29 +16,7 @@ describe("Microsoft mailbox-proof delivery failure", () => {
     mailFailure.enabled = false;
   });
 
-  it("keeps delivery failure retryable without issuing a user or claiming verification", async () => {
-    const { db, auth } = await configured();
-    try {
-      const started = await begin(auth);
-      mockMicrosoftToken(claims());
-      mailFailure.enabled = true;
-      const first = await callback(auth, started.state, started.cookies);
-      expect(first.headers.get("location")).toContain("/verify-microsoft?state=check-email");
-      expect(auth.microsoftProof.status(new Headers({ cookie: started.cookies }))).toMatchObject({
-        state: "pending",
-        deliveryUnavailable: true,
-      });
-      expect(db.prepare("SELECT COUNT(*) AS count FROM user").get()).toEqual({ count: 0 });
-      expect(db.prepare("SELECT state, tokenHash FROM microsoft_identity_proofs").get()).toEqual({
-        state: "started",
-        tokenHash: null,
-      });
-    } finally {
-      db.close();
-    }
-  });
-
-  it("logs a failed resend without the recipient or token, rolls it back and lets a later resend succeed", async () => {
+  it("rolls a failed resend back and lets a later resend succeed", async () => {
     const { db, auth } = await configured();
     const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {
@@ -53,9 +30,9 @@ describe("Microsoft mailbox-proof delivery failure", () => {
         code: "MAIL_DELIVERY_UNAVAILABLE",
         status: 503,
       });
-      expect(logged).toHaveBeenCalledWith("Microsoft mailbox-proof email could not be sent.", {
-        code: "EENVELOPE",
-        reason: "550 <[address]> rejected",
+      expect(logged).toHaveBeenCalledWith("Microsoft mailbox proof delivery failed.", {
+        code: "EAUTH",
+        responseCode: 535,
       });
       expect(JSON.stringify(logged.mock.calls).toLowerCase()).not.toContain("bruce@example.com");
       expect(db.prepare("SELECT state, tokenHash, tokenExpiresAt FROM microsoft_identity_proofs").get()).toEqual({

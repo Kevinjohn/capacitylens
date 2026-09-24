@@ -46,9 +46,41 @@ export class MicrosoftProofError extends Error {
   constructor(
     readonly code: string,
     readonly status: number,
+    options?: ErrorOptions,
   ) {
-    super(code);
+    super(code, options);
   }
+}
+
+/** Preserve transport diagnostics without retaining SMTP text, credentials or mailbox contents.
+ * Auth libraries can log error causes themselves, so even the retained cause must be safe. */
+export function resolveMicrosoftMailDeliveryCause(cause: unknown): { code: string; responseCode?: number } {
+  const transport = typeof cause === "object" && cause !== null ? (cause as Record<string, unknown>) : {};
+  const allowedCodes = [
+    "EAUTH",
+    "ECONNECTION",
+    "ETIMEDOUT",
+    "ESOCKET",
+    "EDNS",
+    "ETLS",
+    "EENVELOPE",
+    "EMESSAGE",
+    "ESTREAM",
+    "ECONNRESET",
+    "ECONNREFUSED",
+    "ENOTFOUND",
+  ];
+  const code =
+    typeof transport.code === "string" && allowedCodes.includes(transport.code)
+      ? transport.code
+      : "MAIL_TRANSPORT_ERROR";
+  const responseCode = transport.responseCode;
+  return {
+    code,
+    ...(typeof responseCode === "number" && Number.isInteger(responseCode) && responseCode >= 100 && responseCode <= 599
+      ? { responseCode }
+      : {}),
+  };
 }
 
 export function hashProofValue(value: string): string {
@@ -176,16 +208,4 @@ export function createMicrosoftProofMailer(environment: Record<string, string | 
       text: `Open this link and confirm your Microsoft connection: ${target.href}\n\nThis link expires in 15 minutes.`,
     });
   };
-}
-
-// Operators need the transport failure (host, credentials, certificate). Any address the
-// transport echoes, in whatever encoding, and the token stay out of the log.
-export function logMicrosoftProofMailFailure(error: unknown, token: string): void {
-  let message = "non-Error rejection";
-  if (error instanceof Error) message = error.message;
-  else if (typeof error === "string") message = error;
-  console.error("Microsoft mailbox-proof email could not be sent.", {
-    code: error instanceof Error ? (error as { code?: unknown }).code : undefined,
-    reason: message.replaceAll(token, "[token]").replace(/[^\s<>"'@]+@[^\s<>"'@]+/g, "[address]"),
-  });
 }

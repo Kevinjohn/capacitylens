@@ -1,3 +1,4 @@
+import { requireCreated } from "../../../test/requireCreated";
 // Shared helpers for the AllocationModal.*.test.tsx suites, extracted from the former
 // single-file AllocationModal.test.tsx with bodies unchanged.
 import { expect } from "vitest";
@@ -69,7 +70,8 @@ export const person = (name: string) => makeResourceDraft({ name, role: "Dev", c
 export const enableDays = (workingDays?: Weekday[]) =>
   useStore.getState().updateAccount(ACC, { schedulingMode: "days", ...(workingDays && { workingDays }) });
 
-export const addPerson = () => useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" }));
+export const addPerson = () =>
+  requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Tyler", color: "#111111" })));
 
 export const completeAssignment = async (user: ReturnType<typeof userEvent.setup>) => {
   await chooseOption(user, "Project", "Acme / Lightning");

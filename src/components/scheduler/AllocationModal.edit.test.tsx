@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -42,7 +43,8 @@ beforeEach(() => {
 });
 
 function resolveScopeActivity(activityKind: AllocationScopeCaseInput["activityKind"], activityName: string) {
-  if (activityKind !== "project") return useStore.getState().addActivity({ name: activityName, kind: activityKind });
+  if (activityKind !== "project")
+    return requireCreated(useStore.getState().addActivity({ name: activityName, kind: activityKind }));
   return required(
     useStore.getState().data.activities.find((candidate) => candidate.id === "t1"),
     "Expected the seeded project activity.",
@@ -82,17 +84,21 @@ describe("AllocationModal edit", () => {
   ] satisfies readonly AllocationScopeCaseInput[])(
     "reverse-maps and saves an $caseName allocation",
     async ({ activityKind, allocationProjectId, expectedScope, activityName }: AllocationScopeCaseInput) => {
-      const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+      const resource = requireCreated(
+        useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+      );
       const activity = resolveScopeActivity(activityKind, activityName);
-      const allocation = useStore.getState().addAllocation({
-        resourceId: resource.id,
-        activityId: activity.id,
-        ...(allocationProjectId ? { projectId: allocationProjectId } : {}),
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      });
+      const allocation = requireCreated(
+        useStore.getState().addAllocation({
+          resourceId: resource.id,
+          activityId: activity.id,
+          ...(allocationProjectId ? { projectId: allocationProjectId } : {}),
+          startDate: "2026-06-01",
+          endDate: "2026-06-02",
+          hoursPerDay: 8,
+          status: "confirmed",
+        }),
+      );
       const user = userEvent.setup();
       render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
@@ -110,15 +116,19 @@ describe("AllocationModal edit", () => {
   );
 
   it("allows a metadata-only full-form save for a retained availability conflict", async () => {
-    const resource = useStore.getState().addResource({ ...person("Clark Kent"), workingDays: [1, 2, 3, 4, 5] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Clark Kent"), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     useStore.getState().updateResource(resource.id, { firstAvailableDate: "2026-06-08" });
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
@@ -134,17 +144,21 @@ describe("AllocationModal edit", () => {
   });
 
   it("clears attributed All-projects work when its scope changes", async () => {
-    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
-    const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: activity.id,
-      projectId: "p1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const activity = requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        projectId: "p1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
@@ -158,15 +172,19 @@ describe("AllocationModal edit", () => {
   });
 
   it("shows an unmatched hours value and preserves it through an unrelated save", async () => {
-    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 6.4,
-      status: "confirmed",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 6.4,
+        status: "confirmed",
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
@@ -190,15 +208,19 @@ describe("AllocationModal edit", () => {
   });
 
   it("replaces an unmatched hours value when a listed option is chosen", async () => {
-    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 5,
-      status: "confirmed",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 5,
+        status: "confirmed",
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
@@ -211,16 +233,18 @@ describe("AllocationModal edit", () => {
 
   it("preserves an untouched historical multiline note but saves a direct note edit as one line", async () => {
     const alice = person("Alice");
-    const resource = useStore.getState().addResource({ ...alice, workingDays: [...alice.workingDays] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-      note: "First line\nSecond line",
-    });
+    const resource = requireCreated(useStore.getState().addResource({ ...alice, workingDays: [...alice.workingDays] }));
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+        note: "First line\nSecond line",
+      }),
+    );
     const user = userEvent.setup();
     const view = render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
@@ -243,15 +267,19 @@ describe("AllocationModal edit", () => {
   });
 
   it("keeps the modal open and surfaces the reason when deletion is rejected", async () => {
-    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const deleteAllocation = vi.spyOn(useStore.getState(), "deleteAllocation").mockImplementation(() => {
       throw new Error("The allocation is protected by an integrity rule.");
     });
@@ -274,37 +302,41 @@ describe("AllocationModal edit", () => {
   });
 
   it("offers one-or-future deletion for a linked occurrence and closes after the atomic removal", async () => {
-    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const seriesId = "series-weekly";
-    const [earlier, selected, later] = useStore.getState().addAllocations([
-      {
-        resourceId: resource.id,
-        activityId: "t1",
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-        seriesId,
-      },
-      {
-        resourceId: resource.id,
-        activityId: "t1",
-        startDate: "2026-06-08",
-        endDate: "2026-06-09",
-        hoursPerDay: 8,
-        status: "confirmed",
-        seriesId,
-      },
-      {
-        resourceId: resource.id,
-        activityId: "t1",
-        startDate: "2026-06-15",
-        endDate: "2026-06-16",
-        hoursPerDay: 8,
-        status: "confirmed",
-        seriesId,
-      },
-    ]);
+    const [earlier, selected, later] = requireCreated(
+      useStore.getState().addAllocations([
+        {
+          resourceId: resource.id,
+          activityId: "t1",
+          startDate: "2026-06-01",
+          endDate: "2026-06-02",
+          hoursPerDay: 8,
+          status: "confirmed",
+          seriesId,
+        },
+        {
+          resourceId: resource.id,
+          activityId: "t1",
+          startDate: "2026-06-08",
+          endDate: "2026-06-09",
+          hoursPerDay: 8,
+          status: "confirmed",
+          seriesId,
+        },
+        {
+          resourceId: resource.id,
+          activityId: "t1",
+          startDate: "2026-06-15",
+          endDate: "2026-06-16",
+          hoursPerDay: 8,
+          status: "confirmed",
+          seriesId,
+        },
+      ]),
+    );
     expect(earlier).toBeDefined();
     expect(selected).toBeDefined();
     expect(later).toBeDefined();
@@ -326,27 +358,31 @@ describe("AllocationModal edit", () => {
   });
 
   it("deletes only the selected linked occurrence when that scope is chosen", async () => {
-    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
-    const [selected, later] = useStore.getState().addAllocations([
-      {
-        resourceId: resource.id,
-        activityId: "t1",
-        startDate: "2026-06-08",
-        endDate: "2026-06-09",
-        hoursPerDay: 8,
-        status: "confirmed",
-        seriesId: "series-weekly",
-      },
-      {
-        resourceId: resource.id,
-        activityId: "t1",
-        startDate: "2026-06-15",
-        endDate: "2026-06-16",
-        hoursPerDay: 8,
-        status: "confirmed",
-        seriesId: "series-weekly",
-      },
-    ]);
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const [selected, later] = requireCreated(
+      useStore.getState().addAllocations([
+        {
+          resourceId: resource.id,
+          activityId: "t1",
+          startDate: "2026-06-08",
+          endDate: "2026-06-09",
+          hoursPerDay: 8,
+          status: "confirmed",
+          seriesId: "series-weekly",
+        },
+        {
+          resourceId: resource.id,
+          activityId: "t1",
+          startDate: "2026-06-15",
+          endDate: "2026-06-16",
+          hoursPerDay: 8,
+          status: "confirmed",
+          seriesId: "series-weekly",
+        },
+      ]),
+    );
     expect(selected).toBeDefined();
     expect(later).toBeDefined();
     if (!selected || !later) throw new Error("Expected both repeated allocations to be created.");
@@ -366,16 +402,18 @@ describe("AllocationModal edit", () => {
   });
 
   it("reassigns an allocation to another resource", async () => {
-    const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
-    const b = useStore.getState().addResource({ ...person("Bob"), workingDays: [1, 2, 3, 4, 5] });
-    const alloc = useStore.getState().addAllocation({
-      resourceId: a.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const a = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }));
+    const b = requireCreated(useStore.getState().addResource({ ...person("Bob"), workingDays: [1, 2, 3, 4, 5] }));
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: a.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
@@ -391,16 +429,18 @@ describe("AllocationModal edit", () => {
 
   it("rejects reassigning a normal allocation to a zero-overlap person", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
-    const source = useStore.getState().addResource({ ...person("Alice"), workingDays: [2] });
-    const destination = useStore.getState().addResource({ ...person("Bob"), workingDays: [1] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: source.id,
-      activityId: "t1",
-      startDate: "2026-06-02",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const source = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [2] }));
+    const destination = requireCreated(useStore.getState().addResource({ ...person("Bob"), workingDays: [1] }));
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: source.id,
+        activityId: "t1",
+        startDate: "2026-06-02",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
@@ -420,17 +460,19 @@ describe("AllocationModal edit", () => {
 
   it("rejects reassigning even an ignored allocation to a zero-overlap person (decision 6)", async () => {
     useStore.getState().updateAccount(ACC, { workingDays: [2] });
-    const source = useStore.getState().addResource({ ...person("Alice"), workingDays: [2] });
+    const source = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [2] }));
     useStore.getState().addResource({ ...person("Bob"), workingDays: [1] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: source.id,
-      activityId: "t1",
-      startDate: "2026-06-02",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-      ignoreWeekends: true,
-    });
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: source.id,
+        activityId: "t1",
+        startDate: "2026-06-02",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+        ignoreWeekends: true,
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
 
@@ -447,7 +489,7 @@ describe("AllocationModal edit", () => {
   });
 
   it("snaps the project to the placeholder bound project when reassigned, restricting options", async () => {
-    const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const a = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }));
     useStore.getState().addResource({
       kind: "placeholder",
       role: "Designer",
@@ -459,14 +501,16 @@ describe("AllocationModal edit", () => {
       color: "#a",
       projectId: "p2",
     });
-    const alloc = useStore.getState().addAllocation({
-      resourceId: a.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: a.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
@@ -480,25 +524,29 @@ describe("AllocationModal edit", () => {
   });
 
   it("risk A: editing an allocation on a HIDDEN placeholder still offers that placeholder so the value is preserved", async () => {
-    const ph = useStore.getState().addResource({
-      kind: "placeholder",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#a",
-      projectId: "p1",
-    });
-    const alloc = useStore.getState().addAllocation({
-      resourceId: ph.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const ph = requireCreated(
+      useStore.getState().addResource({
+        kind: "placeholder",
+        role: "Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#a",
+        projectId: "p1",
+      }),
+    );
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: ph.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     // Turn placeholders OFF — they're hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) placeholder.
     setPlaceholdersEnabled(false);
@@ -515,25 +563,29 @@ describe("AllocationModal edit", () => {
   it("risk A: editing an allocation on a HIDDEN external still offers that external so the value is preserved", async () => {
     // Externals default OFF too; the suite-wide beforeEach only turns placeholders on. Create an
     // external, book it, then assert the picker keeps it as an option even with the pref OFF.
-    const ext = useStore.getState().addResource({
-      kind: "external",
-      name: "Kord Industries",
-      role: "Partner studio",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#9ca3af",
-    });
-    const alloc = useStore.getState().addAllocation({
-      resourceId: ext.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 0,
-      status: "confirmed",
-    });
+    const ext = requireCreated(
+      useStore.getState().addResource({
+        kind: "external",
+        name: "Kord Industries",
+        role: "Partner studio",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#9ca3af",
+      }),
+    );
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: ext.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 0,
+        status: "confirmed",
+      }),
+    );
     // External pref OFF (its default) — hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) external.
     setExternalEnabled(false);
@@ -548,26 +600,30 @@ describe("AllocationModal edit", () => {
   });
 
   it("reopens and saves a legacy unattributed placeholder allocation unchanged", async () => {
-    const ph = useStore.getState().addResource({
-      kind: "placeholder",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#a",
-      projectId: "p1",
-    });
-    const gen = useStore.getState().addActivity({ name: "Admin", kind: "repeatable" });
-    const alloc = useStore.getState().addAllocation({
-      resourceId: ph.id,
-      activityId: gen.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const ph = requireCreated(
+      useStore.getState().addResource({
+        kind: "placeholder",
+        role: "Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#a",
+        projectId: "p1",
+      }),
+    );
+    const gen = requireCreated(useStore.getState().addActivity({ name: "Admin", kind: "repeatable" }));
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: ph.id,
+        activityId: gen.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={vi.fn()} />);
 
@@ -584,26 +640,30 @@ describe("AllocationModal edit", () => {
   });
 
   it("uses a bound placeholder's project when an edited allocation has a dangling activity", () => {
-    const ph = useStore.getState().addResource({
-      kind: "placeholder",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#a",
-      projectId: "p1",
-    });
-    const activity = useStore.getState().addActivity({ name: "Temporary", kind: "repeatable" });
-    const alloc = useStore.getState().addAllocation({
-      resourceId: ph.id,
-      activityId: activity.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const ph = requireCreated(
+      useStore.getState().addResource({
+        kind: "placeholder",
+        role: "Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#a",
+        projectId: "p1",
+      }),
+    );
+    const activity = requireCreated(useStore.getState().addActivity({ name: "Temporary", kind: "repeatable" }));
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: ph.id,
+        activityId: activity.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     useStore.setState((current) => ({
       data: {
         ...current.data,
@@ -617,16 +677,18 @@ describe("AllocationModal edit", () => {
   });
 
   it("duplicates the current validated form values without changing the saved allocation", async () => {
-    const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
-    const alloc = useStore.getState().addAllocation({
-      resourceId: a.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-      note: "Saved note",
-    });
+    const a = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }));
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: a.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+        note: "Saved note",
+      }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={alloc.id} onClose={onClose} />);
@@ -657,25 +719,31 @@ describe("AllocationModal edit", () => {
   });
 
   it("keeps Duplicate for an unlinked all-projects allocation and hides it for a linked occurrence", () => {
-    const resource = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
-    const activity = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const oneOff = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: activity.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-01",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
-    const linked = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: activity.id,
-      startDate: "2026-06-08",
-      endDate: "2026-06-08",
-      hoursPerDay: 8,
-      status: "confirmed",
-      seriesId: "series-weekly",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const activity = requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
+    const oneOff = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-01",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
+    const linked = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        startDate: "2026-06-08",
+        endDate: "2026-06-08",
+        hoursPerDay: 8,
+        status: "confirmed",
+        seriesId: "series-weekly",
+      }),
+    );
 
     const oneOffView = render(<AllocationModal kind="edit" allocationId={oneOff.id} onClose={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Duplicate" })).toBeInTheDocument();
@@ -686,16 +754,18 @@ describe("AllocationModal edit", () => {
   });
 
   it("rejects duplicating a zero-hour block after the account switches to Hours mode", async () => {
-    const a = useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] });
+    const a = requireCreated(useStore.getState().addResource({ ...person("Alice"), workingDays: [1, 2, 3, 4, 5] }));
     useStore.getState().updateAccount(ACC, { schedulingMode: "blocks" });
-    const alloc = useStore.getState().addAllocation({
-      resourceId: a.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 0,
-      status: "confirmed",
-    });
+    const alloc = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: a.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 0,
+        status: "confirmed",
+      }),
+    );
     useStore.getState().updateAccount(ACC, { schedulingMode: "hourly" });
     const onClose = vi.fn();
     const user = userEvent.setup();

@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -133,7 +134,9 @@ describe("DisciplineList", () => {
 
   it("keeps the edit form open when its discipline vanished during editing", async () => {
     const user = userEvent.setup();
-    const discipline = useStore.getState().addDiscipline({ name: "Design", color: "#00ff00", sortOrder: 0 });
+    const discipline = requireCreated(
+      useStore.getState().addDiscipline({ name: "Design", color: "#00ff00", sortOrder: 0 }),
+    );
     render(<DisciplineList />);
 
     await user.click(within(screen.getByTestId("discipline-row")).getByRole("button", { name: "Edit Design" }));

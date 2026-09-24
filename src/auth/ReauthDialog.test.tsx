@@ -279,6 +279,7 @@ describe("ReauthDialog provider step-up", () => {
     );
     void requestReauth();
     await screen.findByRole("heading", { name: "Confirm it's you" });
+    expect(screen.getByText(m.reauth_body_sso())).toHaveTextContent(/repeat the original action/);
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in with Microsoft" }));
 

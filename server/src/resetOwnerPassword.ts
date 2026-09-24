@@ -1,3 +1,4 @@
+import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { existsSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
@@ -166,6 +167,7 @@ export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<Own
     assertRecoverySchemasCurrent(db);
     const auth = await requireCurrentAuth(db, context.env);
     const target = requireSoleOwner(db, context.email);
+    restrictIdentifiedDatabasePermissions(db);
     const token = await mintPasswordResetToken(auth, context.email);
     if (token === null) {
       throw new Error("Better Auth matched no credential identity for that address.");

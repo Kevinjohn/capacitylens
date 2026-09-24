@@ -24,9 +24,10 @@ const client = vi.hoisted(() => ({
   initiateOwnershipTransfer: vi.fn(),
   commandOwnershipTransfer: vi.fn(),
 }));
+const reproject = vi.hoisted(() => vi.fn(async () => true));
 
 vi.mock("../../account/teamAccessClient", () => ({ teamAccessClient: client }));
-vi.mock("../../auth/reprojectAccess", () => ({ reprojectAccess: async () => true }));
+vi.mock("../../auth/reprojectAccess", () => ({ reprojectAccess: reproject }));
 
 function member(userId: string, role: TeamMember["role"], name: string): TeamMember {
   return {
@@ -69,13 +70,13 @@ function seed(projection: OwnershipTransferProjectionView, members: readonly Tea
   client.listMembers.mockResolvedValue({ kind: "ok", status: 200, value: { members } });
 }
 
-function renderAs(userId: string) {
+function renderAs(userId: string, refreshAuth = async () => {}) {
   const auth: AuthContextValue = {
     authMode: "password",
     user: { id: userId, email: `${userId}@wayne.test` },
     canCreateAccount: true,
     multiAccount: true,
-    refreshAuth: async () => {},
+    refreshAuth,
     signOut: async () => {},
   };
   return render(
@@ -100,10 +101,64 @@ const applied = (
 
 beforeEach(() => {
   vi.clearAllMocks();
+  reproject.mockResolvedValue(true);
   resetStoreWithAccount(DEFAULT_ACCOUNT_ID);
 });
 
 describe("OwnershipTransferCard as the Owner", () => {
+  it("refreshes the ceremony when the owner reopens it after remote consent", async () => {
+    seed({ live: request(), latestOutcome: null });
+    renderAs(OWNER.userId);
+    await openOwnershipDialog();
+    expect(await screen.findByTestId("ownership-transfer-cancel")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: m.ownership_transfer_close() }));
+    seed({
+      live: request({ state: "awaiting_owner", revision: "2", targetAcceptedAt: "2026-09-11T00:00:00.000Z" }),
+      latestOutcome: null,
+    });
+    await openOwnershipDialog();
+    expect(await screen.findByTestId("ownership-transfer-complete")).toBeInTheDocument();
+  });
+
+  it("refreshes caller access after an uncertain completion and closes an unverified company", async () => {
+    seed({
+      live: request({ state: "awaiting_owner", revision: "2", targetAcceptedAt: "2026-09-11T00:00:00.000Z" }),
+      latestOutcome: null,
+    });
+    client.commandOwnershipTransfer.mockResolvedValue({ kind: "unknown", status: 503, message: null });
+    reproject.mockResolvedValue(false);
+    const refreshAuth = vi.fn(async () => {});
+    renderAs(OWNER.userId, refreshAuth);
+    await openOwnershipDialog();
+    fireEvent.click(await screen.findByTestId("ownership-transfer-complete"));
+    await waitFor(() => expect(refreshAuth).toHaveBeenCalledOnce());
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
+    expect(useStore.getState().notice?.message).toBe(m.settings_members_access_refresh_failed());
+  });
+
+  it("reconciles a completion that returns after the dialog is closed and reopened", async () => {
+    seed({
+      live: request({ state: "awaiting_owner", revision: "2", targetAcceptedAt: "2026-09-11T00:00:00.000Z" }),
+      latestOutcome: null,
+    });
+    let finishCommand: (result: ReturnType<typeof applied>) => void = () => {
+      throw new Error("Expected a pending completion");
+    };
+    client.commandOwnershipTransfer.mockImplementation(() => new Promise((resolve) => (finishCommand = resolve)));
+    const refreshAuth = vi.fn(async () => {});
+    renderAs(OWNER.userId, refreshAuth);
+    await openOwnershipDialog();
+    fireEvent.click(await screen.findByTestId("ownership-transfer-complete"));
+    await waitFor(() => expect(client.commandOwnershipTransfer).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole("button", { name: m.ownership_transfer_close() }));
+    await openOwnershipDialog();
+    await waitFor(() => expect(client.readOwnershipTransfer.mock.calls.length).toBeGreaterThanOrEqual(3));
+    act(() => finishCommand(applied(request({ state: "completed" }))));
+    await waitFor(() => expect(refreshAuth).toHaveBeenCalledOnce());
+    await waitFor(() => expect(reproject).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID));
+    await waitFor(() => expect(screen.getByTestId("ownership-transfer-complete")).not.toBeDisabled());
+  });
+
   it("keeps ceremony controls in a Company ownership modal", async () => {
     seed({ live: null, latestOutcome: null });
     renderAs(OWNER.userId);
@@ -342,6 +397,9 @@ describe("OwnershipTransferCard outcomes", () => {
     await openOwnershipDialog();
 
     expect(await screen.findByText(m.ownership_transfer_read_failed())).toBeInTheDocument();
+    seed({ live: request(), latestOutcome: null });
+    fireEvent.click(screen.getByRole("button", { name: m.ownership_transfer_retry() }));
+    expect(await screen.findByTestId("ownership-transfer-state")).toBeInTheDocument();
   });
 
   it("empties the card when the company changes, even if the next read fails", async () => {

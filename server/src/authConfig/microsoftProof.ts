@@ -6,6 +6,7 @@ import { createMicrosoftProofAuthorization } from "./microsoftProofAuthorization
 import { createMicrosoftProofReturn } from "./microsoftProofReturn";
 import {
   MicrosoftProofError,
+  resolveMicrosoftMailDeliveryCause,
   assertMicrosoftReturnUrl,
   createMicrosoftProofMailer,
   createMicrosoftReturnUrlCipher,
@@ -13,7 +14,6 @@ import {
   hasVerifiedMicrosoftEmail,
   hashProofValue,
   hintProofEmail,
-  logMicrosoftProofMailFailure,
   newProofId,
   newProofSecret,
   readMicrosoftProofIntent,
@@ -126,12 +126,13 @@ export function createMicrosoftProof(input: Input) {
     if (changed.changes !== 1) throw new MicrosoftProofError("MICROSOFT_PROOF_EXPIRED", 410);
     try {
       await mail(intent.targetEmail, token);
-    } catch (error) {
+    } catch (cause) {
       db.prepare(
         "UPDATE microsoft_identity_proofs SET state = 'started', tokenHash = NULL, tokenExpiresAt = NULL WHERE id = ? AND tokenHash = ?",
       ).run(intent.id, hashProofValue(token));
-      logMicrosoftProofMailFailure(error, token);
-      throw new MicrosoftProofError("MAIL_DELIVERY_UNAVAILABLE", 503);
+      const diagnostic = resolveMicrosoftMailDeliveryCause(cause);
+      console.error("Microsoft mailbox proof delivery failed.", diagnostic);
+      throw new MicrosoftProofError("MAIL_DELIVERY_UNAVAILABLE", 503, { cause: diagnostic });
     }
   }
 

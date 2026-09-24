@@ -152,7 +152,7 @@ function useProjectSubmit({
         fail(null, m.form_project_err_changed());
         return;
       }
-      saveProject({ project, trimmed, clientId, color, privacy, add, update });
+      if (!saveProject({ project, trimmed, clientId, color, privacy, add, update })) return;
       onClose();
     } catch (error) {
       fail(null, resolveErrorMessage(error));
@@ -179,14 +179,16 @@ function saveProject({
 }) {
   if (project) {
     update(project.id, { name: trimmed, clientId, color, ...privacy });
-    return;
+    return true;
   }
-  add({
-    name: trimmed,
-    clientId,
-    color,
-    ...(privacy.isPrivate && privacy.codeName ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName } : {}),
-  });
+  return (
+    add({
+      name: trimmed,
+      clientId,
+      color,
+      ...(privacy.isPrivate && privacy.codeName ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName } : {}),
+    }).kind === "created"
+  );
 }
 
 function ProjectFormFields({
