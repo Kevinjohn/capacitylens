@@ -30,6 +30,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { m } from "@/i18n";
 import { buildSchedulerDensity } from "./scheduler/layout";
 import { useStore } from "../store/useStore";
+import { resolveTheme, subscribeToSystemScheme } from "../lib/theme";
+import { useSyncExternalStore } from "react";
 import type React from "react";
 import { APP_NAME } from "@capacitylens/shared/brand";
 
@@ -241,11 +243,13 @@ function NavMenu({
 
 /** Fast light/dark access beside the persistent administration destinations. Settings retains the
  *  full three-way preference, including Match system; this button deliberately makes an explicit
- *  light or dark choice rather than cycling through the three-way setting. */
+ *  light or dark choice rather than cycling through the three-way setting. Its label, icon and
+ *  target follow the scheme actually displayed, so Match system resolves through the OS. */
 function ThemeToggleMenuItem() {
   const theme = useStore((state) => state.theme);
   const setTheme = useStore((state) => state.setTheme);
-  const dark = theme === "dark";
+  const systemScheme = useSyncExternalStore(subscribeToSystemScheme, () => resolveTheme("system"));
+  const dark = (theme === "system" ? systemScheme : theme) === "dark";
   const label = dark ? m.nav_switch_to_light_mode() : m.nav_switch_to_dark_mode();
   const ThemeIcon = dark ? SunIcon : MoonIcon;
 

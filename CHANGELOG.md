@@ -30,6 +30,8 @@ new features and **patch** versions carry fixes.
   and clear the previous failure when retrying (#1216).
 - Exclude external / 3rd-party people from a group's average utilisation, as the headline
   figure already does (#1257).
+- Label the sidebar theme button by the scheme actually displayed, so with Match system on a
+  dark device it offers light mode and switches to it (#1260).
 
 ### Removed
 

@@ -606,6 +606,36 @@ function registerSidebarThemeToggleTest(): void {
   });
 }
 
+function registerSidebarThemeToggleSystemTest(): void {
+  it("labels and flips the displayed scheme when the preference follows a dark OS", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(
+        (query: string) =>
+          ({
+            matches: query === "(prefers-color-scheme: dark)",
+            media: query,
+            onchange: null,
+            addListener: vi.fn(),
+            removeListener: vi.fn(),
+            addEventListener: vi.fn(),
+            removeEventListener: vi.fn(),
+            dispatchEvent: vi.fn(() => true),
+          }) satisfies MediaQueryList,
+      ),
+    );
+    act(() => useStore.getState().setTheme("system"));
+    renderAppShell();
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+    const navigation = screen.getByRole("navigation");
+    fireEvent.click(within(navigation).getByRole("button", { name: "Switch to light mode" }));
+
+    expect(document.documentElement).toHaveAttribute("data-theme", "light");
+    expect(localStorage.getItem("capacitylens/theme")).toBe("light");
+  });
+}
+
 function registerNavigationRoutesTest(): void {
   it("nav links point to correct routes", () => {
     renderAppShell();
@@ -1109,6 +1139,7 @@ describe("AppShell navigation links", () => {
   registerSidebarSignOutTest();
   registerPinnedNavigationOrderTest();
   registerSidebarThemeToggleTest();
+  registerSidebarThemeToggleSystemTest();
   registerNavigationRoutesTest();
 });
 
