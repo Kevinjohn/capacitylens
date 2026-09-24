@@ -625,14 +625,19 @@ function registerSidebarThemeToggleSystemTest(): void {
       ),
     );
     act(() => useStore.getState().setTheme("system"));
-    renderAppShell();
+    try {
+      renderAppShell();
 
-    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
-    const navigation = screen.getByRole("navigation");
-    fireEvent.click(within(navigation).getByRole("button", { name: "Switch to light mode" }));
+      expect(document.documentElement).toHaveAttribute("data-theme", "dark");
+      const navigation = screen.getByRole("navigation");
+      fireEvent.click(within(navigation).getByRole("button", { name: "Switch to light mode" }));
 
-    expect(document.documentElement).toHaveAttribute("data-theme", "light");
-    expect(localStorage.getItem("capacitylens/theme")).toBe("light");
+      expect(document.documentElement).toHaveAttribute("data-theme", "light");
+      expect(localStorage.getItem("capacitylens/theme")).toBe("light");
+    } finally {
+      // Later tests run without matchMedia, which the toaster reads while the preference is system.
+      act(() => useStore.getState().setTheme("light"));
+    }
   });
 }
 
