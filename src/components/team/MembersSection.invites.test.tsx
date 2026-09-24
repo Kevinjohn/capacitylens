@@ -221,6 +221,49 @@ function registerInviteMintTests(): void {
     await screen.findByRole("dialog", { name: "Invite someone" });
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });
+
+  it("discards the link of a create that resolves after the dialog closed", async () => {
+    let respond: ((response: Response) => void) | null = null;
+    // The late invite stays pending, so only the dialog close can clear its link.
+    let invites: Record<string, unknown>[] = [];
+    let invitesReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /invites": () => {
+          invitesReads += 1;
+          return jsonResponse({ invites });
+        },
+        "POST /api/invites": () =>
+          new Promise<Response>((resolve) => {
+            respond = resolve;
+          }),
+      }),
+    );
+    await renderInviteSection();
+    await screen.findByTestId("members-section");
+
+    fireEvent.click(screen.getByTestId("invite-submit"));
+    await waitFor(() => expect(respond).not.toBeNull());
+    closeInviteDialog();
+    const readsBeforeResponse = invitesReads;
+    invites = [
+      {
+        id: "inv-late",
+        role: "editor",
+        preauthEmail: null,
+        expiresAt: "2026-12-01T00:00:00.000Z",
+        usedAt: null,
+        createdAt: "2026-07-17T00:00:00.000Z",
+      },
+    ];
+    respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
+    await waitFor(() => expect(invitesReads).toBeGreaterThan(readsBeforeResponse));
+
+    fireEvent.click(screen.getByTestId("invite-open"));
+    await screen.findByRole("dialog", { name: "Invite someone" });
+    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
+  });
 }
 
 function registerInviteAccountTransitionTests(): void {
