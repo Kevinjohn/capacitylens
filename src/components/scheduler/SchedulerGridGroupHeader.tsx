@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { m } from "@/i18n";
+import { isCapacityTracked } from "@capacitylens/shared/types/entities";
 import { Button } from "../ui/button";
 import { LAYOUT, buildSchedulerDensity } from "./layout";
 import type { GroupModel } from "./schedulerModel";
@@ -20,7 +21,11 @@ interface SchedulerGridGroupHeaderProps {
 function resolveGroupSummary(group: GroupModel, collapsed: boolean, showDisciplineUtilization: boolean): string {
   if (collapsed) return m.scheduler_group_hidden({ count: group.rows.length });
   if (group.external || !showDisciplineUtilization) return "";
-  return m.scheduler_group_avg_utilisation({ percent: buildAverageUtilizationLabel(group.rows) });
+  // External rows carry no capacity, so the group average excludes them as the headline does. A
+  // group with no capacity-tracked row shows no average rather than 0%.
+  const trackedRows = group.rows.filter((row) => isCapacityTracked(row.resource));
+  if (trackedRows.length === 0) return "";
+  return m.scheduler_group_avg_utilisation({ percent: buildAverageUtilizationLabel(trackedRows) });
 }
 
 export function SchedulerGridGroupHeader({

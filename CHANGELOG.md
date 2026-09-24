@@ -28,6 +28,8 @@ new features and **patch** versions carry fixes.
 
 - Keep failed company-sign-in connection messages visible after returning from the provider,
   and clear the previous failure when retrying (#1216).
+- Exclude external / 3rd-party people from a group's average utilisation, as the headline
+  figure already does (#1257).
 
 ### Removed
 
