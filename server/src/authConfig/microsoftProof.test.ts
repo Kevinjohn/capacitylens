@@ -49,6 +49,15 @@ describe("Microsoft native callback proof", () => {
         providerId: "microsoft",
       });
       expect(db.prepare("SELECT state FROM microsoft_identity_proofs").get()).toEqual({ state: "completed" });
+      const auditedConnections = db
+        .prepare(
+          `SELECT observation.providerId, observation.subject
+           FROM capacitylens_federated_link_observations AS observation
+           JOIN capacitylens_audit_outbox AS audit ON audit.id = 'identity-link:' || observation.accountRowId
+          WHERE observation.auditedAt IS NOT NULL`,
+        )
+        .all();
+      expect(auditedConnections).toEqual([{ providerId: "microsoft", subject: "stable-object-id" }]);
     } finally {
       db.close();
     }
