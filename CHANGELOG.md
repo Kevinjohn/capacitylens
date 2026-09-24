@@ -32,6 +32,8 @@ new features and **patch** versions carry fixes.
   figure already does (#1257).
 - Label the sidebar theme button by the scheme actually displayed, so with Match system on a
   dark device it offers light mode and switches to it (#1260).
+- Clear a new invitation link when the invite dialog closes, so reopening it shows an empty
+  form instead of the previous link (#1262).
 
 ### Removed
 

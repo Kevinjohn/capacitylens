@@ -76,6 +76,7 @@ export function InviteMemberPanel(props: {
   errorId: string;
   clear(): void;
   mintedLink: { inviteId: string | null; link: string } | null;
+  clearMintedLink(): void;
   copyLink(link: string, copiedNotice: string): void;
   submitInvite(): Promise<void>;
   invites: readonly TeamInvitation[];
@@ -87,6 +88,10 @@ export function InviteMemberPanel(props: {
   setInvitationResourceId(value: string): void;
 }) {
   const [open, setOpen] = useState(false);
+  const close = () => {
+    setOpen(false);
+    props.clearMintedLink();
+  };
   return (
     <section data-testid="invites-section" aria-busy={props.busy} className="flex flex-col gap-4">
       <InviteHeader onOpen={() => setOpen(true)} />
@@ -94,11 +99,11 @@ export function InviteMemberPanel(props: {
         <Modal
           title={m.settings_invite_heading()}
           description={m.settings_invite_intro({ app: APP_NAME })}
-          onClose={() => setOpen(false)}
+          onClose={close}
           onSubmit={() => void props.submitInvite()}
           footer={
             <>
-              <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>
+              <Button type="button" variant="outline" size="sm" onClick={close}>
                 {m.form_cancel()}
               </Button>
               <Button type="submit" size="sm" data-testid="invite-submit" disabled={props.busy}>

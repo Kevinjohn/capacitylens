@@ -206,6 +206,8 @@ export function useMemberInvites() {
         : current,
     );
   }, []);
+  // Closing the invite dialog ends the "shown once" moment, so the link does not return on reopen.
+  const clearMintedLink = useCallback(() => setMintedLink(null), []);
   const resetInviteDraft = useCallback(() => {
     setInvitationPreauthorizedEmail("");
     setInvitationResourceId("");
@@ -262,6 +264,7 @@ export function useMemberInvites() {
     invitationResourceId,
     setInvitationResourceId,
     mintedLink,
+    clearMintedLink,
     resetInviteDraft,
     reconcileMintedInvite,
     createActions,
