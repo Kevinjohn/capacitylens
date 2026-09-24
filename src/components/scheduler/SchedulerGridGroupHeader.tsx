@@ -21,11 +21,9 @@ interface SchedulerGridGroupHeaderProps {
 function resolveGroupSummary(group: GroupModel, collapsed: boolean, showDisciplineUtilization: boolean): string {
   if (collapsed) return m.scheduler_group_hidden({ count: group.rows.length });
   if (group.external || !showDisciplineUtilization) return "";
-  // External rows carry no capacity, so the group average excludes them as the headline does. A
-  // group with no capacity-tracked row shows no average rather than 0%.
-  const trackedRows = group.rows.filter((row) => isCapacityTracked(row.resource));
-  if (trackedRows.length === 0) return "";
-  return m.scheduler_group_avg_utilisation({ percent: buildAverageUtilizationLabel(trackedRows) });
+  // A group with no capacity-tracked row shows no average rather than 0%.
+  if (!group.rows.some((row) => isCapacityTracked(row.resource))) return "";
+  return m.scheduler_group_avg_utilisation({ percent: buildAverageUtilizationLabel(group.rows) });
 }
 
 export function SchedulerGridGroupHeader({

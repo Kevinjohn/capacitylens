@@ -606,24 +606,28 @@ function registerSidebarThemeToggleTest(): void {
   });
 }
 
+function stubMatchMedia(matches: (query: string) => boolean): void {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(
+      (query: string) =>
+        ({
+          matches: matches(query),
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(() => true),
+        }) satisfies MediaQueryList,
+    ),
+  );
+}
+
 function registerSidebarThemeToggleSystemTest(): void {
   it("labels and flips the displayed scheme when the preference follows a dark OS", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn(
-        (query: string) =>
-          ({
-            matches: query === "(prefers-color-scheme: dark)",
-            media: query,
-            onchange: null,
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            dispatchEvent: vi.fn(() => true),
-          }) satisfies MediaQueryList,
-      ),
-    );
+    stubMatchMedia((query) => query === "(prefers-color-scheme: dark)");
     act(() => useStore.getState().setTheme("system"));
     try {
       renderAppShell();
@@ -670,22 +674,7 @@ function registerDefaultSidebarStateTest(): void {
 
 function registerMobileSidebarTriggerTest(): void {
   it("reports the mobile sheet state and next action from the top-bar trigger", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn(
-        () =>
-          ({
-            matches: true,
-            media: "(max-width: 767px)",
-            onchange: null,
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            dispatchEvent: vi.fn(() => true),
-          }) satisfies MediaQueryList,
-      ),
-    );
+    stubMatchMedia(() => true);
     sessionStorage.setItem("capacitylens/rotateHintDismissed", "1");
     renderAppShell();
 

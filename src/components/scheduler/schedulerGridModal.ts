@@ -1,12 +1,15 @@
 import { formatUtilizationPercent } from "../../lib/formatUtilizationPercent";
 import type { RowModel } from "./schedulerModel";
+import { isCapacityTracked } from "@capacitylens/shared/types/entities";
 import type { ID, ISODate } from "@capacitylens/shared/types/entities";
 
-/** The mean of the rows' visible-window utilisation, formatted for display — "0" for no rows.
- *  Shared by the headline and per-group figures; both callers pass only capacity-tracked rows. */
+/** The mean visible-window utilisation of the capacity-tracked rows, formatted for display — "0"
+ *  when there are none. External rows carry no capacity, so the headline and per-group figures
+ *  both exclude them here. */
 export function buildAverageUtilizationLabel(rows: RowModel[]): string {
-  return rows.length
-    ? formatUtilizationPercent(rows.reduce((sum, row) => sum + row.utilization, 0) / rows.length)
+  const trackedRows = rows.filter((row) => isCapacityTracked(row.resource));
+  return trackedRows.length
+    ? formatUtilizationPercent(trackedRows.reduce((sum, row) => sum + row.utilization, 0) / trackedRows.length)
     : "0";
 }
 
