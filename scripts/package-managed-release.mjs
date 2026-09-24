@@ -10,21 +10,26 @@ async function requireNonemptyFile(path, label) {
   if (!details?.isFile() || details.size === 0) throw new Error(`Production artifact is missing ${label}.`);
 }
 
-// `pnpm deploy --prod` is the primary guard. This secondary check forbids every direct
-// devDependency of the root and server manifests that the server does not also list as a runtime
-// dependency, so the list follows the manifests instead of a hand-kept sample.
+// `pnpm deploy --prod` is the primary guard. This secondary check follows the manifests instead
+// of a hand-kept sample: it forbids every devDependency of the root, server and shared manifests
+// that the server or shared does not also need at runtime, and the whole scope of a scoped
+// devDependency (for example `@vitest/`), whose tooling arrives transitively.
 export async function readDevelopmentPackages(repositoryRoot) {
   const readManifest = async (path) => JSON.parse(await readFile(join(repositoryRoot, path), "utf8"));
-  const [rootManifest, serverManifest] = await Promise.all([
-    readManifest("package.json"),
-    readManifest("server/package.json"),
-  ]);
-  const runtime = new Set(Object.keys(serverManifest.dependencies ?? {}));
-  const development = [
-    ...Object.keys(rootManifest.devDependencies ?? {}),
-    ...Object.keys(serverManifest.devDependencies ?? {}),
-  ];
-  return [...new Set(development)].filter((name) => !runtime.has(name)).sort();
+  const manifests = await Promise.all(["package.json", "server/package.json", "shared/package.json"].map(readManifest));
+  const runtime = new Set(manifests.slice(1).flatMap((manifest) => Object.keys(manifest.dependencies ?? {})));
+  const runtimeScopes = new Set([...runtime].filter((name) => name.startsWith("@")).map(scopeOf));
+  const development = manifests.flatMap((manifest) => Object.keys(manifest.devDependencies ?? {}));
+  const names = development.filter((name) => !runtime.has(name));
+  const scopes = names
+    .filter((name) => name.startsWith("@"))
+    .map(scopeOf)
+    .filter((scope) => !runtimeScopes.has(scope));
+  return [...new Set([...names, ...scopes])].sort();
+}
+
+function scopeOf(name) {
+  return `${name.slice(0, name.indexOf("/"))}/`;
 }
 
 export async function inspectManagedRelease(root, forbiddenPackages) {
@@ -36,10 +41,11 @@ export async function inspectManagedRelease(root, forbiddenPackages) {
   const packages = (await readdir(store, { withFileTypes: true }))
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
-  // The pnpm store names `@scope/name@1.2.3` as `@scope+name@1.2.3`.
-  const leaked = forbiddenPackages.filter((name) =>
-    packages.some((entry) => entry.startsWith(`${name.replace("/", "+")}@`)),
-  );
+  // The pnpm store names `@scope/name@1.2.3` as `@scope+name@1.2.3`; a scope entry ends in `/`.
+  const leaked = forbiddenPackages.filter((name) => {
+    const storeName = name.replace("/", "+");
+    return packages.some((entry) => entry.startsWith(name.endsWith("/") ? storeName : `${storeName}@`));
+  });
   if (leaked.length > 0) throw new Error(`Development packages leaked into production: ${leaked.join(", ")}`);
   return { packageCount: packages.length };
 }
@@ -52,17 +58,19 @@ export async function resetGeneratedOutput(output) {
   const moved = await rename(output, retired).then(
     () => true,
     async (error) => {
-      await rmdir(holding);
+      await rmdir(holding).catch((cleanup) => console.warn(`Could not remove ${holding}:`, cleanup));
       if (error?.code === "ENOENT") return false;
       throw error;
     },
   );
   if (moved) {
-    const refusal = await checkGeneratedOutput(retired);
+    const refusal = await checkGeneratedOutput(retired).catch((error) => error);
     if (refusal) {
-      await rename(retired, output);
+      await rename(retired, output).catch((error) => {
+        throw new Error(`Could not restore production/; it was left at ${retired}.`, { cause: error });
+      });
       await rmdir(holding);
-      throw new Error(refusal);
+      throw refusal;
     }
     await rm(holding, { recursive: true });
   }
@@ -70,14 +78,19 @@ export async function resetGeneratedOutput(output) {
   await writeFile(join(output, ".capacitylens-generated-release"), generatedMarker);
 }
 
+// Returns undefined for a generated artifact; any refusal or read failure rejects.
 async function checkGeneratedOutput(path) {
   const existing = await lstat(path);
   if (!existing.isDirectory() || existing.isSymbolicLink()) {
-    return "Refusing to replace production/: it is not a generated directory.";
+    throw new Error("Refusing to replace production/: it is not a generated directory.");
   }
-  const marker = await readFile(join(path, ".capacitylens-generated-release"), "utf8").catch(() => undefined);
+  // Only a missing marker means "not ours"; any other read failure is reported as itself.
+  const marker = await readFile(join(path, ".capacitylens-generated-release"), "utf8").catch((error) => {
+    if (error?.code === "ENOENT") return undefined;
+    throw error;
+  });
   if (marker !== generatedMarker) {
-    return "Refusing to replace production/: it is not a CapacityLens-generated artifact.";
+    throw new Error("Refusing to replace production/: it is not a CapacityLens-generated artifact.");
   }
   return undefined;
 }
