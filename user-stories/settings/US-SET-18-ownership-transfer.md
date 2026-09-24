@@ -41,7 +41,7 @@ every sensitive action.
    that nothing changes until all three have happened. A selects **Manage ownership**
    (`data-testid="ownership-transfer-open"`) to open the ceremony in a modal.
    Opening the modal reads the current request, including a nominee's answer received while A was
-   away. If that read fails, **Retry** reads it again without closing the modal.
+   away. If that read fails, **Try again** reads it again without closing the modal.
 2. In the modal, A picks B from **Next Owner** (`data-testid="ownership-transfer-nominee"`) and chooses **Start
    transfer** (`data-testid="ownership-transfer-start"`). Only **active Admins** are offered.
 3. The modal now shows the live request (`data-testid="ownership-transfer-state"`): waiting for B to

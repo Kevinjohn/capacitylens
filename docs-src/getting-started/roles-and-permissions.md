@@ -84,7 +84,7 @@ the Owner can cancel, and the nominee can decline. The Owner can also nominate s
 else instead, which replaces the standing request rather than opening a second one.
 
 Opening **Manage ownership** reads the latest request, including an answer given while you were
-away. If the request cannot be loaded, select **Retry** in the modal. After the Owner confirms,
+away. If the request cannot be loaded, select **Try again** in the modal. After the Owner confirms,
 CapacityLens refreshes their access; if that fails, it closes the company view and asks them to
 restore access before continuing.
 
