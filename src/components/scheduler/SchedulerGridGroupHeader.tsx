@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { m } from "@/i18n";
+import { isCapacityTracked } from "@capacitylens/shared/types/entities";
 import { Button } from "../ui/button";
 import { LAYOUT, buildSchedulerDensity } from "./layout";
 import type { GroupModel } from "./schedulerModel";
@@ -20,6 +21,8 @@ interface SchedulerGridGroupHeaderProps {
 function resolveGroupSummary(group: GroupModel, collapsed: boolean, showDisciplineUtilization: boolean): string {
   if (collapsed) return m.scheduler_group_hidden({ count: group.rows.length });
   if (group.external || !showDisciplineUtilization) return "";
+  // A group with no capacity-tracked row shows no average rather than 0%.
+  if (!group.rows.some((row) => isCapacityTracked(row.resource))) return "";
   return m.scheduler_group_avg_utilisation({ percent: buildAverageUtilizationLabel(group.rows) });
 }
 

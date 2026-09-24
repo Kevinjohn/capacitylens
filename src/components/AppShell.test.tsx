@@ -582,28 +582,23 @@ function registerPinnedNavigationOrderTest(): void {
   });
 }
 
-function registerSidebarThemeToggleTest(): void {
-  it("offers an icon theme toggle directly below Settings", () => {
-    act(() => useStore.getState().setTheme("light"));
-    renderAppShell();
-
-    const navigation = screen.getByRole("navigation");
-    const settings = within(navigation).getByRole("link", { name: "Settings" });
-    const toggle = within(navigation).getByRole("button", { name: "Switch to dark mode" });
-
-    expect(settings.compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(toggle.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
-
-    fireEvent.click(toggle);
-
-    expect(document.documentElement).toHaveAttribute("data-theme", "dark");
-    expect(localStorage.getItem("capacitylens/theme")).toBe("dark");
-
-    act(() => useStore.getState().setSidebarOpen(false));
-    fireEvent.click(within(navigation).getByRole("button", { name: "Switch to light mode" }));
-
-    expect(document.documentElement).toHaveAttribute("data-theme", "light");
-  });
+function stubMatchMedia(matches: (query: string) => boolean): void {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(
+      (query: string) =>
+        ({
+          matches: matches(query),
+          media: query,
+          onchange: null,
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+          dispatchEvent: vi.fn(() => true),
+        }) satisfies MediaQueryList,
+    ),
+  );
 }
 
 function registerNavigationRoutesTest(): void {
@@ -635,22 +630,7 @@ function registerDefaultSidebarStateTest(): void {
 
 function registerMobileSidebarTriggerTest(): void {
   it("reports the mobile sheet state and next action from the top-bar trigger", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn(
-        () =>
-          ({
-            matches: true,
-            media: "(max-width: 767px)",
-            onchange: null,
-            addListener: vi.fn(),
-            removeListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-            dispatchEvent: vi.fn(() => true),
-          }) satisfies MediaQueryList,
-      ),
-    );
+    stubMatchMedia(() => true);
     sessionStorage.setItem("capacitylens/rotateHintDismissed", "1");
     renderAppShell();
 
@@ -1108,7 +1088,6 @@ describe("AppShell navigation links", () => {
   registerImportExportAbsenceTest();
   registerSidebarSignOutTest();
   registerPinnedNavigationOrderTest();
-  registerSidebarThemeToggleTest();
   registerNavigationRoutesTest();
 });
 

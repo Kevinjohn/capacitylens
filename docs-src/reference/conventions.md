@@ -102,8 +102,8 @@ Counterexamples that are now tracked debt:
 ## Results
 
 - **A multi-outcome result is a discriminated union on `kind`**, each variant carrying only
-  its own data, named `<Thing>Result` or `<Thing>Outcome`. `SessionListResult` in
-  `src/account/sessionClient.ts` and `ReserveAccountCommandResult` in
+  its own data, named `<Thing>Result` or `<Thing>Outcome`. `PersonScheduleResult` in
+  `src/components/person-schedule/personScheduleTypes.ts` and `ReserveAccountCommandResult` in
   `server/src/accounts/state/commandLedgerWrites.ts` are the pattern. Callers `switch` on
   `kind`; there is no boolean to check first. UI state unions such as `ModalState` in
   `src/components/scheduler/schedulerGridModal.ts` use the same `kind` discriminant without

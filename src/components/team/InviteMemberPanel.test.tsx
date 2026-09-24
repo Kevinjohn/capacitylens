@@ -17,6 +17,7 @@ function renderInvite(overrides: Partial<React.ComponentProps<typeof InviteMembe
     errorField: null,
     errorId: "invite-error",
     clear: vi.fn(),
+    clearMintedLink: vi.fn(),
     mintedLink: null,
     copyLink: vi.fn(),
     submitInvite: vi.fn(async () => {}),

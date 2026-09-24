@@ -109,18 +109,6 @@ export const accountClient = {
     );
   },
 
-  revokeOwnSession(sessionId: string, command?: BrowserAccountCommand): Promise<Response> {
-    return runCommand({
-      operationKey: `own-session:${sessionId}`,
-      explicit: command,
-      request: (resolved) =>
-        apiFetch(
-          `${API_BASE}/api/account/sessions/${encodeURIComponent(sessionId)}`,
-          buildCommandRequestInit({ method: "DELETE", credentials: "include" }, resolved),
-        ),
-    });
-  },
-
   async createWorkspace(body: CreateWorkspaceBody, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand({
       operationKey: await buildPayloadOperationKey("workspace-create", body),

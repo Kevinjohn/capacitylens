@@ -6,12 +6,10 @@ import { m } from "@/i18n";
 import { SecuritySection } from "./SecuritySection";
 
 const changePassword = vi.fn();
-const readSessions = vi.fn();
 const getIdentityProvider = vi.fn();
 vi.mock("../../auth/authClient", () => ({
   authClient: { changePassword: (...args: unknown[]) => changePassword(...args) },
 }));
-vi.mock("../../account/sessionClient", () => ({ readSessions: () => readSessions() }));
 vi.mock("../../account/accountClient", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../account/accountClient")>();
   return {
@@ -25,7 +23,6 @@ vi.mock("../../account/accountClient", async (importOriginal) => {
 
 beforeEach(() => {
   changePassword.mockReset();
-  readSessions.mockReset().mockResolvedValue({ kind: "loaded", sessions: [] });
   getIdentityProvider
     .mockReset()
     .mockImplementation(() =>
@@ -52,11 +49,9 @@ function renderSecurity(overrides: Partial<AuthContextValue> = {}, passwordOpen 
   );
 }
 
-it("keeps password and session controls hidden until the password dialog is opened", () => {
+it("keeps password controls hidden until the password dialog is opened", () => {
   renderSecurity();
   expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
-  expect(screen.queryByText(m.settings_security_active_sessions())).not.toBeInTheDocument();
-  expect(readSessions).not.toHaveBeenCalled();
 });
 
 it("changes a password through the dialog and revokes other sessions", async () => {
@@ -190,14 +185,13 @@ it.each([
   else expect(screen.queryByText(m.account_mfa_title())).not.toBeInTheDocument();
 });
 
-it("preserves Microsoft identity-link status without password or session controls", async () => {
+it("preserves Microsoft identity-link status without password controls", async () => {
   renderSecurity({
     authMode: "sso",
     providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
   });
   expect(await screen.findByText(m.settings_sso_connected({ provider: "Microsoft" }))).toBeInTheDocument();
   expect(screen.queryByLabelText(m.settings_security_current_password())).not.toBeInTheDocument();
-  expect(screen.queryByText(m.settings_security_active_sessions())).not.toBeInTheDocument();
 });
 
 it("shows Google and Microsoft connection status independently", async () => {

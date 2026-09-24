@@ -95,7 +95,7 @@
     },
     {
       "path": "src/components/AppShell.test.tsx",
-      "baseline": 1301,
+      "baseline": 1275,
       "reason": "test-size ratchet baseline; split when touched"
     },
     {

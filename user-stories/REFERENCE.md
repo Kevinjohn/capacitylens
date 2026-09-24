@@ -260,7 +260,8 @@ portrait or phone landscape).
 
 An icon button directly below **Settings** switches between explicit light and dark modes without
 opening Settings. Its accessible name describes the next action (**Switch to dark mode** or
-**Switch to light mode**) and it remains available on the collapsed icon rail. The full
+**Switch to light mode**), follows the scheme actually shown (with **Match system**, the OS scheme)
+and it remains available on the collapsed icon rail. The full
 **Light** / **Dark** / **Match system** choice remains in Settings.
 
 **Rotate hint (portrait phones only).** On a portrait viewport ≤ 767px wide, a dismissable
@@ -1158,7 +1159,7 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
-  shown again. The panel explicitly says CapacityLens does not send invitation emails: the creator
+  shown again; closing the dialog clears it, so reopening shows an empty form. The panel explicitly says CapacityLens does not send invitation emails: the creator
   copies and sends the link. The field has no explanatory helper copy; it is optional in password
   mode and required in SSO-only mode. Creation confirmation stays beside the link, with instructions to
   revoke and recreate it if lost, rather than overlaying the panel in a toast.

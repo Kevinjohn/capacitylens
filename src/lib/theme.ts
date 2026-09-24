@@ -68,11 +68,16 @@ export function applyThemeToDom(preference: ThemePreference): void {
  *  being re-registered on each change. Returns an unsubscribe fn (no-op if there's
  *  no matchMedia). */
 export function watchSystemTheme(getPreference: () => ThemePreference): () => void {
+  return subscribeToSystemScheme(() => {
+    if (getPreference() === "system") applyThemeToDom("system");
+  });
+}
+
+/** Call `onChange` whenever the OS colour scheme flips. Returns an unsubscribe fn (no-op if
+ *  there's no matchMedia). */
+export function subscribeToSystemScheme(onChange: () => void): () => void {
   const mediaQuery = readDarkSchemeQuery();
   if (!mediaQuery) return () => {};
-  const onChange = () => {
-    if (getPreference() === "system") applyThemeToDom("system");
-  };
   mediaQuery.addEventListener("change", onChange);
   return () => mediaQuery.removeEventListener("change", onChange);
 }

@@ -47,8 +47,8 @@ permissions](/getting-started/roles-and-permissions) for why.
 
 4. Select **Create invite**, then **Copy** the one-time link. It's shown exactly once — the server keeps only a hash of it —
    so copy it now and send it to the [person](/reference/glossary). The confirmation stays beside
-   the link. CapacityLens does not send it for you. If you lose it, revoke the invite and create
-   another one.
+   the link. CapacityLens does not send it for you. Closing the dialog clears the link. If you
+   lose it, revoke the invite and create another one.
 
 ## What the invitee sees
 

@@ -15,7 +15,6 @@ import {
   ownerAndEditor,
   rawMember,
   renderSection,
-  requireValue,
   saveRoleVia,
   type RawMember,
 } from "./MembersSection.testSupport";
@@ -102,7 +101,6 @@ describe("MembersSection — invite mint", () => {
   registerInviteValidationTests();
   registerInviteCreationFailureTests();
   registerInviteRevokeFailureTests();
-  registerInviteLinkReconciliationTests();
   registerInviteMissingLinkReconciliationTests();
   registerInviteClipboardFailureTests();
 });
@@ -160,8 +158,6 @@ function registerInviteCopyControlTests(): void {
       }),
     );
     await waitFor(() => expect(screen.queryByTestId("reset-link")).not.toBeInTheDocument());
-    fireEvent.click(screen.getByTestId("invite-open"));
-    expect(screen.getByTestId("invite-link")).toBeInTheDocument();
   });
 
   it("shows the selected invite role consequences before creating the link", async () => {
@@ -218,6 +214,55 @@ function registerInviteMintTests(): void {
     // survive it — this is the reconciliation path the test's name actually promises.
     await waitFor(() => expect(invitesReads).toBeGreaterThanOrEqual(2));
     expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOK123");
+
+    // Closing the dialog ends the one-time display: reopening shows an empty form, not the link.
+    closeInviteDialog();
+    fireEvent.click(screen.getByTestId("invite-open"));
+    await screen.findByRole("dialog", { name: "Invite someone" });
+    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
+  });
+
+  it("discards the link of a create that resolves after the dialog closed", async () => {
+    const pending: { respond?: (response: Response) => void } = {};
+    // The late invite stays pending, so only the dialog close can clear its link.
+    let invites: Record<string, unknown>[] = [];
+    let invitesReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /invites": () => {
+          invitesReads += 1;
+          return jsonResponse({ invites });
+        },
+        "POST /api/invites": () =>
+          new Promise<Response>((resolve) => {
+            pending.respond = resolve;
+          }),
+      }),
+    );
+    await renderInviteSection();
+    await screen.findByTestId("members-section");
+
+    fireEvent.click(screen.getByTestId("invite-submit"));
+    await waitFor(() => expect(pending.respond).toBeDefined());
+    closeInviteDialog();
+    const readsBeforeResponse = invitesReads;
+    invites = [
+      {
+        id: "inv-late",
+        role: "editor",
+        preauthEmail: null,
+        expiresAt: "2026-12-01T00:00:00.000Z",
+        usedAt: null,
+        createdAt: "2026-07-17T00:00:00.000Z",
+      },
+    ];
+    pending.respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
+    await waitFor(() => expect(invitesReads).toBeGreaterThan(readsBeforeResponse));
+
+    fireEvent.click(screen.getByTestId("invite-open"));
+    await screen.findByRole("dialog", { name: "Invite someone" });
+    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });
 }
 
@@ -639,47 +684,6 @@ function registerInviteRevokeFailureTests(): void {
 
     await expectNotice(/unknown outcome.*revoke transport lost.*reloaded/i);
     expect(inviteReads).toBe(2);
-  });
-}
-
-function registerInviteLinkReconciliationTests(): void {
-  it("keeps invite A's minted link when invite B is revoked", async () => {
-    const inviteA = {
-      id: "invite-a",
-      role: "editor",
-      preauthEmail: null,
-      expiresAt: "2026-12-01T00:00:00.000Z",
-      usedAt: null,
-      createdAt: "2026-07-17T00:00:00.000Z",
-    };
-    const inviteB = { ...inviteA, id: "invite-b", preauthEmail: "b@example.test" };
-    let invites: Record<string, unknown>[] = [inviteB];
-    vi.stubGlobal(
-      "fetch",
-      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
-        "GET /invites": () => jsonResponse({ invites }),
-        "POST /api/invites": () => {
-          invites = [inviteA, inviteB];
-          return jsonResponse({ id: inviteA.id, token: "TOKEN_A" }, 201);
-        },
-        "DELETE /invites/invite-b": () => {
-          invites = [inviteA];
-          return new Response(null, { status: 204 });
-        },
-      }),
-    );
-    await renderInviteSection();
-    await screen.findByText(/b@example\.test/);
-
-    await userEvent.setup().click(screen.getByTestId("invite-submit"));
-    expect(await screen.findByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
-    closeInviteDialog();
-    const revokeButtons = await screen.findAllByTestId("invite-revoke");
-    await userEvent.setup().click(requireValue(revokeButtons[1], "the second invitation revoke button"));
-
-    await waitFor(() => expect(screen.queryByText(/b@example\.test/)).not.toBeInTheDocument());
-    fireEvent.click(screen.getByTestId("invite-open"));
-    expect(screen.getByTestId("invite-link")).toHaveTextContent("/invite/TOKEN_A");
   });
 }
 

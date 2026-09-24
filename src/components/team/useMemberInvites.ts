@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { m } from "@/i18n";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -27,6 +27,8 @@ interface InviteMutationDependencies extends MemberInviteDependencies {
   inviteRole: InvitationRole;
   setInvitationPreauthorizedEmail: Dispatch<SetStateAction<string>>;
   setMintedLink: Dispatch<SetStateAction<MintedInviteLink | null>>;
+  /** Changes whenever the dialog is closed; a create that resolves after that discards its link. */
+  readLinkGeneration: () => number;
   invitationResourceId: string;
   setInvitationResourceId: Dispatch<SetStateAction<string>>;
 }
@@ -70,11 +72,13 @@ function createSubmitInvite({
   inviteRole,
   setInvitationPreauthorizedEmail,
   setMintedLink,
+  readLinkGeneration,
   invitationResourceId,
   setInvitationResourceId,
   invitationPeople,
 }: InviteMutationDependencies & { invitationPeople: readonly InvitationPersonOption[] }) {
   return async () => {
+    const linkGeneration = readLinkGeneration();
     clear();
     requestAccountId();
     const emailValidation = buildInviteEmailValidation(authMode, invitationPreauthorizedEmail);
@@ -109,10 +113,12 @@ function createSubmitInvite({
           fail("invite", result.message ?? m.settings_members_err_create_invite({ status: result.status }));
           return;
         }
-        setMintedLink({
-          inviteId: result.value.id ?? null,
-          link: `${window.location.origin}/invite/${encodeURIComponent(result.value.token)}`,
-        });
+        if (readLinkGeneration() === linkGeneration) {
+          setMintedLink({
+            inviteId: result.value.id ?? null,
+            link: `${window.location.origin}/invite/${encodeURIComponent(result.value.token)}`,
+          });
+        }
         setInvitationPreauthorizedEmail("");
         setInvitationResourceId("");
         clear();
@@ -206,6 +212,13 @@ export function useMemberInvites() {
         : current,
     );
   }, []);
+  // Closing the invite dialog ends the "shown once" moment, so the link does not return on reopen,
+  // including a link from a create that is still in flight when the dialog closes.
+  const linkGeneration = useRef(0);
+  const clearMintedLink = useCallback(() => {
+    linkGeneration.current += 1;
+    setMintedLink(null);
+  }, []);
   const resetInviteDraft = useCallback(() => {
     setInvitationPreauthorizedEmail("");
     setInvitationResourceId("");
@@ -238,6 +251,7 @@ export function useMemberInvites() {
       inviteRole,
       setInvitationPreauthorizedEmail,
       setMintedLink,
+      readLinkGeneration: () => linkGeneration.current,
       invitationResourceId,
       setInvitationResourceId,
       invitationPeople,
@@ -262,6 +276,7 @@ export function useMemberInvites() {
     invitationResourceId,
     setInvitationResourceId,
     mintedLink,
+    clearMintedLink,
     resetInviteDraft,
     reconcileMintedInvite,
     createActions,

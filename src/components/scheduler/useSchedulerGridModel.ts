@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { hasActiveFilters, useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
-import { carriesHourlyLoad, emptyAppData, isCapacityTracked } from "@capacitylens/shared/types/entities";
+import { carriesHourlyLoad, emptyAppData } from "@capacitylens/shared/types/entities";
 import { buildLaneLayout, buildSchedulerDensity, LAYOUT } from "./layout";
 import { buildSchedulerModel, applyVisibleUtilization } from "./schedulerModel";
 import { useCalendarToday } from "./useCalendarToday";
@@ -287,12 +287,8 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   // Derived from the model only — memoise so opening a modal / measuring the
   // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
   const overallUtil = useMemo(
-    // Exclude external / 3rd-party rows: they carry no capacity and do not contribute to the
-    // headline utilisation average.
-    () =>
-      buildAverageUtilizationLabel(
-        model.flatMap((group) => group.rows).filter((row) => isCapacityTracked(row.resource)),
-      ),
+    // External / 3rd-party rows are excluded inside the shared average.
+    () => buildAverageUtilizationLabel(model.flatMap((group) => group.rows)),
     [model],
   );
 

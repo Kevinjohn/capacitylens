@@ -39,6 +39,18 @@ new features and **patch** versions carry fixes.
   claims distinct (#1253).
 - Keep failed company-sign-in connection messages visible after returning from the provider,
   and clear the previous failure when retrying (#1216).
+- Exclude external / 3rd-party people from a group's average utilisation, as the headline
+  figure already does (#1257).
+- Label the sidebar theme button by the scheme actually displayed, so with Match system on a
+  dark device it offers light mode and switches to it (#1260).
+- Clear a new invitation link when the invite dialog closes, so reopening it shows an empty
+  form instead of the previous link (#1262).
+
+### Removed
+
+- Remove the list of active sessions from Account → Security. Individual sessions can no longer
+  be viewed or signed out from the app; changing your password still signs out other sessions
+  (#1234, #1255).
 
 ## [0.70.1-alpha.1] - 2026-09-23
 
