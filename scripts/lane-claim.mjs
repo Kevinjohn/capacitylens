@@ -78,6 +78,13 @@ function withMutex(directory, body) {
       releaseMutex(temporary, ownerName);
       if (!["EEXIST", "ENOTEMPTY", "EISDIR", "ENOTDIR"].includes(error.code)) throw error;
       const holder = readMutexOwner(path);
+      // The old file format published the path before writing its owner. An empty/corrupt legacy
+      // file may still belong to a live publisher paused in that window, so it cannot be reaped.
+      if (holder?.legacy && (holder.corrupt || !Number.isInteger(holder.pid) || holder.pid <= 0)) {
+        if (Date.now() > deadline)
+          throw new Error(`lane: the legacy claim mutex at ${path} has no valid owner.`, { cause: error });
+        continue;
+      }
       if (holder && !processAlive(holder.pid)) {
         if (holder.legacy) {
           // Older launchers used a regular file. Unlink cannot delete a directory successor.

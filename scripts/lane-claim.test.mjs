@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import test from "node:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { presetEnvironment, resolvePlaywrightRunMode, E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
@@ -50,66 +50,114 @@ test("a live mutex is not reclaimed solely because its timestamp is old", () => 
   }
 });
 
-test("an incomplete private mutex write never publishes ownership", () => {
-  const environment = scratch();
-  const directory = laneDirectory(environment);
-  claimLane({ worktree: "/tmp/initial", environment }).release();
-  // Simulate a process paused between creating and writing its private claim file.
-  mkdirSync(join(directory, ".mutex-other-process"));
-  writeFileSync(join(directory, ".mutex-other-process", "owner.json"), "");
-  const first = claimLane({ worktree: "/tmp/first", environment });
-  const second = claimLane({ worktree: "/tmp/second", environment });
-  assert.notEqual(first.lane, second.lane);
-  first.release();
-  second.release();
-});
-
-test("a paused subprocess publisher cannot make two live claims share a lane", async () => {
-  const environment = scratch();
-  const directory = laneDirectory(environment);
-  claimLane({ worktree: "/tmp/initial", environment }).release();
-  const publisher = spawn(
-    process.execPath,
-    [
-      "--input-type=module",
-      "-e",
-      `import { mkdirSync, writeFileSync, renameSync, unlinkSync, rmdirSync } from 'node:fs';
-       import { join } from 'node:path';
-       const { claimLane } = await import(process.argv[1]);
-       const directory = process.argv[2];
-       const temporary = join(directory, '.mutex-publisher');
-       mkdirSync(temporary);
-       process.send('created');
-       await new Promise((resolve) => process.once('message', resolve));
-       writeFileSync(join(temporary, 'owner-publisher.json'), JSON.stringify({ pid: process.pid, at: Date.now() }));
-       renameSync(temporary, join(directory, '.mutex'));
-       unlinkSync(join(directory, '.mutex', 'owner-publisher.json'));
-       rmdirSync(join(directory, '.mutex'));
-       const claim = claimLane({ worktree: '/tmp/publisher', environment: { XDG_CACHE_HOME: process.argv[3] } });
-       process.send({ lane: claim.lane });
-       claim.release();
-       process.disconnect();`,
-      new URL("./lane-claim.mjs", import.meta.url).href,
-      directory,
-      environment.XDG_CACHE_HOME,
-    ],
-    { stdio: ["ignore", "pipe", "pipe", "ipc"] },
-  );
-  const publisherExit = new Promise((resolve) => publisher.once("exit", resolve));
-  const nextMessage = () =>
-    new Promise((resolve, reject) => {
-      publisher.once("message", resolve);
-      publisher.once("error", reject);
-      publisher.once("exit", (code) => reject(new Error(`Publisher exited before sending its claim: ${code}`)));
-    });
-  assert.equal(await nextMessage(), "created");
-  const contender = claimLane({ worktree: "/tmp/contender", environment });
-  publisher.send("continue");
-  const published = await nextMessage();
-  assert.notEqual(published.lane, contender.lane);
-  contender.release();
-  assert.equal(await publisherExit, 0);
-});
+test(
+  "a paused real mutex publisher cannot enter the lane scan while another owner holds the lock",
+  { timeout: 15_000 },
+  async () => {
+    const environment = scratch();
+    const directory = laneDirectory(environment);
+    claimLane({ worktree: "/tmp/initial", environment }).release();
+    const pauseAt = async (name) => {
+      const path = join(directory, name);
+      for (let tries = 0; tries < 500; tries += 1) {
+        if (existsSync(path)) return;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      throw new Error(`Timed out waiting for ${name}`);
+    };
+    const childCode = `
+    import fs from 'node:fs';
+    import { syncBuiltinESMExports } from 'node:module';
+    import { join } from 'node:path';
+    const [moduleUrl, role, directory, cache] = process.argv.slice(1);
+    const mutex = join(directory, '.mutex');
+    const signal = (name) => fs.writeFileSync(join(directory, name), 'ready');
+    const wait = (name) => {
+      while (!fs.existsSync(join(directory, name))) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10);
+    };
+    const created = () => { signal('publisher-created'); wait('continue-publisher'); };
+    const locked = () => { signal('contender-locked'); wait('continue-contender'); };
+    const open = fs.openSync;
+    fs.openSync = (path, ...args) => {
+      const descriptor = open(path, ...args);
+      if (String(path) === mutex) (role === 'publisher' ? created : locked)();
+      return descriptor;
+    };
+    const mkdir = fs.mkdirSync;
+    fs.mkdirSync = (path, ...args) => {
+      const result = mkdir(path, ...args);
+      if (role === 'publisher' && String(path).startsWith(join(directory, '.mutex-owner-'))) created();
+      return result;
+    };
+    const rename = fs.renameSync;
+    fs.renameSync = (from, to) => {
+      const result = rename(from, to);
+      if (role === 'contender' && String(to) === mutex) locked();
+      return result;
+    };
+    const readdir = fs.readdirSync;
+    fs.readdirSync = (path, ...args) => {
+      if (role === 'publisher' && String(path) === directory) signal('publisher-scanned');
+      return readdir(path, ...args);
+    };
+    syncBuiltinESMExports();
+    const { claimLane } = await import(moduleUrl);
+    const claim = claimLane({ worktree: '/tmp/' + role, environment: { XDG_CACHE_HOME: cache } });
+    fs.writeFileSync(join(directory, role + '-lane'), String(claim.lane));
+    wait('release-' + role);
+    claim.release();
+  `;
+    const run = (role) => {
+      const child = spawn(
+        process.execPath,
+        [
+          "--input-type=module",
+          "-e",
+          childCode,
+          new URL("./lane-claim.mjs", import.meta.url).href,
+          role,
+          directory,
+          environment.XDG_CACHE_HOME,
+        ],
+        { stdio: ["ignore", "ignore", "pipe"] },
+      );
+      let stderr = "";
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk;
+      });
+      const done = new Promise((resolve) => child.once("exit", (code) => resolve({ code, stderr })));
+      return { child, done };
+    };
+    const publisher = run("publisher");
+    let contender;
+    try {
+      await pauseAt("publisher-created");
+      contender = run("contender");
+      await pauseAt("contender-locked");
+      writeFileSync(join(directory, "continue-publisher"), "go");
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.equal(
+        existsSync(join(directory, "publisher-scanned")),
+        false,
+        "the publisher must still wait for the contender's mutex",
+      );
+      writeFileSync(join(directory, "continue-contender"), "go");
+      await pauseAt("publisher-lane");
+      await pauseAt("contender-lane");
+      assert.notEqual(
+        readFileSync(join(directory, "publisher-lane"), "utf8"),
+        readFileSync(join(directory, "contender-lane"), "utf8"),
+      );
+    } finally {
+      for (const name of ["continue-publisher", "continue-contender", "release-publisher", "release-contender"])
+        writeFileSync(join(directory, name), "go");
+      publisher.child.kill("SIGKILL");
+      contender?.child.kill("SIGKILL");
+      await publisher.done;
+      if (contender) await contender.done;
+    }
+  },
+);
 
 test("a live legacy file mutex is respected and a dead one is reclaimed", () => {
   const environment = scratch();
@@ -130,6 +178,25 @@ test("a live legacy file mutex is respected and a dead one is reclaimed", () => 
   const claim = claimLane({ worktree: "/tmp/reclaimed", environment });
   assert.equal(claim.lane, 0);
   claim.release();
+});
+
+test("an empty or corrupt legacy mutex is left for its possible live publisher", () => {
+  for (const contents of ["", "not-json"]) {
+    const environment = scratch();
+    const directory = laneDirectory(environment);
+    claimLane({ worktree: "/tmp/initial", environment }).release();
+    const mutex = join(directory, ".mutex");
+    writeFileSync(mutex, contents);
+    const realNow = Date.now;
+    let now = realNow();
+    Date.now = () => (now += 31_000);
+    try {
+      assert.throws(() => claimLane({ worktree: "/tmp/blocked", environment }), /no valid owner/);
+      assert.equal(readFileSync(mutex, "utf8"), contents);
+    } finally {
+      Date.now = realNow;
+    }
+  }
 });
 
 test("racing dead-owner cleanup cannot remove a successor's mutex", () => {
