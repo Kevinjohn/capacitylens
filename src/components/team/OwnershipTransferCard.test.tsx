@@ -136,6 +136,29 @@ describe("OwnershipTransferCard as the Owner", () => {
     expect(useStore.getState().notice?.message).toBe(m.settings_members_access_refresh_failed());
   });
 
+  it("reconciles a completion that returns after the dialog is closed and reopened", async () => {
+    seed({
+      live: request({ state: "awaiting_owner", revision: "2", targetAcceptedAt: "2026-09-11T00:00:00.000Z" }),
+      latestOutcome: null,
+    });
+    let finishCommand: (result: ReturnType<typeof applied>) => void = () => {
+      throw new Error("Expected a pending completion");
+    };
+    client.commandOwnershipTransfer.mockImplementation(() => new Promise((resolve) => (finishCommand = resolve)));
+    const refreshAuth = vi.fn(async () => {});
+    renderAs(OWNER.userId, refreshAuth);
+    await openOwnershipDialog();
+    fireEvent.click(await screen.findByTestId("ownership-transfer-complete"));
+    await waitFor(() => expect(client.commandOwnershipTransfer).toHaveBeenCalledOnce());
+    fireEvent.click(screen.getByRole("button", { name: m.ownership_transfer_close() }));
+    await openOwnershipDialog();
+    await waitFor(() => expect(client.readOwnershipTransfer.mock.calls.length).toBeGreaterThanOrEqual(3));
+    act(() => finishCommand(applied(request({ state: "completed" }))));
+    await waitFor(() => expect(refreshAuth).toHaveBeenCalledOnce());
+    await waitFor(() => expect(reproject).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID));
+    await waitFor(() => expect(screen.getByTestId("ownership-transfer-complete")).not.toBeDisabled());
+  });
+
   it("keeps ceremony controls in a Company ownership modal", async () => {
     seed({ live: null, latestOutcome: null });
     renderAs(OWNER.userId);

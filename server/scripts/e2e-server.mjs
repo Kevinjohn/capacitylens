@@ -69,7 +69,7 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
   });
 child.on("error", (error) => {
   console.error(`e2e-server: could not start tsx: ${error.message}`);
-  process.exit(1);
+  process.exit(2);
 });
 child.on("exit", (code, signal) => {
   process.exit(interrupted || signal ? 1 : (code ?? 1));

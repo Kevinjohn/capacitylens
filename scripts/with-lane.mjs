@@ -72,7 +72,7 @@ process.on("exit", release);
 child.on("error", (error) => {
   release();
   console.error(`with-lane: could not start ${command}: ${error.message}`);
-  process.exit(1);
+  process.exit(2);
 });
 
 child.on("exit", (code, signal) => {

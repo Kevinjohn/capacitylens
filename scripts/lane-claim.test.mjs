@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import test from "node:test";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { presetEnvironment, resolvePlaywrightRunMode, E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
+import { nonColourEnvironment } from "./pnpm-spawn.mjs";
 import { claimLane, laneDirectory, reapLane, releaseLane, releaseMutex, shareForClaims } from "./lane-claim.mjs";
 import { LANE_CEILING, portsForLane } from "./ports.mjs";
 
@@ -63,6 +64,74 @@ test("an incomplete private mutex write never publishes ownership", () => {
   second.release();
 });
 
+test("a paused subprocess publisher cannot make two live claims share a lane", async () => {
+  const environment = scratch();
+  const directory = laneDirectory(environment);
+  claimLane({ worktree: "/tmp/initial", environment }).release();
+  const publisher = spawn(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import { mkdirSync, writeFileSync, renameSync, unlinkSync, rmdirSync } from 'node:fs';
+       import { join } from 'node:path';
+       const { claimLane } = await import(process.argv[1]);
+       const directory = process.argv[2];
+       const temporary = join(directory, '.mutex-publisher');
+       mkdirSync(temporary);
+       process.send('created');
+       await new Promise((resolve) => process.once('message', resolve));
+       writeFileSync(join(temporary, 'owner-publisher.json'), JSON.stringify({ pid: process.pid, at: Date.now() }));
+       renameSync(temporary, join(directory, '.mutex'));
+       unlinkSync(join(directory, '.mutex', 'owner-publisher.json'));
+       rmdirSync(join(directory, '.mutex'));
+       const claim = claimLane({ worktree: '/tmp/publisher', environment: { XDG_CACHE_HOME: process.argv[3] } });
+       process.send({ lane: claim.lane });
+       claim.release();
+       process.disconnect();`,
+      new URL("./lane-claim.mjs", import.meta.url).href,
+      directory,
+      environment.XDG_CACHE_HOME,
+    ],
+    { stdio: ["ignore", "pipe", "pipe", "ipc"] },
+  );
+  const publisherExit = new Promise((resolve) => publisher.once("exit", resolve));
+  const nextMessage = () =>
+    new Promise((resolve, reject) => {
+      publisher.once("message", resolve);
+      publisher.once("error", reject);
+      publisher.once("exit", (code) => reject(new Error(`Publisher exited before sending its claim: ${code}`)));
+    });
+  assert.equal(await nextMessage(), "created");
+  const contender = claimLane({ worktree: "/tmp/contender", environment });
+  publisher.send("continue");
+  const published = await nextMessage();
+  assert.notEqual(published.lane, contender.lane);
+  contender.release();
+  assert.equal(await publisherExit, 0);
+});
+
+test("a live legacy file mutex is respected and a dead one is reclaimed", () => {
+  const environment = scratch();
+  const directory = laneDirectory(environment);
+  claimLane({ worktree: "/tmp/initial", environment }).release();
+  const mutex = join(directory, ".mutex");
+  writeFileSync(mutex, JSON.stringify({ pid: process.pid, at: 0 }));
+  const realNow = Date.now;
+  let now = realNow();
+  Date.now = () => (now += 31_000);
+  try {
+    assert.throws(() => claimLane({ worktree: "/tmp/blocked", environment }), /held by pid/);
+  } finally {
+    Date.now = realNow;
+  }
+  unlinkSync(mutex);
+  writeFileSync(mutex, JSON.stringify({ pid: 2 ** 30, at: 0 }));
+  const claim = claimLane({ worktree: "/tmp/reclaimed", environment });
+  assert.equal(claim.lane, 0);
+  claim.release();
+});
+
 test("racing dead-owner cleanup cannot remove a successor's mutex", () => {
   const environment = scratch();
   const directory = laneDirectory(environment);
@@ -88,7 +157,7 @@ test("explicit browser presets clear conflicting inherited mode flags", () => {
     KEEP_THIS: "yes",
   };
   for (const preset of Object.values(E2E_RUN_PRESETS)) {
-    const environment = presetEnvironment(inherited, preset.environment);
+    const environment = nonColourEnvironment({}, presetEnvironment(inherited, preset.environment));
     assert.equal(environment.KEEP_THIS, "yes");
     const mode = resolvePlaywrightRunMode(environment, [], () => false);
     assert.deepEqual(
@@ -153,6 +222,25 @@ test("a signalled launcher exits unsuccessfully even when its child exits zero",
   child.kill("SIGTERM");
   const outcome = await new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
   assert.notEqual(outcome.code, 0);
+});
+
+test("both launchers report child startup failures with exit status 2", () => {
+  const withLane = spawnSync(
+    process.execPath,
+    [new URL("./with-lane.mjs", import.meta.url).pathname, "/missing-capacitylens-command"],
+    { env: { ...process.env, CAPACITYLENS_PORT_LANE: "0" }, encoding: "utf8" },
+  );
+  assert.equal(withLane.status, 2);
+
+  const server = spawnSync(
+    process.execPath,
+    [new URL("../server/scripts/e2e-server.mjs", import.meta.url).pathname, "db"],
+    {
+      env: { ...process.env, PATH: "", CAPACITYLENS_PORT_LANE: "0" },
+      encoding: "utf8",
+    },
+  );
+  assert.equal(server.status, 2);
 });
 
 test("the reservation shrinks as the pool fills and never reaches zero", () => {

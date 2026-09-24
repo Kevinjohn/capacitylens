@@ -250,22 +250,30 @@ function useTransferCommand({
   setLastTerminal,
   refreshAuth,
 }: TransferCommandInput) {
+  const issuedCommand = useRef(0);
   return useCallback(
     async (
       perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>,
       mayChangeCallerAccess = false,
     ): Promise<void> => {
       if (!accountId) return;
-      const isLatest = beginRead();
+      const commandId = ++issuedCommand.current;
+      const ownsCommand = () => issuedCommand.current === commandId && currentAccount.current === accountId;
+      beginRead();
       apply((previous) => ({ ...previous, busy: true, error: null }));
       setLastTerminal(null);
       const answer = await submit(perform);
-      if (!isLatest() || currentAccount.current !== accountId) return;
+      if (currentAccount.current !== accountId) return;
       if (mayChangeCallerAccess && (answer.completed || answer.uncertain)) {
         if (!(await refreshCallerAccess(accountId, currentAccount, refreshAuth))) return;
       }
+      if (!ownsCommand()) return;
+      // A read from reopening the dialog may have overtaken the command. Once it settles, clear
+      // this command's busy state and issue a fresh read after the possible server write.
+      apply((previous) => ({ ...previous, busy: false }));
+      const isLatest = beginRead();
       const next = await readCeremony(accountId);
-      if (!isLatest() || currentAccount.current !== accountId) return;
+      if (!isLatest() || !ownsCommand()) return;
       setLastTerminal(answer.terminal);
       apply((previous) => ({
         ...mergeCeremonyRead(previous, next, false),

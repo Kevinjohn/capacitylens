@@ -56,8 +56,8 @@ function readClaim(path) {
 
 /**
  * Hold the directory mutex for the duration of `body`. Kept to the scan-and-write window only —
- * milliseconds — so a crashed holder blocks nobody for long, and a mutex older than MUTEX_STALE_MS
- * whose pid is gone is broken open.
+ * milliseconds — a dead holder can be reaped, while a live holder is never reaped based on age.
+ * MUTEX_STALE_MS only limits how long a contender waits for a live holder.
  */
 function withMutex(directory, body) {
   const path = join(directory, ".mutex");
@@ -76,9 +76,18 @@ function withMutex(directory, body) {
       renameSync(temporary, path);
     } catch (error) {
       releaseMutex(temporary, ownerName);
-      if (error.code !== "EEXIST" && error.code !== "ENOTEMPTY") throw error;
+      if (!["EEXIST", "ENOTEMPTY", "EISDIR", "ENOTDIR"].includes(error.code)) throw error;
       const holder = readMutexOwner(path);
       if (holder && !processAlive(holder.pid)) {
+        if (holder.legacy) {
+          // Older launchers used a regular file. Unlink cannot delete a directory successor.
+          try {
+            unlinkSync(path);
+          } catch (unlinkError) {
+            if (!["ENOENT", "EISDIR", "EPERM"].includes(unlinkError.code)) throw unlinkError;
+          }
+          continue;
+        }
         // A second reaper can remove only this dead owner's unique file. A successor's different
         // owner file keeps its directory nonempty, so rmdir cannot remove the successor's lock.
         releaseMutex(path, holder.name);
@@ -111,6 +120,10 @@ function readMutexOwner(path) {
     return claim ? { ...claim, name } : null;
   } catch (error) {
     if (error.code === "ENOENT") return null;
+    if (error.code === "ENOTDIR") {
+      const claim = readClaim(path);
+      return claim ? { ...claim, legacy: true } : null;
+    }
     throw error;
   }
 }

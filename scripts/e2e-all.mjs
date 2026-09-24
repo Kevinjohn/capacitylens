@@ -20,12 +20,12 @@ import { E2E_RUN_PRESETS, presetEnvironment } from "./playwright-run-mode.mjs";
 
 const forwardedArgs = process.argv.slice(2);
 
-/** Run one Playwright invocation to completion; return its exit status (1 if it never started). */
+/** Run one Playwright invocation to completion; return its exit status (2 if it never started). */
 function run(label, env, extraArgs = []) {
   console.log(`\n=== e2e:all — ${label} ===`);
   const res = spawnPnpmSync(["exec", "playwright", "test", ...extraArgs, ...forwardedArgs], {
     stdio: "inherit",
-    env: nonColourEnvironment(presetEnvironment(process.env, env)),
+    env: nonColourEnvironment({}, presetEnvironment(process.env, env)),
   });
   return synchronousSpawnStatus(`e2e:all ${label}`, res);
 }
