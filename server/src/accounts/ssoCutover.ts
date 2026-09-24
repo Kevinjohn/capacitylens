@@ -51,41 +51,6 @@ export interface SsoCutoverReadiness {
   issues: readonly SsoReadinessIssue[];
 }
 
-/** Check the provider-required cutover against the configured company-provider set. */
-export function assertCompanyProviderCutoverReady(input: {
-  providerIds: ReadonlySet<string>;
-  identity: SsoCutoverIdentityPort;
-  administration: SsoCutoverAccountAdminPort;
-}): void {
-  const snapshots = [...input.providerIds].map((providerId) => input.identity.inspectSsoCutover(providerId));
-  const first = snapshots[0];
-  if (!first) throw new Error("Provider-required mode has no configured company provider.");
-  const verifiedPrincipalIds = new Set(
-    snapshots.flatMap((snapshot) =>
-      snapshot.requiredProviderLinks.filter((link) => link.verified).map((link) => link.principalId),
-    ),
-  );
-  const missingPrincipals = first.principals.filter((principal) => !verifiedPrincipalIds.has(principal.id));
-  if (missingPrincipals.length > 0) {
-    throw new Error(
-      `Provider-required cutover needs a verified company-provider connection for ${missingPrincipals.length} principal(s).`,
-    );
-  }
-  const invalidWorkspaces = input.administration
-    .inspectSsoCutoverWorkspaces()
-    .filter(
-      (workspace) =>
-        workspace.members.length === 0 ||
-        !workspace.members.some((member) => member.role === "owner") ||
-        workspace.members.some((member) => !verifiedPrincipalIds.has(member.principalId)),
-    );
-  if (invalidWorkspaces.length > 0) {
-    throw new Error(
-      `Provider-required cutover found ${invalidWorkspaces.length} company workspace(s) without a ready owner and members.`,
-    );
-  }
-}
-
 interface ReadinessIndexes {
   principalById: ReadonlyMap<string, SsoCutoverIdentityFacts["principals"][number]>;
   requiredByPrincipal: ReadonlyMap<string, SsoCutoverIdentityFacts["requiredProviderLinks"]>;

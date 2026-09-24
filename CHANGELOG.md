@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Give consistent reasons when checking whether passwords can be disabled, with one or several
+  company sign-in providers configured. Keep existing sign-in and recovery safeguards (#1248).
 - Present Google and Microsoft together above the password fallback. Provider-required
   installations reject password and GitHub sign-in; mixed installations retain existing
   password and GitHub behavior. Microsoft live-tenant validation remains pending (#1219).

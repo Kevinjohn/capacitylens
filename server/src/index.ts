@@ -24,7 +24,7 @@ import { resolveLegacyProxyTrustWarning, canTrustProxyHeaders } from "./proxyTru
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
 import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
-import { assertCompanyProviderCutoverReady } from "./accounts/ssoCutover";
+import { assertCompanyProviderCutoverReady } from "./accounts/companyProviderReadiness";
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
 import { startServerRuntime } from "./boot/serverRuntime";

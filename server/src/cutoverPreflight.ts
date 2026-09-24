@@ -1,9 +1,23 @@
 import { assertAuditOutboxCurrent } from "./auditOutbox";
 import { assertAccountControlPlaneCurrent } from "./accounts/sqliteAccountAdminPort";
-import { assertCompanyProviderCutoverReady, ssoCutoverReadiness } from "./accounts/ssoCutover";
+import {
+  evaluateCompanyProviderCutoverReadiness,
+  type SsoCompanyProviderReadinessIssue,
+} from "./accounts/companyProviderReadiness";
+import { evaluateSsoCutoverReadiness } from "./accounts/ssoCutover";
 import { assertFederatedIdentitySchemaCurrent } from "./auth";
 import { mixedModeCutoverContext } from "./cutoverContext";
 import { planDatabaseMigrations, type Db } from "./db";
+
+type SsoCutoverPreflightIssue =
+  | SsoCompanyProviderReadinessIssue
+  | {
+      reason: "open_signup_enabled";
+      message: string;
+      blocking: true;
+      workspaceId: null;
+      principalId: null;
+    };
 
 /** Inspect the guarded company-provider cutover without mutating the operator's database. */
 export async function inspectSsoCutoverPreflight(db: Db, environment: Record<string, string | undefined>) {
@@ -19,37 +33,40 @@ export async function inspectSsoCutoverPreflight(db: Db, environment: Record<str
   assertFederatedIdentitySchemaCurrent(db);
   const providers = context.auth.providers.filter((provider) => !provider.experimental);
   const providerIds = new Set(providers.map((provider) => provider.id));
-  let refusal: string | null = null;
-  try {
-    context.identity.readSsoCutoverSnapshot(() =>
-      assertCompanyProviderCutoverReady({
-        providerIds,
-        identity: context.identity,
-        administration: context.administration,
+  const openSignup = context.resolvedEnvironment.env.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1";
+  const inspection = context.identity.readSsoCutoverSnapshot(() => {
+    const providerSnapshots = providers.map((provider) => ({
+      providerId: provider.id,
+      provider,
+      identity: context.identity.inspectSsoCutover(provider.id),
+    }));
+    const workspaces = providers.length > 0 ? context.administration.inspectSsoCutoverWorkspaces() : [];
+    const readiness = evaluateCompanyProviderCutoverReadiness({ providerIds, providerSnapshots, workspaces });
+    const diagnostics = providerSnapshots.map(({ provider, identity }) =>
+      evaluateSsoCutoverReadiness({
+        provider,
+        providers: context.auth.providers,
+        identity,
+        workspaces,
+        openSignup,
       }),
     );
-  } catch (error) {
-    if (!(error instanceof Error) || !error.message.startsWith("Provider-required ")) throw error;
-    refusal = error.message;
+    return { readiness, diagnostics };
+  });
+  const issues: SsoCutoverPreflightIssue[] = [...inspection.readiness.issues];
+  if (openSignup) {
+    issues.push({
+      reason: "open_signup_enabled",
+      message: "Open password signup must be disabled before SSO-only mode.",
+      blocking: true,
+      workspaceId: null,
+      principalId: null,
+    });
   }
-  const openSignup = context.resolvedEnvironment.env.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1";
-  if (openSignup) refusal = "Open password signup must be disabled before SSO-only mode.";
-  // The detailed projection is single-provider. Keep it for installations with one company
-  // provider; the authoritative status above accepts a verified link to either named provider.
-  const diagnostics =
-    providers.length === 1
-      ? ssoCutoverReadiness({
-          provider: context.provider,
-          providers: context.auth.providers,
-          identity: context.identity,
-          administration: context.administration,
-          openSignup,
-        })
-      : null;
   return {
-    ready: refusal === null,
+    ready: inspection.readiness.ready && !openSignup,
     providers,
-    issues: refusal === null ? [] : [{ message: refusal }],
-    diagnostics,
+    issues,
+    diagnostics: inspection.diagnostics,
   };
 }
