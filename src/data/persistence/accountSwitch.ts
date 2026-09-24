@@ -52,7 +52,7 @@ export function attachAccountSwitch({ store, owner, writes, refresh, serverMode 
   const { cancelDebounce } = owner;
   let attempt = 0;
   const settleSwitch = (settledAttempt: number, outcome: RefreshOutcome) =>
-    settleSwitchWaiters(owner, (attempt) => attempt === settledAttempt, outcome);
+    settleSwitchWaiters(owner, (issued) => issued === settledAttempt, outcome);
 
   const unsubscribeSwitch = serverMode
     ? store.subscribe((state) => {
