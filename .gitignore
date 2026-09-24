@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 /production/
+/.production-retired-*/
 *.local
 
 # Editor directories and files
