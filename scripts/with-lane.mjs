@@ -8,6 +8,7 @@
 // only has to read CAPACITYLENS_PORT_LANE, which is already fixed by the time it is evaluated.
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { mirrorChildExit } from "./dev-processes.mjs";
 import { claimLane, reapLane } from "./lane-claim.mjs";
 import { LANE_ENVIRONMENT_KEY, SHARE_ENVIRONMENT_KEY, portsForLane, resolveLane, testShare } from "./ports.mjs";
 
@@ -59,23 +60,5 @@ const child = spawn(command, args, {
   env: { ...process.env, [LANE_ENVIRONMENT_KEY]: String(claim.lane), [SHARE_ENVIRONMENT_KEY]: String(claim.share) },
 });
 
-// Forward the interactive signals rather than dying first: the child owns servers whose own
-// shutdown frees the lane's ports, and killing the launcher before them is how orphans are made.
-let interrupted = false;
-for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
-  process.on(signal, () => {
-    interrupted = true;
-    child.kill(signal);
-  });
 process.on("exit", release);
-
-child.on("error", (error) => {
-  release();
-  console.error(`with-lane: could not start ${command}: ${error.message}`);
-  process.exit(2);
-});
-
-child.on("exit", (code, signal) => {
-  release();
-  process.exit(interrupted || signal ? 1 : (code ?? 1));
-});
+mirrorChildExit(child, { label: `with-lane: ${command}`, release });
