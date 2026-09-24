@@ -19,7 +19,7 @@ import { assertBootstrapClaimCurrent } from "./bootstrapClaim";
 import { canAdmitLocalExternalIdentity } from "./accounts/externalIdentityAdmission";
 import { hasLivePreauthorizedInvitation } from "./accounts/sqliteAccountAdminPort";
 import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort";
-import { assertCompanyProviderCutoverReady } from "./accounts/ssoCutover";
+import { assertCompanyProviderCutoverReady } from "./accounts/companyProviderReadiness";
 import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
 import { readVerifiedMicrosoftProfile } from "./authConfig/socialProviders";
 import { CHECKSUM_PINNED_MIGRATIONS, MICROSOFT_PROOF_V46_PIN } from "./db/migrations/authPlanningPins.testSupport";
@@ -207,11 +207,11 @@ const registerFederatedAuditTests = () => {
       auth,
       authMode: "sso",
       db,
-    }).inspectSsoCutover("google");
+    });
     expect(() =>
       assertCompanyProviderCutoverReady({
         providerIds: new Set(["google"]),
-        identity: { inspectSsoCutover: () => identity } as never,
+        identity,
         administration: {
           inspectSsoCutoverWorkspaces: () => [
             {

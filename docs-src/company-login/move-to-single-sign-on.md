@@ -51,13 +51,19 @@ pnpm --filter capacitylens-server cutover:preflight -- /path/to/capacitylens.db
 ```
 
 The check accepts a verified connection through either configured company
-provider, including when both Google and Microsoft are enabled. It reports
-whether every active member has a usable provider identity and each company
-has an active Owner. It checks provider readiness against the same full set of
-configured providers used by the server's startup guard, and separately refuses
-while open signup is enabled. With both providers configured, the result is an
-all-company readiness summary rather than a per-member list. Resolve missing
-links while still in mixed mode, then rerun the check before changing the profile.
+provider, including when both Google and Microsoft are enabled. Every existing
+sign-in account needs a verified company-provider connection, and each company
+needs active members and an active Owner. Open password signup must be disabled.
+
+Read the top-level `ready` result and `issues` list to decide whether you can
+switch off passwords. Each issue includes a stable reason code and an explanation.
+The same provider-connection and company checks run when the server starts.
+The `diagnostics` list contains repair details for each configured company
+provider, whether you have one or several. These provider-specific details may
+flag a missing connection to one provider even when another provider satisfies
+the overall check; they do not add restrictions to the top-level decision.
+Resolve the blocking issues while still in mixed mode, then rerun the check
+before changing the profile.
 
 The preflight result is evidence for the operator; it does not switch modes.
 If a finding needs identity or membership repair, the guarded

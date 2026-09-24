@@ -198,7 +198,7 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
 
       expect(result.status, result.stderr).toBe(1);
       expect(result.stderr).toContain(
-        "Provider-required cutover needs a verified company-provider connection for 1 principal(s).",
+        "owner@example.com has no verified connection to a configured company sign-in provider.",
       );
       expect(result.stderr).not.toContain("at ");
 
@@ -209,7 +209,7 @@ describe("server entrypoint startup refusals", { timeout: 30_000 }, () => {
       });
       expect(repeated.status, repeated.stderr).toBe(1);
       expect(repeated.stderr).toContain(
-        "Provider-required cutover needs a verified company-provider connection for 1 principal(s).",
+        "owner@example.com has no verified connection to a configured company sign-in provider.",
       );
       assertPreservedSsoState(database);
     } finally {
