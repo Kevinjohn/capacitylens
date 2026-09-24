@@ -34,7 +34,7 @@ export interface SchedulerGridRowProps {
   handleEdit: LaneProps["onEdit"];
   handleDraw: LaneProps["onDraw"];
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
-  resourceAvatars?: ReadonlyMap<string, string>;
+  resourceAvatars: ReadonlyMap<string, string>;
   onViewSchedule: (resourceId: string, opener: HTMLButtonElement) => void;
 }
 
@@ -43,7 +43,7 @@ function ResourceIdentity({
   row,
   density,
   personScheduleTitlesByResourceId,
-  resourceAvatars = new Map(),
+  resourceAvatars,
   onViewSchedule,
 }: Pick<
   SchedulerGridRowProps,
@@ -160,7 +160,7 @@ type RowHeaderProps = Pick<
 
 function SchedulerGridRowHeader(props: RowHeaderProps) {
   const { row, group, density, utilizationPrefs, visibleWeeksLabel, ui } = props;
-  const resourceAvatars = props.resourceAvatars ?? new Map<string, string>();
+  const resourceAvatars = props.resourceAvatars;
   const { resource } = row;
   return (
     <div
@@ -218,6 +218,7 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         visibleStartDate={props.visibleStartDate}
         setModal={props.setModal}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
+        resourceAvatars={props.resourceAvatars}
         onViewSchedule={props.onViewSchedule}
       />
 
