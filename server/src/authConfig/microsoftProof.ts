@@ -125,7 +125,15 @@ export function createMicrosoftProof(input: Input) {
     if (changed.changes !== 1) throw new MicrosoftProofError("MICROSOFT_PROOF_EXPIRED", 410);
     try {
       await mail(intent.targetEmail, token);
-    } catch {
+    } catch (error) {
+      // Operators need the transport failure (host, credentials, certificate); the recipient and
+      // token stay out of the log.
+      console.error("Microsoft mailbox-proof email could not be sent.", {
+        code: (error as { code?: unknown } | null)?.code,
+        reason: (error instanceof Error ? error.message : String(error))
+          .replaceAll(intent.targetEmail, "[recipient]")
+          .replaceAll(token, "[token]"),
+      });
       db.prepare(
         "UPDATE microsoft_identity_proofs SET state = 'started', tokenHash = NULL, tokenExpiresAt = NULL WHERE id = ? AND tokenHash = ?",
       ).run(intent.id, hashProofValue(token));
@@ -266,6 +274,8 @@ export function createMicrosoftProof(input: Input) {
     await authorization.assertLive(intent, capture.request.headers);
     if (intent.tenantId !== tenantId || (intent.oid !== null && intent.oid !== oid))
       throw new MicrosoftProofError("MICROSOFT_IDENTITY_MISMATCH", 403);
+    // An invite for an already linked Microsoft identity signs in to that linked principal: the
+    // principal is found by `oid`, never by email, and the invite must name its stored address.
     if (existing) {
       if (!matchesExistingInvitation(intent, existing.email)) {
         throw new MicrosoftProofError("MICROSOFT_IDENTITY_ALREADY_LINKED", 409);

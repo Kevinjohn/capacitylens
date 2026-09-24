@@ -580,6 +580,43 @@ describe("Microsoft native callback proof", () => {
     }
   });
 
+  it("logs a failed resend without the recipient or token, rolls it back and lets a later resend succeed", async () => {
+    const { db, auth } = await configured();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const started = await begin(auth);
+      mockMicrosoftToken(claims());
+      await callback(auth, started.state, started.cookies);
+      const headers = new Headers({ cookie: started.cookies });
+      db.prepare("UPDATE microsoft_identity_proofs SET lastSentAt = ?").run(Date.now() - 61_000);
+      mailFailure.enabled = true;
+      await expect(auth.microsoftProof.resend(headers)).rejects.toMatchObject({
+        code: "MAIL_DELIVERY_UNAVAILABLE",
+        status: 503,
+      });
+      expect(logged).toHaveBeenCalledWith("Microsoft mailbox-proof email could not be sent.", {
+        code: "EENVELOPE",
+        reason: "SMTP rejected [recipient]",
+      });
+      expect(JSON.stringify(logged.mock.calls)).not.toContain("bruce@example.com");
+      expect(db.prepare("SELECT state, tokenHash, tokenExpiresAt FROM microsoft_identity_proofs").get()).toEqual({
+        state: "started",
+        tokenHash: null,
+        tokenExpiresAt: null,
+      });
+      mailFailure.enabled = false;
+      db.prepare("UPDATE microsoft_identity_proofs SET lastSentAt = ?").run(Date.now() - 61_000);
+      await auth.microsoftProof.resend(headers);
+      expect(sentMessages).toHaveLength(2);
+      const token = new URL(sentMessages[1]?.text.match(/http[^\s]+/)?.[0] ?? "").hash.replace(/^#token=/, "");
+      expect(db.prepare("SELECT state FROM microsoft_identity_proofs").get()).toEqual({ state: "mail-sent" });
+      expect((await auth.microsoftProof.confirm(headers, token)).url).toContain("state=");
+    } finally {
+      logged.mockRestore();
+      db.close();
+    }
+  });
+
   it("throttles resend and invalidates the replaced mailbox token", async () => {
     const { db, auth } = await configured();
     try {
