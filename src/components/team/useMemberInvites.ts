@@ -27,7 +27,7 @@ interface InviteMutationDependencies extends MemberInviteDependencies {
   inviteRole: InvitationRole;
   setInvitationPreauthorizedEmail: Dispatch<SetStateAction<string>>;
   setMintedLink: Dispatch<SetStateAction<MintedInviteLink | null>>;
-  /** Changes whenever the dialog is closed; a create that resolves after that discards its link. */
+  /** Changes whenever the link is discarded; a create that resolves after that cannot show its link. */
   readLinkGeneration: () => number;
   invitationResourceId: string;
   setInvitationResourceId: Dispatch<SetStateAction<string>>;
@@ -66,6 +66,7 @@ function createSubmitInvite({
   isActiveAccount,
   withMemberAction,
   fail,
+  setNotice,
   reloadInvites,
   reconcileUnknownMutation,
   invitationPreauthorizedEmail,
@@ -118,6 +119,10 @@ function createSubmitInvite({
             inviteId: result.value.id ?? null,
             link: `${window.location.origin}/invite/${encodeURIComponent(result.value.token)}`,
           });
+        } else {
+          // The dialog closed first, so the write-once link can no longer be shown. Say so rather
+          // than leave a live invite nobody can share.
+          setNotice(m.settings_members_invite_created_link_discarded());
         }
         setInvitationPreauthorizedEmail("");
         setInvitationResourceId("");
@@ -137,16 +142,9 @@ function createRevokeInvite({
   setNotice,
   reloadInvites,
   reconcileUnknownMutation,
-  setMintedLink,
 }: Pick<
   InviteMutationDependencies,
-  | "withMemberAction"
-  | "isActiveAccount"
-  | "fail"
-  | "setNotice"
-  | "reloadInvites"
-  | "reconcileUnknownMutation"
-  | "setMintedLink"
+  "withMemberAction" | "isActiveAccount" | "fail" | "setNotice" | "reloadInvites" | "reconcileUnknownMutation"
 >) {
   return (id: string) =>
     withMemberAction(`invite:revoke:${id}`, async (accountId) => {
@@ -162,7 +160,6 @@ function createRevokeInvite({
           return;
         }
         setNotice(m.settings_members_invite_revoked());
-        setMintedLink((current) => (current?.inviteId === id ? null : current));
         void reloadInvites();
       } catch (e) {
         await reconcileUnknownMutation(
@@ -203,7 +200,7 @@ export function useMemberInvites() {
   const [invitationPreauthorizedEmail, setInvitationPreauthorizedEmail] = useState("");
   const [invitationResourceId, setInvitationResourceId] = useState("");
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
-  // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
+  // its non-secret invite id so an authoritative list refresh can clear a now-dead link.
   const [mintedLink, setMintedLink] = useState<MintedInviteLink | null>(null);
   const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {
     setMintedLink((current) =>
@@ -212,18 +209,25 @@ export function useMemberInvites() {
         : current,
     );
   }, []);
-  // Closing the invite dialog ends the "shown once" moment, so the link does not return on reopen,
-  // including a link from a create that is still in flight when the dialog closes.
+  // The link lives exactly as long as the dialog that shows it. Closing the dialog (or resetting the
+  // draft) ends the "shown once" moment, including for a create still in flight at that point.
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const linkGeneration = useRef(0);
-  const clearMintedLink = useCallback(() => {
+  const discardMintedLink = useCallback(() => {
     linkGeneration.current += 1;
     setMintedLink(null);
   }, []);
+  const openInviteDialog = useCallback(() => setInviteDialogOpen(true), []);
+  const closeInviteDialog = useCallback(() => {
+    setInviteDialogOpen(false);
+    discardMintedLink();
+  }, [discardMintedLink]);
+  // Losing invite access hides the panel, so also close the dialog rather than reopen it later.
   const resetInviteDraft = useCallback(() => {
     setInvitationPreauthorizedEmail("");
     setInvitationResourceId("");
-    setMintedLink(null);
-  }, []);
+    closeInviteDialog();
+  }, [closeInviteDialog]);
 
   const createActions = ({
     authMode,
@@ -263,7 +267,6 @@ export function useMemberInvites() {
       setNotice,
       reloadInvites,
       reconcileUnknownMutation,
-      setMintedLink,
     });
     const copyLink = createCopyLink({ requestAccountId, isActiveAccount, setNotice });
     return { submitInvite, revokeInvite, copyLink };
@@ -276,7 +279,9 @@ export function useMemberInvites() {
     invitationResourceId,
     setInvitationResourceId,
     mintedLink,
-    clearMintedLink,
+    inviteDialogOpen,
+    openInviteDialog,
+    closeInviteDialog,
     resetInviteDraft,
     reconcileMintedInvite,
     createActions,

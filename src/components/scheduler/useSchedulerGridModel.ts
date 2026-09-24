@@ -287,8 +287,8 @@ export function useSchedulerGridModel(preferences: GridPreferences, viewport: Gr
   // Derived from the model only — memoise so opening a modal / measuring the
   // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
   const overallUtil = useMemo(
-    // External / 3rd-party rows are excluded inside the shared average.
-    () => buildAverageUtilizationLabel(model.flatMap((group) => group.rows)),
+    // External / 3rd-party rows are excluded inside the shared average; with none tracked, read 0%.
+    () => buildAverageUtilizationLabel(model.flatMap((group) => group.rows)) ?? "0",
     [model],
   );
 

@@ -825,6 +825,7 @@
   "settings_change_role_title": "Change member role?",
   "settings_members_invite_created": "Invite created. Copy this link and send it yourself.",
   "settings_members_invite_created_recovery": "It is shown only once. If you lose it, revoke this invite and create a new one.",
+  "settings_members_invite_created_link_discarded": "Invite created after the dialog closed, so its link was not shown. Revoke it under Outstanding invites and create a new one.",
   "settings_members_invite_revoked": "Invite revoked.",
   "settings_members_invite_copied": "Invite link copied.",
   "settings_members_copy_failed": "Could not copy — select and copy the link manually.",

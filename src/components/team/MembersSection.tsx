@@ -65,7 +65,9 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           errorId={orchestration.errorId}
           clear={orchestration.clear}
           mintedLink={orchestration.mintedLink}
-          clearMintedLink={orchestration.clearMintedLink}
+          inviteDialogOpen={orchestration.inviteDialogOpen}
+          openInviteDialog={orchestration.openInviteDialog}
+          closeInviteDialog={orchestration.closeInviteDialog}
           copyLink={orchestration.copyLink}
           submitInvite={orchestration.submitInvite}
           invites={invites}

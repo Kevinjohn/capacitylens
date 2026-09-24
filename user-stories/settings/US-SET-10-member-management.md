@@ -105,9 +105,10 @@ the non-blocking product orientation if it is open.
    capability summary, and clicks **Create invite**
    (`data-testid="invite-submit"`). The full link `<origin>/invite/<token>` appears **once**
    (`data-testid="invite-link"`) with a visible **Copy** button whose accessible name is
-   **Copy invitation link**. That write-once block disappears when the dialog closes, if the
-   matching invite is revoked, or an authoritative refresh reports that it was used or is missing,
-   so the UI never offers a dead bearer link.
+   **Copy invitation link**. That write-once block disappears when the dialog closes or an
+   authoritative refresh reports that the invite was revoked, used or is missing, so the UI never
+   offers a dead bearer link. If the dialog closes before the create completes, the invite still
+   exists, and a notice says its link was not shown and how to replace it.
 7. The outstanding invitations use the same five-column bordered table as Members: **Name** is an
    em dash, **Role** is the invited role, **Email** is the pre-authorised address or **Invite link**,
    **Link to Resource** is the proposed resource or **None** with compact pending state, and
