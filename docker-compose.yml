@@ -114,8 +114,8 @@ services:
       SMALLSASS_ACCOUNT_MAIL_FROM: ${SMALLSASS_ACCOUNT_MAIL_FROM:-}
       SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: ${SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID:-}
       SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET: ${SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET:-}
-      # Legacy aliases are passed through for existing installations during the compatibility
-      # window. Canonical+legacy conflicts refuse startup instead of choosing a security posture.
+      # Retired names are passed through only so that startup can refuse a stale .env value and
+      # name its replacement; an empty placeholder is ignored.
       CAPACITYLENS_AUTH: ${CAPACITYLENS_AUTH:-}
       # The api image bakes NODE_ENV=production, and the production safety
       # interlock (server/src/productionGuard.ts) refuses to boot with auth OFF
