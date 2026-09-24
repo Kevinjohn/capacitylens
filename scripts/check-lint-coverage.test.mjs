@@ -66,7 +66,12 @@ test("local hooks and pull requests run the intended static-analysis checks", ()
   assert.deepEqual(workflow.on.pull_request.branches, ["main"]);
   const commands = workflow.jobs.application.steps.map(({ run }) => run).filter(Boolean);
   assert.equal(commands[0], "pnpm run check:push");
-  assert.equal(packageJson.scripts["format:check"], "prettier --check .");
+  // Check the files Git would publish: tracked plus untracked-but-not-ignored. Prettier cannot read
+  // .git/info/exclude, so a bare `prettier --check .` failed pushes on local-only notes.
+  assert.equal(
+    packageJson.scripts["format:check"],
+    "git ls-files -z --cached --others --exclude-standard | xargs -0 prettier --check --ignore-unknown --no-error-on-unmatched-pattern",
+  );
   assert.ok(commands.includes("pnpm run policy:lint-coverage:test"));
   // Pin the script's BODY, not only its name. Asserting the workflow calls `pnpm run typecheck`
   // proves nothing on its own: a `typecheck` reduced to a bare root `tsc --noEmit` reads no files
