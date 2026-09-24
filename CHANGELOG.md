@@ -29,6 +29,12 @@ new features and **patch** versions carry fixes.
 - Keep failed company-sign-in connection messages visible after returning from the provider,
   and clear the previous failure when retrying (#1216).
 
+### Removed
+
+- Remove the list of active sessions from Account → Security. Individual sessions can no longer
+  be viewed or signed out from the app; changing your password still signs out other sessions
+  (#1234, #1255).
+
 ## [0.70.1-alpha.1] - 2026-09-23
 
 **Alpha 7 — Final Alpha.** This is the final Alpha release and the pinned baseline before the

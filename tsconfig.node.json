@@ -37,7 +37,6 @@
     "src/bundleBudgetGate.test.ts",
     "src/cryptoInventoryGate.test.ts",
     "src/data/offlineWorker.test.ts",
-    "src/e2eOidcHarness.test.ts",
     "src/playwrightFixturesPolicy.test.ts",
     "src/pnpmSpawn.test.ts",
     "src/serveDist.test.ts",
