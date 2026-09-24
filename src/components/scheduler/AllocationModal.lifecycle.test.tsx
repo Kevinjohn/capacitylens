@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { act, render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -148,15 +149,17 @@ describe("AllocationModal submit exclusion", () => {
 
 describe("AllocationModal lifecycle", () => {
   it("closes when the allocation being edited disappears from the store", () => {
-    const resource = useStore.getState().addResource(person("Barbara"));
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const resource = requireCreated(useStore.getState().addResource(person("Barbara")));
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const onClose = vi.fn();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={onClose} />);
 
@@ -166,7 +169,7 @@ describe("AllocationModal lifecycle", () => {
   });
 
   it("preserves a partially edited draft across equivalent parent props", () => {
-    const resource = useStore.getState().addResource(person("Barbara"));
+    const resource = requireCreated(useStore.getState().addResource(person("Barbara")));
     const onClose = vi.fn();
     const view = render(
       <AllocationModal

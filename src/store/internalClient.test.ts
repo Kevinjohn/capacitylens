@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -53,7 +54,7 @@ function renamesNormalClient(): void {
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
-  const c = s().addClient({ name: "Globex", color: "#3b82f6" });
+  const c = requireCreated(s().addClient({ name: "Globex", color: "#3b82f6" }));
   s().updateClient(c.id, { name: "Globex 2" });
   const renamed = expectPresent(
     s().data.clients.find((x) => x.id === c.id),
@@ -69,7 +70,7 @@ function stripsAddedBuiltinFlag(): void {
   );
   s().setActiveAccount(a.id);
   // A cast payload smuggling builtin:true must NOT mint a second Internal — the store strips it.
-  const c = s().addClient({ name: "Sneaky", color: "#3b82f6", builtin: true } as never);
+  const c = requireCreated(s().addClient({ name: "Sneaky", color: "#3b82f6", builtin: true } as never));
   const sneaky = expectPresent(
     s().data.clients.find((x) => x.id === c.id),
     "Expected the added client to be present.",
@@ -85,7 +86,7 @@ function stripsPromotedBuiltinFlag(): void {
     "Expected the test account to be created.",
   );
   s().setActiveAccount(a.id);
-  const c = s().addClient({ name: "Globex", color: "#3b82f6" });
+  const c = requireCreated(s().addClient({ name: "Globex", color: "#3b82f6" }));
   s().updateClient(c.id, { builtin: true } as never);
   const promoted = expectPresent(
     s().data.clients.find((x) => x.id === c.id),

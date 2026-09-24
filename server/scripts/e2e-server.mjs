@@ -7,6 +7,7 @@
 import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { mirrorChildExit } from "../../scripts/dev-processes.mjs";
 import { ports } from "../../scripts/ports.mjs";
 
 const flavour = process.argv[2];
@@ -61,15 +62,4 @@ const child = spawn("tsx", ["src/index.ts"], {
   env: { ...process.env, CAPACITYLENS_DB: database, ...env },
 });
 
-for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => child.kill(signal));
-child.on("error", (error) => {
-  console.error(`e2e-server: could not start tsx: ${error.message}`);
-  process.exit(1);
-});
-child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
-  }
-  process.exit(code ?? 1);
-});
+mirrorChildExit(child, { label: "e2e-server: tsx" });

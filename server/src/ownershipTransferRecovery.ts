@@ -1,3 +1,4 @@
+import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { existsSync } from "node:fs";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
 import { DEFAULT_ACCOUNT_APPLICATION } from "./auth";
@@ -189,6 +190,7 @@ function cancelOnHandle(db: Db, input: CancelOwnershipTransferRecoveryInput): Ow
       "The live request does not exactly match the inspected state, participants and revision; no recovery was performed.",
     );
   }
+  restrictIdentifiedDatabasePermissions(db);
   return tx(db, () => commitCancellation(db, input, inspection));
 }
 

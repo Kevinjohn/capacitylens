@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppData } from "@capacitylens/shared/types/entities";
 import type { PersistenceAdapter } from "./PersistenceAdapter";
@@ -61,7 +62,7 @@ describe("persistence save/reload/switch overlap", () => {
     saving.resolve();
     await expect(refreshing).resolves.toEqual({ kind: "skipped" });
     await vi.waitFor(() => expect(loadAll).toHaveBeenCalledExactlyOnceWith(secondAccount.id));
-    const parked = useStore.getState().addClient({ name: "Stark Industries", color: "#222222" });
+    const parked = requireCreated(useStore.getState().addClient({ name: "Stark Industries", color: "#222222" }));
     expect(saveAll).toHaveBeenCalledTimes(1);
     expect(await flushPendingWrites()).toEqual({ kind: "blocked" });
 
@@ -111,7 +112,7 @@ describe("persistence reconciliation overlap", () => {
 
     expect(onError).toHaveBeenCalledExactlyOnceWith(conflict);
     expect(useStore.getState().data.accounts).toEqual(authoritative.accounts);
-    const client = useStore.getState().addClient({ name: "Stark Industries", color: "#222222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Stark Industries", color: "#222222" }));
     expect(await flushPendingWrites()).toEqual({ kind: "clean" });
     const lastSave = saveAll.mock.lastCall;
     expect(lastSave).toBeDefined();

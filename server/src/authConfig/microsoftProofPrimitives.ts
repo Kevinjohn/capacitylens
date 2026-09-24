@@ -46,9 +46,41 @@ export class MicrosoftProofError extends Error {
   constructor(
     readonly code: string,
     readonly status: number,
+    options?: ErrorOptions,
   ) {
-    super(code);
+    super(code, options);
   }
+}
+
+/** Preserve transport diagnostics without retaining SMTP text, credentials or mailbox contents.
+ * Auth libraries can log error causes themselves, so even the retained cause must be safe. */
+export function resolveMicrosoftMailDeliveryCause(cause: unknown): { code: string; responseCode?: number } {
+  const transport = typeof cause === "object" && cause !== null ? (cause as Record<string, unknown>) : {};
+  const allowedCodes = [
+    "EAUTH",
+    "ECONNECTION",
+    "ETIMEDOUT",
+    "ESOCKET",
+    "EDNS",
+    "ETLS",
+    "EENVELOPE",
+    "EMESSAGE",
+    "ESTREAM",
+    "ECONNRESET",
+    "ECONNREFUSED",
+    "ENOTFOUND",
+  ];
+  const code =
+    typeof transport.code === "string" && allowedCodes.includes(transport.code)
+      ? transport.code
+      : "MAIL_TRANSPORT_ERROR";
+  const responseCode = transport.responseCode;
+  return {
+    code,
+    ...(typeof responseCode === "number" && Number.isInteger(responseCode) && responseCode >= 100 && responseCode <= 599
+      ? { responseCode }
+      : {}),
+  };
 }
 
 export function hashProofValue(value: string): string {

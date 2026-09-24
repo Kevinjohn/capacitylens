@@ -3,7 +3,10 @@ import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
 import type { BrowserAccountCommand } from "./accountCommands";
+import type { MembershipStatus, Role } from "@capacitylens/shared/account/types";
+import type { EndMasqueradePayload, StartMasqueradePayload } from "@capacitylens/shared/domain/masquerade";
 import { buildPayloadOperationKey } from "./commandOutcome";
+import type { CreateInvitationBody, CreateWorkspaceBody, InvitationSignupBody } from "./accountRequestTypes";
 import { runCommand, buildCommandRequestInit, buildJsonCommandRequestInit } from "./commandRequest";
 import type { ReauthAction } from "../auth/reauthCoordinator";
 import {
@@ -16,7 +19,7 @@ import {
 interface ChangeMemberRoleInput {
   workspaceId: string;
   principalId: string;
-  role: string;
+  role: Role;
   command?: BrowserAccountCommand | undefined;
 }
 
@@ -43,7 +46,7 @@ interface OwnershipTransferCommandInput {
 interface ChangeMemberStatusInput {
   workspaceId: string;
   principalId: string;
-  status: string;
+  status: MembershipStatus;
   command?: BrowserAccountCommand | undefined;
 }
 
@@ -106,7 +109,7 @@ export const accountClient = {
     );
   },
 
-  async createWorkspace(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
+  async createWorkspace(body: CreateWorkspaceBody, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand({
       operationKey: await buildPayloadOperationKey("workspace-create", body),
       explicit: command,
@@ -158,7 +161,7 @@ export const accountClient = {
     });
   },
 
-  startMasquerade(workspaceId: string, body: unknown): Promise<Response> {
+  startMasquerade(workspaceId: string, body: StartMasqueradePayload): Promise<Response> {
     return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/masquerade`, {
       method: "POST",
       credentials: "include",
@@ -171,7 +174,7 @@ export const accountClient = {
     return apiFetch(`${API_BASE}/api/masquerade`, { credentials: "include" });
   },
 
-  endMasquerade(body: unknown): Promise<Response> {
+  endMasquerade(body: EndMasqueradePayload): Promise<Response> {
     return apiFetch(`${API_BASE}/api/masquerade`, {
       method: "DELETE",
       credentials: "include",
@@ -298,9 +301,8 @@ export const accountClient = {
     });
   },
 
-  async createInvitation(body: unknown, command?: BrowserAccountCommand): Promise<Response> {
-    const accountId =
-      typeof body === "object" && body !== null && "accountId" in body ? String(body.accountId) : "unknown";
+  async createInvitation(body: CreateInvitationBody, command?: BrowserAccountCommand): Promise<Response> {
+    const accountId = body.accountId;
     return runCommand({
       operationKey: await buildPayloadOperationKey(`invitation-create:${accountId}`, body),
       explicit: command,
@@ -342,7 +344,7 @@ export const accountClient = {
     });
   },
 
-  signupWithInvitation(token: string, body: unknown, command?: BrowserAccountCommand): Promise<Response> {
+  signupWithInvitation(token: string, body: InvitationSignupBody, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand({
       operationKey: null,
       explicit: command,

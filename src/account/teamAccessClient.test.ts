@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { accountClient } from "./accountClient";
+import { runCommand } from "./commandRequest";
 import { resolveRejectionMessage, teamAccessClient } from "./teamAccessClient";
 
 const json = (body: unknown) =>
@@ -109,6 +110,24 @@ describe("teamAccessClient directory validation", () => {
 });
 
 describe("teamAccessClient member resource links", () => {
+  it("keeps an operation-ambiguous conflict uncertain despite a terminal-looking body", async () => {
+    const response = await runCommand({
+      operationKey: null,
+      explicit: undefined,
+      ambiguousStatus: 409,
+      request: async () => Response.json({ code: "CONFLICT", error: "A conflict occurred." }, { status: 409 }),
+    });
+    vi.spyOn(accountClient, "setMemberResourceLink").mockResolvedValue(response);
+    await expect(
+      teamAccessClient.setMemberResourceLink({
+        workspaceId: "a1",
+        principalId: "u1",
+        resourceId: "r1",
+        expectedRevision: null,
+      }),
+    ).resolves.toMatchObject({ kind: "unknown", status: 409 });
+  });
+
   it.each([
     [null, "created-revision"],
     ["prior-revision", "changed-revision"],
@@ -126,7 +145,9 @@ describe("teamAccessClient member resource links", () => {
 
   it("preserves a structured conflict and contains an uncertain success body", async () => {
     vi.spyOn(accountClient, "setMemberResourceLink")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "The member link changed." }), { status: 409 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ code: "CONFLICT", error: "The member link changed." }), { status: 409 }),
+      )
       .mockResolvedValueOnce(new Response("", { status: 200 }));
     const input = { workspaceId: "a1", principalId: "u1", resourceId: "r1", expectedRevision: null };
     await expect(teamAccessClient.setMemberResourceLink(input)).resolves.toEqual({

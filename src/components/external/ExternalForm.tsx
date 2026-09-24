@@ -88,7 +88,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
           return;
         }
         update(resource.id, patch);
-      } else add(patch);
+      } else if (add(patch).kind === "blocked") return;
       onClose();
     } catch (e) {
       fail(null, resolveErrorMessage(e));

@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
@@ -81,7 +82,7 @@ function registerStoreCrudEntity2(): void {
 
 function registerStoreCrudEntity3(): void {
   it("disciplines: add / update / delete", () => {
-    const d = s().addDiscipline({ name: "Design", color: "#1", sortOrder: 0 });
+    const d = requireCreated(s().addDiscipline({ name: "Design", color: "#1", sortOrder: 0 }));
     s().updateDiscipline(d.id, { name: "Design 2" });
     expect(s().data.disciplines[0]?.name).toBe("Design 2");
     expectRevisionAdvanced(d, requireValue(s().data.disciplines[0], "updated discipline"));
@@ -96,7 +97,7 @@ function registerStoreCrudEntity3(): void {
 
 function registerStoreCrudEntity4(): void {
   it("clients: add / update", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
     s().updateClient(c.id, { name: "Acme 2" });
     expect(s().data.clients[0]?.name).toBe("Acme 2");
     expectRevisionAdvanced(c, requireValue(s().data.clients[0], "updated client"));
@@ -105,8 +106,8 @@ function registerStoreCrudEntity4(): void {
 
 function registerStoreCrudEntity5(): void {
   it("projects: add / update", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
     s().updateProject(p.id, { name: "P2" });
     expect(s().data.projects[0]?.name).toBe("P2");
     expectRevisionAdvanced(p, requireValue(s().data.projects[0], "updated project"));
@@ -115,19 +116,21 @@ function registerStoreCrudEntity5(): void {
 
 function registerStoreCrudEntity6(): void {
   it("rejects private clients and projects without a usable code name", () => {
-    expect(() => s().addClient({ name: "Secret", color: "#1", isPrivate: true })).toThrow(
+    expect(() => requireCreated(s().addClient({ name: "Secret", color: "#1", isPrivate: true }))).toThrow(
       /private client requires a code name/i,
     );
 
-    const client = s().addClient({ name: "Acme", color: "#1" });
+    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
     expect(() =>
-      s().addProject({
-        name: "Secret project",
-        clientId: client.id,
-        color: "#2",
-        isPrivate: true,
-        codeName: '""',
-      }),
+      requireCreated(
+        s().addProject({
+          name: "Secret project",
+          clientId: client.id,
+          color: "#2",
+          isPrivate: true,
+          codeName: '""',
+        }),
+      ),
     ).toThrow(/private project requires a code name/i);
 
     expect(s().data.clients).toHaveLength(1);
@@ -137,15 +140,17 @@ function registerStoreCrudEntity6(): void {
 
 function registerStoreCrudEntity7(): void {
   it("phases: add / update / delete (activities survive)", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const ph = s().addPhase({ name: "Discovery", projectId: p.id });
-    const t = s().addActivity({
-      name: "T",
-      kind: "project",
-      projectId: p.id,
-      phaseId: ph.id,
-    });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const ph = requireCreated(s().addPhase({ name: "Discovery", projectId: p.id }));
+    const t = requireCreated(
+      s().addActivity({
+        name: "T",
+        kind: "project",
+        projectId: p.id,
+        phaseId: ph.id,
+      }),
+    );
     s().updatePhase(ph.id, { name: "Disco" });
     expect(s().data.phases[0]?.name).toBe("Disco");
     expectRevisionAdvanced(ph, requireValue(s().data.phases[0], "updated phase"));
@@ -162,9 +167,9 @@ function registerStoreCrudEntity7(): void {
 
 function registerStoreCrudEntity8(): void {
   it("activities: add / update / delete", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     s().updateActivity(t.id, { name: "T2" });
     expect(s().data.activities[0]?.name).toBe("T2");
     expectRevisionAdvanced(t, requireValue(s().data.activities[0], "updated activity"));
@@ -175,7 +180,7 @@ function registerStoreCrudEntity8(): void {
 
 function registerStoreCrudEntity9(): void {
   it("activities: a general (no-project) activity can be added without a projectId", () => {
-    const t = s().addActivity({ name: "Admin", kind: "repeatable" });
+    const t = requireCreated(s().addActivity({ name: "Admin", kind: "repeatable" }));
     expect(t.projectId).toBeUndefined();
     expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
     expect(s().data.activities[0]?.name).toBe("Admin");
@@ -184,9 +189,9 @@ function registerStoreCrudEntity9(): void {
 
 function registerStoreCrudEntity10(): void {
   it("activities: a project-specific activity converts to all-projects by clearing its project + kind together", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     s().updateActivity(t.id, { kind: "repeatable", projectId: undefined });
     expect(s().data.activities[0]?.kind).toBe("repeatable");
     expect(requireValue(s().data.activities[0], "activity")).not.toHaveProperty("projectId");
@@ -195,15 +200,15 @@ function registerStoreCrudEntity10(): void {
 
 function registerStoreCrudEntity11(): void {
   it("activities: kind ⇆ projectId coherence is enforced — clearing a project activity’s project alone throws", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
     // Leaving kind='project' while removing the project is incoherent — rejected at the store boundary.
     expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(
       /project-specific activity must be assigned/i,
     );
     // And an internal/all-projects activity may not carry a project.
-    expect(() => s().addActivity({ name: "X", kind: "internal", projectId: p.id })).toThrow(
+    expect(() => requireCreated(s().addActivity({ name: "X", kind: "internal", projectId: p.id }))).toThrow(
       /cannot belong to a project/i,
     );
   });
@@ -211,19 +216,21 @@ function registerStoreCrudEntity11(): void {
 
 function registerStoreCrudEntity12(): void {
   it("activities: moving out of repeatable atomically clears allocation attribution", () => {
-    const resource = s().addResource({ ...personDraft });
-    const client = s().addClient({ name: "Acme", color: "#1" });
-    const project = s().addProject({ name: "P", clientId: client.id, color: "#2" });
-    const activity = s().addActivity({ name: "Shared", kind: "repeatable" });
-    const allocation = s().addAllocation({
-      resourceId: resource.id,
-      activityId: activity.id,
-      projectId: project.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-01",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const resource = requireCreated(s().addResource({ ...personDraft }));
+    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const project = requireCreated(s().addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = requireCreated(s().addActivity({ name: "Shared", kind: "repeatable" }));
+    const allocation = requireCreated(
+      s().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        projectId: project.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-01",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
 
     s().updateActivity(activity.id, { kind: "internal" });
     expect(s().data.activities.find((row) => row.id === activity.id)?.kind).toBe("internal");
@@ -238,16 +245,18 @@ function registerStoreCrudEntity12(): void {
 
 function registerStoreCrudEntity13(): void {
   it("updateActivity validates the MERGED row, not the raw patch (partial phase/project patches)", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p1 = s().addProject({ name: "P1", clientId: c.id, color: "#2" });
-    const p2 = s().addProject({ name: "P2", clientId: c.id, color: "#3" });
-    const ph1 = s().addPhase({ name: "Disco", projectId: p1.id }); // a phase OF p1
-    const t = s().addActivity({
-      name: "T",
-      kind: "project",
-      projectId: p1.id,
-      phaseId: ph1.id,
-    });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
+    const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
+    const ph1 = requireCreated(s().addPhase({ name: "Disco", projectId: p1.id })); // a phase OF p1
+    const t = requireCreated(
+      s().addActivity({
+        name: "T",
+        kind: "project",
+        projectId: p1.id,
+        phaseId: ph1.id,
+      }),
+    );
 
     // A phaseId-ONLY patch (re-setting the same phase) must NOT be wrongly rejected: the
     // merged row still carries projectId from the existing activity, so coherence holds.
@@ -263,7 +272,7 @@ function registerStoreCrudEntity13(): void {
 
 function registerStoreCrudEntity14(): void {
   it("resources: add / update", () => {
-    const r = s().addResource({ ...personDraft });
+    const r = requireCreated(s().addResource({ ...personDraft }));
     s().updateResource(r.id, { role: "Lead" });
     expect(s().data.resources[0]?.role).toBe("Lead");
     expectRevisionAdvanced(r, requireValue(s().data.resources[0], "updated resource"));
@@ -274,28 +283,32 @@ function registerStoreCrudEntity15(): void {
   it("resources: defaults legacy people and forces placeholders to Studio engagement", () => {
     const legacyPersonDraft = { ...personDraft };
     delete legacyPersonDraft.engagement;
-    const person = s().addResource(legacyPersonDraft);
+    const person = requireCreated(s().addResource(legacyPersonDraft));
     expect(person.engagement).toBe("studio");
 
-    const client = s().addClient({ name: "Acme", color: "#1" });
-    const project = s().addProject({ name: "Project", clientId: client.id, color: "#2" });
-    const placeholder = s().addResource({
-      ...personDraft,
-      kind: "placeholder",
-      projectId: project.id,
-      engagement: "supplementary",
-    });
+    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const project = requireCreated(s().addProject({ name: "Project", clientId: client.id, color: "#2" }));
+    const placeholder = requireCreated(
+      s().addResource({
+        ...personDraft,
+        kind: "placeholder",
+        projectId: project.id,
+        engagement: "supplementary",
+      }),
+    );
     expect(placeholder.engagement).toBe("studio");
 
     s().updateResource(placeholder.id, { engagement: "supplementary" });
     expect(s().data.resources.find((resource) => resource.id === placeholder.id)?.engagement).toBe("studio");
 
-    const personToPlaceholder = s().addResource({
-      ...personDraft,
-      engagement: "supplementary",
-      firstAvailableDate: "2026-06-01",
-      lastAvailableDate: "2026-06-30",
-    });
+    const personToPlaceholder = requireCreated(
+      s().addResource({
+        ...personDraft,
+        engagement: "supplementary",
+        firstAvailableDate: "2026-06-01",
+        lastAvailableDate: "2026-06-30",
+      }),
+    );
     expect(() => s().updateResource(personToPlaceholder.id, { kind: "placeholder", projectId: project.id })).toThrow(
       /kind cannot change/i,
     );
@@ -309,7 +322,7 @@ function registerStoreCrudEntity15(): void {
 
 function registerStoreCrudEntity16(): void {
   it("resources: favourite updates are account data and undoable", () => {
-    const resource = s().addResource({ ...unflaggedDraft });
+    const resource = requireCreated(s().addResource({ ...unflaggedDraft }));
 
     s().updateResource(resource.id, { isFavourite: true });
     expect(s().data.resources[0]?.isFavourite).toBe(true);
@@ -321,7 +334,7 @@ function registerStoreCrudEntity16(): void {
 
 function registerStoreCrudEntity17(): void {
   it("resources: a viewer cannot change an account favourite", () => {
-    const resource = s().addResource({ ...unflaggedDraft });
+    const resource = requireCreated(s().addResource({ ...unflaggedDraft }));
 
     s().setActiveRole("viewer");
     s().updateResource(resource.id, { isFavourite: true });
@@ -333,18 +346,20 @@ function registerStoreCrudEntity17(): void {
 
 function registerStoreCrudEntity18(): void {
   it("allocations: add / update / delete", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource({ ...personDraft });
-    const a = s().addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+    const r = requireCreated(s().addResource({ ...personDraft }));
+    const a = requireCreated(
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     expect(s().updateAllocation(a.id, { hoursPerDay: 4, status: "tentative" })).toBe(true);
     expect(s().data.allocations[0]).toMatchObject({
       hoursPerDay: 4,
@@ -358,13 +373,15 @@ function registerStoreCrudEntity18(): void {
 
 function registerStoreCrudEntity19(): void {
   it("time off: add / update / delete", () => {
-    const r = s().addResource({ ...personDraft });
-    const to = s().addTimeOff({
-      resourceId: r.id,
-      startDate: "2026-06-10",
-      endDate: "2026-06-11",
-      type: "holiday",
-    });
+    const r = requireCreated(s().addResource({ ...personDraft }));
+    const to = requireCreated(
+      s().addTimeOff({
+        resourceId: r.id,
+        startDate: "2026-06-10",
+        endDate: "2026-06-11",
+        type: "holiday",
+      }),
+    );
     s().updateTimeOff(to.id, { type: "sick" });
     expect(s().data.timeOff[0]?.type).toBe("sick");
     expectRevisionAdvanced(to, requireValue(s().data.timeOff[0], "updated time off"));
@@ -375,10 +392,12 @@ function registerStoreCrudEntity19(): void {
 
 function registerStoreCrudEntity20(): void {
   it("company closure: add / update / delete with range validation", () => {
-    expect(() => s().addClosure({ name: "  ", startDate: "2026-12-24", endDate: "2026-12-25" })).toThrow(
-      expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }),
+    expect(() =>
+      requireCreated(s().addClosure({ name: "  ", startDate: "2026-12-24", endDate: "2026-12-25" })),
+    ).toThrow(expect.objectContaining<Partial<DomainError>>({ code: "closure_name_required" }));
+    const closure = requireCreated(
+      s().addClosure({ name: "Christmas shutdown", startDate: "2026-12-24", endDate: "2026-12-25" }),
     );
-    const closure = s().addClosure({ name: "Christmas shutdown", startDate: "2026-12-24", endDate: "2026-12-25" });
     s().updateClosure(closure.id, { name: "Winter shutdown" });
     expect(s().data.closures[0]).toMatchObject({ name: "Winter shutdown" });
     expect(() => s().updateClosure(closure.id, { endDate: "2026-12-23" })).toThrow(
@@ -480,38 +499,46 @@ describe("store UI + history extras", () => {
 
 describe("allocation integrity at the store boundary", () => {
   it("updateAllocation enforces the placeholder binding", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p1 = s().addProject({ name: "P1", clientId: c.id, color: "#2" });
-    const p2 = s().addProject({ name: "P2", clientId: c.id, color: "#3" });
-    const t1 = s().addActivity({
-      name: "T1",
-      kind: "project",
-      projectId: p1.id,
-    });
-    const t2 = s().addActivity({
-      name: "T2",
-      kind: "project",
-      projectId: p2.id,
-    });
-    const ph = s().addResource({
-      kind: "placeholder",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: WORKDAYS,
-      halfDays: [],
-      color: "#1",
-      projectId: p1.id,
-    });
-    const a = s().addAllocation({
-      resourceId: ph.id,
-      activityId: t1.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p1 = requireCreated(s().addProject({ name: "P1", clientId: c.id, color: "#2" }));
+    const p2 = requireCreated(s().addProject({ name: "P2", clientId: c.id, color: "#3" }));
+    const t1 = requireCreated(
+      s().addActivity({
+        name: "T1",
+        kind: "project",
+        projectId: p1.id,
+      }),
+    );
+    const t2 = requireCreated(
+      s().addActivity({
+        name: "T2",
+        kind: "project",
+        projectId: p2.id,
+      }),
+    );
+    const ph = requireCreated(
+      s().addResource({
+        kind: "placeholder",
+        role: "Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: WORKDAYS,
+        halfDays: [],
+        color: "#1",
+        projectId: p1.id,
+      }),
+    );
+    const a = requireCreated(
+      s().addAllocation({
+        resourceId: ph.id,
+        activityId: t1.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     expect(() => s().updateAllocation(a.id, { activityId: t2.id })).toThrow(/placeholder.*bound project/i);
     expect(
       requireValue(
@@ -523,24 +550,26 @@ describe("allocation integrity at the store boundary", () => {
 
   it("addAllocation rejects dangling resource/activity references", () => {
     expect(() =>
-      s().addAllocation({
-        resourceId: "nope",
-        activityId: "nope",
-        startDate: "2026-06-01",
-        endDate: "2026-06-01",
-        hoursPerDay: 8,
-        status: "confirmed",
-      }),
+      requireCreated(
+        s().addAllocation({
+          resourceId: "nope",
+          activityId: "nope",
+          startDate: "2026-06-01",
+          endDate: "2026-06-01",
+          hoursPerDay: 8,
+          status: "confirmed",
+        }),
+      ),
     ).toThrow(/allocation must reference an existing resource and activity/i);
     expect(s().data.allocations).toHaveLength(0);
   });
 });
 
 const seedAlloc = () => {
-  const c = s().addClient({ name: "Acme", color: "#111111" });
-  const p = s().addProject({ name: "P", clientId: c.id, color: "#222222" });
-  const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-  const r = s().addResource({ ...personDraft });
+  const c = requireCreated(s().addClient({ name: "Acme", color: "#111111" }));
+  const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#222222" }));
+  const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+  const r = requireCreated(s().addResource({ ...personDraft }));
   return { r, t };
 };
 
@@ -548,24 +577,28 @@ function registerDateRangeGuard1(): void {
   it("addAllocation rejects an empty or reversed date range", () => {
     const { r, t } = seedAlloc();
     expect(() =>
-      s().addAllocation({
-        resourceId: r.id,
-        activityId: t.id,
-        startDate: "",
-        endDate: "",
-        hoursPerDay: 8,
-        status: "confirmed",
-      }),
+      requireCreated(
+        s().addAllocation({
+          resourceId: r.id,
+          activityId: t.id,
+          startDate: "",
+          endDate: "",
+          hoursPerDay: 8,
+          status: "confirmed",
+        }),
+      ),
     ).toThrow(/start and end dates are required/i);
     expect(() =>
-      s().addAllocation({
-        resourceId: r.id,
-        activityId: t.id,
-        startDate: "2026-06-05",
-        endDate: "2026-06-01",
-        hoursPerDay: 8,
-        status: "confirmed",
-      }),
+      requireCreated(
+        s().addAllocation({
+          resourceId: r.id,
+          activityId: t.id,
+          startDate: "2026-06-05",
+          endDate: "2026-06-01",
+          hoursPerDay: 8,
+          status: "confirmed",
+        }),
+      ),
     ).toThrow(/end date cannot be before the start date/i);
     expect(s().data.allocations).toHaveLength(0);
   });
@@ -574,14 +607,16 @@ function registerDateRangeGuard1(): void {
 function registerDateRangeGuard2(): void {
   it("clamps allocation hoursPerDay to a real working day (<= 24) on add and update", () => {
     const { r, t } = seedAlloc();
-    const a = s().addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 200,
-      status: "confirmed",
-    });
+    const a = requireCreated(
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 200,
+        status: "confirmed",
+      }),
+    );
     expect(a.hoursPerDay).toBe(24); // inflated value clamped on add
     s().updateAllocation(a.id, { hoursPerDay: 99 });
     expect(s().data.allocations[0]?.hoursPerDay).toBe(24); // and on update (e.g. a drag-resize rescale)
@@ -591,14 +626,16 @@ function registerDateRangeGuard2(): void {
 function registerDateRangeGuard3(): void {
   it("updateAllocation allows a note/status-only patch (validates the effective range, not the patch)", () => {
     const { r, t } = seedAlloc();
-    const a = s().addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const a = requireCreated(
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     expect(() => s().updateAllocation(a.id, { status: "tentative" })).not.toThrow();
     expect(s().data.allocations[0]?.status).toBe("tentative");
     // …but a patch that would reverse the range is rejected.
@@ -611,22 +648,26 @@ function registerDateRangeGuard3(): void {
 
 function registerDateRangeGuard4(): void {
   it("addTimeOff rejects a dangling resource and a reversed range", () => {
-    const r = s().addResource({ ...personDraft });
+    const r = requireCreated(s().addResource({ ...personDraft }));
     expect(() =>
-      s().addTimeOff({
-        resourceId: "nope",
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        type: "holiday",
-      }),
+      requireCreated(
+        s().addTimeOff({
+          resourceId: "nope",
+          startDate: "2026-06-01",
+          endDate: "2026-06-02",
+          type: "holiday",
+        }),
+      ),
     ).toThrow(/time off must reference an existing resource/i);
     expect(() =>
-      s().addTimeOff({
-        resourceId: r.id,
-        startDate: "2026-06-05",
-        endDate: "2026-06-01",
-        type: "holiday",
-      }),
+      requireCreated(
+        s().addTimeOff({
+          resourceId: r.id,
+          startDate: "2026-06-05",
+          endDate: "2026-06-01",
+          type: "holiday",
+        }),
+      ),
     ).toThrow(/end date cannot be before the start date/i);
     expect(s().data.timeOff).toHaveLength(0);
   });
@@ -634,8 +675,10 @@ function registerDateRangeGuard4(): void {
 
 function registerDateRangeGuard5(): void {
   it("addResource / updateResource reject an empty working-days set", () => {
-    expect(() => s().addResource({ ...personDraft, workingDays: [] })).toThrow(/at least one working day/i);
-    const r = s().addResource({ ...personDraft });
+    expect(() => requireCreated(s().addResource({ ...personDraft, workingDays: [] }))).toThrow(
+      /at least one working day/i,
+    );
+    const r = requireCreated(s().addResource({ ...personDraft }));
     expect(() => s().updateResource(r.id, { workingDays: [] })).toThrow(/at least one working day/i);
     // A patch that doesn't touch workingDays is unaffected.
     expect(() => s().updateResource(r.id, { name: "Renamed" })).not.toThrow();
@@ -644,10 +687,10 @@ function registerDateRangeGuard5(): void {
 
 function registerDateRangeGuard6(): void {
   it("requires half days to be a unique subset of the working week", () => {
-    expect(() => s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [3] })).toThrow(
+    expect(() => requireCreated(s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [3] }))).toThrow(
       /half days must be.*contained/i,
     );
-    const resource = s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [2] });
+    const resource = requireCreated(s().addResource({ ...personDraft, workingDays: [1, 2], halfDays: [2] }));
     expect(resource.halfDays).toEqual([2]);
     expect(() => s().updateResource(resource.id, { workingDays: [1] })).toThrow(/half days must be.*contained/i);
     expect(() => s().updateResource(resource.id, { halfDays: [2, 2] })).toThrow(/half days must be unique/i);
@@ -656,15 +699,17 @@ function registerDateRangeGuard6(): void {
 
 function registerDateRangeGuard7(): void {
   it("normalizes placeholder working patterns on add and update", () => {
-    const client = s().addClient({ name: "Wayne Enterprises", color: "#737373" });
-    const project = s().addProject({ name: "Watchtower", clientId: client.id, color: "#737373" });
-    const resource = s().addResource({
-      ...personDraft,
-      kind: "placeholder",
-      projectId: project.id,
-      workingDays: [],
-      halfDays: [6],
-    });
+    const client = requireCreated(s().addClient({ name: "Wayne Enterprises", color: "#737373" }));
+    const project = requireCreated(s().addProject({ name: "Watchtower", clientId: client.id, color: "#737373" }));
+    const resource = requireCreated(
+      s().addResource({
+        ...personDraft,
+        kind: "placeholder",
+        projectId: project.id,
+        workingDays: [],
+        halfDays: [6],
+      }),
+    );
 
     expect(resource).toMatchObject({ workingDays: [1, 2, 3, 4, 5], halfDays: [] });
     s().updateResource(resource.id, { workingDays: [0, 6], halfDays: [6] });
@@ -680,15 +725,19 @@ function registerDateRangeGuard8(): void {
     // The store is the last line for the resource path too (the form caps it, but a non-form
     // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is NOT legal for a
     // resource — no working day — so it falls back to 8 (distinct from an allocation, where 0 is fine).
-    const over = s().addResource({
-      ...personDraft,
-      workingHoursPerDay: 1000,
-    });
+    const over = requireCreated(
+      s().addResource({
+        ...personDraft,
+        workingHoursPerDay: 1000,
+      }),
+    );
     expect(over.workingHoursPerDay).toBe(24);
-    const zero = s().addResource({
-      ...personDraft,
-      workingHoursPerDay: 0,
-    });
+    const zero = requireCreated(
+      s().addResource({
+        ...personDraft,
+        workingHoursPerDay: 0,
+      }),
+    );
     expect(zero.workingHoursPerDay).toBe(8);
     s().updateResource(over.id, { workingHoursPerDay: NaN });
     expect(
@@ -795,18 +844,20 @@ const externalResource = (id: string): Resource =>
 
 function registerMergedRow1(): void {
   it("a normal-resource note/date-only updateAllocation + updateTimeOff still succeed (no false reject)", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource({ ...personDraft });
-    const a = s().addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+    const r = requireCreated(s().addResource({ ...personDraft }));
+    const a = requireCreated(
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     // A note/date-only patch on a VALID (non-external) allocation must NOT be rejected even though
     // the merged-row check now runs unconditionally — assertAllocationRefs is pure & idempotent.
     expect(() => s().updateAllocation(a.id, { note: "ping" })).not.toThrow();
@@ -814,12 +865,14 @@ function registerMergedRow1(): void {
     expect(s().data.allocations[0]?.note).toBe("ping");
     expect(s().data.allocations[0]?.startDate).toBe("2026-06-02");
 
-    const to = s().addTimeOff({
-      resourceId: r.id,
-      startDate: "2026-06-10",
-      endDate: "2026-06-11",
-      type: "holiday",
-    });
+    const to = requireCreated(
+      s().addTimeOff({
+        resourceId: r.id,
+        startDate: "2026-06-10",
+        endDate: "2026-06-11",
+        type: "holiday",
+      }),
+    );
     expect(() => s().updateTimeOff(to.id, { type: "sick" })).not.toThrow();
     expect(() => s().updateTimeOff(to.id, { startDate: "2026-06-09" })).not.toThrow();
     expect(s().data.timeOff[0]?.type).toBe("sick");
@@ -958,57 +1011,69 @@ const NEAREST_PRESET = "#7adae3";
 
 function registerColourSnap1(): void {
   it("addClient / addProject / addDiscipline / addResource snap a non-preset colour to its nearest preset", () => {
-    const client = s().addClient({ name: "Acme", color: NON_PRESET });
+    const client = requireCreated(s().addClient({ name: "Acme", color: NON_PRESET }));
     expect(client.color).toBe(NEAREST_PRESET);
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
 
-    const project = s().addProject({
-      name: "P",
-      clientId: client.id,
-      color: NON_PRESET,
-    });
+    const project = requireCreated(
+      s().addProject({
+        name: "P",
+        clientId: client.id,
+        color: NON_PRESET,
+      }),
+    );
     expect(project.color).toBe(NEAREST_PRESET);
 
-    const discipline = s().addDiscipline({
-      name: "Design",
-      color: NON_PRESET,
-      sortOrder: 0,
-    });
+    const discipline = requireCreated(
+      s().addDiscipline({
+        name: "Design",
+        color: NON_PRESET,
+        sortOrder: 0,
+      }),
+    );
     expect(discipline.color).toBe(NEAREST_PRESET);
 
-    const resource = s().addResource({
-      ...personDraft,
-      color: NON_PRESET,
-    });
+    const resource = requireCreated(
+      s().addResource({
+        ...personDraft,
+        color: NON_PRESET,
+      }),
+    );
     expect(resource.color).toBe(NEAREST_PRESET);
   });
 }
 
 function registerColourSnap2(): void {
   it("updateClient / updateProject / updateDiscipline / updateResource / updateAccount snap a non-preset colour on patch", () => {
-    const client = s().addClient({ name: "Acme", color: "#1" });
+    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
     s().updateClient(client.id, { color: NON_PRESET });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
 
-    const project = s().addProject({
-      name: "P",
-      clientId: client.id,
-      color: "#1",
-    });
+    const project = requireCreated(
+      s().addProject({
+        name: "P",
+        clientId: client.id,
+        color: "#1",
+      }),
+    );
     s().updateProject(project.id, { color: NON_PRESET });
     expect(s().data.projects.find((p) => p.id === project.id)?.color).toBe(NEAREST_PRESET);
 
-    const discipline = s().addDiscipline({
-      name: "Design",
-      color: "#1",
-      sortOrder: 0,
-    });
+    const discipline = requireCreated(
+      s().addDiscipline({
+        name: "Design",
+        color: "#1",
+        sortOrder: 0,
+      }),
+    );
     s().updateDiscipline(discipline.id, { color: NON_PRESET });
     expect(s().data.disciplines.find((d) => d.id === discipline.id)?.color).toBe(NEAREST_PRESET);
 
-    const resource = s().addResource({
-      ...personDraft,
-    });
+    const resource = requireCreated(
+      s().addResource({
+        ...personDraft,
+      }),
+    );
     s().updateResource(resource.id, { color: NON_PRESET });
     expect(s().data.resources.find((r) => r.id === resource.id)?.color).toBe(NEAREST_PRESET);
 
@@ -1020,11 +1085,13 @@ function registerColourSnap2(): void {
 function registerColourSnap3(): void {
   it("an external resource keeps NEUTRAL_COLOR (the one deliberate non-preset exception) instead of snapping", () => {
     const NEUTRAL_COLOR = "#9ca3af";
-    const ext = s().addResource({
-      ...personDraft,
-      kind: "external",
-      color: NEUTRAL_COLOR,
-    });
+    const ext = requireCreated(
+      s().addResource({
+        ...personDraft,
+        kind: "external",
+        color: NEUTRAL_COLOR,
+      }),
+    );
     expect(ext.color).toBe(NEUTRAL_COLOR);
   });
 
@@ -1040,7 +1107,7 @@ function registerColourSnap4(): void {
   it("a preset colour with stray whitespace/casing is stored normalized, not verbatim", () => {
     const RAW = "  #E02727  ";
     const NORMALIZED = "#e02727";
-    const client = s().addClient({ name: "Acme", color: RAW });
+    const client = requireCreated(s().addClient({ name: "Acme", color: RAW }));
     expect(client.color).toBe(NORMALIZED);
     const stored = s().data.clients.find((c) => c.id === client.id)?.color;
     expect(stored).toBe(NORMALIZED);
@@ -1053,7 +1120,7 @@ function registerColourSnap4(): void {
 
 function registerColourSnap5(): void {
   it("a colourless patch leaves the stored colour untouched", () => {
-    const client = s().addClient({ name: "Acme", color: NON_PRESET });
+    const client = requireCreated(s().addClient({ name: "Acme", color: NON_PRESET }));
     s().updateClient(client.id, { name: "Acme 2" });
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
   });
@@ -1067,15 +1134,13 @@ function registerColourSnap6(): void {
     expect(s().data.clients).toHaveLength(0);
     // The rejection is SURFACED (per DEFENSIVE-CODING.md's "surface, never swallow"), not swallowed.
     expect(s().notice).toMatchObject({ tone: "error" });
-    // Critically: the unpersisted return value carries the caller's ORIGINAL colour, not a value
-    // the store silently changed on their behalf for a write that never actually happened.
-    expect(returned.color).toBe(NON_PRESET);
+    expect(returned).toEqual({ kind: "blocked" });
   });
 }
 
 function registerColourSnap7(): void {
   it("a REJECTED update (viewer no-op) does not touch the stored colour", () => {
-    const client = s().addClient({ name: "Acme", color: NON_PRESET });
+    const client = requireCreated(s().addClient({ name: "Acme", color: NON_PRESET }));
     expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET);
     s().setActiveRole("viewer");
     s().updateClient(client.id, { color: "#123456" });
@@ -1093,136 +1158,4 @@ describe("colour snapping: shared helper, nearest-preset (not fixed fallback), n
   registerColourSnap5();
   registerColourSnap6();
   registerColourSnap7();
-});
-
-function registerExternalFlip1(): void {
-  it("flipping a person with a loaded allocation to external THROWS and does not mutate", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource({ ...personDraft });
-    s().addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
-
-    expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(/kind cannot change/i);
-    expect(s().data.resources[0]?.kind).toBe("person"); // atomic failure — the flip did NOT land
-  });
-}
-
-function registerExternalFlip2(): void {
-  it("flipping a person with time off to external THROWS", () => {
-    const r = s().addResource({ ...personDraft });
-    s().addTimeOff({
-      resourceId: r.id,
-      startDate: "2026-06-10",
-      endDate: "2026-06-11",
-      type: "holiday",
-    });
-
-    expect(() => s().updateResource(r.id, { kind: "external" })).toThrow(/kind cannot change/i);
-    expect(s().data.resources[0]?.kind).toBe("person");
-  });
-}
-
-function registerExternalFlip3(): void {
-  it("rejects flipping a person with no dependents or a zero-load allocation to external", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const free = s().addResource({
-      ...personDraft,
-      name: "Free",
-    });
-    expect(() => s().updateResource(free.id, { kind: "external" })).toThrow(/kind cannot change/i);
-    expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe("person");
-
-    // Zero-load allocations do not bypass the immutable resource-kind rule.
-    const z = s().addResource({
-      ...personDraft,
-      name: "Zero",
-    });
-    s().addAllocation({
-      resourceId: z.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 0,
-      status: "confirmed",
-    });
-    expect(() => s().updateResource(z.id, { kind: "external" })).toThrow(/kind cannot change/i);
-    expect(s().data.resources.find((r) => r.id === z.id)?.kind).toBe("person");
-  });
-}
-
-function registerExternalFlip4(): void {
-  it("editing an external resource’s OTHER fields (name) with no dependents still SUCCEEDS", () => {
-    const ext = s().addResource({
-      ...personDraft,
-      name: "Outsource",
-      kind: "external",
-    });
-    expect(() => s().updateResource(ext.id, { name: "Outsource Co" })).not.toThrow();
-    expect(s().data.resources.find((r) => r.id === ext.id)?.name).toBe("Outsource Co");
-  });
-}
-
-describe("updateResource rejects a kind-flip-to-external that would orphan dependents", () => {
-  registerExternalFlip1();
-  registerExternalFlip2();
-  registerExternalFlip3();
-  registerExternalFlip4();
-});
-
-describe("parent edits cannot invalidate existing placeholder allocations", () => {
-  it("rejects a placeholder project rebind atomically", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p1 = s().addProject({ name: "P1", clientId: c.id, color: "#2" });
-    const p2 = s().addProject({ name: "P2", clientId: c.id, color: "#3" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p1.id });
-    const ph = s().addResource({
-      ...personDraft,
-      kind: "placeholder",
-      projectId: p1.id,
-    });
-    s().addAllocation({
-      resourceId: ph.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
-
-    expect(() => s().updateResource(ph.id, { projectId: p2.id })).toThrow(/placeholder’s work/i);
-    expect(s().data.resources.find((resource) => resource.id === ph.id)?.projectId).toBe(p1.id);
-  });
-
-  it("rejects an activity project change atomically", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p1 = s().addProject({ name: "P1", clientId: c.id, color: "#2" });
-    const p2 = s().addProject({ name: "P2", clientId: c.id, color: "#3" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p1.id });
-    const ph = s().addResource({
-      ...personDraft,
-      kind: "placeholder",
-      projectId: p1.id,
-    });
-    s().addAllocation({
-      resourceId: ph.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
-
-    expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(/placeholder work/i);
-    expect(s().data.activities.find((activityRow) => activityRow.id === t.id)?.projectId).toBe(p1.id);
-  });
 });

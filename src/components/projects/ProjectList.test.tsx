@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -19,20 +20,20 @@ afterEach(() => vi.unstubAllEnvs());
 
 describe("ProjectList", () => {
   it("sorts by effective client then effective project name without changing stored order", () => {
-    const zuluClient = useStore.getState().addClient({ name: "Zulu Client", color: "#111111" });
-    const alphaClient = useStore.getState().addClient({ name: "Alpha Client", color: "#222222" });
-    const alphaZuluProject = useStore
-      .getState()
-      .addProject({ name: "Alpha Project", clientId: zuluClient.id, color: "#333333" });
-    const zuluBravoProject = useStore
-      .getState()
-      .addProject({ name: "Zulu Project", clientId: zuluClient.id, color: "#444444" });
-    const betaAlphaProject = useStore
-      .getState()
-      .addProject({ name: "Beta Project", clientId: alphaClient.id, color: "#555555" });
-    const betaZuluProject = useStore
-      .getState()
-      .addProject({ name: "Zulu Project", clientId: alphaClient.id, color: "#666666" });
+    const zuluClient = requireCreated(useStore.getState().addClient({ name: "Zulu Client", color: "#111111" }));
+    const alphaClient = requireCreated(useStore.getState().addClient({ name: "Alpha Client", color: "#222222" }));
+    const alphaZuluProject = requireCreated(
+      useStore.getState().addProject({ name: "Alpha Project", clientId: zuluClient.id, color: "#333333" }),
+    );
+    const zuluBravoProject = requireCreated(
+      useStore.getState().addProject({ name: "Zulu Project", clientId: zuluClient.id, color: "#444444" }),
+    );
+    const betaAlphaProject = requireCreated(
+      useStore.getState().addProject({ name: "Beta Project", clientId: alphaClient.id, color: "#555555" }),
+    );
+    const betaZuluProject = requireCreated(
+      useStore.getState().addProject({ name: "Zulu Project", clientId: alphaClient.id, color: "#666666" }),
+    );
 
     useStore.getState().replaceAll({
       ...useStore.getState().data,
@@ -74,7 +75,7 @@ describe("ProjectList", () => {
   });
 
   it("lists a seeded project with its client name", () => {
-    const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
     useStore.getState().addProject({ name: "Alpha Project", clientId: client.id, color: "#ec4899" });
 
     render(<ProjectList />);
@@ -84,7 +85,7 @@ describe("ProjectList", () => {
   });
 
   it("gives repeated project edit controls distinct contextual names", () => {
-    const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
     useStore.getState().addProject({ name: "Alpha", clientId: client.id, color: "#ec4899" });
     useStore.getState().addProject({ name: "Beta", clientId: client.id, color: "#3b82f6" });
     render(<ProjectList />);
@@ -96,7 +97,7 @@ describe("ProjectList", () => {
 
   it("adds a project via the form and displays it with the client name", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
 
     render(<ProjectList />);
 
@@ -129,8 +130,10 @@ describe("ProjectList", () => {
   // set (its activities are RETAINED — reversible) and vanishes from this active-only list.
   it("shows the Archive ConfirmDialog when the archive button is clicked", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Doomed Project", clientId: client.id, color: "#ec4899" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Doomed Project", clientId: client.id, color: "#ec4899" }),
+    );
     useStore.getState().addPhase({ name: "Discovery", projectId: project.id });
 
     render(<ProjectList />);
@@ -148,8 +151,10 @@ describe("ProjectList", () => {
 
   it("keeps exactly one quote pair around a redacted private code name in confirmation copy", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111111" });
-    const created = useStore.getState().addProject({ name: "Real project", clientId: client.id, color: "#ec4899" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111111" }));
+    const created = requireCreated(
+      useStore.getState().addProject({ name: "Real project", clientId: client.id, color: "#ec4899" }),
+    );
     const project = { ...created, name: '"Aurora"', isPrivate: true };
     useStore.getState().replaceAll({ ...useStore.getState().data, projects: [project] });
     render(<ProjectList />);
@@ -162,7 +167,7 @@ describe("ProjectList", () => {
 
   it("cancels archival and keeps the project active", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
     useStore.getState().addProject({ name: "Kept Project", clientId: client.id, color: "#ec4899" });
 
     render(<ProjectList />);
@@ -179,8 +184,10 @@ describe("ProjectList", () => {
 
   it("confirms archival and hides the project from the list (kept in the store)", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Doomed Project", clientId: client.id, color: "#ec4899" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Doomed Project", clientId: client.id, color: "#ec4899" }),
+    );
     useStore.getState().addActivity({ name: "Activity 1", kind: "project", projectId: project.id });
 
     render(<ProjectList />);
@@ -201,7 +208,7 @@ describe("ProjectList", () => {
   });
 
   it("hides a project whose client is archived", () => {
-    const client = useStore.getState().addClient({ name: "Acme Corp", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme Corp", color: "#111" }));
     useStore.getState().addProject({ name: "Alpha Project", clientId: client.id, color: "#ec4899" });
     useStore.getState().archiveEntity("clients", client.id);
 

@@ -6,16 +6,30 @@
 //   1. Two runs never hold the same lane. Scanning for a free lane and writing the claim happen
 //      under a directory mutex, so two starters cannot both decide the same stale lane is theirs.
 //   2. A release never deletes someone else's claim. Release re-reads the file and unlinks only
-//      when the recorded pid is still ours — otherwise a slow releaser would delete the lock a
+//      when the recorded token is still ours — otherwise a slow releaser would delete the lock a
 //      successor had just created.
 import { execFileSync } from "node:child_process";
-import { mkdirSync, openSync, readdirSync, readFileSync, closeSync, unlinkSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  closeSync,
+  unlinkSync,
+  writeFileSync,
+  renameSync,
+  rmdirSync,
+  statSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { LANE_CEILING, portsForLane, reservationCeiling, soloShare } from "./ports.mjs";
 import { portInUse } from "./dev-processes.mjs";
 
 const MUTEX_STALE_MS = 30_000;
+// A legacy publisher wrote its owner microseconds after creating the file.
+const LEGACY_PUBLISH_GRACE_MS = 5_000;
+let claimSequence = 0;
 
 export function laneDirectory(environment = process.env) {
   const cacheHome = environment.XDG_CACHE_HOME || join(environment.HOME || homedir(), ".cache");
@@ -23,6 +37,7 @@ export function laneDirectory(environment = process.env) {
 }
 
 function processAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
@@ -44,42 +59,110 @@ function readClaim(path) {
 
 /**
  * Hold the directory mutex for the duration of `body`. Kept to the scan-and-write window only —
- * milliseconds — so a crashed holder blocks nobody for long, and a mutex older than MUTEX_STALE_MS
- * whose pid is gone is broken open.
+ * milliseconds — a dead holder can be reaped, while a live holder is never reaped based on age.
+ * MUTEX_STALE_MS only limits how long a contender waits for a live holder.
  */
 function withMutex(directory, body) {
   const path = join(directory, ".mutex");
   const deadline = Date.now() + MUTEX_STALE_MS;
   for (;;) {
-    let descriptor;
+    const ownerName = `owner-${process.pid}-${Date.now()}-${++claimSequence}.json`;
+    const temporary = join(directory, `.mutex-${ownerName}`);
+    mkdirSync(temporary, { mode: 0o700 });
+    writeFileSync(join(temporary, ownerName), JSON.stringify({ pid: process.pid, at: Date.now() }), {
+      flag: "wx",
+      mode: 0o600,
+    });
     try {
-      descriptor = openSync(path, "wx", 0o600);
+      // A populated directory cannot replace another populated directory. Publish only after
+      // its owner file is complete, so contenders never observe a half-written owner.
+      renameSync(temporary, path);
     } catch (error) {
-      if (error.code !== "EEXIST") throw error;
-      const holder = readClaim(path);
-      const expired =
-        !holder || holder.corrupt || !processAlive(holder.pid) || Date.now() - (holder.at ?? 0) > MUTEX_STALE_MS;
-      if (expired) {
-        removeQuietly(path);
+      releaseMutex(temporary, ownerName);
+      if (!["EEXIST", "ENOTEMPTY", "EISDIR", "ENOTDIR"].includes(error.code)) throw error;
+      const holder = readMutexOwner(path);
+      // The old file format published the path before writing its owner. An empty/corrupt legacy
+      // file may belong to a live publisher paused in that window, so it is reaped only once it
+      // is older than any such pause could be.
+      if (holder?.legacy && (holder.corrupt || !Number.isInteger(holder.pid) || holder.pid <= 0)) {
+        if (legacyMutexAbandoned(path)) {
+          removeLegacyMutex(path);
+          continue;
+        }
+        if (Date.now() > deadline)
+          throw new Error(`lane: the legacy claim mutex at ${path} has no valid owner.`, { cause: error });
+        continue;
+      }
+      if (holder && !processAlive(holder.pid)) {
+        if (holder.legacy) {
+          removeLegacyMutex(path);
+          continue;
+        }
+        // A second reaper can remove only this dead owner's unique file. A successor's different
+        // owner file keeps its directory nonempty, so rmdir cannot remove the successor's lock.
+        releaseMutex(path, holder.name);
         continue;
       }
       if (Date.now() > deadline) {
-        throw new Error(`lane: the claim mutex at ${path} is held by pid ${holder.pid} and did not clear.`, {
-          cause: error,
-        });
+        throw new Error(
+          `lane: the claim mutex at ${path} is held by pid ${holder?.pid ?? "unknown"} and did not clear.`,
+          {
+            cause: error,
+          },
+        );
       }
       // Busy-wait rather than sleep: the window being guarded is a few file writes long.
       continue;
     }
     try {
-      writeFileSync(descriptor, JSON.stringify({ pid: process.pid, at: Date.now() }));
       return body();
     } finally {
-      closeSync(descriptor);
-      // Never throw out of this finally: it would replace whatever the guarded body was reporting
-      // with a filesystem detail. A mutex that cannot be removed is reported and then expires.
-      removeQuietly(path);
+      releaseMutex(path, ownerName);
     }
+  }
+}
+
+function legacyMutexAbandoned(path) {
+  try {
+    return Date.now() - statSync(path).mtimeMs > LEGACY_PUBLISH_GRACE_MS;
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+// Older launchers used a regular file. Unlink cannot delete a directory successor.
+function removeLegacyMutex(path) {
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    if (!["ENOENT", "EISDIR", "EPERM"].includes(error.code)) throw error;
+  }
+}
+
+function readMutexOwner(path) {
+  try {
+    const [name] = readdirSync(path);
+    if (!name) return null;
+    const claim = readClaim(join(path, name));
+    return claim ? { ...claim, name } : null;
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    if (error.code === "ENOTDIR") {
+      const claim = readClaim(path);
+      return claim ? { ...claim, legacy: true } : null;
+    }
+    throw error;
+  }
+}
+
+export function releaseMutex(path, ownerName) {
+  removeQuietly(join(path, ownerName));
+  try {
+    rmdirSync(path);
+  } catch (error) {
+    if (error.code !== "ENOENT" && error.code !== "ENOTEMPTY")
+      console.error(`lane: could not remove ${path}: ${error.message}`);
   }
 }
 
@@ -204,21 +287,22 @@ export function claimLane({ worktree, environment = process.env, cores } = {}) {
     }
     const share = shareForClaims(claims, cores);
     const path = claimPath(directory, lane);
+    const token = `${process.pid}-${Date.now()}-${++claimSequence}`;
     const descriptor = openSync(path, "wx", 0o600);
     try {
-      writeFileSync(descriptor, JSON.stringify({ pid: process.pid, worktree, share, at: Date.now() }, null, 2));
+      writeFileSync(descriptor, JSON.stringify({ pid: process.pid, worktree, share, token }, null, 2));
     } finally {
       closeSync(descriptor);
     }
-    return { lane, share, release: () => releaseLane(directory, lane) };
+    return { lane, share, release: () => releaseLane(directory, lane, token) };
   });
 }
 
 /** Release a lane, but only if it is still ours — see invariant 2 at the top of this file. */
-export function releaseLane(directory, lane) {
+export function releaseLane(directory, lane, token) {
   const path = claimPath(directory, lane);
   const claim = readClaim(path);
-  if (!claim || claim.pid !== process.pid) return false;
+  if (!claim || claim.pid !== process.pid || claim.token !== token) return false;
   removeQuietly(path);
   return true;
 }

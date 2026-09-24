@@ -256,6 +256,7 @@
   "settings_member_resource_unlinked": "No Resource linked",
   "settings_member_resource_inactive": "{name} (inactive — unlink only)",
   "settings_member_resource_error": "The Resource link could not be changed. Reload and try again.",
+  "settings_member_resource_unknown": "The Resource link change may have been saved. Check the member list before trying again.",
   "settings_member_resource_update_done": "Resource link updated.",
   "settings_member_resource_remove_done": "Resource link removed.",
   "settings_member_resource_linked": "Linked to Resource: {name}",
@@ -1385,7 +1386,7 @@
   "swatch_group_label": "{label} swatches",
   "reauth_title": "Confirm it's you",
   "reauth_body": "For your security, changes like managing members or deleting data need a recent sign-in. Confirm your password to continue — you won't lose your place.",
-  "reauth_body_sso": "For your security, changes like managing members or deleting data need a recent sign-in. Re-authenticate with your identity provider to continue — you won't lose your place.",
+  "reauth_body_sso": "Sign in with your identity provider to confirm it's you. You'll return to this page, then need to repeat the original action; signing in does not make that change.",
   "reauth_submit": "Confirm",
   "reauth_failed": "Could not confirm your identity. Check your password and try again.",
   "reauth_still_not_fresh": "Re-authentication did not refresh your session. Sign out and back in, then try again.",
@@ -1440,5 +1441,6 @@
   "ownership_transfer_outcome_completed": "Ownership was transferred.",
   "ownership_transfer_outcome_on": "{outcome} ({date})",
   "ownership_transfer_read_failed": "The transfer status could not be loaded.",
+  "ownership_transfer_retry": "Try again",
   "ownership_transfer_command_failed": "That step could not be completed."
 }

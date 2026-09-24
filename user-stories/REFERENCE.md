@@ -900,7 +900,9 @@ local mode, no login screen exists, Account has no credential controls, and loca
 auth request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
-**External provider action labels (login, invitation acceptance and reauthentication).** The
+**External provider action labels (login, invitation acceptance and reauthentication).** Provider
+reauthentication explains before redirect that returning does not complete the original action;
+the person must submit it again. The
 configured Google provider uses the
 exact branded action **Sign in with Google** and the
 recognisable Google mark on the sign-in wall, the invite acceptance sign-in form and the
@@ -1041,7 +1043,7 @@ Owner, Admin, Editor and Viewer. Owners and Admins can use the member directory'
 Resource** column to see the resource name or **None**, then use the row's separate link icon to link, change,
 or remove one active person per member. This association changes neither
 permissions nor schedule ownership. Explicit person avatar URLs take precedence over a
-validated sign-in picture; inactive endpoints suppress the derived picture while retaining the
+validated sign-in picture on Schedule and Overview; inactive endpoints suppress the derived picture while retaining the
 association. Its **Your access** panel (`data-testid="current-access"`) shows the
 active role in a plain-language summary sentence. The full allowed/not-allowed capability list —
 schedule writes, member administration, time-off-note visibility and private client/project-name

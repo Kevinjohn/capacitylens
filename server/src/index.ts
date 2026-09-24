@@ -1,3 +1,4 @@
+import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { DEFAULT_CORS, parseRateLimit } from "./app";
 import { initializeOpenDb, openDbConnection, planDatabaseMigrations, seedIfUninitialized, type Db } from "./db";
 import { seedForCurrentWeek } from "@capacitylens/shared/data/seed";
@@ -121,6 +122,8 @@ let auth!: ReturnType<typeof createAuthFromEnvironment>["auth"];
 try {
   db = openDbConnection(dbPath);
   const migrationPlan = planDatabaseMigrations(db);
+  // Harden only after identity/history validation, before any sensitive rollback snapshot.
+  restrictIdentifiedDatabasePermissions(db);
   // Resolve every auth/provider option while the database is still at its original version.
   // Auth-control verification and lease maintenance are deferred until app migration succeeds.
   ({ mode: authMode, auth } = createAuthFromEnvironment(db, accountEnv, {

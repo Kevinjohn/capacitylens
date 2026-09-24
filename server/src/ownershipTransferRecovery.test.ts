@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { openDb, openDbConnection, type Db } from "./db";
@@ -65,6 +65,8 @@ function readRequest(db: Db): Record<string, unknown> {
 describe("ownership-transfer stopped-server recovery", () => {
   it("inspects the exact live request without changing it", () => {
     const databasePath = seedDatabase("not-a-revision");
+    chmodSync(databasePath, 0o640);
+    const before = readFileSync(databasePath);
 
     expect(inspectBrokenOwnershipTransfer({ databasePath, accountId: ACCOUNT_ID, requestId: REQUEST_ID })).toEqual({
       status: "corrupt",
@@ -76,6 +78,8 @@ describe("ownership-transfer stopped-server recovery", () => {
       targetUserId: "selina-kyle",
     });
 
+    expect(statSync(databasePath).mode & 0o777).toBe(0o640);
+    expect(readFileSync(databasePath)).toEqual(before);
     const db = openDbConnection(databasePath);
     expect(readRequest(db)).toMatchObject({ state: "awaiting_owner", terminalAt: null, terminalReason: null });
     db.close();

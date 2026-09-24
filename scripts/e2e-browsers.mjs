@@ -12,16 +12,16 @@
 //   node scripts/e2e-browsers.mjs   # = pnpm run e2e:browsers
 
 import { nonColourEnvironment, spawnPnpmSync, synchronousSpawnStatus } from "./pnpm-spawn.mjs";
-import { E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
+import { E2E_RUN_PRESETS, presetEnvironment } from "./playwright-run-mode.mjs";
 
 const forwardedArgs = process.argv.slice(2);
 
-/** Run one Playwright invocation to completion; return its exit status (1 if it never started). */
+/** Run one Playwright invocation to completion; return its exit status (2 if it never started). */
 function run(label, env, extraArgs = []) {
   console.log(`\n=== e2e:browsers — ${label} ===`);
   const res = spawnPnpmSync(["exec", "playwright", "test", ...extraArgs, ...forwardedArgs], {
     stdio: "inherit",
-    env: nonColourEnvironment(env),
+    env: nonColourEnvironment({}, presetEnvironment(process.env, env)),
   });
   return synchronousSpawnStatus(`e2e:browsers ${label}`, res);
 }

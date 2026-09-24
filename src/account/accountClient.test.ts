@@ -251,7 +251,11 @@ function registerMembershipRouteTests(): void {
     await accountClient.endMasquerade({ token: "token-1", reason: "explicit" });
     await accountClient.previewInvitation("token / one");
     await accountClient.acceptInvitation("token / one", command);
-    await accountClient.signupWithInvitation("token / one", { name: "New user" }, command);
+    await accountClient.signupWithInvitation(
+      "token / one",
+      { name: "New user", email: "new@wayne.test", password: "example-password" },
+      command,
+    );
 
     const directoryUrls = mocks.apiFetch.mock.calls
       .map((call) => String(call[0]))

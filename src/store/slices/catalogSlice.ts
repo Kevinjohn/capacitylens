@@ -30,7 +30,19 @@ type CatalogSlice = Pick<
   | "deleteActivity"
 >;
 
-export function createCatalogSlice(internals: StoreInternals): StateCreator<StoreState, [], [], CatalogSlice> {
+type CatalogSliceInternals = Pick<
+  StoreInternals,
+  | "createGuardedAction"
+  | "createGuardedAddAction"
+  | "requireAccount"
+  | "applySnappedColor"
+  | "mutate"
+  | "updateOwned"
+  | "resolveOwnedRow"
+  | "assertNotBuiltinClient"
+>;
+
+export function createCatalogSlice(internals: CatalogSliceInternals): StateCreator<StoreState, [], [], CatalogSlice> {
   return (_set, get) => ({
     ...createDisciplineActions(internals, get),
     ...createClientActions(internals),
@@ -43,7 +55,7 @@ export function createCatalogSlice(internals: StoreInternals): StateCreator<Stor
 type StoreGet = StoreApi<StoreState>["getState"];
 
 function createDisciplineActions(
-  internals: StoreInternals,
+  internals: CatalogSliceInternals,
   get: StoreGet,
 ): Pick<CatalogSlice, "addDiscipline" | "updateDiscipline" | "deleteDiscipline"> {
   const {
@@ -79,7 +91,7 @@ function createDisciplineActions(
   };
 }
 
-function createClientActions(internals: StoreInternals): Pick<CatalogSlice, "addClient" | "updateClient"> {
+function createClientActions(internals: CatalogSliceInternals): Pick<CatalogSlice, "addClient" | "updateClient"> {
   const {
     createGuardedAction,
     createGuardedAddAction,
@@ -141,7 +153,7 @@ function createClientActions(internals: StoreInternals): Pick<CatalogSlice, "add
 }
 
 function createProjectActions(
-  internals: StoreInternals,
+  internals: CatalogSliceInternals,
   get: StoreGet,
 ): Pick<CatalogSlice, "addProject" | "updateProject"> {
   const { createGuardedAction, createGuardedAddAction, requireAccount, applySnappedColor, mutate, updateOwned } =
@@ -180,7 +192,7 @@ function createProjectActions(
 }
 
 function createPhaseActions(
-  internals: StoreInternals,
+  internals: CatalogSliceInternals,
   get: StoreGet,
 ): Pick<CatalogSlice, "addPhase" | "updatePhase" | "deletePhase"> {
   const { createGuardedAction, createGuardedAddAction, requireAccount, mutate, updateOwned, resolveOwnedRow } =
@@ -215,7 +227,7 @@ function createPhaseActions(
 }
 
 function createActivityActions(
-  internals: StoreInternals,
+  internals: CatalogSliceInternals,
   get: StoreGet,
 ): Pick<CatalogSlice, "addActivity" | "updateActivity" | "deleteActivity"> {
   const { createGuardedAction, createGuardedAddAction, requireAccount, mutate, updateOwned, resolveOwnedRow } =

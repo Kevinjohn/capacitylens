@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -211,11 +212,15 @@ describe("ResourceList display", () => {
   });
 
   it("omits missing and dangling disciplines without losing valid role or discipline metadata", () => {
-    const discipline = useStore.getState().addDiscipline({ name: "Design", color: "#123456", sortOrder: 0 });
+    const discipline = requireCreated(
+      useStore.getState().addDiscipline({ name: "Design", color: "#123456", sortOrder: 0 }),
+    );
     useStore.getState().addResource(personDraft("Role only"));
     useStore.getState().addResource({ ...personDraft("Discipline only"), role: "", disciplineId: discipline.id });
     useStore.getState().addResource({ ...personDraft("No metadata"), role: "" });
-    const dangling = useStore.getState().addResource({ ...personDraft("Dangling discipline"), role: "Researcher" });
+    const dangling = requireCreated(
+      useStore.getState().addResource({ ...personDraft("Dangling discipline"), role: "Researcher" }),
+    );
     // Ordinary writes reject dangling references. Inject one at the view boundary to prove a
     // malformed/legacy slice still renders safely rather than exposing a placeholder glyph.
     useStore.setState((state) => ({
@@ -304,8 +309,10 @@ describe("ResourceList display", () => {
   });
 
   it('shows a "placeholder" tag for a placeholder resource and its role as its label', () => {
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
+    );
     useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
@@ -333,8 +340,10 @@ describe("ResourceList display", () => {
 
 describe("ResourceList display", () => {
   it("does not show global first-resource onboarding when only a visible later section has rows", () => {
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
+    );
     useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",
@@ -356,8 +365,10 @@ describe("ResourceList display", () => {
   });
 
   it("hides the Placeholders section + its placeholders when the pref is OFF (default)", () => {
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
+    );
     useStore.getState().addResource(personDraft("Alice"));
     useStore.getState().addResource({
       kind: "placeholder",
@@ -384,8 +395,10 @@ describe("ResourceList display", () => {
 
 describe("ResourceList display", () => {
   it("renders all three resource types together", () => {
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
+    );
 
     useStore.getState().addResource(personDraft("Alice"));
     useStore.getState().addResource(freelancerDraft("Bob"));
@@ -488,23 +501,25 @@ describe("ResourceList archived grouping", () => {
   afterEach(() => vi.unstubAllEnvs());
 
   it("groups archived resources by kind and engagement, hides empty groups, and preserves placeholders", () => {
-    const studio = useStore.getState().addResource(personDraft("Bruce Wayne"));
-    const supplementary = useStore
-      .getState()
-      .addResource({ ...personDraft("Barry Allen"), engagement: "supplementary" });
-    const external = useStore
-      .getState()
-      .addResource({ ...personDraft("Kord Industries"), kind: "external", engagement: "studio" });
-    const placeholder = useStore.getState().addResource({
-      kind: "placeholder",
-      role: "Senior Designer",
-      employmentType: "permanent" as const,
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: WORKDAYS,
-      halfDays: [],
-      color: "#a855f7",
-    });
+    const studio = requireCreated(useStore.getState().addResource(personDraft("Bruce Wayne")));
+    const supplementary = requireCreated(
+      useStore.getState().addResource({ ...personDraft("Barry Allen"), engagement: "supplementary" }),
+    );
+    const external = requireCreated(
+      useStore.getState().addResource({ ...personDraft("Kord Industries"), kind: "external", engagement: "studio" }),
+    );
+    const placeholder = requireCreated(
+      useStore.getState().addResource({
+        kind: "placeholder",
+        role: "Senior Designer",
+        employmentType: "permanent" as const,
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: WORKDAYS,
+        halfDays: [],
+        color: "#a855f7",
+      }),
+    );
     for (const id of [studio.id, supplementary.id, external.id, placeholder.id]) {
       useStore.getState().archiveEntity("resources", id);
     }
@@ -535,7 +550,7 @@ describe("ResourceList archived grouping", () => {
   });
 
   it("omits empty archived resource groups", () => {
-    const studio = useStore.getState().addResource(personDraft("Bruce Wayne"));
+    const studio = requireCreated(useStore.getState().addResource(personDraft("Bruce Wayne")));
     useStore.getState().archiveEntity("resources", studio.id);
 
     render(<ResourceList />);
@@ -604,8 +619,10 @@ describe("ResourceList archive flow", () => {
 
   it("archives a placeholder resource", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "ProjectX", clientId: client.id, color: "#222" }),
+    );
     useStore.getState().addResource({
       kind: "placeholder",
       role: "Senior Designer",

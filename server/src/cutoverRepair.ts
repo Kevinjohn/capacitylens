@@ -9,6 +9,7 @@ import {
   assertAccountControlPlaneSchemaCurrent,
 } from "./accounts/sqliteAccountAdminPort";
 import { openDbConnection, planDatabaseMigrations, type Db } from "./db";
+import { restrictIdentifiedDatabasePermissions } from "./db/filePermissions";
 import { acquireExclusiveDatabaseLock } from "./resetOwnerPassword";
 import { tx } from "./txn";
 import { eraseWorkspaceProductDataInTx } from "./erasure";
@@ -284,6 +285,8 @@ export async function repairSsoCutover(input: CutoverRepairInput): Promise<Cutov
   try {
     acquireExclusiveDatabaseLock(db);
     assertRepairSchema(db, input.operation);
+    // Planning is read-only; this repair writes, so harden the now-identified file first.
+    restrictIdentifiedDatabasePermissions(db);
     const context = await mixedModeCutoverContext(db, { ...(input.env ?? process.env) });
     const facts = context.identity.inspectSsoCutover(context.provider.id);
     if (input.operation.kind === "erase-empty-workspace") return eraseEmptyWorkspace(db, context, input.operation);

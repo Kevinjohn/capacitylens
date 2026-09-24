@@ -940,6 +940,13 @@ describe("schema migration of an existing on-disk DB", () => {
       // Prove openDb repairs a permissive pre-existing database as well as creating secure files.
       chmodSync(path, 0o666);
       db.close();
+      const inspected = openDbConnection(path);
+      try {
+        expect(planDatabaseMigrations(inspected).migrations).toEqual([]);
+        expect(statSync(path).mode & 0o777).toBe(0o666);
+      } finally {
+        inspected.close();
+      }
       const reopened = openDb(path);
       const liveFiles = [path, `${path}-wal`, `${path}-shm`, `${path}-journal`].filter(existsSync);
       expect(liveFiles).toContain(`${path}-wal`);
@@ -3234,7 +3241,9 @@ describe("schema migration of an existing on-disk DB", () => {
       const future = new DatabaseSync(path);
       future.exec(`PRAGMA user_version = ${DB_SCHEMA_VERSION + 1}`);
       future.close();
+      chmodSync(path, 0o640);
       expect(() => openDb(path)).toThrow(/newer than this server supports/i);
+      expect(statSync(path).mode & 0o777).toBe(0o640);
       const unchanged = new DatabaseSync(path, { readOnly: true });
       expect(
         (
