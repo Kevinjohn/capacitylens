@@ -12,16 +12,12 @@ const TERMINAL_COMMAND_CONFLICT_CODES = new Set<string>([
   "AUTHORITY_CHANGED",
   "IDEMPOTENCY_CONFLICT",
 ] satisfies readonly AccountErrorCode[]);
-export const unknownCommandOutcomes = new WeakSet<Response>();
-export const classifiedCommandOutcomes = new WeakSet<Response>();
+/** The unknown-outcome decision `runCommand` made for each response it classified. */
+export const commandOutcomeDecisions = new WeakMap<Response, boolean>();
 
 /** Read the exact unknown-outcome decision made while retaining or closing the command identity. */
 export function hasUnknownAccountCommandOutcome(response: Response): boolean {
-  return unknownCommandOutcomes.has(response);
-}
-
-export function hasClassifiedAccountCommandOutcome(response: Response): boolean {
-  return classifiedCommandOutcomes.has(response);
+  return commandOutcomeDecisions.get(response) === true;
 }
 
 function compareCanonicalKeys(left: string, right: string): number {
