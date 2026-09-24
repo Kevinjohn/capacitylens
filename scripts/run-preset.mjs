@@ -1,5 +1,5 @@
 import { spawnPnpm } from "./pnpm-spawn.mjs";
-import { E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
+import { E2E_RUN_PRESETS, presetEnvironment } from "./playwright-run-mode.mjs";
 
 const [preset, ...forwardedArgs] = process.argv.slice(2);
 const presets = {
@@ -25,7 +25,10 @@ if (!selected) {
 
 const child = spawnPnpm(selected.args, {
   stdio: "inherit",
-  env: { ...process.env, ...selected.environment },
+  env:
+    preset === "dev-demo"
+      ? { ...process.env, ...selected.environment }
+      : presetEnvironment(process.env, selected.environment),
 });
 child.once("error", (error) => {
   console.error(`run-preset: could not start ${preset}: ${error.message}`);

@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render as rtlRender, screen, type RenderOptions } from "@testing-library/react";
 import type { ReactNode } from "react";
@@ -136,14 +137,14 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
   it("add*/update*/delete* NO-OP for a viewer and surface a read-only notice", () => {
     useStore.getState().setActiveRole("viewer");
 
-    // add: builds the entity (return type) but DOES NOT persist it.
-    const r = useStore.getState().addResource(makeResourceDraft());
+    const result = useStore.getState().addResource(makeResourceDraft());
+    expect(result).toEqual({ kind: "blocked" });
     expect(useStore.getState().data.resources).toHaveLength(0);
     expect(useStore.getState().notice?.message).toMatch(/read-only/i);
 
     // Seed a row directly (bypass the guard) so update/delete have a target, then prove they no-op.
     useStore.getState().setActiveRole(null);
-    const seeded = useStore.getState().addResource(makeResourceDraft({ name: "Seeded" }));
+    const seeded = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Seeded" })));
     expect(useStore.getState().data.resources).toHaveLength(1);
 
     useStore.getState().setActiveRole("viewer");
@@ -156,13 +157,12 @@ describe("store viewer guard (defense-in-depth) no-ops a viewer mutation", () =>
     expect(useStore.getState().data.resources).toHaveLength(1); // still there
     expect(requireValue(useStore.getState().data.resources[0], "viewer resource")).not.toHaveProperty("archivedAt"); // not archived — viewer no-op
 
-    // The viewer's add returned a non-persisted entity (its id isn't in state) — contained no-op.
-    expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(false);
+    expect(useStore.getState().data.resources).toHaveLength(1);
   });
 
   it.each([null, "editor", "owner", "admin"] as const)("role %s PERMITS the mutation", (role) => {
     useStore.getState().setActiveRole(role);
-    const r = useStore.getState().addResource(makeResourceDraft());
+    const r = requireCreated(useStore.getState().addResource(makeResourceDraft()));
     expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(true);
   });
 

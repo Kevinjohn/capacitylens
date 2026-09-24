@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -62,8 +63,8 @@ describe("ClientList archive flow", () => {
 
   it("confirms before archiving and keeps the client + its children in the data", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "P", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(useStore.getState().addProject({ name: "P", clientId: client.id, color: "#222" }));
     useStore.getState().addPhase({ name: "Discovery", projectId: project.id });
     useStore.getState().addActivity({ name: "T", kind: "project", projectId: project.id });
     render(<ClientList />);
@@ -128,7 +129,7 @@ describe("ClientList archive flow", () => {
 
   it("keeps exactly one quote pair around a redacted private code name in confirmation copy", async () => {
     const user = userEvent.setup();
-    const created = useStore.getState().addClient({ name: "Real client", color: "#111111" });
+    const created = requireCreated(useStore.getState().addClient({ name: "Real client", color: "#111111" }));
     const client = { ...created, name: '"Nightwing"', isPrivate: true };
     useStore.getState().replaceAll({ ...useStore.getState().data, clients: [client] });
     render(<ClientList />);
@@ -140,7 +141,7 @@ describe("ClientList archive flow", () => {
   });
 
   it.each(["editor", "viewer"] as const)("hides archived clients from a %s", (role) => {
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
     useStore.getState().archiveEntity("clients", client.id);
 
     render(
@@ -155,7 +156,7 @@ describe("ClientList archive flow", () => {
 
   it("restores an archived client from the expanded section", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
     useStore.getState().archiveEntity("clients", client.id);
     render(<ClientList />);
 
@@ -168,9 +169,9 @@ describe("ClientList archive flow", () => {
 
   it("uses one quote pair around a private display name in delete confirmation", async () => {
     const user = userEvent.setup();
-    const client = useStore
-      .getState()
-      .addClient({ name: '"Nightwing"', color: "#111", isPrivate: true, codeName: "Nightwing" });
+    const client = requireCreated(
+      useStore.getState().addClient({ name: '"Nightwing"', color: "#111", isPrivate: true, codeName: "Nightwing" }),
+    );
     useStore.getState().archiveEntity("clients", client.id);
     render(<ClientList />);
 

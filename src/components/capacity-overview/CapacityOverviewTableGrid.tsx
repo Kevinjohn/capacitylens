@@ -19,6 +19,10 @@ export interface PersonScheduleTriggerHandlers {
   onViewSchedule: (resourceId: ID, opener: HTMLButtonElement) => void;
 }
 
+interface ResourceAvatarProp {
+  resourceAvatars: ReadonlyMap<string, string>;
+}
+
 // The person column is sticky so rows pass under it while the week columns scroll. Every sticky
 // cell paints an opaque background of its own row's surface for that reason.
 const STICKY_CLASS = "sticky left-0 z-10 min-w-[230px] text-left";
@@ -80,9 +84,12 @@ function PersonCell({
   row,
   personScheduleTitlesByResourceId,
   onViewSchedule,
-}: { group: CapacityOverviewGroup; row: CapacityOverviewGroup["rows"][number] } & PersonScheduleTriggerHandlers) {
+  resourceAvatars,
+}: { group: CapacityOverviewGroup; row: CapacityOverviewGroup["rows"][number] } & PersonScheduleTriggerHandlers &
+  ResourceAvatarProp) {
   const { resource } = row;
   const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
+  const imageUrl = resource.kind === "person" ? (resource.avatarUrl ?? resourceAvatars.get(resource.id)) : undefined;
   return (
     <th
       scope="row"
@@ -95,7 +102,7 @@ function PersonCell({
           avatarName={resource.name ?? resource.role}
           color={group.color ?? resource.color}
           placeholder={isPlaceholderResource(resource)}
-          {...(resource.kind === "person" && resource.avatarUrl ? { imageUrl: resource.avatarUrl } : {})}
+          {...(imageUrl ? { imageUrl } : {})}
           onViewSchedule={onViewSchedule}
         />
         <div className="min-w-0">
@@ -163,13 +170,15 @@ function CapacityTableBody({
   capacityDisplayMode,
   personScheduleTitlesByResourceId,
   onViewSchedule,
+  resourceAvatars,
 }: {
   model: CapacityOverviewModel;
   rangeLabels: string[];
   collapsedGroups: Set<string>;
   toggleGroup: (key: string) => void;
   capacityDisplayMode: CapacityDisplayMode;
-} & PersonScheduleTriggerHandlers) {
+} & PersonScheduleTriggerHandlers &
+  ResourceAvatarProp) {
   const hasRows = model.groups.some((group) => group.rows.length > 0);
   return (
     <tbody>
@@ -191,6 +200,7 @@ function CapacityTableBody({
                     row={row}
                     personScheduleTitlesByResourceId={personScheduleTitlesByResourceId}
                     onViewSchedule={onViewSchedule}
+                    resourceAvatars={resourceAvatars}
                   />
                   {row.periods.map((result) => (
                     <PeriodCell
@@ -222,11 +232,13 @@ export function CapacityTable({
   capacityDisplayMode,
   personScheduleTitlesByResourceId,
   onViewSchedule,
+  resourceAvatars,
 }: {
   model: CapacityOverviewModel;
   showTotals: boolean;
   capacityDisplayMode: CapacityDisplayMode;
-} & PersonScheduleTriggerHandlers) {
+} & PersonScheduleTriggerHandlers &
+  ResourceAvatarProp) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
   const periods = model.periods;
   const rangeLabels = useMemo(
@@ -275,6 +287,7 @@ export function CapacityTable({
           capacityDisplayMode={capacityDisplayMode}
           personScheduleTitlesByResourceId={personScheduleTitlesByResourceId}
           onViewSchedule={onViewSchedule}
+          resourceAvatars={resourceAvatars}
         />
       </table>
     </div>

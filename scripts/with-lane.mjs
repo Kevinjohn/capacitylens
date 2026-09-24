@@ -61,7 +61,12 @@ const child = spawn(command, args, {
 
 // Forward the interactive signals rather than dying first: the child owns servers whose own
 // shutdown frees the lane's ports, and killing the launcher before them is how orphans are made.
-for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => child.kill(signal));
+let interrupted = false;
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
+  process.on(signal, () => {
+    interrupted = true;
+    child.kill(signal);
+  });
 process.on("exit", release);
 
 child.on("error", (error) => {
@@ -72,9 +77,5 @@ child.on("error", (error) => {
 
 child.on("exit", (code, signal) => {
   release();
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
-  }
-  process.exit(code ?? 1);
+  process.exit(interrupted || signal ? 1 : (code ?? 1));
 });

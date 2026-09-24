@@ -176,7 +176,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         }
         update(activity.id, patch);
       } else {
-        add(patch);
+        if (add(patch).kind === "blocked") return;
       }
       onClose();
     } catch (e) {

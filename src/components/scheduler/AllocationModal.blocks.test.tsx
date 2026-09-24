@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -42,7 +43,7 @@ const enableBlocks = () => useStore.getState().updateAccount(ACC, { schedulingMo
 describe("AllocationModal blocks mode", () => {
   it("asks only for start + days over, and persists a zero-load span", async () => {
     enableBlocks();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -79,7 +80,7 @@ describe("AllocationModal blocks mode", () => {
   });
 
   it("counts the existing load through the blocks projection, like the grid and the drag path", () => {
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     // Legacy hourly allocation persisted BEFORE the account switched to blocks: it keeps its stored
     // 8h/day, and every capacity surface must read it as zero load while the account is in blocks.
     useStore.getState().addAllocation({
@@ -119,7 +120,7 @@ describe("AllocationModal blocks mode", () => {
 
   it("rejects a block span that would leave the four-digit-year date domain", async () => {
     enableBlocks();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -148,7 +149,7 @@ describe("AllocationModal blocks mode", () => {
 
   it("seeds days over from the drawn span and saves with start alone", async () => {
     enableBlocks();
-    const r = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const r = requireCreated(useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }));
     const user = userEvent.setup();
     // Grid hands a 5-working-day span (Mon 06-01 … Fri 06-05).
     render(
@@ -177,15 +178,19 @@ describe("AllocationModal blocks mode", () => {
   });
 
   it("preserves historical hours when editing an existing allocation", async () => {
-    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
-    const allocation = useStore.getState().addAllocation({
-      resourceId: resource.id,
-      activityId: "t1",
-      startDate: "2026-06-01",
-      endDate: "2026-06-07",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
+    const allocation = requireCreated(
+      useStore.getState().addAllocation({
+        resourceId: resource.id,
+        activityId: "t1",
+        startDate: "2026-06-01",
+        endDate: "2026-06-07",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     enableBlocks();
     const user = userEvent.setup();
     render(<AllocationModal kind="edit" allocationId={allocation.id} onClose={vi.fn()} />);
@@ -202,7 +207,9 @@ describe("AllocationModal blocks mode", () => {
 
   it("rejects a fractional Days over value instead of rounding the saved span", async () => {
     enableBlocks();
-    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { m } from "@/i18n";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { resolveRejectionMessage, teamAccessClient, type TeamMember } from "../../account/teamAccessClient";
@@ -42,6 +42,11 @@ export function MemberResourceLink({
   // The row icon opens the editor directly. The non-dialog cell remains a compact status-only
   // view, while the centered dialog starts with its selector ready for the requested change.
   const requestGeneration = useRef(0);
+  const currentWorkspace = useRef(workspaceId);
+  useLayoutEffect(() => {
+    currentWorkspace.current = workspaceId;
+    requestGeneration.current += 1;
+  }, [workspaceId]);
   const selectorScopeRef = useRef<HTMLDivElement>(null);
   if (myRole !== "owner" && myRole !== "admin") return dialog ? <div /> : <td className="py-2 px-4" />;
   const currentPerson = resourceCandidates.find((resource) => resource.resourceId === member.resourceLink?.resourceId);
@@ -62,7 +67,7 @@ export function MemberResourceLink({
   const change = (resourceId: string) => {
     if (!workspaceId) return;
     const generation = ++requestGeneration.current;
-    const current = () => generation === requestGeneration.current;
+    const current = () => generation === requestGeneration.current && currentWorkspace.current === workspaceId;
     setPending(true);
     setError(null);
     setExpectedResourceId(undefined);
@@ -80,16 +85,20 @@ export function MemberResourceLink({
     void request
       .then((result) => {
         if (!current()) return;
-        if (result.kind !== "ok") setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
+        if (result.kind === "unknown" || result.kind === "invalid") setError(m.settings_member_resource_unknown());
+        else if (result.kind === "rejected")
+          setError(resolveRejectionMessage(result, m.settings_member_resource_error()));
         else {
           setExpectedResourceId(resourceId === "" ? null : resourceId);
-          invalidateResourceAvatars();
         }
+        if (result.kind !== "rejected") invalidateResourceAvatars();
       })
       .catch((cause: unknown) => {
         console.warn("Resource link request failed", cause);
-        if (current()) setError(m.settings_member_resource_error());
-        invalidateResourceAvatars();
+        if (current()) {
+          setError(m.settings_member_resource_unknown());
+          invalidateResourceAvatars();
+        }
       })
       .finally(() => {
         if (current()) {
@@ -101,7 +110,7 @@ export function MemberResourceLink({
   const dismissException = () => {
     if (!workspaceId || !member.resourceLinkException) return;
     const generation = ++requestGeneration.current;
-    const current = () => generation === requestGeneration.current;
+    const current = () => generation === requestGeneration.current && currentWorkspace.current === workspaceId;
     setPending(true);
     setError(null);
     void teamAccessClient

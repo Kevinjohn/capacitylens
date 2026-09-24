@@ -41,7 +41,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
         }
         update(discipline.id, { name: trimmed, color, sortOrder });
       } else {
-        add({ name: trimmed, color, sortOrder });
+        if (add({ name: trimmed, color, sortOrder }).kind === "blocked") return;
       }
       onClose();
     } catch (e) {

@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
@@ -74,31 +75,35 @@ function registerBasicPointerTests() {
 function registerRejectedReassignmentTest() {
   it("leaves assignee, dates and hours unchanged when a diagonal reassign is rejected", () => {
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p1 = st.addProject({ name: "P1", clientId: c.id, color: "#2" });
-    const p2 = st.addProject({ name: "P2", clientId: c.id, color: "#3" });
-    const t1 = st.addActivity({ name: "Wires", kind: "project", projectId: p1.id });
-    const person = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p1 = requireCreated(st.addProject({ name: "P1", clientId: c.id, color: "#2" }));
+    const p2 = requireCreated(st.addProject({ name: "P2", clientId: c.id, color: "#3" }));
+    const t1 = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p1.id }));
+    const person = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // A placeholder bound to p2 cannot take a p1 activity — dropping onto it must be rejected.
-    const slot = st.addResource({
-      kind: "placeholder",
-      role: "Slot",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#4",
-      projectId: p2.id,
-    });
-    const a = st.addAllocation({
-      resourceId: person.id,
-      activityId: t1.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const slot = requireCreated(
+      st.addResource({
+        kind: "placeholder",
+        role: "Slot",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#4",
+        projectId: p2.id,
+      }),
+    );
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: person.id,
+        activityId: t1.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
 
     render(
       <>
@@ -131,29 +136,33 @@ function registerRejectedReassignmentTest() {
 function registerValidReassignmentTest() {
   it("reassigns to another row (and highlights it mid-drag) when dropped on a valid lane", () => {
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const r1 = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
-    const r2 = st.addResource({
-      kind: "person",
-      name: "Sam",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#4",
-    });
-    const a = st.addAllocation({
-      resourceId: r1.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r1 = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const r2 = requireCreated(
+      st.addResource({
+        kind: "person",
+        name: "Sam",
+        role: "Dev",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#4",
+      }),
+    );
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: r1.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
 
     render(
       <>
@@ -214,39 +223,45 @@ function verifyWorkingDayRejection({
 }: (typeof workingDayRejectionCases)[number]) {
   const st = useStore.getState();
   st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: accountWorkingDays });
-  const client = st.addClient({ name: "Acme", color: "#1" });
-  const project = st.addProject({ name: "P", clientId: client.id, color: "#2" });
-  const activity = st.addActivity({ name: "Wires", kind: "project", projectId: project.id });
-  const source = st.addResource({
-    kind: "person",
-    name: "Jess Chambers",
-    role: "Dev",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: [1, 2, 3, 4, 5],
-    halfDays: [],
-    color: "#3",
-  });
-  const destination = st.addResource({
-    kind: "person",
-    name: "Marie Moreau",
-    role: "PM",
-    employmentType: "permanent",
-    engagement: "studio" as const,
-    workingHoursPerDay: 8,
-    workingDays: targetWorkingDays,
-    halfDays: [],
-    color: "#4",
-  });
-  const allocation = st.addAllocation({
-    resourceId: source.id,
-    activityId: activity.id,
-    startDate: "2026-06-05", // Friday
-    endDate: "2026-06-05",
-    hoursPerDay: 8,
-    status: "confirmed",
-  });
+  const client = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+  const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+  const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+  const source = requireCreated(
+    st.addResource({
+      kind: "person",
+      name: "Jess Chambers",
+      role: "Dev",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      halfDays: [],
+      color: "#3",
+    }),
+  );
+  const destination = requireCreated(
+    st.addResource({
+      kind: "person",
+      name: "Marie Moreau",
+      role: "PM",
+      employmentType: "permanent",
+      engagement: "studio" as const,
+      workingHoursPerDay: 8,
+      workingDays: targetWorkingDays,
+      halfDays: [],
+      color: "#4",
+    }),
+  );
+  const allocation = requireCreated(
+    st.addAllocation({
+      resourceId: source.id,
+      activityId: activity.id,
+      startDate: "2026-06-05", // Friday
+      endDate: "2026-06-05",
+      hoursPerDay: 8,
+      status: "confirmed",
+    }),
+  );
 
   renderReassignmentLanes(source.id, destination.id, allocation);
 
@@ -278,40 +293,46 @@ function registerIgnoredWorkingDayTest() {
   it("allows that literal vertical drop when the allocation ignores working days", () => {
     const st = useStore.getState();
     st.updateAccount(DEFAULT_ACCOUNT_ID, { workingDays: [1, 2, 3, 4] });
-    const client = st.addClient({ name: "Acme", color: "#1" });
-    const project = st.addProject({ name: "P", clientId: client.id, color: "#2" });
-    const activity = st.addActivity({ name: "Wires", kind: "project", projectId: project.id });
-    const source = st.addResource({
-      kind: "person",
-      name: "Jess Chambers",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#3",
-    });
-    const destination = st.addResource({
-      kind: "person",
-      name: "Marie Moreau",
-      role: "PM",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [5], // no overlap with the company's Mon–Thu week
-      halfDays: [],
-      color: "#4",
-    });
-    const allocation = st.addAllocation({
-      resourceId: source.id,
-      activityId: activity.id,
-      startDate: "2026-06-05", // Friday; destination has no effective weekdays under Mon–Thu company days
-      endDate: "2026-06-05",
-      hoursPerDay: 8,
-      status: "confirmed",
-      ignoreWeekends: true,
-    });
+    const client = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+    const source = requireCreated(
+      st.addResource({
+        kind: "person",
+        name: "Jess Chambers",
+        role: "Dev",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#3",
+      }),
+    );
+    const destination = requireCreated(
+      st.addResource({
+        kind: "person",
+        name: "Marie Moreau",
+        role: "PM",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [5], // no overlap with the company's Mon–Thu week
+        halfDays: [],
+        color: "#4",
+      }),
+    );
+    const allocation = requireCreated(
+      st.addAllocation({
+        resourceId: source.id,
+        activityId: activity.id,
+        startDate: "2026-06-05", // Friday; destination has no effective weekdays under Mon–Thu company days
+        endDate: "2026-06-05",
+        hoursPerDay: 8,
+        status: "confirmed",
+        ignoreWeekends: true,
+      }),
+    );
 
     render(
       <>
@@ -358,29 +379,33 @@ function registerDragPreviewTests() {
 
   it("assigns a shared lane-boundary drop to the following lane", () => {
     const st = useStore.getState();
-    const client = st.addClient({ name: "Acme", color: "#1" });
-    const project = st.addProject({ name: "P", clientId: client.id, color: "#2" });
-    const activity = st.addActivity({ name: "Wires", kind: "project", projectId: project.id });
-    const source = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
-    const destination = st.addResource({
-      kind: "person",
-      name: "Sam",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#4",
-    });
-    const allocation = st.addAllocation({
-      resourceId: source.id,
-      activityId: activity.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const client = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+    const source = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const destination = requireCreated(
+      st.addResource({
+        kind: "person",
+        name: "Sam",
+        role: "Dev",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#4",
+      }),
+    );
+    const allocation = requireCreated(
+      st.addAllocation({
+        resourceId: source.id,
+        activityId: activity.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
 
     render(
       <>
@@ -407,30 +432,34 @@ function registerExternalReassignmentTest() {
   it("keeps an External block at zero hours when it is reassigned to a person", () => {
     const st = useStore.getState();
     st.updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: "blocks" });
-    const client = st.addClient({ name: "Acme", color: "#1" });
-    const project = st.addProject({ name: "P", clientId: client.id, color: "#2" });
-    const activity = st.addActivity({ name: "Wires", kind: "project", projectId: project.id });
-    const external = st.addResource({
-      kind: "external",
-      name: "Kord Industries",
-      role: "Partner studio",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#3",
-    });
-    const person = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#4" }));
-    const allocation = st.addAllocation({
-      resourceId: external.id,
-      activityId: activity.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 0,
-      status: "confirmed",
-      ignoreWeekends: true,
-    });
+    const client = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const project = requireCreated(st.addProject({ name: "P", clientId: client.id, color: "#2" }));
+    const activity = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: project.id }));
+    const external = requireCreated(
+      st.addResource({
+        kind: "external",
+        name: "Kord Industries",
+        role: "Partner studio",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#3",
+      }),
+    );
+    const person = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#4" })));
+    const allocation = requireCreated(
+      st.addAllocation({
+        resourceId: external.id,
+        activityId: activity.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 0,
+        status: "confirmed",
+        ignoreWeekends: true,
+      }),
+    );
 
     render(
       <>
@@ -467,29 +496,33 @@ function registerGeometryRefreshTests() {
       const cancelFrame = vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => undefined);
       try {
         const st = useStore.getState();
-        const c = st.addClient({ name: "Acme", color: "#1" });
-        const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-        const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-        const r1 = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
-        const r2 = st.addResource({
-          kind: "person",
-          name: "Sam",
-          role: "Dev",
-          employmentType: "permanent",
-          engagement: "studio" as const,
-          workingHoursPerDay: 8,
-          workingDays: [1, 2, 3, 4, 5],
-          halfDays: [],
-          color: "#4",
-        });
-        const a = st.addAllocation({
-          resourceId: r1.id,
-          activityId: t.id,
-          startDate: "2026-06-01",
-          endDate: "2026-06-03",
-          hoursPerDay: 8,
-          status: "confirmed",
-        });
+        const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+        const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+        const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+        const r1 = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+        const r2 = requireCreated(
+          st.addResource({
+            kind: "person",
+            name: "Sam",
+            role: "Dev",
+            employmentType: "permanent",
+            engagement: "studio" as const,
+            workingHoursPerDay: 8,
+            workingDays: [1, 2, 3, 4, 5],
+            halfDays: [],
+            color: "#4",
+          }),
+        );
+        const a = requireCreated(
+          st.addAllocation({
+            resourceId: r1.id,
+            activityId: t.id,
+            startDate: "2026-06-01",
+            endDate: "2026-06-03",
+            hoursPerDay: 8,
+            status: "confirmed",
+          }),
+        );
 
         render(
           <>

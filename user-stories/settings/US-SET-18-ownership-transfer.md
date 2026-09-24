@@ -40,6 +40,8 @@ every sensitive action.
    (`data-testid="ownership-transfer-card"`), explaining that ownership moves in three steps and
    that nothing changes until all three have happened. A selects **Manage ownership**
    (`data-testid="ownership-transfer-open"`) to open the ceremony in a modal.
+   Opening the modal reads the current request, including a nominee's answer received while A was
+   away. If that read fails, **Retry** reads it again without closing the modal.
 2. In the modal, A picks B from **Next Owner** (`data-testid="ownership-transfer-nominee"`) and chooses **Start
    transfer** (`data-testid="ownership-transfer-start"`). Only **active Admins** are offered.
 3. The modal now shows the live request (`data-testid="ownership-transfer-state"`): waiting for B to
@@ -80,6 +82,8 @@ every sensitive action.
   reads an empty projection, so hiding the entry point is presentation, never the authorisation mechanism.
 - A participant who was away when a request ended opens the modal and sees **how** it ended
   (declined, cancelled, replaced, expired, or ended because the people changed) rather than an empty state.
+- After a possibly committed confirmation, the caller's role and accessible company data refresh.
+  If that refresh fails, the interface closes the company view and shows its access-recovery notice.
 - Every step requires a fresh administrative assurance; **seeing** the request does not, so a
   participant who signed in hours ago can still read the nomination they are being asked to approve.
   Neither reading nor acting is available while viewing the company as somebody else (masquerade).

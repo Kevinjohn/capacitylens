@@ -1,3 +1,4 @@
+import { requireCreated } from "../../../test/requireCreated";
 import type { Allocation } from "@capacitylens/shared/types/entities";
 import { makeResourceDraft } from "../../../test/fixtures";
 import { useStore } from "../../../store/useStore";
@@ -20,30 +21,40 @@ export const rect = (top: number, bottom: number): DOMRect =>
 
 export function seedAllocation(overrides: Partial<Allocation> = {}): Allocation {
   const s = useStore.getState();
-  const c = s.addClient({ name: "Acme", color: "#1" });
-  const p = s.addProject({ name: "P", clientId: c.id, color: "#2" });
-  const t = s.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-  const r = s.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
-  return s.addAllocation({
-    resourceId: r.id,
-    activityId: t.id,
-    startDate: "2026-06-01",
-    endDate: "2026-06-03",
-    hoursPerDay: 8,
-    status: "confirmed",
-    ...overrides,
-  });
+  const c = requireCreated(s.addClient({ name: "Acme", color: "#1" }));
+  const p = requireCreated(s.addProject({ name: "P", clientId: c.id, color: "#2" }));
+  const t = requireCreated(s.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+  const r = requireCreated(s.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+  return requireCreated(
+    s.addAllocation({
+      resourceId: r.id,
+      activityId: t.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-03",
+      hoursPerDay: 8,
+      status: "confirmed",
+      ...overrides,
+    }),
+  );
 }
 
 export function seedVisibleAllocationWithHiddenCapacity(): Allocation {
   const st = useStore.getState();
-  const hiddenClient = st.addClient({ name: "Archived client", color: "#1" });
-  const hiddenProject = st.addProject({ name: "Archived work", clientId: hiddenClient.id, color: "#2" });
-  const hiddenActivity = st.addActivity({ name: "Hidden work", kind: "project", projectId: hiddenProject.id });
-  const visibleClient = st.addClient({ name: "Visible client", color: "#3" });
-  const visibleProject = st.addProject({ name: "Visible work", clientId: visibleClient.id, color: "#4" });
-  const visibleActivity = st.addActivity({ name: "Visible work", kind: "project", projectId: visibleProject.id });
-  const resource = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#5" }));
+  const hiddenClient = requireCreated(st.addClient({ name: "Archived client", color: "#1" }));
+  const hiddenProject = requireCreated(
+    st.addProject({ name: "Archived work", clientId: hiddenClient.id, color: "#2" }),
+  );
+  const hiddenActivity = requireCreated(
+    st.addActivity({ name: "Hidden work", kind: "project", projectId: hiddenProject.id }),
+  );
+  const visibleClient = requireCreated(st.addClient({ name: "Visible client", color: "#3" }));
+  const visibleProject = requireCreated(
+    st.addProject({ name: "Visible work", clientId: visibleClient.id, color: "#4" }),
+  );
+  const visibleActivity = requireCreated(
+    st.addActivity({ name: "Visible work", kind: "project", projectId: visibleProject.id }),
+  );
+  const resource = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#5" })));
   st.addAllocation({
     resourceId: resource.id,
     activityId: hiddenActivity.id,
@@ -52,14 +63,16 @@ export function seedVisibleAllocationWithHiddenCapacity(): Allocation {
     hoursPerDay: 8,
     status: "confirmed",
   });
-  const visible = st.addAllocation({
-    resourceId: resource.id,
-    activityId: visibleActivity.id,
-    startDate: "2026-06-01",
-    endDate: "2026-06-02",
-    hoursPerDay: 4,
-    status: "confirmed",
-  });
+  const visible = requireCreated(
+    st.addAllocation({
+      resourceId: resource.id,
+      activityId: visibleActivity.id,
+      startDate: "2026-06-01",
+      endDate: "2026-06-02",
+      hoursPerDay: 4,
+      status: "confirmed",
+    }),
+  );
   st.archiveEntity("clients", hiddenClient.id);
   return visible;
 }

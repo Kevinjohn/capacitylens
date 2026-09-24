@@ -332,7 +332,7 @@ export const teamAccessClient = {
     resourceId: string;
     expectedRevision: string | null;
   }) {
-    return readResult(await accountClient.setMemberResourceLink(input), (body) =>
+    return readCommandResult(await accountClient.setMemberResourceLink(input), (body) =>
       isRecord(body) && typeof body.resourceId === "string" && typeof body.revision === "string"
         ? { resourceId: body.resourceId, revision: body.revision }
         : null,

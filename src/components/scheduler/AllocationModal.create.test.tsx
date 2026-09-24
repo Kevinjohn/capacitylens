@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -45,7 +46,9 @@ describe("AllocationModal create", () => {
     useStore.getState().addActivity({ name: "Strategy", kind: "repeatable" });
     useStore.getState().addActivity({ name: "Retrospective", kind: "repeatable" });
     const barbara = person("Barbara");
-    const resource = useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...barbara, workingDays: [...barbara.workingDays] }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -90,9 +93,9 @@ describe("AllocationModal create", () => {
   });
 
   it("defaults hourly load to four hours when creation starts on a half day", () => {
-    const resource = useStore
-      .getState()
-      .addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Barbara"), workingDays: [1, 2, 3, 4, 5], halfDays: [2] }),
+    );
     render(
       <AllocationModal
         kind="create"
@@ -106,7 +109,9 @@ describe("AllocationModal create", () => {
 
   it("gives same-named activity options distinct accessible labels", async () => {
     useStore.getState().addActivity({ name: "Wireframes", kind: "project", projectId: "p1" });
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+    const resource = requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -163,7 +168,9 @@ describe("AllocationModal create", () => {
   ] as const)("derives create attribution for the %s scope", async (scope, activityName, expectedProjectId) => {
     useStore.getState().addActivity({ name: "Operations", kind: "internal" });
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" }));
+    const resource = requireCreated(
+      useStore.getState().addResource(makeResourceDraft({ name: "Bruce", color: "#111" })),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -240,18 +247,20 @@ describe("AllocationModal create", () => {
   });
 
   it("books an All-projects activity for a bound placeholder under its locked project", async () => {
-    const planning = useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const ph = useStore.getState().addResource({
-      kind: "placeholder",
-      role: "Senior Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#a855f7",
-      projectId: "p1",
-    });
+    const planning = requireCreated(useStore.getState().addActivity({ name: "Planning", kind: "repeatable" }));
+    const ph = requireCreated(
+      useStore.getState().addResource({
+        kind: "placeholder",
+        role: "Senior Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#a855f7",
+        projectId: "p1",
+      }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -295,16 +304,18 @@ describe("AllocationModal create", () => {
 
   it("cannot attribute an All-projects activity for an unbound placeholder", async () => {
     useStore.getState().addActivity({ name: "Planning", kind: "repeatable" });
-    const placeholder = useStore.getState().addResource({
-      kind: "placeholder",
-      role: "Senior Designer",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#a855f7",
-    });
+    const placeholder = requireCreated(
+      useStore.getState().addResource({
+        kind: "placeholder",
+        role: "Senior Designer",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#a855f7",
+      }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal
@@ -332,7 +343,9 @@ describe("AllocationModal create", () => {
 
 describe("AllocationModal advisory work bounds", () => {
   it("does not recompute the advisory when only the note changes", () => {
-    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     render(
       <AllocationModal
         kind="create"
@@ -355,7 +368,9 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("skips the advisory and rejects an over-limit Hours-mode date span", async () => {
-    const resource = useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] });
+    const resource = requireCreated(
+      useStore.getState().addResource({ ...person("Bruce"), workingDays: [1, 2, 3, 4, 5] }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -388,17 +403,19 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("rejects the same over-limit date span for an External resource", async () => {
-    const resource = useStore.getState().addResource({
-      kind: "external",
-      name: "Kord Industries",
-      role: "Partner studio",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#9ca3af",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "external",
+        name: "Kord Industries",
+        role: "Partner studio",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#9ca3af",
+      }),
+    );
     const onClose = vi.fn();
     const user = userEvent.setup();
     render(
@@ -426,17 +443,19 @@ describe("AllocationModal advisory work bounds", () => {
   });
 
   it("keeps Ignore working days hidden for an External while preserving its literal calendar span", async () => {
-    const resource = useStore.getState().addResource({
-      kind: "external",
-      name: "Kord Industries",
-      role: "Partner studio",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 3, 5],
-      halfDays: [],
-      color: "#9ca3af",
-    });
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "external",
+        name: "Kord Industries",
+        role: "Partner studio",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 3, 5],
+        halfDays: [],
+        color: "#9ca3af",
+      }),
+    );
     const user = userEvent.setup();
     render(
       <AllocationModal

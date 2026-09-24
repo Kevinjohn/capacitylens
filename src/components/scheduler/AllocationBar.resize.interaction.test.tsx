@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
@@ -53,20 +54,22 @@ function registerDayModeKeyboardNoticeTests() {
   it("surfaces a non-blocking notice when a shrink-resize clamps the work volume at the cap", () => {
     enableDays();
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h of work. Shrinking to 1 working
     // day would need 48h/day — clamped to 24, so half the volume is lost (the user must be told).
-    const a = st.addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 24,
-      status: "confirmed",
-    });
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 24,
+        status: "confirmed",
+      }),
+    );
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     // Shift+ArrowLeft resizes the END edge inward by a day → span 2 → 1 working day.
@@ -106,20 +109,22 @@ function registerDayModePointerNoticeTests() {
     // toast must persist (tone 'warning') so the truncation isn't auto-dismissed on the 4s timer.
     enableDays();
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h. Dragging the end grip inward to a
     // single day needs 48h/day — clamped to 24, half the volume lost.
-    const a = st.addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 24,
-      status: "confirmed",
-    });
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 24,
+        status: "confirmed",
+      }),
+    );
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />);
 
     // Drag the end grip left by ~one day (96px → 48px) to collapse 2 → 1 working day.

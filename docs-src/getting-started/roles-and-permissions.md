@@ -83,6 +83,11 @@ progress, and who it names, isn't ordinary member information. Either side can s
 the Owner can cancel, and the nominee can decline. The Owner can also nominate somebody
 else instead, which replaces the standing request rather than opening a second one.
 
+Opening **Manage ownership** reads the latest request, including an answer given while you were
+away. If the request cannot be loaded, select **Retry** in the modal. After the Owner confirms,
+CapacityLens refreshes their access; if that fails, it closes the company view and asks them to
+restore access before continuing.
+
 A request expires seven days after it is made, whether or not the nominee has agreed. It
 also ends by itself if the people it names stop being the right people: if the nominee
 stops being an active Admin, or the Owner who asked stops being the Owner, the request

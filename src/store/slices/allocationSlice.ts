@@ -38,9 +38,11 @@ export function createAllocationSlice(
     const { createGuardedAction, createAllocations, updateOwned, assertAllocation } = internals;
     return {
       addAllocation: (input) => {
-        const allocation = createAllocations([input])[0];
+        const result = createAllocations([input]);
+        if (result.kind === "blocked") return result;
+        const allocation = result.value[0];
         if (!allocation) throw new Error("Allocation creation produced no row.");
-        return allocation;
+        return { kind: "created", value: allocation };
       },
       addAllocations: createAllocations,
       updateAllocation: createGuardedAction(

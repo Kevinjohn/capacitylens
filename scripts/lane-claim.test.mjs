@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import test from "node:test";
-import { mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { claimLane, laneDirectory, reapLane, releaseLane, shareForClaims } from "./lane-claim.mjs";
+import { presetEnvironment, resolvePlaywrightRunMode, E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
+import { claimLane, laneDirectory, reapLane, releaseLane, releaseMutex, shareForClaims } from "./lane-claim.mjs";
 import { LANE_CEILING, portsForLane } from "./ports.mjs";
 
 function scratch() {
@@ -30,6 +32,72 @@ test("a lane whose holder has gone is reclaimed, and a live holder's is not", ()
   assert.equal(next.lane, 1, "the dead holder's lane is the first free one");
 });
 
+test("a live mutex is not reclaimed solely because its timestamp is old", () => {
+  const environment = scratch();
+  const directory = laneDirectory(environment);
+  // The directory is created by an initial claim; its claim is released before the assertion.
+  claimLane({ worktree: "/tmp/a", environment }).release();
+  mkdirSync(join(directory, ".mutex"));
+  writeFileSync(join(directory, ".mutex", "owner-old.json"), JSON.stringify({ pid: process.pid, at: 0 }));
+  const realNow = Date.now;
+  let now = realNow();
+  Date.now = () => (now += 31_000);
+  try {
+    assert.throws(() => claimLane({ worktree: "/tmp/b", environment }), /held by pid/);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test("an incomplete private mutex write never publishes ownership", () => {
+  const environment = scratch();
+  const directory = laneDirectory(environment);
+  claimLane({ worktree: "/tmp/initial", environment }).release();
+  // Simulate a process paused between creating and writing its private claim file.
+  mkdirSync(join(directory, ".mutex-other-process"));
+  writeFileSync(join(directory, ".mutex-other-process", "owner.json"), "");
+  const first = claimLane({ worktree: "/tmp/first", environment });
+  const second = claimLane({ worktree: "/tmp/second", environment });
+  assert.notEqual(first.lane, second.lane);
+  first.release();
+  second.release();
+});
+
+test("racing dead-owner cleanup cannot remove a successor's mutex", () => {
+  const environment = scratch();
+  const directory = laneDirectory(environment);
+  claimLane({ worktree: "/tmp/initial", environment }).release();
+  const mutex = join(directory, ".mutex");
+  mkdirSync(mutex);
+  writeFileSync(join(mutex, "owner-dead.json"), JSON.stringify({ pid: 2 ** 30, at: 0 }));
+  const successor = claimLane({ worktree: "/tmp/successor", environment });
+  mkdirSync(mutex);
+  writeFileSync(join(mutex, "owner-successor.json"), JSON.stringify({ pid: process.pid, at: Date.now() }));
+  // A delayed reaper still holds the dead owner's filename from its earlier read.
+  releaseMutex(mutex, "owner-dead.json");
+  assert.deepEqual(readdirSync(mutex), ["owner-successor.json"]);
+  releaseMutex(mutex, "owner-successor.json");
+  assert.equal(successor.release(), true);
+});
+
+test("explicit browser presets clear conflicting inherited mode flags", () => {
+  const inherited = {
+    CAPACITYLENS_WEBKIT_ONLY: "1",
+    CAPACITYLENS_FIREFOX_ONLY: "1",
+    CAPACITYLENS_REHEARSAL_URL: "https://example.invalid",
+    KEEP_THIS: "yes",
+  };
+  for (const preset of Object.values(E2E_RUN_PRESETS)) {
+    const environment = presetEnvironment(inherited, preset.environment);
+    assert.equal(environment.KEEP_THIS, "yes");
+    const mode = resolvePlaywrightRunMode(environment, [], () => false);
+    assert.deepEqual(
+      mode.projects.filter((project) => ["webkit", "firefox"].includes(project)),
+      preset.projects.filter((project) => ["webkit", "firefox"].includes(project)),
+    );
+  }
+});
+
 test("running out of lanes names the holders instead of failing later on a port", () => {
   const environment = scratch();
   for (let lane = 0; lane < LANE_CEILING; lane += 1) claimLane({ worktree: `/tmp/${lane}`, environment });
@@ -53,6 +121,38 @@ test("release removes only our own claim", () => {
   );
   assert.equal(releaseLane(directory, 0), false, "another process's claim survives our release");
   assert.equal(readdirSync(directory).length, 1);
+});
+
+test("a delayed release cannot delete a same-process successor", () => {
+  const environment = scratch();
+  const directory = laneDirectory(environment);
+  const first = claimLane({ worktree: "/tmp/a", environment });
+  const firstToken = JSON.parse(readFileSync(join(directory, "0.json"), "utf8")).token;
+  first.release();
+  const successor = claimLane({ worktree: "/tmp/b", environment });
+  assert.equal(releaseLane(directory, successor.lane, firstToken), false);
+  assert.equal(successor.release(), true);
+});
+
+test("a signalled launcher exits unsuccessfully even when its child exits zero", async () => {
+  const environment = { ...process.env, CAPACITYLENS_PORT_LANE: "0", CAPACITYLENS_TEST_SHARE: "1" };
+  const child = spawn(
+    process.execPath,
+    [
+      new URL("./with-lane.mjs", import.meta.url).pathname,
+      process.execPath,
+      "-e",
+      "process.on('SIGTERM', () => process.exit(0)); process.stdout.write('ready\\n'); setInterval(() => {}, 1000)",
+    ],
+    { env: environment, stdio: ["ignore", "pipe", "pipe"] },
+  );
+  await new Promise((resolve, reject) => {
+    child.once("error", reject);
+    child.stdout.once("data", resolve);
+  });
+  child.kill("SIGTERM");
+  const outcome = await new Promise((resolve) => child.once("exit", (code, signal) => resolve({ code, signal })));
+  assert.notEqual(outcome.code, 0);
 });
 
 test("the reservation shrinks as the pool fills and never reaches zero", () => {

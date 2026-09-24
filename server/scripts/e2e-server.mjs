@@ -61,15 +61,16 @@ const child = spawn("tsx", ["src/index.ts"], {
   env: { ...process.env, CAPACITYLENS_DB: database, ...env },
 });
 
-for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => child.kill(signal));
+let interrupted = false;
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
+  process.on(signal, () => {
+    interrupted = true;
+    child.kill(signal);
+  });
 child.on("error", (error) => {
   console.error(`e2e-server: could not start tsx: ${error.message}`);
   process.exit(1);
 });
 child.on("exit", (code, signal) => {
-  if (signal) {
-    process.kill(process.pid, signal);
-    return;
-  }
-  process.exit(code ?? 1);
+  process.exit(interrupted || signal ? 1 : (code ?? 1));
 });

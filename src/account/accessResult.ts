@@ -1,5 +1,9 @@
 import { isIsoInstant } from "@capacitylens/shared/account/types";
-import { readUnknownAccountCommandOutcome } from "./accountClient";
+import {
+  hasClassifiedAccountCommandOutcome,
+  hasUnknownAccountCommandOutcome,
+  readUnknownAccountCommandOutcome,
+} from "./commandOutcome";
 import { extractApiErrorMessage, readApiError } from "../lib/readApiError";
 
 /**
@@ -62,7 +66,10 @@ export async function readCommandResult<T>(
     const clonedMessage = typeof response.clone === "function" ? await readApiError(response) : undefined;
     const body: unknown = await response.json().catch(() => null);
     const message = clonedMessage ?? extractApiErrorMessage(body) ?? null;
-    return (await readUnknownAccountCommandOutcome(response, body))
+    const unknown = hasClassifiedAccountCommandOutcome(response)
+      ? hasUnknownAccountCommandOutcome(response)
+      : await readUnknownAccountCommandOutcome(response, body);
+    return unknown
       ? { kind: "unknown", status: response.status, message }
       : { kind: "rejected", status: response.status, message };
   }

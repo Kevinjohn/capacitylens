@@ -220,15 +220,16 @@ function useAddInlineActivity({
     if (cleanActivityName === null) return;
     try {
       const activity = addActivity({ name: cleanActivityName, ...activityScope });
+      if (activity.kind === "blocked") return;
       flushSync(() => {
         setInlineActivityOption({
-          value: activity.id,
-          label: activity.name,
-          kind: activity.kind,
-          ...(activity.projectId ? { projectId: activity.projectId } : {}),
+          value: activity.value.id,
+          label: activity.value.name,
+          kind: activity.value.kind,
+          ...(activity.value.projectId ? { projectId: activity.value.projectId } : {}),
         });
       });
-      setActivityId(activity.id);
+      setActivityId(activity.value.id);
       setNewActivityName("");
     } catch (error) {
       fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed());

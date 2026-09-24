@@ -237,7 +237,12 @@ function createSubmit(input: SubmitInput) {
       input.submittingRef.current = true;
       input.setSubmitting(true);
       const saved = saveResource({ resource, patch, add: input.add, update: input.update });
-      refreshPendingResource(input, resource, saved);
+      if (saved?.kind === "blocked") {
+        input.submittingRef.current = false;
+        input.setSubmitting(false);
+        return;
+      }
+      refreshPendingResource(input, resource, saved?.value);
       void flushPendingWrites()
         .then((result) => handleResourceFlushResult(input, result, submittedAccountId))
         .catch((error: unknown) => handleResourceFlushError(input, error, submittedAccountId))

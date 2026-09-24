@@ -144,7 +144,7 @@ function rejectsNewPlacement({ command, draft, newPlacement }: RejectNewPlacemen
   return blocked !== null;
 }
 
-function saveDraft(input: CommandInput, draft: ValidatedDraft): void {
+function saveDraft(input: CommandInput, draft: ValidatedDraft): boolean {
   if (input.editing) {
     const { hoursPerDay, ...fields } = draft;
     input.updateAllocation(input.editing.id, {
@@ -152,11 +152,10 @@ function saveDraft(input: CommandInput, draft: ValidatedDraft): void {
       projectId: draft.projectId,
       ...(!input.isBlocks || input.isExternal ? { hoursPerDay } : {}),
     });
-    return;
+    return true;
   }
   if (input.repeat === "none") {
-    input.addAllocation(draft);
-    return;
+    return input.addAllocation(draft).kind === "created";
   }
   if (!input.selectedResource || input.selectedEffectiveWeek === undefined) {
     throw new Error("The selected resource could not be resolved for repeat projection.");
@@ -173,7 +172,7 @@ function saveDraft(input: CommandInput, draft: ValidatedDraft): void {
     effectiveWeek: input.selectedEffectiveWeek,
   });
   const seriesId = newId();
-  input.addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId })));
+  return input.addAllocations(drafts.map((occurrence) => ({ ...occurrence, seriesId }))).kind === "created";
 }
 
 function reportSaveError(input: CommandInput, error: unknown): void {
@@ -199,8 +198,7 @@ export function createAllocationCommands(input: CommandInput) {
     )
       return;
     try {
-      saveDraft(input, draft);
-      input.onClose();
+      if (saveDraft(input, draft)) input.onClose();
     } catch (e) {
       reportSaveError(input, e);
     }
@@ -210,8 +208,7 @@ export function createAllocationCommands(input: CommandInput) {
     const draft = validateDraft();
     if (!draft || rejectsNewPlacement({ command: input, draft, newPlacement: true })) return;
     try {
-      input.addAllocation(draft);
-      input.onClose();
+      if (input.addAllocation(draft).kind === "created") input.onClose();
     } catch (e) {
       input.fail(null, e instanceof Error ? resolveErrorMessage(e) : m.form_allocation_err_save_failed());
     }

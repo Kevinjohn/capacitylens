@@ -27,11 +27,15 @@ type AccountSlice = Pick<
 >;
 
 type AccountSliceCreator = StateCreator<StoreState, [], [], AccountSlice>;
+type AccountSliceInternals = Pick<
+  StoreInternals,
+  "createGuardedAction" | "assertWorkingDays" | "snapColor" | "mutate" | "updateById" | "applySnappedColor"
+>;
 type AccountSliceSet = Parameters<AccountSliceCreator>[0];
 type AccountSliceGet = Parameters<AccountSliceCreator>[1];
 
 interface AccountActionContext {
-  internals: StoreInternals;
+  internals: AccountSliceInternals;
   set: AccountSliceSet;
   get: AccountSliceGet;
 }
@@ -177,7 +181,7 @@ function createSetAccountSummariesAction({ set, get }: AccountActionContext): St
   };
 }
 
-export function createAccountSlice(internals: StoreInternals): StateCreator<StoreState, [], [], AccountSlice> {
+export function createAccountSlice(internals: AccountSliceInternals): StateCreator<StoreState, [], [], AccountSlice> {
   return (set, get) => {
     const context = { internals, set, get };
     return {

@@ -95,7 +95,7 @@ export function ClosureForm({ closure, onClose }: { closure?: Closure; onClose: 
         }
         update(closure.id, patch);
       } else {
-        add(patch);
+        if (add(patch).kind === "blocked") return;
       }
       onClose();
     } catch (error) {
