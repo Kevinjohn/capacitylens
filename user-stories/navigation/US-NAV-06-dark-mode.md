@@ -48,7 +48,8 @@ animations.
   app does **not** auto-switch to dark from the OS setting alone.
 - ✅ The icon button directly below **Settings** switches between explicit light and dark choices,
   updates its accessible action name, remains usable on the collapsed icon rail and saves the
-  choice in this browser.
+  choice in this browser. Its name, icon and action follow the scheme shown: with **Match system**
+  on a dark OS it offers **Switch to light mode** and saves an explicit light choice.
 - ✅ **Settings → My display → Appearance on this device** offers **Light**, **Dark** and **Match system**; choosing
   one re-themes every surface (sidebar, grid, lists, modals, banner, toast) immediately,
   with no reload.
