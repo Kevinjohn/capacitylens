@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { inspectManagedRelease, packageManagedRelease, resetGeneratedOutput } from "./package-managed-release.mjs";
+import {
+  inspectManagedRelease,
+  packageManagedRelease,
+  readDevelopmentPackages,
+  resetGeneratedOutput,
+} from "./package-managed-release.mjs";
+
+const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
 
 async function makeRelease(packages = []) {
   const root = await mkdtemp(join(tmpdir(), "capacitylens-release-test-"));
@@ -23,21 +31,70 @@ async function makeRelease(packages = []) {
 test("accepts the complete production runtime", async (context) => {
   const root = await makeRelease(["better-auth@1.6.30", "fastify@5.12.3"]);
   context.after(() => rm(root, { recursive: true, force: true }));
-  const result = await inspectManagedRelease(root);
+  const result = await inspectManagedRelease(root, await readDevelopmentPackages(repositoryRoot));
   assert.equal(result.packageCount, 2);
 });
 
 test("rejects development tooling in the production runtime", async (context) => {
   const root = await makeRelease(["better-auth@1.6.30", "simple-git-hooks@2.14.0"]);
   context.after(() => rm(root, { recursive: true, force: true }));
-  await assert.rejects(() => inspectManagedRelease(root), /simple-git-hooks/);
+  const forbidden = await readDevelopmentPackages(repositoryRoot);
+  await assert.rejects(() => inspectManagedRelease(root, forbidden), /simple-git-hooks/);
+});
+
+test("rejects transitive tooling from a forbidden scope", async (context) => {
+  const root = await makeRelease(["@vitest+runner@4.1.11"]);
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await assert.rejects(() => inspectManagedRelease(root, ["@vitest/"]), /@vitest\//);
+});
+
+test("rejects a scoped development package by its store name", async (context) => {
+  const root = await makeRelease(["@vitejs+plugin-react@5.0.0"]);
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await assert.rejects(() => inspectManagedRelease(root, ["@vitejs/plugin-react"]), /@vitejs\/plugin-react/);
+});
+
+test("forbids the repository's development dependencies but not server runtime dependencies", async () => {
+  const forbidden = await readDevelopmentPackages(repositoryRoot);
+  for (const tool of [
+    "vitest",
+    "tsx",
+    "esbuild",
+    "simple-git-hooks",
+    "@playwright/test",
+    "@types/",
+    "@vitest/",
+    "fast-check",
+  ]) {
+    assert.ok(forbidden.includes(tool), tool);
+  }
+  for (const runtime of ["fastify", "better-auth", "nodemailer", "date-fns", "@fastify/"]) {
+    assert.ok(!forbidden.includes(runtime), runtime);
+  }
+});
+
+test("does not forbid a development dependency the server also needs at runtime", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "capacitylens-manifest-test-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  await mkdir(join(root, "server"));
+  await mkdir(join(root, "shared"));
+  await writeFile(
+    join(root, "package.json"),
+    JSON.stringify({ devDependencies: { yaml: "1", vite: "1", "@fastify/type-provider": "1" } }),
+  );
+  await writeFile(
+    join(root, "server", "package.json"),
+    JSON.stringify({ dependencies: { yaml: "1", "@fastify/helmet": "1" }, devDependencies: { tsx: "1" } }),
+  );
+  await writeFile(join(root, "shared", "package.json"), JSON.stringify({ devDependencies: { "fast-check": "1" } }));
+  assert.deepEqual(await readDevelopmentPackages(root), ["@fastify/type-provider", "fast-check", "tsx", "vite"]);
 });
 
 test("rejects an artifact without the import worker", async (context) => {
   const root = await makeRelease();
   context.after(() => rm(root, { recursive: true, force: true }));
   await writeFile(join(root, "server", "dist", "importWorker.mjs"), "");
-  await assert.rejects(() => inspectManagedRelease(root), /importWorker\.mjs/);
+  await assert.rejects(() => inspectManagedRelease(root, []), /importWorker\.mjs/);
 });
 
 test("rejects every output path except the dedicated production directory", async () => {
@@ -54,6 +111,7 @@ test("does not delete an unowned production directory", async (context) => {
 
   await assert.rejects(() => resetGeneratedOutput(output), /not a CapacityLens-generated artifact/);
   assert.equal(await readFile(join(output, "keep.txt"), "utf8"), "operator data");
+  assert.deepEqual(await readdir(root), ["production"]);
 });
 
 test("replaces only a marked generated artifact", async (context) => {
@@ -66,6 +124,7 @@ test("replaces only a marked generated artifact", async (context) => {
   await resetGeneratedOutput(output);
 
   await assert.rejects(() => readFile(join(output, "stale.txt")), /ENOENT/);
+  assert.deepEqual(await readdir(root), ["production"]);
   assert.match(await readFile(join(output, ".capacitylens-generated-release"), "utf8"), /generated/);
 });
 
@@ -79,4 +138,14 @@ test("does not follow a production-directory symlink", async (context) => {
 
   await assert.rejects(() => resetGeneratedOutput(output), /not a generated directory/);
   assert.match(await readFile(join(target, ".capacitylens-generated-release"), "utf8"), /generated/);
+});
+
+test("reports an unreadable marker as itself and leaves production/ in place", async (context) => {
+  const root = await mkdtemp(join(tmpdir(), "capacitylens-output-test-"));
+  context.after(() => rm(root, { recursive: true, force: true }));
+  const output = join(root, "production");
+  await mkdir(join(output, ".capacitylens-generated-release"), { recursive: true });
+
+  await assert.rejects(() => resetGeneratedOutput(output), { code: "EISDIR" });
+  assert.deepEqual(await readdir(root), ["production"]);
 });

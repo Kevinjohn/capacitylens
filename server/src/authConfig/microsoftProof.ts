@@ -269,6 +269,8 @@ export function createMicrosoftProof(input: Input) {
     await authorization.assertLive(intent, capture.request.headers);
     if (intent.tenantId !== tenantId || (intent.oid !== null && intent.oid !== oid))
       throw new MicrosoftProofError("MICROSOFT_IDENTITY_MISMATCH", 403);
+    // An invite for an already linked Microsoft identity signs in to that linked principal: the
+    // principal is found by `oid`, never by email, and the invite must name its stored address.
     if (existing) {
       if (!matchesExistingInvitation(intent, existing.email)) {
         throw new MicrosoftProofError("MICROSOFT_IDENTITY_ALREADY_LINKED", 409);

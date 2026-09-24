@@ -53,6 +53,42 @@ it.each(["CAPACITYLENS_SSO_CLIENT_ID", "CAPACITYLENS_SSO_ISSUER", "CAPACITYLENS_
   },
 );
 
+// Written out independently of the production map so that dropping a name there fails here.
+const retiredAccountNames = [
+  ["CAPACITYLENS_AUTH", "SMALLSASS_ACCOUNT_MODE"],
+  ["BETTER_AUTH_SECRET", "SMALLSASS_ACCOUNT_SECRET"],
+  ["BETTER_AUTH_URL", "SMALLSASS_ACCOUNT_PUBLIC_URL"],
+  ["CAPACITYLENS_SETUP_TOKEN", "SMALLSASS_ACCOUNT_SETUP_TOKEN"],
+  ["CAPACITYLENS_ALLOW_OPEN_SIGNUP", "SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP"],
+  ["CAPACITYLENS_REQUIRE_MFA", "SMALLSASS_ACCOUNT_REQUIRE_MFA"],
+  ["CAPACITYLENS_PASSWORD_BREACH_CHECK", "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK"],
+  ["CAPACITYLENS_SSO_MFA_ENFORCED", "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED"],
+  ["CAPACITYLENS_GOOGLE_CLIENT_ID", "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID"],
+  ["CAPACITYLENS_GOOGLE_CLIENT_SECRET", "SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET"],
+  ["CAPACITYLENS_MICROSOFT_CLIENT_ID", "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID"],
+  ["CAPACITYLENS_MICROSOFT_CLIENT_SECRET", "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET"],
+  ["CAPACITYLENS_MICROSOFT_TENANT_ID", "SMALLSASS_ACCOUNT_MICROSOFT_TENANT_ID"],
+  ["CAPACITYLENS_GITHUB_CLIENT_ID", "SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID"],
+  ["CAPACITYLENS_GITHUB_CLIENT_SECRET", "SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET"],
+] as const;
+
+describe("retired account environment names", () => {
+  it.each(retiredAccountNames)("refuses %s and names %s", (retired, canonical) => {
+    expect(() => resolveAccountEnvironment({ [retired]: "configured" })).toThrow(
+      `${retired} was removed; use ${canonical}.`,
+    );
+  });
+
+  it.each(retiredAccountNames)("refuses a whitespace-only %s", (retired, canonical) => {
+    expect(() => resolveAccountEnvironment({ [retired]: "  " })).toThrow(`${retired} was removed; use ${canonical}.`);
+  });
+
+  it.each(retiredAccountNames)("accepts and drops an empty %s placeholder", (retired) => {
+    const resolved = resolveAccountEnvironment({ [retired]: "" });
+    expect(resolved.env).not.toHaveProperty(retired);
+  });
+});
+
 describe("hosted provider-only profile", () => {
   it("accepts Google, tenant-specific Microsoft, or both", () => {
     for (const providers of [GOOGLE, MICROSOFT, { ...GOOGLE, ...MICROSOFT }]) {
