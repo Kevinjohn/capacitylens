@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { openDbConnection, planDatabaseMigrations } from "../src/db";
+import { restrictIdentifiedDatabasePermissions } from "../src/db/filePermissions";
 import {
   assertAccountBoundaryStateCurrent,
   closeAccountCommandReconciliation,
@@ -52,6 +53,8 @@ if (!databasePath || !applicationId || !commandId || !operatorReference) {
         repairKind,
       }),
     );
+    // Planning is read-only; closing the command writes, so harden the identified file first.
+    restrictIdentifiedDatabasePermissions(db);
     const referenceHash = buildSecretDigest("reconciliation-reference", operatorReference);
     if (!closeAccountCommandReconciliation({ db, applicationId, commandId, referenceHash })) {
       throw new Error("The command changed while reconciliation was being closed; inspect it again.");
