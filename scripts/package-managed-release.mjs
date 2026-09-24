@@ -55,30 +55,32 @@ export async function resetGeneratedOutput(output) {
   // entry even if production/ is swapped concurrently. A refused entry is moved back.
   const holding = await mkdtemp(join(dirname(output), ".production-retired-"));
   const retired = join(holding, "production");
-  const moved = await rename(output, retired).then(
-    () => true,
-    async (error) => {
-      await rmdir(holding).catch((cleanup) => console.warn(`Could not remove ${holding}:`, cleanup));
-      if (error?.code === "ENOENT") return false;
-      throw error;
-    },
-  );
-  if (moved) {
-    const refusal = await checkGeneratedOutput(retired).catch((error) => error);
-    if (refusal) {
-      await rename(retired, output).catch((error) => {
-        throw new Error(`Could not restore production/; it was left at ${retired}.`, { cause: error });
-      });
-      await rmdir(holding);
-      throw refusal;
-    }
-    await rm(holding, { recursive: true });
+  try {
+    await rename(output, retired);
+  } catch (error) {
+    await rmdir(holding).catch((cleanup) => console.warn(`Could not remove ${holding}:`, cleanup));
+    if (error?.code !== "ENOENT") throw error;
+    return createGeneratedOutput(output);
   }
+  try {
+    await checkGeneratedOutput(retired);
+  } catch (refusal) {
+    await rename(retired, output).catch((error) => {
+      throw new Error(`Could not restore production/; it was left at ${retired}.`, { cause: error });
+    });
+    await rmdir(holding);
+    throw refusal;
+  }
+  await rm(holding, { recursive: true });
+  return createGeneratedOutput(output);
+}
+
+async function createGeneratedOutput(output) {
   await mkdir(output, { recursive: true });
   await writeFile(join(output, ".capacitylens-generated-release"), generatedMarker);
 }
 
-// Returns undefined for a generated artifact; any refusal or read failure rejects.
+// Resolves for a generated artifact; any refusal or read failure rejects.
 async function checkGeneratedOutput(path) {
   const existing = await lstat(path);
   if (!existing.isDirectory() || existing.isSymbolicLink()) {
@@ -92,7 +94,6 @@ async function checkGeneratedOutput(path) {
   if (marker !== generatedMarker) {
     throw new Error("Refusing to replace production/: it is not a CapacityLens-generated artifact.");
   }
-  return undefined;
 }
 
 export async function packageManagedRelease(outputPath = "production") {
