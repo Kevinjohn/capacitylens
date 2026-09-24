@@ -19,6 +19,7 @@ import {
   writeFileSync,
   renameSync,
   rmdirSync,
+  statSync,
 } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -26,6 +27,8 @@ import { LANE_CEILING, portsForLane, reservationCeiling, soloShare } from "./por
 import { portInUse } from "./dev-processes.mjs";
 
 const MUTEX_STALE_MS = 30_000;
+// A legacy publisher wrote its owner microseconds after creating the file.
+const LEGACY_PUBLISH_GRACE_MS = 5_000;
 let claimSequence = 0;
 
 export function laneDirectory(environment = process.env) {
@@ -79,20 +82,20 @@ function withMutex(directory, body) {
       if (!["EEXIST", "ENOTEMPTY", "EISDIR", "ENOTDIR"].includes(error.code)) throw error;
       const holder = readMutexOwner(path);
       // The old file format published the path before writing its owner. An empty/corrupt legacy
-      // file may still belong to a live publisher paused in that window, so it cannot be reaped.
+      // file may belong to a live publisher paused in that window, so it is reaped only once it
+      // is older than any such pause could be.
       if (holder?.legacy && (holder.corrupt || !Number.isInteger(holder.pid) || holder.pid <= 0)) {
+        if (legacyMutexAbandoned(path)) {
+          removeLegacyMutex(path);
+          continue;
+        }
         if (Date.now() > deadline)
           throw new Error(`lane: the legacy claim mutex at ${path} has no valid owner.`, { cause: error });
         continue;
       }
       if (holder && !processAlive(holder.pid)) {
         if (holder.legacy) {
-          // Older launchers used a regular file. Unlink cannot delete a directory successor.
-          try {
-            unlinkSync(path);
-          } catch (unlinkError) {
-            if (!["ENOENT", "EISDIR", "EPERM"].includes(unlinkError.code)) throw unlinkError;
-          }
+          removeLegacyMutex(path);
           continue;
         }
         // A second reaper can remove only this dead owner's unique file. A successor's different
@@ -116,6 +119,24 @@ function withMutex(directory, body) {
     } finally {
       releaseMutex(path, ownerName);
     }
+  }
+}
+
+function legacyMutexAbandoned(path) {
+  try {
+    return Date.now() - statSync(path).mtimeMs > LEGACY_PUBLISH_GRACE_MS;
+  } catch (error) {
+    if (error.code === "ENOENT") return false;
+    throw error;
+  }
+}
+
+// Older launchers used a regular file. Unlink cannot delete a directory successor.
+function removeLegacyMutex(path) {
+  try {
+    unlinkSync(path);
+  } catch (error) {
+    if (!["ENOENT", "EISDIR", "EPERM"].includes(error.code)) throw error;
   }
 }
 

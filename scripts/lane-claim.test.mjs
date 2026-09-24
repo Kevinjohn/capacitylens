@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import test from "node:test";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, unlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { presetEnvironment, resolvePlaywrightRunMode, E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
@@ -180,7 +180,7 @@ test("a live legacy file mutex is respected and a dead one is reclaimed", () => 
   claim.release();
 });
 
-test("an empty or corrupt legacy mutex is left for its possible live publisher", () => {
+test("a fresh empty or corrupt legacy mutex is left for its possible live publisher", () => {
   for (const contents of ["", "not-json"]) {
     const environment = scratch();
     const directory = laneDirectory(environment);
@@ -189,6 +189,9 @@ test("an empty or corrupt legacy mutex is left for its possible live publisher",
     writeFileSync(mutex, contents);
     const realNow = Date.now;
     let now = realNow();
+    // Keep the file younger than the grace period however far the mocked clock advances.
+    const future = new Date(now + 3_600_000);
+    utimesSync(mutex, future, future);
     Date.now = () => (now += 31_000);
     try {
       assert.throws(() => claimLane({ worktree: "/tmp/blocked", environment }), /no valid owner/);
@@ -196,6 +199,21 @@ test("an empty or corrupt legacy mutex is left for its possible live publisher",
     } finally {
       Date.now = realNow;
     }
+  }
+});
+
+test("an abandoned empty or corrupt legacy mutex is reaped", () => {
+  for (const contents of ["", "not-json"]) {
+    const environment = scratch();
+    const directory = laneDirectory(environment);
+    claimLane({ worktree: "/tmp/initial", environment }).release();
+    const mutex = join(directory, ".mutex");
+    writeFileSync(mutex, contents);
+    const past = new Date(Date.now() - 60_000);
+    utimesSync(mutex, past, past);
+    const claim = claimLane({ worktree: "/tmp/reclaimed", environment });
+    assert.equal(claim.lane, 0);
+    claim.release();
   }
 });
 
