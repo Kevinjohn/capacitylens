@@ -9,7 +9,12 @@ vi.mock("nodemailer", () => ({
   default: {
     createTransport: () => ({
       sendMail: async (message: { to: string; text: string }) => {
-        if (mailFailure.enabled) throw new Error("SMTP unavailable");
+        if (mailFailure.enabled) {
+          throw Object.assign(new Error(`SMTP unavailable: private credential and message ${message.text}`), {
+            code: "EAUTH",
+            responseCode: 535,
+          });
+        }
         sentMessages.push(message);
       },
     }),

@@ -217,19 +217,11 @@ END`;
   }
 }
 /**
- * Fail loudly if the live DB has drifted from the current spec in a way migrateSchema can't (or
- * won't) silently repair. These checks are no-ops on any fresh / current / already-migrated DB —
- * they exist only to turn a developer mistake or physical drift into one clear,
- * early, column-naming startup error instead of a confusing runtime symptom much later:
+ * Verify the selected released or current schema after explicit versioned migration steps.
+ * Missing columns are never silently repaired by these assertions: an entity contract change
+ * requires a corresponding migration, including an explicit rebuild when constraints need it.
  *
- *  (1) MISSING COLUMN. migrateSchema auto-adds missing OPTIONAL columns, but SQLite can't
- *      ALTER-ADD a NOT NULL column to a table that already has rows, so a future REQUIRED column
- *      added to an existing on-disk DB can't be migrated automatically — it needs an explicit
- *      rebuild step (the way activities.projectId got one). Otherwise the drift is SILENT: a missing
- *      required column doesn't even throw on read (fromRow yields undefined) and only surfaces as
- *      a cryptic "no column named X" on the first write that names it.
- *
- *  (2) COLUMN CONTRACT. A column's optional? flag (object-level, in TABLES) and its
+ *  (1) COLUMN CONTRACT. A column's optional? flag (object-level, in TABLES) and its
  *      NULL/NOT NULL in SCHEMA_SQL (DB-level) are two hand-maintained sources of truth; nothing
  *      else checks they still agree. A drift is a real bug: a column marked optional but left
  *      NOT NULL rejects a legitimately-omitted field (confusing 400), and a required column left
@@ -238,7 +230,7 @@ END`;
  *      (a long-standing SQLite quirk), so it would otherwise look like a false mismatch. Declared
  *      storage types and the id-only primary key are checked from the same TABLES write contract.
  *
- *  (3) WRITE-BREAKING EXTENSIONS. A nullable or defaulted extension column is forward-compatible
+ *  (2) WRITE-BREAKING EXTENSIONS. A nullable or defaulted extension column is forward-compatible
  *      with our explicit INSERT column list and remains allowed. An unexpected required/no-default
  *      column, CHECK/UNIQUE constraint, trigger, STRICT or WITHOUT ROWID table option can reject an
  *      otherwise valid TABLES row, so startup refuses that unknown shape before accepting traffic.
@@ -339,9 +331,8 @@ function describeSchemaProblems(schemaProblems: SchemaProblems): string[] {
   const messages: string[] = [];
   if (schemaProblems.missing.length > 0) {
     messages.push(
-      `missing column(s): ${schemaProblems.missing.join(", ")} — migrateSchema auto-adds optional columns, but a ` +
-        `new REQUIRED (NOT NULL) column needs an explicit migration step (a table rebuild, like ` +
-        `rebuildActivitiesTable) before this DB can open`,
+      `missing column(s): ${schemaProblems.missing.join(", ")} — the database does not match its expected ` +
+        `schema; new columns require an explicit versioned migration before this DB can open`,
     );
   }
   if (schemaProblems.nullability.length > 0) {

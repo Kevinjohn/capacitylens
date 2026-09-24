@@ -559,12 +559,18 @@ describe("Microsoft native callback proof", () => {
   });
 
   it("keeps delivery failure retryable without issuing a user or claiming verification", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const { db, auth } = await configured();
     try {
       const started = await begin(auth);
       mockMicrosoftToken(claims());
       mailFailure.enabled = true;
       const first = await callback(auth, started.state, started.cookies);
+      expect(log).toHaveBeenCalledWith("Microsoft mailbox proof delivery failed.", {
+        code: "EAUTH",
+        responseCode: 535,
+      });
+      expect(JSON.stringify(log.mock.calls)).not.toMatch(/private credential|token=|bruce@example/);
       expect(first.headers.get("location")).toContain("/verify-microsoft?state=check-email");
       expect(auth.microsoftProof.status(new Headers({ cookie: started.cookies }))).toMatchObject({
         state: "pending",
@@ -575,7 +581,13 @@ describe("Microsoft native callback proof", () => {
         state: "started",
         tokenHash: null,
       });
+      db.prepare("UPDATE microsoft_identity_proofs SET lastSentAt = 0").run();
+      await expect(auth.microsoftProof.resend(new Headers({ cookie: started.cookies }))).rejects.toMatchObject({
+        code: "MAIL_DELIVERY_UNAVAILABLE",
+        cause: { code: "EAUTH", responseCode: 535 },
+      });
     } finally {
+      log.mockRestore();
       db.close();
     }
   });
