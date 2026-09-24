@@ -223,7 +223,7 @@ function registerInviteMintTests(): void {
   });
 
   it("discards the link of a create that resolves after the dialog closed", async () => {
-    let respond: ((response: Response) => void) | null = null;
+    const pending: { respond?: (response: Response) => void } = {};
     // The late invite stays pending, so only the dialog close can clear its link.
     let invites: Record<string, unknown>[] = [];
     let invitesReads = 0;
@@ -236,7 +236,7 @@ function registerInviteMintTests(): void {
         },
         "POST /api/invites": () =>
           new Promise<Response>((resolve) => {
-            respond = resolve;
+            pending.respond = resolve;
           }),
       }),
     );
@@ -244,7 +244,7 @@ function registerInviteMintTests(): void {
     await screen.findByTestId("members-section");
 
     fireEvent.click(screen.getByTestId("invite-submit"));
-    await waitFor(() => expect(respond).not.toBeNull());
+    await waitFor(() => expect(pending.respond).toBeDefined());
     closeInviteDialog();
     const readsBeforeResponse = invitesReads;
     invites = [
@@ -257,7 +257,7 @@ function registerInviteMintTests(): void {
         createdAt: "2026-07-17T00:00:00.000Z",
       },
     ];
-    respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
+    pending.respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
     await waitFor(() => expect(invitesReads).toBeGreaterThan(readsBeforeResponse));
 
     fireEvent.click(screen.getByTestId("invite-open"));
