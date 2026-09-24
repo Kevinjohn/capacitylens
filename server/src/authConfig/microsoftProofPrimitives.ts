@@ -177,3 +177,15 @@ export function createMicrosoftProofMailer(environment: Record<string, string | 
     });
   };
 }
+
+// Operators need the transport failure (host, credentials, certificate). Any address the
+// transport echoes, in whatever encoding, and the token stay out of the log.
+export function logMicrosoftProofMailFailure(error: unknown, token: string): void {
+  let message = "non-Error rejection";
+  if (error instanceof Error) message = error.message;
+  else if (typeof error === "string") message = error;
+  console.error("Microsoft mailbox-proof email could not be sent.", {
+    code: error instanceof Error ? (error as { code?: unknown }).code : undefined,
+    reason: message.replaceAll(token, "[token]").replace(/[^\s<>"'@]+@[^\s<>"'@]+/g, "[address]"),
+  });
+}

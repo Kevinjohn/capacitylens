@@ -13,6 +13,7 @@ import {
   hasVerifiedMicrosoftEmail,
   hashProofValue,
   hintProofEmail,
+  logMicrosoftProofMailFailure,
   newProofId,
   newProofSecret,
   readMicrosoftProofIntent,
@@ -129,21 +130,9 @@ export function createMicrosoftProof(input: Input) {
       db.prepare(
         "UPDATE microsoft_identity_proofs SET state = 'started', tokenHash = NULL, tokenExpiresAt = NULL WHERE id = ? AND tokenHash = ?",
       ).run(intent.id, hashProofValue(token));
-      logMailFailure(error, token);
+      logMicrosoftProofMailFailure(error, token);
       throw new MicrosoftProofError("MAIL_DELIVERY_UNAVAILABLE", 503);
     }
-  }
-
-  // Operators need the transport failure (host, credentials, certificate). Any address the
-  // transport echoes, in whatever encoding, and the token stay out of the log.
-  function logMailFailure(error: unknown, token: string): void {
-    let message = "non-Error rejection";
-    if (error instanceof Error) message = error.message;
-    else if (typeof error === "string") message = error;
-    console.error("Microsoft mailbox-proof email could not be sent.", {
-      code: error instanceof Error ? (error as { code?: unknown }).code : undefined,
-      reason: message.replaceAll(token, "[token]").replace(/[^\s<>"'@]+@[^\s<>"'@]+/g, "[address]"),
-    });
   }
 
   function saveIntent(intent: Intent, now: number): void {
