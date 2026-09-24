@@ -9,7 +9,8 @@ vi.mock("nodemailer", () => ({
   default: {
     createTransport: () => ({
       sendMail: async (message: { to: string; text: string }) => {
-        if (mailFailure.enabled) throw Object.assign(new Error(`SMTP rejected ${message.to}`), { code: "EENVELOPE" });
+        if (mailFailure.enabled)
+          throw Object.assign(new Error(`550 <${message.to.toUpperCase()}> rejected`), { code: "EENVELOPE" });
         sentMessages.push(message);
       },
     }),

@@ -596,9 +596,9 @@ describe("Microsoft native callback proof", () => {
       });
       expect(logged).toHaveBeenCalledWith("Microsoft mailbox-proof email could not be sent.", {
         code: "EENVELOPE",
-        reason: "SMTP rejected [recipient]",
+        reason: "550 <[address]> rejected",
       });
-      expect(JSON.stringify(logged.mock.calls)).not.toContain("bruce@example.com");
+      expect(JSON.stringify(logged.mock.calls).toLowerCase()).not.toContain("bruce@example.com");
       expect(db.prepare("SELECT state, tokenHash, tokenExpiresAt FROM microsoft_identity_proofs").get()).toEqual({
         state: "started",
         tokenHash: null,

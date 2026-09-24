@@ -126,19 +126,24 @@ export function createMicrosoftProof(input: Input) {
     try {
       await mail(intent.targetEmail, token);
     } catch (error) {
-      // Operators need the transport failure (host, credentials, certificate); the recipient and
-      // token stay out of the log.
-      console.error("Microsoft mailbox-proof email could not be sent.", {
-        code: (error as { code?: unknown } | null)?.code,
-        reason: (error instanceof Error ? error.message : String(error))
-          .replaceAll(intent.targetEmail, "[recipient]")
-          .replaceAll(token, "[token]"),
-      });
       db.prepare(
         "UPDATE microsoft_identity_proofs SET state = 'started', tokenHash = NULL, tokenExpiresAt = NULL WHERE id = ? AND tokenHash = ?",
       ).run(intent.id, hashProofValue(token));
+      logMailFailure(error, token);
       throw new MicrosoftProofError("MAIL_DELIVERY_UNAVAILABLE", 503);
     }
+  }
+
+  // Operators need the transport failure (host, credentials, certificate). Any address the
+  // transport echoes, in whatever encoding, and the token stay out of the log.
+  function logMailFailure(error: unknown, token: string): void {
+    let message = "non-Error rejection";
+    if (error instanceof Error) message = error.message;
+    else if (typeof error === "string") message = error;
+    console.error("Microsoft mailbox-proof email could not be sent.", {
+      code: error instanceof Error ? (error as { code?: unknown }).code : undefined,
+      reason: message.replaceAll(token, "[token]").replace(/[^\s<>"'@]+@[^\s<>"'@]+/g, "[address]"),
+    });
   }
 
   function saveIntent(intent: Intent, now: number): void {
