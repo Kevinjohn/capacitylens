@@ -55,7 +55,7 @@
     "lint:staged": "pnpm run paraglide:compile && lint-staged",
     "typecheck": "pnpm run paraglide:compile && tsc -b",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:check": "git ls-files -z --cached --others --exclude-standard | xargs -0 prettier --check --ignore-unknown --no-error-on-unmatched-pattern",
     "preview": "node scripts/with-lane.mjs vite preview",
     "docs:dev": "node scripts/with-lane.mjs vitepress dev docs-src",
     "docs:build": "vitepress build docs-src && node scripts/docs-standalone.mjs && node scripts/check-docs-navigation.mjs",
