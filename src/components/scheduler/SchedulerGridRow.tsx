@@ -12,6 +12,7 @@ import { isCapacityTracked, isExternalResource } from "@capacitylens/shared/type
 import type { ISODate } from "@capacitylens/shared/types/entities";
 import { Button } from "../ui/button";
 import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
+import { resolveResourceAvatarUrl } from "../../account/resolveResourceAvatarUrl";
 import type { ModalState } from "./schedulerGridModal";
 import type { SchedulerUI, StoreState } from "../../store/useStore";
 
@@ -51,7 +52,7 @@ function ResourceIdentity({
 >) {
   const { resource } = row;
   const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
-  const imageUrl = resource.kind === "person" ? (resource.avatarUrl ?? resourceAvatars.get(resource.id)) : undefined;
+  const imageUrl = resolveResourceAvatarUrl(resource, resourceAvatars);
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2" style={{ height: density.identityBandHeight }}>
       <PersonScheduleTrigger
@@ -159,8 +160,7 @@ type RowHeaderProps = Pick<
 >;
 
 function SchedulerGridRowHeader(props: RowHeaderProps) {
-  const { row, group, density, utilizationPrefs, visibleWeeksLabel, ui } = props;
-  const resourceAvatars = props.resourceAvatars;
+  const { row, group, density, utilizationPrefs, visibleWeeksLabel, ui, resourceAvatars } = props;
   const { resource } = row;
   return (
     <div

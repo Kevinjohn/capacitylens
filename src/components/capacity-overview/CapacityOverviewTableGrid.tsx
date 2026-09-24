@@ -7,6 +7,7 @@ import { formatWeekColumnRange } from "@/lib/dateDisplay";
 import { resolveResourceDisplayName } from "@/lib/metadata";
 import { useStore } from "../../store/useStore";
 import { PersonScheduleTrigger } from "../person-schedule/PersonScheduleTrigger";
+import { resolveResourceAvatarUrl } from "../../account/resolveResourceAvatarUrl";
 import { buildPeriodTotals } from "./capacityOverviewBar";
 import type { CapacityDisplayMode } from "./capacityOverviewBar";
 import type { CapacityOverviewPeriod } from "./capacityOverviewDates";
@@ -89,7 +90,7 @@ function PersonCell({
   ResourceAvatarProp) {
   const { resource } = row;
   const scheduleTitle = personScheduleTitlesByResourceId.get(resource.id) ?? resolveResourceDisplayName(resource);
-  const imageUrl = resource.kind === "person" ? (resource.avatarUrl ?? resourceAvatars.get(resource.id)) : undefined;
+  const imageUrl = resolveResourceAvatarUrl(resource, resourceAvatars);
   return (
     <th
       scope="row"
