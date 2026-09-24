@@ -4,6 +4,7 @@ import { MemoryRouter, useLocation, useNavigate } from "react-router-dom";
 import { AppShell } from "./AppShell";
 import { useStore } from "../store/useStore";
 import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
+import { stubMatchMedia } from "../test/stubMatchMedia";
 import { attachPersistence } from "../data/persist";
 import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { setOfflineReadState } from "../data/offlineCache";
@@ -580,25 +581,6 @@ function registerPinnedNavigationOrderTest(): void {
       "/settings",
     ]);
   });
-}
-
-function stubMatchMedia(matches: (query: string) => boolean): void {
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn(
-      (query: string) =>
-        ({
-          matches: matches(query),
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(() => true),
-        }) satisfies MediaQueryList,
-    ),
-  );
 }
 
 function registerNavigationRoutesTest(): void {

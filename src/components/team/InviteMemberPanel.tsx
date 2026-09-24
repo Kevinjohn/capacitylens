@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import type { InvitationRole } from "@capacitylens/shared/account/types";
@@ -76,7 +76,9 @@ export function InviteMemberPanel(props: {
   errorId: string;
   clear(): void;
   mintedLink: { inviteId: string | null; link: string } | null;
-  clearMintedLink(): void;
+  inviteDialogOpen: boolean;
+  openInviteDialog(): void;
+  closeInviteDialog(): void;
   copyLink(link: string, copiedNotice: string): void;
   submitInvite(): Promise<void>;
   invites: readonly TeamInvitation[];
@@ -87,23 +89,18 @@ export function InviteMemberPanel(props: {
   invitationResourceId: string;
   setInvitationResourceId(value: string): void;
 }) {
-  const [open, setOpen] = useState(false);
-  const close = () => {
-    setOpen(false);
-    props.clearMintedLink();
-  };
   return (
     <section data-testid="invites-section" aria-busy={props.busy} className="flex flex-col gap-4">
-      <InviteHeader onOpen={() => setOpen(true)} />
-      {open && (
+      <InviteHeader onOpen={props.openInviteDialog} />
+      {props.inviteDialogOpen && (
         <Modal
           title={m.settings_invite_heading()}
           description={m.settings_invite_intro({ app: APP_NAME })}
-          onClose={close}
+          onClose={props.closeInviteDialog}
           onSubmit={() => void props.submitInvite()}
           footer={
             <>
-              <Button type="button" variant="outline" size="sm" onClick={close}>
+              <Button type="button" variant="outline" size="sm" onClick={props.closeInviteDialog}>
                 {m.form_cancel()}
               </Button>
               <Button type="submit" size="sm" data-testid="invite-submit" disabled={props.busy}>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -5,8 +6,24 @@ import type { InvitationRole } from "@capacitylens/shared/account/types";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { InviteMemberPanel } from "./InviteMemberPanel";
 
-function renderInvite(overrides: Partial<React.ComponentProps<typeof InviteMemberPanel>> = {}) {
-  const props: React.ComponentProps<typeof InviteMemberPanel> = {
+type InvitePanelProps = React.ComponentProps<typeof InviteMemberPanel>;
+type DialogProps = "inviteDialogOpen" | "openInviteDialog" | "closeInviteDialog";
+
+// The dialog's open state is owned by the caller; hold it here as MembersSection's hook does.
+function InvitePanelHarness(props: Omit<InvitePanelProps, DialogProps>) {
+  const [open, setOpen] = useState(false);
+  return (
+    <InviteMemberPanel
+      {...props}
+      inviteDialogOpen={open}
+      openInviteDialog={() => setOpen(true)}
+      closeInviteDialog={() => setOpen(false)}
+    />
+  );
+}
+
+function renderInvite(overrides: Partial<Omit<InvitePanelProps, DialogProps>> = {}) {
+  const props: Omit<InvitePanelProps, DialogProps> = {
     authMode: "password",
     busy: false,
     inviteRole: "editor" satisfies InvitationRole,
@@ -17,7 +34,6 @@ function renderInvite(overrides: Partial<React.ComponentProps<typeof InviteMembe
     errorField: null,
     errorId: "invite-error",
     clear: vi.fn(),
-    clearMintedLink: vi.fn(),
     mintedLink: null,
     copyLink: vi.fn(),
     submitInvite: vi.fn(async () => {}),
@@ -30,7 +46,7 @@ function renderInvite(overrides: Partial<React.ComponentProps<typeof InviteMembe
     setInvitationResourceId: vi.fn(),
     ...overrides,
   };
-  return render(<InviteMemberPanel {...props} />);
+  return render(<InvitePanelHarness {...props} />);
 }
 
 describe("InviteMemberPanel creation guidance", () => {

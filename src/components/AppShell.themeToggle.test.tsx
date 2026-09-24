@@ -4,6 +4,7 @@ import { MemoryRouter } from "react-router-dom";
 import { AppShell } from "./AppShell";
 import { useStore } from "../store/useStore";
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from "../test/fixtures";
+import { stubMatchMedia } from "../test/stubMatchMedia";
 
 vi.mock("../data/apiConfig", () => ({
   API_BASE: "",
@@ -28,25 +29,6 @@ function renderAppShell() {
     <MemoryRouter initialEntries={["/"]}>
       <AppShell />
     </MemoryRouter>,
-  );
-}
-
-function stubMatchMedia(matches: (query: string) => boolean): void {
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn(
-      (query: string) =>
-        ({
-          matches: matches(query),
-          media: query,
-          onchange: null,
-          addListener: vi.fn(),
-          removeListener: vi.fn(),
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
-          dispatchEvent: vi.fn(() => true),
-        }) satisfies MediaQueryList,
-    ),
   );
 }
 

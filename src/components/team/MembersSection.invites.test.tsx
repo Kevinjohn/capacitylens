@@ -83,6 +83,16 @@ async function renderInviteSection(): Promise<void> {
   await screen.findByRole("dialog", { name: "Invite someone" });
 }
 
+// A pending invite whose create resolves after its dialog was closed or reset.
+const LATE_INVITE = {
+  id: "inv-late",
+  role: "editor",
+  preauthEmail: null,
+  expiresAt: "2026-12-01T00:00:00.000Z",
+  usedAt: null,
+  createdAt: "2026-07-17T00:00:00.000Z",
+};
+
 function closeInviteDialog(): void {
   fireEvent.click(
     within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Cancel" }),
@@ -92,6 +102,7 @@ function closeInviteDialog(): void {
 describe("MembersSection — invite mint", () => {
   registerInviteCopyControlTests();
   registerInviteMintTests();
+  registerInviteResetTests();
   registerInviteAccountTransitionTests();
   registerInviteClipboardTransitionTests();
   registerInviteDeadlineTests();
@@ -222,7 +233,7 @@ function registerInviteMintTests(): void {
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });
 
-  it("discards the link of a create that resolves after the dialog closed", async () => {
+  it("discards the link of a create that resolves after the dialog closed and says so", async () => {
     const pending: { respond?: (response: Response) => void } = {};
     // The late invite stays pending, so only the dialog close can clear its link.
     let invites: Record<string, unknown>[] = [];
@@ -247,20 +258,54 @@ function registerInviteMintTests(): void {
     await waitFor(() => expect(pending.respond).toBeDefined());
     closeInviteDialog();
     const readsBeforeResponse = invitesReads;
-    invites = [
-      {
-        id: "inv-late",
-        role: "editor",
-        preauthEmail: null,
-        expiresAt: "2026-12-01T00:00:00.000Z",
-        usedAt: null,
-        createdAt: "2026-07-17T00:00:00.000Z",
-      },
-    ];
+    invites = [LATE_INVITE];
     pending.respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
     await waitFor(() => expect(invitesReads).toBeGreaterThan(readsBeforeResponse));
+    await waitFor(() =>
+      expect(useStore.getState().notice?.message).toBe(m.settings_members_invite_created_link_discarded()),
+    );
 
     fireEvent.click(screen.getByTestId("invite-open"));
+    await screen.findByRole("dialog", { name: "Invite someone" });
+    expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
+  });
+}
+
+function registerInviteResetTests(): void {
+  it("discards the link of a create that resolves after the page went read-only", async () => {
+    const pending: { respond?: (response: Response) => void } = {};
+    // The late invite stays pending, so only the reset can clear its link.
+    let invites: Record<string, unknown>[] = [];
+    let invitesReads = 0;
+    vi.stubGlobal(
+      "fetch",
+      mockApi([{ userId: "me", role: "owner", isSelf: true }], {
+        "GET /invites": () => {
+          invitesReads += 1;
+          return jsonResponse({ invites });
+        },
+        "POST /api/invites": () =>
+          new Promise<Response>((resolve) => {
+            pending.respond = resolve;
+          }),
+      }),
+    );
+    await renderInviteSection();
+    await screen.findByTestId("members-section");
+
+    fireEvent.click(screen.getByTestId("invite-submit"));
+    await waitFor(() => expect(pending.respond).toBeDefined());
+    act(() => setOfflineReadState("tenant", true, Date.parse("2026-07-17T10:00:00.000Z")));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Invite someone" })).not.toBeInTheDocument());
+    act(() => setOfflineReadState("cleanup", false));
+    const readsBeforeResponse = invitesReads;
+    invites = [LATE_INVITE];
+    await act(async () => {
+      pending.respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
+    });
+    await waitFor(() => expect(invitesReads).toBeGreaterThan(readsBeforeResponse));
+
+    fireEvent.click(await screen.findByTestId("invite-open"));
     await screen.findByRole("dialog", { name: "Invite someone" });
     expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument();
   });

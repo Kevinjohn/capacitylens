@@ -18,8 +18,9 @@ Each row is one [person](/reference/glossary) — a real teammate, a freelancer,
 [placeholder](/reference/glossary) for a role you haven't filled yet. Rows are grouped
 under a [discipline](/reference/glossary) heading (Design, Development, and so on) when
 your company uses disciplines, which is the default. A group header can be collapsed to
-`{count} hidden`, and shows an average utilisation figure for everyone in it when that
-figure is turned on in Settings.
+`{count} hidden`, and shows an average utilisation figure when that figure is turned on in
+Settings. The average leaves out external / 3rd-party people, as the overall figure does, so a
+group made up only of external people shows no average.
 
 Each row starts with an avatar and name, with the person's role shown underneath. A
 placeholder row is labelled with the word "Placeholder" instead of a name, and has a

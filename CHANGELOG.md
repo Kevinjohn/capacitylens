@@ -45,6 +45,8 @@ new features and **patch** versions carry fixes.
   dark device it offers light mode and switches to it (#1260).
 - Clear a new invitation link when the invite dialog closes, so reopening it shows an empty
   form instead of the previous link (#1262).
+- Show a notice when an invite finishes creating after its dialog was closed, since its
+  one-time link could not be shown (#1262).
 
 ### Removed
 
