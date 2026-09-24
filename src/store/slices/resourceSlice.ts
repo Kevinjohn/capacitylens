@@ -31,7 +31,23 @@ type ResourceSlice = Pick<
   | "deleteClosure"
 >;
 
-export function createResourceSlice(internals: StoreInternals): StateCreator<StoreState, [], [], ResourceSlice> {
+type ResourceSliceInternals = Pick<
+  StoreInternals,
+  | "createGuardedAction"
+  | "createGuardedAddAction"
+  | "createTimeOffs"
+  | "requireAccount"
+  | "assertWorkingDays"
+  | "assertHalfDays"
+  | "applySnappedColor"
+  | "mutate"
+  | "updateOwned"
+  | "resolveOwnedRow"
+>;
+
+export function createResourceSlice(
+  internals: ResourceSliceInternals,
+): StateCreator<StoreState, [], [], ResourceSlice> {
   return (_set, get) => {
     const { createGuardedAction, assertWorkingDays, assertHalfDays, applySnappedColor, updateOwned } = internals;
     return {
@@ -93,7 +109,7 @@ export function createResourceSlice(internals: StoreInternals): StateCreator<Sto
   };
 }
 
-function createResourceAddAction(internals: StoreInternals, get: StoreApi<StoreState>["getState"]) {
+function createResourceAddAction(internals: ResourceSliceInternals, get: StoreApi<StoreState>["getState"]) {
   const { createGuardedAddAction, requireAccount, assertWorkingDays, assertHalfDays, applySnappedColor, mutate } =
     internals;
   return createGuardedAddAction(
@@ -145,15 +161,17 @@ function createResourceAddAction(internals: StoreInternals, get: StoreApi<StoreS
 }
 
 function createTimeOffActions(
-  internals: StoreInternals,
+  internals: ResourceSliceInternals,
   get: StoreApi<StoreState>["getState"],
 ): Pick<ResourceSlice, "addTimeOff" | "addTimeOffs" | "updateTimeOff" | "deleteTimeOff"> {
   const { createGuardedAction, createTimeOffs, mutate, updateOwned, resolveOwnedRow } = internals;
   return {
     addTimeOff: (input) => {
-      const timeOff = createTimeOffs([input])[0];
+      const result = createTimeOffs([input]);
+      if (result.kind === "blocked") return result;
+      const timeOff = result.value[0];
       if (!timeOff) throw new Error("Time-off creation produced no row.");
-      return timeOff;
+      return { kind: "created", value: timeOff };
     },
     addTimeOffs: createTimeOffs,
     updateTimeOff: createGuardedAction((id: ID, patch: Patch<TimeOff>) => {
@@ -179,7 +197,7 @@ function createTimeOffActions(
 }
 
 function createClosureActions(
-  internals: StoreInternals,
+  internals: ResourceSliceInternals,
   get: StoreApi<StoreState>["getState"],
 ): Pick<ResourceSlice, "addClosure" | "updateClosure" | "deleteClosure"> {
   const { createGuardedAction, createGuardedAddAction, requireAccount, mutate, updateOwned, resolveOwnedRow } =

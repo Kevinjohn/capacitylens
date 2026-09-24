@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import { createAuthFromEnvironment, runAuthMigrations, type Auth } from "../auth";
-import { openDb } from "../db";
+import { insertRow, openDb } from "../db";
 
 const sentMessages = vi.hoisted(() => [] as Array<{ to: string; text: string }>);
 const mailFailure = vi.hoisted(() => ({ enabled: false }));
@@ -9,7 +9,12 @@ vi.mock("nodemailer", () => ({
   default: {
     createTransport: () => ({
       sendMail: async (message: { to: string; text: string }) => {
-        if (mailFailure.enabled) throw new Error("SMTP unavailable");
+        if (mailFailure.enabled) {
+          throw Object.assign(new Error(`SMTP unavailable: private credential and message ${message.text}`), {
+            code: "EAUTH",
+            responseCode: 535,
+          });
+        }
         sentMessages.push(message);
       },
     }),
@@ -129,4 +134,14 @@ export async function callback(auth: Auth, state: string, cookies: string) {
       headers: { cookie: cookies },
     }),
   );
+}
+
+export function insertProofAccount(db: ReturnType<typeof openDb>, accountId: "a-studio" | "a-loft"): void {
+  insertRow(db, "accounts", {
+    id: accountId,
+    name: accountId === "a-studio" ? "Wayne Enterprises" : "Stark Industries",
+    color: "#6366f1",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+  });
 }

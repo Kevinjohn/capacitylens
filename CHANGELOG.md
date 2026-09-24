@@ -26,6 +26,17 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Keep company switches from leaving earlier attempts unresolved, reconcile uncertain member links
+  and ownership confirmations with the latest access, and offer a retry when the ownership request
+  cannot be read (#1253).
+- Show linked sign-in pictures consistently on Schedule and Overview when a person has no explicit
+  avatar, and explain that provider reauthentication requires resubmitting the original action
+  (#1253).
+- Reject malformed successful breach-check responses, retain safe Microsoft mail-delivery
+  diagnostics, and keep database inspection read-only while hardening files during initialization
+  (#1253).
+- Make validation launchers report interrupted children as failures and keep concurrent port-lane
+  claims distinct (#1253).
 - Keep failed company-sign-in connection messages visible after returning from the provider,
   and clear the previous failure when retrying (#1216).
 

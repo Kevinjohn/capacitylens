@@ -106,3 +106,27 @@ export function acquireExclusiveFile(path) {
     }
   };
 }
+
+/**
+ * Run `child` as this process's stand-in: forward the interactive signals to it rather than dying
+ * first (its own shutdown frees ports; killing the launcher first is how orphans are made), exit 2
+ * when it cannot start, and exit 1 when it was interrupted or signalled, else with its own code.
+ * `release` runs before either exit.
+ */
+export function mirrorChildExit(child, { label, release = () => {} }) {
+  let interrupted = false;
+  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"])
+    process.on(signal, () => {
+      interrupted = true;
+      child.kill(signal);
+    });
+  child.on("error", (error) => {
+    release();
+    console.error(`${label}: could not start: ${error.message}`);
+    process.exit(2);
+  });
+  child.on("exit", (code, signal) => {
+    release();
+    process.exit(interrupted || signal ? 1 : (code ?? 1));
+  });
+}

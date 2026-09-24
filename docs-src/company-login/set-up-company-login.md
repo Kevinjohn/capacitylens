@@ -131,7 +131,7 @@ but receives it as inline image data, which CapacityLens does not accept as an
 avatar URL. Do not expect the Microsoft photo to appear automatically. Missing
 pictures do not prevent sign-in; CapacityLens uses its normal avatar fallback.
 An explicitly configured person avatar takes precedence over a linked sign-in
-picture on the schedule.
+picture on the Schedule and Overview pages.
 
 The final Microsoft consent screens and photo behaviour still need confirmation
 in the partner tenant. These permissions describe the installed integration,

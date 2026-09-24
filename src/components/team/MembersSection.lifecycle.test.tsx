@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -7,6 +8,8 @@ import { useStore } from "../../store/useStore";
 import { refreshActiveAccountSlice } from "../../data/persist";
 import { setOfflineReadState } from "../../data/offlineCache";
 import { m } from "@/i18n";
+import { teamAccessClient } from "../../account/teamAccessClient";
+import * as resourceAvatars from "../../account/useResourceAvatars";
 import {
   chooseMemberAction,
   findMemberRow,
@@ -85,6 +88,31 @@ describe("MembersSection — member lifecycle", () => {
 });
 
 function registerMemberResourceLinkTests(): void {
+  it("reconciles an uncertain Resource link and invalidates derived pictures", async () => {
+    const user = userEvent.setup();
+    requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
+    const fetchMock = mockApi([
+      { userId: "me", role: "owner", isSelf: true },
+      { userId: "ed", role: "editor", name: "Clark Kent" },
+    ]);
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(teamAccessClient, "setMemberResourceLink").mockResolvedValue({
+      kind: "unknown",
+      status: 409,
+      message: "The operation may have completed.",
+    });
+    const invalidate = vi.spyOn(resourceAvatars, "invalidateResourceAvatars");
+    renderSection();
+    const row = await findMemberRow(/ed@x\.io/);
+    await user.click(within(row).getByTestId("member-resource-menu"));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("combobox", { name: /choose Resource/i }));
+    await user.click(screen.getByRole("option", { name: "Bruce Wayne" }));
+    expect(await within(dialog).findByText(m.settings_member_resource_unknown())).toBeInTheDocument();
+    await waitFor(() => expect(invalidate).toHaveBeenCalled());
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/members")).length).toBeGreaterThan(1);
+  });
+
   it("keeps member actions distinct and opens Resource linking from its own icon", async () => {
     const user = userEvent.setup();
     useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
@@ -125,7 +153,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("shows schedule attention and clears it through choose-another-person", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const members: RawMember[] = [
       { userId: "me", role: "owner", isSelf: true },
       {
@@ -157,7 +185,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("announces a completed Resource-link save inside the open dialog", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     let linked = false;
     const fetchMock = mockApi(
       [
@@ -195,7 +223,7 @@ function registerMemberResourceLinkTests(): void {
   });
 
   it("dismisses a schedule attention exception and refreshes the directory", async () => {
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi(
       [
         { userId: "me", role: "owner", isSelf: true },
@@ -223,7 +251,7 @@ function registerMemberResourceLinkTests(): void {
   });
 
   it("retains the current inactive person for direct unlink and reconciles after the write", async () => {
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     useStore.getState().updateResource(resource.id, { archivedAt: "2026-09-14T10:00:00.000Z" });
     const fetchMock = mockApi([
       { userId: "me", role: "owner", isSelf: true },
@@ -255,8 +283,8 @@ function registerMemberResourceLinkTests(): void {
   // store has not loaded yet (a person created in another session, or a poll that has not landed)
   // must still be offered, and a live link to one must not be reported as inactive.
   it("offers a server candidate the Resources store has not loaded and orders the rest by Resources", async () => {
-    const diana = useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince" }));
-    const bruce = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const diana = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Diana Prince" })));
+    const bruce = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi(
       [
         { userId: "me", role: "owner", isSelf: true },
@@ -306,7 +334,7 @@ function registerMemberResourceLinkTests(): void {
 
   it("focuses the selector on open and restores focus to the trigger on close", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     const fetchMock = mockApi(
       [
         { userId: "me", role: "owner", isSelf: true },

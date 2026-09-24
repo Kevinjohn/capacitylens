@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
 import { scopeData } from "./selectors";
@@ -199,7 +200,7 @@ describe("account CRUD", () => {
   });
 
   it("scoped add* throws without an active account", () => {
-    expect(() => s().addClient({ name: "X", color: "#1" })).toThrow(/no active account/i);
+    expect(() => requireCreated(s().addClient({ name: "X", color: "#1" }))).toThrow(/no active account/i);
   });
 
   it("deleteAccount cascade-drops all of that account’s scoped data and clears it if active", () => {

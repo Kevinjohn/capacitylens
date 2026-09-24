@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -151,7 +152,7 @@ function optionNames(label: string) {
 describe("SchedulerToolbar filter ordering", () => {
   it("keeps search left of one wrapping right-aligned group with Clear last", () => {
     useStore.getState().addDiscipline({ name: "Design", color: "#111", sortOrder: 0 });
-    const client = useStore.getState().addClient({ name: "Queen Consolidated", color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Queen Consolidated", color: "#222" }));
     useStore.getState().addProject({ name: "Project Watchtower", clientId: client.id, color: "#333" });
     useStore.getState().addActivity({ name: "Admin", kind: "internal" });
     useStore.getState().setFilters({ clientId: client.id });
@@ -237,10 +238,10 @@ describe("SchedulerToolbar project and activity ordering", () => {
   it("orders projects by effective client name, then effective project name", () => {
     const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, "2026-05-01T00:00:00.000Z");
     useStore.setState((state) => ({ data: { ...state.data, clients: [internal] } }));
-    const queen = useStore
-      .getState()
-      .addClient({ name: "Queen Consolidated", color: "#111", isPrivate: true, codeName: "Xavier" });
-    const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
+    const queen = requireCreated(
+      useStore.getState().addClient({ name: "Queen Consolidated", color: "#111", isPrivate: true, codeName: "Xavier" }),
+    );
+    const lex = requireCreated(useStore.getState().addClient({ name: "LexCorp", color: "#222" }));
     useStore.getState().addProject({
       name: "Project Watchtower",
       clientId: queen.id,
@@ -269,13 +270,15 @@ describe("SchedulerToolbar project and activity ordering", () => {
 describe("SchedulerToolbar project client filtering", () => {
   it("narrows projects to the selected client while keeping All projects available", async () => {
     const user = userEvent.setup();
-    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
-    const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
+    const queen = requireCreated(useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" }));
+    const lex = requireCreated(useStore.getState().addClient({ name: "LexCorp", color: "#222" }));
     useStore.getState().addClient({ name: "Wayne Enterprises", color: "#333" });
     useStore.getState().addProject({ name: "Gotham Initiative", clientId: queen.id, color: "#444" });
     useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#444" });
     useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: lex.id, color: "#555" });
-    const archived = useStore.getState().addProject({ name: "Archived work", clientId: lex.id, color: "#666" });
+    const archived = requireCreated(
+      useStore.getState().addProject({ name: "Archived work", clientId: lex.id, color: "#666" }),
+    );
     useStore.getState().archiveEntity("projects", archived.id);
 
     render(<SchedulerToolbar />);
@@ -304,11 +307,11 @@ describe("SchedulerToolbar project client filtering", () => {
 
   it("resets an incompatible project when switching clients and preserves a compatible one", async () => {
     const user = userEvent.setup();
-    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
-    const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
-    const queenProject = useStore
-      .getState()
-      .addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    const queen = requireCreated(useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" }));
+    const lex = requireCreated(useStore.getState().addClient({ name: "LexCorp", color: "#222" }));
+    const queenProject = requireCreated(
+      useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }),
+    );
     useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: lex.id, color: "#444" });
     useStore.getState().setFilters({ projectId: queenProject.id });
 
@@ -325,9 +328,11 @@ describe("SchedulerToolbar project client filtering", () => {
 
 describe("SchedulerToolbar stale project selection", () => {
   it("keeps a selected project visible after it moves to another client", () => {
-    const queen = useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" });
-    const lex = useStore.getState().addClient({ name: "LexCorp", color: "#222" });
-    const project = useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" });
+    const queen = requireCreated(useStore.getState().addClient({ name: "Queen Consolidated", color: "#111" }));
+    const lex = requireCreated(useStore.getState().addClient({ name: "LexCorp", color: "#222" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Project Watchtower", clientId: queen.id, color: "#333" }),
+    );
     useStore.getState().setFilters({ clientId: queen.id, projectId: project.id });
     useStore.getState().updateProject(project.id, { clientId: lex.id });
 
@@ -344,8 +349,10 @@ describe("SchedulerToolbar stale project selection", () => {
 describe("SchedulerToolbar project option presentation", () => {
   it("mutes client context while preserving the complete accessible label and keyboard selection", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "LexCorp", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "LexCorp", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Metropolis Rebrand", clientId: client.id, color: "#222" }),
+    );
     render(<SchedulerToolbar />);
     showFilters();
 
@@ -534,7 +541,7 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
   });
 
   it("commits pending search text when another toolbar filter changes", async () => {
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
     render(<SchedulerToolbar />);
     showFilters();
     const box = screen.getByLabelText("Search people") as HTMLInputElement;
@@ -553,8 +560,8 @@ describe("SchedulerToolbar Clear filter concurrency", () => {
 // Seed one internal + one all-projects activity so the Activities dropdown renders (it covers only the
 // project-less kinds; project-specific activities are reached via the Projects dropdown).
 const seedLensActivities = () => ({
-  internal: useStore.getState().addActivity({ name: "Admin", kind: "internal" }),
-  repeatable: useStore.getState().addActivity({ name: "Design", kind: "repeatable" }),
+  internal: requireCreated(useStore.getState().addActivity({ name: "Admin", kind: "internal" })),
+  repeatable: requireCreated(useStore.getState().addActivity({ name: "Design", kind: "repeatable" })),
 });
 
 describe("SchedulerToolbar Activities filter (standalone lens)", () => {
@@ -610,8 +617,10 @@ describe("SchedulerToolbar activity and project lens interaction", () => {
   it("selecting a project clears an active activity lens (mutual exclusion both ways)", async () => {
     const user = userEvent.setup();
     const { repeatable } = seedLensActivities();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+    );
     useStore.getState().setFilters({ activityId: repeatable.id });
     render(<SchedulerToolbar />);
     showFilters();
@@ -624,8 +633,8 @@ describe("SchedulerToolbar activity and project lens interaction", () => {
   });
 
   it("qualifies same-named projects with their client names", () => {
-    const firstClient = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const secondClient = useStore.getState().addClient({ name: "Globex", color: "#222" });
+    const firstClient = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const secondClient = requireCreated(useStore.getState().addClient({ name: "Globex", color: "#222" }));
     useStore.getState().addProject({ name: "Website", clientId: firstClient.id, color: "#333" });
     useStore.getState().addProject({
       name: "Website",

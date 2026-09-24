@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { screen, fireEvent, act } from "@testing-library/react";
 import { AllocationBar } from "./AllocationBar";
@@ -13,41 +14,47 @@ beforeEach(() => resetStoreWithAccount());
 function registerTargetCalendarTest() {
   it("a cross-row reassign computes dates against the TARGET resource’s working week, not the source’s", () => {
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
     // Source works EVERY day (not weekend-aware); target works Mon–Fri (weekend-aware).
-    const src = st.addResource({
-      kind: "person",
-      name: "Sev",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [0, 1, 2, 3, 4, 5, 6],
-      halfDays: [],
-      color: "#3",
-    });
-    const dst = st.addResource({
-      kind: "person",
-      name: "Wk",
-      role: "Dev",
-      employmentType: "permanent",
-      engagement: "studio" as const,
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#4",
-    });
+    const src = requireCreated(
+      st.addResource({
+        kind: "person",
+        name: "Sev",
+        role: "Dev",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [0, 1, 2, 3, 4, 5, 6],
+        halfDays: [],
+        color: "#3",
+      }),
+    );
+    const dst = requireCreated(
+      st.addResource({
+        kind: "person",
+        name: "Wk",
+        role: "Dev",
+        employmentType: "permanent",
+        engagement: "studio" as const,
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#4",
+      }),
+    );
     // A single-day allocation on Friday 2026-06-05, on the source resource.
-    const a = st.addAllocation({
-      resourceId: src.id,
-      activityId: t.id,
-      startDate: "2026-06-05",
-      endDate: "2026-06-05",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: src.id,
+        activityId: t.id,
+        startDate: "2026-06-05",
+        endDate: "2026-06-05",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
 
     render(
       <>
@@ -78,19 +85,21 @@ function registerTargetCalendarTest() {
 
   it("does not reread a destination resource from the store on every preview frame", () => {
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const src = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
-    const dst = st.addResource(makeResourceDraft({ name: "Sam", role: "Dev", color: "#4" }));
-    const a = st.addAllocation({
-      resourceId: src.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-03",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
+    const dst = requireCreated(st.addResource(makeResourceDraft({ name: "Sam", role: "Dev", color: "#4" })));
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: src.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-03",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     render(
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
@@ -140,23 +149,27 @@ function registerSourceCalendarTest() {
 
   function seedCrossWeekPair() {
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const src = st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#3", workingDays: [...midWeek] }));
-    const dst = st.addResource(
-      makeResourceDraft({ name: "Full", role: "Dev", color: "#4", workingDays: [...monToFri] }),
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = requireCreated(
+      st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#3", workingDays: [...midWeek] })),
+    );
+    const dst = requireCreated(
+      st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#4", workingDays: [...monToFri] })),
     );
     // Two of Mid's working days (Thu 06-04 and Tue 06-09), drawn across the six calendar days
     // between them because Mid works neither Friday nor Monday.
-    const a = st.addAllocation({
-      resourceId: src.id,
-      activityId: t.id,
-      startDate: "2026-06-04",
-      endDate: "2026-06-09",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: src.id,
+        activityId: t.id,
+        startDate: "2026-06-04",
+        endDate: "2026-06-09",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     return { src, dst, a };
   }
 
@@ -213,21 +226,25 @@ function registerSourceCalendarTest() {
     // range it would otherwise take (five of their working days, running to 06-18) would stretch
     // the bar to twice its width and then snap it back on release.
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const src = st.addResource(
-      makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] }),
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = requireCreated(
+      st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] })),
     );
-    const dst = st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#4", workingDays: [...midWeek] }));
-    const a = st.addAllocation({
-      resourceId: src.id,
-      activityId: t.id,
-      startDate: "2026-06-08",
-      endDate: "2026-06-12",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const dst = requireCreated(
+      st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#4", workingDays: [...midWeek] })),
+    );
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: src.id,
+        activityId: t.id,
+        startDate: "2026-06-08",
+        endDate: "2026-06-12",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const barWidth = GEOM.widthForDates("2026-06-08", "2026-06-12");
     render(
       <>
@@ -274,21 +291,25 @@ function registerSourceCalendarTest() {
     // take the destination's re-placement, and it must not freeze at its old column either: it
     // previews the range this drag would give it on its OWN row, so it tracks the pointer.
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const src = st.addResource(
-      makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] }),
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = requireCreated(
+      st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] })),
     );
-    const dst = st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#4", workingDays: [...midWeek] }));
-    const a = st.addAllocation({
-      resourceId: src.id,
-      activityId: t.id,
-      startDate: "2026-06-08",
-      endDate: "2026-06-12",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const dst = requireCreated(
+      st.addResource(makeResourceDraft({ name: "Mid", role: "Dev", color: "#4", workingDays: [...midWeek] })),
+    );
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: src.id,
+        activityId: t.id,
+        startDate: "2026-06-08",
+        endDate: "2026-06-12",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     render(
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
@@ -333,25 +354,27 @@ function registerSourceCalendarTest() {
 
   it("keeps previewing a zero-column reassignment when the source resource disappears", () => {
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const src = st.addResource(
-      makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] }),
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const src = requireCreated(
+      st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] })),
     );
-    const dst = st.addResource(
-      makeResourceDraft({ name: "Full", role: "Dev", color: "#4", workingDays: [...monToFri] }),
+    const dst = requireCreated(
+      st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#4", workingDays: [...monToFri] })),
     );
     // The stored range ends on a Sunday. Reinterpreting its seven target working days should end
     // on Friday instead, so a missing source week cannot be mistaken for a same-row no-op.
-    const a = st.addAllocation({
-      resourceId: src.id,
-      activityId: t.id,
-      startDate: "2026-06-04",
-      endDate: "2026-06-14",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: src.id,
+        activityId: t.id,
+        startDate: "2026-06-04",
+        endDate: "2026-06-14",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     render(
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
@@ -404,20 +427,24 @@ function registerSourceCalendarTest() {
 
   it("a same-row vertical wiggle previews nothing, even for a range its own week would renormalise", () => {
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const r = st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] }));
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = requireCreated(
+      st.addResource(makeResourceDraft({ name: "Full", role: "Dev", color: "#3", workingDays: [...monToFri] })),
+    );
     // Thu 06-04 - Sun 06-07: two working days drawn over four calendar days, so re-deriving the
     // range here WOULD change it. A gesture that commits nothing must not preview that change.
-    const a = st.addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-04",
-      endDate: "2026-06-07",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-04",
+        endDate: "2026-06-07",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const barWidth = GEOM.widthForDates("2026-06-04", "2026-06-07");
     render(
       <>
@@ -461,19 +488,21 @@ function registerSourceCalendarTest() {
 function registerWeekendPreviewTests() {
   it("previews the SAME weekend-snapped geometry the commit applies (no jump on release)", () => {
     const st = useStore.getState();
-    const c = st.addClient({ name: "Acme", color: "#1" });
-    const p = st.addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = st.addActivity({ name: "Wires", kind: "project", projectId: p.id });
-    const r = st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" }));
+    const c = requireCreated(st.addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(st.addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(st.addActivity({ name: "Wires", kind: "project", projectId: p.id }));
+    const r = requireCreated(st.addResource(makeResourceDraft({ name: "Ty", role: "Dev", color: "#3" })));
     // Mon–Fri allocation 06-01..06-05 (5 working days) → a 5-calendar-day-wide bar.
-    const a = st.addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-05",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const a = requireCreated(
+      st.addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-05",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     const dayWidth = 48;
     render(
       <AllocationBar

@@ -13,8 +13,14 @@ import { PURGE_CASCADES, touchAfter, type StoreInternals } from "../storeInterna
 import type { LifecycleEntity, StoreState } from "../types";
 
 type LifecycleSlice = Pick<StoreState, "archiveEntity" | "unarchiveEntity" | "softDeleteEntity" | "purgeEntity">;
+type LifecycleSliceInternals = Pick<
+  StoreInternals,
+  "createGuardedAction" | "resolveOwnedRow" | "assertNotBuiltinClient" | "mutate" | "mutateIrreversible"
+>;
 
-export function createLifecycleSlice(internals: StoreInternals): StateCreator<StoreState, [], [], LifecycleSlice> {
+export function createLifecycleSlice(
+  internals: LifecycleSliceInternals,
+): StateCreator<StoreState, [], [], LifecycleSlice> {
   return (_set, get) => {
     const { createGuardedAction, resolveOwnedRow, assertNotBuiltinClient, mutate, mutateIrreversible } = internals;
     return {
@@ -73,7 +79,7 @@ export function createLifecycleSlice(internals: StoreInternals): StateCreator<St
   };
 }
 
-function createSoftDeleteAction(internals: StoreInternals, get: StoreApi<StoreState>["getState"]) {
+function createSoftDeleteAction(internals: LifecycleSliceInternals, get: StoreApi<StoreState>["getState"]) {
   const { createGuardedAction, resolveOwnedRow, assertNotBuiltinClient, mutateIrreversible } = internals;
   return createGuardedAction((entity: LifecycleEntity, id: ID) => {
     if (!resolveOwnedRow(get().data, entity, id)) return;

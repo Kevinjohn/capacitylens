@@ -16,6 +16,22 @@ export const E2E_RUN_PRESETS = Object.freeze({
   }),
 });
 
+const MODE_FLAGS = [
+  "CAPACITYLENS_WEBKIT",
+  "CAPACITYLENS_WEBKIT_ONLY",
+  "CAPACITYLENS_FIREFOX",
+  "CAPACITYLENS_FIREFOX_ONLY",
+  "CAPACITYLENS_VITE_ONLY",
+  "CAPACITYLENS_REHEARSAL_URL",
+];
+
+/** Explicit presets replace all inherited mode selection while preserving unrelated settings. */
+export function presetEnvironment(environment, preset) {
+  const selected = { ...environment };
+  for (const flag of MODE_FLAGS) delete selected[flag];
+  return { ...selected, ...preset };
+}
+
 /** Resolve projects and supporting servers from one flag interpretation. */
 export function resolvePlaywrightRunMode(environment, argv, selectsOnlyExplicitCoreSpecs) {
   const webkitOnly = enabled(environment, "CAPACITYLENS_WEBKIT_ONLY");

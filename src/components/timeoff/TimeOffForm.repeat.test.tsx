@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -30,7 +31,7 @@ afterEach(() => {
 });
 
 function renderCreateForm(startDate = "2026-01-30", endDate = startDate, onClose = vi.fn()) {
-  const resource = useStore.getState().addResource(resourceDraft);
+  const resource = requireCreated(useStore.getState().addResource(resourceDraft));
   render(<TimeOffForm defaults={{ resourceId: resource.id, startDate, endDate }} onClose={onClose} />);
   return { resource, onClose };
 }
@@ -58,12 +59,14 @@ function registerTimeOffRepeatBasics(): void {
     ]);
 
     fireEvent.keyDown(document, { key: "Escape" });
-    const existing = useStore.getState().addTimeOff({
-      resourceId: resource.id,
-      startDate: "2026-01-30",
-      endDate: "2026-01-30",
-      type: "holiday",
-    });
+    const existing = requireCreated(
+      useStore.getState().addTimeOff({
+        resourceId: resource.id,
+        startDate: "2026-01-30",
+        endDate: "2026-01-30",
+        type: "holiday",
+      }),
+    );
     cleanup();
     render(<TimeOffForm timeOff={existing} onClose={() => {}} />);
     expect(screen.getByRole("dialog", { name: "Edit time off" })).not.toHaveTextContent("Repeat");
@@ -244,7 +247,7 @@ function registerTimeOffRepeatSubmission(): void {
 function registerTimeOffRepeatPrivacy(): void {
   it("never renders or copies notes for a role without note access", async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const resource = useStore.getState().addResource(resourceDraft);
+    const resource = requireCreated(useStore.getState().addResource(resourceDraft));
     render(
       <PermissionContext.Provider value={{ role: "editor" }}>
         <TimeOffForm

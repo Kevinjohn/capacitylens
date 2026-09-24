@@ -21,6 +21,7 @@ import { stamp, touch, touchAfter } from "./revisions";
 import { HISTORY_LIMIT } from "./history";
 import { resetSchedulerView } from "./storeConstants";
 import { createGuards } from "./storeGuards";
+import type { CreateResult } from "./types";
 
 interface UpdateOwnedInput<K extends ScopedEntityKey> {
   key: K;
@@ -76,9 +77,9 @@ function createGuardedActions(blockedByViewer: ReturnType<typeof createGuards>["
       blockedByViewer() ? (blockedValue as R) : action(...parameters);
   const createGuardedAddAction =
     <A extends unknown[], E>(build: (...parameters: A) => E, persist: (built: E, ...args: A) => E) =>
-    (...parameters: A): E => {
+    (...parameters: A): CreateResult<E> => {
       const built = build(...parameters);
-      return blockedByViewer() ? built : persist(built, ...parameters);
+      return blockedByViewer() ? { kind: "blocked" } : { kind: "created", value: persist(built, ...parameters) };
     };
   return { createGuardedAction, createGuardedAddAction };
 }
@@ -120,7 +121,7 @@ interface TimeOffCreationDependencies {
 }
 
 function createAllocationCreator(dependencies: AllocationCreationDependencies) {
-  return (inputs: readonly Draft<Allocation>[]): Allocation[] => {
+  return (inputs: readonly Draft<Allocation>[]): CreateResult<Allocation[]> => {
     if (inputs.length === 0) throw new Error("At least one allocation is required.");
     const accountId = dependencies.requireAccount();
     const allocations = inputs.map((input) => ({
@@ -130,7 +131,7 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
       accountId,
       ...stamp(),
     }));
-    if (dependencies.blockedByViewer()) return allocations;
+    if (dependencies.blockedByViewer()) return { kind: "blocked" };
     const data = dependencies.get().data;
     const account = data.accounts.find((candidate) => candidate.id === accountId);
     const accountWorkingDays = normalizeAccountWorkingDays(account?.workingDays, account?.weekStartsOn ?? 1);
@@ -150,12 +151,12 @@ function createAllocationCreator(dependencies: AllocationCreationDependencies) {
       if (resource) assertAllocationWithinResourceAvailability({ allocation, resource, accountWorkingDays });
     }
     dependencies.mutate((current) => ({ ...current, allocations: [...current.allocations, ...allocations] }));
-    return allocations;
+    return { kind: "created", value: allocations };
   };
 }
 
 function createTimeOffCreator(dependencies: TimeOffCreationDependencies) {
-  return (inputs: readonly Draft<TimeOff>[]): TimeOff[] => {
+  return (inputs: readonly Draft<TimeOff>[]): CreateResult<TimeOff[]> => {
     if (inputs.length === 0) throw new Error("At least one time off entry is required.");
     const accountId = dependencies.requireAccount();
     const timeOffs = inputs.map((input) => ({
@@ -164,14 +165,14 @@ function createTimeOffCreator(dependencies: TimeOffCreationDependencies) {
       accountId,
       ...stamp(),
     }));
-    if (dependencies.blockedByViewer()) return timeOffs;
+    if (dependencies.blockedByViewer()) return { kind: "blocked" };
     const data = dependencies.get().data;
     for (const timeOff of timeOffs) {
       dependencies.assertResourceExists(data, accountId, timeOff.resourceId);
       assertDateRange(timeOff.startDate, timeOff.endDate);
     }
     dependencies.mutate((current) => ({ ...current, timeOff: [...current.timeOff, ...timeOffs] }));
-    return timeOffs;
+    return { kind: "created", value: timeOffs };
   };
 }
 

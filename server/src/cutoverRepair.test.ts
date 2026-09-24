@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
@@ -312,6 +312,7 @@ function createEmptyWorkspaceRepairTest(): void {
       .prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`)
       .run("workspace-empty", "Empty", "#3b82f6", timestamp, timestamp);
     prepared.db.close();
+    chmodSync(prepared.path, 0o644);
 
     await expect(
       repairSsoCutover({
@@ -321,6 +322,7 @@ function createEmptyWorkspaceRepairTest(): void {
         env,
       }),
     ).resolves.toMatchObject({ operation: "erase-empty-workspace", principalId: null });
+    expect(statSync(prepared.path).mode & 0o777).toBe(0o600);
 
     const verified = openDb(prepared.path);
     expect(verified.prepare(`SELECT id FROM accounts WHERE id = 'workspace-empty'`).get()).toBeUndefined();

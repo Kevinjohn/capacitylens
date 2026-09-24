@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach } from "vitest";
 import { useStore } from "./useStore";
 import { activeOnly, lifecycleStatus, PURGE_MIN_AGE_DAYS } from "@capacitylens/shared/domain/lifecycle";
@@ -32,7 +33,7 @@ const longAgoISO = () => addDaysISO(todayISO(), -(PURGE_MIN_AGE_DAYS + 1)) + "T0
 
 describe("archiveEntity", () => {
   it("sets archivedAt + stamps updatedAt; the row reads archived and is hidden from active views", () => {
-    const r = s().addResource(personDraft);
+    const r = requireCreated(s().addResource(personDraft));
     expect(lifecycleStatus(requireValue(s().data.resources[0], "resource"))).toBe("active");
 
     s().archiveEntity("resources", r.id);
@@ -51,35 +52,37 @@ describe("archiveEntity", () => {
   });
 
   it("throws on a row that is already archived (defense-in-depth, no double-archive)", () => {
-    const r = s().addResource(personDraft);
+    const r = requireCreated(s().addResource(personDraft));
     s().archiveEntity("resources", r.id);
     expect(() => s().archiveEntity("resources", r.id)).toThrow(/already archived/i);
   });
 
   it("rejects stale descendant creates beneath a client hidden after the caller captured its ids", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource(personDraft);
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+    const r = requireCreated(s().addResource(personDraft));
 
     s().archiveEntity("clients", c.id);
     expect(activeOnly(s().data).projects.some((project) => project.id === p.id)).toBe(false);
 
-    expect(() => s().addPhase({ name: "Late phase", projectId: p.id })).toThrow(
+    expect(() => requireCreated(s().addPhase({ name: "Late phase", projectId: p.id }))).toThrow(
       "Phase must reference a project in this company.",
     );
-    expect(() => s().addActivity({ name: "Late activity", kind: "project", projectId: p.id })).toThrow(
+    expect(() => requireCreated(s().addActivity({ name: "Late activity", kind: "project", projectId: p.id }))).toThrow(
       "Activity must reference a project in this company.",
     );
     expect(() =>
-      s().addAllocation({
-        resourceId: r.id,
-        activityId: t.id,
-        startDate: "2026-06-01",
-        endDate: "2026-06-02",
-        hoursPerDay: 8,
-        status: "confirmed",
-      }),
+      requireCreated(
+        s().addAllocation({
+          resourceId: r.id,
+          activityId: t.id,
+          startDate: "2026-06-01",
+          endDate: "2026-06-02",
+          hoursPerDay: 8,
+          status: "confirmed",
+        }),
+      ),
     ).toThrow("Allocation must reference an activity under an active project.");
     expect(s().data.phases).toHaveLength(0);
     expect(s().data.activities).toEqual([t]);
@@ -89,7 +92,7 @@ describe("archiveEntity", () => {
 
 describe("unarchiveEntity", () => {
   it("clears archivedAt → active + bumps updatedAt", () => {
-    const r = s().addResource(personDraft);
+    const r = requireCreated(s().addResource(personDraft));
     s().archiveEntity("resources", r.id);
     s().unarchiveEntity("resources", r.id);
     const row = requireById(s().data.resources, r.id, "unarchived resource");
@@ -100,14 +103,14 @@ describe("unarchiveEntity", () => {
   });
 
   it("throws on a row that is not archived", () => {
-    const r = s().addResource(personDraft);
+    const r = requireCreated(s().addResource(personDraft));
     expect(() => s().unarchiveEntity("resources", r.id)).toThrow(/not archived/i);
   });
 });
 
 function registerSoftDeleteGuardsAndResourceScrubTests() {
   it("throws unless the row is archived first (prior-archival rule)", () => {
-    const r = s().addResource(personDraft);
+    const r = requireCreated(s().addResource(personDraft));
     // Active, not archived → cannot delete directly.
     expect(() => s().softDeleteEntity("resources", r.id)).toThrow(/archived first/i);
     expect(requireValue(s().data.resources[0], "resource")).not.toHaveProperty("deletedAt");
@@ -118,14 +121,14 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
     (entity) => {
       let id: string;
       if (entity === "resources") {
-        id = s().addResource(personDraft).id;
+        id = requireCreated(s().addResource(personDraft)).id;
       } else if (entity === "clients") {
-        id = s().addClient({ name: "Removed client", color: "#123456" }).id;
+        id = requireCreated(s().addClient({ name: "Removed client", color: "#123456" })).id;
       } else if (entity === "projects") {
-        const client = s().addClient({ name: "Project client", color: "#123456" });
-        id = s().addProject({ name: "Removed project", clientId: client.id, color: "#654321" }).id;
+        const client = requireCreated(s().addClient({ name: "Project client", color: "#123456" }));
+        id = requireCreated(s().addProject({ name: "Removed project", clientId: client.id, color: "#654321" })).id;
       } else {
-        id = s().addActivity({ name: "Removed activity", kind: "repeatable" }).id;
+        id = requireCreated(s().addActivity({ name: "Removed activity", kind: "repeatable" })).id;
       }
       s().archiveEntity(entity, id);
 
@@ -145,7 +148,7 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
   );
 
   it('on a RESOURCE, scrubs the name to "Removed person #…" (the load-bearing local PII erasure)', () => {
-    const r = s().addResource(personDraft);
+    const r = requireCreated(s().addResource(personDraft));
     s().archiveEntity("resources", r.id);
     s().softDeleteEntity("resources", r.id);
     const row = requireById(s().data.resources, r.id, "deleted resource");
@@ -158,40 +161,48 @@ function registerSoftDeleteGuardsAndResourceScrubTests() {
 
 function registerDependentNoteScrubTest() {
   it("scrubs and re-stamps only dependent rows that actually carry a note", () => {
-    const client = s().addClient({ name: "Acme", color: "#1" });
-    const project = s().addProject({ name: "Project", clientId: client.id, color: "#2" });
-    const activity = s().addActivity({ name: "Activity", kind: "project", projectId: project.id });
-    const resource = s().addResource(personDraft);
-    const notedAllocation = s().addAllocation({
-      resourceId: resource.id,
-      activityId: activity.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-      note: "private allocation note",
-    });
-    const plainAllocation = s().addAllocation({
-      resourceId: resource.id,
-      activityId: activity.id,
-      startDate: "2026-06-03",
-      endDate: "2026-06-04",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
-    const notedTimeOff = s().addTimeOff({
-      resourceId: resource.id,
-      startDate: "2026-06-05",
-      endDate: "2026-06-05",
-      type: "holiday",
-      note: "private time-off note",
-    });
-    const plainTimeOff = s().addTimeOff({
-      resourceId: resource.id,
-      startDate: "2026-06-06",
-      endDate: "2026-06-06",
-      type: "holiday",
-    });
+    const client = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const project = requireCreated(s().addProject({ name: "Project", clientId: client.id, color: "#2" }));
+    const activity = requireCreated(s().addActivity({ name: "Activity", kind: "project", projectId: project.id }));
+    const resource = requireCreated(s().addResource(personDraft));
+    const notedAllocation = requireCreated(
+      s().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+        note: "private allocation note",
+      }),
+    );
+    const plainAllocation = requireCreated(
+      s().addAllocation({
+        resourceId: resource.id,
+        activityId: activity.id,
+        startDate: "2026-06-03",
+        endDate: "2026-06-04",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
+    const notedTimeOff = requireCreated(
+      s().addTimeOff({
+        resourceId: resource.id,
+        startDate: "2026-06-05",
+        endDate: "2026-06-05",
+        type: "holiday",
+        note: "private time-off note",
+      }),
+    );
+    const plainTimeOff = requireCreated(
+      s().addTimeOff({
+        resourceId: resource.id,
+        startDate: "2026-06-06",
+        endDate: "2026-06-06",
+        type: "holiday",
+      }),
+    );
 
     s().archiveEntity("resources", resource.id);
     s().softDeleteEntity("resources", resource.id);
@@ -209,15 +220,15 @@ function registerDependentNoteScrubTest() {
 
 function registerSoftDeleteTimestampAndNameTests() {
   it("on a non-resource (client/project), the name is unchanged", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
     s().archiveEntity("clients", c.id);
     s().softDeleteEntity("clients", c.id);
     const row = requireById(s().data.clients, c.id, "deleted client");
     expect(lifecycleStatus(row)).toBe("deleted");
     expect(row.name).toBe("Acme");
 
-    const c2 = s().addClient({ name: "Beta", color: "#2" });
-    const p = s().addProject({ name: "Project X", clientId: c2.id, color: "#3" });
+    const c2 = requireCreated(s().addClient({ name: "Beta", color: "#2" }));
+    const p = requireCreated(s().addProject({ name: "Project X", clientId: c2.id, color: "#3" }));
     s().archiveEntity("projects", p.id);
     s().softDeleteEntity("projects", p.id);
     const prow = requireById(s().data.projects, p.id, "deleted project");
@@ -227,7 +238,7 @@ function registerSoftDeleteTimestampAndNameTests() {
 
   it("advances deletion and revision past a future archive timestamp", () => {
     const futureArchive = "2099-01-01T00:00:00.000Z";
-    const c = s().addClient({ name: "Future archive", color: "#1" });
+    const c = requireCreated(s().addClient({ name: "Future archive", color: "#1" }));
     const data = s().data;
     s().replaceAll({
       ...data,
@@ -252,7 +263,7 @@ describe("softDeleteEntity", () => {
 
 function registerResourcePurgeTests() {
   it("does NOT purge a tombstone deleted < 30 days ago — fires a notice instead", () => {
-    const r = s().addResource(personDraft);
+    const r = requireCreated(s().addResource(personDraft));
     s().archiveEntity("resources", r.id);
     s().softDeleteEntity("resources", r.id); // deletedAt = now (well within the grace window)
 
@@ -266,18 +277,20 @@ function registerResourcePurgeTests() {
     // Seed a resource with an allocation, then back-date the soft-delete past the grace window so
     // canPurge passes. Build the deleted state directly (the store owns the clock, so we can't fake
     // "30 days ago" through the live actions) and re-activate the account.
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource(personDraft);
-    const a = s().addAllocation({
-      resourceId: r.id,
-      activityId: t.id,
-      startDate: "2026-06-01",
-      endDate: "2026-06-02",
-      hoursPerDay: 8,
-      status: "confirmed",
-    });
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+    const r = requireCreated(s().addResource(personDraft));
+    const a = requireCreated(
+      s().addAllocation({
+        resourceId: r.id,
+        activityId: t.id,
+        startDate: "2026-06-01",
+        endDate: "2026-06-02",
+        hoursPerDay: 8,
+        status: "confirmed",
+      }),
+    );
     expect(s().data.allocations).toHaveLength(1);
 
     // Mark the resource as a soft-deleted tombstone aged past the window (directly on the blob).
@@ -299,10 +312,10 @@ function registerResourcePurgeTests() {
 
 function registerClientPurgeTest() {
   it("cascades a purged client through its projects/activities/allocations", () => {
-    const c = s().addClient({ name: "Acme", color: "#1" });
-    const p = s().addProject({ name: "P", clientId: c.id, color: "#2" });
-    const t = s().addActivity({ name: "T", kind: "project", projectId: p.id });
-    const r = s().addResource(personDraft);
+    const c = requireCreated(s().addClient({ name: "Acme", color: "#1" }));
+    const p = requireCreated(s().addProject({ name: "P", clientId: c.id, color: "#2" }));
+    const t = requireCreated(s().addActivity({ name: "T", kind: "project", projectId: p.id }));
+    const r = requireCreated(s().addResource(personDraft));
     s().addAllocation({
       resourceId: r.id,
       activityId: t.id,
@@ -360,7 +373,7 @@ describe("built-in Internal client is protected from every lifecycle action", ()
 describe("viewer guard no-ops every lifecycle action (defense-in-depth)", () => {
   it("archive / unarchive / softDelete / purge all no-op for a viewer", () => {
     // Seed an archived row as an editor, then flip to viewer and prove no transition lands.
-    const r = s().addResource(personDraft);
+    const r = requireCreated(s().addResource(personDraft));
     s().archiveEntity("resources", r.id);
     const archivedAt = s().data.resources[0]?.archivedAt;
 
@@ -382,7 +395,7 @@ describe("viewer guard no-ops every lifecycle action (defense-in-depth)", () => 
 
 describe("lifecycle actions are undoable (⌘Z)", () => {
   it("undo after archiveEntity restores the pre-archive (active) state", () => {
-    const r = s().addResource(personDraft);
+    const r = requireCreated(s().addResource(personDraft));
     expect(lifecycleStatus(requireValue(s().data.resources[0], "resource"))).toBe("active");
 
     s().archiveEntity("resources", r.id);

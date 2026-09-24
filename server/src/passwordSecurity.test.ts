@@ -37,6 +37,12 @@ describe("OWASP password storage profile", () => {
     await expect(hasher.verify({ hash: "scrypt-v1$1024$8$1$bad$bad", password })).resolves.toBe(false);
   });
 
+  it("treats a stored non-power-of-two work factor as a malformed credential", async () => {
+    const hasher = createScryptPasswordHasher(1024);
+    const hash = await hasher.hash("correct horse battery staple");
+    await expect(hasher.verify({ hash: hash.replace("$1024$", "$1023$"), password: "anything" })).resolves.toBe(false);
+  });
+
   it("surfaces scrypt queue pressure instead of returning a false credential verdict", async () => {
     const hasher = createScryptPasswordHasher(2 ** 10);
     const password = "correct horse battery staple 🦄";
@@ -81,7 +87,7 @@ function registerAbandonedQueuedLookupTest(): void {
         new ReadableStream<Uint8Array>({
           start(controller) {
             releases.push(() => {
-              controller.enqueue(new TextEncoder().encode("AAAA:1"));
+              controller.enqueue(new TextEncoder().encode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA:1"));
               controller.close();
             });
           },
@@ -121,7 +127,7 @@ function registerMatchingSuffixTest(): void {
       requested = String(input);
       init = requestInit;
       // SHA-1("password") = 5BAA6 1E4C9B93F3F0682250B6CF8331B7EE68FD8
-      return new Response("1E4C9B93F3F0682250B6CF8331B7EE68FD8:999\nFFFF:0", {
+      return new Response("1E4C9B93F3F0682250B6CF8331B7EE68FD8:999\nFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0", {
         status: 200,
       });
     }) as typeof fetch;
@@ -135,7 +141,7 @@ function registerMatchingSuffixTest(): void {
 
 function registerUnavailableServiceTest(): void {
   it("accepts a missing suffix and fails closed when the service is unavailable", async () => {
-    const clean = (async () => new Response("AAAA:1", { status: 200 })) as typeof fetch;
+    const clean = (async () => new Response("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA:1", { status: 200 })) as typeof fetch;
     await expect(assertPasswordNotBreached("not-in-the-response", clean)).resolves.toBeUndefined();
     const down = (async () => {
       throw new Error("offline");
@@ -165,7 +171,7 @@ function registerHeldBodyTest(): void {
         new ReadableStream<Uint8Array>({
           start(controller) {
             releaseBodies.push(() => {
-              controller.enqueue(new TextEncoder().encode("AAAA:1"));
+              controller.enqueue(new TextEncoder().encode("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA:1"));
               controller.close();
             });
           },
@@ -205,6 +211,25 @@ function registerHeldBodyTest(): void {
 }
 
 describe("breached-password range check", () => {
+  it.each([
+    "",
+    "<html>service error</html>",
+    "AAAA:1",
+    `${"A".repeat(35)}:-1`,
+    `${"A".repeat(35)}:NaN`,
+    `${"A".repeat(35)}:1\ninvalid`,
+  ])("fails closed for malformed successful content: %s", async (body) => {
+    const fetcher = (async () => new Response(body)) as typeof fetch;
+    await expect(assertPasswordNotBreached("anything", fetcher)).rejects.toMatchObject({
+      code: "PASSWORD_CHECK_UNAVAILABLE",
+    });
+  });
+
+  it("ignores zero-count padding even when its suffix matches", async () => {
+    const fetcher = (async () => new Response("1E4C9B93F3F0682250B6CF8331B7EE68FD8:0\r\n")) as typeof fetch;
+    await expect(assertPasswordNotBreached("password", fetcher)).resolves.toBeUndefined();
+  });
+
   registerAbandonedQueuedLookupTest();
   registerMatchingSuffixTest();
   registerUnavailableServiceTest();

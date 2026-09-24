@@ -1,3 +1,4 @@
+import { requireCreated } from "../test/requireCreated";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { attachPersistence, flushPendingWrites, retryActiveAccountLoad, switchAndAwaitHydration } from "./persist";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
@@ -284,7 +285,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
       const switching = switchAndAwaitHydration("b1");
       await vi.advanceTimersByTimeAsync(0);
-      const edit = useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
+      const edit = requireCreated(useStore.getState().addClient({ name: "Parker Industries", color: "#222222" }));
       rejectB(new Error("B unavailable"));
       await expect(switching).resolves.toEqual({ kind: "failed" });
       await vi.advanceTimersByTimeAsync(31_000);
@@ -328,7 +329,9 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration("b1")).resolves.toEqual({ kind: "failed" });
     expect(useStore.getState().activeAccountLoadFailed).toBe("b1");
     expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(["ca"]);
-    expect(() => useStore.getState().addClient({ name: "Oscorp", color: "#222222" })).toThrow(/not loaded/i);
+    expect(() => requireCreated(useStore.getState().addClient({ name: "Oscorp", color: "#222222" }))).toThrow(
+      /not loaded/i,
+    );
     expect(saveAll).not.toHaveBeenCalled();
 
     await expect(retryActiveAccountLoad("b1")).resolves.toEqual({ kind: "reloaded" });
@@ -462,7 +465,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     await expect(switchAndAwaitHydration("a1")).resolves.toEqual({ kind: "reloaded" });
     const switchingToB = switchAndAwaitHydration("b1");
     await bStarted;
-    const edit = useStore.getState().addClient({ name: "Parker Industries", color: "#222222" });
+    const edit = requireCreated(useStore.getState().addClient({ name: "Parker Industries", color: "#222222" }));
     rejectB(new Error("B unavailable"));
     await expect(switchingToB).resolves.toEqual({ kind: "failed" });
 
@@ -639,7 +642,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
     expect(useStore.getState().activeAccountId).toBe("a1");
 
     // Genuine edit to A → DEBOUNCED (not yet on the wire). Capture its id to find it later.
-    const edited = useStore.getState().addClient({ name: "A only", color: "#222222" });
+    const edited = requireCreated(useStore.getState().addClient({ name: "A only", color: "#222222" }));
     expect(wire.some((w) => w.ops)).toBe(false); // nothing flushed yet — still inside the 300ms window
 
     // Switch to B BEFORE the debounce timer fires → must FLUSH A's edit, then load B.
@@ -705,7 +708,7 @@ describe("account-switch orchestrator (P1.13, server mode)", () => {
       expect(releaseB).not.toBeNull();
 
       // Edit lands mid-switch (still inside the debounce window when B's slice arrives).
-      const edit = useStore.getState().addClient({ name: "Mid-switch edit", color: "#222222" });
+      const edit = requireCreated(useStore.getState().addClient({ name: "Mid-switch edit", color: "#222222" }));
       saveAll.mockClear();
       requireCallback(releaseB, "account B load release")();
       await expect(switchingToB).resolves.toEqual({ kind: "reloaded" });

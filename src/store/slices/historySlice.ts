@@ -12,8 +12,9 @@ import { readCurrentWeekAnchor } from "./schedulerSlice";
 import type { StoreState } from "../types";
 
 type HistorySlice = Pick<StoreState, "past" | "future" | "replaceAll" | "importData" | "undo" | "redo">;
+type HistorySliceInternals = Pick<StoreInternals, "createGuardedAction" | "importSlice" | "requireAccount">;
 
-export function createHistorySlice(internals: StoreInternals): StateCreator<StoreState, [], [], HistorySlice> {
+export function createHistorySlice(internals: HistorySliceInternals): StateCreator<StoreState, [], [], HistorySlice> {
   return (set) => {
     const { createGuardedAction, importSlice, requireAccount } = internals;
     return {

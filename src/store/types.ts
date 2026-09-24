@@ -33,6 +33,9 @@ export type MasqueradeRuntimeState =
     }
   | { kind: "active" | "ending"; state: MasqueradeState; generation: number };
 
+/** A create action can be blocked by the active Viewer policy without saving a row. */
+export type CreateResult<T> = { kind: "created"; value: T } | { kind: "blocked" };
+
 /**
  * A toast message + severity. Three tones, mapped to two dismissal behaviours by the AppShell
  * bridge (see the `notice` field below and AppShell's Sonner effect):
@@ -286,32 +289,32 @@ export interface StoreState {
   //    a drag committed after an undo removed the row). That's a benign race, not corruption.
   //  • Callers that take USER INPUT must wrap the call in try/catch and surface e.message (see
   //    TimeOffForm / AllocationModal). A throw left uncaught surfaces only as a React error.
-  addDiscipline: (input: Draft<Discipline>) => Discipline;
+  addDiscipline: (input: Draft<Discipline>) => CreateResult<Discipline>;
   updateDiscipline: (id: ID, patch: Patch<Discipline>) => void;
   deleteDiscipline: (id: ID) => void;
 
-  addResource: (input: Draft<Resource>) => Resource;
+  addResource: (input: Draft<Resource>) => CreateResult<Resource>;
   updateResource: (id: ID, patch: Patch<Resource>) => void;
 
-  addClient: (input: Draft<Client>) => Client;
+  addClient: (input: Draft<Client>) => CreateResult<Client>;
   updateClient: (id: ID, patch: Patch<Client>) => void;
 
-  addProject: (input: Draft<Project>) => Project;
+  addProject: (input: Draft<Project>) => CreateResult<Project>;
   updateProject: (id: ID, patch: Patch<Project>) => void;
 
-  addPhase: (input: Draft<Phase>) => Phase;
+  addPhase: (input: Draft<Phase>) => CreateResult<Phase>;
   updatePhase: (id: ID, patch: Patch<Phase>) => void;
   deletePhase: (id: ID) => void;
 
-  addActivity: (input: Draft<Activity>) => Activity;
+  addActivity: (input: Draft<Activity>) => CreateResult<Activity>;
   updateActivity: (id: ID, patch: Patch<Activity>) => void;
   deleteActivity: (id: ID) => void;
 
   /** Create one allocation through the same atomic validation/write path as `addAllocations`. */
-  addAllocation: (input: Draft<Allocation>) => Allocation;
+  addAllocation: (input: Draft<Allocation>) => CreateResult<Allocation>;
   /** Create a non-empty allocation batch in one mutation/history step. Every draft is validated before
    * anything commits; a tenancy, reference or date-range failure throws and leaves state untouched. */
-  addAllocations: (inputs: readonly Draft<Allocation>[]) => Allocation[];
+  addAllocations: (inputs: readonly Draft<Allocation>[]) => CreateResult<Allocation[]>;
   /** Apply an allocation patch. False means the write was deliberately refused as a Viewer or the
    * target disappeared before commit; validation/tenancy violations still throw. */
   updateAllocation: (id: ID, patch: Patch<Allocation>) => boolean;
@@ -319,14 +322,14 @@ export interface StoreState {
   /** Atomically delete one linked occurrence and every same-series occurrence starting on/after it. */
   deleteAllocationSeriesFrom: (id: ID) => void;
 
-  addTimeOff: (input: Draft<TimeOff>) => TimeOff;
+  addTimeOff: (input: Draft<TimeOff>) => CreateResult<TimeOff>;
   /** Create a non-empty time-off batch in one mutation/history step. Every draft is validated before
    * anything commits; a tenancy, resource or date-range failure throws and leaves state untouched. */
-  addTimeOffs: (inputs: readonly Draft<TimeOff>[]) => TimeOff[];
+  addTimeOffs: (inputs: readonly Draft<TimeOff>[]) => CreateResult<TimeOff[]>;
   updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void;
   deleteTimeOff: (id: ID) => void;
 
-  addClosure: (input: Draft<Closure>) => Closure;
+  addClosure: (input: Draft<Closure>) => CreateResult<Closure>;
   updateClosure: (id: ID, patch: Patch<Closure>) => void;
   deleteClosure: (id: ID) => void;
 

@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -509,7 +510,7 @@ describe("MembersSection — owner affordances", () => {
 
   it("exposes the current Resource link and eligible choices from its resource dialog", async () => {
     const user = userEvent.setup();
-    const resource = useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" }));
+    const resource = requireCreated(useStore.getState().addResource(makeResourceDraft({ name: "Bruce Wayne" })));
     vi.stubGlobal(
       "fetch",
       mockApi([

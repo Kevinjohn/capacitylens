@@ -86,13 +86,14 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
         }
         updateClient(client.id, { name: trimmed, color, ...privacy });
       } else {
-        addClient({
+        const result = addClient({
           name: trimmed,
           color,
           ...(privacy.isPrivate && privacy.codeName
             ? { isPrivate: privacy.isPrivate, codeName: privacy.codeName }
             : {}),
         });
+        if (result.kind === "blocked") return;
       }
       onClose();
     } catch (e) {

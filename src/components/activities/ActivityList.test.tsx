@@ -1,3 +1,4 @@
+import { requireCreated } from "../../test/requireCreated";
 import { describe, it, expect, beforeEach, expectTypeOf, vi } from "vitest";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -43,13 +44,17 @@ describe("ActivityList", () => {
   });
 
   it("focuses the activity selected by a command-palette deep link", () => {
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
-    const selected = useStore.getState().addActivity({
-      name: "Selected kickoff",
-      kind: "project",
-      projectId: project.id,
-    });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+    );
+    const selected = requireCreated(
+      useStore.getState().addActivity({
+        name: "Selected kickoff",
+        kind: "project",
+        projectId: project.id,
+      }),
+    );
     useStore.getState().addActivity({ name: "Other work", kind: "project", projectId: project.id });
 
     render(<ActivityList selectedActivityId={selected.id} />);
@@ -139,8 +144,10 @@ describe("ActivityList", () => {
 
   it("adds a project-specific activity under one client and project heading", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+    );
     render(<ActivityList />);
 
     await user.click(screen.getByRole("button", { name: "Add activity" }));
@@ -165,17 +172,17 @@ describe("ActivityList", () => {
   });
 
   it("groups and sorts project activities by client, project, then activity", () => {
-    const zuluClient = useStore.getState().addClient({ name: "Zulu Client", color: "#111" });
-    const alphaClient = useStore.getState().addClient({ name: "Alpha Client", color: "#222" });
-    const zuluProject = useStore
-      .getState()
-      .addProject({ name: "Zulu Project", clientId: alphaClient.id, color: "#333" });
-    const alphaProject = useStore
-      .getState()
-      .addProject({ name: "Alpha Project", clientId: alphaClient.id, color: "#444" });
-    const otherProject = useStore
-      .getState()
-      .addProject({ name: "Other Project", clientId: zuluClient.id, color: "#555" });
+    const zuluClient = requireCreated(useStore.getState().addClient({ name: "Zulu Client", color: "#111" }));
+    const alphaClient = requireCreated(useStore.getState().addClient({ name: "Alpha Client", color: "#222" }));
+    const zuluProject = requireCreated(
+      useStore.getState().addProject({ name: "Zulu Project", clientId: alphaClient.id, color: "#333" }),
+    );
+    const alphaProject = requireCreated(
+      useStore.getState().addProject({ name: "Alpha Project", clientId: alphaClient.id, color: "#444" }),
+    );
+    const otherProject = requireCreated(
+      useStore.getState().addProject({ name: "Other Project", clientId: zuluClient.id, color: "#555" }),
+    );
     useStore.getState().addActivity({ name: "Zulu task", kind: "project", projectId: alphaProject.id });
     useStore.getState().addActivity({ name: "Alpha task", kind: "project", projectId: alphaProject.id });
     useStore.getState().addActivity({ name: "Other project task", kind: "project", projectId: zuluProject.id });
@@ -205,7 +212,7 @@ describe("ActivityList", () => {
 
   it("rejects a project-specific activity with no project chosen", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
     useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
     render(<ActivityList />);
 
@@ -224,8 +231,10 @@ describe("ActivityList", () => {
 
   it("hides an activity under an archived project", () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+    );
     useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
     useStore.getState().archiveEntity("projects", project.id);
 
@@ -243,8 +252,10 @@ describe("ActivityList", () => {
 
   it("hides an activity whose project belongs to an archived client", () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+    );
     useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
     useStore.getState().archiveEntity("clients", client.id);
 
@@ -309,8 +320,10 @@ describe("ActivityList", () => {
   it("confirms before archiving and shows the activity in its archive section", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+    );
     useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
     render(<ActivityList />);
 
@@ -337,20 +350,26 @@ describe("ActivityList", () => {
   it("warns how many allocations an archive would hide from the schedule", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
-    const activity = useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id });
-    const resource = useStore.getState().addResource({
-      kind: "person",
-      name: "Barbara Gordon",
-      role: "Designer",
-      employmentType: "permanent",
-      engagement: "studio",
-      workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5],
-      halfDays: [],
-      color: "#333333",
-    });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+    );
+    const activity = requireCreated(
+      useStore.getState().addActivity({ name: "My Activity", kind: "project", projectId: project.id }),
+    );
+    const resource = requireCreated(
+      useStore.getState().addResource({
+        kind: "person",
+        name: "Barbara Gordon",
+        role: "Designer",
+        employmentType: "permanent",
+        engagement: "studio",
+        workingHoursPerDay: 8,
+        workingDays: [1, 2, 3, 4, 5],
+        halfDays: [],
+        color: "#333333",
+      }),
+    );
     useStore.getState().addAllocation({
       resourceId: resource.id,
       activityId: activity.id,
@@ -381,7 +400,7 @@ describe("ActivityList", () => {
   it("shows the base archive message instead of throwing when the row is archived while the dialog is open", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
-    const activity = useStore.getState().addActivity({ name: "My Activity", kind: "internal" });
+    const activity = requireCreated(useStore.getState().addActivity({ name: "My Activity", kind: "internal" }));
     render(<ActivityList />);
 
     await user.click(screen.getByRole("button", { name: "Archive My Activity" }));
@@ -403,7 +422,7 @@ describe("ActivityList", () => {
   it("surfaces an archive integrity failure without removing the activity", async () => {
     vi.stubEnv("VITE_CAPACITYLENS_DEMO", "1");
     const user = userEvent.setup();
-    const activity = useStore.getState().addActivity({ name: "Internal sync", kind: "internal" });
+    const activity = requireCreated(useStore.getState().addActivity({ name: "Internal sync", kind: "internal" }));
     const originalArchive = useStore.getState().archiveEntity;
     useStore.setState({
       archiveEntity: () => {
@@ -432,9 +451,13 @@ describe("ActivityList", () => {
 
   it("keeps the edit form open when its activity vanished during editing", async () => {
     const user = userEvent.setup();
-    const client = useStore.getState().addClient({ name: "Acme", color: "#111" });
-    const project = useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" });
-    const activity = useStore.getState().addActivity({ name: "A1", kind: "project", projectId: project.id });
+    const client = requireCreated(useStore.getState().addClient({ name: "Acme", color: "#111" }));
+    const project = requireCreated(
+      useStore.getState().addProject({ name: "Lightning", clientId: client.id, color: "#222" }),
+    );
+    const activity = requireCreated(
+      useStore.getState().addActivity({ name: "A1", kind: "project", projectId: project.id }),
+    );
     render(<ActivityList />);
 
     await user.click(within(screen.getByTestId("activity-row")).getByRole("button", { name: "Edit A1" }));

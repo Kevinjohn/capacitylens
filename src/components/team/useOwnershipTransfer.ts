@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
 import { m } from "@/i18n";
 import {
   teamAccessClient,
@@ -11,6 +20,7 @@ import {
 import { resolveRejectionMessage } from "../../account/accessResult";
 import type { OwnershipTransferStep } from "../../account/accountClient";
 import { reprojectAccess } from "../../auth/reprojectAccess";
+import { useStore } from "../../store/useStore";
 
 /**
  * The ownership transfer ceremony as one screen's worth of state.
@@ -42,6 +52,7 @@ interface CommandInput {
 }
 
 export interface OwnershipTransferController extends OwnershipTransferState {
+  refresh(): Promise<void>;
   nominate(targetPrincipalId: string): Promise<void>;
   command(input: CommandInput): Promise<void>;
   /** The committed terminal outcome of the last command, if it had one. Cleared by the next
@@ -174,28 +185,105 @@ interface CommandAnswer {
   terminal: OwnershipTransferTerminalView | null;
   /** Did the roles actually move? Only completion changes the caller's own authority. */
   completed: boolean;
+  uncertain: boolean;
 }
 
 async function submit(perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>): Promise<CommandAnswer> {
   try {
     const result = await perform();
     if (result.kind !== "ok") {
-      return { failure: resolveRejectionMessage(result, m.ownership_transfer_command_failed()), ...NOTHING_MOVED };
+      return {
+        failure: resolveRejectionMessage(result, m.ownership_transfer_command_failed()),
+        ...NOTHING_MOVED,
+        uncertain: result.kind === "unknown" || result.kind === "invalid",
+      };
     }
     return {
       failure: null,
       terminal: result.value.kind === "terminal" ? result.value : null,
       completed: result.value.kind === "applied" && result.value.request.state === "completed",
+      uncertain: false,
     };
   } catch (cause) {
     // A request that never came back may still have been applied, so the reason matters: this is the
     // one failure the user is told about without the server having said anything.
     console.error("OwnershipTransferCard: ceremony command failed", cause);
-    return { failure: m.ownership_transfer_command_failed(), ...NOTHING_MOVED };
+    return { failure: m.ownership_transfer_command_failed(), ...NOTHING_MOVED, uncertain: true };
   }
 }
 
 const NOTHING_MOVED = { terminal: null, completed: false } as const;
+
+async function refreshCallerAccess(
+  accountId: string,
+  currentAccount: RefObject<string | null>,
+  refreshAuth: () => Promise<void>,
+): Promise<boolean> {
+  try {
+    await refreshAuth();
+    if (currentAccount.current !== accountId) return true;
+    if (await reprojectAccess(accountId)) return true;
+  } catch (cause) {
+    console.error("OwnershipTransferCard: access refresh failed", cause);
+  }
+  if (useStore.getState().activeAccountId === accountId) {
+    useStore.getState().setActiveAccount(null);
+    useStore.getState().setNotice(m.settings_members_access_refresh_failed(), "error");
+  }
+  return false;
+}
+
+interface TransferCommandInput {
+  accountId: string | null;
+  beginRead: () => () => boolean;
+  currentAccount: RefObject<string | null>;
+  apply: Dispatch<SetStateAction<OwnershipTransferReadState>>;
+  setLastTerminal: (outcome: OwnershipTransferTerminalView | null) => void;
+  refreshAuth: () => Promise<void>;
+}
+
+function useTransferCommand({
+  accountId,
+  beginRead,
+  currentAccount,
+  apply,
+  setLastTerminal,
+  refreshAuth,
+}: TransferCommandInput) {
+  const issuedCommand = useRef(0);
+  return useCallback(
+    async (
+      perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>,
+      mayChangeCallerAccess = false,
+    ): Promise<void> => {
+      if (!accountId) return;
+      const commandId = ++issuedCommand.current;
+      const ownsCommand = () => issuedCommand.current === commandId && currentAccount.current === accountId;
+      beginRead();
+      apply((previous) => ({ ...previous, busy: true, error: null }));
+      setLastTerminal(null);
+      const answer = await submit(perform);
+      if (currentAccount.current !== accountId) return;
+      if (mayChangeCallerAccess && (answer.completed || answer.uncertain)) {
+        if (!(await refreshCallerAccess(accountId, currentAccount, refreshAuth))) return;
+      }
+      if (!ownsCommand()) return;
+      // A read from reopening the dialog may have overtaken the command. Once it settles, clear
+      // this command's busy state and issue a fresh read after the possible server write.
+      apply((previous) => ({ ...previous, busy: false }));
+      const isLatest = beginRead();
+      const next = await readCeremony(accountId);
+      if (!isLatest() || !ownsCommand()) return;
+      setLastTerminal(answer.terminal);
+      apply((previous) => ({
+        ...mergeCeremonyRead(previous, next, false),
+        busy: false,
+        error: answer.failure ?? next.error,
+      }));
+    },
+    [accountId, beginRead, currentAccount, apply, setLastTerminal, refreshAuth],
+  );
+}
 
 export function useOwnershipTransfer(
   accountId: string | null,
@@ -205,41 +293,28 @@ export function useOwnershipTransfer(
   const [lastTerminal, setLastTerminal] = useState<OwnershipTransferTerminalView | null>(null);
 
   const beginRead = useLatestRead();
+  const currentAccount = useRef(accountId);
+  useLayoutEffect(() => {
+    currentAccount.current = accountId;
+  }, [accountId]);
   useCeremonyRead({ accountId, beginRead, apply: setState, forgetOutcome: setLastTerminal });
 
-  /**
-   * Run one command, then reconcile every projection the caller's own authority depends on.
-   *
-   * Completion changes the caller's role — often downwards — so the membership cache, the account
-   * summaries and the active slice are all stale the instant it succeeds, and only then.
-   */
-  const run = useCallback(
-    async (perform: () => Promise<TeamAccessResult<OwnershipTransferOutcomeView>>): Promise<void> => {
-      if (!accountId) return;
-      const isLatest = beginRead();
-      setState((previous) => ({ ...previous, busy: true, error: null }));
-      setLastTerminal(null);
-      const answer = await submit(perform);
-      // Only completion moves the roles, so only completion can have changed the caller's own
-      // authority: an accept, decline, withdraw or cancel has nothing for the session to re-read.
-      if (answer.completed) await refreshAuth().catch(() => undefined);
-      // Reprojecting reloads the whole active slice, so it is gated the same way: doing it after a
-      // decline or a cancel discards a large company's schedule for a command that cannot have
-      // changed anyone's access. A failure here costs a re-read, not the user's attention.
-      if (answer.completed) await reprojectAccess(accountId).catch(() => undefined);
-      const next = await readCeremony(accountId);
-      // Nothing from a superseded command is applied — not the projection, not the outcome, not
-      // `busy`, which the company switch or the newer command already owns.
-      if (!isLatest()) return;
-      setLastTerminal(answer.terminal);
-      setState((previous) => ({
-        ...mergeCeremonyRead(previous, next, false),
-        busy: false,
-        error: answer.failure ?? next.error,
-      }));
-    },
-    [accountId, beginRead, refreshAuth],
-  );
+  const refresh = useCallback(async (): Promise<void> => {
+    if (!accountId) return;
+    const isLatest = beginRead();
+    const next = await readCeremony(accountId);
+    if (isLatest() && currentAccount.current === accountId) setState((previous) => mergeCeremonyRead(previous, next));
+  }, [accountId, beginRead]);
+
+  // Completion can change the caller's role, including when its response is uncertain.
+  const run = useTransferCommand({
+    accountId,
+    beginRead,
+    currentAccount,
+    apply: setState,
+    setLastTerminal,
+    refreshAuth,
+  });
 
   const nominate = useCallback(
     async (targetPrincipalId: string): Promise<void> => {
@@ -259,13 +334,20 @@ export function useOwnershipTransfer(
 
   const command = useCallback(
     async ({ requestId, step, expectedRevision }: CommandInput): Promise<void> => {
-      await run(() =>
-        teamAccessClient.commandOwnershipTransfer({ workspaceId: accountId ?? "", requestId, step, expectedRevision }),
+      await run(
+        () =>
+          teamAccessClient.commandOwnershipTransfer({
+            workspaceId: accountId ?? "",
+            requestId,
+            step,
+            expectedRevision,
+          }),
+        step === "complete",
       );
     },
     [accountId, run],
   );
 
   const loading = accountId !== null && state.projection === null && state.error === null;
-  return { ...state, loading, lastTerminal, nominate, command };
+  return { ...state, loading, lastTerminal, refresh, nominate, command };
 }
