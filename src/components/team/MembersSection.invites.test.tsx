@@ -83,6 +83,16 @@ async function renderInviteSection(): Promise<void> {
   await screen.findByRole("dialog", { name: "Invite someone" });
 }
 
+// A pending invite whose create resolves after its dialog was closed or reset.
+const LATE_INVITE = {
+  id: "inv-late",
+  role: "editor",
+  preauthEmail: null,
+  expiresAt: "2026-12-01T00:00:00.000Z",
+  usedAt: null,
+  createdAt: "2026-07-17T00:00:00.000Z",
+};
+
 function closeInviteDialog(): void {
   fireEvent.click(
     within(screen.getByRole("dialog", { name: "Invite someone" })).getByRole("button", { name: "Cancel" }),
@@ -248,16 +258,7 @@ function registerInviteMintTests(): void {
     await waitFor(() => expect(pending.respond).toBeDefined());
     closeInviteDialog();
     const readsBeforeResponse = invitesReads;
-    invites = [
-      {
-        id: "inv-late",
-        role: "editor",
-        preauthEmail: null,
-        expiresAt: "2026-12-01T00:00:00.000Z",
-        usedAt: null,
-        createdAt: "2026-07-17T00:00:00.000Z",
-      },
-    ];
+    invites = [LATE_INVITE];
     pending.respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
     await waitFor(() => expect(invitesReads).toBeGreaterThan(readsBeforeResponse));
     await waitFor(() =>
@@ -298,16 +299,7 @@ function registerInviteResetTests(): void {
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Invite someone" })).not.toBeInTheDocument());
     act(() => setOfflineReadState("cleanup", false));
     const readsBeforeResponse = invitesReads;
-    invites = [
-      {
-        id: "inv-late",
-        role: "editor",
-        preauthEmail: null,
-        expiresAt: "2026-12-01T00:00:00.000Z",
-        usedAt: null,
-        createdAt: "2026-07-17T00:00:00.000Z",
-      },
-    ];
+    invites = [LATE_INVITE];
     await act(async () => {
       pending.respond?.(jsonResponse({ id: "inv-late", token: "LATE", role: "editor" }, 201));
     });
