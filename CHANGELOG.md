@@ -1012,7 +1012,7 @@ milestone into one supported prerelease, on top of a codebase-wide simplificatio
 
 - Simplified the account boundary (`server/src/accounts` + `server/src/routes`, ~15k lines) with
   no behaviour change (#351), applied findings-first with four independent review angles and
-  Codex arbitration on contested items:
+  independent arbitration on contested items:
   - `accountRoutes.ts`: an `auditUnlessReplayed` helper replaces ten copy-pasted
     audit-after-flow sites, and shared `authorizeMemberMutation` / `requireMembership` guards
     replace six duplicated role-check blocks; the account-flow operation list moved to the
@@ -1053,7 +1053,7 @@ milestone into one supported prerelease, on top of a codebase-wide simplificatio
 ### Changed
 
 - Simplified the flat `server/src` root directory (~42k lines) with no behaviour change (#350),
-  applied findings-first with four independent review angles and Codex arbitration:
+  applied findings-first with four independent review angles and a final arbitration:
   - Hot read/write helpers (`upsertRow`, `getRow`, `loadState`, `readSlice`, membership-role
     lookups, audit-outbox drain, sync-ordering checks) now reuse per-handle cached prepared
     statements instead of re-preparing identical SQL on every call, following the existing
@@ -1744,7 +1744,7 @@ import/export becomes a Settings card. No schema change.
 
 ## [0.35.4-alpha.1] — 2026-08-09
 
-Security hardening from a Codex CLI scan and a follow-up code review. No schema change.
+Security hardening from an automated scan and a follow-up code review. No schema change.
 
 ### Security
 
