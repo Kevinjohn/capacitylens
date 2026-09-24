@@ -248,8 +248,7 @@ function NavMenu({
 function ThemeToggleMenuItem() {
   const theme = useStore((state) => state.theme);
   const setTheme = useStore((state) => state.setTheme);
-  const systemScheme = useSyncExternalStore(subscribeToSystemScheme, () => resolveTheme("system"));
-  const dark = (theme === "system" ? systemScheme : theme) === "dark";
+  const dark = useSyncExternalStore(subscribeToSystemScheme, () => resolveTheme(theme)) === "dark";
   const label = dark ? m.nav_switch_to_light_mode() : m.nav_switch_to_dark_mode();
   const ThemeIcon = dark ? SunIcon : MoonIcon;
 
