@@ -28,12 +28,13 @@ const actorRole = assertAccountAuthority(db, actor, workspaceId, "manage-invitat
 The first name says "this may be absent, check it"; the second says "if this returns, you are
 authorised". Neither caller needs to open the function. That is the whole standard: a function
 name starts with a verb, the verb tells the caller what comes back and whether anything happens
-on the way, and the verb comes from this table.
+on the way, and the verb comes from one of the two tables below.
 
 | Verb               | Promise                                                                                                                                                                                 | Example in the tree                                                                        |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `is`, `has`, `can` | Returns a boolean. No side effects.                                                                                                                                                     | `canArchive(entity)` in `shared/src/domain/lifecycle/transitions.ts`                       |
 | `assert`           | Throws when the condition fails. On success returns the value it established, or nothing.                                                                                               | `assertAccountAuthority` in `server/src/accounts/adminPort/authority.ts` returns the `Role` |
+| `require`          | Returns what the caller needs, or refuses: it throws, or, as a route guard, sends the refusal response. The throwing partner of `get`.                                                    | `requireAccountActor(req)` in `server/src/accounts/routes/handlers/authenticatedPrincipal.ts` |
 | `ensure`           | Makes a state true if it is not already, returns nothing. Safe to call twice.                                                                                                           | `ensureControlTables(db)` in `server/src/controlTables/retentionV24.ts`                    |
 | `get`              | Looks one thing up by key in storage. Returns it, or `null` when absent. Never throws for absence.                                                                                      | `getMemberRole(db, accountId, userId)` in `server/src/controlTables/members.ts`            |
 | `list`             | Returns an array of matches, empty when there are none.                                                                                                                                 | `listMembersForAccount(db, accountId)` in the same file                                    |
@@ -52,6 +53,19 @@ Two verbs the table deliberately leaves out: `find`, because `get` and the `<thi
 selectors already say "or nothing", and `handle`, because a callback is named for what it
 does. A component prop is `onSubmit`; the function passed to it is `submit` or `saveDraft`,
 not `handleSubmit`.
+
+Functions that do something rather than answer something use a plain domain verb. These
+families are already in consistent use:
+
+| Verb or family | Promise | Example in the tree |
+| --- | --- | --- |
+| Command verbs: `remove`, `revoke`, `send`, `save`, `register`, `record`, `reset`, `mark` | Changes state or has an effect, and says which. The return value, if any, reports the outcome. | `revokeInvitation` in `server/src/accounts/adminPort/invitations.ts` |
+| `format` | Returns display text. | `formatDayFigure(days)` in `src/components/capacity-overview/capacityOverviewBar.ts` |
+| `to<Type>` | Converts a value to another representation of the same thing. | `toISODate(date)` in `shared/src/lib/dateMath.ts` |
+| `sanitize` | Repairs untrusted import or write input into a valid row, dropping what cannot be repaired. | `sanitizeAllocation` in `shared/src/lib/sanitizeImport.ts` |
+| `evaluate` | Returns a decision, such as an authority verdict, without changing state. | `evaluateAuthority` in `server/src/accounts/adminPort/authority.ts` |
+| `inspect` | Examines a structure and reports what it found, without repairing it. | `inspectColumn` in `server/src/schema/assert.ts` |
+| `verify` | Checks a credential, signature or artefact. | `verifyLegacyHash` in `server/src/passwordSecurity.ts` |
 
 Counterexamples that are now tracked debt:
 
