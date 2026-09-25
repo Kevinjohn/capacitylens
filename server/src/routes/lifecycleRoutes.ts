@@ -15,6 +15,7 @@ import type { AuditRecord } from "../audit";
 import type { LifecycleRow, TenantStore } from "../tenantStore";
 import { createServerRevision } from "../revision";
 import type { Resource } from "@capacitylens/shared/types/entities";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 export interface LifecycleRedactionInput {
   req: FastifyRequest;
@@ -95,19 +96,15 @@ interface LifecycleRequestInput {
   accountId: string;
 }
 
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function readLifecycleRequest(req: FastifyRequest, reply: FastifyReply): LifecycleRequestInput | null {
-  if (!isUnknownRecord(req.params) || typeof req.params.entity !== "string" || typeof req.params.id !== "string") {
+  if (!isRecord(req.params) || typeof req.params.entity !== "string" || typeof req.params.id !== "string") {
     throw new Error("Expected lifecycle route parameters.");
   }
   if (!isLifecycleEntityKey(req.params.entity)) {
     reply.code(404).send({ error: `Unknown entity: ${req.params.entity}` });
     return null;
   }
-  if (!isUnknownRecord(req.body) || typeof req.body.accountId !== "string" || req.body.accountId.length === 0) {
+  if (!isRecord(req.body) || typeof req.body.accountId !== "string" || req.body.accountId.length === 0) {
     reply.code(400).send({ error: "accountId is required." });
     return null;
   }

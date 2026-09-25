@@ -4,6 +4,7 @@ import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
 import { call } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // Single-company-per-instance cap (AppOptions.multiAccount, default false — see app.ts's
 // accountCreateCapped / SINGLE_COMPANY_CAP_MESSAGE / the "GATE 0" comment on POST /api/orgs). This
@@ -22,10 +23,6 @@ const meta = () => ({ createdAt: TS, updatedAt: TS });
 const account = (id: string, name = `Studio ${id}`) => ({ id, name, color: "#3b82f6", ...meta() });
 
 const CAP_MESSAGE = "This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
 
 function readResponseField(response: LightMyRequestResponse, field: string): unknown {
   const body: unknown = JSON.parse(response.body);

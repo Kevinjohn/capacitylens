@@ -7,28 +7,11 @@ import { NO_REPROMPT } from "../../../routes/routeShared";
 import { parseStrictIsoInstant } from "../isoInstant";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import { parseSignupInvitationInput } from "./invitationSignupInput";
-
-function createAuthenticationRequiredError() {
-  return new AccountContractError({
-    code: "AUTHENTICATION_REQUIRED",
-    message: "Sign in to continue.",
-    retryable: false,
-  });
-}
-
-function requireAccountActor(req: FastifyRequest) {
-  if (!req.accountActor) throw createAuthenticationRequiredError();
-  return req.accountActor;
-}
-
-function requireAuthenticatedUser(req: FastifyRequest) {
-  if (!req.user) throw createAuthenticationRequiredError();
-  return req.user;
-}
-
-function requireAuthenticatedPrincipal(req: FastifyRequest) {
-  return { actor: requireAccountActor(req), user: requireAuthenticatedUser(req) };
-}
+import {
+  createAuthenticationRequiredError,
+  requireAccountActor,
+  requireAuthenticatedPrincipal,
+} from "./authenticatedPrincipal";
 
 const trustedLocalProposalFailure = () =>
   new AccountContractError({ code: "FORBIDDEN", message: "Forbidden.", retryable: false });

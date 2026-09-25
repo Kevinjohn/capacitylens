@@ -18,6 +18,7 @@ import { enqueueAudit } from "../auditOutbox";
 import { buildCanonicalAccountProductPayload } from "./accountEntityRoutes";
 import { ALL_FIELDS_VISIBLE, type AuthorizeRoute } from "./routeShared";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 type StateAccountAdministration = AccountAdminPort & {
   roleForPrincipalInWorkspace(principalId: string, workspaceId: string): Role | null;
@@ -33,12 +34,8 @@ function buildWorkspaceId(commandId: string): string {
     .slice(0, 21)}`;
 }
 
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function resolveWorkspaceId(body: unknown, commandId: string): string {
-  if (isUnknownRecord(body) && typeof body.id === "string" && body.id.trim() !== "") return body.id;
+  if (isRecord(body) && typeof body.id === "string" && body.id.trim() !== "") return body.id;
   return buildWorkspaceId(commandId);
 }
 

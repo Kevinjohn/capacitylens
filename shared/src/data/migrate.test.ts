@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { InvalidSchemaVersionError, migrate, UnsupportedSchemaVersionError } from "./migrate";
 import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
 import { sanitizeImportedRecord } from "../lib/sanitizeImport";
+import { migrateV3toV4 } from "./migrate/steps/v1-v6";
 
 describe("migrate", () => {
   // Guards a development-time mistake: a migration step added to POST_REPAIR_BASE_STEPS (in
@@ -441,6 +442,11 @@ describe("migrate activity and client repairs", () => {
     });
     expect(out.activities[0]).toMatchObject({ id: "t1", kind: "project" });
     expect(out.activities[1]).toMatchObject({ id: "t2", kind: "repeatable" });
+  });
+
+  it("leaves an array entry untouched instead of backfilling it as an activity (v3 → v4)", () => {
+    const entry = ["not", "an", "activity"];
+    expect(migrateV3toV4({ activities: [entry] })).toEqual({ activities: [entry] });
   });
 });
 

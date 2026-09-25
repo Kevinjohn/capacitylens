@@ -1,21 +1,7 @@
-import { AccountContractError } from "@capacitylens/shared/account/errors";
 import { isAccountSessionId } from "@capacitylens/shared/account/validation";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import type { AccountRouteContext } from "../createReplyHelpers";
-
-function createAuthenticationRequiredError() {
-  return new AccountContractError({
-    code: "AUTHENTICATION_REQUIRED",
-    message: "Sign in to continue.",
-    retryable: false,
-  });
-}
-
-function assertAccountActor(req: FastifyRequest) {
-  const actor = req.accountActor;
-  if (!actor) throw createAuthenticationRequiredError();
-  return actor;
-}
+import { requireAccountActor } from "./authenticatedPrincipal";
 
 function createRequestHeaders(headers: FastifyRequest["headers"]): Headers {
   const requestHeaders = new Headers();
@@ -47,7 +33,7 @@ export async function listSessions(req: FastifyRequest, reply: FastifyReply, con
   const { identity: identityPort, fail: accountFail } = context;
 
   try {
-    return reply.code(200).send({ sessions: await identityPort.listSessions({ actor: assertAccountActor(req) }) });
+    return reply.code(200).send({ sessions: await identityPort.listSessions({ actor: requireAccountActor(req) }) });
   } catch (error) {
     return accountFail(reply, error);
   }
@@ -66,7 +52,7 @@ export async function revokeSession(req: FastifyRequest, reply: FastifyReply, co
   }
   try {
     await identityPort.revokeOwnSession({
-      actor: assertAccountActor(req),
+      actor: requireAccountActor(req),
       sessionId,
       command: accountCommand(req),
     });

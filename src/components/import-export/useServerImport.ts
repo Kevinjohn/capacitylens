@@ -12,6 +12,7 @@ import { resolveErrorMessage } from "../../lib/errorMessage";
 import { readApiError } from "../../lib/readApiError";
 import { useStore } from "../../store/useStore";
 import { m } from "@/i18n";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 type SetNotice = ReturnType<typeof useStore.getState>["setNotice"];
 type ImportTransaction = { committed: boolean; requiresReload: boolean };
@@ -22,7 +23,6 @@ type ImportContext = {
   setNotice: SetNotice;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 const parseCount = (value: unknown): number | null =>
   typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : null;
 const isStaleView = (outcome: RefreshOutcome): boolean =>

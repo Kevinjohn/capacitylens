@@ -1,12 +1,12 @@
 import type { SliceRewriteResult } from "./state";
 import { isAccountRole } from "@capacitylens/shared/account/types";
 import { parseAuthUser } from "../../auth/validateAuthUser";
-import { isRecord } from "../validateAccountSlice";
 import { STORE_NAME, MAX_AGE_MS } from "./constants";
 import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
 import { readOrCreateDeviceKey, assertWebCrypto, buildAssociatedData, writeEncryptedRecord } from "./crypto";
 import { pendingWrites, setOfflineCacheWriteFailed, scope, isOfflineReadEnabled } from "./state";
 import type { CachedRecord, OfflineAuthSnapshot, OfflineAccountSummary, OfflineCacheWriteResult } from "./types";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 /** Keep same-key writes in acceptance order even when key lookup or encryption settles out of
  * order. Different cache records remain independent, and a rejected write does not poison the
  * queue for a later live value. */

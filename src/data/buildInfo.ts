@@ -9,6 +9,7 @@ import { APP_NAME } from "@capacitylens/shared/brand";
 import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 import packageJson from "../../package.json";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 /** Whether the observed diagnostics response was reachable; `unavailable` means no response was usable. */
 export type DiagnosticsConnectivity = "ok" | "unavailable";
@@ -53,10 +54,6 @@ function createUnknownServerDiagnostics(): ServerDiagnostics {
     persistence: "unknown",
     backup: { status: "unavailable", lastSuccessAt: null },
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function readBuildRevision(): string | null {

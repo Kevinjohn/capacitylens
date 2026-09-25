@@ -2,7 +2,6 @@ import { expect } from "vitest";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { call } from "./appTestHttp";
 import {
-  isUnknownRecord,
   readOptionalBoolean,
   readOptionalString,
   readRequiredBoolean,
@@ -33,9 +32,10 @@ import {
   readPhaseSnapshots,
   readProjectSnapshots,
 } from "./appTestSnapshotSchedule";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 export function readAllClientSnapshots(rows: unknown[]): ClientSnapshot[] {
   return rows.map((row) => {
-    if (!isUnknownRecord(row)) throw new Error("Expected every client row to be an object.");
+    if (!isRecord(row)) throw new Error("Expected every client row to be an object.");
     requireModeledKeys(
       row,
       [
@@ -81,7 +81,7 @@ export function readClientSnapshots(rows: unknown[]): ClientSnapshot[] {
 
 export function readAllStateClients(response: LightMyRequestResponse): ClientSnapshot[] {
   const value: unknown = response.json();
-  if (!isUnknownRecord(value)) throw new Error("Expected the state response to be an object.");
+  if (!isRecord(value)) throw new Error("Expected the state response to be an object.");
   return readAllClientSnapshots(readStateArray(value, "clients"));
 }
 
@@ -100,7 +100,7 @@ export function readClientIds(clients: ClientSnapshot[]): string[] {
 }
 
 export function readClientResponseValue(value: unknown): ClientResponse {
-  if (!isUnknownRecord(value)) throw new Error("Expected the client response to be an object.");
+  if (!isRecord(value)) throw new Error("Expected the client response to be an object.");
   return {
     accountId: readRequiredString(value, "accountId", "client response"),
     color: readRequiredString(value, "color", "client response"),
@@ -122,7 +122,7 @@ export interface ConflictResponse {
 
 export function readConflictResponse(response: LightMyRequestResponse): ConflictResponse {
   const value: unknown = response.json();
-  if (!isUnknownRecord(value) || typeof value.error !== "string" || !("current" in value)) {
+  if (!isRecord(value) || typeof value.error !== "string" || !("current" in value)) {
     throw new Error("Expected a conflict response with an error and current row.");
   }
   return { error: value.error, current: readClientResponseValue(value.current) };
@@ -130,7 +130,7 @@ export function readConflictResponse(response: LightMyRequestResponse): Conflict
 
 export function readBatchSuperseded(response: LightMyRequestResponse): boolean | undefined {
   const value: unknown = response.json();
-  if (!isUnknownRecord(value)) throw new Error("Expected the batch response to be an object.");
+  if (!isRecord(value)) throw new Error("Expected the batch response to be an object.");
   if (!("superseded" in value)) return undefined;
   if (typeof value.superseded !== "boolean") {
     throw new Error("Expected a present batch superseded field to be boolean.");
@@ -140,14 +140,14 @@ export function readBatchSuperseded(response: LightMyRequestResponse): boolean |
 
 export function readBatchReceipt(response: LightMyRequestResponse): BatchReceipt {
   const value: unknown = response.json();
-  if (!isUnknownRecord(value)) throw new Error("Expected the batch response to be an object.");
+  if (!isRecord(value)) throw new Error("Expected the batch response to be an object.");
   requireModeledKeys(
     value,
     ["applied", "archives", "auditWarning", "changed", "ok", "revisions", "superseded"],
     "batch response",
   );
   const revisions = readStateArray(value, "revisions").map((revision) => {
-    if (!isUnknownRecord(revision)) throw new Error("Expected every batch revision to be an object.");
+    if (!isRecord(revision)) throw new Error("Expected every batch revision to be an object.");
     requireModeledKeys(revision, ["createdAt", "id", "rewrite", "table", "updatedAt"], "batch revision");
     const rewrite = revision.rewrite;
     if (rewrite !== undefined && rewrite !== true) {
@@ -163,7 +163,7 @@ export function readBatchReceipt(response: LightMyRequestResponse): BatchReceipt
     return snapshot;
   });
   const archives = readStateArray(value, "archives").map((archive) => {
-    if (!isUnknownRecord(archive)) throw new Error("Expected every batch archive to be an object.");
+    if (!isRecord(archive)) throw new Error("Expected every batch archive to be an object.");
     requireModeledKeys(archive, ["archived", "id", "table"], "batch archive");
     return {
       archived: readRequiredBoolean(archive, "archived", "batch archive"),
@@ -186,7 +186,7 @@ export function readBatchReceipt(response: LightMyRequestResponse): BatchReceipt
 
 export function readActivityWriteResponse(response: LightMyRequestResponse): ActivityWriteResponse {
   const value: unknown = response.json();
-  if (!isUnknownRecord(value)) throw new Error("Expected the activity response to be an object.");
+  if (!isRecord(value)) throw new Error("Expected the activity response to be an object.");
   requireModeledKeys(
     value,
     ["accountId", "createdAt", "id", "kind", "name", "phaseId", "projectId", "rewrittenAllocations", "updatedAt"],
@@ -205,7 +205,7 @@ export function readActivityWriteResponse(response: LightMyRequestResponse): Act
   if (phaseId !== undefined) activity.phaseId = phaseId;
   if (projectId !== undefined) activity.projectId = projectId;
   const rewrittenAllocations = readStateArray(value, "rewrittenAllocations").map((revision) => {
-    if (!isUnknownRecord(revision)) throw new Error("Expected every rewritten allocation to be an object.");
+    if (!isRecord(revision)) throw new Error("Expected every rewritten allocation to be an object.");
     requireModeledKeys(revision, ["createdAt", "id", "updatedAt"], "rewritten allocation");
     return {
       createdAt: readRequiredString(revision, "createdAt", "rewritten allocation"),
@@ -229,7 +229,7 @@ export function readFirstProjectId(rows: ProjectBinding[]): string | undefined {
 }
 
 export function readValidatedStateValue(value: unknown): ValidatedStateResponse {
-  if (!isUnknownRecord(value)) {
+  if (!isRecord(value)) {
     throw new Error("Expected the state response to be an object.");
   }
   return {
@@ -270,7 +270,7 @@ export function readStateResponse(response: LightMyRequestResponse): ValidatedSt
 
 export function readImportSummary(response: LightMyRequestResponse): ImportSummary {
   const value: unknown = response.json();
-  if (!isUnknownRecord(value)) throw new Error("Expected the import response to be an object.");
+  if (!isRecord(value)) throw new Error("Expected the import response to be an object.");
   requireModeledKeys(value, ["auditWarning", "imported", "maxRecords", "skipped"], "import response");
   const auditWarning = value.auditWarning;
   if (typeof auditWarning !== "boolean") throw new Error("Expected import response auditWarning to be boolean.");

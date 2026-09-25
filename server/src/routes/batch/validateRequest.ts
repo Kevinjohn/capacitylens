@@ -7,16 +7,13 @@ import { isKnownTable, isLifecycleEntity, isScopedTable } from "../routeShared";
 
 import { MAX_BATCH_OPS } from "./types";
 import type { BatchOp, ParsedBatchRequest } from "./types";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 type BatchOperationResult = { kind: "accepted"; op: BatchOp } | { kind: "rejected"; rejection: WriteRejection };
 type SyncOrderResult = { kind: "accepted"; syncOrder: SyncOrder | null } | { kind: "rejected" };
 
 function reject(error: string): BatchOperationResult {
   return { kind: "rejected", rejection: { status: 400, error } };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function parseSyncOrder(headers: FastifyRequest["headers"]): SyncOrderResult {

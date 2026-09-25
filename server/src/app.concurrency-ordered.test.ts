@@ -4,7 +4,7 @@ import { getRow, openDb } from "./db";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
 import { TS, meta, account, client } from "./fixtures/appTestEntities";
 import { post, put, orderedBatch } from "./fixtures/appTestHttp";
-import { isUnknownRecord, readRequiredString } from "./fixtures/appTestSnapshotCore";
+import { readRequiredString } from "./fixtures/appTestSnapshotCore";
 import {
   readFirstClient,
   readFirstClientName,
@@ -14,6 +14,7 @@ import {
   readStateClients,
 } from "./fixtures/appTestSnapshotBatch";
 import { readUpdatedAt, createExternalAllocationEdit } from "./fixtures/appTestScaffold";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 function createOrderedBatchSuccessorTests(): void {
   it.each([true, false])(
@@ -194,7 +195,7 @@ function createOrderedLifecycleArchiveTests(): void {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ ok: true, applied: 1, changed: 1 });
     const archivedRow = getRow(db, "clients", "c1");
-    if (!isUnknownRecord(archivedRow)) throw new Error("Expected the archived client row to remain in the database.");
+    if (!isRecord(archivedRow)) throw new Error("Expected the archived client row to remain in the database.");
     expect(readRequiredString(archivedRow, "id", "archived client row")).toBe("c1");
     expect(readRequiredString(archivedRow, "accountId", "archived client row")).toBe("a1");
     expect(isIsoInstant(readRequiredString(archivedRow, "archivedAt", "archived client row"))).toBe(true);

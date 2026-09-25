@@ -14,10 +14,9 @@ import type { ColumnGeometry } from "./columnGeometry";
 import { buildAllocationBarInset } from "./layout";
 import type { BarLayout } from "./schedulerModel";
 import { useAllocationGesture } from "./useAllocationGesture";
+import { roundToHundredths } from "@/lib/roundToHundredths";
 
 /** Hours/day display rounds repeating days-mode rescaling values without changing stored hours. */
-const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
-
 function resolveKeyboardMode(event: React.KeyboardEvent): "move" | "resize-start" | "resize-end" {
   if (event.altKey) return "resize-start";
   if (event.shiftKey) return "resize-end";
@@ -50,7 +49,7 @@ interface AriaLabelInput {
 function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }: AriaLabelInput) {
   const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status);
   const shared = {
-    hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) }),
+    hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundToHundredths(bar.allocation.hoursPerDay) }),
     status: statusAnnotation ? m.scheduler_bar_aria_status({ status: statusAnnotation }) : "",
     start: formatDayMonthEndpoint(bar.allocation.startDate, bar.allocation.endDate),
     end: formatDayMonthEndpoint(bar.allocation.endDate, bar.allocation.startDate),

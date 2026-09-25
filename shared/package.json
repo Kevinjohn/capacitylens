@@ -40,6 +40,7 @@
     "./lib/effectiveWorkingWeek": "./src/lib/effectiveWorkingWeek.ts",
     "./lib/id": "./src/lib/id.ts",
     "./lib/integrity": "./src/lib/integrity.ts",
+    "./lib/isRecord": "./src/lib/isRecord.ts",
     "./lib/repeatingDates": "./src/lib/repeatingDates.ts",
     "./lib/sanitizeImport": "./src/lib/sanitizeImport.ts",
     "./lib/schedulingDays": "./src/lib/schedulingDays.ts",

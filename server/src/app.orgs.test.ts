@@ -7,6 +7,7 @@ import { createAuthFromEnvironment, runAuthMigrations, DEMO_USER } from "./auth"
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditSink } from "./audit";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // P1.8 — constrained org-creation (POST /api/orgs). The endpoint allows iff ANY of: zero accounts
 // (first-run bootstrap), OFF mode (trusted-local), the caller is an ACTIVE owner/admin of SOME
@@ -59,10 +60,6 @@ function readStringField(response: LightMyRequestResponse, field: string): strin
     throw new Error(`Expected response body field '${field}' to be a string.`);
   }
   return body[field];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 /** Assert the org `accountId` was created with a built-in Internal client and `userId` as Owner. */

@@ -8,26 +8,9 @@ import type { SsoCutoverIdentityPort } from "./betterAuthIdentityPort";
 import type { SsoCutoverAccountAdminPort } from "./sqliteAccountAdminPort";
 import { providerLinkBodyError, sendProviderLinkFailure } from "./providerLinkFailure";
 import { startMicrosoftProviderLink } from "./microsoftProviderLink";
+import { requireAccountActor, requireAuthenticatedUser } from "./routes/handlers/authenticatedPrincipal";
 
 type AuthorizeMemberManagementInput = Omit<AuthorizeRouteInput, "action"> & { action: "manageMembers" };
-
-function createAuthenticationRequiredError(): AccountContractError {
-  return new AccountContractError({
-    code: "AUTHENTICATION_REQUIRED",
-    message: "Sign in to continue.",
-    retryable: false,
-  });
-}
-
-function requireAccountActor(req: FastifyRequest): NonNullable<FastifyRequest["accountActor"]> {
-  if (!req.accountActor) throw createAuthenticationRequiredError();
-  return req.accountActor;
-}
-
-function requireAuthenticatedUser(req: FastifyRequest): NonNullable<FastifyRequest["user"]> {
-  if (!req.user) throw createAuthenticationRequiredError();
-  return req.user;
-}
 
 function requireFederatedLink(auth: Auth): NonNullable<Auth["beginFederatedLink"]> {
   if (!auth.beginFederatedLink) throw new Error("Federated identity linking is not configured.");

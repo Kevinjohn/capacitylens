@@ -9,12 +9,11 @@ import type {
   PersonScheduleEntry as PersonScheduleEntryModel,
   PersonScheduleTimeOffEntry,
 } from "./personScheduleTypes";
+import { roundToHundredths } from "@/lib/roundToHundredths";
 
 interface PersonScheduleEntryProps {
   entry: PersonScheduleEntryModel;
 }
-
-const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
 
 function EntryNote({ note }: { note: string }) {
   return (
@@ -44,7 +43,7 @@ function AllocationEntry({ entry }: { entry: PersonScheduleAllocationEntry }) {
         {formatDayMonthRange(entry.startDate, entry.endDate)}
         {entry.hoursPerDay === undefined
           ? ""
-          : m.scheduler_bar_pop_hours({ hours: roundDisplayHours(entry.hoursPerDay) })}
+          : m.scheduler_bar_pop_hours({ hours: roundToHundredths(entry.hoursPerDay) })}
       </p>
       {entry.task && <p className="mt-3 break-words text-sm text-muted-foreground">{entry.task}</p>}
       {entry.note && <EntryNote note={entry.note} />}

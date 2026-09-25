@@ -4,6 +4,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import type { Account, Allocation, AppData, Client, Project, TimeOff } from "@capacitylens/shared/types/entities";
 import { ServerSyncAdapter } from "./ServerSyncAdapter";
 import { cacheAuthSnapshot, clearAllOfflineData, setOfflineReadState, type OfflineAuthSnapshot } from "./offlineCache";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 export const TS1 = "2026-01-01T00:00:00.000Z";
 export const TS2 = "2026-01-02T00:00:00.000Z";
@@ -89,9 +90,6 @@ export interface ReceiptOp {
   updatedAt?: string;
   row?: object;
 }
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const requiredRecord = (value: unknown, message: string): Record<string, unknown> => {
   if (!isRecord(value)) throw new Error(message);

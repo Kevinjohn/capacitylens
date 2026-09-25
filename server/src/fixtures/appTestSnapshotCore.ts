@@ -199,10 +199,6 @@ export interface ValidatedStateResponse {
   timeOff: TimeOffSnapshot[];
 }
 
-export function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
 export function readRequiredString(value: Record<string, unknown>, key: string, context: string): string {
   const field = value[key];
   if (typeof field !== "string") throw new Error(`Expected ${context} ${key} to be a string.`);
