@@ -186,7 +186,7 @@ export async function saveRoleVia(user: User, row: HTMLElement, option: string):
   await user.click(within(dialog).getByTestId("member-role-save"));
 }
 
-export async function findMemberRow(email: RegExp): Promise<HTMLElement> {
+export async function waitForMemberRow(email: RegExp): Promise<HTMLElement> {
   return requireValue(
     (await screen.findAllByTestId("member-row")).find((candidate) => within(candidate).queryByText(email)),
     `a member row matching ${email}`,

@@ -112,7 +112,7 @@ export interface RevokePrincipalSessionsInTxInput {
 
 export interface IdentityPortContext extends IdentityTableProbes {
   input: IdentityPortInput;
-  makeCompensationHandle(principalId: string, commandId: string): string;
+  createCompensationHandle(principalId: string, commandId: string): string;
   assertCompensationHandle(provisional: ProvisionalPrincipal, commandId: string): void;
   revokePrincipalSessionsInTx(input: RevokePrincipalSessionsInTxInput): readonly string[];
   eraseLocalPrincipalsInTx(

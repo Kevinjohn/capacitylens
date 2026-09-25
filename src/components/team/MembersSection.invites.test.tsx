@@ -10,7 +10,7 @@ import { m } from "@/i18n";
 import {
   chooseMemberAction,
   expectNotice,
-  findMemberRow,
+  waitForMemberRow,
   mockApi,
   ownerAndEditor,
   rawMember,
@@ -140,7 +140,7 @@ function registerInviteCopyControlTests(): void {
     vi.stubGlobal("fetch", fetchMock);
     await renderInviteSection();
 
-    const editorRow = await findMemberRow(/editor@x\.io/);
+    const editorRow = await waitForMemberRow(/editor@x\.io/);
     closeInviteDialog();
     await chooseMemberAction(user, editorRow, "member-reset-password");
     await user.click(
@@ -764,7 +764,7 @@ function registerInviteMissingLinkReconciliationTests(): void {
     expect(await screen.findByTestId("invite-link")).toBeInTheDocument();
 
     closeInviteDialog();
-    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), "Viewer");
 
     await waitFor(() => expect(screen.queryByTestId("invite-link")).not.toBeInTheDocument());
   });

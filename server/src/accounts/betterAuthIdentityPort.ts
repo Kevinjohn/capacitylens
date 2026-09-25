@@ -31,7 +31,7 @@ const accountSessionAssuranceTableExists = createTableExistenceProbe("account_se
 
 function createCompensationMethods() {
   const compensationKey = randomBytes(32);
-  const makeCompensationHandle = (principalId: string, commandId: string): string =>
+  const createCompensationHandle = (principalId: string, commandId: string): string =>
     createHash("sha256")
       .update(compensationKey)
       .update("\0")
@@ -41,7 +41,10 @@ function createCompensationMethods() {
       .digest("base64url");
   const assertCompensationHandle = (provisional: ProvisionalPrincipal, commandId: string): void => {
     if (
-      isMatchingSecretToken(makeCompensationHandle(provisional.principalId, commandId), provisional.compensationHandle)
+      isMatchingSecretToken(
+        createCompensationHandle(provisional.principalId, commandId),
+        provisional.compensationHandle,
+      )
     ) {
       return;
     }
@@ -52,7 +55,7 @@ function createCompensationMethods() {
       commandId,
     });
   };
-  return { makeCompensationHandle, assertCompensationHandle };
+  return { createCompensationHandle, assertCompensationHandle };
 }
 
 export function createBetterAuthIdentityPort(input: IdentityPortInput): SsoCutoverIdentityPort {

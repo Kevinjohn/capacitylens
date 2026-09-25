@@ -10,7 +10,7 @@ import { m } from "@/i18n";
 import {
   confirmMemberAction,
   expectNotice,
-  findMemberRow,
+  waitForMemberRow,
   mockApi,
   ownerAndEditor,
   rawMember,
@@ -101,7 +101,7 @@ function registerSelfMutationFailureTests(): void {
     );
     renderSection();
 
-    await saveRoleVia(userEvent.setup(), await findMemberRow(/me@x\.io/), "Editor");
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/me@x\.io/), "Editor");
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull());
     expect(useStore.getState().notice).toMatchObject({
@@ -116,7 +116,7 @@ function registerSelfMutationFailureTests(): void {
 
     await confirmMemberAction({
       user: userEvent.setup(),
-      row: await findMemberRow(/me@x\.io/),
+      row: await waitForMemberRow(/me@x\.io/),
       testId: "member-remove",
       confirmationName: "Remove",
     });
@@ -144,7 +144,7 @@ function registerAccountSwitchMutationTests(): void {
     );
     renderSection();
 
-    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), "Viewer");
 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent(/Reload the page before retrying/i);
@@ -164,7 +164,7 @@ function registerAccountSwitchMutationTests(): void {
     );
     renderSection();
 
-    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), "Viewer");
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
     expect(useStore.getState().notice).toBeNull();
@@ -190,7 +190,7 @@ function registerLateReconciliationTests(): void {
     );
     renderSection();
 
-    await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), "Viewer");
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
     expect(useStore.getState().notice).toBeNull();
@@ -204,7 +204,7 @@ function registerLateReconciliationTests(): void {
     vi.stubGlobal("fetch", mockApi(ownerAndEditor));
     renderSection({ refreshAuth });
 
-    await saveRoleVia(userEvent.setup(), await findMemberRow(/me@x\.io/), "Editor");
+    await saveRoleVia(userEvent.setup(), await waitForMemberRow(/me@x\.io/), "Editor");
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBe(nextAccountId));
     expect(useStore.getState().notice?.message).toBe(m.settings_members_role_updated());
@@ -223,7 +223,7 @@ function registerThrownMutationTests(): void {
       }),
     );
     renderSection();
-    const roleChange = saveRoleVia(userEvent.setup(), await findMemberRow(/me@x\.io/), "Editor");
+    const roleChange = saveRoleVia(userEvent.setup(), await waitForMemberRow(/me@x\.io/), "Editor");
     await waitFor(() => expect(finish).toBeTypeOf("function"));
 
     act(() => useStore.setState({ activeAccountId: nextAccountId }));
@@ -256,7 +256,7 @@ function registerRoleFailureTests(): void {
       );
       renderSection();
 
-      await saveRoleVia(userEvent.setup(), await findMemberRow(/ed@x\.io/), "Viewer");
+      await saveRoleVia(userEvent.setup(), await waitForMemberRow(/ed@x\.io/), "Viewer");
 
       if (reconciles) await expectNotice(expected);
       else expect(await screen.findByRole("alert")).toHaveTextContent(expected);
@@ -293,7 +293,7 @@ function registerRemovalFailureTests(): void {
 
       await confirmMemberAction({
         user: userEvent.setup(),
-        row: await findMemberRow(/ed@x\.io/),
+        row: await waitForMemberRow(/ed@x\.io/),
         testId: "member-remove",
         confirmationName: "Remove",
       });
@@ -316,7 +316,7 @@ function registerStatusFailureTests(): void {
 
     await confirmMemberAction({
       user: userEvent.setup(),
-      row: await findMemberRow(/ed@x\.io/),
+      row: await waitForMemberRow(/ed@x\.io/),
       testId: "member-disable",
       confirmationName: /disable/i,
     });
@@ -336,7 +336,7 @@ function registerStatusFailureTests(): void {
 
     await confirmMemberAction({
       user: userEvent.setup(),
-      row: await findMemberRow(/ed@x\.io/),
+      row: await waitForMemberRow(/ed@x\.io/),
       testId: "member-disable",
       confirmationName: /disable/i,
     });
@@ -349,7 +349,7 @@ describe("MembersSection — password reset and session failures", () => {
   async function requestReset(): Promise<void> {
     await confirmMemberAction({
       user: userEvent.setup(),
-      row: await findMemberRow(/ed@x\.io/),
+      row: await waitForMemberRow(/ed@x\.io/),
       testId: "member-reset-password",
       confirmationName: "Reset password",
     });
@@ -415,7 +415,7 @@ function registerSessionFailureTests(): void {
         }),
       );
       renderSection();
-      const row = await findMemberRow(self ? /me@x\.io/ : /ed@x\.io/);
+      const row = await waitForMemberRow(self ? /me@x\.io/ : /ed@x\.io/);
 
       await confirmMemberAction({
         user: userEvent.setup(),
@@ -446,7 +446,7 @@ function registerSessionFailureTests(): void {
 
     await confirmMemberAction({
       user: userEvent.setup(),
-      row: await findMemberRow(self ? /me@x\.io/ : /ed@x\.io/),
+      row: await waitForMemberRow(self ? /me@x\.io/ : /ed@x\.io/),
       testId: "member-revoke-sessions",
       confirmationName: "Revoke sessions",
     });

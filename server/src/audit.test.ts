@@ -96,7 +96,7 @@ function readErrorResponse(response: LightMyRequestResponse): ErrorResponse {
   return { error: value.error };
 }
 
-function findRecord(records: readonly AuditRecord[], action: string): AuditRecord {
+function requireRecord(records: readonly AuditRecord[], action: string): AuditRecord {
   return requiredAt(
     records.filter((record) => record.action === action),
     0,
@@ -152,7 +152,7 @@ describe("AuditRecord shape (1)", () => {
       outcome: "success",
       changedFields: ["workspace", "membership"],
     });
-    const rec = findRecord(recs, "create");
+    const rec = requireRecord(recs, "create");
     expect(rec.action).toBe("create");
     expect(rec.entity).toBe("accounts");
     expect(rec.id).toBe("a1");
