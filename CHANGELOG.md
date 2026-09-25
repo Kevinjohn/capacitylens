@@ -26,6 +26,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Close an enlarged documentation screenshot when Tab is pressed, so keyboard focus no longer moves
+  behind the overlay where its focus ring cannot be seen (#1278).
 - Keep company switches from leaving earlier attempts unresolved, reconcile uncertain member links
   and ownership confirmations with the latest access, and offer a retry when the ownership request
   cannot be read (#1253).

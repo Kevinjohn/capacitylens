@@ -8,8 +8,8 @@ import { ports } from "../../scripts/ports.mjs";
 // The docs site. Built with `pnpm run docs:build` into the committed docs/ folder.
 // Each task track has its own ordered sidebar. The longest matching path is
 // listed first where two tracks reuse an existing reference page.
-// Escape closes an open screenshot lightbox. Opening, closing by click, and all
-// the styling are pure CSS (see lightbox.mts); this one keystroke is the only
+// Escape and Tab close an open screenshot lightbox. Opening, closing by click, and all
+// the styling are pure CSS (see lightbox.mts); these keystrokes are the only
 // part CSS cannot express, so it is the only script the standalone build keeps —
 // hence the data-cl-keep marker that scripts/docs-standalone.mjs looks for.
 //
