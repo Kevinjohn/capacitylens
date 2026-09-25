@@ -28,12 +28,13 @@ const actorRole = assertAccountAuthority(db, actor, workspaceId, "manage-invitat
 The first name says "this may be absent, check it"; the second says "if this returns, you are
 authorised". Neither caller needs to open the function. That is the whole standard: a function
 name starts with a verb, the verb tells the caller what comes back and whether anything happens
-on the way, and the verb comes from this table.
+on the way, and the verb comes from one of the two tables below.
 
 | Verb               | Promise                                                                                                                                                                                 | Example in the tree                                                                        |
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `is`, `has`, `can` | Returns a boolean. No side effects.                                                                                                                                                     | `canArchive(entity)` in `shared/src/domain/lifecycle/transitions.ts`                       |
 | `assert`           | Throws when the condition fails. On success returns the value it established, or nothing.                                                                                               | `assertAccountAuthority` in `server/src/accounts/adminPort/authority.ts` returns the `Role` |
+| `require` | Returns what the caller needs, or refuses: it throws, or, as a route guard, sends the refusal response. Pairs with `get`, which returns `null` instead. | `requireAccountActor` in `server/src/accounts/routes/handlers/authenticatedPrincipal.ts` throws; `requireMembership` in `server/src/accounts/routes/createReplyHelpers.ts` sends the refusal |
 | `ensure`           | Makes a state true if it is not already, returns nothing. Safe to call twice.                                                                                                           | `ensureControlTables(db)` in `server/src/controlTables/retentionV24.ts`                    |
 | `get`              | Looks one thing up by key in storage. Returns it, or `null` when absent. Never throws for absence.                                                                                      | `getMemberRole(db, accountId, userId)` in `server/src/controlTables/members.ts`            |
 | `list`             | Returns an array of matches, empty when there are none.                                                                                                                                 | `listMembersForAccount(db, accountId)` in the same file                                    |
@@ -48,7 +49,18 @@ on the way, and the verb comes from this table.
 | `make`             | Test fixtures only.                                                                                                                                                                     | `makeResource(overrides)` in `src/test/fixtures.ts`                                        |
 | `use`              | A React hook.                                                                                                                                                                           | `useScopedData` in `src/store/useScopedData.ts`                                            |
 
-Two verbs the table deliberately leaves out: `find`, because `get` and the `<thing>ById`
+Commands and the other families already in use follow the same rule: the verb is the promise.
+
+| Verb | Promise | Example in the tree |
+| --- | --- | --- |
+| a plain domain verb: `remove`, `revoke`, `send`, `save`, `register`, `record`, `reset` | A command that changes state, named for the change it makes. | `revokeResetTokensForUser` in `server/src/auth.ts`; `recordAppliedSyncBatch` in `server/src/syncOrdering.ts` |
+| `format` | Returns display text. | `formatInviteExpiry` in `src/components/invites/inviteExpiry.ts` |
+| `to<Type>` | Converts a value to the named type. | `toISODate` in `shared/src/lib/dateMath.ts` |
+| `sanitize` | Repairs untrusted import or write input. | `sanitizeAccount` in `shared/src/lib/sanitize/account.ts` |
+| `evaluate`, `inspect` | Return a structured verdict. No side effects. | `evaluateProductionPosture` in `server/src/productionGuard.ts`; `inspectLifecycleAncestry` in `shared/src/domain/lifecycle/ancestry.ts` |
+| `verify` | Checks a credential, signature or artefact. | `verifyPasswordWithBackpressure` in `server/src/authConfig/passwordBackpressure.ts` |
+
+Two verbs the tables deliberately leave out: `find`, because `get` and the `<thing>ById`
 selectors already say "or nothing", and `handle`, because a callback is named for what it
 does. A component prop is `onSubmit`; the function passed to it is `submit` or `saveDraft`,
 not `handleSubmit`.
