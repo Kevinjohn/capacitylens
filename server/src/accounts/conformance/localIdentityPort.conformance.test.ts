@@ -230,7 +230,7 @@ it("correlates only by the exact issuer and subject", async () => {
   });
 
   await expect(
-    port.findPrincipalByFederatedSubject({
+    port.getPrincipalByFederatedSubject({
       subject: { issuer: "https://issuer.example", subject: "subject-2" },
     }),
   ).resolves.toEqual({
@@ -239,7 +239,7 @@ it("correlates only by the exact issuer and subject", async () => {
     email: "two@example.com",
   });
   await expect(
-    port.findPrincipalByFederatedSubject({
+    port.getPrincipalByFederatedSubject({
       subject: { issuer: "https://different.example", subject: "subject-2" },
     }),
   ).resolves.toBeNull();
@@ -1479,7 +1479,7 @@ it("refuses one federated subject mapped to multiple local principals", async ()
   const port = identityPort({ auth: auth(async () => null), db: ambiguousDb });
 
   await expect(
-    port.findPrincipalByFederatedSubject({
+    port.getPrincipalByFederatedSubject({
       subject: { issuer: "https://issuer.example", subject: "shared-subject" },
     }),
   ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
@@ -1493,7 +1493,7 @@ it.each([
   [
     "federated lookup",
     (port: ReturnType<typeof createBetterAuthIdentityPort>) =>
-      port.findPrincipalByFederatedSubject({ subject: { issuer: "https://issuer.example", subject: "subject" } }),
+      port.getPrincipalByFederatedSubject({ subject: { issuer: "https://issuer.example", subject: "subject" } }),
   ],
   [
     "session listing",

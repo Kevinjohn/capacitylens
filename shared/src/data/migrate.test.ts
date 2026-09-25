@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { InvalidSchemaVersionError, migrate, UnsupportedSchemaVersionError } from "./migrate";
 import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
 import { sanitizeImportedRecord } from "../lib/sanitizeImport";
+import { migrateV1toV2 } from "./migrate/steps/v1-v6";
 
 describe("migrate", () => {
   // Guards a development-time mistake: a migration step added to POST_REPAIR_BASE_STEPS (in
@@ -130,6 +131,12 @@ describe("migrate legacy wrappers", () => {
     const out = migrate(legacy);
     expect(out.resources[0]).toMatchObject({ employmentType: "freelancer" });
     expect("isFreelancer" in (out.resources[0] ?? {})).toBe(false);
+  });
+
+  it("leaves an array where a v1 resource row should be instead of spreading it into an object", () => {
+    const rows: unknown[] = [["not", "a", "row"], { id: "r1", isFreelancer: false }];
+    const out = migrateV1toV2({ resources: rows });
+    expect(out.resources).toEqual([["not", "a", "row"], { id: "r1", employmentType: "permanent" }]);
   });
 });
 

@@ -15,7 +15,7 @@ export function installStartupSignalHandlers(options: {
   onRepeated: (signal: NodeJS.Signals) => void;
 }): StartupSignalController {
   let requestedSignal: NodeJS.Signals | null = null;
-  const handle = (signal: NodeJS.Signals) => {
+  const recordStopRequest = (signal: NodeJS.Signals) => {
     if (requestedSignal !== null) {
       options.onRepeated(signal);
       return;
@@ -23,8 +23,8 @@ export function installStartupSignalHandlers(options: {
     requestedSignal = signal;
     options.onRequested(signal);
   };
-  const onSigterm = () => handle("SIGTERM");
-  const onSigint = () => handle("SIGINT");
+  const onSigterm = () => recordStopRequest("SIGTERM");
+  const onSigint = () => recordStopRequest("SIGINT");
 
   process.on("SIGTERM", onSigterm);
   process.on("SIGINT", onSigint);

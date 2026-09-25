@@ -21,7 +21,7 @@ const RESOURCE_KINDS: ReadonlySet<unknown> = new Set(["person", "placeholder", "
  *   - CROSS-ACCOUNT row → throw; a real integrity violation no legitimate flow
  *     produces. Returns the owned row so callers can read its current values.
  */
-export function findOwned<K extends ScopedEntityKey>(
+export function getOwned<K extends ScopedEntityKey>(
   ...[data, accountId, key, id]: [data: AppData, accountId: ID, key: K, id: ID]
 ): AppData[K][number] | null {
   const row = (data[key] as ScopedEntity[]).find((entity) => entity.id === id);
@@ -185,7 +185,7 @@ function assertResourceRefs(context: ScopedRefsContext): void {
  * carry its required parent; a partial update may omit that field but may not explicitly clear it.
  *
  * `existing` (updates only) is the currently-stored row the write targets — pass the
- * `findOwned` result so its tenancy is already proven. When a checked FK field equals
+ * `getOwned` result so its tenancy is already proven. When a checked FK field equals
  * the existing row's value, its EXISTENCE check is skipped: the reference was validated
  * when it was written, and in SERVER mode the client's hydrated slice is ACTIVE-ONLY
  * (readSlice strips archived/soft-deleted clients/projects), so re-checking an unchanged

@@ -22,6 +22,7 @@ import { registerLifecycleRoutes } from "./routes/lifecycleRoutes";
 import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from "@capacitylens/shared/account/sessionPolicy";
 import type { TenantStore } from "./tenantStore";
 import { seedMemberResourceLink } from "./fixtures/memberResourceTestSupport";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // P2.5a entity-lifecycle routes — the SERVER half of the Active→Archived→Soft-deleted→Purged machine.
 // This suite drives archive/unarchive/delete/purge and admin inactive reads end-to-end, asserting
@@ -233,20 +234,12 @@ interface ErrorResponseBody {
   error: string;
 }
 
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function readErrorResponseBody(response: unknown): ErrorResponseBody {
-  if (!isUnknownRecord(response) || typeof response.body !== "string") {
+  if (!isRecord(response) || typeof response.body !== "string") {
     throw new Error("Expected a lifecycle response.");
   }
   const body: unknown = JSON.parse(response.body);
-  if (
-    !isUnknownRecord(body) ||
-    typeof body.error !== "string" ||
-    (body.code !== undefined && typeof body.code !== "string")
-  ) {
+  if (!isRecord(body) || typeof body.error !== "string" || (body.code !== undefined && typeof body.code !== "string")) {
     throw new Error("Expected a lifecycle error response body.");
   }
   return { code: body.code, error: body.error };
@@ -267,7 +260,7 @@ function readEntityIds(body: Record<string, unknown>, entity: keyof LifecycleSta
     throw new Error(`Expected lifecycle state ${entity} rows.`);
   }
   return rows.map((row) => {
-    if (!isUnknownRecord(row) || typeof row.id !== "string") {
+    if (!isRecord(row) || typeof row.id !== "string") {
       throw new Error(`Expected lifecycle state ${entity} rows with string ids.`);
     }
     return row.id;
@@ -275,11 +268,11 @@ function readEntityIds(body: Record<string, unknown>, entity: keyof LifecycleSta
 }
 
 function readResponseBodyRecord(response: unknown): Record<string, unknown> {
-  if (!isUnknownRecord(response) || typeof response.body !== "string") {
+  if (!isRecord(response) || typeof response.body !== "string") {
     throw new Error("Expected a lifecycle response.");
   }
   const body: unknown = JSON.parse(response.body);
-  if (!isUnknownRecord(body)) {
+  if (!isRecord(body)) {
     throw new Error("Expected a lifecycle state response body.");
   }
   return body;
@@ -318,7 +311,7 @@ function readSurvivorState(response: unknown): SurvivorState {
     projectIds: readEntityIds(body, "projects"),
     resources: resources.map((resource) => {
       if (
-        !isUnknownRecord(resource) ||
+        !isRecord(resource) ||
         typeof resource.id !== "string" ||
         typeof resource.updatedAt !== "string" ||
         (resource.projectId !== undefined && typeof resource.projectId !== "string")
@@ -348,7 +341,7 @@ interface DeletedRevisionResponse {
 
 function readDeletedResource(value: unknown): DeletedResourceResponse {
   if (
-    !isUnknownRecord(value) ||
+    !isRecord(value) ||
     typeof value.name !== "string" ||
     typeof value.deletedAt !== "string" ||
     typeof value.archivedAt !== "string"
@@ -378,7 +371,7 @@ function readEntityRecord(body: Record<string, unknown>, entity: string, id: str
   }
   for (const row of rows) {
     const candidate: unknown = row;
-    if (isUnknownRecord(candidate) && candidate.id === id) {
+    if (isRecord(candidate) && candidate.id === id) {
       return candidate;
     }
   }
@@ -399,7 +392,7 @@ function readDependentNote(
   id: string,
 ): { note: string | null; updatedAt: string } {
   const row: unknown = db.prepare(`SELECT note, updatedAt FROM ${table} WHERE id = ?`).get(id);
-  if (!isUnknownRecord(row)) throw new Error(`Expected dependent ${table} row ${id}.`);
+  if (!isRecord(row)) throw new Error(`Expected dependent ${table} row ${id}.`);
   const note = row.note;
   const updatedAt = row.updatedAt;
   if ((note !== null && typeof note !== "string") || typeof updatedAt !== "string") {
@@ -1036,7 +1029,7 @@ describe("P2.5a lifecycle — activities are first-class tombstone roots", () =>
     const deletedActivity = readEntityRecord(deleted, "activities", "act1");
     expect(readRequiredString(deletedActivity, "deletedAt")).toBeTruthy();
     const persistedActivity = db.prepare("SELECT archivedAt, deletedAt FROM activities WHERE id = ?").get("act1");
-    if (!isUnknownRecord(persistedActivity)) throw new Error("Expected persisted Activity lifecycle fields.");
+    if (!isRecord(persistedActivity)) throw new Error("Expected persisted Activity lifecycle fields.");
     expect(readRequiredString(persistedActivity, "archivedAt")).toBeTruthy();
     expect(readRequiredString(persistedActivity, "deletedAt")).toBeTruthy();
     db.prepare("UPDATE activities SET deletedAt = ? WHERE id = ?").run(THIRTY_ONE_DAYS_AGO, "act1");
@@ -1532,7 +1525,7 @@ const rowById = async ({ app, entity, accountId, id }: RowByIdInput) => {
   const body = readResponseBodyRecord(res);
   const rows = body[entity];
   if (!Array.isArray(rows)) throw new Error(`Expected lifecycle state ${entity} rows.`);
-  return rows.find((row): row is Record<string, unknown> => isUnknownRecord(row) && row.id === id);
+  return rows.find((row): row is Record<string, unknown> => isRecord(row) && row.id === id);
 };
 
 describe("P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client", () => {

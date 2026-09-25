@@ -39,6 +39,7 @@
     "./lib/dateMath": "./src/lib/dateMath.ts",
     "./lib/effectiveWorkingWeek": "./src/lib/effectiveWorkingWeek.ts",
     "./lib/id": "./src/lib/id.ts",
+    "./lib/isRecord": "./src/lib/isRecord.ts",
     "./lib/integrity": "./src/lib/integrity.ts",
     "./lib/repeatingDates": "./src/lib/repeatingDates.ts",
     "./lib/sanitizeImport": "./src/lib/sanitizeImport.ts",

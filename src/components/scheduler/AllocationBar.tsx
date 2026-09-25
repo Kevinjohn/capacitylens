@@ -14,9 +14,9 @@ import type { ColumnGeometry } from "./columnGeometry";
 import { buildAllocationBarInset } from "./layout";
 import type { BarLayout } from "./schedulerModel";
 import { useAllocationGesture } from "./useAllocationGesture";
+import { roundToHundredths } from "@/lib/roundToHundredths";
 
 /** Hours/day display rounds repeating days-mode rescaling values without changing stored hours. */
-const roundDisplayHours = (hours: number) => Math.round(hours * 100) / 100;
 
 function resolveKeyboardMode(event: React.KeyboardEvent): "move" | "resize-start" | "resize-end" {
   if (event.altKey) return "resize-start";
@@ -50,7 +50,7 @@ interface AriaLabelInput {
 function buildAriaLabel({ bar, canEdit, hideHours, label, showTaskFieldInSchedule, viewerLabel }: AriaLabelInput) {
   const statusAnnotation = resolveAllocationStatusAnnotation(bar.allocation.status);
   const shared = {
-    hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundDisplayHours(bar.allocation.hoursPerDay) }),
+    hours: hideHours ? "" : m.scheduler_bar_aria_hours({ hours: roundToHundredths(bar.allocation.hoursPerDay) }),
     status: statusAnnotation ? m.scheduler_bar_aria_status({ status: statusAnnotation }) : "",
     start: formatDayMonthEndpoint(bar.allocation.startDate, bar.allocation.endDate),
     end: formatDayMonthEndpoint(bar.allocation.endDate, bar.allocation.startDate),
@@ -86,7 +86,7 @@ function useBarAriaLabel(input: AriaLabelInput) {
   );
 }
 
-function closePopoverOnEscape(event: React.KeyboardEvent, input: Parameters<typeof handleBarKeyDown>[1]) {
+function closePopoverOnEscape(event: React.KeyboardEvent, input: Parameters<typeof dispatchBarKeyboardAction>[1]) {
   if (event.key !== "Escape" || !input.popoverOpen || input.dragging) return false;
   event.preventDefault();
   event.stopPropagation();
@@ -94,21 +94,21 @@ function closePopoverOnEscape(event: React.KeyboardEvent, input: Parameters<type
   return true;
 }
 
-function activateBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof handleBarKeyDown>[1]) {
+function activateBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof dispatchBarKeyboardAction>[1]) {
   if (event.key !== "Enter" && event.key !== " ") return false;
   event.preventDefault();
   input.onEdit?.(input.bar.allocation.id);
   return true;
 }
 
-function nudgeBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof handleBarKeyDown>[1]) {
+function nudgeBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof dispatchBarKeyboardAction>[1]) {
   const isArrow = event.key === "ArrowLeft" || event.key === "ArrowRight";
   if (!isArrow || event.ctrlKey || event.metaKey) return;
   event.preventDefault();
   input.nudge(resolveKeyboardMode(event), event.key === "ArrowRight" ? 1 : -1);
 }
 
-function handleBarPointerDown(
+function beginBarPointerGesture(
   event: React.PointerEvent<HTMLDivElement>,
   hidePopover: () => void,
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void,
@@ -117,7 +117,7 @@ function handleBarPointerDown(
   onPointerDown(event);
 }
 
-function handleBarKeyDown(
+function dispatchBarKeyboardAction(
   event: React.KeyboardEvent,
   input: {
     bar: BarLayout;
@@ -182,10 +182,10 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
   });
   const hidePopover = () => setPopoverOpen(false);
   const beginPointerGesture: PointerEventHandler<HTMLDivElement> | undefined = canEdit
-    ? (event) => handleBarPointerDown(event, hidePopover, gesture.onPointerDown)
+    ? (event) => beginBarPointerGesture(event, hidePopover, gesture.onPointerDown)
     : undefined;
-  const handleKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) =>
-    handleBarKeyDown(event, {
+  const dispatchKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) =>
+    dispatchBarKeyboardAction(event, {
       bar,
       canEdit,
       dragging: gesture.dragging,
@@ -214,7 +214,7 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
       translateY={gesture.translateY}
       onBlur={hidePopover}
       onFocus={() => setPopoverOpen(true)}
-      onKeyDown={handleKeyDown}
+      onKeyDown={dispatchKeyDown}
       onMouseEnter={() => setPopoverOpen(true)}
       onMouseLeave={hidePopover}
       onPointerDown={beginPointerGesture}

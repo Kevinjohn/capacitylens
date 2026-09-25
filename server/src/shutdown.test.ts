@@ -3,7 +3,7 @@ import {
   DEFAULT_SHUTDOWN_DEADLINE_MS,
   createLastResortErrorHandler,
   createShutdownHandler,
-  handleListenFailure,
+  shutDownAfterListenFailure,
 } from "./shutdown";
 
 // P1.2: the shutdown path must drain Fastify BEFORE closing the DB (a request still
@@ -21,7 +21,11 @@ describe("createShutdownHandler", () => {
     });
     const listenError = new Error("EADDRINUSE");
 
-    await handleListenFailure(listenError, shutdown, (error) => void order.push(`log ${(error as Error).message}`));
+    await shutDownAfterListenFailure(
+      listenError,
+      shutdown,
+      (error) => void order.push(`log ${(error as Error).message}`),
+    );
 
     expect(order).toEqual(["log EADDRINUSE", "backups.stop", "app.close", "db.close", "exit 1"]);
   });

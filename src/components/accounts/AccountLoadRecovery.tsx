@@ -18,7 +18,7 @@ export function AccountLoadRecovery({
   // A failed retry needs its own inline feedback rather than a restructure of that boundary.
   const [retryFailed, setRetryFailed] = useState(false);
 
-  const handleRetry = () => {
+  const retry = () => {
     setRetrying(true);
     setRetryFailed(false);
     void onRetry()
@@ -47,7 +47,7 @@ export function AccountLoadRecovery({
             <Button size="sm" variant="outline" onClick={onChooseAnother}>
               {m.account_load_choose_another()}
             </Button>
-            <Button size="sm" onClick={handleRetry} disabled={retrying}>
+            <Button size="sm" onClick={retry} disabled={retrying}>
               {m.account_load_retry()}
             </Button>
           </div>

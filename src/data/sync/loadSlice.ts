@@ -10,10 +10,11 @@ import {
 import { LoadError } from "../PersistenceAdapter";
 import { API_BULK_TIMEOUT_MS } from "../requestTimeout";
 import { diffOps } from "../syncOps";
-import { isRecord, parseAccountSliceWithRepairBase } from "../validateAccountSlice";
+import { parseAccountSliceWithRepairBase } from "../validateAccountSlice";
 import { listReferencedMissingTables } from "./fkGraph";
 import { seedSnapshot } from "./snapshot";
 import type { SyncState } from "./state";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 interface LoadedState extends MigrationWithRepairBase {
   readonly missingKeys: readonly string[];

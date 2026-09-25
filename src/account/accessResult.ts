@@ -34,9 +34,6 @@ export function resolveRejectionMessage<T>(result: TeamAccessResult<T>, fallback
   return result.kind === "rejected" && result.message ? result.message : fallback;
 }
 
-export const isRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
-
 export const isTimestamp = isIsoInstant;
 
 export const isNullableString = (value: unknown): value is string | null => value === null || typeof value === "string";

@@ -125,7 +125,7 @@ function registerIdentityReadTests(setup: () => Promise<Harness>): void {
   it("does not correlate an unknown upstream identity by email", async () => {
     const current = await setup();
     await expect(
-      current.port.findPrincipalByFederatedSubject({
+      current.port.getPrincipalByFederatedSubject({
         subject: { issuer: "https://unknown-issuer.example", subject: current.knownPrincipal.email ?? "" },
       }),
     ).resolves.toBeNull();
@@ -401,7 +401,7 @@ function createFakeIdentityPort(state: FakeIdentityState): IdentityPort {
         return summary ? [summary] : [];
       });
     },
-    async findPrincipalByFederatedSubject() {
+    async getPrincipalByFederatedSubject() {
       return null;
     },
     async signOut() {

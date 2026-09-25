@@ -25,6 +25,7 @@ import {
 } from "./revisions";
 import type { SyncState } from "./state";
 import { addResourceAvailabilityClearMarkers } from "./resourceAvailabilityWire";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
 // over-limit diff is never split into separately committed prefixes.
@@ -212,10 +213,6 @@ interface BatchReceiptWire {
   archives?: unknown;
   superseded?: unknown;
   auditWarning?: unknown;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
 function parseBatchReceipt(value: unknown, appliedCount: number): BatchReceiptWire {

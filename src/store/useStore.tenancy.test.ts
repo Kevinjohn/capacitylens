@@ -189,7 +189,7 @@ function registerEntityOwnershipTests(): void {
   it("refuses to archive a row owned by another account (cross-account lifecycle throw, no cascade)", () => {
     // The removal path is now the lifecycle machine (archive → soft-delete → purge), not an immediate
     // hard-delete. A lifecycle action targeting a row OWNED BY ANOTHER ACCOUNT is a tenancy violation:
-    // findOwned THROWS a display-safe message (a cross-account id, unlike a stale/non-existent one).
+    // getOwned THROWS a display-safe message (a cross-account id, unlike a stale/non-existent one).
     // The foreign row stays untouched (still active) and nothing cascades.
     expect(() => s().archiveEntity("projects", "pB")).toThrow(/does not belong to the active company/i);
     const proj = assertDefined(

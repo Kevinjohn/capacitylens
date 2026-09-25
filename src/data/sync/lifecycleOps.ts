@@ -3,7 +3,6 @@ import type { AppData, Entity } from "@capacitylens/shared/types/entities";
 import { noteAuditWarning } from "../../lib/auditWarning";
 import { API_REQUEST_TIMEOUT_MS } from "../requestTimeout";
 import { type Op } from "../syncOps";
-import { isRecord } from "../validateAccountSlice";
 import { LifecycleRestoreError } from "./batchErrors";
 import {
   MAX_DIAGNOSTIC_BODY_LENGTH,
@@ -15,6 +14,7 @@ import {
 } from "./revisions";
 import { rememberRevisions } from "./snapshot";
 import type { SyncState } from "./state";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources/activities) — those
 // deletions must converge through the dedicated archive route instead (see archiveLifecycleRow).

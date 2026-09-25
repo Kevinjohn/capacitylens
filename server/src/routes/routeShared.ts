@@ -76,7 +76,7 @@ export const isLifecycleEntity = isLifecycleEntityKey;
 // `accountId` when there's no existing row yet (a fresh upsert), or its stored accountId
 // matches. PUT/PATCH use it to keep accountId IMMUTABLE (409 on a change that would re-home
 // a row across the tenant boundary); DELETE uses it to scope a delete to its owner (404 on
-// a cross-account target — the server analog of the client's findOwned guard). One
+// a cross-account target — the server analog of the client's getOwned guard). One
 // predicate, so a future write path can't silently skip the check.
 export const ownsRow = (existing: { accountId?: unknown } | undefined, accountId: unknown): boolean =>
   !existing || existing.accountId === accountId;

@@ -1,8 +1,5 @@
 import { availableInternalClientId, buildInternalClient } from "../../internalClient";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object";
-}
+import { isRecord } from "../../../lib/isRecord";
 
 function isUnknownArray(value: unknown): value is unknown[] {
   return Array.isArray(value);

@@ -16,6 +16,7 @@ import { recordSessionAssurance } from "./accounts/state";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // P1.9 — single-use, expiring invite links. POST /api/invites mints a token (gated 'manageInvites',
 // admin+ of the target account); POST /api/invites/:token/accept binds the invited role to the
@@ -36,10 +37,6 @@ function requireValue<T>(value: T | null | undefined, label: string): T {
     throw new Error(`Expected ${label}`);
   }
   return value;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function readObject(value: unknown, label: string): Record<string, unknown> {

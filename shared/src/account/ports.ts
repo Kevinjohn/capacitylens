@@ -54,7 +54,7 @@ export interface AccountAuditPort {
 export interface IdentityPort {
   verifyApplicationSession(input: { headers: Headers }): Promise<ApplicationSession | null>;
   getPrincipalSummaries(input: { principalIds: readonly PrincipalId[] }): Promise<readonly PrincipalSummary[]>;
-  findPrincipalByFederatedSubject(input: { subject: FederatedSubject }): Promise<PrincipalSummary | null>;
+  getPrincipalByFederatedSubject(input: { subject: FederatedSubject }): Promise<PrincipalSummary | null>;
   signOut(input: { headers: Headers }): Promise<SignOutResult>;
   listSessions(input: { actor: ActorContext }): Promise<readonly SessionSummary[]>;
   revokeOwnSession(input: {
