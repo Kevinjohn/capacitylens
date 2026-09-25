@@ -83,7 +83,7 @@ function identityPort(overrides: Partial<LocalIdentityPort> = {}): LocalIdentity
     commitMasqueradeSessionEnds: vi.fn(),
     verifyApplicationSession: vi.fn(async () => session),
     getPrincipalSummaries: vi.fn(async () => []),
-    findPrincipalByFederatedSubject: vi.fn(async () => null),
+    getPrincipalByFederatedSubject: vi.fn(async () => null),
     signOut: vi.fn(async () => ({ setCookies: [] })),
     listSessions: vi.fn(async () => []),
     revokeOwnSession: vi.fn<LocalIdentityPort["revokeOwnSession"]>(async ({ command: value }) => ({

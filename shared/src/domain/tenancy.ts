@@ -8,7 +8,7 @@ import type { ID, ScopedEntity } from "../types/entities";
 // seam (useScopedData) can import it without pulling in the mutation/import machinery.
 
 /** The anchor: does a single, already-located row belong to `accountId`? Every other helper here
- *  is defined in terms of this, and the write-boundary guard (findOwned) and the FK-coherence
+ *  is defined in terms of this, and the write-boundary guard (getOwned) and the FK-coherence
  *  checks (assertScopedRefs) use it directly on one row. */
 export const belongsToAccount = (scopedEntity: ScopedEntity, accountId: ID): boolean =>
   scopedEntity.accountId === accountId;

@@ -13,7 +13,7 @@ import {
 import type { BackupConfig } from "../backup";
 import { formatBackupStartupFailure, startBackups } from "../backup";
 import type { Db } from "../db";
-import { createLastResortErrorHandler, createShutdownHandler, handleListenFailure } from "../shutdown";
+import { createLastResortErrorHandler, createShutdownHandler, shutDownAfterListenFailure } from "../shutdown";
 import type { StartupSignalController } from "../startupSignals";
 import { closeDbSafely, parseAuditMaxMb, refuseToStart } from "./refusals";
 
@@ -168,5 +168,5 @@ export function startServerRuntime(input: ServerRuntimeInput): void {
         `capacitylens-server listening on ${address} (db=${input.dbPath}, reset=${input.applicationOptions.allowReset})`,
       ),
     )
-    .catch((error) => void handleListenFailure(error, shutdown));
+    .catch((error) => void shutDownAfterListenFailure(error, shutdown));
 }

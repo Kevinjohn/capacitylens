@@ -3,7 +3,7 @@ import type * as AuthFacade from "../auth";
 
 type AuthConfigError = typeof AuthFacade.AuthConfigError;
 
-function requireProductionTls(
+function assertProductionTls(
   publicUrl: URL,
   runtimeEnvironment: string | undefined,
   AuthConfigError: AuthConfigError,
@@ -41,6 +41,6 @@ export function parsePublicUrl(
   if (publicUrl.pathname !== "/" && publicUrl.pathname !== "") {
     throw new AuthConfigError("SMALLSASS_ACCOUNT_PUBLIC_URL must be an origin without a path.");
   }
-  requireProductionTls(publicUrl, runtimeEnvironment, AuthConfigError);
+  assertProductionTls(publicUrl, runtimeEnvironment, AuthConfigError);
   return publicUrl;
 }

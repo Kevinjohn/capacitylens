@@ -40,7 +40,7 @@ function identity(summaries: readonly PrincipalSummary[] = []): IdentityPort {
   return {
     verifyApplicationSession: unavailable,
     getPrincipalSummaries: async () => summaries,
-    findPrincipalByFederatedSubject: unavailable,
+    getPrincipalByFederatedSubject: unavailable,
     signOut: unavailable,
     listSessions: unavailable,
     revokeOwnSession: unavailable,

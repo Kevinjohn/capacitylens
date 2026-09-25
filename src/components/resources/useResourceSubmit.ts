@@ -186,7 +186,7 @@ function refreshPendingResource(input: SubmitInput, resource: Resource | undefin
 
 type FlushResult = Awaited<ReturnType<typeof flushPendingWrites>>;
 
-function handleResourceFlushResult(input: SubmitInput, result: FlushResult, submittedAccountId: string | null) {
+function completeResourceSubmit(input: SubmitInput, result: FlushResult, submittedAccountId: string | null) {
   if (!input.mountedRef.current || input.readActiveAccountId() !== submittedAccountId) return;
   if (result.kind === "clean") {
     input.pendingResourceRef.current = undefined;
@@ -205,7 +205,7 @@ function resolveFlushFailureMessage(error: unknown): string {
   return error instanceof BatchReconciliationError ? m.app_persist_error() : resolveErrorMessage(error);
 }
 
-function handleResourceFlushError(input: SubmitInput, error: unknown, submittedAccountId: string | null) {
+function reportResourceFlushError(input: SubmitInput, error: unknown, submittedAccountId: string | null) {
   if (input.mountedRef.current && input.readActiveAccountId() === submittedAccountId) {
     input.fail(null, resolveErrorMessage(error));
   }
@@ -244,8 +244,8 @@ function createSubmit(input: SubmitInput) {
       }
       refreshPendingResource(input, resource, saved?.value);
       void flushPendingWrites()
-        .then((result) => handleResourceFlushResult(input, result, submittedAccountId))
-        .catch((error: unknown) => handleResourceFlushError(input, error, submittedAccountId))
+        .then((result) => completeResourceSubmit(input, result, submittedAccountId))
+        .catch((error: unknown) => reportResourceFlushError(input, error, submittedAccountId))
         .finally(() => finishResourceSubmit(input));
     } catch (e) {
       input.submittingRef.current = false;

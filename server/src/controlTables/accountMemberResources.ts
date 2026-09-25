@@ -174,7 +174,7 @@ export interface AccountMemberResourceMutation {
   changed: boolean;
 }
 
-function requireLinkTargets(input: SetLinkInput): void {
+function assertLinkTargets(input: SetLinkInput): void {
   const member = input.db
     .prepare(`SELECT status FROM account_members WHERE accountId = ? AND userId = ?`)
     .get(input.accountId, input.userId);
@@ -233,7 +233,7 @@ export function setAccountMemberResourceLinkInTransaction(input: SetLinkInput): 
     return { link: { accountId: input.accountId, userId: input.userId, ...current }, changed: false };
   }
   if (current) assertCurrentLinkCanChange(input, current);
-  requireLinkTargets(input);
+  assertLinkTargets(input);
   const revision = newInviteId();
   persistLink(input, revision);
   removeMemberResourceLinkExceptionState(input.db, input.accountId, input.userId);

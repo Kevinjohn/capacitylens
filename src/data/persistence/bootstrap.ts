@@ -24,7 +24,7 @@ interface BootstrapOptions {
   serverMode?: boolean;
 }
 
-function handleLoadFailure(store: StoreApi<StoreState>, error: unknown): () => void {
+function recordLoadFailure(store: StoreApi<StoreState>, error: unknown): () => void {
   store.getState().replaceAll(emptyAppData());
   store.getState().setHydrated(true);
   if (error instanceof LoadError && error.kind === "unavailable") store.getState().setConnectionError(true);
@@ -70,7 +70,7 @@ export async function bootstrap(
     //     local storage would do nothing for a server-backed app that's merely down.
     //   - 'corrupt' (local bytes present but unreadable) or any other throw: the
     //     StorageRecovery reset/import/export screen.
-    return handleLoadFailure(store, error);
+    return recordLoadFailure(store, error);
   }
   // Seed only when nothing was ever stored — never resurrect data the user cleared.
   // hasExisting (e.g. the server's /api/meta) decides ONLY whether to seed. If it throws

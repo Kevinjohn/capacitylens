@@ -85,7 +85,7 @@ function useBarAriaLabel(input: AriaLabelInput) {
   );
 }
 
-function closePopoverOnEscape(event: React.KeyboardEvent, input: Parameters<typeof handleBarKeyDown>[1]) {
+function closePopoverOnEscape(event: React.KeyboardEvent, input: Parameters<typeof applyBarKey>[1]) {
   if (event.key !== "Escape" || !input.popoverOpen || input.dragging) return false;
   event.preventDefault();
   event.stopPropagation();
@@ -93,21 +93,21 @@ function closePopoverOnEscape(event: React.KeyboardEvent, input: Parameters<type
   return true;
 }
 
-function activateBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof handleBarKeyDown>[1]) {
+function activateBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof applyBarKey>[1]) {
   if (event.key !== "Enter" && event.key !== " ") return false;
   event.preventDefault();
   input.onEdit?.(input.bar.allocation.id);
   return true;
 }
 
-function nudgeBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof handleBarKeyDown>[1]) {
+function nudgeBarFromKeyboard(event: React.KeyboardEvent, input: Parameters<typeof applyBarKey>[1]) {
   const isArrow = event.key === "ArrowLeft" || event.key === "ArrowRight";
   if (!isArrow || event.ctrlKey || event.metaKey) return;
   event.preventDefault();
   input.nudge(resolveKeyboardMode(event), event.key === "ArrowRight" ? 1 : -1);
 }
 
-function handleBarPointerDown(
+function startBarGesture(
   event: React.PointerEvent<HTMLDivElement>,
   hidePopover: () => void,
   onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void,
@@ -116,7 +116,7 @@ function handleBarPointerDown(
   onPointerDown(event);
 }
 
-function handleBarKeyDown(
+function applyBarKey(
   event: React.KeyboardEvent,
   input: {
     bar: BarLayout;
@@ -181,10 +181,10 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
   });
   const hidePopover = () => setPopoverOpen(false);
   const beginPointerGesture: PointerEventHandler<HTMLDivElement> | undefined = canEdit
-    ? (event) => handleBarPointerDown(event, hidePopover, gesture.onPointerDown)
+    ? (event) => startBarGesture(event, hidePopover, gesture.onPointerDown)
     : undefined;
-  const handleKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) =>
-    handleBarKeyDown(event, {
+  const applyKey: KeyboardEventHandler<HTMLDivElement> = (event) =>
+    applyBarKey(event, {
       bar,
       canEdit,
       dragging: gesture.dragging,
@@ -213,7 +213,7 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
       translateY={gesture.translateY}
       onBlur={hidePopover}
       onFocus={() => setPopoverOpen(true)}
-      onKeyDown={handleKeyDown}
+      onKeyDown={applyKey}
       onMouseEnter={() => setPopoverOpen(true)}
       onMouseLeave={hidePopover}
       onPointerDown={beginPointerGesture}

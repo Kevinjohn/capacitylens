@@ -39,7 +39,7 @@ const buildSkippedMessage = (
   return skipped === 1 ? messages.one({ count: skipped }) : messages.other({ count: skipped });
 };
 
-const requireAuthoritativeReload = (context: ImportContext, message: string): void => {
+const markReloadRequired = (context: ImportContext, message: string): void => {
   context.transaction.requiresReload = true;
   context.setRequiresReload(true);
   context.setNotice(message, "error");
@@ -56,7 +56,7 @@ const reconcileUnknownOutcome = async (context: ImportContext): Promise<void> =>
   context.transaction.committed = true;
   const outcome = await refreshActiveAccountSlice(context.accountId).catch((): RefreshOutcome => ({ kind: "failed" }));
   if (isStaleView(outcome)) {
-    requireAuthoritativeReload(context, m.data_import_unknown_reload_required());
+    markReloadRequired(context, m.data_import_unknown_reload_required());
     return;
   }
   context.setNotice(m.data_import_unknown_reloaded(), "warning");
@@ -65,13 +65,13 @@ const reconcileUnknownOutcome = async (context: ImportContext): Promise<void> =>
 const reportCommittedImport = async (context: ImportContext, successMessage: string): Promise<void> => {
   const { outcome, errorRaised } = await refreshRespectingNotices(context.accountId);
   if (isStaleView(outcome)) {
-    requireAuthoritativeReload(context, m.data_import_refresh_failed());
+    markReloadRequired(context, m.data_import_refresh_failed());
     return;
   }
   if (!errorRaised) context.setNotice(successMessage);
 };
 
-const handleSuccessfulResponse = async (response: Response, context: ImportContext): Promise<void> => {
+const completeImport = async (response: Response, context: ImportContext): Promise<void> => {
   context.transaction.committed = true;
   const body: unknown = await response.json().catch(() => null);
   const imported = parseCount(isRecord(body) ? body.imported : undefined);
@@ -113,7 +113,7 @@ const runServerImport = async (incoming: AppData, context: ImportContext): Promi
       },
       API_BULK_TIMEOUT_MS,
     );
-    if (response.ok) await handleSuccessfulResponse(response, context);
+    if (response.ok) await completeImport(response, context);
     else if (response.status === 408 || response.status >= 500) await reconcileUnknownOutcome(context);
     else setNotice((await readApiError(response)) ?? m.data_import_failed({ status: response.status }), "error");
   } catch {

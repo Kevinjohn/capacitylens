@@ -72,7 +72,7 @@ async function unusedAsync(): Promise<never> {
 const identity: SsoCutoverIdentityPort = {
   verifyApplicationSession: unusedAsync,
   getPrincipalSummaries: unusedAsync,
-  findPrincipalByFederatedSubject: unusedAsync,
+  getPrincipalByFederatedSubject: unusedAsync,
   signOut: unusedAsync,
   listSessions: unusedAsync,
   revokeOwnSession: unusedAsync,

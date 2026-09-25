@@ -4,7 +4,7 @@ import {
   readOptionalString,
   readRequiredNumber,
   readRequiredString,
-  requireModeledKeys,
+  assertModeledKeys,
   type ActivitySnapshot,
   type AllocationSnapshot,
   type DisciplineSnapshot,
@@ -33,7 +33,7 @@ export function readActivitySnapshots(rows: unknown[]): ActivitySnapshot[] {
   return readProjectBindings(rows, "activity").map((binding, index) => {
     const source = rows[index];
     if (!isRecord(source)) throw new Error("Expected every activity row to be an object.");
-    requireModeledKeys(
+    assertModeledKeys(
       source,
       ["accountId", "createdAt", "id", "kind", "name", "phaseId", "projectId", "updatedAt"],
       "activity row",
@@ -55,7 +55,7 @@ export function readActivitySnapshots(rows: unknown[]): ActivitySnapshot[] {
 export function readDisciplineSnapshots(rows: unknown[]): DisciplineSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every discipline row to be an object.");
-    requireModeledKeys(
+    assertModeledKeys(
       row,
       ["accountId", "color", "createdAt", "id", "name", "sortOrder", "updatedAt"],
       "discipline row",
@@ -83,7 +83,7 @@ export function readFirstDiscipline(disciplines: DisciplineSnapshot[]): Discipli
 export function readPhaseSnapshots(rows: unknown[]): PhaseSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every phase row to be an object.");
-    requireModeledKeys(row, ["accountId", "createdAt", "id", "name", "projectId", "updatedAt"], "phase row");
+    assertModeledKeys(row, ["accountId", "createdAt", "id", "name", "projectId", "updatedAt"], "phase row");
     return {
       accountId: readRequiredString(row, "accountId", "phase row"),
       createdAt: readRequiredString(row, "createdAt", "phase row"),
@@ -114,7 +114,7 @@ export function readActivity(activities: ActivitySnapshot[], id: string): Activi
 }
 
 export function readResourceSnapshot(source: Record<string, unknown>, binding: ProjectBinding): ResourceSnapshot {
-  requireModeledKeys(
+  assertModeledKeys(
     source,
     [
       "accountId",
@@ -172,7 +172,7 @@ export function readResourceSnapshot(source: Record<string, unknown>, binding: P
 export function readAllocationSnapshots(rows: unknown[]): AllocationSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every allocation row to be an object.");
-    requireModeledKeys(
+    assertModeledKeys(
       row,
       [
         "accountId",
@@ -234,7 +234,7 @@ export function readAllocation(allocations: AllocationSnapshot[], id: string): A
 export function readProjectSnapshots(rows: unknown[]): ProjectSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every project row to be an object.");
-    requireModeledKeys(
+    assertModeledKeys(
       row,
       [
         "accountId",

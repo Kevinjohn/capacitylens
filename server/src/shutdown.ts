@@ -18,7 +18,7 @@ export type ShutdownReason =
 
 /** A failed listener is fatal, but it happens after background work may have started. Preserve the
  * ordinary shutdown contract so snapshots drain and SQLite closes before the process exits. */
-export async function handleListenFailure(
+export async function shutDownAfterListenFailure(
   error: unknown,
   shutdown: (exitCode?: number, reason?: ShutdownReason) => Promise<void>,
   logError: (error: unknown) => void = console.error,

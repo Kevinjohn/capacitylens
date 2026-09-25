@@ -251,7 +251,7 @@ export function readOptionalNumberArray(
   return readNumberArray(value, key, context);
 }
 
-export function requireModeledKeys(value: Record<string, unknown>, keys: readonly string[], context: string): void {
+export function assertModeledKeys(value: Record<string, unknown>, keys: readonly string[], context: string): void {
   const unexpectedKey = Object.keys(value).find((key) => !keys.includes(key));
   if (unexpectedKey) throw new Error(`Expected ${context} to omit unexpected key ${unexpectedKey}.`);
 }

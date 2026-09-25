@@ -6,7 +6,7 @@ import {
   readOptionalNumberArray,
   readOptionalString,
   readRequiredString,
-  requireModeledKeys,
+  assertModeledKeys,
   type AccountSnapshot,
   type ClosureSnapshot,
   type ResourceSnapshot,
@@ -41,7 +41,7 @@ export function addAccountWorkflowOptions(snapshot: AccountSnapshot, row: Record
 }
 
 export function readAccountSnapshot(row: Record<string, unknown>): AccountSnapshot {
-  requireModeledKeys(
+  assertModeledKeys(
     row,
     [
       "color",
@@ -114,7 +114,7 @@ export function readAccount(accounts: AccountSnapshot[], id: string): AccountSna
 export function readClosureSnapshots(rows: unknown[]): ClosureSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every closure row to be an object.");
-    requireModeledKeys(
+    assertModeledKeys(
       row,
       ["accountId", "createdAt", "endDate", "id", "name", "startDate", "updatedAt"],
       "closure row",
@@ -134,7 +134,7 @@ export function readClosureSnapshots(rows: unknown[]): ClosureSnapshot[] {
 export function readTimeOffSnapshots(rows: unknown[]): TimeOffSnapshot[] {
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("Expected every time-off row to be an object.");
-    requireModeledKeys(
+    assertModeledKeys(
       row,
       ["accountId", "createdAt", "endDate", "id", "note", "resourceId", "startDate", "type", "updatedAt"],
       "time-off row",

@@ -1,5 +1,5 @@
 import type { StoreApi } from "zustand";
-import { assertAllocationRefs, findOwned as findOwnedIn } from "@capacitylens/shared/domain/mutations";
+import { assertAllocationRefs, getOwned as findOwnedIn } from "@capacitylens/shared/domain/mutations";
 import { m } from "@/i18n";
 import { isBuiltinClient } from "@capacitylens/shared/data/internalClient";
 import { NEUTRAL_COLOR, snapToPresetColor } from "@capacitylens/shared/lib/color";
@@ -73,7 +73,7 @@ interface BuildGuardsInput {
 
 function buildGuards({ get, requireAccount, blockedByViewer }: BuildGuardsInput) {
   // Tenancy + integrity rules now live in src/domain/mutations.ts (pure, shared
-  // with a future server). findOwned is wrapped here to inject the active account
+  // with a future server). getOwned is wrapped here to inject the active account
   // so the call sites stay terse; assertAllocation keeps its legacy name locally.
   // assertScopedRefs / assertDateRange / assertResourceExists are used directly
   // from the import above.

@@ -44,7 +44,7 @@ export function createTrustedLocalIdentityPort(principal: LocalPrincipal): Local
         ? [{ id: principal.id, displayName: principal.displayName, email: principal.email }]
         : [];
     },
-    async findPrincipalByFederatedSubject() {
+    async getPrincipalByFederatedSubject() {
       return null;
     },
     async signOut() {

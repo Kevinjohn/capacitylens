@@ -3,7 +3,7 @@ import type { AppData, ID } from "../types/entities";
 import { belongsToAccount } from "./tenancy";
 
 export type { ValidationDataLookup } from "./validationLookup";
-export { findOwned, assertScopedRefs, assertAllocationRefs } from "./assertions/refs";
+export { getOwned, assertScopedRefs, assertAllocationRefs } from "./assertions/refs";
 export {
   assertResourceKindAllowsDependents,
   assertResourceProjectAllowsDependents,
