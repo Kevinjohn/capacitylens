@@ -49,6 +49,8 @@ that address only when the original and new identities have proven mailbox owner
 verified company sign-in or a completed mailbox ceremony. An addressed invitation or an older
 "email verified" flag alone does not establish that link. Owners and Admins can still manage the
 original restriction from the inactive member list.
+An established Microsoft sign-in keeps its stable provider identity, but a returning sign-in alone
+does not add mailbox proof to an older identity that lacks it.
 
 Remove deletes the membership; they need another invitation to return.
 

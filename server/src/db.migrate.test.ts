@@ -38,6 +38,7 @@ import {
 } from "./auth";
 import { TABLES } from "./tables";
 import { runAccountDateStyleV40 } from "./db/migrations/definitions";
+import { ensureMicrosoftProofGate } from "./authConfig/microsoftProofGate";
 import {
   assertMigrationValuesPreserved,
   captureMigrationValues,
@@ -173,7 +174,7 @@ const V47_MIGRATION = {
 const V48_MIGRATION = {
   version: 48,
   name: "record-identity-email-proof",
-  checksum: "0230da00d5340d2d3e4d65371e6123b2a259ec9ea4d5868308940869e7d8807b",
+  checksum: "530f6689c704800abcd0a38a115154dc398a20b3012ee7a2f852c959c22c4938",
 } as const;
 
 describe("v47 company access restriction upgrade", () => {
@@ -225,6 +226,40 @@ describe("v47 company access restriction upgrade", () => {
     ).toBeUndefined();
     db.close();
   });
+});
+
+it("replaces the installed v46 Microsoft completion trigger during the v48 upgrade", () => {
+  const db = openDb(":memory:");
+  try {
+    db.exec(`CREATE TABLE account (id TEXT PRIMARY KEY, providerId TEXT, accountId TEXT, userId TEXT);
+      DROP TABLE identity_email_proofs;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 48;
+      PRAGMA user_version = 47;
+      CREATE TRIGGER capacitylens_microsoft_account_proof_after
+      AFTER INSERT ON account WHEN NEW.providerId = 'microsoft' BEGIN
+        UPDATE microsoft_identity_proofs SET state = 'completed'
+        WHERE id = capacitylens_current_microsoft_proof_id();
+      END;`);
+    initializeOpenDb(db, ":memory:");
+    expect(
+      db
+        .prepare(
+          `SELECT sql FROM sqlite_master WHERE type = 'trigger'
+      AND name = 'capacitylens_microsoft_account_proof_after'`,
+        )
+        .get(),
+    ).toBeUndefined();
+    ensureMicrosoftProofGate(db, "test-application");
+    const trigger = db
+      .prepare(
+        `SELECT sql FROM sqlite_master WHERE type = 'trigger'
+      AND name = 'capacitylens_microsoft_account_proof_after'`,
+      )
+      .get() as { sql: string };
+    expect(trigger.sql).toContain("INSERT INTO identity_email_proofs");
+  } finally {
+    db.close();
+  }
 });
 // Synthetic historical databases must not retain the new operational proof table or its runtime gates.
 const MICROSOFT_PROOF_ROLLBACK_SQL = `

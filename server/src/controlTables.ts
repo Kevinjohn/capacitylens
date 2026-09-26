@@ -84,6 +84,7 @@ export type { AccountMember, MembershipStatus } from "./controlTables/members.mo
 export {
   disableAccess,
   captureRestrictionEmail,
+  invalidateRestrictedPrincipal,
   provenEmail,
   enableAccess,
   getAccessRestriction,

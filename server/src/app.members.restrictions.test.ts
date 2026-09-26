@@ -313,6 +313,33 @@ describe("durable company access restriction", () => {
     expect(storedStatus(db, "a1", ed.userId)).toBe("archived");
     expect(isAccessRestricted(db, "a1", ed.userId)).toBe(false);
   });
+  it("leaves no admission window when Disable races an invitation claim", async () => {
+    const { app, db, owner, ed } = await ownerAndEditor("claim-race");
+    const created = await call(app, {
+      method: "POST",
+      url: "/api/invites",
+      payload: { accountId: "a1", role: "viewer" },
+      headers: { cookie: owner.cookie },
+    });
+    const token = (created.json() as { token: string }).token;
+    const [disabled, claimed] = await Promise.all([
+      patchStatusReq({
+        app,
+        accountId: "a1",
+        userId: ed.userId,
+        status: "disabled",
+        headers: { cookie: owner.cookie },
+      }),
+      call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }),
+    ]);
+    expect(disabled.statusCode).toBe(200);
+    expect([200, 403]).toContain(claimed.statusCode);
+    expect(getInvite(db, token)?.usedAt === null).toBe(claimed.statusCode === 403);
+    expect(isAccessRestricted(db, "a1", ed.userId)).toBe(true);
+    expect(
+      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
+    ).toBe(403);
+  });
 });
 
 describe("membership restore and directory", () => {

@@ -7,6 +7,7 @@ import {
   getActiveMemberRole,
   getMembershipRow,
   isAccessRestricted,
+  invalidateRestrictedPrincipal,
   listMembersForAccount,
   listMembershipsForUser,
   provenEmail,
@@ -122,6 +123,8 @@ function createStatusChange({
           action: nextStatus === "disabled" ? "member.access_disabled" : "member.status_changed",
           changedFields: [nextStatus === "disabled" ? "accessRestriction" : "status"],
         },
+        // The write and all newly restricted aliases share one transaction and audit boundary.
+        // eslint-disable-next-line max-lines-per-function
         execute: () => {
           assertAdministrativeAssurance({
             actor,
@@ -136,7 +139,7 @@ function createStatusChange({
           if (!target) throw createAccountFailure("NOT_FOUND", "Not a member of this workspace.", command.commandId);
           if (!canChangeMemberStatus(acting, target.role, targetPrincipalId === actor.principalId))
             throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
-          // "unchanged" is success: the requested state already holds and no reset link is burned.
+          // Repeat Disable can widen a principal-only restriction after fresh mailbox proof.
           if (nextStatus === "disabled") {
             const targetEmail = provenEmail(db, targetPrincipalId);
             const matched =
@@ -147,20 +150,27 @@ function createStatusChange({
                   );
             if (matched.some((member) => member.userId === actor.principalId || member.role === "owner"))
               throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
+            const newlyAffected = [...new Set([targetPrincipalId, ...matched.map((member) => member.userId)])].filter(
+              (principalId) => !isAccessRestricted(db, workspaceId, principalId),
+            );
             if (!getAccessRestriction(db, workspaceId, targetPrincipalId)) {
-              const invalidatedTransferIds = disableAccess(db, {
+              disableAccess(db, {
                 accountId: workspaceId,
                 principalId: targetPrincipalId,
                 role: target.role,
               });
+            } else {
+              captureRestrictionEmail(db, workspaceId, targetPrincipalId);
+            }
+            for (const principalId of newlyAffected) {
+              if (!isAccessRestricted(db, workspaceId, principalId)) continue;
+              const invalidatedTransferIds = invalidateRestrictedPrincipal(db, workspaceId, principalId);
               writeInvalidatedTransferAudits(audit, invalidatedTransferIds, {
                 actorPrincipalId: actor.principalId,
-                targetPrincipalId,
+                targetPrincipalId: principalId,
                 workspaceId,
                 command,
               });
-            } else {
-              captureRestrictionEmail(db, workspaceId, targetPrincipalId);
             }
             return { ...readMembership(db, target), accessDisabled: true };
           }

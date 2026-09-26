@@ -59,13 +59,17 @@ export function isAccessRestricted(db: Db, accountId: string, principalId: strin
 }
 
 /** Keep restrictions independent of membership deletion and identity erasure. Caller owns the write transaction. */
-export function disableAccess(db: Db, input: { accountId: string; principalId: string; role: Role }): string[] {
+export function disableAccess(db: Db, input: { accountId: string; principalId: string; role: Role }): void {
   const { accountId, principalId, role } = input;
   const email = provenEmail(db, principalId);
   db.prepare(
     `INSERT INTO account_access_restrictions (accountId, principalId, verifiedEmail, role, createdAt)
     VALUES (?, ?, ?, ?, ?) ON CONFLICT(accountId, principalId) DO NOTHING`,
   ).run(accountId, principalId, email, role, new Date().toISOString());
+}
+
+/** A new effective denial invalidates this principal's live administrative state in the company. */
+export function invalidateRestrictedPrincipal(db: Db, accountId: string, principalId: string): string[] {
   revokeResetTokensForUser(db, principalId);
   bumpSecurityRevision(db, principalId);
   return terminaliseLiveRequestsForMember({

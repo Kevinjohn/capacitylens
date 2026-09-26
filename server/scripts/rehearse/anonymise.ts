@@ -114,6 +114,27 @@ function updateFederatedObservations(db: DatabaseSync, hasProviderCoordinates: b
     )`);
 }
 
+function uniqueUserAliasFor(addressAliases: ReadonlyMap<string, string>): (value: string) => string | null {
+  const usedVariants = new Map<string, number>();
+  return (value) => {
+    const normalized = value.trim().toLowerCase();
+    const base = addressAliases.get(normalized);
+    if (!base) return null;
+    let variant = usedVariants.get(normalized) ?? 0;
+    usedVariants.set(normalized, variant + 1);
+    const result = [...base]
+      .map((character) => {
+        if (!/[a-z]/.test(character)) return character;
+        const upper = variant % 2 === 1;
+        variant = Math.floor(variant / 2);
+        return upper ? character.toUpperCase() : character;
+      })
+      .join("");
+    if (variant !== 0) throw new Error("Too many equivalent rehearsal email addresses.");
+    return result;
+  };
+}
+
 // One pass must share aliases across retained restrictions, recreated identities, and proof rows.
 // eslint-disable-next-line complexity
 function anonymiseProofAddresses(db: DatabaseSync): void {
@@ -146,11 +167,12 @@ function anonymiseProofAddresses(db: DatabaseSync): void {
     if (!mapped) throw new Error("Missing rehearsal email alias.");
     return mapped;
   };
+  const uniqueUserAlias = uniqueUserAliasFor(addressAliases);
   if (hasTable(db, "user") && readColumnNames(db, "user").has("email")) {
     const users = db.prepare("SELECT rowid AS rowId, email FROM user").all() as Array<{ rowId: number; email: string }>;
     const updateUser = db.prepare("UPDATE user SET email = ? WHERE rowid = ?");
     for (const user of users) {
-      const address = addressAliases.get(user.email.trim().toLowerCase());
+      const address = uniqueUserAlias(user.email);
       updateUser.run(address ?? `rehearsal-user-${user.rowId}@example.invalid`, user.rowId);
     }
   }
