@@ -14,6 +14,13 @@ describe("LoginScreen provider brands", () => {
   const google = { id: "google", label: "Google", kind: "social", experimental: false } as const;
   const microsoft = { id: "microsoft", label: "Microsoft", kind: "social", experimental: false } as const;
 
+  it("hides retained provider buttons in password-only mode", () => {
+    render(<LoginScreen authMode="password-only" providers={[google]} onSignedIn={vi.fn()} />);
+
+    expect(screen.getByLabelText("Email")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
+  });
+
   it("puts Google before the password fallback", () => {
     render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });

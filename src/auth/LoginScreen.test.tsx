@@ -127,13 +127,6 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   const google = { id: "google", label: "Google", kind: "social", experimental: true } as const;
   const github = { id: "github", label: "GitHub", kind: "social", experimental: true } as const;
 
-  it("hides retained provider buttons in password-only mode", () => {
-    render(<LoginScreen authMode="password-only" providers={[google]} onSignedIn={vi.fn()} />);
-
-    expect(screen.getByLabelText("Email")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sign in with Google" })).not.toBeInTheDocument();
-  });
-
   it("puts Google before the password fallback with explicit wording", () => {
     render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
