@@ -239,7 +239,7 @@ it("requires explicit linking for a matching password identity, then returns as 
 });
 
 it("rolls back proof and provider linking when a new verified alias would restrict an Owner", async () => {
-  const fixture = await configured("password");
+  const fixture = await configured("password-and-sso");
   const local = await signUp(fixture.app, ownerEmail);
   fixture.db.prepare("UPDATE user SET emailVerified = 1 WHERE id = ?").run(local.userId);
   insertRow(fixture.db, "accounts", {

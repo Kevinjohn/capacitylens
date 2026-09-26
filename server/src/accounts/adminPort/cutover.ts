@@ -123,6 +123,7 @@ function createCutoverAdministration(
       const principalIds = [...new Set(listMembersForAccount(db, workspaceId).map((row) => row.userId))];
       removeAllMembersForAccount(db, workspaceId);
       db.prepare(`DELETE FROM account_access_restrictions WHERE accountId = ?`).run(workspaceId);
+      db.prepare(`DELETE FROM account_joining_policies WHERE accountId = ?`).run(workspaceId);
       removeAllInvitesForAccount(db, workspaceId);
       return principalIds.filter(
         (principalId) =>
