@@ -176,6 +176,10 @@ function correctPrincipalEmailInTx(
     .prepare(`UPDATE user SET email = ?, emailVerified = 1, updatedAt = ? WHERE id = ?`)
     .run(email, Date.now(), principalId);
   if (changed.changes !== 1) throw identityNotFoundError();
+  db.prepare(`DELETE FROM identity_email_proofs WHERE principalId = ? AND email <> lower(trim(?))`).run(
+    principalId,
+    email,
+  );
   // Email correction is transactional: a proven address must not make an active Owner subject
   // to a retained company restriction and leave the company ownerless.
   const owner = db
@@ -183,9 +187,12 @@ function correctPrincipalEmailInTx(
       `SELECT 1 FROM account_members AS member
     JOIN account_access_restrictions AS restriction ON restriction.accountId = member.accountId
     WHERE member.userId = ? AND member.role = 'owner' AND member.status = 'active'
-      AND (restriction.principalId = ? OR restriction.verifiedEmail = lower(trim(?))) LIMIT 1`,
+      AND (restriction.principalId = ? OR (
+        restriction.verifiedEmail = lower(trim(?))
+        AND EXISTS (SELECT 1 FROM identity_email_proofs AS proof
+          WHERE proof.principalId = member.userId AND proof.email = lower(trim(?))))) LIMIT 1`,
     )
-    .get(principalId, principalId, email);
+    .get(principalId, principalId, email, email);
   if (owner) throw identityAlreadyExistsError();
   revokeResetTokensForUser(db, principalId);
   revokeFederatedLinkStateInTx(db, principalId);

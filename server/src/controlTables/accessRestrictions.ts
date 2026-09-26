@@ -1,5 +1,4 @@
 import type { Role } from "@capacitylens/shared/account/types";
-import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
 import { bumpSecurityRevision } from "../accounts/state";
 import { revokeResetTokensForUser } from "../auth";
@@ -13,11 +12,16 @@ export interface AccessRestriction {
   createdAt: string;
 }
 
-function provenEmail(db: Db, principalId: string): string | null {
+export function provenEmail(db: Db, principalId: string): string | null {
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user'").get()) return null;
-  const user = db.prepare("SELECT email, emailVerified FROM user WHERE id = ?").get(principalId) as
-    { email: string; emailVerified: number } | undefined;
-  return user?.emailVerified === 1 ? normalizeAccountEmail(user.email) : null;
+  const row = db
+    .prepare(
+      `SELECT proof.email FROM identity_email_proofs AS proof
+    JOIN user AS principal ON principal.id = proof.principalId
+    WHERE proof.principalId = ? AND proof.email = lower(trim(principal.email))`,
+    )
+    .get(principalId) as { email: string } | undefined;
+  return row?.email ?? null;
 }
 
 export function listAccessRestrictions(db: Db, accountId: string): AccessRestriction[] {
@@ -55,7 +59,7 @@ export function isAccessRestricted(db: Db, accountId: string, principalId: strin
 }
 
 /** Keep restrictions independent of membership deletion and identity erasure. Caller owns the write transaction. */
-export function disableAccess(db: Db, input: { accountId: string; principalId: string; role: Role }): void {
+export function disableAccess(db: Db, input: { accountId: string; principalId: string; role: Role }): string[] {
   const { accountId, principalId, role } = input;
   const email = provenEmail(db, principalId);
   db.prepare(
@@ -64,13 +68,23 @@ export function disableAccess(db: Db, input: { accountId: string; principalId: s
   ).run(accountId, principalId, email, role, new Date().toISOString());
   revokeResetTokensForUser(db, principalId);
   bumpSecurityRevision(db, principalId);
-  terminaliseLiveRequestsForMember({
+  return terminaliseLiveRequestsForMember({
     db,
     accountId,
     userId: principalId,
     reason: "participant_membership_changed",
     now: new Date().toISOString(),
   });
+}
+
+/** An explicit repeat Disable may add newly established proof after the caller's alias guards. */
+export function captureRestrictionEmail(db: Db, accountId: string, principalId: string): void {
+  const email = provenEmail(db, principalId);
+  if (email === null) return;
+  db.prepare(
+    `UPDATE account_access_restrictions SET verifiedEmail = ?
+    WHERE accountId = ? AND principalId = ? AND verifiedEmail IS NULL`,
+  ).run(email, accountId, principalId);
 }
 
 export function enableAccess(db: Db, accountId: string, principalId: string): boolean {

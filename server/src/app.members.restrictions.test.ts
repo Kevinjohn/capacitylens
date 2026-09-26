@@ -171,6 +171,10 @@ describe("durable company access restriction", () => {
     const { app, db, owner, ed } = await ownerAndEditor("recreated-restriction");
     const address = "editor-recreated-restriction@capacitylens.dev";
     db.prepare("UPDATE user SET emailVerified = 1 WHERE id = ?").run(ed.userId);
+    db.prepare(
+      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+      VALUES (?, ?, 'google', ?)`,
+    ).run(ed.userId, address, TS);
     expect(
       (
         await patchStatusReq({
@@ -194,6 +198,10 @@ describe("durable company access restriction", () => {
     db.prepare("UPDATE user SET email = ? WHERE id = ?").run("former-editor@capacitylens.dev", ed.userId);
     const recreated = await signUp(app, address);
     db.prepare("UPDATE user SET emailVerified = 1 WHERE id = ?").run(recreated.userId);
+    db.prepare(
+      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+      VALUES (?, ?, 'google', ?)`,
+    ).run(recreated.userId, address, TS);
     const created = await call(app, {
       method: "POST",
       url: "/api/invites",
@@ -208,6 +216,102 @@ describe("durable company access restriction", () => {
     ).toBe(403);
     expect(getMemberRole(db, "a1", recreated.userId)).toBeNull();
     expect(getInvite(db, token)?.usedAt).toBeNull();
+  });
+  it("does not treat a legacy verified flag or addressed password invitation as mailbox proof", async () => {
+    const { app, db, owner, ed } = await ownerAndEditor("flag-only");
+    const address = "editor-flag-only@capacitylens.dev";
+    db.prepare("UPDATE user SET emailVerified = 1 WHERE id = ?").run(ed.userId);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          status: "disabled",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const restriction = db
+      .prepare(
+        `SELECT verifiedEmail FROM account_access_restrictions
+      WHERE accountId = 'a1' AND principalId = ?`,
+      )
+      .get(ed.userId);
+    expect(restriction).toEqual({ verifiedEmail: null });
+    db.prepare("UPDATE user SET email = ? WHERE id = ?").run("former-flag-only@capacitylens.dev", ed.userId);
+    const recreated = await signUp(app, address);
+    db.prepare("UPDATE user SET emailVerified = 1 WHERE id = ?").run(recreated.userId);
+    expect(isAccessRestricted(db, "a1", recreated.userId)).toBe(false);
+  });
+  it("keeps access denied while another restriction still matches the proven address", async () => {
+    const { app, db, owner, ed } = await ownerAndEditor("overlap");
+    const address = "editor-overlap@capacitylens.dev";
+    db.prepare(
+      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+      VALUES (?, ?, 'google', ?)`,
+    ).run(ed.userId, address, TS);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          status: "disabled",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
+    db.prepare("UPDATE user SET email = ? WHERE id = ?").run("former-overlap@capacitylens.dev", ed.userId);
+    const replacement = await signUp(app, address);
+    upsertMember(db, { accountId: "a1", userId: replacement.userId, role: "editor", status: "active", createdAt: TS });
+    db.prepare(
+      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+      VALUES (?, ?, 'google', ?)`,
+    ).run(replacement.userId, address, TS);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: replacement.userId,
+          status: "disabled",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
+    const enabled = await enableAccessReq(app, "a1", replacement.userId, owner.cookie);
+    expect(enabled.statusCode).toBe(200);
+    expect((enabled.json() as { accessDisabled: boolean }).accessDisabled).toBe(true);
+    expect(isAccessRestricted(db, "a1", replacement.userId)).toBe(true);
+  });
+  it("enables an archived restriction without restoring membership", async () => {
+    const { app, db, owner, ed } = await ownerAndEditor("archived-enable");
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          status: "disabled",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(
+      (
+        await patchStatusReq({
+          app,
+          accountId: "a1",
+          userId: ed.userId,
+          status: "archived",
+          headers: { cookie: owner.cookie },
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect((await enableAccessReq(app, "a1", ed.userId, owner.cookie)).statusCode).toBe(200);
+    expect(storedStatus(db, "a1", ed.userId)).toBe("archived");
+    expect(isAccessRestricted(db, "a1", ed.userId)).toBe(false);
   });
 });
 

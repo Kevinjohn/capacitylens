@@ -83,6 +83,8 @@ export type { Invite } from "./controlTables/invites";
 export type { AccountMember, MembershipStatus } from "./controlTables/members.model";
 export {
   disableAccess,
+  captureRestrictionEmail,
+  provenEmail,
   enableAccess,
   getAccessRestriction,
   isAccessRestricted,

@@ -114,7 +114,62 @@ function updateFederatedObservations(db: DatabaseSync, hasProviderCoordinates: b
     )`);
 }
 
+// One pass must share aliases across retained restrictions, recreated identities, and proof rows.
+// eslint-disable-next-line complexity
+function anonymiseProofAddresses(db: DatabaseSync): void {
+  const restrictions = hasTable(db, "account_access_restrictions")
+    ? (db
+        .prepare(
+          `SELECT rowid AS rowId, verifiedEmail FROM account_access_restrictions
+        WHERE verifiedEmail IS NOT NULL ORDER BY rowid`,
+        )
+        .all() as Array<{ rowId: number; verifiedEmail: string }>)
+    : [];
+  const proofs = hasTable(db, "identity_email_proofs")
+    ? (db.prepare(`SELECT rowid AS rowId, email FROM identity_email_proofs ORDER BY rowid`).all() as Array<{
+        rowId: number;
+        email: string;
+      }>)
+    : [];
+  const addressAliases = new Map<string, string>();
+  for (const [index, value] of [
+    ...restrictions.map((row) => row.verifiedEmail),
+    ...proofs.map((row) => row.email),
+  ].entries()) {
+    const normalized = value.trim().toLowerCase();
+    if (!addressAliases.has(normalized)) {
+      addressAliases.set(normalized, `rehearsal-proof-${index + 1}@example.invalid`);
+    }
+  }
+  const alias = (value: string): string => {
+    const mapped = addressAliases.get(value.trim().toLowerCase());
+    if (!mapped) throw new Error("Missing rehearsal email alias.");
+    return mapped;
+  };
+  if (hasTable(db, "user") && readColumnNames(db, "user").has("email")) {
+    const users = db.prepare("SELECT rowid AS rowId, email FROM user").all() as Array<{ rowId: number; email: string }>;
+    const updateUser = db.prepare("UPDATE user SET email = ? WHERE rowid = ?");
+    for (const user of users) {
+      const address = addressAliases.get(user.email.trim().toLowerCase());
+      updateUser.run(address ?? `rehearsal-user-${user.rowId}@example.invalid`, user.rowId);
+    }
+  }
+  if (restrictions.length > 0) {
+    const updateRestriction = db.prepare("UPDATE account_access_restrictions SET verifiedEmail = ? WHERE rowid = ?");
+    for (const restriction of restrictions) {
+      updateRestriction.run(alias(restriction.verifiedEmail), restriction.rowId);
+    }
+  }
+  if (proofs.length > 0) {
+    const updateProof = db.prepare("UPDATE identity_email_proofs SET email = ? WHERE rowid = ?");
+    for (const proof of proofs) updateProof.run(alias(proof.email), proof.rowId);
+  }
+}
+
 function anonymiseIdentityData(db: DatabaseSync, hasProviderCoordinates: boolean): void {
+  // Build one alias per original proven address before redacting either side. A recreated
+  // principal may hold the restricted address while the original principal has since changed it.
+  anonymiseProofAddresses(db);
   const secrets = ["accessToken", "refreshToken", "idToken", "password"].map((column) => ({
     table: "account",
     column,
@@ -122,14 +177,6 @@ function anonymiseIdentityData(db: DatabaseSync, hasProviderCoordinates: boolean
   }));
   applyRedactions(db, [
     { table: "user", column: "name", expression: `'Rehearsal User ' || rowid` },
-    { table: "user", column: "email", expression: `'rehearsal-user-' || rowid || '@example.invalid'` },
-    {
-      table: "account_access_restrictions",
-      column: "verifiedEmail",
-      expression: `CASE WHEN verifiedEmail IS NULL THEN NULL ELSE COALESCE(
-        (SELECT email FROM user WHERE id = account_access_restrictions.principalId),
-        'rehearsal-restriction-' || rowid || '@example.invalid') END`,
-    },
     { table: "user", column: "image", expression: "NULL" },
     { table: "account", column: "accountId", expression: `'rehearsal-provider-account-' || rowid` },
     ...secrets,

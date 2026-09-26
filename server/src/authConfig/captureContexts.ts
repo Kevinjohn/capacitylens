@@ -20,6 +20,13 @@ export const microsoftCallbackCapture = new AsyncLocalStorage<{
   pending: boolean;
 }>();
 
+/** Verified Google profile facts exist only during the callback that received them. */
+export const googleCallbackCapture = new AsyncLocalStorage<{
+  active: boolean;
+  subject: string | null;
+  email: string | null;
+}>();
+
 function isObject(value: unknown): value is object {
   return typeof value === "object" && value !== null;
 }

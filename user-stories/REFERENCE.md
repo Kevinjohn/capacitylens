@@ -9,8 +9,10 @@ member's actions there to link, change, or remove an eligible person Resource; t
 does not provide a separate team-link workflow.
 
 **Disable Access** is a company restriction separate from archiving or removing membership. It
-denies current requests and later invitations, including after a verified-email identity is
-recreated. **Enable Access** clears the restriction; a removed or archived person still needs the
+denies current requests and later invitations. It also follows a recreated identity at the same
+address when both identities have durable mailbox proof from a verified provider sign-in or a
+completed mailbox ceremony; a legacy email-verified flag or addressed invitation is not proof.
+**Enable Access** clears the restriction; a removed or archived person still needs the
 ordinary invitation or restore path. Removed restrictions remain visible to administrators in
 the inactive member directory. Owner and self protections apply to both actions.
 

@@ -349,7 +349,7 @@ export async function enableMemberAccess(req: FastifyRequest, reply: FastifyRepl
         changedFields: ["accessRestriction"],
       },
     });
-    return reply.code(200).send({ userId, accessDisabled: false });
+    return reply.code(200).send({ userId, accessDisabled: changed.accessDisabled === true });
   } catch (error) {
     return context.fail(reply, error);
   }

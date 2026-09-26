@@ -1,6 +1,7 @@
 import { canChangeMemberStatus, canManageMemberRole, canRemoveMember } from "@capacitylens/shared/account/policy";
 import {
   disableAccess,
+  captureRestrictionEmail,
   enableAccess,
   getAccessRestriction,
   getActiveMemberRole,
@@ -8,6 +9,7 @@ import {
   isAccessRestricted,
   listMembersForAccount,
   listMembershipsForUser,
+  provenEmail,
   removeMember as removeMemberRow,
   setMemberStatus,
   upsertMember,
@@ -105,6 +107,8 @@ function createStatusChange({
   audit,
 }: MembershipContext): Pick<MembershipPort, "changeMemberStatus" | "enableMemberAccess"> {
   return {
+    // The transaction keeps authority, alias checks, restriction, and audit writes together.
+    // eslint-disable-next-line max-lines-per-function
     async changeMemberStatus({ actor, workspaceId, targetPrincipalId, nextStatus, command }) {
       return runMutation({
         operation: "change-member-status",
@@ -134,19 +138,30 @@ function createStatusChange({
             throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
           // "unchanged" is success: the requested state already holds and no reset link is burned.
           if (nextStatus === "disabled") {
-            const matched = db
-              .prepare(
-                `SELECT member.userId, member.role FROM account_members AS member
-              JOIN user AS targetUser ON targetUser.id = ?
-              JOIN user AS matchedUser ON matchedUser.id = member.userId
-              WHERE member.accountId = ? AND targetUser.emailVerified = 1 AND matchedUser.emailVerified = 1
-                AND lower(trim(targetUser.email)) = lower(trim(matchedUser.email))`,
-              )
-              .all(targetPrincipalId, workspaceId) as Array<{ userId: string; role: string }>;
+            const targetEmail = provenEmail(db, targetPrincipalId);
+            const matched =
+              targetEmail === null
+                ? []
+                : listMembersForAccount(db, workspaceId).filter(
+                    (member) => provenEmail(db, member.userId) === targetEmail,
+                  );
             if (matched.some((member) => member.userId === actor.principalId || member.role === "owner"))
               throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
-            if (!getAccessRestriction(db, workspaceId, targetPrincipalId))
-              disableAccess(db, { accountId: workspaceId, principalId: targetPrincipalId, role: target.role });
+            if (!getAccessRestriction(db, workspaceId, targetPrincipalId)) {
+              const invalidatedTransferIds = disableAccess(db, {
+                accountId: workspaceId,
+                principalId: targetPrincipalId,
+                role: target.role,
+              });
+              writeInvalidatedTransferAudits(audit, invalidatedTransferIds, {
+                actorPrincipalId: actor.principalId,
+                targetPrincipalId,
+                workspaceId,
+                command,
+              });
+            } else {
+              captureRestrictionEmail(db, workspaceId, targetPrincipalId);
+            }
             return { ...readMembership(db, target), accessDisabled: true };
           }
           const result = setMemberStatus({ db, accountId: workspaceId, userId: targetPrincipalId, status: nextStatus });
@@ -194,9 +209,7 @@ function createStatusChange({
           const matchingMembers = listMembersForAccount(db, workspaceId).filter((member) => {
             if (member.userId === targetPrincipalId) return true;
             if (restriction.verifiedEmail === null) return false;
-            const principal = db.prepare(`SELECT email, emailVerified FROM user WHERE id = ?`).get(member.userId) as
-              { email: string; emailVerified: number } | undefined;
-            return principal?.emailVerified === 1 && principal.email.trim().toLowerCase() === restriction.verifiedEmail;
+            return provenEmail(db, member.userId) === restriction.verifiedEmail;
           });
           if (
             matchingMembers.some(
@@ -205,14 +218,15 @@ function createStatusChange({
           )
             throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
           enableAccess(db, workspaceId, targetPrincipalId);
+          const accessDisabled = isAccessRestricted(db, workspaceId, targetPrincipalId);
           return target
-            ? { ...readMembership(db, target), accessDisabled: false }
+            ? { ...readMembership(db, target), accessDisabled }
             : {
                 workspaceId,
                 principalId: targetPrincipalId,
                 role: targetRole,
                 status: "disabled" as const,
-                accessDisabled: false,
+                accessDisabled,
                 membershipPresent: false,
                 joinedAt: restriction.createdAt,
                 membershipRevision: "0",

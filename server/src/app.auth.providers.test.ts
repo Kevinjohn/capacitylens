@@ -273,7 +273,12 @@ describe("social providers (P1.7)", () => {
     let providerName = "Bruce Wayne";
     google.verifyIdToken = async () => true;
     google.getUserInfo = async () => {
-      const mapped = await mapProfileToUser({ sub: "google-subject-1", picture } as never);
+      const mapped = await mapProfileToUser({
+        sub: "google-subject-1",
+        email: providerEmail,
+        email_verified: true,
+        picture,
+      } as never);
       return {
         user: {
           name: providerName,
@@ -341,6 +346,7 @@ describe("social providers (P1.7)", () => {
       });
     };
     let principalId: string | null = null;
+    let proofExpected = false;
     for (const [claim, expected, assertedEmail] of [
       ["https://images.example/a.png", "https://images.example/a.png", "bruce@wayne.test"],
       ["https://images.example/b.png", "https://images.example/b.png", "changed@wayne.test"],
@@ -352,13 +358,23 @@ describe("social providers (P1.7)", () => {
       picture = claim;
       providerEmail = assertedEmail;
       providerName = assertedEmail === "bruce@wayne.test" ? "Bruce Wayne" : "Provider Renamed Bruce";
+      if (assertedEmail === "changed@wayne.test") {
+        // A subject can return after its earlier proof was erased; email drift must not
+        // manufacture fresh proof for the local address.
+        db.prepare("DELETE FROM identity_email_proofs WHERE principalId = ?").run(principalId);
+        proofExpected = false;
+      }
       expect((await signIn()).statusCode).toBe(302);
+      if (assertedEmail === "bruce@wayne.test") proofExpected = true;
       principalId ??= (db.prepare(`SELECT id FROM user WHERE email = 'bruce@wayne.test'`).get() as { id: string }).id;
       expect(db.prepare(`SELECT email, name, image FROM user WHERE id = ?`).get(principalId)).toEqual({
         email: "bruce@wayne.test",
         name: "Bruce Wayne",
         image: expected,
       });
+      expect(
+        db.prepare(`SELECT email, source FROM identity_email_proofs WHERE principalId = ?`).get(principalId),
+      ).toEqual(proofExpected ? { email: "bruce@wayne.test", source: "google" } : undefined);
       expect(db.prepare(`SELECT email, name, image FROM user WHERE id = ?`).get(collision.userId)).toEqual(
         collisionBefore,
       );

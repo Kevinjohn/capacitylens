@@ -4,6 +4,7 @@ import {
   passwordResetSessionCapture,
   isFederatedAccountCoordinateConstraint,
   microsoftCallbackCapture,
+  googleCallbackCapture,
 } from "./captureContexts";
 import { MicrosoftProofError, type MicrosoftProof } from "./microsoftProof";
 
@@ -114,18 +115,25 @@ async function runCapturedHandler(
       bootstrapClaimToken: string | null;
       pending: boolean;
     };
+    googleCapture: { active: boolean; subject: string | null; email: string | null };
   },
 ): Promise<Response> {
-  const { request, callbackProviderId, capture, resetCapture, microsoftCapture } = context;
+  const { request, callbackProviderId, capture, resetCapture, microsoftCapture, googleCapture } = context;
+  const raw = () => options.rawHandler(request);
+  const providerScoped = () => {
+    if (callbackProviderId === "microsoft" && options.microsoftProof)
+      return microsoftCallbackCapture.run(microsoftCapture, raw);
+    if (callbackProviderId === "google") return googleCallbackCapture.run(googleCapture, raw);
+    return raw();
+  };
   try {
     return await authHandlerErrorCapture.run(capture, () =>
-      passwordResetSessionCapture.run(resetCapture, () =>
-        callbackProviderId === "microsoft" && options.microsoftProof
-          ? microsoftCallbackCapture.run(microsoftCapture, () => options.rawHandler(request))
-          : options.rawHandler(request),
-      ),
+      passwordResetSessionCapture.run(resetCapture, providerScoped),
     );
   } finally {
+    googleCapture.active = false;
+    googleCapture.email = null;
+    googleCapture.subject = null;
     if (microsoftCapture.bootstrapClaimToken)
       options.microsoftProof?.releaseBootstrapClaim(microsoftCapture.bootstrapClaimToken);
   }
@@ -150,6 +158,8 @@ function microsoftErrorRedirect(
   return redirectWithError(target, error.code);
 }
 
+// The callback response, captured failures, and proof-context cleanup share one request boundary.
+// eslint-disable-next-line max-lines-per-function
 async function runAuthenticatedRequest(
   options: CreateAuthRequestHandlerOptions,
   context: {
@@ -169,12 +179,14 @@ async function runAuthenticatedRequest(
       bootstrapClaimToken: null as string | null,
       pending: false,
     };
+    const googleCapture = { active: true, subject: null as string | null, email: null as string | null };
     const response = await runCapturedHandler(options, {
       request,
       callbackProviderId,
       capture,
       resetCapture,
       microsoftCapture,
+      googleCapture,
     });
     if (microsoftCapture.pending) {
       return Response.redirect(new URL("/verify-microsoft?state=check-email", requestUrl.origin), 302);

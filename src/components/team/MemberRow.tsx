@@ -190,38 +190,12 @@ function MemberStatusMenuItems({
   chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
 }) {
   if (member.membershipPresent === false) {
-    return member.accessDisabled ? (
-      <MemberMenuItem
-        testId="member-enable"
-        label={m.settings_member_enable()}
-        ariaLabel={m.settings_member_enable_aria({ member: memberLabel })}
-        onSelect={() => chooseMemberAction("enable", member)}
-      />
-    ) : null;
+    if (!member.accessDisabled) return null;
   }
-  if (member.status !== "active") {
-    return (
-      <>
-        {member.accessDisabled && (
-          <MemberMenuItem
-            testId="member-enable"
-            label={m.settings_member_enable()}
-            ariaLabel={m.settings_member_enable_aria({ member: memberLabel })}
-            onSelect={() => chooseMemberAction("enable", member)}
-          />
-        )}
-        <MemberMenuItem
-          testId="member-restore"
-          label={m.settings_member_restore()}
-          ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
-          onSelect={() => chooseMemberAction("restore", member)}
-        />
-      </>
-    );
-  }
+  const restricted = member.accessDisabled;
   return (
     <>
-      {member.accessDisabled ? (
+      {restricted ? (
         <MemberMenuItem
           testId="member-enable"
           label={m.settings_member_enable()}
@@ -236,12 +210,22 @@ function MemberStatusMenuItems({
           onSelect={() => chooseMemberAction("disable", member)}
         />
       )}
-      <MemberMenuItem
-        testId="member-archive"
-        label={m.settings_member_archive()}
-        ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
-        onSelect={() => chooseMemberAction("archive", member)}
-      />
+      {member.membershipPresent !== false &&
+        (member.status === "active" ? (
+          <MemberMenuItem
+            testId="member-archive"
+            label={m.settings_member_archive()}
+            ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
+            onSelect={() => chooseMemberAction("archive", member)}
+          />
+        ) : (
+          <MemberMenuItem
+            testId="member-restore"
+            label={m.settings_member_restore()}
+            ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
+            onSelect={() => chooseMemberAction("restore", member)}
+          />
+        ))}
     </>
   );
 }

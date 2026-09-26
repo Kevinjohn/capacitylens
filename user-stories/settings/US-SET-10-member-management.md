@@ -26,7 +26,9 @@ so the people who run a company need a place to grant, adjust, and revoke that a
 the database. Team & access is visible to every role so a Viewer/Editor can understand their own
 limits; management controls remain Owner/Admin-only. Ownership moves only through its own consent ceremony
 (US-SET-18), and the database prevents a second active Owner. Disable Access is an explicit company
-restriction that survives membership removal and verified-email identity recreation. Only an
+restriction that survives membership removal. It follows identity recreation at the same proven
+address only when both identities have durable mailbox proof; a legacy verified flag or addressed
+invitation alone does not supply that proof. Only an
 administrator can Enable Access. Archive retains an inactive membership; remove ends it. Neither
 action alone prevents a later invitation. Enable does not recreate an archived or removed membership.
 Invites reuse the P1.9 single-use link: the secret token is shown once at creation, stored only as a

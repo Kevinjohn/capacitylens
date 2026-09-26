@@ -62,6 +62,9 @@ export function wipe(db: Db): void {
     if (db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'account_access_restrictions'`).get()) {
       db.exec(`DELETE FROM account_access_restrictions`);
     }
+    if (db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'identity_email_proofs'`).get()) {
+      db.exec(`DELETE FROM identity_email_proofs`);
+    }
     db.exec(`DELETE FROM invites`);
     // Ownership-transfer rows name two principals of a company whose data has just been wiped;
     // leaving them behind would keep a live nomination pointing at memberships that no longer exist.

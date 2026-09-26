@@ -168,31 +168,26 @@ const V46_MIGRATION = {
 const V47_MIGRATION = {
   version: 47,
   name: "separate-company-access-restrictions",
-  checksum: "6da21ef89ab99f651810a44e89ba1b50e21464bd3aec133c913d7e0185845efa",
+  checksum: "51fc2a05e998e8977afa01763afef6ad268bfe8e6149dd724d3aeddf0993d725",
+} as const;
+const V48_MIGRATION = {
+  version: 48,
+  name: "record-identity-email-proof",
+  checksum: "0230da00d5340d2d3e4d65371e6123b2a259ec9ea4d5868308940869e7d8807b",
 } as const;
 
 describe("v47 company access restriction upgrade", () => {
   it("keeps disabled members denied and archived members inactive without restricting them", () => {
     const db = openDb(":memory:");
-    db.exec(`DROP TABLE account_access_restrictions;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 47;
+    db.exec(`DROP TABLE identity_email_proofs;
+      DROP TABLE account_access_restrictions;
+      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version IN (47, 48);
       PRAGMA user_version = 46;
       CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL, emailVerified INTEGER NOT NULL);`);
-    db.prepare("INSERT INTO user (id, email, emailVerified) VALUES (?, ?, ?)").run(
-      "disabled-id",
-      "Diana@Example.invalid",
-      1,
-    );
-    db.prepare("INSERT INTO user (id, email, emailVerified) VALUES (?, ?, ?)").run(
-      "archived-id",
-      "Jean@example.invalid",
-      1,
-    );
-    db.prepare("INSERT INTO user (id, email, emailVerified) VALUES (?, ?, ?)").run(
-      "owner-id",
-      "Bruce@example.invalid",
-      1,
-    );
+    db.exec(`INSERT INTO user (id, email, emailVerified) VALUES
+      ('disabled-id', 'Diana@Example.invalid', 1),
+      ('archived-id', 'Jean@example.invalid', 1),
+      ('owner-id', 'Bruce@example.invalid', 1);`);
     db.prepare("INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, ?, ?, ?)").run(
       "a-studio",
       "owner-id",
@@ -220,7 +215,8 @@ describe("v47 company access restriction upgrade", () => {
     });
     expect(
       db.prepare("SELECT verifiedEmail FROM account_access_restrictions WHERE principalId = 'disabled-id'").get(),
-    ).toEqual({ verifiedEmail: "diana@example.invalid" });
+    ).toEqual({ verifiedEmail: null });
+    expect(db.prepare("SELECT principalId FROM identity_email_proofs").all()).toEqual([]);
     expect(db.prepare("SELECT status FROM account_members WHERE userId = 'archived-id'").get()).toEqual({
       status: "archived",
     });
@@ -232,6 +228,7 @@ describe("v47 company access restriction upgrade", () => {
 });
 // Synthetic historical databases must not retain the new operational proof table or its runtime gates.
 const MICROSOFT_PROOF_ROLLBACK_SQL = `
+  DROP TABLE IF EXISTS identity_email_proofs;
   DROP TABLE IF EXISTS account_access_restrictions;
   DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_before;
   DROP TRIGGER IF EXISTS capacitylens_microsoft_account_proof_after;
@@ -350,6 +347,7 @@ const RELEASED_MIGRATION_HISTORY = [
   V45_MIGRATION,
   V46_MIGRATION,
   V47_MIGRATION,
+  V48_MIGRATION,
 ] as const;
 const V25_TO_CURRENT_MIGRATIONS = [
   {
@@ -379,6 +377,7 @@ const V25_TO_CURRENT_MIGRATIONS = [
   V45_MIGRATION,
   V46_MIGRATION,
   V47_MIGRATION,
+  V48_MIGRATION,
 ] as const;
 /** The same list without its v25 head — what a database rolled back to v25 still has pending. */
 const V26_TO_CURRENT_MIGRATIONS = V25_TO_CURRENT_MIGRATIONS.slice(1);
@@ -1889,7 +1888,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
       expect(plannedBeforeWinner).toEqual([
         17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
-        45, 46, 47,
+        45, 46, 47, 48,
       ]);
       expect(() => initializeOpenDb(losingBoot, copied.path)).not.toThrow();
       expect(winnerRan).toBe(true);
@@ -1923,7 +1922,7 @@ describe("schema migration of an existing on-disk DB", () => {
     const plan = planDatabaseMigrations(db).migrations;
     expect(plan.map((migration) => migration.version)).toEqual([
       17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44,
-      45, 46, 47,
+      45, 46, 47, 48,
     ]);
     expect(plan[0]).toEqual({
       version: 17,
@@ -2242,6 +2241,7 @@ describe("schema migration of an existing on-disk DB", () => {
 
     expect(planDatabaseMigrations(db).migrations.map((migration) => migration.version)).toEqual([
       20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+      48,
     ]);
     expect(() => initializeOpenDb(db, ":memory:")).toThrow(/unknown schema.*unsafe automatic repair/i);
     expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(19);
@@ -2314,6 +2314,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V45_MIGRATION,
       V46_MIGRATION,
       V47_MIGRATION,
+      V48_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2377,6 +2378,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V45_MIGRATION,
       V46_MIGRATION,
       V47_MIGRATION,
+      V48_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2446,6 +2448,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V45_MIGRATION,
       V46_MIGRATION,
       V47_MIGRATION,
+      V48_MIGRATION,
     ]);
 
     initializeOpenDb(db, ":memory:");
@@ -2497,6 +2500,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V45_MIGRATION,
       V46_MIGRATION,
       V47_MIGRATION,
+      V48_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -2804,6 +2808,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V45_MIGRATION,
       V46_MIGRATION,
       V47_MIGRATION,
+      V48_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(getRow(db, "resources", resource.id)?.isFavourite).toBeUndefined();
@@ -2967,6 +2972,7 @@ function registerActivityLifecycleMigrationTest(): void {
       V45_MIGRATION,
       V46_MIGRATION,
       V47_MIGRATION,
+      V48_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
     expect(db.prepare("PRAGMA table_info(activities)").all()).toEqual(
@@ -3017,6 +3023,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V45_MIGRATION,
       V46_MIGRATION,
       V47_MIGRATION,
+      V48_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -3061,6 +3068,7 @@ describe("schema migration of an existing on-disk DB", () => {
       V45_MIGRATION,
       V46_MIGRATION,
       V47_MIGRATION,
+      V48_MIGRATION,
     ]);
     initializeOpenDb(db, ":memory:");
 
@@ -3110,6 +3118,7 @@ describe("schema migration of an existing on-disk DB", () => {
           V45_MIGRATION,
           V46_MIGRATION,
           V47_MIGRATION,
+          V48_MIGRATION,
         ]);
         initializeOpenDb(db, copied.path);
 

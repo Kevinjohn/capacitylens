@@ -17,30 +17,38 @@ function registerAccessRestrictionRedactionTest(): void {
         CREATE TABLE account_access_restrictions
           (accountId TEXT, principalId TEXT, verifiedEmail TEXT, role TEXT, createdAt TEXT);
         INSERT INTO accounts VALUES ('source-workspace');
-        INSERT INTO user VALUES ('source-principal', 'selina.kyle@example.invalid');
+        INSERT INTO user VALUES
+          ('source-principal', 'corrected@example.invalid'),
+          ('recreated-principal', 'selina.kyle@example.invalid');
         INSERT INTO account_access_restrictions VALUES
           ('source-workspace', 'source-principal', 'selina.kyle@example.invalid', 'editor', '2026-01-01'),
-          ('source-workspace', 'removed-principal', 'removed@example.invalid', 'viewer', '2026-01-02');
+          ('source-workspace', 'removed-principal', 'selina.kyle@example.invalid', 'viewer', '2026-01-02'),
+          ('source-workspace', 'other-removed-principal', 'removed@example.invalid', 'admin', '2026-01-03');
       `);
       anonymise(db);
       const workspace = requireSqlRow(db.prepare("SELECT id FROM accounts").get());
-      const principal = requireSqlRow(db.prepare("SELECT id, email FROM user").get());
+      const users = db.prepare("SELECT id, email FROM user ORDER BY rowid").all() as Array<Record<string, unknown>>;
       const restrictions = db
         .prepare(
           `SELECT accountId, principalId, verifiedEmail, role
-        FROM account_access_restrictions ORDER BY role`,
+        FROM account_access_restrictions ORDER BY createdAt`,
         )
         .all() as Array<Record<string, unknown>>;
-      expect(restrictions).toHaveLength(2);
+      expect(restrictions).toHaveLength(3);
       expect(restrictions[0]).toMatchObject({
         accountId: workspace.id,
-        principalId: principal.id,
-        verifiedEmail: principal.email,
+        principalId: users[0]?.id,
+        verifiedEmail: users[1]?.email,
         role: "editor",
       });
-      expect(restrictions[1]).toMatchObject({ accountId: workspace.id, role: "viewer" });
+      expect(restrictions[0]?.verifiedEmail).not.toBe(users[0]?.email);
+      expect(restrictions[1]).toMatchObject({
+        accountId: workspace.id,
+        verifiedEmail: restrictions[0]?.verifiedEmail,
+        role: "viewer",
+      });
       expect(String(restrictions[1]?.principalId)).not.toBe("removed-principal");
-      expect(String(restrictions[1]?.verifiedEmail)).toMatch(/^rehearsal-restriction-/);
+      expect(String(restrictions[2]?.verifiedEmail)).toMatch(/^rehearsal-proof-/);
       expect(JSON.stringify(restrictions)).not.toContain("selina.kyle");
       expect(JSON.stringify(restrictions)).not.toContain("removed@example.invalid");
     } finally {

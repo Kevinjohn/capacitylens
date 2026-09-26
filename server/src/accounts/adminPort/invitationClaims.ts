@@ -4,7 +4,6 @@ import {
   getInvite,
   getMembershipRow,
   isAccessRestricted,
-  listAccessRestrictions,
   InviteAlreadyUsedError,
   inviteIsExpired,
   listMembershipsForUser,
@@ -71,17 +70,9 @@ function getRedeemableInvitation(context: InvitationRedemptionContext, input: Cl
 }
 
 // Admission checks and the membership write share one invitation transaction.
-// eslint-disable-next-line complexity
 function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput): Membership {
   const live = getRedeemableInvitation(context, input);
-  const claimedEmail = input.passwordMode || input.emailVerified ? input.principalEmail.trim().toLowerCase() : null;
-  if (
-    isAccessRestricted(context.db, live.accountId, input.principalId) ||
-    (claimedEmail !== null &&
-      listAccessRestrictions(context.db, live.accountId).some(
-        (restriction) => restriction.verifiedEmail === claimedEmail,
-      ))
-  ) {
+  if (isAccessRestricted(context.db, live.accountId, input.principalId)) {
     throw createAccountFailure(
       "FORBIDDEN",
       "Access to this company is disabled. Ask an administrator to enable it.",
@@ -89,17 +80,12 @@ function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvit
     );
   }
   const now = new Date().toISOString();
-  // Status-AGNOSTIC on purpose. An active-only probe reports a disabled or archived member as a
-  // NON-member, and the branch below would then upsert them back to `status: "active"` at the
-  // invite's role — silently reversing an administrator's decision, with no member.status_changed
-  // audit record, for anyone who still holds (or is handed) a link-only invite. A non-active
-  // membership is restored by an administrator through changeMemberStatus, never by its holder.
+  // A raw legacy disabled row remains denied. Archived members may rejoin with a valid invite,
+  // which deliberately adopts the invitation's role; an active member retains the current role.
   const existing = getMembershipRow(context.db, live.accountId, input.principalId);
   if (existing && existing.status === "disabled") {
     throw createAccountFailure(
       "FORBIDDEN",
-      // Covers disabled AND archived, so it names neither: the person redeeming the link has no
-      // business knowing which, and an inaccurate "disabled" on an archived row would be worse.
       "This membership is no longer active. An Owner or Admin must restore it before you can rejoin.",
       input.command.commandId,
     );
