@@ -208,7 +208,18 @@ export function attachPersistence({
     refresh: refresh,
     serverMode: serverMode,
   });
-  const unregisterCoordinator = attachCoordinator(parts, accountSwitch);
+  let unregisterCoordinator: () => void;
+  try {
+    unregisterCoordinator = attachCoordinator(parts, accountSwitch);
+  } catch (error) {
+    // A rejected duplicate owner must leave nothing behind that could still save through it.
+    owner.dispose();
+    unsubscribe();
+    accountSwitch.unsubscribeSwitch?.();
+    owner.cancelDebounce();
+    owner.cancelRetry();
+    throw error;
+  }
   resetPersistenceDiagnostics();
   attachAllocationRewriteHandler(parts);
   const detachDomListeners = attachDomListeners(parts);
