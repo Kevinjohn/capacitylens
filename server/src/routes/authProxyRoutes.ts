@@ -1,7 +1,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 
 import type { AccountAdminPort } from "@capacitylens/shared/account/ports";
-import type { ApplicationSession } from "@capacitylens/shared/account/types";
+import {
+  allowsPasswordSignIn,
+  allowsProviderSignIn,
+  type ApplicationSession,
+} from "@capacitylens/shared/account/types";
 import { can } from "@capacitylens/shared/domain/access";
 import { MASQUERADE_ERROR_CODES } from "@capacitylens/shared/domain/masquerade";
 
@@ -34,11 +38,13 @@ function isBetterAuthProxyRouteAllowed(
   pathname: string,
 ): boolean {
   const common = new Set(["GET /get-session", "POST /sign-out", "POST /sign-in/social"]);
-  if (common.has(`${method} ${pathname}`)) return true;
-  if ((method === "GET" || method === "POST") && /^\/callback\/[a-z0-9_-]+$/.test(pathname)) {
-    return true;
+  if (common.has(`${method} ${pathname}`)) {
+    return pathname !== "/sign-in/social" || allowsProviderSignIn(authMode);
   }
-  if (authMode !== "password") return false;
+  if ((method === "GET" || method === "POST") && /^\/callback\/[a-z0-9_-]+$/.test(pathname)) {
+    return allowsProviderSignIn(authMode);
+  }
+  if (!allowsPasswordSignIn(authMode)) return false;
   return new Set([
     "POST /sign-up/email",
     "POST /sign-in/email",
@@ -182,7 +188,7 @@ async function canAuthenticatedUserCreateAccount({
   // The capability mirrors POST /api/orgs: masquerades and untrusted SSO sessions fail closed,
   // then both the account cap and workspace authority must allow creation.
   const trustedSsoSession =
-    authMode !== "sso" ||
+    authMode !== "sso-only" ||
     (session.assurance === "federated" &&
       (auth?.permittedCompanyProviderIds?.has(session.providerId) ??
         session.providerId === auth?.defaultCompanyProvider?.id));
@@ -211,8 +217,8 @@ async function readAuthenticatedIdentity(
   return {
     authMode,
     user,
-    mfaRequired: authMode === "password" && requireMfa && !dependencies.sessionSatisfiesRequiredMfa(session),
-    requireMfa: authMode === "password" && requireMfa,
+    mfaRequired: allowsPasswordSignIn(authMode) && requireMfa && !dependencies.sessionSatisfiesRequiredMfa(session),
+    requireMfa: allowsPasswordSignIn(authMode) && requireMfa,
     reauthMethod: session.assurance === "federated" ? "provider" : "password",
     reauthProviderId: session.providerId ?? null,
     providers: auth?.providers ?? [],
@@ -232,7 +238,7 @@ async function sendIdentity(req: FastifyRequest, reply: FastifyReply, dependenci
     // Zero users is only a bootstrap-availability signal; no tenant facts enter the 401 response.
     const needsSetup =
       countUsers(db) === 0 &&
-      (authMode === "password" || auth?.providers.some((provider) => provider.id === "microsoft"));
+      (allowsPasswordSignIn(authMode) || auth?.providers.some((provider) => provider.id === "microsoft"));
     return reply.code(401).send({
       authMode,
       providers: auth?.providers ?? [],
@@ -300,7 +306,7 @@ function rejectsNonCompanySocialSignIn(input: {
   authMode: AccountMode;
 }): boolean {
   const { req, authPath, auth, authMode } = input;
-  if (authMode !== "sso" || authPath !== "/sign-in/social" || req.method !== "POST") return false;
+  if (authMode !== "sso-only" || authPath !== "/sign-in/social" || req.method !== "POST") return false;
   const body = req.body;
   if (!body || typeof body !== "object" || Array.isArray(body)) return true;
   const providerId = (body as Record<string, unknown>).provider;

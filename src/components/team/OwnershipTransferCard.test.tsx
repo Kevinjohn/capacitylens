@@ -72,7 +72,7 @@ function seed(projection: OwnershipTransferProjectionView, members: readonly Tea
 
 function renderAs(userId: string, refreshAuth = async () => {}) {
   const auth: AuthContextValue = {
-    authMode: "password",
+    authMode: "password-only",
     user: { id: userId, email: `${userId}@wayne.test` },
     canCreateAccount: true,
     multiAccount: true,

@@ -12,7 +12,7 @@ describe("useMemberInvites schedule-person proposal", () => {
     const { result } = renderHook(() => useMemberInvites());
     act(() => result.current.setInvitationResourceId("person-stale"));
     const submit = result.current.createActions({
-      authMode: "password",
+      authMode: "password-only",
       clear: vi.fn(),
       requestAccountId: () => "account-1",
       isActiveAccount: () => true,

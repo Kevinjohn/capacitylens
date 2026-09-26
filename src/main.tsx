@@ -89,7 +89,7 @@ reactRoot.render(
   <StrictMode>
     <ErrorBoundary>
       {/* Auth boundary (P3.3): the demo build and auth-off deploys pass straight through;
-          only an auth-enabled server (SMALLSASS_ACCOUNT_MODE=password|sso) can swap in the login
+          only an auth-enabled server can swap in the login
           screen. Wraps the router so a 401 walls off the whole app, picker included. */}
       <AuthProvider onTenantAccessReady={startPersistence}>
         <RouterProvider router={router} />

@@ -39,7 +39,7 @@ const PASSWORD = "password-123456";
 // 'sso' mode without a real IdP: discovery is parsed but not fetched at construction time, so the
 // reset route can prove it refuses before touching the provider.
 const SSO_ENV = {
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123",
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",

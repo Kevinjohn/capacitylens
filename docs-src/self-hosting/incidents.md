@@ -130,7 +130,7 @@ session revocation — and never writes a credential directly.
    to run if any other process still holds the database — the `--confirm-server-stopped`
    flag records your intent, the lock enforces it.
 3. Using the release that most recently started the database, with the instance's
-   account environment present (`SMALLSASS_ACCOUNT_MODE=password`,
+   account environment present (`SMALLSASS_ACCOUNT_MODE=password-only`,
    `SMALLSASS_ACCOUNT_SECRET`, `SMALLSASS_ACCOUNT_PUBLIC_URL`), run:
 
    ```bash
@@ -292,7 +292,7 @@ can assign an existing active member as Owner.
    [ownership transfer](/getting-started/roles-and-permissions#hand-the-company-to-someone-else).
 2. If the company remains ownerless, preserve the database and audit logs and stop the
    server. While the deployment remains in `self-hosted-mixed` with
-   `SMALLSASS_ACCOUNT_MODE=password` and a company provider configured, assign an existing
+   `SMALLSASS_ACCOUNT_MODE=password-and-sso` and a company provider configured, assign an existing
    active member using the guarded repair command:
 
    ```bash

@@ -14,11 +14,11 @@ const bootstrap = {
   errorCallbackURL: `${origin}/`,
 };
 
-async function configured(options: { mode?: "password" | "sso"; trustProxyHeaders?: boolean } = {}) {
+async function configured(options: { mode?: "password-and-sso" | "sso-only"; trustProxyHeaders?: boolean } = {}) {
   const db = fixtures.trackDb(openDb(":memory:"));
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
-    SMALLSASS_ACCOUNT_MODE: options.mode ?? "sso",
+    SMALLSASS_ACCOUNT_MODE: options.mode ?? "sso-only",
     SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: bootstrap.email,
     SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
     SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
@@ -126,7 +126,7 @@ it("cancels a browser bootstrap intent on native sign-out even without a login s
 });
 
 it("cancels an invitation intent on application sign-out", async () => {
-  const { app, db } = await configured({ mode: "password" });
+  const { app, db } = await configured({ mode: "password-and-sso" });
   const local = await app.inject({
     method: "POST",
     url: "/api/auth/sign-up/email",

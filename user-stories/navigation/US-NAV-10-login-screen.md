@@ -3,7 +3,7 @@
 **Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Account returns to the login screen", "the --create-owner-admin-admin bootstrap credential signs in through the real form"
 
 > **Flag-gated; not reachable in the default deploy.** The login screen only exists when
-> the optional server runs with `SMALLSASS_ACCOUNT_MODE=password` (or `sso`) — the controlled-demo
+> the optional server runs with `SMALLSASS_ACCOUNT_MODE=password-only`, `password-and-sso` or `sso-only` — the controlled-demo
 > deploy keeps `SMALLSASS_ACCOUNT_MODE` unset (off), where every request carries a synthetic demo
 > identity and no login UI exists. The dedicated Playwright `auth-backed` project boots a
 > server with the flag on to run this story's checks; it cannot be exercised against
@@ -23,7 +23,7 @@ session must restore exactly the normal flow.
 
 ## How (end-to-end, password mode)
 
-**Precondition:** a deploy with `SMALLSASS_ACCOUNT_MODE=password`, and a user account created.
+**Precondition:** a deploy with `SMALLSASS_ACCOUNT_MODE=password-only`, and a user account created.
 On a **fresh password-mode instance with zero users** the login wall instead shows the one sign-up form
 that exists — **Setup the account Owner** (see REFERENCE.md “First-run owner setup”). The one-time
 setup value authorises first-owner setup but does not create a company. Success continues to **Set up your
@@ -47,10 +47,10 @@ self-registration closes automatically and only the Sign in form below is reacha
 - When the named Google provider is configured, its action is visibly Google-branded, remains
   sharp on high-density displays without an outer wrapper shadow, and is named exactly **Sign in with Google**
   (including while disabled during the provider hand-off).
-- In mixed password mode with Google configured, **Sign in with Google** is the first sign-in
+- In password-and-sso mode with Google configured, **Sign in with Google** is the first sign-in
   action, with breathing room from helper copy above and the explicit **or use your password**
   separator below. The password form follows the separator at the standard form spacing. SSO-only
-  mode still omits password controls, while password-only mode and other providers retain their
+  mode still omits password controls, while password-only mode retains its
   existing order.
 - Microsoft appears alongside the primary Google action above the password fallback. First
   connection may require an emailed proof in the initiating browser; ordinary returning sign-in

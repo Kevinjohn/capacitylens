@@ -123,7 +123,7 @@ function parseFederatedLink(auth: ReturnType<typeof createAuthFromEnvironment>["
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
 };
@@ -453,7 +453,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     expect((await call(app, { method: "GET", url: "/api/health" })).statusCode).toBe(200);
     const me = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(me.statusCode).toBe(401);
-    expect(parseResponseAuthMode(me)).toBe("password"); // the login screen needs the mode
+    expect(parseResponseAuthMode(me)).toBe("password-only"); // the login screen needs the mode
   });
 
   it("allowlists the Better Auth proxy surface so unclassified account mutations stay closed", async () => {
@@ -485,9 +485,9 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
 describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("refuses to relink a principal who already has the company provider", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password-and-sso" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
-    const app = createApp(db, { authMode: "password", auth: configured.auth });
+    const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -540,9 +540,9 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
         return typeof value === "function" ? value.bind(target) : value;
       },
     }) as Db;
-    const configured = createAuthFromEnvironment(observed, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
+    const configured = createAuthFromEnvironment(observed, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password-and-sso" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
-    const app = createApp(observed, { authMode: "password", auth: configured.auth });
+    const app = createApp(observed, { authMode: configured.mode, auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -581,7 +581,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     ).rejects.toMatchObject({ body: { code: "PROVIDER_NOT_FOUND" } });
 
     const strictDb = openDb(":memory:");
-    const strict = createAuthFromEnvironment(strictDb, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
+    const strict = createAuthFromEnvironment(strictDb, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password-and-sso" });
     await runAuthMigrations(parseConfiguredAuth(strict.auth));
     await expect(
       parseFederatedLink(strict.auth)({
@@ -598,9 +598,9 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
 describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("rejects an untrusted link return URL before persisting a ceremony", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password-and-sso" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
-    const app = createApp(db, { authMode: "password", auth: configured.auth });
+    const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -629,9 +629,9 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     "rejects malformed or credentialed link return URL %j before persisting a ceremony",
     async (callbackURL) => {
       const db = openDb(":memory:");
-      const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
+      const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password-and-sso" });
       await runAuthMigrations(parseConfiguredAuth(configured.auth));
-      const app = createApp(db, { authMode: "password", auth: configured.auth });
+      const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
       const signUp = await call(app, {
         method: "POST",
         url: "/api/auth/sign-up/email",
@@ -659,9 +659,9 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
 describe("SMALLSASS_ACCOUNT_MODE password", () => {
   it("forwards the signed OAuth state cookie when a provider-link ceremony starts", async () => {
     const db = openDb(":memory:");
-    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password" });
+    const configured = createAuthFromEnvironment(db, { ...SSO_ENV, SMALLSASS_ACCOUNT_MODE: "password-and-sso" });
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
-    const app = createApp(db, { authMode: "password", auth: configured.auth });
+    const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -694,7 +694,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
     await runAuthMigrations(parseConfiguredAuth(configured.auth));
-    const app = createApp(db, { authMode: "password", auth: configured.auth });
+    const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
     const signUp = await call(app, {
       method: "POST",
       url: "/api/auth/sign-up/email",
@@ -751,10 +751,10 @@ function registerAuthModeRefusalTests(): void {
 
   it("password mode without secret or URL refuses", () => {
     const db = openDb(":memory:");
-    expect(() => createAuthFromEnvironment(db, { SMALLSASS_ACCOUNT_MODE: "password" })).toThrow(AuthConfigError);
+    expect(() => createAuthFromEnvironment(db, { SMALLSASS_ACCOUNT_MODE: "password-only" })).toThrow(AuthConfigError);
     expect(() =>
       createAuthFromEnvironment(db, {
-        SMALLSASS_ACCOUNT_MODE: "password",
+        SMALLSASS_ACCOUNT_MODE: "password-only",
         SMALLSASS_ACCOUNT_SECRET: "x".repeat(32),
       }),
     ).toThrow(AuthConfigError);
@@ -801,7 +801,7 @@ function registerCredentialAndDiscoveryConfigurationTests(): void {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_MODE: "sso",
+        SMALLSASS_ACCOUNT_MODE: "sso-only",
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
       }),
     ).toThrow(AuthConfigError);
@@ -819,7 +819,9 @@ function registerRetiredProviderRefusalTests(): void {
   });
 
   it("buildApp refuses authMode ≠ off without an auth instance", () => {
-    expect(() => createApp(openDb(":memory:"), { authMode: "password" })).toThrow(/requires a Better Auth instance/);
+    expect(() => createApp(openDb(":memory:"), { authMode: "password-only" })).toThrow(
+      /requires a Better Auth instance/,
+    );
   });
 }
 

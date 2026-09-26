@@ -40,7 +40,7 @@ beforeEach(() => {
 function setsDescriptiveTitleOutsideAppShell() {
   document.title = "Schedule · CapacityLens";
 
-  render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+  render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
 
   expect(document.title).toBe("Sign in · CapacityLens");
 }
@@ -49,7 +49,7 @@ async function showsStableRetryGuidanceAndRemovesProviderQueryValues() {
   window.history.replaceState({}, "", "/?externalSignInError=1&error=access_denied&error_description=provider-secret");
   render(
     <LoginScreen
-      authMode="sso"
+      authMode="sso-only"
       providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       onSignedIn={vi.fn()}
     />,
@@ -66,7 +66,7 @@ async function mapsApplicationOwnedCallbackCodeToActionableCopy(code: string, ex
   window.history.replaceState({}, "", `/?externalSignInError=1&error=${code}`);
   render(
     <LoginScreen
-      authMode="sso"
+      authMode="sso-only"
       providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
       onSignedIn={vi.fn()}
     />,
@@ -81,7 +81,7 @@ async function keepsProviderRedirectPendingAfterDispatchingNamedSocialProvider()
   window.history.replaceState({}, "", "/invite/token?source=mail");
   render(
     <LoginScreen
-      authMode="sso"
+      authMode="sso-only"
       providers={[{ id: "google", label: "Google", kind: "social", experimental: true }]}
       onSignedIn={vi.fn()}
     />,
@@ -128,7 +128,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   const github = { id: "github", label: "GitHub", kind: "social", experimental: true } as const;
 
   it("puts Google before the password fallback with explicit wording", () => {
-    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
     const email = screen.getByLabelText("Email");
@@ -143,7 +143,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
   it("starts keyboard focus on Google, then reaches the password email field", async () => {
     const user = userEvent.setup();
-    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
     const email = screen.getByLabelText("Email");
@@ -156,19 +156,19 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("keeps password email autofocus when Google is not configured", () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
 
     expect(screen.getByLabelText("Email")).toHaveFocus();
   });
 
   it("keeps the owner name autofocus during first-owner setup", () => {
-    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
 
     expect(screen.getByLabelText("name")).toHaveFocus();
   });
 
   it("lets the fallback separator rails share the remaining row width", () => {
-    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
     const rails = screen.getAllByRole("none").filter((element) => element.getAttribute("data-slot") === "separator");
     expect(rails).toHaveLength(2);
@@ -178,7 +178,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("keeps experimental GitHub after the password fallback", () => {
-    render(<LoginScreen authMode="password" providers={[google, github]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google, github]} onSignedIn={vi.fn()} />);
 
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
     const signIn = screen.getByRole("button", { name: "Sign in" });
@@ -189,7 +189,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("does not promote providers in SSO-only mode", () => {
-    render(<LoginScreen authMode="sso" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="sso-only" providers={[google]} onSignedIn={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
@@ -197,7 +197,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("keeps password-first behavior when only GitHub is configured", () => {
-    render(<LoginScreen authMode="password" providers={[github]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[github]} onSignedIn={vi.fn()} />);
 
     const email = screen.getByLabelText("Email");
     const companyButton = screen.getByRole("button", { name: "Continue with GitHub" });
@@ -206,7 +206,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("keeps first-owner setup ahead of the promoted provider", () => {
-    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
 
     const name = screen.getByLabelText("name");
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
@@ -216,7 +216,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
 
   it("hides the promoted action and fallback while password MFA is pending", async () => {
     signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
@@ -231,7 +231,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
 
   it("keeps password errors associated with both controls after Google promotion", async () => {
     signInEmail.mockResolvedValue({ error: { message: "Invalid email or password." } });
-    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
@@ -247,7 +247,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
 
 async function enterTotpChallenge(onSignedIn = vi.fn()) {
   signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-  render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />);
+  render(<LoginScreen authMode="password-only" onSignedIn={onSignedIn} />);
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
   fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
@@ -259,7 +259,7 @@ async function completesAuthenticatorChallengeBeforeSigningIn() {
   signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
   verifyTotp.mockResolvedValue({ data: { status: true }, error: null });
   const onSignedIn = vi.fn();
-  render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />);
+  render(<LoginScreen authMode="password-only" onSignedIn={onSignedIn} />);
 
   fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
   fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
@@ -280,7 +280,7 @@ describe("LoginScreen — multi-factor challenge", () => {
     signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
     render(
       <LoginScreen
-        authMode="password"
+        authMode="password-and-sso"
         providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
@@ -299,7 +299,7 @@ describe("LoginScreen — multi-factor challenge", () => {
     signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
     verifyBackupCode.mockResolvedValue({ data: { status: true }, error: null });
     const onSignedIn = vi.fn();
-    render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={onSignedIn} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
@@ -345,7 +345,7 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
   it("surfaces a network error and re-enables sign in when the request throws", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     signInEmail.mockRejectedValue(new TypeError("offline"));
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
@@ -357,7 +357,7 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
 
   it("uses the generic fallback when password sign-in fails without a message", async () => {
     signInEmail.mockResolvedValue({ data: null, error: {} });
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong-password" } });
@@ -368,7 +368,7 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
 
   it("normalizes a pasted sign-in email before authenticating", async () => {
     signInEmail.mockResolvedValue({ data: {}, error: null });
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "  Person@Example.COM  " } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
@@ -383,7 +383,7 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
   });
 
   it("gives the email/password inputs ids and no aria-describedby before any error", () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
     const email = screen.getByLabelText("Email");
     const password = screen.getByLabelText("Password");
     // Each control carries a stable id so it can point at the shared error.
@@ -396,7 +396,7 @@ describe("LoginScreen — per-control error cues (WCAG 3.3.1)", () => {
 
   it("points both inputs at the error message via aria-describedby after a failed sign-in", async () => {
     signInEmail.mockResolvedValue({ error: { message: "Invalid email or password." } });
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
@@ -424,7 +424,7 @@ function fillOwnerSetup({ name = "Owner", password = "a-strong-password" }: { na
 
 function registerOwnerSetupDisplayTests() {
   it("renders the owner-setup form instead of sign-in when needsSetup", () => {
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
     expect(screen.getByRole("heading", { name: "Setup the account Owner" })).toBeInTheDocument();
     expect(screen.queryByText(/Create your personal sign-in/)).not.toBeInTheDocument();
     expect(screen.getByLabelText("name")).toBeInTheDocument();
@@ -443,7 +443,7 @@ function registerOwnerSetupDisplayTests() {
   it("keeps configured external bootstrap providers reachable during owner setup", () => {
     render(
       <LoginScreen
-        authMode="password"
+        authMode="password-and-sso"
         needsSetup
         providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
@@ -462,7 +462,7 @@ function registerOwnerSetupDisplayTests() {
   it("renders the ordinary sign-in form when needsSetup is absent (fail-closed default)", () => {
     render(
       <LoginScreen
-        authMode="password"
+        authMode="password-and-sso"
         providers={[{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }]}
         onSignedIn={vi.fn()}
       />,
@@ -481,7 +481,7 @@ function registerOwnerSetupSubmissionTests() {
   it("submits name/email/password through signUp.email and calls onSignedIn on success", async () => {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
     const onSignedIn = vi.fn();
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={onSignedIn} />);
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Owner" } });
     fireEvent.change(screen.getByLabelText("email"), { target: { value: "owner@x.test" } });
     fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
@@ -499,7 +499,7 @@ function registerOwnerSetupSubmissionTests() {
   });
 
   it("rejects a blank owner name without submitting", async () => {
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup({ name: "   " });
 
     fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
@@ -509,7 +509,7 @@ function registerOwnerSetupSubmissionTests() {
   });
 
   it("rejects a short owner password without submitting", async () => {
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup({ password: "short" });
 
     fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
@@ -522,7 +522,7 @@ function registerOwnerSetupSubmissionTests() {
 function registerOwnerSetupTokenTests() {
   it("trims setup-token edge whitespace before constructing the request", async () => {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
     fireEvent.change(screen.getByLabelText("Owner setup token"), {
       target: { value: "  operator-secret  " },
@@ -543,7 +543,7 @@ function registerOwnerSetupTokenTests() {
     ["a control character", "\u0000"],
   ])("rejects %s before constructing the request", async (_description, suffix) => {
     const onSignedIn = vi.fn();
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={onSignedIn} />);
     fillOwnerSetup();
     const token = `operator-secret${suffix}`;
     fireEvent.change(screen.getByLabelText("Owner setup token"), { target: { value: token } });
@@ -559,7 +559,7 @@ function registerOwnerSetupTokenTests() {
 
   it("trims Unicode edge whitespace from a pasted setup token", async () => {
     signUpEmail.mockResolvedValue({ data: {}, error: null });
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
     fireEvent.change(screen.getByLabelText("Owner setup token"), {
       target: { value: "\uFEFF operator-secret\u00A0" },
@@ -586,7 +586,7 @@ function registerOwnerSetupErrorTests() {
     const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const token = "operator-secret-that-must-not-be-logged";
     signUpEmail.mockRejectedValue(new TypeError(`offline while sending ${token}`));
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
     fireEvent.change(screen.getByLabelText("Owner setup token"), { target: { value: token } });
 
@@ -605,7 +605,7 @@ function registerOwnerSetupErrorTests() {
 
   it("uses the setup fallback when owner signup fails without a message", async () => {
     signUpEmail.mockResolvedValue({ data: null, error: {} });
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={vi.fn()} />);
     fillOwnerSetup();
 
     fireEvent.click(screen.getByRole("button", { name: "Create my sign-in" }));
@@ -621,7 +621,7 @@ function registerOwnerSetupValidationTests() {
     // and never screened for disallowed characters, so an emoji/zero-width address that stayed
     // under the length cap slipped past client-side validation. isAccountEmail() rejects it.
     const onSignedIn = vi.fn();
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={onSignedIn} />);
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Owner" } });
     fireEvent.change(screen.getByLabelText("email"), { target: { value: "a​🙂@example.com" } });
     fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
@@ -635,7 +635,7 @@ function registerOwnerSetupValidationTests() {
   it("surfaces a sign-up failure inline and describes every field by it (same WCAG contract as sign-in)", async () => {
     signUpEmail.mockResolvedValue({ error: { message: "Password too short" } });
     const onSignedIn = vi.fn();
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={onSignedIn} />);
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Owner" } });
     fireEvent.change(screen.getByLabelText("email"), { target: { value: "owner@x.test" } });
     fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
@@ -663,7 +663,7 @@ function registerOwnerSetupAccessibilityAndRaceTests() {
       error: { message: "Email and password sign up is not enabled", code: "EMAIL_PASSWORD_SIGN_UP_DISABLED" },
     });
     const onSignedIn = vi.fn();
-    render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />);
+    render(<LoginScreen authMode="password-only" needsSetup onSignedIn={onSignedIn} />);
     fireEvent.change(screen.getByLabelText("name"), { target: { value: "Owner" } });
     fireEvent.change(screen.getByLabelText("email"), { target: { value: "owner@x.test" } });
     fireEvent.change(screen.getByLabelText("Create a password"), { target: { value: "a-strong-password" } });
@@ -708,7 +708,7 @@ describe("LoginScreen — provider failures", () => {
     [{}, m.login_failed()],
   ])("surfaces a provider failure and re-enables controls", async (error, expected) => {
     signInSocial.mockResolvedValue({ data: null, error });
-    render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="sso-only" providers={[provider]} onSignedIn={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
@@ -716,7 +716,7 @@ describe("LoginScreen — provider failures", () => {
     expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeEnabled();
   });
 
-  it.each(["password", "sso"] as const)(
+  it.each(["password-and-sso", "sso-only"] as const)(
     "announces a successful provider redirect instead of showing a failure in %s mode",
     async (authMode) => {
       let resolveProvider!: (value: ProviderResponse) => void;
@@ -742,7 +742,7 @@ describe("LoginScreen — provider failures", () => {
   it("clears a prior provider error before announcing the redirect", async () => {
     signInSocial.mockResolvedValueOnce({ data: null, error: { message: "Provider refused the request." } });
     signInSocial.mockResolvedValueOnce({ data: {}, error: null });
-    render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="sso-only" providers={[provider]} onSignedIn={vi.fn()} />);
 
     const button = screen.getByRole("button", { name: "Sign in with Google" });
     fireEvent.click(button);
@@ -757,7 +757,7 @@ describe("LoginScreen — provider failures", () => {
   it("surfaces a network error and clears busy when provider sign-in throws", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     signInSocial.mockRejectedValue(new TypeError("offline"));
-    render(<LoginScreen authMode="sso" providers={[provider]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="sso-only" providers={[provider]} onSignedIn={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Sign in with Google" }));
 
@@ -768,7 +768,7 @@ describe("LoginScreen — provider failures", () => {
 
 describe("LoginScreen — degraded 401 body notice", () => {
   it("shows the non-terminal advisory above the form when degraded is true", () => {
-    render(<LoginScreen authMode="password" degraded onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" degraded onSignedIn={vi.fn()} />);
     expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument();
     // Still a fully usable password form underneath the advisory — never a dead end.
     expect(screen.getByLabelText("Email")).toBeInTheDocument();
@@ -776,20 +776,20 @@ describe("LoginScreen — degraded 401 body notice", () => {
   });
 
   it("renders no advisory by default (a well-formed body)", () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
     expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument();
   });
 });
 
 describe("LoginScreen — unsaved session-expiry notice", () => {
   it("surfaces the captured write loss without blocking sign-in", () => {
-    render(<LoginScreen authMode="password" hadUnsavedChanges onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" hadUnsavedChanges onSignedIn={vi.fn()} />);
     expect(screen.getByRole("alert")).toHaveTextContent(/could not be saved before your session expired/i);
     expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
   });
 
   it("does not claim loss for an ordinary signed-out boot", () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
     expect(screen.queryByText(/could not be saved before your session expired/i)).not.toBeInTheDocument();
   });
 });

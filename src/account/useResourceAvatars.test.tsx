@@ -77,7 +77,7 @@ describe("useResourceAvatars", () => {
   it("refreshes after session and ordinary account-data refresh signals", async () => {
     vi.mocked(accountClient.listResourceAvatars).mockImplementation(async () => response([]));
     const authValue = (image: string) => ({
-      authMode: "sso" as const,
+      authMode: "sso-only" as const,
       user: { id: "u1", image },
       canCreateAccount: true,
       multiAccount: true,

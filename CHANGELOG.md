@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Make sign-in modes explicit: password only, company sign-in only, or both. Existing installations
+  must update `SMALLSASS_ACCOUNT_MODE` alongside the application; see the upgrade guide (#1288).
 - Give consistent reasons when checking whether passwords can be disabled, with one or several
   company sign-in providers configured. Keep existing sign-in and recovery safeguards (#1248).
 - Present Google and Microsoft together above the password fallback. Provider-required
