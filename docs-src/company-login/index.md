@@ -18,7 +18,7 @@ for the explicitly allowed first person on an empty installation.
 
 ![Sign-in screen with Google, a password form and the experimental GitHub option](../screenshots/company_sign_in_password.png)
 
-In password mode, configured Google and Microsoft buttons appear above the
+In password-and-sso mode, configured Google and Microsoft buttons appear above the
 password form. This lets an existing team connect their accounts before changing
 how everyone signs in. GitHub is an experimental additional option in this mode.
 
@@ -78,7 +78,7 @@ identity; it does not apply the original change.
 
 ## Two-factor sign-in
 
-In password mode, the server operator can require authenticator-app codes before
+In password-capable modes, the server operator can require authenticator-app codes before
 people can access company data. Save the recovery codes when enrolling. If you
 lose both the authenticator and those codes, contact the server operator; there
 is no administrator button to bypass them.

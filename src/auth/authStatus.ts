@@ -24,7 +24,7 @@ export type AuthStatusResult =
     }
   | {
       kind: "login";
-      authMode: "password" | "sso";
+      authMode: Exclude<AccountMode, "off">;
       needsSetup: boolean;
       providers: AuthProviderInfo[];
       /** True when the 401 body itself was untrustworthy (non-JSON, an HTML proxy page, or a
@@ -60,7 +60,7 @@ export function buildOpenAuthResult(authMode: AccountMode, user: AuthUser | null
 // Narrowing guards for the UNTRUSTED /api/auth/me response body (see fetchAuthStatus). The server
 // is external input — we validate its shape rather than trusting an `as` cast.
 export function isAuthMode(value: unknown): value is AccountMode {
-  return value === "off" || value === "password" || value === "sso";
+  return value === "off" || value === "password-only" || value === "sso-only" || value === "password-and-sso";
 }
 type AuthProviderCandidate = Omit<AuthProviderInfo, "brand"> & { brand?: unknown };
 

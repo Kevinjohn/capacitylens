@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { FastifyReply } from "fastify";
 import { DEMO_USER } from "../auth";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";
@@ -96,7 +97,7 @@ function createAccountPorts({ db, config, options, accountAudit, masqueradeSessi
     db,
     lock: accountLock,
     trustedLocal: authMode === "off",
-    requireMfa: authMode === "password" && options.requireMfa === true,
+    requireMfa: allowsPasswordSignIn(authMode) && options.requireMfa === true,
     audit: accountAudit,
   });
   const accountFlows = createLocalAccountFlows({

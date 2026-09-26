@@ -216,7 +216,7 @@ function buildTrackedApp(auth: Auth | null = null): { app: FastifyInstance; regi
     allowReset: true,
     optimisticConcurrency: false,
     rateLimit: 2,
-    ...(auth ? { authMode: "password", auth } : {}),
+    ...(auth ? { authMode: "password-only", auth } : {}),
   });
   app.addHook("onRoute", (routeOptions: RouteOptions) => {
     for (const method of methods(routeOptions.method)) {

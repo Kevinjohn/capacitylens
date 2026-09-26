@@ -12,7 +12,7 @@ const MICROSOFT = {
 };
 const HOSTED = {
   SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "hosted-sso-only",
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   ...GOOGLE,
 };
 
@@ -95,7 +95,7 @@ describe("hosted provider-only profile", () => {
       expect(
         resolveAccountEnvironment({
           SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "hosted-sso-only",
-          SMALLSASS_ACCOUNT_MODE: "sso",
+          SMALLSASS_ACCOUNT_MODE: "sso-only",
           ...providers,
         }).profile,
       ).toBe("hosted-sso-only");
@@ -103,7 +103,7 @@ describe("hosted provider-only profile", () => {
   });
 
   it.each([
-    [{ SMALLSASS_ACCOUNT_MODE: "password" }, /hosted password accounts are prohibited/i],
+    [{ SMALLSASS_ACCOUNT_MODE: "password-only" }, /hosted password accounts are prohibited/i],
     [{ SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1" }, /forbids open signup/i],
     [{ SMALLSASS_ACCOUNT_SETUP_TOKEN: "setup" }, /password-account configuration/i],
     [{ SMALLSASS_ACCOUNT_REQUIRE_MFA: "1" }, /password-account configuration/i],
@@ -128,11 +128,11 @@ describe("hosted provider-only profile", () => {
 it("normalizes supported settings and preserves secrets", () => {
   const secret = `  ${"x".repeat(32)}  `;
   const result = resolveAccountEnvironment({
-    SMALLSASS_ACCOUNT_MODE: " password ",
+    SMALLSASS_ACCOUNT_MODE: " password-only ",
     SMALLSASS_ACCOUNT_SECRET: secret,
     SMALLSASS_ACCOUNT_PUBLIC_URL: " https://capacity.example.test ",
   });
-  expect(result.env.SMALLSASS_ACCOUNT_MODE).toBe("password");
+  expect(result.env.SMALLSASS_ACCOUNT_MODE).toBe("password-only");
   expect(result.env.SMALLSASS_ACCOUNT_SECRET).toBe(secret);
   expect(result.env.SMALLSASS_ACCOUNT_PUBLIC_URL).toBe("https://capacity.example.test");
   expect(resolveAccountEnvironment(result.env).env).toBe(result.env);
@@ -144,8 +144,8 @@ it("rejects whitespace-only mode", () => {
 
 it("requires a company provider in self-hosted mixed and SSO-only profiles", () => {
   for (const [profile, mode] of [
-    ["self-hosted-mixed", "password"],
-    ["self-hosted-sso-only", "sso"],
+    ["self-hosted-mixed", "password-and-sso"],
+    ["self-hosted-sso-only", "sso-only"],
   ]) {
     expect(() =>
       resolveAccountEnvironment({ SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: profile, SMALLSASS_ACCOUNT_MODE: mode }),
@@ -164,7 +164,7 @@ it("rejects external providers in self-hosted password-only profile", () => {
   expect(() =>
     resolveAccountEnvironment({
       SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-password",
-      SMALLSASS_ACCOUNT_MODE: "password",
+      SMALLSASS_ACCOUNT_MODE: "password-only",
       ...GOOGLE,
     }),
   ).toThrow(/does not permit external identity providers/);

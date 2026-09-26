@@ -16,6 +16,7 @@ async function configured(verifyEmail = true) {
   const db = fixtures.trackDb(openDb(":memory:"));
   const { auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
+    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
     SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
     SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
     SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
@@ -29,7 +30,7 @@ async function configured(verifyEmail = true) {
   });
   if (!auth) throw new Error("Expected configured authentication.");
   await runAuthMigrations(auth);
-  const app = fixtures.trackApp(createApp(db, { authMode: "password", auth }));
+  const app = fixtures.trackApp(createApp(db, { authMode: "password-and-sso", auth }));
   const signedUp = await app.inject({
     method: "POST",
     url: "/api/auth/sign-up/email",
@@ -111,7 +112,7 @@ describe("company-provider sign-in policy", () => {
     const db = fixtures.trackDb(openDb(":memory:"));
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "sso",
+      SMALLSASS_ACCOUNT_MODE: "sso-only",
       SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: "bruce@example.test",
       SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID: "microsoft-client",
       SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_SECRET: "microsoft-secret",
@@ -126,7 +127,7 @@ describe("company-provider sign-in policy", () => {
     });
     if (!auth) throw new Error("Expected configured authentication.");
     await runAuthMigrations(auth);
-    const app = fixtures.trackApp(createApp(db, { authMode: "sso", auth }));
+    const app = fixtures.trackApp(createApp(db, { authMode: "sso-only", auth }));
     const github = await app.inject({
       method: "POST",
       url: "/api/auth/sign-in/social",

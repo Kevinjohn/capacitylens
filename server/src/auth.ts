@@ -193,9 +193,14 @@ export function listUserIdsByEmail(db: Db, email: string, limit: number): string
 
 export function parseAuthMode(raw: string | undefined): AccountMode {
   const mode = raw === undefined || raw === "" ? "off" : raw;
-  if (mode === "off" || mode === "password" || mode === "sso") return mode;
+  if (mode === "off" || mode === "password-only" || mode === "sso-only" || mode === "password-and-sso") return mode;
+  if (mode === "password" || mode === "sso") {
+    throw new AuthConfigError(
+      `SMALLSASS_ACCOUNT_MODE=${mode} was removed. Use ${mode === "sso" ? "sso-only" : "password-only or password-and-sso (if provider sign-in is intended)"}.`,
+    );
+  }
   throw new AuthConfigError(
-    `SMALLSASS_ACCOUNT_MODE must be 'off', 'password' or 'sso' — got '${raw}'. Unset it for today's no-auth behaviour.`,
+    `SMALLSASS_ACCOUNT_MODE must be 'off', 'password-only', 'sso-only' or 'password-and-sso' — got '${raw}'.`,
   );
 }
 

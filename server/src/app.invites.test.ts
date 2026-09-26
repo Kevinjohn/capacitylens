@@ -1052,6 +1052,7 @@ async function createSsoProviderInviteContext() {
   const db = openDb(":memory:");
   const configured = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
+    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
     SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
     SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -1060,7 +1061,7 @@ async function createSsoProviderInviteContext() {
   });
   const configuredAuth = requireValue(configured.auth, "configured authentication");
   await runAuthMigrations(configuredAuth);
-  const passwordApp = buildApp(db, { authMode: "password", auth: configuredAuth });
+  const passwordApp = buildApp(db, { authMode: "password-and-sso", auth: configuredAuth });
   const joiner = await signUp(passwordApp, "social-only@capacitylens.dev");
   verifyUserEmail(db, "social-only@capacitylens.dev");
   await passwordApp.close();
@@ -1078,7 +1079,7 @@ async function createSsoProviderInviteContext() {
     assurance: "federated",
     providerId: "github",
   });
-  const ssoApp = buildApp(db, { authMode: "sso", auth: configuredAuth });
+  const ssoApp = buildApp(db, { authMode: "sso-only", auth: configuredAuth });
   const socialMe = await call(ssoApp, { method: "GET", url: "/api/auth/me", headers: { cookie: joiner.cookie } });
   expect(socialMe.statusCode).toBe(401);
   expect(readResponseObject(socialMe).error).toMatch(/sign in/i);

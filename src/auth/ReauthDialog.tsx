@@ -13,7 +13,7 @@ import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import { ExternalProviderButton } from "../components/common/ExternalProviderButton";
 
 interface ReauthDialogProps {
-  authMode: "password" | "sso";
+  authMode: "password-only" | "sso-only" | "password-and-sso";
   user: AuthUser | null;
   providers: AuthProviderInfo[];
   reauthMethod?: "password" | "provider";
@@ -149,7 +149,7 @@ export function ReauthDialog({
   authMode,
   user,
   providers,
-  reauthMethod = authMode === "sso" ? "provider" : "password",
+  reauthMethod = authMode === "sso-only" ? "provider" : "password",
   reauthProviderId = null,
   action = null,
 }: ReauthDialogProps) {

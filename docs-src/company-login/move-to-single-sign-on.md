@@ -20,7 +20,7 @@ register its exact callback address, and set its server credentials. Microsoft
 also requires a tenant-specific Entra registration and working SMTP settings for
 first connections that need mailbox proof.
 
-Set `SMALLSASS_ACCOUNT_MODE=password` while both password and company sign-in
+Set `SMALLSASS_ACCOUNT_MODE=password-and-sso` while both password and company sign-in
 should remain available. Restart CapacityLens and check that the expected
 provider buttons appear. Complete a sign-in with an allowed account before
 asking teammates to connect.
@@ -82,7 +82,7 @@ schema; it refuses ambiguous identities and unsafe targets.
 After preflight reports ready, set:
 
 ```dotenv
-SMALLSASS_ACCOUNT_MODE=sso
+SMALLSASS_ACCOUNT_MODE=sso-only
 SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-sso-only
 ```
 
@@ -99,7 +99,7 @@ If a provider becomes unavailable or a person cannot use their connected
 identity, set both values and restart the server:
 
 ```dotenv
-SMALLSASS_ACCOUNT_MODE=password
+SMALLSASS_ACCOUNT_MODE=password-and-sso
 SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-mixed
 ```
 

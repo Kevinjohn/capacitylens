@@ -109,7 +109,7 @@ describe("resetOwnerPassword guards", () => {
 
   it("refuses sso and off modes and an unset public URL, naming canonical keys", async () => {
     const { databasePath } = await seededInstance();
-    await expect(run(databasePath, { env: { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_MODE: "sso" } })).rejects.toThrow(
+    await expect(run(databasePath, { env: { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_MODE: "sso-only" } })).rejects.toThrow(
       /SMALLSASS_ACCOUNT_MODE must be password/,
     );
     await expect(run(databasePath, { env: { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_MODE: "off" } })).rejects.toThrow(

@@ -22,7 +22,7 @@ afterEach(() => {
 function createPasswordAuth(db: Db): Auth {
   const configured = createAuthFromEnvironment(db, {
     NODE_ENV: "test",
-    SMALLSASS_ACCOUNT_MODE: "password",
+    SMALLSASS_ACCOUNT_MODE: "password-only",
     SMALLSASS_ACCOUNT_SECRET: "correlation-test-secret-0123456789abcdef",
     SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
     SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off",

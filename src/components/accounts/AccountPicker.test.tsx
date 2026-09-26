@@ -316,7 +316,7 @@ function registerServerListMembershipTests() {
     render(
       <AuthContext.Provider
         value={{
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "me", email: "me@example.com" },
           canCreateAccount: true,
           multiAccount: true,
@@ -354,7 +354,7 @@ function registerServerListAccessTests() {
     render(
       <AuthContext.Provider
         value={{
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "me", email: "me@example.com" },
           canCreateAccount: true,
           multiAccount: true,
@@ -746,7 +746,7 @@ function registerServerDeletePermissionsTest() {
     render(
       <AuthContext.Provider
         value={{
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "me", email: "me@example.com" },
           canCreateAccount: true,
           multiAccount: true,

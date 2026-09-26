@@ -36,7 +36,7 @@ const MICROSOFT_ENV = {
 
 const NAMED_SSO_ENV = {
   ...PASSWORD_ENV,
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
 };
@@ -101,12 +101,12 @@ function registerSsoClosedRouteTests(): void {
 }
 
 it("publishes Microsoft first-owner setup in provider-required mode", async () => {
-  const app = await appWithAuth({ ...PASSWORD_ENV, ...MICROSOFT_ENV, SMALLSASS_ACCOUNT_MODE: "sso" });
+  const app = await appWithAuth({ ...PASSWORD_ENV, ...MICROSOFT_ENV, SMALLSASS_ACCOUNT_MODE: "sso-only" });
   try {
     const response = await call(app, { method: "GET", url: "/api/auth/me" });
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({
-      authMode: "sso",
+      authMode: "sso-only",
       needsSetup: true,
       providers: [{ id: "microsoft", kind: "social", experimental: false }],
     });
@@ -152,6 +152,7 @@ describe("SMALLSASS_ACCOUNT_MODE sso", () => {
 describe("social providers (P1.7)", () => {
   const SOCIAL_ENV = {
     ...PASSWORD_ENV,
+    SMALLSASS_ACCOUNT_MODE: "password-and-sso",
     SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-id",
     SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     ...MICROSOFT_ENV,
@@ -243,6 +244,7 @@ describe("social providers (P1.7)", () => {
     expect(() =>
       createAuthFromEnvironment(openDb(":memory:"), {
         ...PASSWORD_ENV,
+        SMALLSASS_ACCOUNT_MODE: "password-and-sso",
         SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID: "gh-id-only",
       }),
     ).toThrow(/must both be set/i);

@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { randomBytes } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { getMigrations } from "better-auth/db/migration";
@@ -226,9 +227,9 @@ async function createBootstrapAdminResult(
 ): Promise<BootstrapAdminResult> {
   const { AuthConfigError, countUsers, isSqliteConstraintCollision } = dependencies;
   const { auth, db, log, mode } = input;
-  if (mode !== "password" || !auth) {
+  if (!allowsPasswordSignIn(mode) || !auth) {
     throw new AuthConfigError(
-      `--create-owner-admin-admin (CAPACITYLENS_CREATE_ADMIN_ADMIN=1) creates an email+password credential, which is meaningless when SMALLSASS_ACCOUNT_MODE is '${mode}'. Set SMALLSASS_ACCOUNT_MODE=password, or drop the flag.`,
+      `--create-owner-admin-admin (CAPACITYLENS_CREATE_ADMIN_ADMIN=1) creates an email+password credential, which is meaningless when SMALLSASS_ACCOUNT_MODE is '${mode}'. Set SMALLSASS_ACCOUNT_MODE=password-only or password-and-sso, or drop the flag.`,
     );
   }
   if (countUsers(db) > 0) {

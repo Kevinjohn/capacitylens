@@ -1,5 +1,11 @@
 import { AccountContractError } from "@capacitylens/shared/account/errors";
-import type { ApplicationSession, OperationReceipt, SessionSummary } from "@capacitylens/shared/account/types";
+import {
+  allowsPasswordSignIn,
+  allowsProviderSignIn,
+  type ApplicationSession,
+  type OperationReceipt,
+  type SessionSummary,
+} from "@capacitylens/shared/account/types";
 import { SESSION_ABSOLUTE_TTL_SECONDS, SESSION_FRESH_AGE_SECONDS, SESSION_INACTIVITY_TTL_SECONDS } from "../../auth";
 import { tx } from "../../txn";
 import { createOperationReceipt } from "../accountFlowRuntime";
@@ -70,6 +76,7 @@ function buildVerifiedApplicationSession(
   const { createdAt, expiresAt } = resolveSessionInstants(resolved);
   const authentication = getSessionAuthentication(db, resolved.session?.id ?? "");
   assertTrustworthyLegacySession(context, resolved.user.id, authentication);
+  if (!sessionMethodAllowed(authMode, authentication)) return null;
   const federatedIdentity = resolveFederatedIdentity(context, resolved.user.id, authentication);
   assertSsoFederatedIdentity(authMode, federatedIdentity);
   if (isDisallowedCompanyAuthentication(context, authentication)) return null;
@@ -93,11 +100,18 @@ function buildVerifiedApplicationSession(
   return { ...base, assurance, providerId: null };
 }
 
+function sessionMethodAllowed(
+  mode: SessionsContext["input"]["authMode"],
+  authentication: RecordedSessionAuthentication | null,
+): boolean {
+  return authentication?.assurance === "federated" ? allowsProviderSignIn(mode) : allowsPasswordSignIn(mode);
+}
+
 function assertSsoFederatedIdentity(
   mode: SessionsContext["input"]["authMode"],
   identity: ReturnType<typeof resolveFederatedIdentity>,
 ): void {
-  if (mode === "sso" && !identity) {
+  if (mode === "sso-only" && !identity) {
     throw createInvalidProviderSessionError(
       "The SSO-only profile received a session without federated assurance metadata.",
     );
@@ -109,7 +123,7 @@ function isDisallowedCompanyAuthentication(
   authentication: RecordedSessionAuthentication | null,
 ): boolean {
   return (
-    context.input.authMode === "sso" &&
+    context.input.authMode === "sso-only" &&
     authentication?.assurance === "federated" &&
     !context.input.auth.permittedCompanyProviderIds?.has(authentication.providerId ?? "")
   );

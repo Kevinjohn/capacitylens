@@ -26,32 +26,36 @@ const FULLY_HARDENED_PRODUCTION_CONTROLS: ProductionEnv = {
 const envExample = readFileSync(fileURLToPath(new URL("../../.env.example", import.meta.url)), "utf8");
 
 const OPTIONAL_HARDENING_CASES = [
-  ["MFA", { SMALLSASS_ACCOUNT_MODE: "password", SMALLSASS_ACCOUNT_REQUIRE_MFA: undefined }, /REQUIRE_MFA/],
+  ["MFA", { SMALLSASS_ACCOUNT_MODE: "password-only", SMALLSASS_ACCOUNT_REQUIRE_MFA: undefined }, /REQUIRE_MFA/],
   [
     "breach checking",
-    { SMALLSASS_ACCOUNT_MODE: "password", SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off" },
+    { SMALLSASS_ACCOUNT_MODE: "password-only", SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off" },
     /PASSWORD_BREACH_CHECK/,
   ],
   [
     "SSO MFA assurance",
-    { SMALLSASS_ACCOUNT_MODE: "sso", SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED: undefined },
+    { SMALLSASS_ACCOUNT_MODE: "sso-only", SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED: undefined },
     /SSO_MFA_ENFORCED/,
   ],
-  ["audit forwarding output", { SMALLSASS_ACCOUNT_MODE: "sso", CAPACITYLENS_AUDIT_STDOUT: undefined }, /AUDIT_STDOUT/],
+  [
+    "audit forwarding output",
+    { SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_AUDIT_STDOUT: undefined },
+    /AUDIT_STDOUT/,
+  ],
   [
     "encrypted storage",
-    { SMALLSASS_ACCOUNT_MODE: "sso", CAPACITYLENS_STORAGE_ENCRYPTED: undefined },
+    { SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_STORAGE_ENCRYPTED: undefined },
     /STORAGE_ENCRYPTED/,
   ],
   [
     "central security-log forwarding",
-    { SMALLSASS_ACCOUNT_MODE: "sso", CAPACITYLENS_SECURITY_LOG_FORWARDING: undefined },
+    { SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_SECURITY_LOG_FORWARDING: undefined },
     /SECURITY_LOG_FORWARDING/,
   ],
   [
     "internal service TLS",
     {
-      SMALLSASS_ACCOUNT_MODE: "sso",
+      SMALLSASS_ACCOUNT_MODE: "sso-only",
       CAPACITYLENS_INTERNAL_TLS_CERT: undefined,
       CAPACITYLENS_INTERNAL_TLS_KEY: undefined,
     },
@@ -134,7 +138,7 @@ describe("evaluateProductionPosture", () => {
 describe("production transport and optional-control posture", () => {
   it("warns (does not refuse) on HTTPS/HSTS off in production with auth on", () => {
     const result = productionPosture({
-      SMALLSASS_ACCOUNT_MODE: "password",
+      SMALLSASS_ACCOUNT_MODE: "password-only",
       CAPACITYLENS_HTTPS: undefined,
     });
     expect(result.refusals).toEqual([]);
@@ -143,7 +147,7 @@ describe("production transport and optional-control posture", () => {
 
   it("is fully clean (no refusals, no warnings) for a well-formed production posture — positive control", () => {
     const result = productionPosture({
-      SMALLSASS_ACCOUNT_MODE: "password",
+      SMALLSASS_ACCOUNT_MODE: "password-only",
       CAPACITYLENS_HTTPS: "1",
     });
     expect(result.refusals).toEqual([]);
@@ -153,7 +157,7 @@ describe("production transport and optional-control posture", () => {
   it("boots a minimal password deployment and reports every absent optional hardening control", () => {
     const result = evaluateProductionPosture({
       NODE_ENV: "production",
-      SMALLSASS_ACCOUNT_MODE: "password",
+      SMALLSASS_ACCOUNT_MODE: "password-only",
       CAPACITYLENS_HTTPS: "1",
       CAPACITYLENS_RATE_LIMIT: "300",
       CAPACITYLENS_AUDIT: "on",
@@ -176,7 +180,7 @@ describe("production transport and optional-control posture", () => {
 describe("production bootstrap and mandatory controls", () => {
   it("warns on open self-registration in production (sso + https, signup open)", () => {
     const result = productionPosture({
-      SMALLSASS_ACCOUNT_MODE: "sso",
+      SMALLSASS_ACCOUNT_MODE: "sso-only",
       CAPACITYLENS_HTTPS: "1",
       SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: "1",
     });
@@ -188,7 +192,7 @@ describe("production bootstrap and mandatory controls", () => {
     // The entrypoint folds the --create-owner-admin-admin argv spelling into this env form before
     // calling here, so this single check covers BOTH spellings of the flag.
     const result = productionPosture({
-      SMALLSASS_ACCOUNT_MODE: "password",
+      SMALLSASS_ACCOUNT_MODE: "password-only",
       CAPACITYLENS_HTTPS: "1",
       CAPACITYLENS_CREATE_ADMIN_ADMIN: "1",
     });
@@ -209,7 +213,7 @@ describe("production bootstrap and mandatory controls", () => {
 
   it("refuses a pinned bootstrap-owner password in production", () => {
     const result = productionPosture({
-      SMALLSASS_ACCOUNT_MODE: "password",
+      SMALLSASS_ACCOUNT_MODE: "password-only",
       CAPACITYLENS_HTTPS: "1",
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "operator-chosen-pw",
     });
@@ -233,8 +237,8 @@ describe("production bootstrap and mandatory controls", () => {
 
 describe("production mandatory service controls", () => {
   it.each([
-    ["rate limiting", { SMALLSASS_ACCOUNT_MODE: "sso", CAPACITYLENS_RATE_LIMIT: "0" }],
-    ["audit logging", { SMALLSASS_ACCOUNT_MODE: "sso", CAPACITYLENS_AUDIT: "off" }],
+    ["rate limiting", { SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_RATE_LIMIT: "0" }],
+    ["audit logging", { SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_AUDIT: "off" }],
   ])("refuses a production deployment that has no %s control", (_control, overrides) => {
     const result = productionPosture(overrides);
     expect(result.refusals).toHaveLength(1);
@@ -247,7 +251,7 @@ describe("production mandatory service controls", () => {
 
     expect(auditBlock).toContain("server REFUSES to boot with CAPACITYLENS_AUDIT=off");
     expect(auditBlock).toContain("NODE_ENV=production");
-    expect(productionPosture({ SMALLSASS_ACCOUNT_MODE: "sso", CAPACITYLENS_AUDIT: "off" }).refusals[0]).toContain(
+    expect(productionPosture({ SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_AUDIT: "off" }).refusals[0]).toContain(
       "CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production",
     );
   });
@@ -265,7 +269,7 @@ describe("production rate limits and optional hardening", () => {
     ["a decimal", "12.5"],
     ["a signed value", "+100"],
   ])("refuses CAPACITYLENS_RATE_LIMIT that parseRateLimit rejects (%s)", (_why, value) => {
-    const result = productionPosture({ SMALLSASS_ACCOUNT_MODE: "sso", CAPACITYLENS_RATE_LIMIT: value });
+    const result = productionPosture({ SMALLSASS_ACCOUNT_MODE: "sso-only", CAPACITYLENS_RATE_LIMIT: value });
     expect(result.refusals).toHaveLength(1);
     // The refusal states the accepted shape (digits only) and range so the operator can fix it.
     expect(result.refusals[0]).toMatch(/CAPACITYLENS_RATE_LIMIT/);
@@ -274,7 +278,7 @@ describe("production rate limits and optional hardening", () => {
 
   it("accepts a plain digits-only CAPACITYLENS_RATE_LIMIT the limiter would honour", () => {
     const result = productionPosture({
-      SMALLSASS_ACCOUNT_MODE: "sso",
+      SMALLSASS_ACCOUNT_MODE: "sso-only",
       CAPACITYLENS_RATE_LIMIT: "100",
       CAPACITYLENS_HTTPS: "1",
     });
@@ -293,7 +297,7 @@ describe("production rate limits and optional hardening", () => {
 
   it("leaves a partial internal TLS identity to the strict identity loader instead of claiming HTTP fallback", () => {
     const result = productionPosture({
-      SMALLSASS_ACCOUNT_MODE: "sso",
+      SMALLSASS_ACCOUNT_MODE: "sso-only",
       CAPACITYLENS_INTERNAL_TLS_KEY: undefined,
     });
 

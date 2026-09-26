@@ -29,7 +29,19 @@ export function isIsoInstant(value: unknown): value is IsoInstant {
     return false;
   }
 }
-export type AccountMode = "off" | "password" | "sso";
+/** Sign-in mode controls authentication methods. Enabled providers determine available SSO
+ * options; the access policy separately determines who may join the company. */
+export type AccountMode = "off" | "password-only" | "sso-only" | "password-and-sso";
+
+/** Whether the selected mode permits local password sign-in and password recovery. */
+export function allowsPasswordSignIn(mode: AccountMode): boolean {
+  return mode === "password-only" || mode === "password-and-sso";
+}
+
+/** Whether the selected mode permits configured external provider sign-in. */
+export function allowsProviderSignIn(mode: AccountMode): boolean {
+  return mode === "sso-only" || mode === "password-and-sso";
+}
 
 export interface AccountBranding {
   totpIssuer: string;

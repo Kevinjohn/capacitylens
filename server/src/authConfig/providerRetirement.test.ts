@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createAuthFromEnvironment } from "../auth";
 
 const base = {
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   SMALLSASS_ACCOUNT_SECRET: "provider-retirement-secret-0123456789",
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-id",

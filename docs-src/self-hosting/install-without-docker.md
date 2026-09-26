@@ -60,7 +60,7 @@ installed.
 
    ```dotenv
    SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password
-   SMALLSASS_ACCOUNT_MODE=password
+   SMALLSASS_ACCOUNT_MODE=password-only
    SMALLSASS_ACCOUNT_SECRET=<first generated value>
    SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
    SMALLSASS_ACCOUNT_SETUP_TOKEN=<second generated value>

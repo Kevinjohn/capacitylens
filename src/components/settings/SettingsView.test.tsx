@@ -481,7 +481,7 @@ it("does not duplicate personal identity or Sign out when the server reports an 
   render(
     <AuthContext.Provider
       value={{
-        authMode: "password",
+        authMode: "password-only",
         user: { id: "u1", email: "tester@capacitylens.dev" },
         canCreateAccount: true,
         multiAccount: true,
@@ -513,7 +513,7 @@ it("runs only one offline activation when the switch is triggered twice", async 
   render(
     <AuthContext.Provider
       value={{
-        authMode: "password",
+        authMode: "password-only",
         user: { id: "u1", email: "tester@capacitylens.dev" },
         canCreateAccount: true,
         multiAccount: true,

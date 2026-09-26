@@ -55,9 +55,9 @@ function validateRecoveryInput(input: OwnerRecoveryInput): RecoveryContext {
   if (!isAccountEmail(email)) throw new Error("The target email is not a valid account address.");
 
   const { env } = resolveAccountEnvironment({ ...(input.env ?? process.env) });
-  if (env.SMALLSASS_ACCOUNT_MODE !== "password") {
+  if (env.SMALLSASS_ACCOUNT_MODE !== "password-only" && env.SMALLSASS_ACCOUNT_MODE !== "password-and-sso") {
     throw new Error(
-      "SMALLSASS_ACCOUNT_MODE must be password: sso installations have no local credential to reset " +
+      "SMALLSASS_ACCOUNT_MODE must be password-only or password-and-sso: sso-only installations have no local credential to reset " +
         "and off installations have no credential model.",
     );
   }

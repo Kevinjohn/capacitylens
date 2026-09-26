@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { BoundApplication } from "@capacitylens/shared/account/types";
 import type { FastifyInstance } from "fastify";
 
@@ -88,7 +89,7 @@ function createServerApplication(input: ServerRuntimeInput): {
   let startingBackups = false;
   try {
     // A successful explicit admin bootstrap makes the captured count nonzero and skips this notice.
-    if (input.applicationOptions.authMode === "password" && input.userCount === 0) {
+    if (allowsPasswordSignIn(input.applicationOptions.authMode ?? "off") && input.userCount === 0) {
       input.logWarning(
         "capacitylens-server: SETUP LOCKED — no user accounts exist yet; owner creation requires the " +
           "configured SMALLSASS_ACCOUNT_SETUP_TOKEN.",

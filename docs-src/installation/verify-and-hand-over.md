@@ -66,7 +66,7 @@ backup directory contains a verified dated snapshot.
 ## 3. Hand over
 
 Send the intended Owner the CapacityLens address, the correct sign-in route and the [Owner
-setup guide](/owner/). Transfer the one-time setup token privately in password mode; for
+setup guide](/owner/). Transfer the one-time setup token privately in password-capable mode; for
 company login, pre-authorise the Owner's exact verified email.
 
 After the Owner confirms they can sign in, remove `SMALLSASS_ACCOUNT_SETUP_TOKEN` from the

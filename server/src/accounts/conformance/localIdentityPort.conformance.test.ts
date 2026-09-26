@@ -123,7 +123,7 @@ function identityPort(
 ): ReturnType<typeof createBetterAuthIdentityPort> {
   return createBetterAuthIdentityPort({
     applicationId: "conformance-app",
-    authMode: "password",
+    authMode: "password-only",
     db,
     ...overrides,
   });
@@ -160,7 +160,7 @@ it("normalizes a federated application session without exposing provider records
         expiresAt: "2026-07-18T12:00:00.000Z",
       },
     })),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.verifyApplicationSession({ headers: new Headers() })).resolves.toMatchObject({
@@ -208,7 +208,7 @@ it("rejects a pre-existing GitHub session after switching to company-provider-on
         ["github", "https://github.com"],
       ]),
     },
-    authMode: "sso",
+    authMode: "sso-only",
   });
   await expect(port.verifyApplicationSession({ headers: new Headers() })).resolves.toBeNull();
 });
@@ -226,7 +226,7 @@ it("correlates only by the exact issuer and subject", async () => {
   });
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(
@@ -352,7 +352,7 @@ it("fails closed when an SSO session has no federated assurance record", async (
         expiresAt: "2026-07-18T12:00:00.000Z",
       },
     })),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
@@ -377,7 +377,7 @@ it("fails closed when a federated assurance record has no issuer/subject link", 
         expiresAt: "2026-07-18T12:00:00.000Z",
       },
     })),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
@@ -771,7 +771,7 @@ it("counts malformed verification expiry as active in inspection and a subsequen
   insertVerification(db, "malformed-reset", "principal-1");
   insertVerification(db, "orphan-reset", "missing-principal");
   db.prepare(`UPDATE verification SET expiresAt = ?`).run("not-a-date");
-  const port = identityPort({ auth: auth(async () => null), authMode: "sso" });
+  const port = identityPort({ auth: auth(async () => null), authMode: "sso-only" });
 
   expect(port.inspectSsoCutover("sso").outstandingResetPrincipalIds).toEqual(["principal-1"]);
   await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 2 });
@@ -826,7 +826,7 @@ it("removes malformed session timestamps while retaining a genuinely absent expi
 it("records a first cutover even when no sessions or ceremonies remain", async () => {
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
@@ -844,7 +844,7 @@ it("rolls back the cutover when the readiness recheck fails under its writer res
   insertVerification(db, "reset-1", "principal-1");
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(
@@ -918,7 +918,7 @@ it("leaves an already-federated session untouched on a clean SSO-only restart", 
   });
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
@@ -954,7 +954,7 @@ it("does not treat abandoned OAuth state as a new cutover ceremony", async () =>
   );
   const port = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
 
   await expect(port.revokeAllForSsoCutover(() => undefined)).resolves.toEqual({ sessions: 0, ceremonies: 0 });
@@ -1254,7 +1254,7 @@ it("never treats a password credential as a federated repair coordinate", async 
 it("keeps no session distinct from a retryable provider failure", async () => {
   const absent = identityPort({
     auth: auth(async () => null),
-    authMode: "sso",
+    authMode: "sso-only",
   });
   await expect(absent.verifyApplicationSession({ headers: new Headers() })).resolves.toBeNull();
 
@@ -1262,7 +1262,7 @@ it("keeps no session distinct from a retryable provider failure", async () => {
     auth: auth(async () => {
       throw new Error("provider unavailable");
     }),
-    authMode: "sso",
+    authMode: "sso-only",
   });
   await expect(failed.verifyApplicationSession({ headers: new Headers() })).rejects.toMatchObject({
     failure: { code: "DEPENDENCY_UNAVAILABLE", retryable: true },
@@ -1423,7 +1423,7 @@ it("rejects ambiguous, unbound, and non-federated SSO session assurance", async 
   });
   const ambiguousDb = ambiguousSessionDb();
   await expect(
-    identityPort({ auth: auth(resolved), authMode: "sso", db: ambiguousDb }).verifyApplicationSession({
+    identityPort({ auth: auth(resolved), authMode: "sso-only", db: ambiguousDb }).verifyApplicationSession({
       headers: new Headers(),
     }),
   ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
@@ -1431,13 +1431,13 @@ it("rejects ambiguous, unbound, and non-federated SSO session assurance", async 
   const unboundAuth = auth(resolved);
   unboundAuth.federatedIssuers = new Map();
   await expect(
-    identityPort({ auth: unboundAuth, authMode: "sso" }).verifyApplicationSession({ headers: new Headers() }),
+    identityPort({ auth: unboundAuth, authMode: "sso-only" }).verifyApplicationSession({ headers: new Headers() }),
   ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
 
   recordSessionAssurance({ db, sessionId: "session-1", principalId: sessionUser.id, assurance: "password" });
   await expect(
-    identityPort({ auth: auth(resolved), authMode: "sso" }).verifyApplicationSession({ headers: new Headers() }),
-  ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
+    identityPort({ auth: auth(resolved), authMode: "sso-only" }).verifyApplicationSession({ headers: new Headers() }),
+  ).resolves.toBeNull();
 });
 
 it("refuses one federated subject mapped to multiple local principals", async () => {

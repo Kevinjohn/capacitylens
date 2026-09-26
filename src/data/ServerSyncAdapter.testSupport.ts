@@ -164,7 +164,7 @@ export const required = <T>(value: T | null | undefined, message = "expected tes
 
 /** The verified `/me` snapshot every offline scenario is cached against. */
 const OFFLINE_IDENTITY: OfflineAuthSnapshot = {
-  authMode: "password",
+  authMode: "password-only",
   user: {
     id: "offline-user",
     email: "offline@example.test",

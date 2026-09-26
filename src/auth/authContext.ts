@@ -7,7 +7,8 @@ import { createContext, useContext } from "react";
 // auth-off server both resolve to, so consumers rendered without a provider (unit
 // tests, storybook-style isolation) behave exactly like today's app.
 
-export type AccountMode = "off" | "password" | "sso";
+export type { AccountMode } from "@capacitylens/shared/account/types";
+import type { AccountMode } from "@capacitylens/shared/account/types";
 
 /** @deprecated Prefer the provider-neutral AccountMode. */
 export type AuthMode = AccountMode;
