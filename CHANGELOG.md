@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Place every configured sign-in provider in one consistent-width stack above the password form,
+  preserving provider order, branding and first-owner setup behavior (#1289).
 - Give consistent reasons when checking whether passwords can be disabled, with one or several
   company sign-in providers configured. Keep existing sign-in and recovery safeguards (#1248).
 - Present Google and Microsoft together above the password fallback. Provider-required

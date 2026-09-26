@@ -5,7 +5,7 @@ description: Configure Google or Microsoft company sign-in, connect existing acc
 
 # Require company sign-in
 
-![Company-sign-in-only screen with Google configured and no password form](../screenshots/company_sign_in_only.png)
+![Company-sign-in-only screen with Google and Microsoft provider buttons and no password form](../screenshots/company_sign_in_only.png)
 
 CapacityLens supports Google Workspace and Microsoft Entra ID as company sign-in
 providers. You can run them alongside passwords, or require people to use a
