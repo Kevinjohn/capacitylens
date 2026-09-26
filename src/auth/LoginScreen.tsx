@@ -7,7 +7,7 @@ import { Card, CardContent } from "../components/ui/card";
 import { FieldError } from "../components/ui/field";
 import { Separator } from "../components/ui/separator";
 import { ExternalProviderButton } from "../components/common/ExternalProviderButton";
-import { hasGoogleProviderBrand, type AuthProviderInfo } from "./authContext";
+import type { AuthProviderInfo } from "./authContext";
 import { dispatchExternalProviderSignIn } from "./externalProviderSignIn";
 import {
   buildExternalSignInErrorUrl,
@@ -191,14 +191,9 @@ type LoginViewProps = {
 };
 
 function LoginView(props: LoginViewProps) {
-  const setup = allowsPasswordSignIn(props.authMode) && props.needsSetup && !props.ownerSetup.setupClosed;
-  const promotedGoogle = props.providers.find(hasGoogleProviderBrand);
-  const promotedProviders =
-    !setup && allowsPasswordSignIn(props.authMode)
-      ? props.providers.filter((provider) => provider === promotedGoogle || provider.id === "microsoft")
-      : [];
-  const trailingProviders = props.providers.filter((provider) => !promotedProviders.includes(provider));
-  const showPromotedProviders = promotedProviders.length > 0 && !props.secondFactor.twoFactorPending;
+  const setup = isOwnerSetupActive(props);
+  const { loginProviders, trailingProviders, showLoginProviders, showTrailingProviders, preserveBootstrapFlow } =
+    getProviderPlacement(props);
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
@@ -206,21 +201,19 @@ function LoginView(props: LoginViewProps) {
         <Card className="gap-4 py-4">
           <CardContent className="px-4">
             <LoginNotices degraded={props.degraded} hadUnsavedChanges={props.hadUnsavedChanges} />
-            {showPromotedProviders && (
+            {showLoginProviders && (
               <ProviderButtons
                 authMode={props.authMode}
                 setup={setup}
-                providers={promotedProviders}
+                providers={loginProviders}
                 busy={props.busy}
                 pendingProvider={props.pendingProvider}
                 error={props.error}
                 twoFactorPending={props.secondFactor.twoFactorPending}
                 signInWithProvider={props.signInWithProvider}
-                showSeparator={false}
-                surroundButtons
               />
             )}
-            {showPromotedProviders && <PasswordFallbackSeparator />}
+            {showLoginProviders && allowsPasswordSignIn(props.authMode) && <PasswordFallbackSeparator />}
             <LoginForm
               authMode={props.authMode}
               setup={setup}
@@ -229,7 +222,7 @@ function LoginView(props: LoginViewProps) {
                 props.needsSetup &&
                 props.providers.some((provider) => provider.id === "microsoft")
               }
-              passwordAutoFocus={!showPromotedProviders}
+              passwordAutoFocus={!showLoginProviders}
               busy={props.busy}
               error={props.error}
               setError={props.setError}
@@ -238,22 +231,50 @@ function LoginView(props: LoginViewProps) {
               passwordSignIn={props.passwordSignIn}
               ownerSetup={props.ownerSetup}
             />
-            <ProviderButtons
-              authMode={props.authMode}
-              setup={setup}
-              providers={trailingProviders}
-              errorId={props.ids.error}
-              busy={props.busy}
-              pendingProvider={props.pendingProvider}
-              error={props.error}
-              twoFactorPending={props.secondFactor.twoFactorPending}
-              signInWithProvider={props.signInWithProvider}
-            />
+            {showTrailingProviders && (
+              <ProviderButtons
+                authMode={props.authMode}
+                setup={setup}
+                providers={trailingProviders}
+                showSeparator={preserveBootstrapFlow}
+                errorId={props.ids.error}
+                busy={props.busy}
+                pendingProvider={props.pendingProvider}
+                error={props.error}
+                twoFactorPending={props.secondFactor.twoFactorPending}
+                signInWithProvider={props.signInWithProvider}
+              />
+            )}
           </CardContent>
         </Card>
       </main>
     </div>
   );
+}
+
+function isOwnerSetupActive(props: LoginViewProps) {
+  return allowsPasswordSignIn(props.authMode) && props.needsSetup && !props.ownerSetup.setupClosed;
+}
+
+function getProviderPlacement({
+  authMode,
+  needsSetup,
+  providers,
+  secondFactor,
+  ownerSetup,
+}: Pick<LoginViewProps, "authMode" | "needsSetup" | "providers" | "secondFactor" | "ownerSetup">) {
+  const preserveBootstrapFlow = needsSetup && !ownerSetup.setupClosed;
+  const loginProviders = preserveBootstrapFlow ? [] : providers;
+  const trailingProviders = preserveBootstrapFlow ? providers : [];
+  const hideProviders = secondFactor.twoFactorPending;
+  return {
+    loginProviders,
+    trailingProviders,
+    preserveBootstrapFlow,
+    showLoginProviders: loginProviders.length > 0 && !hideProviders,
+    showTrailingProviders:
+      trailingProviders.length > 0 || (authMode === "sso-only" && providers.length === 0 && !hideProviders),
+  };
 }
 
 function LoginHeading({ setup }: { setup: boolean }) {
@@ -294,7 +315,6 @@ type ProviderButtonsProps = Pick<
   setup: boolean;
   twoFactorPending: boolean;
   showSeparator?: boolean;
-  surroundButtons?: boolean;
   errorId?: string;
 };
 
@@ -306,21 +326,13 @@ function ProviderButtons({
   pendingProvider,
   error,
   twoFactorPending,
+  showSeparator = false,
   signInWithProvider,
-  showSeparator = true,
-  surroundButtons,
   errorId,
 }: ProviderButtonsProps) {
   if (twoFactorPending) return null;
   if (providers.length === 0)
     return !setup && authMode === "sso-only" ? <FieldError>{m.login_sso_unavailable()}</FieldError> : null;
-  const hasSupportingText = providerButtonsHaveSupportingText({
-    authMode,
-    error,
-    pendingProvider,
-    providers,
-    setup,
-  });
   return (
     <div className="mt-4 flex flex-col gap-3">
       {showSeparator && <Separator />}
@@ -348,30 +360,10 @@ function ProviderButtons({
           microsoftLabel={m.login_sign_in_with_microsoft()}
           onClick={() => void signInWithProvider(provider)}
           disabled={busy}
-          className={providerButtonSpacingClass(surroundButtons, hasSupportingText)}
+          className="h-10 min-h-10 w-[180px] self-center p-0"
         />
       ))}
     </div>
-  );
-}
-
-function providerButtonSpacingClass(surroundButtons: boolean | undefined, hasSupportingText: boolean) {
-  if (!surroundButtons) return undefined;
-  return hasSupportingText ? "mt-5 mb-4" : "mb-4";
-}
-
-function providerButtonsHaveSupportingText({
-  authMode,
-  error,
-  pendingProvider,
-  providers,
-  setup,
-}: Pick<ProviderButtonsProps, "authMode" | "error" | "pendingProvider" | "providers" | "setup">) {
-  return (
-    (setup && providers.some((provider) => !provider.experimental)) ||
-    providers.some((provider) => provider.experimental) ||
-    (authMode === "sso-only" && Boolean(error)) ||
-    pendingProvider !== null
   );
 }
 
