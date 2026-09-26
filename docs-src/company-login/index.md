@@ -16,11 +16,19 @@ for the explicitly allowed first person on an empty installation.
 
 ## Passwords and company sign-in
 
-![Sign-in screen with Google, a password form and the experimental GitHub option](../screenshots/company_sign_in_password.png)
+![Sign-in screen with configured providers above the password form](../screenshots/company_sign_in_password.png)
 
-In password mode, configured Google and Microsoft buttons appear above the
-password form. This lets an existing team connect their accounts before changing
-how everyone signs in. GitHub is an experimental additional option in this mode.
+In password mode, every configured provider appears once in a vertical stack
+above the password form, in the order supplied by the server. Google and
+Microsoft keep their branded actions; GitHub is an experimental additional
+option. Future providers use the same placement. When both sign-in methods are
+available, the localized **or use your password** divider appears between the
+provider stack and password form. Provider-only sign-in has no password form or
+divider, and password-only sign-in has no empty provider area.
+
+First-owner setup keeps its separate field order and provider bootstrap flow.
+For example, Microsoft setup requires an email address before the provider
+action can begin its mailbox-proof step.
 
 In company-sign-in-only mode, people must use a configured company provider.
 Passwords and GitHub cannot satisfy this requirement, including through older

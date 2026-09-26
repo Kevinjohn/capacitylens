@@ -909,13 +909,18 @@ recognisable Google mark on the sign-in wall, the invite acceptance sign-in form
 reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
 providers use their branded accessible action, including **Sign in with Microsoft**.
 Provider presentation is server-owned and is never inferred from a user-editable provider label.
-On a password-mode installation with Google
-configured, the sign-in wall puts that Google action
-first, rendered sharply on high-density displays without an outer wrapper shadow and with breathing
-room from helper copy above and the explicit **or use your password** separator below. The password
-form follows at the standard spacing. Microsoft is presented alongside the primary Google action,
-above the password fallback, including when Microsoft is the only company provider. SSO-only
-still omits password controls. Additional provider actions retain their existing order.
+On an ordinary sign-in screen, every configured provider appears once in the server-supplied order
+in one vertical stack above the password form. Google keeps its sharp, undistorted artwork without
+an outer wrapper shadow; Microsoft and other providers retain their branded, accessible actions.
+When providers and password sign-in are both available, the localized **or use your password**
+separator appears once between the stack and form. Provider-only sign-in has no password separator,
+and password-only sign-in has no empty provider area. First-owner setup keeps its separate field
+order and provider bootstrap flow, including Microsoft's mailbox-proof requirements. SSO-only still
+omits password controls.
+
+See [Passwords and company sign-in](../docs-src/company-login/index.md#passwords-and-company-sign-in)
+for the sign-in layout and [Set up Google or Microsoft sign-in](../docs-src/company-login/set-up-company-login.md)
+for provider setup.
 
 Identity display-name and label limits count Unicode code points, so an astral CJK character is one
 character even though browser `maxlength` uses two UTF-16 code units. Email admission applies the

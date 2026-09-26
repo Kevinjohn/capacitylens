@@ -47,14 +47,21 @@ self-registration closes automatically and only the Sign in form below is reacha
 - When the named Google provider is configured, its action is visibly Google-branded, remains
   sharp on high-density displays without an outer wrapper shadow, and is named exactly **Sign in with Google**
   (including while disabled during the provider hand-off).
-- In mixed password mode with Google configured, **Sign in with Google** is the first sign-in
-  action, with breathing room from helper copy above and the explicit **or use your password**
-  separator below. The password form follows the separator at the standard form spacing. SSO-only
-  mode still omits password controls, while password-only mode and other providers retain their
-  existing order.
-- Microsoft appears alongside the primary Google action above the password fallback. First
-  connection may require an emailed proof in the initiating browser; ordinary returning sign-in
-  reuses the established identity without repeated mailbox verification.
+- In ordinary sign-in, every configured provider appears exactly once in one vertical stack above
+  the password form, in the supplied order. This includes GitHub when it is the only provider and
+  future provider names without a provider-specific placement rule.
+- When providers and password sign-in are both available, the localized **or use your password**
+  separator appears once between the stack and form. Provider-only sign-in has no password form or
+  separator; password-only sign-in has no empty provider area.
+- Provider buttons have consistent width, spacing and alignment. Google keeps its recognizable,
+  undistorted artwork and exact **Sign in with Google** accessible name; Microsoft and other
+  providers retain their branded action labels. Keyboard order follows the visible stack, then the
+  password fields.
+- First-owner setup retains its field order and provider bootstrap flow. First connection may
+  require an emailed Microsoft proof in the initiating browser; ordinary returning sign-in reuses
+  the established identity without repeated mailbox verification.
+- MFA challenges continue to hide provider actions, and provider errors and pending/disabled states
+  remain visible and accessible.
 - A successful sign-in resumes the normal company flow: the picker lists the user's memberships;
   when none are available, the documented first-company or invitation path is shown instead.
 - Account shows the signed-in identity and personal security controls only while signed in on an
@@ -68,5 +75,6 @@ self-registration closes automatically and only the Sign in form below is reacha
   invalidates the session (subsequent loads show Sign in again).
 - The Sign in screen passes an axe accessibility audit (no serious/critical violations).
 
-**Guide:** [Set up company login](../../docs-src/company-login/set-up-company-login.md) and
+**Guide:** [Passwords and company sign-in](../../docs-src/company-login/index.md#passwords-and-company-sign-in),
+[Set up company login](../../docs-src/company-login/set-up-company-login.md) and
 [Require company sign-in](../../docs-src/company-login/move-to-single-sign-on.md).
