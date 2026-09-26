@@ -165,7 +165,7 @@ describe("P1.17 retire the open shared dataset — hosted (auth-on) posture serv
     const { app } = await createAuthenticatedApp();
     const res = await readResponse(app, { method: "GET", url: "/api/auth/me" });
     expect(res.statusCode).toBe(401);
-    expect(res.json<{ authMode: string; error: string }>().authMode).toBe("password");
+    expect(res.json<{ authMode: string; error: string }>().authMode).toBe("password-only");
     expect(res.json<{ authMode: string; error: string }>().error).toBe("Sign in to continue.");
   });
 });

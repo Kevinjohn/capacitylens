@@ -1437,7 +1437,7 @@ it("rejects ambiguous, unbound, and non-federated SSO session assurance", async 
   recordSessionAssurance({ db, sessionId: "session-1", principalId: sessionUser.id, assurance: "password" });
   await expect(
     identityPort({ auth: auth(resolved), authMode: "sso-only" }).verifyApplicationSession({ headers: new Headers() }),
-  ).rejects.toMatchObject({ failure: { code: "DEPENDENCY_INVALID_RESPONSE" } });
+  ).resolves.toBeNull();
 });
 
 it("refuses one federated subject mapped to multiple local principals", async () => {

@@ -43,6 +43,12 @@ The server binds to localhost by default. Set the host explicitly to expose it o
 | `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP`   | Re-opens self-service sign-up. Closed by default — CapacityLens is invite-only unless you set this. Leave it unset in production.                                                               |
 | `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` | Deliberately allows the auth-off (`off`) posture under production. Off by default; without it, a production instance with no sign-in refuses to start.                                          |
 
+The optional deployment profile must match the mode: `self-hosted-password` requires
+`password-only`, `self-hosted-mixed` requires `password-and-sso`, and both
+`self-hosted-sso-only` and `hosted-sso-only` require `sso-only`. The mixed and SSO-only
+profiles require Google or tenant-specific Microsoft. Without a profile, mixed mode can
+also use experimental GitHub as its configured provider.
+
 Treat `SMALLSASS_ACCOUNT_SETUP_TOKEN` as a short-lived bootstrap secret. Give the first owner the
 value through a secure channel; never paste it into chat, tickets, screenshots, command output or
 logs. The owner copies the value from the server `.env` file or installer into the matching field.
@@ -70,6 +76,9 @@ credentials, `password-and-sso` enables password and configured provider sign-in
 accepts only configured company providers. GitHub remains experimental in mixed mode and cannot
 provide company-only access. Sign-in mode selects authentication methods, configured providers
 select SSO options, and the current invitation policy determines who may join a company.
+
+The `self-hosted-password` profile is stricter than unprofiled `password-only`: it rejects
+external-provider settings at startup. Remove those settings before selecting that profile.
 
 | Variable | What it does |
 | --- | --- |

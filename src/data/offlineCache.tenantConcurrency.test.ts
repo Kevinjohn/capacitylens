@@ -213,6 +213,7 @@ describe("offline tenant cache malformed records", () => {
   it.each([
     ["auth user", { ...authSnapshot("user-a"), user: null }],
     ["boolean flags", { ...authSnapshot("user-a"), canCreateAccount: "no" }],
+    ["legacy sign-in mode", { ...authSnapshot("user-a"), authMode: "password" }],
   ])("rejects poisoned authentication snapshots with invalid %s", async (_label, value) => {
     await cacheAuthSnapshot(authSnapshot("user-a"));
     await putEncryptedValue(`auth:${currentCacheNamespace()}`, value);
