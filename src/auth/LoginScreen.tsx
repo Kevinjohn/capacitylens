@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { useEffect, useId, useState, type Dispatch, type SetStateAction } from "react";
@@ -23,7 +24,7 @@ import { startMicrosoftConnection } from "./microsoftConnectionClient";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 
 type LoginScreenProps = {
-  authMode: "password" | "sso";
+  authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup?: boolean;
   providers?: AuthProviderInfo[];
   degraded?: boolean;
@@ -86,7 +87,7 @@ export function LoginScreen({
     <LoginView
       authMode={authMode}
       needsSetup={needsSetup}
-      providers={providers}
+      providers={allowsProviderSignIn(authMode) ? providers : []}
       degraded={degraded}
       hadUnsavedChanges={hadUnsavedChanges}
       busy={busy}
@@ -166,7 +167,7 @@ function createProviderSignIn({
 }
 
 type LoginViewProps = {
-  authMode: "password" | "sso";
+  authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup: boolean;
   providers: AuthProviderInfo[];
   degraded: boolean;
@@ -190,10 +191,10 @@ type LoginViewProps = {
 };
 
 function LoginView(props: LoginViewProps) {
-  const setup = props.authMode === "password" && props.needsSetup && !props.ownerSetup.setupClosed;
+  const setup = allowsPasswordSignIn(props.authMode) && props.needsSetup && !props.ownerSetup.setupClosed;
   const promotedGoogle = props.providers.find(hasGoogleProviderBrand);
   const promotedProviders =
-    !setup && props.authMode === "password"
+    !setup && allowsPasswordSignIn(props.authMode)
       ? props.providers.filter((provider) => provider === promotedGoogle || provider.id === "microsoft")
       : [];
   const trailingProviders = props.providers.filter((provider) => !promotedProviders.includes(provider));
@@ -224,7 +225,7 @@ function LoginView(props: LoginViewProps) {
               authMode={props.authMode}
               setup={setup}
               microsoftBootstrap={
-                props.authMode === "sso" &&
+                props.authMode === "sso-only" &&
                 props.needsSetup &&
                 props.providers.some((provider) => provider.id === "microsoft")
               }
@@ -312,7 +313,7 @@ function ProviderButtons({
 }: ProviderButtonsProps) {
   if (twoFactorPending) return null;
   if (providers.length === 0)
-    return !setup && authMode === "sso" ? <FieldError>{m.login_sso_unavailable()}</FieldError> : null;
+    return !setup && authMode === "sso-only" ? <FieldError>{m.login_sso_unavailable()}</FieldError> : null;
   const hasSupportingText = providerButtonsHaveSupportingText({
     authMode,
     error,
@@ -329,7 +330,7 @@ function ProviderButtons({
       {providers.some((provider) => provider.experimental) && (
         <p className="text-xs text-muted-foreground">{m.login_external_experimental()}</p>
       )}
-      <FieldError id={errorId}>{authMode === "sso" ? error : null}</FieldError>
+      <FieldError id={errorId}>{authMode === "sso-only" ? error : null}</FieldError>
       {pendingProvider && (
         <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
           {m.login_external_redirecting({ provider: pendingProvider.label })}
@@ -369,7 +370,7 @@ function providerButtonsHaveSupportingText({
   return (
     (setup && providers.some((provider) => !provider.experimental)) ||
     providers.some((provider) => provider.experimental) ||
-    (authMode === "sso" && Boolean(error)) ||
+    (authMode === "sso-only" && Boolean(error)) ||
     pendingProvider !== null
   );
 }

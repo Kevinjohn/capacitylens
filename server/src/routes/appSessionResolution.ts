@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { AccountAuditPort, IdentityPort } from "@capacitylens/shared/account/ports";
 import type { ApplicationSession } from "@capacitylens/shared/account/types";
@@ -196,7 +197,11 @@ async function requireApplicationSession(input: RequireApplicationSessionInput):
     return;
   }
   const user = buildSessionUser(resolution.session);
-  if (dependencies.authMode === "password" && dependencies.requireMfa && !hasRequiredSessionMfa(resolution.session)) {
+  if (
+    allowsPasswordSignIn(dependencies.authMode) &&
+    dependencies.requireMfa &&
+    !hasRequiredSessionMfa(resolution.session)
+  ) {
     dependencies.securityEvent({
       event: "mfa_required",
       outcome: "blocked",

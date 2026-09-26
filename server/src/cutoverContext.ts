@@ -17,7 +17,7 @@ export async function mixedModeCutoverContext(db: Db, environment: Record<string
     deferDatabaseSetup: true,
     application: DEFAULT_ACCOUNT_APPLICATION,
   });
-  if (!configured.auth || configured.mode !== "password" || !configured.auth.defaultCompanyProvider) {
+  if (!configured.auth || configured.mode !== "password-and-sso" || !configured.auth.defaultCompanyProvider) {
     throw new Error("The mixed profile did not resolve a company provider.");
   }
   const authPlan = await planAuthSchemaMigrations(configured.auth);

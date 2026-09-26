@@ -606,7 +606,7 @@ function registerInviteValidationTests(): void {
   it("requires a preauthorised email for an SSO-only invite without posting", async () => {
     const fetchMock = mockApi([{ userId: "me", role: "owner", isSelf: true }]);
     vi.stubGlobal("fetch", fetchMock);
-    renderSection({ authMode: "sso" });
+    renderSection({ authMode: "sso-only" });
     await screen.findByTestId("invite-open");
     fireEvent.click(screen.getByTestId("invite-open"));
 

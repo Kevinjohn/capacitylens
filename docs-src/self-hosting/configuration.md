@@ -35,10 +35,10 @@ The server binds to localhost by default. Set the host explicitly to expose it o
 
 | Variable                                | What it does                                                                                                                                                                                    |
 | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SMALLSASS_ACCOUNT_MODE`                | `off`, `password` or `sso`. `off` creates no sign-in at all; production refuses to boot with it unset unless you explicitly opt in (see below).                                                 |
+| `SMALLSASS_ACCOUNT_MODE`                | `off`, `password-only`, `sso-only` or `password-and-sso`. `off` creates no sign-in at all; production refuses to boot with it unset unless you explicitly opt in (see below).                                                 |
 | `SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE`  | An optional named policy: `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` or `hosted-sso-only`. Enforced at startup.                                                       |
-| `SMALLSASS_ACCOUNT_SECRET`              | The session-signing secret. Required for `password` or `sso` mode. Generate with `openssl rand -base64 48` — anything 32 characters or longer is fine; the install guide's command produces 48. |
-| `SMALLSASS_ACCOUNT_PUBLIC_URL`          | The exact browser-facing origin, for example `https://capacity.example.com`. Required for `password` or `sso` mode.                                                                             |
+| `SMALLSASS_ACCOUNT_SECRET`              | The session-signing secret. Required for every authenticated mode. Generate with `openssl rand -base64 48` — anything 32 characters or longer is fine; the install guide's command produces 48. |
+| `SMALLSASS_ACCOUNT_PUBLIC_URL`          | The exact browser-facing origin, for example `https://capacity.example.com`. Required for every authenticated mode.                                                                             |
 | `SMALLSASS_ACCOUNT_SETUP_TOKEN`         | The one-time secret the first owner enters on a fresh password-mode instance. For Google/Microsoft setup, use `SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS` for the first identity or a pre-authorised invitation after that. |
 | `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP`   | Re-opens self-service sign-up. Closed by default — CapacityLens is invite-only unless you set this. Leave it unset in production.                                                               |
 | `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` | Deliberately allows the auth-off (`off`) posture under production. Off by default; without it, a production instance with no sign-in refuses to start.                                          |
@@ -65,8 +65,11 @@ handoff material instead of leaving it available to operators or future processe
 
 Use [Set up company login](/company-login/set-up-company-login) for the registration steps.
 Google and Microsoft are company providers. Configure either or both; a partial credential pair
-refuses startup. `password` mode retains the password form, while `sso` mode permits only configured
-company providers. GitHub remains experimental in mixed mode and cannot provide company-only access.
+refuses startup when provider sign-in is enabled. `password-only` ignores retained provider
+credentials, `password-and-sso` enables password and configured provider sign-in, and `sso-only`
+accepts only configured company providers. GitHub remains experimental in mixed mode and cannot
+provide company-only access. Sign-in mode selects authentication methods, configured providers
+select SSO options, and the current invitation policy determines who may join a company.
 
 | Variable | What it does |
 | --- | --- |
@@ -100,7 +103,7 @@ The verification link expires after 15 minutes and must be confirmed in the brow
 sign-in. See the [company-login guide](/company-login/set-up-company-login) for resend, expiry and
 account-connection recovery.
 
-`hosted-sso-only` is reserved for hosted deployments. It requires `mode=sso` and complete
+`hosted-sso-only` is reserved for hosted deployments. It requires `mode=sso-only` and complete
 Google and/or tenant-specific Microsoft configuration; it rejects passwords, GitHub, open signup
 and incomplete provider settings. Self-hosted installations that require company sign-in use
 `self-hosted-sso-only`. See [Require company sign-in](/company-login/move-to-single-sign-on).

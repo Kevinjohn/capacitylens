@@ -278,7 +278,7 @@ async function createOrganisation(
     // persist a row the generic path would reject. The id is generated server-side when the body
     // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
     // is accepted and validated like any other write.
-    if (authMode === "sso" && !isPermittedCompanyProvider(auth, req.authenticationProviderId)) {
+    if (authMode === "sso-only" && !isPermittedCompanyProvider(auth, req.authenticationProviderId)) {
       return accountFail(
         reply,
         new AccountContractError({

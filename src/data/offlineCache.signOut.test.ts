@@ -78,7 +78,7 @@ async function getRaw(key: string): Promise<unknown> {
 
 function authSnapshot(userId: string) {
   return {
-    authMode: "password" as const,
+    authMode: "password-only" as const,
     user: { id: userId, email: `${userId}@example.test`, name: userId },
     canCreateAccount: false,
     multiAccount: false,

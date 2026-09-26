@@ -656,7 +656,7 @@ function createMissingTimestampRejectionTest(): void {
     });
     recordSessionAssurance({ db, sessionId: "undated-session", principalId: "undated-owner", assurance: "password" });
     const app = createApp(db, {
-      authMode: "password",
+      authMode: "password-only",
       auth: timestamplessAuth("undated-owner"),
     });
 
@@ -681,7 +681,7 @@ function createMissingTimestampReadWriteTest(): void {
     });
     recordSessionAssurance({ db, sessionId: "undated-session", principalId: "undated-owner", assurance: "password" });
     const app = createApp(db, {
-      authMode: "password",
+      authMode: "password-only",
       auth: timestamplessAuth("undated-owner"),
     });
 

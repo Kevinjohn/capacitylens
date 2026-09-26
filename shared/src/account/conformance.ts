@@ -5,7 +5,7 @@
  * same values become package metadata; consumers must never infer security currency from the
  * product version alone.
  */
-export const ACCOUNT_CONTRACT_VERSION = "1.1.0";
+export const ACCOUNT_CONTRACT_VERSION = "2.0.0";
 export const ACCOUNT_CONFORMANCE_VERSION = "2.0.0";
 export const MINIMUM_ACCOUNT_SECURITY_VERSION = "1.1.0";
 export const ACCOUNT_SECURITY_BASELINE_ID = "ACCOUNT-SEC-2026-08-07-01";

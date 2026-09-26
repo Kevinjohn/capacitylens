@@ -24,7 +24,7 @@ vi.mock("nodemailer", () => ({
 export const tenant = "01234567-89ab-cdef-0123-456789abcdef";
 export const origin = "http://localhost:8787";
 export const environments = {
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123",
   SMALLSASS_ACCOUNT_PUBLIC_URL: origin,
   SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS: "bruce@example.com",
@@ -84,7 +84,7 @@ export function mockMicrosoftToken(claims: Record<string, unknown>): void {
   );
 }
 
-export async function configured(mode: "sso" | "password" = "sso") {
+export async function configured(mode: "sso-only" | "password-and-sso" = "sso-only") {
   const db = openDb(":memory:");
   const { auth } = createAuthFromEnvironment(
     db,

@@ -31,7 +31,7 @@ beforeEach(() => {
 });
 
 const passwordAuth: AuthContextValue = {
-  authMode: "password",
+  authMode: "password-only",
   user: { id: "u1", email: "diana@example.test", twoFactorEnabled: true },
   providers: [],
   canCreateAccount: false,
@@ -187,7 +187,7 @@ it.each([
 
 it("preserves Microsoft identity-link status without password controls", async () => {
   renderSecurity({
-    authMode: "sso",
+    authMode: "sso-only",
     providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
   });
   expect(await screen.findByText(m.settings_sso_connected({ provider: "Microsoft" }))).toBeInTheDocument();

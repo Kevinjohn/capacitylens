@@ -65,7 +65,7 @@ it("keeps the stored proven mailbox when returning Microsoft claims change", asy
 });
 
 it("refuses to attach an established Microsoft identity to a different local principal", async () => {
-  const fixture = await configured("password");
+  const fixture = await configured("password-and-sso");
   try {
     const first = await begin(fixture.auth);
     mockMicrosoftToken(claims("bruce@example.com"));
@@ -98,7 +98,7 @@ it("refuses to attach an established Microsoft identity to a different local pri
 });
 
 it("does not implicitly merge a Microsoft invitation identity into a matching password account", async () => {
-  const fixture = await configured("password");
+  const fixture = await configured("password-and-sso");
   try {
     const local = await createLocal(fixture, "bruce@example.com", "Bruce Wayne");
     const now = new Date().toISOString();

@@ -34,7 +34,7 @@ try {
   const { mode, auth } = createAuthFromEnvironment(db, labEnv, {
     trustedOrigins: ["http://localhost:5473", "http://127.0.0.1:5473"],
   });
-  if (mode !== "password" || !auth) throw new Error("Access lab requires password authentication.");
+  if (mode !== "password-only" || !auth) throw new Error("Access lab requires password authentication.");
   await runAuthMigrations(auth);
   insertAll(db, buildAccessLabData());
 

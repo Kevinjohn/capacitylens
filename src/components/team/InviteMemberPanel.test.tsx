@@ -24,7 +24,7 @@ function InvitePanelHarness(props: Omit<InvitePanelProps, DialogProps>) {
 
 function renderInvite(overrides: Partial<Omit<InvitePanelProps, DialogProps>> = {}) {
   const props: Omit<InvitePanelProps, DialogProps> = {
-    authMode: "password",
+    authMode: "password-only",
     busy: false,
     inviteRole: "editor" satisfies InvitationRole,
     setInviteRole: vi.fn(),
@@ -110,7 +110,7 @@ describe("InviteMemberPanel creation guidance", () => {
   });
 
   it("marks Email as required for SSO invitations without adding helper copy", () => {
-    renderInvite({ authMode: "sso" });
+    renderInvite({ authMode: "sso-only" });
     fireEvent.click(screen.getByTestId("invite-open"));
 
     expect(screen.getByLabelText("Email")).toBe(screen.getByTestId("invite-preauth"));

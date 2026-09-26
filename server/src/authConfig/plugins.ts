@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { BetterAuthPlugin, BetterAuthOptions } from "better-auth";
 import { twoFactor } from "better-auth/plugins";
 
@@ -5,11 +6,11 @@ export function buildPlugins({
   mode,
   totpIssuer,
 }: {
-  mode: "password" | "sso";
+  mode: "password-only" | "sso-only" | "password-and-sso";
   totpIssuer: string;
 }): Pick<BetterAuthOptions, "plugins"> {
   const plugins: BetterAuthPlugin[] = [];
-  if (mode === "password") {
+  if (allowsPasswordSignIn(mode)) {
     plugins.push(
       twoFactor({
         issuer: totpIssuer,

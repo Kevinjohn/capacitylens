@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { accountClient } from "../account/accountClient";
 import { cacheAuthSnapshot, readCachedAuthSnapshot, setOfflineReadState } from "../data/offlineCache";
 import { hasUnsavedPersistenceWrites } from "../data/persist";
@@ -44,16 +45,16 @@ function parseAuthResponseFields(value: unknown): AuthResponseFields | null {
 function parseLoginResult(body: unknown, acceptEffects: () => boolean): AuthStatusResult {
   const fields = parseAuthResponseFields(body);
   const rawAuthMode = fields?.authMode;
-  const authMode = rawAuthMode === "sso" ? "sso" : "password";
+  const authMode = isAuthMode(rawAuthMode) && rawAuthMode !== "off" ? rawAuthMode : "password-only";
   const degraded =
-    fields === null || (rawAuthMode !== undefined && rawAuthMode !== "password" && rawAuthMode !== "sso");
+    fields === null || (rawAuthMode !== undefined && (!isAuthMode(rawAuthMode) || rawAuthMode === "off"));
   if (acceptEffects()) setOfflineReadState("identity", false);
   return {
     kind: "login",
     authMode,
     degraded,
     hadUnsavedChanges: hasUnsavedPersistenceWrites(),
-    providers: parseAuthProviders(fields?.providers),
+    providers: authMode === "password-only" ? [] : parseAuthProviders(fields?.providers),
     needsSetup: fields?.needsSetup === true,
   };
 }
@@ -89,10 +90,10 @@ function parsePassResult(body: unknown, acceptEffects: () => boolean): AuthStatu
     user,
     canCreateAccount: resolveBooleanField(fields.canCreateAccount, true),
     multiAccount: resolveBooleanField(fields.multiAccount, true),
-    mfaRequired: authMode === "password" && resolveBooleanField(fields.mfaRequired, false),
-    requireMfa: authMode === "password" && resolveBooleanField(fields.requireMfa, false),
-    providers: parseAuthProviders(fields.providers),
-    reauthMethod: fields.reauthMethod === "provider" || authMode === "sso" ? "provider" : "password",
+    mfaRequired: allowsPasswordSignIn(authMode) && resolveBooleanField(fields.mfaRequired, false),
+    requireMfa: allowsPasswordSignIn(authMode) && resolveBooleanField(fields.requireMfa, false),
+    providers: authMode === "password-only" ? [] : parseAuthProviders(fields.providers),
+    reauthMethod: fields.reauthMethod === "provider" || authMode === "sso-only" ? "provider" : "password",
     reauthProviderId: typeof fields.reauthProviderId === "string" ? fields.reauthProviderId : null,
   };
   updateLiveIdentityState(next, acceptEffects);

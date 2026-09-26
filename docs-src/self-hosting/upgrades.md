@@ -15,6 +15,29 @@ takes its own pre-migration snapshot automatically. See
 [Backups and restore](/self-hosting/backups-and-restore).
 :::
 
+## Updating sign-in modes
+
+Before deploying this change, update `SMALLSASS_ACCOUNT_MODE` on every installation. The old
+`password` and `sso` values now stop startup with a migration error. Choose the replacement by
+the sign-in methods people actually use:
+
+| Previous value | Replacement |
+| --- | --- |
+| `password`, with no intended provider sign-in | `password-only` |
+| `password`, with Google, Microsoft or GitHub sign-in in use | `password-and-sso` |
+| `sso` | `sso-only` |
+| `off` | No change |
+
+`password-and-sso` needs at least one configured provider. `sso-only` needs Google or a
+tenant-specific Microsoft provider; GitHub alone cannot satisfy it. `password-only` leaves stored
+provider credentials and links in place but disables provider sign-in. Check each installation's
+provider use before choosing its value; do not map every old `password` setting to
+`password-only`.
+
+Deploy the application and matching environment change together, then verify sign-in with each
+intended method. If rolling back to the previous application version, restore its old `password`
+or `sso` value at the same time. Existing database migrations and provider links are unchanged.
+
 ## Upgrading to 0.70.1-alpha.1
 
 This release removes the older account environment names. Rename them in the environment

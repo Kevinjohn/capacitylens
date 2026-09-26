@@ -91,7 +91,7 @@ drill client credentials; this storage drill does not attempt provider sign-in.
 ```bash
 env -i PATH="$PATH" NODE_ENV=production \
   SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password \
-  SMALLSASS_ACCOUNT_MODE=password \
+  SMALLSASS_ACCOUNT_MODE=password-only \
   SMALLSASS_ACCOUNT_SECRET='<drill-only secret of at least 32 characters>' \
   SMALLSASS_ACCOUNT_PUBLIC_URL=http://127.0.0.1:8877 \
   CAPACITYLENS_RATE_LIMIT=300 \

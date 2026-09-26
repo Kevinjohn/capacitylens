@@ -232,7 +232,7 @@ invitation tables. The account adapter exposes only the live-preauthorized-invit
 identity storage owns the first-local-principal fact. Missing verification or missing admission
 facts fail closed.
 
-Hosted uses `hosted-sso-only`, which requires `mode=sso` and complete Google and/or
+Hosted uses `hosted-sso-only`, which requires `mode=sso-only` and complete Google and/or
 tenant-specific Microsoft configuration. It rejects passwords, GitHub, open signup and incomplete
 provider settings. A future bundling layer must use the named-provider boundary and may not
 integrate with account internals.

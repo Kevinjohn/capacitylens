@@ -41,7 +41,7 @@ function renderAccount(mode: AuthContextValue["authMode"], method?: AuthContextV
 
 describe("AccountView", () => {
   it("uses separate single-line table cells and reveals the full truncated email on focus", async () => {
-    renderAccount("password");
+    renderAccount("password-only");
     expect(screen.getByRole("heading", { level: 1, name: "Account" }).parentElement?.parentElement).toHaveClass(
       "max-w-4xl",
     );
@@ -74,14 +74,14 @@ describe("AccountView", () => {
 
   it("signs out immediately", () => {
     signOut.mockClear();
-    renderAccount("password");
+    renderAccount("password-only");
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(signOut).toHaveBeenCalledOnce();
   });
 
   it("shows email in its own cell when the displayed name falls back to email", () => {
     render(
-      <AuthContext.Provider value={{ ...auth("password"), user: { id: "u1", email: "diana@example.test" } }}>
+      <AuthContext.Provider value={{ ...auth("password-only"), user: { id: "u1", email: "diana@example.test" } }}>
         <AccountView />
       </AuthContext.Provider>,
     );
@@ -92,8 +92,8 @@ describe("AccountView", () => {
   });
 
   it.each([
-    ["sso", "provider"],
-    ["password", "provider"],
+    ["sso-only", "provider"],
+    ["password-and-sso", "provider"],
   ] as const)("does not offer local password change for %s/%s", (mode, method) => {
     renderAccount(mode, method);
     expect(screen.queryByRole("button", { name: "Change password" })).not.toBeInTheDocument();

@@ -166,10 +166,10 @@ describe("usePersonSchedule calendar rollover", () => {
 describe("usePersonSchedule permissions and identity", () => {
   it("fails closed while authenticated permissions are unresolved", () => {
     const pending = renderHook(() => usePersonSchedule({ accountId: "a1", resourceId: "r1" }), {
-      wrapper: wrapper({ role: "viewer", status: "pending", authMode: "password" }),
+      wrapper: wrapper({ role: "viewer", status: "pending", authMode: "password-only" }),
     });
     const unavailable = renderHook(() => usePersonSchedule({ accountId: "a1", resourceId: "r1" }), {
-      wrapper: wrapper({ role: "viewer", status: "unavailable", authMode: "password" }),
+      wrapper: wrapper({ role: "viewer", status: "unavailable", authMode: "password-only" }),
     });
     expect(pending.result.current).toEqual({ kind: "unavailable" });
     expect(unavailable.result.current).toEqual({ kind: "unavailable" });
@@ -221,7 +221,7 @@ describe("usePersonSchedule authorized projection", () => {
       ],
     });
     const { result } = renderHook(() => usePersonSchedule({ accountId: "a1", resourceId: "r1" }), {
-      wrapper: wrapper({ role, status: "resolved", authMode: "password" }),
+      wrapper: wrapper({ role, status: "resolved", authMode: "password-only" }),
     });
     expect(result.current.kind).toBe("available");
     if (result.current.kind !== "available") return;

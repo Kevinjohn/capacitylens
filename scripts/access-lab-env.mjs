@@ -24,7 +24,7 @@ export function buildAccessLabEnv(inherited, { apiPort, webPort }) {
     PORT: String(apiPort),
     CAPACITYLENS_HOST: "127.0.0.1",
     CAPACITYLENS_DB: ".access-lab.db",
-    SMALLSASS_ACCOUNT_MODE: "password",
+    SMALLSASS_ACCOUNT_MODE: "password-only",
     SMALLSASS_ACCOUNT_REQUIRE_MFA: "0",
     CAPACITYLENS_ALLOW_RESET: "0",
     CAPACITYLENS_MULTI_ACCOUNT: "0",

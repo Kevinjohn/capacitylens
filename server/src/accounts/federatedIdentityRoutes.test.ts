@@ -11,7 +11,7 @@ const provider = { id: "google", label: "Google", kind: "social", experimental: 
 function routeDependencies(overrides: Record<string, unknown> = {}) {
   return {
     auth: { defaultCompanyProvider: provider, providers: [provider] } as unknown as Auth,
-    authMode: "password" as const,
+    authMode: "password-only" as const,
     identity: {} as SsoCutoverIdentityPort,
     administration: {} as SsoCutoverAccountAdminPort,
     applicationId: "capacitylens",
@@ -193,7 +193,7 @@ describe("SSO provider inspection", () => {
       auth: {
         defaultCompanyProvider: { id: "google", label: "Google", kind: "social", experimental: false },
       } as unknown as Auth,
-      authMode: "password",
+      authMode: "password-only",
       identity: { inspectProviderLinks, inspectSsoCutover } as unknown as SsoCutoverIdentityPort,
       administration: {} as SsoCutoverAccountAdminPort,
       applicationId: "capacitylens",
@@ -226,7 +226,7 @@ describe("federated identity repairs", () => {
       auth: {
         defaultCompanyProvider: { id: "google", label: "Google", kind: "social", experimental: false },
       } as unknown as Auth,
-      authMode: "password",
+      authMode: "password-only",
       identity: { removeFederatedLink } as unknown as SsoCutoverIdentityPort,
       administration: {} as SsoCutoverAccountAdminPort,
       applicationId: "capacitylens",
@@ -405,7 +405,7 @@ describe("SSO cutover repair preconditions", () => {
       { rowId: "link-1", providerId: "google", subject: "subject-1" },
     ],
   ] as const)("rejects %s repairs outside password staging mode", async (method, url, payload) => {
-    const app = authenticatedApp({ authMode: "sso" });
+    const app = authenticatedApp({ authMode: "sso-only" });
     const response = await app.inject({ method, url, payload });
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({ code: "CONFLICT" });
