@@ -19,6 +19,8 @@ export interface TeamMember {
   userId: string;
   role: Role;
   status: MembershipStatus;
+  accessDisabled?: boolean;
+  membershipPresent?: boolean;
   createdAt: string;
   name: string | null;
   email: string | null;
@@ -111,6 +113,8 @@ function parseMember(row: unknown): TeamMember | null {
     isSelf: row.isSelf,
     mayResetPassword: row.mayResetPassword === true,
     mayRevokeSessions: row.mayRevokeSessions === true,
+    accessDisabled: row.accessDisabled === true,
+    membershipPresent: row.membershipPresent !== false,
     resourceLink,
     resourceLinkException,
   };
@@ -314,6 +318,10 @@ export const teamAccessClient = {
       await accountClient.changeMemberStatus({ workspaceId: workspaceId, principalId: principalId, status: status }),
       noContent,
     );
+  },
+
+  async enableMemberAccess(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {
+    return readCommandResult(await accountClient.enableMemberAccess(workspaceId, principalId), noContent);
   },
 
   async removeMember(workspaceId: string, principalId: string): Promise<TeamAccessResult<true>> {

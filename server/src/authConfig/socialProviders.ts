@@ -4,6 +4,7 @@ import { persistLinkedExternalAvatar } from "./externalAvatar";
 import type { Db } from "../db";
 import type { MicrosoftProof } from "./microsoftProof";
 import { MicrosoftProofError } from "./microsoftProofPrimitives";
+import { captureGoogleEmailProof } from "./googleEmailProof";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
@@ -134,8 +135,10 @@ export function parseSocialProvidersFromEnvironment({
     providers.google = {
       clientId: google[0],
       clientSecret: google[1],
-      mapProfileToUser: (profile) =>
-        persistLinkedExternalAvatar({ db, providerId: "google", subject: profile.sub, value: profile.picture }),
+      mapProfileToUser: (profile) => {
+        captureGoogleEmailProof(db, profile);
+        return persistLinkedExternalAvatar({ db, providerId: "google", subject: profile.sub, value: profile.picture });
+      },
     };
   const microsoft = pair(
     "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID",

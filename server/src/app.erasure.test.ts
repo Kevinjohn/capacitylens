@@ -251,8 +251,21 @@ async function testRetainedMember(): Promise<void> {
   const { app, db } = await appWithAuth();
   insertAll(db, { ...emptyAppData(), accounts: [account("a1"), account("a2")] } as unknown as AppData);
   const member = await signUp(app, "multi-account-member@capacitylens.dev");
+  db.prepare(
+    `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+    VALUES (?, ?, 'google', ?)`,
+  ).run(member.userId, "multi-account-member@capacitylens.dev", TS);
   upsertMember(db, { accountId: "a1", userId: member.userId, role: "owner", status: "active", createdAt: TS });
   upsertMember(db, { accountId: "a2", userId: member.userId, role: "editor", status: "active", createdAt: TS });
+  // A removed identity's denial survives membership removal, but company erasure must erase it.
+  db.prepare(
+    `INSERT INTO account_access_restrictions
+    (accountId, principalId, verifiedEmail, role, createdAt) VALUES (?, ?, NULL, 'viewer', ?)`,
+  ).run("a1", "removed-principal", TS);
+  db.prepare(
+    `INSERT INTO account_access_restrictions
+    (accountId, principalId, verifiedEmail, role, createdAt) VALUES (?, ?, NULL, 'viewer', ?)`,
+  ).run("a2", "removed-principal", TS);
   seedResetToken(db, member.userId);
   seedAccountLinkState({
     db,
@@ -264,6 +277,10 @@ async function testRetainedMember(): Promise<void> {
   expect((await deleteAccountRoute({ app, id: "a1", cookie: member.cookie })).statusCode).toBe(204);
   expect(memberCount(db, "a1")).toBe(0);
   expect(memberCount(db, "a2")).toBe(1);
+  expect(db.prepare(`SELECT accountId FROM account_access_restrictions`).all()).toEqual([{ accountId: "a2" }]);
+  expect(db.prepare(`SELECT email FROM identity_email_proofs WHERE principalId = ?`).get(member.userId)).toEqual({
+    email: "multi-account-member@capacitylens.dev",
+  });
   expect(
     (
       db
@@ -423,6 +440,10 @@ describe("P2.6b erasure — (b) last-company identity removal reopens password s
     const { app, db } = await appWithAuth();
     insertAll(db, { ...emptyAppData(), accounts: [account("a1")] } as unknown as AppData);
     const u = await signUp(app, "sole-owner@capacitylens.dev");
+    db.prepare(
+      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+      VALUES (?, ?, 'google', ?)`,
+    ).run(u.userId, "sole-owner@capacitylens.dev", TS);
     upsertMember(db, { accountId: "a1", userId: u.userId, role: "owner", status: "active", createdAt: TS });
     seedLastCompanyIdentity(db, u.userId);
 
@@ -439,6 +460,7 @@ describe("P2.6b erasure — (b) last-company identity removal reopens password s
     expect((await deleteAccountRoute({ app, id: "a1", cookie: u.cookie })).statusCode).toBe(204);
 
     assertLastCompanyIdentityErased(db, u.userId);
+    expect(db.prepare(`SELECT 1 FROM identity_email_proofs WHERE principalId = ?`).get(u.userId)).toBeUndefined();
 
     // The dead cookie now sees a genuine first-run state, and the live signup gate consults the
     // same zero-user fact per request. No restart or manual DB repair is required.

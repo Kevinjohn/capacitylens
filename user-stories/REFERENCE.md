@@ -8,6 +8,14 @@ All member linking and invitations are managed in **Team & access**. Owners and 
 member's actions there to link, change, or remove an eligible person Resource; the Resources page
 does not provide a separate team-link workflow.
 
+**Disable Access** is a company restriction separate from archiving or removing membership. It
+denies current requests and later invitations. It also follows a recreated identity at the same
+address when both identities have durable mailbox proof from a verified provider sign-in or a
+completed mailbox ceremony; a legacy email-verified flag or addressed invitation is not proof.
+**Enable Access** clears the restriction; a removed or archived person still needs the
+ordinary invitation or restore path. Removed restrictions remain visible to administrators in
+the inactive member directory. Owner and self protections apply to both actions.
+
 Invitation administration may carry an optional `proposedResourceId` for an active person in the
 selected account. The value is an admin-only, non-reserving proposal: invite previews, signup and
 accept responses never include it.
@@ -1030,10 +1038,9 @@ activatable). Leaving the invitation route while that refresh is pending does no
 active company; the refreshed company directory remains available for normal account selection. A
 single polite status announces checking, readiness, joining and completion; accepting moves focus
 to that status, and completed activation moves focus to **Continue**.
-An accept by someone whose membership in that company is **disabled or archived** is refused
-(403) with _"This membership is no longer active. An Owner or Admin must restore it before you can
-rejoin."_ — redemption must never be a route back in for a member an administrator turned off, and
-the invite is left unused so it still works once the membership is restored. A
+An accept is refused (403) while **Disable Access** applies, including after removal or identity
+recreation with the same proven email; the invitation remains unused. An archived member without
+the restriction can rejoin through a valid invitation at the invitation's role. A
 **used** link shows _"This invite has already been used."_; an
 **expired** link shows _"This invite has expired."_ (expiry is evaluated as an instant, including
 explicit UTC offsets, and malformed stored values fail closed); an **unknown** token shows _"Invite not
@@ -1095,10 +1102,10 @@ presented before the member directory, matching the action-first pattern of the 
   available row action is grouped at the right in the same outlined-button treatment as the
   Resources list.
   The role has its own column. The caller's own row is marked **(you)** and a
-  non-active member's row carries a **Disabled** or **Archived** badge
+  non-active member's row carries an **Access disabled**, **Archived**, or **Removed** badge
   (`data-testid="member-status"`). Members are ordered by role priority **Owner**, **Admin**,
   **Editor**, **Viewer**, then display name and stable member ID. The table itself lists only
-  **active** members; disabled and archived memberships are grouped below it behind a
+  **active, unrestricted** members; restricted, archived, and removed-with-restriction entries are grouped below it behind a
   collapsed **No longer active (_count_)** disclosure (`data-testid="members-inactive-toggle"`,
   reporting its state through `aria-expanded`) which reveals a second table with the same columns
   (`data-testid="members-inactive-table"`). The disclosure is absent when no membership is in that
@@ -1131,15 +1138,15 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="member-role-save"`) — and a gear
   (`data-testid="member-menu"`) opening the centered **Member actions** dialog naming the selected member: **Reset password**
   (`data-testid="member-reset-password"`), **Revoke sessions**
-  (`data-testid="member-revoke-sessions"`), **Disable user** (`data-testid="member-disable"`),
+  (`data-testid="member-revoke-sessions"`), **Disable Access** (`data-testid="member-disable"`),
   **Archive user** (`data-testid="member-archive"`) and **Remove**
-  (`data-testid="member-remove"`), with **Restore access** (`data-testid="member-restore"`)
-  replacing disable/archive once the member is no longer active. The pencil is offered on **active
-  rows only** — a role change must not be a back door that reinstates a disabled member, so such a
-  row is restored first — while the gear, including **Remove**, stays available on those rows so
+  (`data-testid="member-remove"`), with **Enable Access** (`data-testid="member-enable"`)
+  replacing Disable Access while restricted, and **Restore membership**
+  (`data-testid="member-restore"`) offered for archived rows. The pencil is offered on active,
+  unrestricted rows only. The gear, including **Remove**, stays available on inactive rows so
   a membership can be ended without first handing its access back. Every control has a member-scoped
   accessible name — **Edit _member_**, **More actions for _member_**, **Remove _member_**, **Reset
-  password for _member_**, **Revoke sessions for _member_**, **Disable _member_** — so non-linear
+  password for _member_**, **Revoke sessions for _member_**, **Disable Access for _member_** — so non-linear
   assistive-technology navigation cannot detach an action from its target. Each menu action opens a
   confirmation naming the affected member before sending its destructive or security-sensitive
   request. While any member action is in flight, the management section is marked busy, politely

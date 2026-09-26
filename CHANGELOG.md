@@ -9,6 +9,9 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Let Owners and Admins Disable Access to one company and explicitly Enable it later. The
+  restriction survives membership removal and verified-email re-registration; ordinary archive
+  and removal still allow a later invitation (#1290).
 - Use Google or Microsoft for company sign-in, including first-owner setup, invitations and
   explicit connection to an existing account. Microsoft verifies your company email once when
   needed, with retry and recovery for expired or undelivered verification links (#1216, #1240).

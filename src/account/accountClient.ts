@@ -209,6 +209,19 @@ export const accountClient = {
     });
   },
 
+  enableMemberAccess(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
+    return runCommand({
+      operationKey: `member-enable-access:${workspaceId}:${principalId}`,
+      explicit: command,
+      request: (resolved) =>
+        apiFetchReauth(
+          `${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/members/${encodeURIComponent(principalId)}/enable-access`,
+          buildJsonCommandRequestInit("POST", {}, resolved),
+          { action: "change-member-status" satisfies ReauthAction },
+        ),
+    });
+  },
+
   removeMember(workspaceId: string, principalId: string, command?: BrowserAccountCommand): Promise<Response> {
     return runCommand({
       operationKey: `member-remove:${workspaceId}:${principalId}`,

@@ -81,6 +81,19 @@ export {
 } from "./controlTables/invites";
 export type { Invite } from "./controlTables/invites";
 export type { AccountMember, MembershipStatus } from "./controlTables/members.model";
+export {
+  disableAccess,
+  captureRestrictionEmail,
+  invalidateRestrictedPrincipal,
+  provenEmail,
+  enableAccess,
+  getAccessRestriction,
+  isAccessRestricted,
+  listAccessRestrictions,
+  matchingAccessRestrictions,
+  removeAccessRestrictionsForAccount,
+} from "./controlTables/accessRestrictions";
+export type { AccessRestriction } from "./controlTables/accessRestrictions";
 
 export { inviteTokenHash, newInviteId } from "./controlTables/inviteTokens";
 export {

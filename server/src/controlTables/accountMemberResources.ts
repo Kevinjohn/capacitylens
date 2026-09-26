@@ -4,6 +4,7 @@ import { ACCOUNT_MEMBER_RESOURCES_SCHEMA_VERSION, INVITATION_PERSON_PROPOSALS_SC
 import { tx } from "../txn";
 import { newInviteId } from "./inviteTokens";
 import { isIsoInstant } from "@capacitylens/shared/account/types";
+import { isAccessRestricted } from "./accessRestrictions";
 
 /** Resource-write invariant installed alongside the v43 association table. */
 export const ACCOUNT_MEMBER_RESOURCE_KIND_CLEANUP_TRIGGER = {
@@ -178,7 +179,11 @@ function assertLinkTargets(input: SetLinkInput): void {
   const member = input.db
     .prepare(`SELECT status FROM account_members WHERE accountId = ? AND userId = ?`)
     .get(input.accountId, input.userId);
-  if (!member || (member as { status?: unknown }).status !== "active")
+  if (
+    !member ||
+    (member as { status?: unknown }).status !== "active" ||
+    isAccessRestricted(input.db, input.accountId, input.userId)
+  )
     throw conflict("Only an active member in this account can be linked.");
   const resource = input.db
     .prepare(`SELECT kind, archivedAt, deletedAt FROM resources WHERE accountId = ? AND id = ?`)
@@ -287,7 +292,9 @@ export function listResourceAvatarProjection(db: Db, accountId: string): Resourc
         WHERE l.accountId = ?`,
     )
     .all(accountId) as unknown as ResourceAvatarRow[];
-  return rows.flatMap((row) => projectAvatarRow(row, accountId));
+  return rows.flatMap((row) =>
+    isAccessRestricted(db, accountId, String(row.userId)) ? [] : projectAvatarRow(row, accountId),
+  );
 }
 
 /** Explicit cleanup for a permanently removed membership. */

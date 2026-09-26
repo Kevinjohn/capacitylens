@@ -18,6 +18,8 @@ export interface RawMember {
   userId: string;
   role: "owner" | "admin" | "editor" | "viewer";
   status?: string;
+  accessDisabled?: boolean;
+  membershipPresent?: boolean;
   createdAt?: string;
   signInConfirmed?: boolean | null;
   name?: string | null;

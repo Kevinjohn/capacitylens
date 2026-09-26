@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
 import { createApp } from "./app";
 import { openDb, insertAll, type Db } from "./db";
-import { upsertMember, getMemberRole, getInvite } from "./controlTables";
+import { upsertMember, getMemberRole, getInvite, isAccessRestricted } from "./controlTables";
 import { seedMemberResourceLink } from "./fixtures/memberResourceTestSupport";
 import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, readCookies, signUp } from "./testHelpers";
@@ -87,6 +87,9 @@ const patchStatusReq = ({ app, accountId, userId, status, headers = {} }: PatchS
     payload: { status },
     headers,
   });
+// eslint-disable-next-line max-params
+const enableAccessReq = (app: FastifyInstance, accountId: string, userId: string, cookie: string) =>
+  call(app, { method: "POST", url: `/api/accounts/${accountId}/members/${userId}/enable-access`, headers: { cookie } });
 
 const storedStatus = (db: Db, accountId: string, userId: string): string | undefined =>
   (
@@ -233,7 +236,8 @@ function createDisableMemberTest(): void {
     });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ userId: ed.userId, status: "disabled" });
-    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
+    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
+    expect(isAccessRestricted(db, "a1", ed.userId)).toBe(true);
 
     // THE POINT: the membership row survives, but it confers nothing.
     expect(
@@ -264,58 +268,6 @@ function createArchiveMemberTest(): void {
     expect(
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
     ).toBe(403);
-  });
-}
-
-function createRestoreMemberTest(): void {
-  it("restores a disabled member to active, and their role is preserved throughout", async () => {
-    const { app, db, owner, ed } = await ownerAndEditor("restore");
-    await patchStatusReq({
-      app,
-      accountId: "a1",
-      userId: ed.userId,
-      status: "disabled",
-      headers: { cookie: owner.cookie },
-    });
-    expect(getMemberRole(db, "a1", ed.userId)).toBe("editor"); // role survives the suspension
-
-    expect(
-      (
-        await patchStatusReq({
-          app,
-          accountId: "a1",
-          userId: ed.userId,
-          status: "active",
-          headers: { cookie: owner.cookie },
-        })
-      ).statusCode,
-    ).toBe(200);
-    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
-    expect(
-      (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
-    ).toBe(200);
-  });
-}
-
-function createVisibleInactiveMemberTest(): void {
-  it("keeps a non-active member VISIBLE in the directory, so an admin can reverse it", async () => {
-    const { app, owner, ed } = await ownerAndEditor("visible");
-    await patchStatusReq({
-      app,
-      accountId: "a1",
-      userId: ed.userId,
-      status: "disabled",
-      headers: { cookie: owner.cookie },
-    });
-
-    const res = await membersReq(app, "a1", { cookie: owner.cookie });
-    expect(res.statusCode).toBe(200);
-    const members = (res.json() as { members: Array<{ userId: string; status: string; role: string }> }).members;
-    const row = members.find((m) => m.userId === ed.userId);
-    // An invisible non-active member would be an unreversible one — the admin needs the row to act on.
-    if (!row) throw new Error("Expected the disabled member row.");
-    expect(row.status).toBe("disabled");
-    expect(row.role).toBe("editor");
   });
 }
 
@@ -458,8 +410,6 @@ function createAnonymousStatusMutationTest(): void {
 describe("PATCH /api/accounts/:id/members/:userId/status — member lifecycle", () => {
   createDisableMemberTest();
   createArchiveMemberTest();
-  createRestoreMemberTest();
-  createVisibleInactiveMemberTest();
   createOwnerDisableRejectionTest();
   createSelfDisableRejectionTest();
   createLimitedStatusMutationRejectionTest();
@@ -561,7 +511,8 @@ function registerDisabledInviteRedemptionTest(): void {
 
     // The suspension held on every axis: status, role (no silent promotion to the invite's admin),
     // and entry to the account.
-    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
+    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
+    expect(isAccessRestricted(db, "a1", ed.userId)).toBe(true);
     expect(getMemberRole(db, "a1", ed.userId)).toBe("editor");
     expect(
       (await call(app, { method: "GET", url: "/api/state?accountId=a1", headers: { cookie: ed.cookie } })).statusCode,
@@ -574,7 +525,7 @@ function registerDisabledInviteRedemptionTest(): void {
 }
 
 function registerArchivedInviteRedemptionTest(): void {
-  it("an archived member is refused identically, so neither suspension is the weaker one", async () => {
+  it("lets an archived unrestricted member rejoin at the invitation role", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass-archived", "archived");
     const token = (
       (
@@ -589,8 +540,8 @@ function registerArchivedInviteRedemptionTest(): void {
     expect(
       (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
         .statusCode,
-    ).toBe(403);
-    expect(storedStatus(db, "a1", ed.userId)).toBe("archived");
+    ).toBe(200);
+    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
   });
 }
 
@@ -623,6 +574,7 @@ function registerRestoredInviteRedemptionTest(): void {
         })
       ).statusCode,
     ).toBe(200);
+    expect((await enableAccessReq(app, "a1", ed.userId, owner.cookie)).statusCode).toBe(200);
     expect(
       (await call(app, { method: "POST", url: `/api/invites/${token}/accept`, headers: { cookie: ed.cookie } }))
         .statusCode,
@@ -701,7 +653,8 @@ function registerDisabledMemberRoleChangeTest(): void {
     });
     expect(res.statusCode).toBe(404);
     expect(getMemberRole(db, "a1", ed.userId)).toBe("editor");
-    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
+    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
+    expect(isAccessRestricted(db, "a1", ed.userId)).toBe(true);
   });
 }
 
@@ -787,7 +740,8 @@ function registerChangedStatusResetTest(): void {
         })
       ).statusCode,
     ).toBe(200);
-    expect(storedStatus(db, "a1", ed.userId)).toBe("disabled");
+    expect(storedStatus(db, "a1", ed.userId)).toBe("active");
+    expect(isAccessRestricted(db, "a1", ed.userId)).toBe(true);
     expect(
       (
         await call(app, {

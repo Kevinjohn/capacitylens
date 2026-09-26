@@ -5,6 +5,7 @@ import { revokeResetTokensForUser } from "../auth";
 import { bumpSecurityRevision } from "../accounts/state";
 import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTracking";
 import { cachedStatement } from "./preparedStatement";
+import { isAccessRestricted } from "./accessRestrictions";
 import { removeAccountMemberResourceForMember, removeAccountMemberResourcesForAccount } from "./accountMemberResources";
 import {
   isKnownRole,
@@ -209,6 +210,7 @@ export function getMemberRole(db: Db, accountId: string, userId: string): Role |
 /** Security-sensitive role lookup. Legacy control rows may carry a non-active status; those rows
  * never confer application or administrative authority and must be indistinguishable from absence. */
 export function getActiveMemberRole(db: Db, accountId: string, userId: string): Role | null {
+  if (isAccessRestricted(db, accountId, userId)) return null;
   const row = activeMemberRoleStatement(db).get(accountId, userId) as { role?: string } | undefined;
   // Same distinction as getMemberRole: legacy NON-ACTIVE status is filtered out by the statement
   // itself and stays indistinguishable from absence, but a returned row whose role cannot be read

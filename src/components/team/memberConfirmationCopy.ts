@@ -6,7 +6,7 @@ import type { TeamMember } from "../../account/teamAccessClient";
 // Pure copy and status tables for member confirmations. They live apart from the
 // MemberConfirmations component so that file exports only components (react-refresh).
 export type MemberConfirmationAction =
-  "masquerade" | "remove" | "resetPassword" | "revokeSessions" | "disable" | "archive" | "restore";
+  "masquerade" | "remove" | "resetPassword" | "revokeSessions" | "disable" | "enable" | "archive" | "restore";
 export type MemberConfirmation = { kind: MemberConfirmationAction; member: TeamMember };
 
 export function resolveMemberLabel(member: TeamMember): string {
@@ -17,6 +17,8 @@ export function resolveMemberLabel(member: TeamMember): string {
   return member.userId;
 }
 
+// Keep all confirmation wording beside the action-to-status contract below.
+// eslint-disable-next-line max-lines-per-function
 export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation): {
   title: string;
   confirmLabel: string;
@@ -56,6 +58,15 @@ export function buildMemberConfirmationCopy({ kind, member }: MemberConfirmation
         title: m.settings_disable_member_title(),
         confirmLabel: m.settings_member_disable(),
         message: m.settings_disable_member_message({ member: resolveMemberLabel(member) }),
+      };
+    case "enable":
+      return {
+        title: m.settings_enable_member_title(),
+        confirmLabel: m.settings_member_enable(),
+        message:
+          member.membershipPresent === false
+            ? m.settings_enable_removed_member_message({ member: resolveMemberLabel(member) })
+            : m.settings_enable_member_message({ member: resolveMemberLabel(member) }),
       };
     case "archive":
       return {

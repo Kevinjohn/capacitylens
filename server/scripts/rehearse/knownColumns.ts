@@ -113,6 +113,8 @@ export const KNOWN_COLUMNS: Readonly<Record<string, ReadonlySet<string>>> = Obje
     timeOff: ["id", "accountId", "resourceId", "startDate", "endDate", "type", "note", "createdAt", "updatedAt"],
     // Membership flags and scheduling settings/dates are deliberately retained.
     account_members: ["accountId", "userId", "role", "status", "createdAt", "signInConfirmed"],
+    account_access_restrictions: ["accountId", "principalId", "verifiedEmail", "role", "createdAt"],
+    identity_email_proofs: ["principalId", "email", "source", "provenAt"],
     // Opaque revisions and timestamps carry no source identity; all three coordinates are remapped.
     account_member_resources: ["accountId", "userId", "resourceId", "revision", "createdAt", "updatedAt"],
     invitation_person_proposals: ["invitationId", "accountId", "resourceId", "createdAt", "updatedAt"],

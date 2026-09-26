@@ -12,6 +12,7 @@ import {
 import {
   changeMemberRole,
   changeMemberStatus,
+  enableMemberAccess,
   listMembers,
   removeMember,
   setMemberSignInTracking,
@@ -127,6 +128,9 @@ export function registerAccountRoutes(app: FastifyInstance, dependencies: Accoun
   // strand the account without an Owner, nor lock themselves out of the account they administer.
   app.patch("/api/accounts/:accountId/members/:userId/status", async (req, reply) =>
     changeMemberStatus(req, reply, context),
+  );
+  app.post("/api/accounts/:accountId/members/:userId/enable-access", async (req, reply) =>
+    enableMemberAccess(req, reply, context),
   );
 
   // REVOKE a member. 404 non-member; 403 by the pure guard (the Owner is never removable here).
