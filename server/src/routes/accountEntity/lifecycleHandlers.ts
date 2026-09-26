@@ -8,6 +8,7 @@ import { checkEntityWriteBody, prepareScopedWrite } from "../../writePipeline";
 import type { AccountEntityRouteDependencies } from "./dependencies";
 import { sendAccountRouteFailure } from "./guards";
 import { ACCOUNT_CREATE_CLOSED_MESSAGE, buildCanonicalAccountProductPayload } from "./policy";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 type AccountLifecycleDependencies = Pick<
   AccountEntityRouteDependencies,
@@ -31,12 +32,8 @@ function requireRequestContext(req: FastifyRequest) {
   return { user: req.user, actor: req.accountActor };
 }
 
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
 function requireRequestRow(body: unknown): Record<string, unknown> {
-  if (!isUnknownRecord(body)) {
+  if (!isRecord(body)) {
     throw new Error("Validated account request body is unavailable.");
   }
   return body;

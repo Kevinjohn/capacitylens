@@ -1,5 +1,6 @@
 import type { AccountErrorCode } from "@capacitylens/shared/account/errors";
 import { isOwnershipTransferTerminalOutcomeBody } from "@capacitylens/shared/account/ownershipTransfer";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // These currently defined 409 codes prove that the server reached a terminal rejection. A valid
 // ownership-transfer terminal response instead proves that ceremony committed; this classification
@@ -24,10 +25,6 @@ function compareCanonicalKeys(left: string, right: string): number {
   if (left < right) return -1;
   if (left > right) return 1;
   return 0;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 async function readResponseBody(response: Response, parsedBody: unknown): Promise<unknown> {

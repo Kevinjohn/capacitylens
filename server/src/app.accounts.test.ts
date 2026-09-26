@@ -7,6 +7,7 @@ import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import type { AuditRecord, AuditSink } from "./audit";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // P1.4 endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
 // OFF (trusted-local, no gate) and auth-on (membership-existence guard) postures. The no-arg
@@ -44,15 +45,11 @@ interface StateIds {
   projectIds: string[];
 }
 
-function isUnknownRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function readIds(value: Record<string, unknown>, key: string): string[] {
   const rows = value[key];
   if (!Array.isArray(rows)) throw new Error(`Expected ${key} to be an array.`);
   return rows.map((row: unknown) => {
-    if (!isUnknownRecord(row) || typeof row.id !== "string") {
+    if (!isRecord(row) || typeof row.id !== "string") {
       throw new Error(`Expected every ${key} row to have a string id.`);
     }
     return row.id;
@@ -61,7 +58,7 @@ function readIds(value: Record<string, unknown>, key: string): string[] {
 
 function readStateIds(response: LightMyRequestResponse): StateIds {
   const value: unknown = JSON.parse(response.payload);
-  if (!isUnknownRecord(value)) {
+  if (!isRecord(value)) {
     throw new Error("Expected state response to be an object.");
   }
   return {

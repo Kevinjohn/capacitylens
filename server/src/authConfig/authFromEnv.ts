@@ -78,7 +78,7 @@ type EnabledAuthContext = {
   sessionDeletionLifecycleRef: SessionDeletionLifecycleRef;
 };
 
-function requireApplication(
+function assertApplication(
   application: BoundApplication,
   AuthConfigError: FactoryDependencies["AuthConfigError"],
 ): void {
@@ -147,7 +147,7 @@ function createEnabledAuthContext(input: {
   dependencies: FactoryDependencies;
 }): EnabledAuthContext {
   const application = input.options.application ?? DEFAULT_ACCOUNT_APPLICATION;
-  requireApplication(application, input.dependencies.AuthConfigError);
+  assertApplication(application, input.dependencies.AuthConfigError);
   const secret = requireSecret(input.environment, input.mode, input.dependencies);
   const baseURL = input.dependencies.required(
     input.environment,

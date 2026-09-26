@@ -7,6 +7,7 @@ import { createAuthFromEnvironment, countUsers, runAuthMigrations } from "./auth
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
 import { finishAccountCommand, reserveAccountCommand } from "./accounts/state";
+import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 // P2.6b — per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete used
 // to drop ONLY the
@@ -444,8 +445,6 @@ describe("P2.6b erasure — (b) last-company identity removal reopens password s
     const me = await call(app, { method: "GET", url: "/api/auth/me", headers: { cookie: u.cookie } });
     expect(me.statusCode).toBe(401);
     const meBody: unknown = me.json();
-    const isRecord = (value: unknown): value is Record<string, unknown> =>
-      typeof value === "object" && value !== null && !Array.isArray(value);
     expect(isRecord(meBody)).toBe(true);
     if (!isRecord(meBody)) throw new Error("Expected an object response from /api/auth/me");
     expect(typeof meBody.needsSetup).toBe("boolean");

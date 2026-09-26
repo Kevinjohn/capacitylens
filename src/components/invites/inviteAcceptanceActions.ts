@@ -59,7 +59,7 @@ async function resolveRejectedMessage(
   return `${failure.message ?? m.invite_unknown_pending()} ${reconciliation}`;
 }
 
-async function handleRejectedAcceptance(
+async function reportRejectedAcceptance(
   response: Response,
   acceptCommand: Dependencies["acceptCommand"],
   setState: InviteStateSetter,
@@ -141,7 +141,7 @@ export function createInviteAcceptanceActions({
       const command = acceptCommand.current ?? (acceptCommand.current = createBrowserAccountCommand());
       const response = await accountClient.acceptInvitation(token, command);
       if (!response.ok) {
-        await handleRejectedAcceptance(response, acceptCommand, setState);
+        await reportRejectedAcceptance(response, acceptCommand, setState);
         return;
       }
 

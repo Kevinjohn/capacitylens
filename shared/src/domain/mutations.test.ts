@@ -8,7 +8,7 @@ import {
   assertResourceProjectAllowsDependents,
   assertScopedRefs,
   deleteAccountCascade,
-  findOwned,
+  getOwned,
   remapAndValidateImport,
 } from "./mutations";
 import { emptyAppData, SCOPED_KEYS } from "../types/entities";
@@ -146,26 +146,26 @@ const base = (): AppData => ({
   accounts: [account(A1), account(A2)],
 });
 
-describe("findOwned", () => {
+describe("getOwned", () => {
   it("returns the row when it belongs to the active account", () => {
     const data = { ...base(), clients: [client("c1", A1)] };
-    expect(findOwned(data, A1, "clients", "c1")?.id).toBe("c1");
+    expect(getOwned(data, A1, "clients", "c1")?.id).toBe("c1");
   });
 
   it("returns null for an absent id (stale-id no-op contract)", () => {
-    expect(findOwned(base(), A1, "clients", "missing")).toBeNull();
+    expect(getOwned(base(), A1, "clients", "missing")).toBeNull();
   });
 
   it("throws when the row belongs to another account", () => {
     const data = { ...base(), clients: [client("c1", A2)] };
-    expect(() => findOwned(data, A1, "clients", "c1")).toThrow("That record does not belong to the active company.");
+    expect(() => getOwned(data, A1, "clients", "c1")).toThrow("That record does not belong to the active company.");
   });
 
   it("carries a stable code independently from its display message", () => {
     const data = { ...base(), clients: [client("c1", A2)] };
     let error: unknown;
     try {
-      findOwned(data, A1, "clients", "c1");
+      getOwned(data, A1, "clients", "c1");
     } catch (caught) {
       error = caught;
     }

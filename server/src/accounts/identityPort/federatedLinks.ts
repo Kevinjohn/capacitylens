@@ -134,11 +134,11 @@ function createRemoveFederatedLink(context: FederatedLinksContext) {
   };
 }
 
-function createFindPrincipalByFederatedSubject(
+function createGetPrincipalByFederatedSubject(
   context: FederatedLinksContext,
-): SsoCutoverIdentityPort["findPrincipalByFederatedSubject"] {
+): SsoCutoverIdentityPort["getPrincipalByFederatedSubject"] {
   const { applicationId, db } = context.input;
-  return async ({ subject }: Parameters<SsoCutoverIdentityPort["findPrincipalByFederatedSubject"]>[0]) => {
+  return async ({ subject }: Parameters<SsoCutoverIdentityPort["getPrincipalByFederatedSubject"]>[0]) => {
     try {
       // The identity key excludes email so it can never correlate two product identities.
       const providerId = getProviderIdForIssuer(db, applicationId, subject.issuer);
@@ -208,7 +208,7 @@ export function createFederatedLinks(
   SsoCutoverIdentityPort,
   | "removeFederatedLink"
   | "removeFederatedLinkForStoppedRepair"
-  | "findPrincipalByFederatedSubject"
+  | "getPrincipalByFederatedSubject"
   | "correctPrincipalEmail"
 > {
   const removeFederatedLink = createRemoveFederatedLink(context);
@@ -220,7 +220,7 @@ export function createFederatedLinks(
         authorizeInTransaction: input.authorizeInTransaction,
       }),
     removeFederatedLinkForStoppedRepair: (input) => removeFederatedLink({ removal: input, preserveSignIn: false }),
-    findPrincipalByFederatedSubject: createFindPrincipalByFederatedSubject(context),
+    getPrincipalByFederatedSubject: createGetPrincipalByFederatedSubject(context),
     correctPrincipalEmail: createCorrectPrincipalEmail(context),
   };
 }

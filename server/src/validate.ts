@@ -84,7 +84,7 @@ function parseAncestryRow(row: Record<string, unknown>): LifecycleAncestryRow {
   return { ...row, id, ...(accountId === undefined ? {} : { accountId }) };
 }
 
-function findAncestryRow(state: AppData, table: AppDataKey, id: string): LifecycleAncestryRow | undefined {
+function getAncestryRow(state: AppData, table: AppDataKey, id: string): LifecycleAncestryRow | undefined {
   for (const row of state[table]) {
     if (row.id === id) return { ...row };
   }
@@ -94,7 +94,7 @@ function findAncestryRow(state: AppData, table: AppDataKey, id: string): Lifecyc
 function createAncestryLookup(state: AppData, lookup: ValidationDataLookup | undefined): LifecycleAncestryLookup {
   return (table, id) => {
     const row = lookup?.row(table, id);
-    return row ? parseAncestryRow(row) : findAncestryRow(state, table, id);
+    return row ? parseAncestryRow(row) : getAncestryRow(state, table, id);
   };
 }
 
