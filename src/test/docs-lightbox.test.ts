@@ -197,7 +197,13 @@ describe.each([
     expect(fixture.querySelectorAll).toHaveBeenCalledTimes(2);
   });
 
-  it.each(["Enter", " ", "Tab", "Esc", "escape"])("leaves open lightboxes alone for %j", (key) => {
+  it("Tab closes open lightboxes before focus moves behind the overlay", () => {
+    const fixture = keyboardFixture(source, [true, false]);
+    fixture.press("Tab");
+    expect(fixture.toggles.map(({ checked }) => checked)).toEqual([false, false]);
+  });
+
+  it.each(["Enter", " ", "Esc", "escape"])("leaves open lightboxes alone for %j", (key) => {
     const fixture = keyboardFixture(source, [true, false]);
     fixture.press(key);
     expect(fixture.toggles.map(({ checked }) => checked)).toEqual([true, false]);

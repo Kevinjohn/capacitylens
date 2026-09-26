@@ -35,15 +35,15 @@
 // focusable and toggles with Space, but not with Enter, and it cannot be deep
 // linked. Neither matters for "let me see that screenshot properly".
 //
-// Escape closes the lightbox, via the one small inline script the standalone
+// Escape and Tab close the lightbox, via the one small inline script the standalone
 // build keeps (scripts/docs-lightbox.js, read by config.mts). Everything here still works without it:
 // the script only unchecks the toggle, which is what clicking the overlay does.
 //
-// Known keyboard limitation: the overlay is still not a modal. Opening leaves
-// focus on the checkbox, and tabbing while it is open moves focus into the
-// article behind the backdrop, where the focus ring cannot be seen.
+// The overlay is still not a modal. Opening leaves focus on the checkbox, so Tab
+// closes the overlay before focus moves on; without that, focus would move into
+// the article behind the backdrop, where the focus ring cannot be seen.
 //
-// To be accurate about why, since the two halves have different answers: the
+// Why not a real modal, since the two halves have different answers: the
 // Popover API (`<button popovertarget>` plus a `popover` element) would give
 // light dismiss and top-layer rendering with no script at all. What it would not
 // give is inertness — only `dialog.showModal()` makes the background
