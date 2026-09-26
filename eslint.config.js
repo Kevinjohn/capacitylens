@@ -18,6 +18,9 @@ const forbiddenSharedGlobals = [
 
 // `isNotNull` is the SQL term in server/src/schema/introspection.ts, not a negated boolean.
 const negatedBooleanName = "^(hasNo|not[A-Z]|isNot(?!Null))";
+// conventions.md leaves `find` and `handle` out of the verb table: use `get`, or name the callback
+// for what it does.
+const excludedVerbName = "^(find|handle)([A-Z]|$)";
 
 const sharedTestFiles = [
   "shared/src/**/*.{test,spec}.{ts,tsx,mts,cts}",
@@ -237,7 +240,19 @@ export default defineConfig([
           leadingUnderscore: "allow",
           custom: { regex: negatedBooleanName, match: false },
         },
-        { selector: "function", format: ["camelCase", "PascalCase"] },
+        {
+          selector: "variable",
+          types: ["function"],
+          format: ["camelCase", "PascalCase"],
+          leadingUnderscore: "allow",
+          custom: { regex: excludedVerbName, match: false },
+        },
+        {
+          selector: "function",
+          format: ["camelCase", "PascalCase"],
+          custom: { regex: excludedVerbName, match: false },
+        },
+        { selector: "classMethod", format: ["camelCase"], custom: { regex: excludedVerbName, match: false } },
         { selector: "typeLike", format: ["PascalCase"] },
         { selector: "enumMember", format: ["PascalCase", "UPPER_CASE"] },
         {
@@ -245,6 +260,22 @@ export default defineConfig([
           format: null,
         },
         { selector: "import", format: null },
+      ],
+    },
+  },
+
+  // One record guard for the whole tree: shared/src/lib/isRecord.ts.
+  {
+    files: ["src/**/*.{ts,tsx}", "server/src/**/*.ts", "server/scripts/**/*.ts", "shared/src/**/*.{ts,tsx,mts,cts}"],
+    ignores: ["shared/src/lib/isRecord.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "FunctionDeclaration[id.name=/^is(Unknown)?Record$/], VariableDeclarator[id.name=/^is(Unknown)?Record$/]",
+          message: "Import isRecord from @capacitylens/shared/lib/isRecord instead of defining another copy.",
+        },
       ],
     },
   },

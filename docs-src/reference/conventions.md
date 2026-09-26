@@ -163,6 +163,10 @@ Playwright project does not enable the typed project-service rules:
   imports are exempt because many mirror wire fields, SQL columns and library names
 - negated names, through the same rule: a variable or parameter starting with `hasNo`,
   `not` followed by a capital, or `isNot` (other than `isNotNull`) fails
+- the two excluded verbs, through the same rule: a function, function-valued variable or class
+  method named `find…` or `handle…` fails
+- one record guard: a local `isRecord` or `isUnknownRecord` fails; import it from
+  `shared/src/lib/isRecord.ts`
 - `max-params` at three, so a fourth parameter fails
 - `complexity` at 12 and nesting depth at three
 - `max-lines-per-function` at 60 authored lines, excluding blank lines and comments

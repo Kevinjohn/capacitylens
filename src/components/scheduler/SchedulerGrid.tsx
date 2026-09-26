@@ -237,8 +237,8 @@ function SchedulerGridContents(props: GridViewProps) {
         days={days}
         todayX={todayX}
         calendarWeekStartsOn={accountPrefs.calendarWeekStartsOn}
-        handleEdit={interactions.editAllocation}
-        handleDraw={interactions.createFromDraw}
+        onEdit={interactions.editAllocation}
+        onDraw={interactions.createFromDraw}
         personScheduleTitlesByResourceId={props.personScheduleTitlesByResourceId}
         resourceAvatars={props.resourceAvatars}
         onViewSchedule={props.onViewSchedule}

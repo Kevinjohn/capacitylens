@@ -164,13 +164,13 @@ function registerBatchBoundaryTests(): void {
     }));
     const projection = new BatchStateProjection(data);
     const rows = projection.data.allocations;
-    const findIndex = vi.spyOn(rows, "findIndex").mockImplementation(() => {
+    const spiedFindIndex = vi.spyOn(rows, "findIndex").mockImplementation(() => {
       throw new Error("projection performed a linear findIndex");
     });
-    const map = vi.spyOn(rows, "map").mockImplementation(() => {
+    const spiedMap = vi.spyOn(rows, "map").mockImplementation(() => {
       throw new Error("projection rebuilt the full array with map");
     });
-    const filter = vi.spyOn(rows, "filter").mockImplementation(() => {
+    const spiedFilter = vi.spyOn(rows, "filter").mockImplementation(() => {
       throw new Error("projection rebuilt the full array with filter");
     });
 
@@ -182,9 +182,9 @@ function registerBatchBoundaryTests(): void {
     }
 
     expect(rows).toHaveLength(0);
-    expect(findIndex).not.toHaveBeenCalled();
-    expect(map).not.toHaveBeenCalled();
-    expect(filter).not.toHaveBeenCalled();
+    expect(spiedFindIndex).not.toHaveBeenCalled();
+    expect(spiedMap).not.toHaveBeenCalled();
+    expect(spiedFilter).not.toHaveBeenCalled();
   });
 }
 
@@ -199,10 +199,10 @@ function registerIndexedValidationTests(): void {
       ...meta,
     }));
     const projection = new BatchStateProjection(data);
-    const find = vi.spyOn(data.clients, "find").mockImplementation(() => {
+    const spiedFind = vi.spyOn(data.clients, "find").mockImplementation(() => {
       throw new Error("batch validation scanned the full clients table");
     });
-    const some = vi.spyOn(data.clients, "some").mockImplementation(() => {
+    const spiedSome = vi.spyOn(data.clients, "some").mockImplementation(() => {
       throw new Error("batch validation scanned the full clients table");
     });
 
@@ -216,8 +216,8 @@ function registerIndexedValidationTests(): void {
       projection.upsert("clients", updated);
     }
 
-    expect(find).not.toHaveBeenCalled();
-    expect(some).not.toHaveBeenCalled();
+    expect(spiedFind).not.toHaveBeenCalled();
+    expect(spiedSome).not.toHaveBeenCalled();
     expect(projection.row("clients", "client-4999")?.name).toBe("Updated 4999");
   });
 }

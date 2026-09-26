@@ -63,7 +63,7 @@ function assertCredentialInput(
 async function createCredentialPrincipal(
   dependencies: {
     input: Pick<IdentityPortContext["input"], "auth" | "authMode">;
-    makeCompensationHandle: IdentityPortContext["makeCompensationHandle"];
+    createCompensationHandle: IdentityPortContext["createCompensationHandle"];
   },
   input: CredentialPrincipalInput,
   correlateInTransaction?: (principalId: string) => void,
@@ -80,7 +80,7 @@ async function createCredentialPrincipal(
     });
     return {
       principalId: created.id,
-      compensationHandle: dependencies.makeCompensationHandle(created.id, input.command.commandId),
+      compensationHandle: dependencies.createCompensationHandle(created.id, input.command.commandId),
     };
   } catch (error) {
     if (["PASSWORD_COMPROMISED", "PASSWORD_CONTEXT_REJECTED"].includes(parseProviderErrorCode(error) ?? "")) {
@@ -215,7 +215,7 @@ function createPasswordReset(
 export function createCredentials(
   context: Pick<
     IdentityPortContext,
-    "input" | "makeCompensationHandle" | "assertCompensationHandle" | "eraseLocalPrincipalsInTx"
+    "input" | "createCompensationHandle" | "assertCompensationHandle" | "eraseLocalPrincipalsInTx"
   >,
 ): CredentialsPort {
   return {

@@ -32,8 +32,8 @@ export interface SchedulerGridRowProps {
   todayX: LaneProps["todayX"];
   geom: LaneProps["geom"];
   calendarWeekStartsOn: LaneProps["weekStartsOn"];
-  handleEdit: LaneProps["onEdit"];
-  handleDraw: LaneProps["onDraw"];
+  onEdit: LaneProps["onEdit"];
+  onDraw: LaneProps["onDraw"];
   personScheduleTitlesByResourceId: ReadonlyMap<string, string>;
   resourceAvatars: ReadonlyMap<string, string>;
   onViewSchedule: (resourceId: string, opener: HTMLButtonElement) => void;
@@ -192,7 +192,7 @@ function SchedulerGridRowHeader(props: RowHeaderProps) {
 }
 
 export function SchedulerGridRow(props: SchedulerGridRowProps) {
-  const { row, rowIndex, density, canEdit, days, todayX, geom, calendarWeekStartsOn, handleEdit, handleDraw } = props;
+  const { row, rowIndex, density, canEdit, days, todayX, geom, calendarWeekStartsOn, onEdit, onDraw } = props;
   const { resource, rowHeight, bars, dayStates, timeOff, dimmed } = row;
   return (
     /* One scheduler-row surface on the whole row (not just the sticky header) keeps the divider
@@ -243,8 +243,8 @@ export function SchedulerGridRow(props: SchedulerGridRowProps) {
         // Viewer (P1.12): pass NO edit/draw callbacks — the lane then bails its draw gesture and
         // drops the hover "+" hint (display-only). Editable (null/owner/admin/editor, incl.
         // OFF/local) gets the stable memoised callbacks, byte-identical to today.
-        {...(canEdit && handleEdit ? { onEdit: handleEdit } : {})}
-        {...(canEdit && handleDraw ? { onDraw: handleDraw } : {})}
+        {...(canEdit && onEdit ? { onEdit: onEdit } : {})}
+        {...(canEdit && onDraw ? { onDraw: onDraw } : {})}
       />
     </div>
   );
