@@ -132,8 +132,12 @@ class BackupScheduler implements Backups {
   }
 
   private async writeSnapshot(): Promise<string> {
-    const { file, tmp } = claimBackupTemp(() => join(this.config.dir, this.createUniqueSnapshotName()));
+    // Reserve inside the try: a destination that has become missing or unwritable is a failed
+    // snapshot too, and must latch degraded health like any later write failure.
+    let reserved: { file: string; tmp: string } | undefined;
     try {
+      reserved = claimBackupTemp(() => join(this.config.dir, this.createUniqueSnapshotName()));
+      const { file, tmp } = reserved;
       await writeVerifiedSnapshot({
         db: this.db,
         tmp,
@@ -145,9 +149,10 @@ class BackupScheduler implements Backups {
       });
     } catch (error) {
       this.health.degraded = true;
-      cleanupSnapshotTemp(tmp, "backup", this.log);
+      if (reserved) cleanupSnapshotTemp(reserved.tmp, "backup", this.log);
       throw error;
     }
+    const { file } = reserved;
     const pruned = prune({
       dir: this.config.dir,
       keep: this.config.keep,
