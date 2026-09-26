@@ -29,14 +29,16 @@ async function clearOfflineRecords(
     if (onMissingIndexedDb === "throw") throw new Error("IndexedDB is unavailable on this device.");
     return;
   }
-  const db = await openOfflineDb();
+  // Open inside the try so an open or retention-sweep failure still drops page-local state.
+  let db: IDBDatabase | undefined;
   try {
+    db = await openOfflineDb();
     const tx = db.transaction([KEY_STORE_NAME, STORE_NAME], "readwrite");
     const requestFailure = mutate(tx, boundary.token);
     const committed = awaitTx(tx, "The offline cache could not be cleared.", "The offline cache clear was aborted.");
     await (requestFailure ? Promise.race([committed, requestFailure]) : committed);
   } finally {
-    db.close();
+    db?.close();
     resetOfflineState();
   }
   afterCommit();

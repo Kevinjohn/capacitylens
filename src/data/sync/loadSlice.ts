@@ -72,7 +72,11 @@ async function applyLiveLoadEffects({ state, saveAll, loaded, myGen, accountId }
   // otherwise a superseded or desynchronised load could publish cross-account state.
   if (myGen !== state.loadGen) return;
   seedSnapshot(state, loaded.repairBase, accountId);
-  if (diffOps(loaded.repairBase, loaded.data).length > 0) await saveAll(loaded.data);
+  if (diffOps(loaded.repairBase, loaded.data).length > 0) {
+    await saveAll(loaded.data);
+    // A newer load may have installed a cached, read-only slice while the repair was in flight.
+    if (myGen !== state.loadGen) return;
+  }
   setOfflineReadState("tenant", false);
   if (accountId !== undefined && loaded.missingKeys.length === 0) {
     void cacheAccountSlice(accountId, loaded.data).catch((error) =>

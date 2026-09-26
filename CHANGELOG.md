@@ -26,6 +26,8 @@ new features and **patch** versions carry fixes.
 
 ### Fixed
 
+- Close an enlarged documentation screenshot when Tab is pressed, so keyboard focus no longer moves
+  behind the overlay where its focus ring cannot be seen (#1278).
 - Keep company switches from leaving earlier attempts unresolved, reconcile uncertain member links
   and ownership confirmations with the latest access, and offer a retry when the ownership request
   cannot be read (#1253).
@@ -53,6 +55,8 @@ new features and **patch** versions carry fixes.
 - Remove the list of active sessions from Account → Security. Individual sessions can no longer
   be viewed or signed out from the app; changing your password still signs out other sessions
   (#1234, #1255).
+- Report degraded backup health when the backup directory goes missing or becomes unwritable after
+  an earlier successful snapshot, instead of continuing to report ok (#1277).
 
 ## [0.70.1-alpha.1] - 2026-09-23
 
