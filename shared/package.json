@@ -9,6 +9,7 @@
   },
   "exports": {
     "./account/audit": "./src/account/audit.ts",
+    "./account/approvedDomains": "./src/account/approvedDomains.ts",
     "./account/conformance": "./src/account/conformance.ts",
     "./account/errors": "./src/account/errors.ts",
     "./account/ownershipTransfer": "./src/account/ownershipTransfer.ts",

@@ -1178,6 +1178,16 @@ presented before the member directory, matching the action-first pattern of the 
   only a successfully decoded terminal rejection permits a later retry to mint a new identity.
   In SSO-only mode **Email** is required by both the UI and server because a
   bearer-only invitation cannot admit a brand-new external identity.
+- **Joining policy (Team & access; Owner/Admin)** — **Who can join** (`data-testid="joining-policy-section")
+shows the company's current **Invitation only**, **Open registration**, **Approved domains**, or
+**Approved domains or invitation** policy and every approved domain. Policy-only joins always
+receive Viewer. Under the combined policy, matching staff domains or an addressed invitation
+can admit a person; the invitation can grant its specified role. Only the Owner can edit the
+policy (`data-testid="joining-policy-select"`) and the one-domain-per-line **Approved domains**
+field (`data-testid="joining-policy-domains"`) and select **Save joining policy**
+(`data-testid="joining-policy-save"). The Admin sees the same settings with guidance to speak
+  to the Owner, without edit controls. Invalid domains and a domain policy with no domains are
+  explained beside the field before a save is sent.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the
   same five-column bordered table as Members, with a row per invite (`data-testid="invite-row"`).
   **Name** is an em dash, **Role** is the invited role, **Email** is the pre-authorised address or

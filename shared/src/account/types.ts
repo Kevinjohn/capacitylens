@@ -33,6 +33,13 @@ export function isIsoInstant(value: unknown): value is IsoInstant {
  * options; the access policy separately determines who may join the company. */
 export type AccountMode = "off" | "password-only" | "sso-only" | "password-and-sso";
 
+export type JoiningPolicy = "invitation_only" | "open" | "approved_domains" | "approved_domains_or_invitation";
+
+export interface JoiningPolicySettings {
+  policy: JoiningPolicy;
+  approvedDomains: readonly string[];
+}
+
 /** Whether the selected mode permits local password sign-in and password recovery. */
 export function allowsPasswordSignIn(mode: AccountMode): boolean {
   return mode === "password-only" || mode === "password-and-sso";
