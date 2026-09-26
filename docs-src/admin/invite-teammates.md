@@ -42,7 +42,7 @@ Use Link to Resource to connect their sign-in to an existing scheduled person. S
 
 ## Stop access
 
-Open Member settings beside the member. Disable user or Archive user stops access while keeping their history. Restore access reverses either choice.
+Open Member settings beside the member. **Disable Access** stops access to this company and prevents rejoining until an Owner or Admin selects **Enable Access**. The restriction remains visible even after removal. **Archive user** keeps an inactive membership that can later be restored; archiving or removal alone does not prevent a new invitation. Restoring a membership does not clear an explicit Disable Access restriction.
 
 Remove deletes the membership; they need another invitation to return.
 

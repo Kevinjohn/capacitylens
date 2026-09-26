@@ -43,16 +43,15 @@ throughout these docs.
 | See time-off notes                             |    —     |    —     |  Yes  |  Yes  |
 | See private client/project real names          |    —     |    —     |   —   |  Yes  |
 | List members and manage invites                |    —     |    —     |  Yes  |  Yes  |
-| Disable, archive or restore a member           |    —     |    —     |  Yes  |  Yes  |
+| Disable or Enable Access; archive or restore a member |    —     |    —     |  Yes  |  Yes  |
 | Export the schedule                            | Redacted | Redacted | Full  | Full  |
 | Import, delete the company, transfer ownership |    —     |    —     |   —   |  Yes  |
 
 There is exactly one Owner per company, and Owner can't be assigned through an invite or
 an ordinary role change — only through the ownership transfer described in [Hand the
 company to someone else](#hand-the-company-to-someone-else). An Admin can invite,
-remove, disable or change the role of any other member, but can't touch the Owner — and nobody, not even the Owner, can disable or archive the Owner
-or themselves. Disabling or archiving someone stops them opening the company straight
-away while keeping their role and history, and it can be undone from the same menu. Those
+remove, Disable Access or change the role of any other member, but can't touch the Owner — and nobody, not even the Owner, can disable or archive the Owner
+or themselves. Disable Access stops company entry immediately and persists through removal; only Enable Access clears it. Archiving stops current membership access while retaining its history; it can be restored separately. Those
 people leave the main member list and move into the **No longer active** group beneath it,
 which stays closed until you open it. If a company somehow ends up with no Owner at all, see [A company has
 no Owner](/self-hosting/incidents#a-company-has-no-owner) for the automatic upgrade repair and
@@ -60,8 +59,8 @@ the guarded operator procedure.
 
 ![Members table showing roles, Resource links and row actions](../screenshots/flows/team_access_members.png)
 
-The member table groups people by role—Owner, Admin, Editor, then Viewer—and keeps disabled
-or archived memberships in the collapsed **No longer active** table. See
+The member table groups people by role—Owner, Admin, Editor, then Viewer—and keeps restricted,
+archived, and removed-with-restriction entries in the collapsed **No longer active** table. See
 [Invite your team](/getting-started/invite-your-team#managing-someone-who-already-joined) for the
 member-management details.
 

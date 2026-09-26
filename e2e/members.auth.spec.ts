@@ -184,7 +184,7 @@ async function manageOwnerMembers(
   const ownerTarget = ownerPage.getByTestId("member-row").filter({ hasText: EDITOR });
   await ownerTarget.getByTestId("member-menu").click();
   await ownerPage.getByTestId("member-disable").click();
-  await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Disable user" }).click();
+  await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Disable Access" }).click();
   await expect(
     ownerPage.getByTestId("members-table").getByTestId("member-row").filter({ hasText: EDITOR }),
   ).toHaveCount(0);
@@ -195,23 +195,23 @@ async function manageOwnerMembers(
     .getByTestId("members-inactive-table")
     .getByTestId("member-row")
     .filter({ hasText: EDITOR });
-  await expect(inactiveTarget).toContainText("Disabled");
+  await expect(inactiveTarget).toContainText("Access disabled");
   await expect
     .poll(async () => {
       const res = await request.get(`${API}/api/accounts/${accountId}/members`, { headers: { cookie: owner.cookie } });
-      const members = (await res.json()).members as Array<{ userId: string; status: string }>;
-      return members.find((member) => member.userId === editor.userId)?.status;
+      const members = (await res.json()).members as Array<{ userId: string; accessDisabled: boolean }>;
+      return members.find((member) => member.userId === editor.userId)?.accessDisabled;
     })
-    .toBe("disabled");
+    .toBe(true);
   const disabledRead = await request.get(`${API}/api/state?accountId=${accountId}`, {
     headers: { cookie: editor.cookie },
   });
   expect(disabledRead.status()).toBe(403);
   await inactiveTarget.getByTestId("member-menu").click();
   await expect(ownerPage.getByTestId("member-disable")).toHaveCount(0);
-  await ownerPage.getByTestId("member-restore").click();
-  await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Restore access" }).click();
-  await expect(ownerTarget).not.toContainText("Disabled");
+  await ownerPage.getByTestId("member-enable").click();
+  await ownerPage.getByRole("alertdialog").getByRole("button", { name: "Enable Access" }).click();
+  await expect(ownerTarget).not.toContainText("Access disabled");
   await expect(ownerPage.getByTestId("members-inactive-toggle")).toHaveCount(0);
   await assertOwnershipIsNotAMemberRowAction(ownerContext, ownerPage, request, owner, editor, accountId);
 }

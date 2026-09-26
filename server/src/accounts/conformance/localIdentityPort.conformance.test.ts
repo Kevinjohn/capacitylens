@@ -1050,6 +1050,31 @@ it("corrects an identity email with ceremony invalidation, session revocation, a
   expect(db.prepare(`SELECT id FROM capacitylens_audit_outbox`).all()).toEqual([{ id: "email-audit-1" }]);
 });
 
+it("rolls back an Owner email correction that would match a company access restriction", async () => {
+  insertIdentityUser({ db, id: "principal-1", name: "Bruce Wayne", email: "bruce@example.com" });
+  db.prepare(
+    `INSERT INTO account_members (accountId, userId, role, status, createdAt)
+    VALUES (?, ?, ?, ?, ?)`,
+  ).run("a-studio", "principal-1", "owner", "active", NOW);
+  db.prepare(
+    `INSERT INTO account_access_restrictions (accountId, principalId, verifiedEmail, role, createdAt)
+    VALUES (?, ?, ?, ?, ?)`,
+  ).run("a-studio", "removed-principal", "blocked@example.com", "editor", NOW);
+  const port = identityPort({ auth: auth(async () => null) });
+  await expect(
+    port.correctPrincipalEmail({
+      principalId: "principal-1",
+      email: "blocked@example.com",
+      authorizeInTransaction: vi.fn(),
+      audit: repairAudit("restricted-owner-correction", "identity.email_corrected"),
+    }),
+  ).rejects.toBeDefined();
+  expect(db.prepare("SELECT email FROM user WHERE id = 'principal-1'").get()).toEqual({ email: "bruce@example.com" });
+  expect(
+    db.prepare("SELECT id FROM capacitylens_audit_outbox WHERE id = 'restricted-owner-correction'").get(),
+  ).toBeUndefined();
+});
+
 it("rolls back an email repair on an audit-id conflict and commits a retry with a distinct id", async () => {
   const { port } = prepareEmailCorrectionScenario();
   const correction = (email: string, auditId: string) =>

@@ -121,7 +121,12 @@ export function readActorRolesByWorkspaceId(
     listMembershipsForUser(db, principalId)
       // account_members intentionally predates a foreign key to accounts. Never let a dangling
       // legacy/control-table row confer identity-global authority after its workspace is gone.
-      .filter((row) => row.status === "active" && workspaceIds.has(row.accountId))
+      .filter(
+        (row) =>
+          row.status === "active" &&
+          workspaceIds.has(row.accountId) &&
+          getActiveMemberRole(db, row.accountId, principalId) !== null,
+      )
       .map((row) => [row.accountId, row.role]),
   );
 }

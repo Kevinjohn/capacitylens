@@ -5,8 +5,8 @@
 ## Goal
 
 Let an Owner or Admin manage who can access their company from Team & access: see the member list, invite
-people (a link, optionally pre-authorised to one email), change a member's role, disable or restore a
-member's access, remove a member, and list/revoke outstanding invites. An Admin manages members but
+people (a link, optionally pre-authorised to one email), change a member's role, Disable or Enable
+Access, archive or remove a membership, and list/revoke outstanding invites. An Admin manages members but
 cannot do owner-only operations. Sign-in tracking remains a server capability, but its controls and
 status column are unavailable in this UI. Ownership transfer is not part of this story: it has no per-row control
 (since #175) and now has its own three-step ceremony and section — see
@@ -25,9 +25,10 @@ On an auth-enabled, server-backed deploy, access to a company is a real membersh
 so the people who run a company need a place to grant, adjust, and revoke that access without touching
 the database. Team & access is visible to every role so a Viewer/Editor can understand their own
 limits; management controls remain Owner/Admin-only. Ownership moves only through its own consent ceremony
-(US-SET-18), and the database prevents a second active Owner. Disabling is the reversible middle ground between
-"nothing changed" and "removed": a **disabled** or **archived** membership keeps its role and history
-but authorizes nothing, because every server-side authorization read narrows on an _active_ row.
+(US-SET-18), and the database prevents a second active Owner. Disable Access is an explicit company
+restriction that survives membership removal and verified-email identity recreation. Only an
+administrator can Enable Access. Archive retains an inactive membership; remove ends it. Neither
+action alone prevents a later invitation. Enable does not recreate an archived or removed membership.
 Invites reuse the P1.9 single-use link: the secret token is shown once at creation, stored only as a
 one-way hash, and never read back, so listing or revoking invites can never leak a live, role-bearing
 link.
@@ -75,10 +76,11 @@ the non-blocking product orientation if it is open.
    **Role**, **Email**, **Link to Resource**, and **Actions**, one row per member
    (`data-testid="member-row"`); B's own row is marked **(you)**. Active and inactive tables use
    the same columns. Rows are ordered by role priority **Owner**, **Admin**, **Editor**, **Viewer**,
-   then display name and stable member ID; disabled and archived memberships are grouped below it
+   then display name and stable member ID; restricted and archived memberships, plus removed
+   restrictions, are grouped below it
    behind a collapsed **No longer active (_count_)** disclosure
    (`data-testid="members-inactive-toggle"`) that reveals a second table
-   (`data-testid="members-inactive-table"`) whose rows carry a **Disabled**/**Archived** badge.
+   (`data-testid="members-inactive-table"`) whose rows carry an **Access disabled**/**Archived**/**Removed** badge.
    Email cells contain the complete address in the DOM and in a native `title`, while CSS truncates
    the visual text to the available column width.
 3. Each manageable row ends in distinct controls, each naming their member for screen readers: an eye for
@@ -93,12 +95,13 @@ the non-blocking product orientation if it is open.
    (`data-testid="member-role-select"`), reads the plain-language summary of what Viewer can and
    cannot do, and clicks **Save role** (`data-testid="member-role-save"`).
 5. B opens **C**'s member-actions dialog. It holds **Reset password** (US-SET-13), **Revoke sessions**, **Disable
-   user** (`data-testid="member-disable"`), **Archive user** (`data-testid="member-archive"`) and
-   **Remove** — each behind an explicit confirmation naming C. Once C is disabled, C's row moves into
-   the **No longer active** group and C's dialog offers **Restore access**
-   (`data-testid="member-restore"`) in place of disable/archive. C stays listed there, so the
-   operation is visible and reversible, but every read C attempts against the company is refused by
-   the server.
+   Access** (`data-testid="member-disable"`), **Archive user** (`data-testid="member-archive"`) and
+   **Remove** — each behind an explicit confirmation naming C. Once access is disabled, C's row moves into
+   the **No longer active** group and offers **Enable Access** (`data-testid="member-enable"`). Every
+   request C makes to this company is refused immediately, while C may still use another company.
+   If B removes C, the restriction stays visible and can still be enabled. Enable restores the
+   existing role only when a membership remains active; otherwise C needs an invitation or a separate
+   membership restore. Archive or removal without Disable Access permits a later invitation.
 6. B selects the primary **Invite someone** button above the member table to open a centered dialog,
    then picks a role (`data-testid="invite-role"`), fills **Email** when needed
    (`data-testid="invite-preauth"`), checks the selected role's visible

@@ -144,6 +144,12 @@ export interface Membership {
   principalId: PrincipalId;
   role: Role;
   status: MembershipStatus;
+  /** Explicit company restriction, independent of the membership lifecycle. */
+  accessDisabled?: boolean;
+  /** False only for a retained restriction whose membership has been removed. */
+  membershipPresent?: boolean;
+  /** Administrator-only fallback when a removed restricted identity no longer exists. */
+  restrictionEmail?: string | null;
   joinedAt: IsoInstant;
   membershipRevision: MembershipRevision;
   policyVersion: PolicyVersion;

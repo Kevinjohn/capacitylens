@@ -253,6 +253,15 @@ async function testRetainedMember(): Promise<void> {
   const member = await signUp(app, "multi-account-member@capacitylens.dev");
   upsertMember(db, { accountId: "a1", userId: member.userId, role: "owner", status: "active", createdAt: TS });
   upsertMember(db, { accountId: "a2", userId: member.userId, role: "editor", status: "active", createdAt: TS });
+  // A removed identity's denial survives membership removal, but company erasure must erase it.
+  db.prepare(
+    `INSERT INTO account_access_restrictions
+    (accountId, principalId, verifiedEmail, role, createdAt) VALUES (?, ?, NULL, 'viewer', ?)`,
+  ).run("a1", "removed-principal", TS);
+  db.prepare(
+    `INSERT INTO account_access_restrictions
+    (accountId, principalId, verifiedEmail, role, createdAt) VALUES (?, ?, NULL, 'viewer', ?)`,
+  ).run("a2", "removed-principal", TS);
   seedResetToken(db, member.userId);
   seedAccountLinkState({
     db,
@@ -264,6 +273,7 @@ async function testRetainedMember(): Promise<void> {
   expect((await deleteAccountRoute({ app, id: "a1", cookie: member.cookie })).statusCode).toBe(204);
   expect(memberCount(db, "a1")).toBe(0);
   expect(memberCount(db, "a2")).toBe(1);
+  expect(db.prepare(`SELECT accountId FROM account_access_restrictions`).all()).toEqual([{ accountId: "a2" }]);
   expect(
     (
       db

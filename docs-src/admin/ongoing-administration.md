@@ -18,8 +18,8 @@ next: false
 Open Team & access. Use the pencil beside a member to change their role.
 
 Use the link icon beside a member to open **Link to Resource**. Selecting a scheduled person saves
-immediately; use **Remove link to resource** to unlink them. Member settings contains Disable user,
-Archive user and Restore access. [Invite teammates and manage access](/admin/invite-teammates)
+immediately; use **Remove link to resource** to unlink them. Member settings contains **Disable Access**,
+**Enable Access**, **Archive user** and **Restore membership**. [Invite teammates and manage access](/admin/invite-teammates)
 explains these choices.
 
 ## Change working patterns

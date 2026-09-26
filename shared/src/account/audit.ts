@@ -9,6 +9,8 @@ export type AccountAuditAction =
   | "invitation.revoked"
   | "member.role_changed"
   | "member.status_changed"
+  | "member.access_disabled"
+  | "member.access_enabled"
   | "member.removed"
   | "ownership.transferred"
   | "ownership_transfer.initiated"

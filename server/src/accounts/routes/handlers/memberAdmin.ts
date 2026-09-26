@@ -20,6 +20,8 @@ function projectMemberResourceLink(
     : null;
 }
 
+// This projection binds directory, resource and account-level permissions in one response.
+// eslint-disable-next-line max-lines-per-function
 export async function listMembers(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
   const {
     authMode,
@@ -50,21 +52,27 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
     const links = await context.memberResources.listLinks(accountId);
     const exceptions = await context.memberResources.listExceptions(accountId);
     const resourceCandidates = await context.memberResources.listCandidates(accountId);
+    // eslint-disable-next-line complexity
     const members = directory.map(({ membership: member, principal }) => {
       const link = links.get(member.principalId);
       return {
         userId: member.principalId,
         role: member.role,
         status: member.status,
+        accessDisabled: member.accessDisabled === true,
+        membershipPresent: member.membershipPresent !== false,
         createdAt: member.joinedAt,
         name: principal?.displayName ?? null,
-        email: principal?.email ?? null,
+        email: principal?.email ?? member.restrictionEmail ?? null,
         signInConfirmed: tracking.enabled ? (tracking.confirmations.get(member.principalId) ?? false) : null,
         isSelf: member.principalId === projection.principalId,
         mayResetPassword:
+          member.membershipPresent !== false &&
           authMode === "password" &&
           projection.decisions.get(member.principalId)?.get("issue-password-reset")?.allowed === true,
-        mayRevokeSessions: projection.decisions.get(member.principalId)?.get("revoke-sessions")?.allowed === true,
+        mayRevokeSessions:
+          member.membershipPresent !== false &&
+          projection.decisions.get(member.principalId)?.get("revoke-sessions")?.allowed === true,
         resourceLink: projectMemberResourceLink(link),
         resourceLinkException: (() => {
           const exception = exceptions.get(member.principalId);
@@ -308,9 +316,42 @@ export async function changeMemberStatus(req: FastifyRequest, reply: FastifyRepl
         changedFields: ["status"],
       },
     });
-    return reply.code(200).send({ userId: changed.principalId, status: changed.status });
+    return reply
+      .code(200)
+      .send({ userId: changed.principalId, status: nextStatus, accessDisabled: changed.accessDisabled === true });
   } catch (error) {
     return accountFail(reply, error);
+  }
+}
+
+export async function enableMemberAccess(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { accountId, userId } = req.params as { accountId: string; userId: string };
+  if (!context.authorizeMemberMutation({ req, reply, accountId, action: "manageMembers", options: NO_REPROMPT }))
+    return;
+  try {
+    const { actor, user } = requireAuthenticatedPrincipal(req);
+    const changed = await context.administration.enableMemberAccess({
+      actor,
+      workspaceId: accountId,
+      targetPrincipalId: userId,
+      command: context.command(req),
+    });
+    context.auditUnlessReplayed({
+      reply,
+      result: changed,
+      record: {
+        ts: new Date().toISOString(),
+        userId: user.id,
+        accountId,
+        action: "memberAccessEnabled",
+        entity: "membership",
+        id: userId,
+        changedFields: ["accessRestriction"],
+      },
+    });
+    return reply.code(200).send({ userId, accessDisabled: false });
+  } catch (error) {
+    return context.fail(reply, error);
   }
 }
 

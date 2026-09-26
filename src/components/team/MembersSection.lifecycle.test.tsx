@@ -375,7 +375,7 @@ function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
   });
 
   it.each([
-    ["member-disable", "disabled", /cannot open this company until you restore them/i],
+    ["member-disable", "disabled", /cannot open this company or rejoin by invitation/i],
     ["member-archive", "archived", /filed away and cannot open this company/i],
   ])("confirms %s before PATCHing the new status", async (testId, status, consequence) => {
     const user = userEvent.setup();
@@ -404,11 +404,11 @@ function registerLifecycleStatusTests(lifecycleMembers: RawMember[]): void {
 }
 
 function registerLifecycleVisibilityTests(): void {
-  it("badges a non-active member and offers restore INSTEAD of disable/archive", async () => {
+  it("badges restricted access and offers Enable Access separately", async () => {
     const user = userEvent.setup();
     const fetchMock = mockApi([
       { userId: "me", role: "owner", isSelf: true },
-      { userId: "ed", role: "editor", status: "disabled" },
+      { userId: "ed", role: "editor", accessDisabled: true },
     ]);
     vi.stubGlobal("fetch", fetchMock);
     renderSection();
@@ -419,14 +419,14 @@ function registerLifecycleVisibilityTests(): void {
 
     await openMemberMenu(user, edRow);
     expect(screen.queryByTestId("member-disable")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("member-archive")).not.toBeInTheDocument();
-    await user.click(screen.getByTestId("member-restore"));
-    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /restore/i }));
+    expect(screen.getByTestId("member-archive")).toBeInTheDocument();
+    await user.click(screen.getByTestId("member-enable"));
+    await user.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: /enable access/i }));
 
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
-        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/status`,
-        expect.objectContaining({ method: "PATCH", body: JSON.stringify({ status: "active" }) }),
+        `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/ed/enable-access`,
+        expect.objectContaining({ method: "POST" }),
       ),
     );
   });
@@ -437,7 +437,7 @@ function registerLifecycleVisibilityTests(): void {
       "fetch",
       mockApi([
         { userId: "me", role: "owner", isSelf: true },
-        { userId: "ed", role: "editor", status: "disabled", mayResetPassword: true, mayRevokeSessions: true },
+        { userId: "ed", role: "editor", accessDisabled: true, mayResetPassword: true, mayRevokeSessions: true },
       ]),
     );
     renderSection();
@@ -464,7 +464,7 @@ function registerLifecycleDisclosureTests(): void {
       "fetch",
       mockApi([
         { userId: "me", role: "owner", isSelf: true },
-        { userId: "ed", role: "editor", status: "disabled" },
+        { userId: "ed", role: "editor", accessDisabled: true },
         { userId: "vic", role: "viewer", status: "archived" },
       ]),
     );

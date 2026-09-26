@@ -123,6 +123,13 @@ function anonymiseIdentityData(db: DatabaseSync, hasProviderCoordinates: boolean
   applyRedactions(db, [
     { table: "user", column: "name", expression: `'Rehearsal User ' || rowid` },
     { table: "user", column: "email", expression: `'rehearsal-user-' || rowid || '@example.invalid'` },
+    {
+      table: "account_access_restrictions",
+      column: "verifiedEmail",
+      expression: `CASE WHEN verifiedEmail IS NULL THEN NULL ELSE COALESCE(
+        (SELECT email FROM user WHERE id = account_access_restrictions.principalId),
+        'rehearsal-restriction-' || rowid || '@example.invalid') END`,
+    },
     { table: "user", column: "image", expression: "NULL" },
     { table: "account", column: "accountId", expression: `'rehearsal-provider-account-' || rowid` },
     ...secrets,

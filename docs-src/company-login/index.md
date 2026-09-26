@@ -90,7 +90,7 @@ on MFA at the provider.
 
 ## When someone leaves
 
-Disable their work account at the provider and remove or disable their
+Disable their work account at the provider and remove their membership or select **Disable Access** for their
 CapacityLens membership in **Team & access**. Provider disablement alone does not
 immediately revoke existing CapacityLens sessions. Use **Revoke sessions** when
 all of the person's CapacityLens sessions must end; that action applies across

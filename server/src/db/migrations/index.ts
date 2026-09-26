@@ -42,6 +42,7 @@ import { ACCOUNT_MEMBER_RESOURCES_V43_MIGRATION } from "./accountMemberResources
 import { INVITATION_PERSON_PROPOSALS_V44_MIGRATION } from "./invitationPersonProposalsV44";
 import { GETTING_STARTED_DISMISSALS_V45_MIGRATION } from "./gettingStartedDismissalsV45";
 import { MICROSOFT_PROOF_V46_MIGRATION } from "./microsoftProofV46";
+import { ACCESS_RESTRICTIONS_V47_MIGRATION } from "./accessRestrictionsV47";
 import { validateMigrationSequence } from "./validateSequence";
 import {
   migrateTimeOffResourceNullableV33,
@@ -390,5 +391,6 @@ export const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   INVITATION_PERSON_PROPOSALS_V44_MIGRATION,
   GETTING_STARTED_DISMISSALS_V45_MIGRATION,
   MICROSOFT_PROOF_V46_MIGRATION,
+  ACCESS_RESTRICTIONS_V47_MIGRATION,
 ];
 validateMigrationSequence(DATABASE_MIGRATIONS, DB_SCHEMA_VERSION);
