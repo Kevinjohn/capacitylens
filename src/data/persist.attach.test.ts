@@ -154,15 +154,23 @@ it("attachPersistence keeps an allocation edit made while its rewrite receipt is
   detach();
 });
 
-it("attachPersistence rejects a second live persistence owner", () => {
-  const detach = attachPersistence({ store: useStore, adapter: new InMemoryDemoAdapter(), debounceMs: 0 });
+it("attachPersistence rejects a second live persistence owner without leaving it able to save", async () => {
+  const firstAdapter = new InMemoryDemoAdapter();
+  const rejectedAdapter = new InMemoryDemoAdapter();
+  const rejectedSave = vi.spyOn(rejectedAdapter, "saveAll");
+  const detach = attachPersistence({ store: useStore, adapter: firstAdapter, debounceMs: 0 });
   try {
-    expect(() => attachPersistence({ store: useStore, adapter: new InMemoryDemoAdapter(), debounceMs: 0 })).toThrow(
+    expect(() => attachPersistence({ store: useStore, adapter: rejectedAdapter, debounceMs: 0 })).toThrow(
       "Persistence is already attached.",
     );
+    useStore.getState().addClient({ name: "Acme", color: "#1" });
+    await vi.waitFor(async () => expect((await firstAdapter.loadAll()).clients).toHaveLength(1));
   } finally {
     detach();
   }
+  useStore.getState().addClient({ name: "Wayne", color: "#2" });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  expect(rejectedSave).not.toHaveBeenCalled();
 });
 
 it("attachPersistence persists data changes (immediate mode)", async () => {
