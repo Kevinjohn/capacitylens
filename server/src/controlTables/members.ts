@@ -41,6 +41,13 @@ function terminaliseMemberTransfers(db: Db, accountId: string, userId: string): 
   });
 }
 
+/** Administrative restriction writes share membership's revocation and transfer lifecycle. */
+export function invalidateRestrictedPrincipal(db: Db, accountId: string, principalId: string): string[] {
+  revokeResetTokensForUser(db, principalId);
+  bumpSecurityRevision(db, principalId);
+  return terminaliseMemberTransfers(db, accountId, principalId);
+}
+
 /**
  * Insert a membership, or update the role/status of an existing `(accountId, userId)`. `createdAt`
  * is the JOIN timestamp and is **preserved** on a role/status change (it is set ONCE, on the first

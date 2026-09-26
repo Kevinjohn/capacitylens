@@ -19,6 +19,7 @@ import {
 import type { Db } from "../../db";
 import type { AccountAuditInput } from "../accountFlowRuntime";
 import { createOperationReceipt } from "../accountFlowRuntime";
+import { bumpSecurityRevision } from "../state";
 import { assertAccountAuthority, assertAdministrativeAssurance } from "./authority";
 import type { AdminPortContext } from "./contracts";
 import { ACCOUNT_POLICY_VERSION, SsoCutoverAccountAdminPort } from "./contracts";
@@ -227,7 +228,7 @@ function createStatusChange({
             )
           )
             throw createAccountFailure("FORBIDDEN", "Forbidden.", command.commandId);
-          enableAccess(db, workspaceId, targetPrincipalId);
+          if (enableAccess(db, workspaceId, targetPrincipalId)) bumpSecurityRevision(db, targetPrincipalId);
           const accessDisabled = isAccessRestricted(db, workspaceId, targetPrincipalId);
           return target
             ? { ...readMembership(db, target), accessDisabled }

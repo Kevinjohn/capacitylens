@@ -266,7 +266,7 @@ export async function expectAccessibleMemberControls({
   for (const action of [
     `Reset password for ${member}`,
     `Revoke sessions for ${member}`,
-    `Disable ${member}`,
+    `Disable Access for ${member}`,
     `Archive ${member}`,
     `Remove ${member}`,
   ]) {
