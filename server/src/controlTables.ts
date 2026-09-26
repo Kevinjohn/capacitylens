@@ -68,6 +68,7 @@ export {
   listMembersForAccount,
   removeMember,
   removeAllMembersForAccount,
+  invalidateRestrictedPrincipal,
 } from "./controlTables/members";
 export {
   removeAllInvitesForAccount,
@@ -84,7 +85,6 @@ export type { AccountMember, MembershipStatus } from "./controlTables/members.mo
 export {
   disableAccess,
   captureRestrictionEmail,
-  invalidateRestrictedPrincipal,
   provenEmail,
   enableAccess,
   getAccessRestriction,

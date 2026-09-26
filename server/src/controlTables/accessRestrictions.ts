@@ -1,8 +1,5 @@
 import type { Role } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
-import { bumpSecurityRevision } from "../accounts/state";
-import { revokeResetTokensForUser } from "../auth";
-import { terminaliseLiveRequestsForMember } from "./ownershipTransfers";
 
 export interface AccessRestriction {
   accountId: string;
@@ -68,19 +65,6 @@ export function disableAccess(db: Db, input: { accountId: string; principalId: s
   ).run(accountId, principalId, email, role, new Date().toISOString());
 }
 
-/** A new effective denial invalidates this principal's live administrative state in the company. */
-export function invalidateRestrictedPrincipal(db: Db, accountId: string, principalId: string): string[] {
-  revokeResetTokensForUser(db, principalId);
-  bumpSecurityRevision(db, principalId);
-  return terminaliseLiveRequestsForMember({
-    db,
-    accountId,
-    userId: principalId,
-    reason: "participant_membership_changed",
-    now: new Date().toISOString(),
-  });
-}
-
 /** An explicit repeat Disable may add newly established proof after the caller's alias guards. */
 export function captureRestrictionEmail(db: Db, accountId: string, principalId: string): void {
   const email = provenEmail(db, principalId);
@@ -92,12 +76,11 @@ export function captureRestrictionEmail(db: Db, accountId: string, principalId: 
 }
 
 export function enableAccess(db: Db, accountId: string, principalId: string): boolean {
-  const changed =
+  return (
     db
       .prepare(`DELETE FROM account_access_restrictions WHERE accountId = ? AND principalId = ?`)
-      .run(accountId, principalId).changes > 0;
-  if (changed) bumpSecurityRevision(db, principalId);
-  return changed;
+      .run(accountId, principalId).changes > 0
+  );
 }
 
 export function removeAccessRestrictionsForAccount(db: Db, accountId: string): void {
