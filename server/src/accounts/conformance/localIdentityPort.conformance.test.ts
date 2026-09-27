@@ -619,6 +619,49 @@ it("scans only structured verification candidates once when deprovisioning a pri
   ]);
 });
 
+it("erases joining intents by principal and email while retaining access restrictions", async () => {
+  insertIdentityUser({ db, id: "principal-1", name: "One", email: "member@example.com" });
+  const insertIntent = (id: string, email: string, principalId: string | null) =>
+    db
+      .prepare(
+        `INSERT INTO company_join_intents (
+      id, nonceHash, browserHash, purpose, accountId, invitationId, email, principalId, providerId,
+      state, expiresAt, sourceIpHash, createdAt, updatedAt
+    ) VALUES (?, ?, ?, 'policy', 'a-studio', NULL, ?, ?, 'google', 'started', ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        `nonce-${id}`,
+        `browser-${id}`,
+        email,
+        principalId,
+        Date.now() + 60_000,
+        `ip-${id}`,
+        Date.now(),
+        Date.now(),
+      );
+  insertIntent("principal-intent", "alternate@example.net", "principal-1");
+  insertIntent("email-intent", "MEMBER@example.com", null);
+  insertIntent("unrelated-intent", "other@example.com", "other-principal");
+  db.prepare(
+    `INSERT INTO account_access_restrictions
+    (accountId, principalId, verifiedEmail, role, createdAt)
+    VALUES ('a-studio', 'principal-1', 'member@example.com', 'editor', ?)`,
+  ).run(NOW);
+  const port = identityPort({ auth: auth(async () => null) });
+
+  await port.deprovisionLocalPrincipal({
+    principalId: "principal-1",
+    reason: "identity-erasure",
+    command: { commandId: "joining-intent-erasure", idempotencyKey: "joining-intent-erasure-key" },
+  });
+
+  expect(db.prepare("SELECT id FROM company_join_intents ORDER BY id").all()).toEqual([{ id: "unrelated-intent" }]);
+  expect(db.prepare("SELECT verifiedEmail FROM account_access_restrictions").all()).toEqual([
+    { verifiedEmail: "member@example.com" },
+  ]);
+});
+
 it("maps provider password-policy rejection to a terminal validation failure", async () => {
   const configuredAuth = auth(async () => null);
   vi.mocked(configuredAuth.createCredentialUser).mockRejectedValue(

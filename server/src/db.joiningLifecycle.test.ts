@@ -56,7 +56,7 @@ describe("joining control data lifecycle", () => {
         updatedAt: "2026-01-01T00:00:00.000Z",
       });
       replaceAccountSlice(db, "a-studio", imported);
-      expect(readFullSlice(db, "a-studio").clients[0].name).toBe("Wayne Foundation");
+      expect(readFullSlice(db, "a-studio").clients[0]?.name).toBe("Wayne Foundation");
       expect(readJoiningPolicy(db, "a-studio")).toEqual(policy);
       expect(readJoinIntent(db, "joining-nonce-hash")).toEqual(intent);
     } finally {
