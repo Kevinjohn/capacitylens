@@ -36,7 +36,7 @@ import { registerServerFixtureCleanup } from "./testHelpers";
 // are no options to harden — authFromEnv returns { mode:'off', auth:null } untouched.
 
 const PASSWORD_ENV = {
-  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_MODE: "password-only",
   SMALLSASS_ACCOUNT_SECRET: "unit-test-secret-0123456789abcdef-0123", // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH)
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
 };
@@ -193,6 +193,7 @@ const registerFederatedAuditTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -205,7 +206,7 @@ const registerFederatedAuditTests = () => {
     const identity = createBetterAuthIdentityPort({
       applicationId: "capacitylens",
       auth,
-      authMode: "sso",
+      authMode: "sso-only",
       db,
     });
     expect(() =>
@@ -253,6 +254,7 @@ const registerFederatedReconciliationTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -303,6 +305,7 @@ const registerFederatedCeremonyConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -343,6 +346,7 @@ const registerFederatedSubjectConflictTests = () => {
     const db = openDb(":memory:");
     const configured = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
@@ -429,7 +433,11 @@ const registerStartupConfigurationRefusalTests = () => {
   it("leaves a bare database untouched when provider configuration is invalid", () => {
     const db = new DatabaseSync(":memory:", { enableForeignKeyConstraints: false });
     expect(() =>
-      createAuthFromEnvironment(db, { ...PASSWORD_ENV, SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "id-without-secret" }),
+      createAuthFromEnvironment(db, {
+        ...PASSWORD_ENV,
+        SMALLSASS_ACCOUNT_MODE: "password-and-sso",
+        SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "id-without-secret",
+      }),
     ).toThrow(/google/i);
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     db.close();
@@ -492,6 +500,7 @@ const registerStartupDiscoverySuccessTest = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
@@ -639,7 +648,7 @@ describe("resolved auth options", () => {
     },
     {
       name: "sso",
-      env: { ...PASSWORD_ENV, ...companyProviderEnv, SMALLSASS_ACCOUNT_MODE: "sso" },
+      env: { ...PASSWORD_ENV, ...companyProviderEnv, SMALLSASS_ACCOUNT_MODE: "sso-only" },
       trustedOrigins: ["https://capacity.example"],
       pluginIds: [],
     },
@@ -768,6 +777,7 @@ const registerExternalProviderConfigurationTests = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
+      SMALLSASS_ACCOUNT_MODE: "password-and-sso",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
     });
@@ -812,7 +822,7 @@ const registerExternalSsoProviderTest = () => {
       db,
       {
         ...PASSWORD_ENV,
-        SMALLSASS_ACCOUNT_MODE: "sso",
+        SMALLSASS_ACCOUNT_MODE: "sso-only",
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
         SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",
       },
@@ -848,7 +858,7 @@ const registerExternalSessionAssuranceTest = () => {
     const db = openDb(":memory:");
     const { auth } = createAuthFromEnvironment(db, {
       ...PASSWORD_ENV,
-      SMALLSASS_ACCOUNT_MODE: "sso",
+      SMALLSASS_ACCOUNT_MODE: "sso-only",
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
       SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",

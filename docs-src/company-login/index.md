@@ -18,7 +18,7 @@ for the explicitly allowed first person on an empty installation.
 
 ![Sign-in screen with configured providers above the password form](../screenshots/company_sign_in_password.png)
 
-In password mode, every configured provider appears once in a vertical stack
+In password-and-sso mode, every configured provider appears once in a vertical stack
 above the password form, in the order supplied by the server. Google and
 Microsoft keep their branded actions; GitHub is an experimental additional
 option. Future providers use the same placement. When both sign-in methods are
@@ -86,7 +86,7 @@ identity; it does not apply the original change.
 
 ## Two-factor sign-in
 
-In password mode, the server operator can require authenticator-app codes before
+In password-capable modes, the server operator can require authenticator-app codes before
 people can access company data. Save the recovery codes when enrolling. If you
 lose both the authenticator and those codes, contact the server operator; there
 is no administrator button to bypass them.

@@ -84,7 +84,7 @@ function parseConfiguredAuth(auth: ReturnType<typeof createAuthFromEnvironment>[
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  SMALLSASS_ACCOUNT_MODE: "sso",
+  SMALLSASS_ACCOUNT_MODE: "sso-only",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",
 
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_SECRET: "google-secret",

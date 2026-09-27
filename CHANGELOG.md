@@ -15,6 +15,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Make sign-in modes explicit: password only, company sign-in only, or both. Existing installations
+  must update `SMALLSASS_ACCOUNT_MODE` alongside the application; see the upgrade guide (#1288).
 - Place every configured sign-in provider in one consistent-width stack above the password form,
   preserving provider order, branding and first-owner setup behavior (#1289).
 - Give consistent reasons when checking whether passwords can be disabled, with one or several

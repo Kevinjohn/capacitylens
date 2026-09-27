@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { IdentityPort } from "@capacitylens/shared/account/ports";
 import type { OperationReceipt, ProvisionalPrincipal } from "@capacitylens/shared/account/types";
@@ -41,7 +42,7 @@ function assertCredentialInput(
   authMode: IdentityPortContext["input"]["authMode"],
   input: CredentialPrincipalInput,
 ): void {
-  if (authMode !== "password") {
+  if (!allowsPasswordSignIn(authMode)) {
     throw new AccountContractError({
       code: "UNSUPPORTED_CAPABILITY",
       message: "Credential identities are disabled for this installation.",
@@ -159,7 +160,7 @@ function createPasswordReset(
 ): Pick<CredentialsPort, "issuePasswordReset" | "revokePasswordResetCeremony"> {
   return {
     async issuePasswordReset({ targetPrincipalId, command }) {
-      if (input.authMode !== "password") {
+      if (!allowsPasswordSignIn(input.authMode)) {
         throw new AccountContractError({
           code: "UNSUPPORTED_CAPABILITY",
           message: "Password reset is unavailable for an SSO-only installation.",

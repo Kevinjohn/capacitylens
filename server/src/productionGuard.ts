@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL } from "./auth";
 import { parseRateLimit, MAX_RATE_LIMIT } from "./rateLimit";
 
@@ -64,11 +65,11 @@ function inspectAuthentication(
   }
   if (mode === "off" && environment.CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION === "1") {
     warnings.push(
-      "auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set SMALLSASS_ACCOUNT_MODE=password|sso to require login.",
+      "auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set SMALLSASS_ACCOUNT_MODE=password-only, password-and-sso or sso-only to require login.",
     );
   } else if (mode === "off") {
     refusals.push(
-      'auth is OFF (SMALLSASS_ACCOUNT_MODE unset or "off") under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set SMALLSASS_ACCOUNT_MODE=password or sso to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.',
+      'auth is OFF (SMALLSASS_ACCOUNT_MODE unset or "off") under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set SMALLSASS_ACCOUNT_MODE=password-only, password-and-sso or sso-only to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.',
     );
   }
   return mode;
@@ -79,17 +80,17 @@ function inspectAuthenticationHardening(
   mode: ReturnType<typeof parseAuthMode> | null,
   warnings: string[],
 ): void {
-  if (mode === "password" && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA !== "1") {
+  if (mode && allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA !== "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.",
     );
   }
-  if (mode === "sso" && environment.SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED !== "1") {
+  if (mode === "sso-only" && environment.SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED !== "1") {
     warnings.push(
       "SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.",
     );
   }
-  if (mode === "password" && environment.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK === "off") {
+  if (mode && allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK === "off") {
     warnings.push(
       "SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.",
     );

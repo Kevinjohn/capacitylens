@@ -35,7 +35,7 @@ const previewResponse = (): Response =>
   }) as Response;
 
 const signedOutAuth: AuthContextValue = {
-  authMode: "password",
+  authMode: "password-and-sso",
   user: null,
   providers: [{ id: "microsoft", label: "Microsoft", kind: "social", brand: "microsoft", experimental: false }],
   canCreateAccount: true,

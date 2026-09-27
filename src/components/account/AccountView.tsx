@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { useAuth } from "@/auth/authContext";
 import demoAvatarUrl from "@/assets/avatar-demo.svg";
 import { m } from "@/i18n";
@@ -82,7 +83,7 @@ export function AccountView() {
                   <EmailCell email={email} />
                   <td className="py-2 px-4 text-right whitespace-nowrap">
                     <div className="flex justify-end gap-2">
-                      {!demo && auth.authMode === "password" && auth.reauthMethod !== "provider" && (
+                      {!demo && allowsPasswordSignIn(auth.authMode) && auth.reauthMethod !== "provider" && (
                         <Button type="button" size="sm" variant="outline" onClick={() => setPasswordOpen(true)}>
                           {m.settings_security_change_password()}
                         </Button>

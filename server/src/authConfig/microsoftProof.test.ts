@@ -93,7 +93,7 @@ describe("Microsoft native callback proof", () => {
 
   it("lets an established Microsoft principal accept a new workspace invitation without rebinding", async () => {
     const { db, auth } = await configured();
-    const app = createApp(db, { authMode: "sso", auth });
+    const app = createApp(db, { authMode: "sso-only", auth });
     try {
       const initial = await begin(auth);
       mockMicrosoftToken(claims("bruce@example.com"));
@@ -152,7 +152,7 @@ describe("Microsoft native callback proof", () => {
   // eslint-disable-next-line max-lines-per-function -- The new-principal case checks encrypted return storage and native membership acceptance.
   it("binds a new invited Microsoft principal and accepts the same invitation into its workspace", async () => {
     const { db, auth } = await configured();
-    const app = createApp(db, { authMode: "sso", auth });
+    const app = createApp(db, { authMode: "sso-only", auth });
     try {
       insertProofAccount(db, "a-studio");
       const inviteToken = "new-microsoft-invite";
@@ -413,7 +413,7 @@ describe("Microsoft native callback proof", () => {
 
   // eslint-disable-next-line max-lines-per-function -- The live session row check runs between approval and the native callback.
   it("connects Microsoft to the same fresh password principal after mailbox proof", async () => {
-    const { db, auth } = await configured("password");
+    const { db, auth } = await configured("password-and-sso");
     try {
       const principal = await auth.createCredentialUser({
         email: "bruce@example.com",
@@ -492,7 +492,7 @@ describe("Microsoft native callback proof", () => {
   });
 
   it("invalidates an approved link when its authenticated session signs out", async () => {
-    const { db, auth } = await configured("password");
+    const { db, auth } = await configured("password-and-sso");
     try {
       await auth.createCredentialUser({
         email: "bruce@example.com",

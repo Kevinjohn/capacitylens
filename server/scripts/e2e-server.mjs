@@ -26,7 +26,7 @@ const FLAVOURS = {
     wipe: true,
     env: {
       PORT: String(lanePorts.authApi),
-      SMALLSASS_ACCOUNT_MODE: "password",
+      SMALLSASS_ACCOUNT_MODE: "password-only",
       CAPACITYLENS_CREATE_ADMIN_ADMIN: "1",
       CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD: "auth-e2e-password-2026",
       SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK: "off",

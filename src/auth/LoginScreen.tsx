@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn, allowsProviderSignIn } from "@capacitylens/shared/account/types";
 import { m } from "@/i18n";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { useEffect, useId, useState, type Dispatch, type SetStateAction } from "react";
@@ -23,7 +24,7 @@ import { startMicrosoftConnection } from "./microsoftConnectionClient";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 
 type LoginScreenProps = {
-  authMode: "password" | "sso";
+  authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup?: boolean;
   providers?: AuthProviderInfo[];
   degraded?: boolean;
@@ -86,7 +87,7 @@ export function LoginScreen({
     <LoginView
       authMode={authMode}
       needsSetup={needsSetup}
-      providers={providers}
+      providers={allowsProviderSignIn(authMode) ? providers : []}
       degraded={degraded}
       hadUnsavedChanges={hadUnsavedChanges}
       busy={busy}
@@ -166,7 +167,7 @@ function createProviderSignIn({
 }
 
 type LoginViewProps = {
-  authMode: "password" | "sso";
+  authMode: "password-only" | "sso-only" | "password-and-sso";
   needsSetup: boolean;
   providers: AuthProviderInfo[];
   degraded: boolean;
@@ -212,12 +213,12 @@ function LoginView(props: LoginViewProps) {
                 signInWithProvider={props.signInWithProvider}
               />
             )}
-            {showLoginProviders && props.authMode === "password" && <PasswordFallbackSeparator />}
+            {showLoginProviders && allowsPasswordSignIn(props.authMode) && <PasswordFallbackSeparator />}
             <LoginForm
               authMode={props.authMode}
               setup={setup}
               microsoftBootstrap={
-                props.authMode === "sso" &&
+                props.authMode === "sso-only" &&
                 props.needsSetup &&
                 props.providers.some((provider) => provider.id === "microsoft")
               }
@@ -252,7 +253,7 @@ function LoginView(props: LoginViewProps) {
 }
 
 function isOwnerSetupActive(props: LoginViewProps) {
-  return props.authMode === "password" && props.needsSetup && !props.ownerSetup.setupClosed;
+  return allowsPasswordSignIn(props.authMode) && props.needsSetup && !props.ownerSetup.setupClosed;
 }
 
 function getProviderPlacement({
@@ -272,7 +273,7 @@ function getProviderPlacement({
     preserveBootstrapFlow,
     showLoginProviders: loginProviders.length > 0 && !hideProviders,
     showTrailingProviders:
-      trailingProviders.length > 0 || (authMode === "sso" && providers.length === 0 && !hideProviders),
+      trailingProviders.length > 0 || (authMode === "sso-only" && providers.length === 0 && !hideProviders),
   };
 }
 
@@ -331,7 +332,7 @@ function ProviderButtons({
 }: ProviderButtonsProps) {
   if (twoFactorPending) return null;
   if (providers.length === 0)
-    return !setup && authMode === "sso" ? <FieldError>{m.login_sso_unavailable()}</FieldError> : null;
+    return !setup && authMode === "sso-only" ? <FieldError>{m.login_sso_unavailable()}</FieldError> : null;
   return (
     <div className="mt-4 flex flex-col gap-3">
       {showSeparator && <Separator />}
@@ -341,7 +342,7 @@ function ProviderButtons({
       {providers.some((provider) => provider.experimental) && (
         <p className="text-xs text-muted-foreground">{m.login_external_experimental()}</p>
       )}
-      <FieldError id={errorId}>{authMode === "sso" ? error : null}</FieldError>
+      <FieldError id={errorId}>{authMode === "sso-only" ? error : null}</FieldError>
       {pendingProvider && (
         <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
           {m.login_external_redirecting({ provider: pendingProvider.label })}

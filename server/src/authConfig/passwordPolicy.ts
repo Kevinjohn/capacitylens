@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import type { AsyncLocalStorage } from "node:async_hooks";
 import type { BetterAuthOptions } from "better-auth";
 import { APIError } from "better-auth/api";
@@ -24,7 +25,7 @@ type SessionDeletionLifecycleRef = {
 
 interface BuildPasswordPolicyInput {
   env: Record<string, string | undefined>;
-  mode: "password" | "sso";
+  mode: "password-only" | "sso-only" | "password-and-sso";
   runtimeEnvironment: string | undefined;
   passwordContextWords: readonly string[];
   passwordResetSessionCapture: AsyncLocalStorage<{ sessionHandles: readonly string[] }>;
@@ -96,7 +97,7 @@ function createPasswordHash({
 }
 
 function passwordResetOptions(input: BuildPasswordPolicyInput): Partial<BetterAuthOptions["emailAndPassword"]> {
-  if (input.mode !== "password") return {};
+  if (!allowsPasswordSignIn(input.mode)) return {};
   return {
     sendResetPassword: input.captureResetToken,
     onPasswordReset: async ({ user }: { user: { id: string } }) => {
@@ -133,7 +134,7 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
 
   return {
     emailAndPassword: {
-      enabled: mode === "password",
+      enabled: allowsPasswordSignIn(mode),
       // The live before hook owns sign-up gating; the browser's first-run bootstrap uses this route.
       disableSignUp: false,
       // PIN the minimum length to the shared constant rather than inheriting Better Auth's default,

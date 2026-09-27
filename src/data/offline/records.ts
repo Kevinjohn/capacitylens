@@ -1,6 +1,7 @@
 import type { SliceRewriteResult } from "./state";
 import { isAccountRole } from "@capacitylens/shared/account/types";
 import { parseAuthUser } from "../../auth/validateAuthUser";
+import { isAuthMode } from "../../auth/authStatus";
 import { STORE_NAME, MAX_AGE_MS } from "./constants";
 import { awaitRequest, awaitTx, openOfflineDb } from "./idb";
 import { readOrCreateDeviceKey, assertWebCrypto, buildAssociatedData, writeEncryptedRecord } from "./crypto";
@@ -112,7 +113,7 @@ async function getValidated<T>(key: string, validate: (value: unknown) => T | nu
 }
 
 export function parseAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
-  if (!isRecord(value) || !["off", "password", "sso"].includes(String(value.authMode))) return null;
+  if (!isRecord(value) || !isAuthMode(value.authMode)) return null;
   if (!parseAuthUser({ value: value.user, requireEmail: value.authMode !== "off" })) return null;
   if (typeof value.canCreateAccount !== "boolean" || typeof value.multiAccount !== "boolean") return null;
   return value as unknown as OfflineAuthSnapshot;

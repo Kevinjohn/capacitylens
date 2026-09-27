@@ -18,7 +18,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   const github = { id: "github", label: "GitHub", kind: "social", experimental: true } as const;
 
   it("puts Google before the password fallback with explicit wording", () => {
-    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
     const email = screen.getByLabelText("Email");
@@ -35,7 +35,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   it("follows keyboard order through every provider and then the password fields", async () => {
     const user = userEvent.setup();
     const microsoft = { id: "microsoft", label: "Microsoft", kind: "social", experimental: false } as const;
-    render(<LoginScreen authMode="password" providers={[google, microsoft, github]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google, microsoft, github]} onSignedIn={vi.fn()} />);
 
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
     const microsoftButton = screen.getByRole("button", { name: "Sign in with Microsoft" });
@@ -54,20 +54,20 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("keeps password email autofocus when Google is not configured", () => {
-    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-only" onSignedIn={vi.fn()} />);
 
     expect(screen.getByLabelText("Email")).toHaveFocus();
     expect(screen.queryByText("or use your password")).not.toBeInTheDocument();
   });
 
   it("keeps the owner name autofocus during first-owner setup", () => {
-    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
 
     expect(screen.getByLabelText("name")).toHaveFocus();
   });
 
   it("lets the fallback separator rails share the remaining row width", () => {
-    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
     const rails = screen.getAllByRole("none").filter((element) => element.getAttribute("data-slot") === "separator");
     expect(rails).toHaveLength(2);
@@ -77,7 +77,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("keeps experimental GitHub after the password fallback", () => {
-    render(<LoginScreen authMode="password" providers={[google, github]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google, github]} onSignedIn={vi.fn()} />);
 
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
     const signIn = screen.getByRole("button", { name: "Sign in" });
@@ -102,7 +102,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
       github,
       futureProvider,
     ];
-    render(<LoginScreen authMode="password" providers={[...providers]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[...providers]} onSignedIn={vi.fn()} />);
 
     const buttons = [
       screen.getByRole("button", { name: "Sign in with Microsoft" }),
@@ -129,7 +129,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("does not promote providers in SSO-only mode", () => {
-    render(<LoginScreen authMode="sso" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="sso-only" providers={[google]} onSignedIn={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Email")).not.toBeInTheDocument();
@@ -137,7 +137,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("places GitHub above the password form when it is the only provider", () => {
-    render(<LoginScreen authMode="password" providers={[github]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[github]} onSignedIn={vi.fn()} />);
 
     const email = screen.getByLabelText("Email");
     const companyButton = screen.getByRole("button", { name: "Continue with GitHub" });
@@ -146,7 +146,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
   });
 
   it("keeps first-owner setup ahead of its providers and retains their separator", () => {
-    render(<LoginScreen authMode="password" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" needsSetup providers={[google]} onSignedIn={vi.fn()} />);
 
     const name = screen.getByLabelText("name");
     const googleButton = screen.getByRole("button", { name: "Sign in with Google" });
@@ -160,7 +160,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
 
   it("hides the promoted action and fallback while password MFA is pending", async () => {
     signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "correct-password" } });
@@ -175,7 +175,7 @@ describe("LoginScreen — mixed-mode Google hierarchy", () => {
 
   it("keeps password errors associated with both controls after Google promotion", async () => {
     signInEmail.mockResolvedValue({ error: { message: "Invalid email or password." } });
-    render(<LoginScreen authMode="password" providers={[google]} onSignedIn={vi.fn()} />);
+    render(<LoginScreen authMode="password-and-sso" providers={[google]} onSignedIn={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Email"), { target: { value: "a@b.com" } });
     fireEvent.change(screen.getByLabelText("Password"), { target: { value: "wrong" } });
