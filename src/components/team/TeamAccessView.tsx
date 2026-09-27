@@ -144,7 +144,15 @@ function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissio
   );
 }
 
-function PolicyManagement({ accountId, role, enabled }: { accountId: string | null; role: Role | null; enabled: boolean }) {
+function PolicyManagement({
+  accountId,
+  role,
+  enabled,
+}: {
+  accountId: string | null;
+  role: Role | null;
+  enabled: boolean;
+}) {
   if (!enabled || !accountId || (role !== "owner" && role !== "admin")) return null;
   return <JoiningPolicyPanel key={accountId} accountId={accountId} role={role} />;
 }

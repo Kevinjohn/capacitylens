@@ -150,7 +150,11 @@ export const router = createBrowserRouter([
   {
     path: PUBLIC_AUTH_ENTRY_PATHS.companyJoin,
     errorElement: <RouteError />,
-    element: <Suspense fallback={<RouteLoading />}><JoinCompany /></Suspense>,
+    element: (
+      <Suspense fallback={<RouteLoading />}>
+        <JoinCompany />
+      </Suspense>
+    ),
   },
   {
     // Password reset is a sibling of AppShell for the same reason as /invite (no tenant gate),

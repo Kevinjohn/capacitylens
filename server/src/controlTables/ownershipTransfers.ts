@@ -5,7 +5,7 @@ import {
   type OwnershipTransferTerminalReason,
 } from "@capacitylens/shared/account/ownershipTransfer";
 import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/account/ownershipTransferPolicy";
-import { createTableExistenceProbe } from "../auth";
+import { createTableExistenceProbe } from "../authConfig/tableAccess";
 import type { Db } from "../db";
 import { cachedStatement, type PreparedStatement } from "./preparedStatement";
 import {

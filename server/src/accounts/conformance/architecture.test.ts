@@ -272,7 +272,10 @@ const identitySqlOwners = new Set([
   resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
   resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
   resolve(serverRoot, "authConfig/sessionActivity.ts"),
+  resolve(serverRoot, "authConfig/tableAccess.ts"),
   resolve(serverRoot, "authConfig/microsoftProof.ts"),
+  resolve(serverRoot, "authConfig/microsoftProofProfiles.ts"),
+  resolve(serverRoot, "authConfig/microsoftProofJoining.ts"),
   resolve(serverRoot, "authConfig/microsoftProofAuthorization.ts"),
   resolve(serverRoot, "authConfig/socialProviders.ts"),
   resolve(serverRoot, "authConfig/federatedEmailProof.ts"),
@@ -323,6 +326,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/joiningProviderLifecycle.ts"),
       resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
       resolve(serverRoot, "authConfig/federatedEmailProof.ts"),
+      resolve(serverRoot, "authConfig/microsoftProofJoining.ts"),
       resolve(serverRoot, "accounts/proofInvitationPort.ts"),
     ]);
     // Database bootstrap and the concrete account-admin adapter compose control-table operations.
@@ -331,6 +335,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "db/open.ts"),
       resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "db/migrations/baselineV8.ts"),
       resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
       resolve(serverRoot, "db/migrations/invitationPersonProposalsV44.ts"),
       resolve(serverRoot, "controlTables.ts"),
@@ -458,9 +463,17 @@ describe("account-boundary architecture", () => {
     const accountClient = resolve(browserRoot, "account/accountClient.ts");
     // Company-specific proof and provider URLs have their own account client boundary.
     const companyJoinClient = resolve(browserRoot, "account/companyJoinClient.ts");
+    // Policy settings delegate through accountClient while owning their request details here.
+    const joiningPolicyClient = resolve(browserRoot, "account/joiningPolicyClient.ts");
     const gettingStartedClient = resolve(browserRoot, "account/gettingStartedClient.ts");
     for (const file of sourceFiles(browserRoot)) {
-      if (file === accountClient || file === companyJoinClient || file === gettingStartedClient) continue;
+      if (
+        file === accountClient ||
+        file === companyJoinClient ||
+        file === joiningPolicyClient ||
+        file === gettingStartedClient
+      )
+        continue;
       const source = readFileSync(file, "utf8");
       expect(source, file).not.toMatch(/fetch\s*\([^\n]*(?:\/api\/(?:auth\/me|accounts|invites|orgs))/);
       expect(source, file).not.toMatch(/apiFetch(?:Reauth)?\s*\([^\n]*(?:\/api\/(?:accounts|invites|orgs))/);

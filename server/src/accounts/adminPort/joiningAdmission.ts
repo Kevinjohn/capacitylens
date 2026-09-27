@@ -1,24 +1,16 @@
 import { isApprovedEmailDomain } from "@capacitylens/shared/account/approvedDomains";
 import type { JoiningPolicySettings } from "@capacitylens/shared/account/types";
 import type { Membership } from "@capacitylens/shared/account/types";
-import {
-  getInvite,
-  getMembershipRow,
-  isAccessRestricted,
-  inviteIsExpired,
-  listMembershipsForUser,
-  markInviteUsed,
-  provenEmail,
-  settleInvitationPersonProposal,
-  upsertMember,
-} from "../../controlTables";
-import type { Invite } from "../../controlTables";
-import { readJoiningPolicy } from "../../controlTables";
+import { getInvite, markInviteUsed, getInviteTargetById, type Invite } from "../../controlTables/invites";
+import { getMembershipRow, listMembershipsForUser, upsertMember } from "../../controlTables/members";
+import { isAccessRestricted, provenEmail } from "../../controlTables/accessRestrictions";
+import { inviteIsExpired } from "../../controlTables/inviteRetention";
+import { settleInvitationPersonProposal } from "../../controlTables/invitationPersonProposals";
+import { readJoiningPolicy } from "../../controlTables/joiningPolicies";
 import type { Db } from "../../db";
 import { tx } from "../../txn";
 import { cancelJoinIntent, readJoinIntent, type JoinIntent } from "../../controlTables/joiningIntents";
 import { hashJoiningValue, joiningCookieNames, readJoiningCookie } from "./joiningIntentSecrets";
-import { getInviteTargetById } from "../../controlTables/invites";
 import { confirmTrackedMemberSignIn } from "../memberSignInTracking";
 import { enqueueAudit } from "../../auditOutbox";
 import type { AccountAuditEvent } from "@capacitylens/shared/account/audit";

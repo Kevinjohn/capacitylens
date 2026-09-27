@@ -28,7 +28,13 @@ export function createJoiningPolicyAdministration(
       }
       const canonical = { policy: settings.policy, approvedDomains: domains };
       const assertOwner = () => {
-        assertAdministrativeAssurance({ actor, requireMfa, trustedLocal, requireFresh: false, commandId: command.commandId });
+        assertAdministrativeAssurance({
+          actor,
+          requireMfa,
+          trustedLocal,
+          requireFresh: false,
+          commandId: command.commandId,
+        });
         const role = assertAccountAuthority({ db, actor, workspaceId, action: "manage-invitations", trustedLocal });
         if (role !== "owner") throw createAccountFailure("FORBIDDEN", "Only the Owner can change joining policy.");
       };

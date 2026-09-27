@@ -9,10 +9,14 @@ afterEach(() => vi.restoreAllMocks());
 describe("JoiningPolicyPanel", () => {
   it("loads the current company's policy and saves an Owner edit", async () => {
     const read = vi.spyOn(teamAccessClient, "readJoiningPolicy").mockResolvedValue({
-      kind: "ok", status: 200, value: { policy: "invitation_only", approvedDomains: [] },
+      kind: "ok",
+      status: 200,
+      value: { policy: "invitation_only", approvedDomains: [] },
     });
     const save = vi.spyOn(teamAccessClient, "setJoiningPolicy").mockResolvedValue({
-      kind: "ok", status: 200, value: { policy: "open", approvedDomains: [] },
+      kind: "ok",
+      status: 200,
+      value: { policy: "open", approvedDomains: [] },
     });
     const user = userEvent.setup();
     render(<JoiningPolicyPanel accountId="a-studio" role="owner" />);
@@ -25,7 +29,9 @@ describe("JoiningPolicyPanel", () => {
 
   it("shows an Admin the loaded policy without edit controls", async () => {
     vi.spyOn(teamAccessClient, "readJoiningPolicy").mockResolvedValue({
-      kind: "ok", status: 200, value: { policy: "approved_domains", approvedDomains: ["studio.example"] },
+      kind: "ok",
+      status: 200,
+      value: { policy: "approved_domains", approvedDomains: ["studio.example"] },
     });
     render(<JoiningPolicyPanel accountId="a-studio" role="admin" />);
     expect(await screen.findByText("studio.example")).toBeInTheDocument();
@@ -33,10 +39,10 @@ describe("JoiningPolicyPanel", () => {
   });
 
   it("offers retry after a failed read and loads fresh settings", async () => {
-    const read = vi.spyOn(teamAccessClient, "readJoiningPolicy")
+    const read = vi
+      .spyOn(teamAccessClient, "readJoiningPolicy")
       .mockResolvedValueOnce({ kind: "rejected", status: 503, message: null })
-      .mockResolvedValueOnce({ kind: "ok", status: 200,
-        value: { policy: "open", approvedDomains: [] } });
+      .mockResolvedValueOnce({ kind: "ok", status: 200, value: { policy: "open", approvedDomains: [] } });
     const user = userEvent.setup();
     render(<JoiningPolicyPanel accountId="a-studio" role="admin" />);
     expect(await screen.findByText("Could not load the joining policy.")).toBeInTheDocument();

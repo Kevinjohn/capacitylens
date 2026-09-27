@@ -316,9 +316,11 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
     commitResetSessions: (handles) => options.sessionDeletionLifecycleRef.current?.commit(handles),
     reconcileFederatedLinks: reconcile,
     microsoftProof: options.microsoftProof,
-    ...(options.joiningProviderCallbacks === undefined ? {} : {
-      joiningProviderCallbacks: options.joiningProviderCallbacks,
-    }),
+    ...(options.joiningProviderCallbacks === undefined
+      ? {}
+      : {
+          joiningProviderCallbacks: options.joiningProviderCallbacks,
+        }),
   });
   return {
     handler,

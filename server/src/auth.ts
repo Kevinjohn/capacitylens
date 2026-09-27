@@ -6,6 +6,8 @@ import { resetTokenCapture } from "./authConfig/captureContexts";
 import { createAuthFromEnvironmentFactory } from "./authConfig/authFromEnv";
 import { createAuthAdapterFactory } from "./authConfig/authAdapter";
 import { createBootstrapAdminFactory } from "./authConfig/bootstrapAdmin";
+import { createTableExistenceProbe } from "./authConfig/tableAccess";
+export { createTableExistenceProbe, revokeResetTokensForUser } from "./authConfig/tableAccess";
 
 export type { AccountMode, AuthMode, AuthProviderInfo, Auth, SessionUser } from "./authConfig/authTypes";
 export { DEMO_USER, DEFAULT_ACCOUNT_APPLICATION } from "./authConfig/authTypes";
@@ -86,32 +88,6 @@ export async function mintPasswordResetToken(auth: Auth, email: string): Promise
   return store.token;
 }
 
-/**
- * Delete every outstanding (unredeemed) password-reset token for `userId`.
- *
- * A reset link is authorized at MINT time, but it lives for {@link RESET_LINK_TTL_SECONDS}; if the
- * member is PROMOTED within that window (an editor made owner, or handed ownership), a link minted
- * while they were a non-owner would still redeem into their now-owner identity — a takeover the
- * mint-time guard already refused for the new role. So every role ELEVATION calls this to burn the
- * user's outstanding links, re-closing the window: the promoted member (or their admin) must mint a
- * fresh link, which is then judged against the new role.
- *
- * Better Auth stores reset and other verification ceremonies with `value = <userId>`. Their
- * identifiers are hashed at rest, so purpose-specific deletion is unavailable; a privilege change
- * conservatively revokes every outstanding ceremony for that identity. No-ops cleanly when the auth
- * tables are absent (OFF mode never mounts them, and its role routes are inert no-ops).
- *
- * @param db      The open SQLite handle.
- * @param userId  The user whose outstanding reset tokens to revoke.
- */
-export function revokeResetTokensForUser(db: Db, userId: string): void {
-  if (!verificationTableExists(db)) return; // OFF / auth-off: no Better Auth tables exist.
-  // Verification identifiers are deliberately hashed at rest, so their purpose prefix is no
-  // longer queryable. Revoking all outstanding verification ceremonies for a user on a privilege
-  // change is the safe conservative action (and avoids retaining any other takeover-capable link).
-  db.prepare(`DELETE FROM verification WHERE value = ?`).run(userId);
-}
-
 /** Revoke Better Auth's still-pending OAuth link state for one principal inside the caller's
  * transaction. The state has no foreign key to the application ceremony, so identity mutations
  * must explicitly clear both stores. */
@@ -130,33 +106,6 @@ export function revokeFederatedLinkStateInTx(db: Db, principalId: string): void 
   }
 }
 
-/**
- * Factory for a per-handle "cache TRUE only" table-existence probe, so the sqlite_master lookup
- * runs at most ONCE per Db handle once the table is seen to exist. WeakMap keyed by the Db
- * handle: an entry is collected with its handle, so tests that spin up many short-lived
- * in-memory handles don't leak.
- *
- * Absence is deliberately re-probed on every call (never cached): a table this factory guards may
- * not exist yet on a handle this function is consulted on BEFORE the migration that creates it
- * runs on that same handle. Caching a pre-migration `false` would make every later call on that
- * handle read "table absent" forever, which is the specific hazard each call site below documents.
- */
-export function createTableExistenceProbe(table: string): (db: Db) => boolean {
-  const presence = new WeakMap<Db, true>();
-  return (db: Db): boolean => {
-    if (presence.get(db)) return true;
-    const row = db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) as
-      { name?: string } | undefined;
-    const exists = row?.name === table;
-    if (exists) presence.set(db, true);
-    return exists;
-  };
-}
-
-// The sole caller, upsertMember, hits this on each role change / invite accept / org create.
-// Application migration v12 may probe this table before runAuthMigrations creates it on the same
-// handle when an existing auth-off database first enables password auth; caching that pre-auth
-// `false` would permanently suppress reset-token revocation for the rest of the process.
 const verificationTableExists = createTableExistenceProbe("verification");
 const microsoftProofTableExists = createTableExistenceProbe("microsoft_identity_proofs");
 

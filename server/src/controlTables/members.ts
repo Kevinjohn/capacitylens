@@ -1,7 +1,7 @@
 import type { Role } from "@capacitylens/shared/account/types";
 import type { Db } from "../db";
 import { terminaliseLiveRequestsForAccount, terminaliseLiveRequestsForMember } from "./ownershipTransfers";
-import { revokeResetTokensForUser } from "../auth";
+import { revokeResetTokensForUser } from "../authConfig/tableAccess";
 import { bumpSecurityRevision } from "../accounts/state";
 import { removeMemberSignInTrackingForAccount } from "../accounts/memberSignInTracking";
 import { cachedStatement } from "./preparedStatement";

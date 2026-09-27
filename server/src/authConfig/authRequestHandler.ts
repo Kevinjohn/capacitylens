@@ -7,8 +7,11 @@ import {
   federatedCallbackCapture,
 } from "./captureContexts";
 import { MicrosoftProofError, type MicrosoftProof } from "./microsoftProof";
-import { joiningProviderCallbackCapture, JoiningProviderCallbackError,
-  type createJoiningProviderCallbacks } from "../accounts/adminPort/joiningProviderCallbacks";
+import {
+  joiningProviderCallbackCapture,
+  JoiningProviderCallbackError,
+  type createJoiningProviderCallbacks,
+} from "../accounts/adminPort/joiningProviderCallbacks";
 
 type CreateAuthRequestHandlerOptions = {
   rawHandler: Auth["handler"];
@@ -130,9 +133,10 @@ async function runCapturedHandler(
     joinCapture: ReturnType<NonNullable<CreateAuthRequestHandlerOptions["joiningProviderCallbacks"]>["preflight"]>;
   },
 ): Promise<Response> {
-  const { request, callbackProviderId, capture, resetCapture, microsoftCapture, federatedCapture, joinCapture } = context;
+  const { request, callbackProviderId, capture, resetCapture, microsoftCapture, federatedCapture, joinCapture } =
+    context;
   const raw = () => options.rawHandler(request);
-  const joined = () => joinCapture ? joiningProviderCallbackCapture.run(joinCapture, raw) : raw();
+  const joined = () => (joinCapture ? joiningProviderCallbackCapture.run(joinCapture, raw) : raw());
   const providerScoped = () => {
     if (callbackProviderId === "microsoft" && options.microsoftProof)
       return microsoftCallbackCapture.run(microsoftCapture, raw);
@@ -186,7 +190,8 @@ async function runAuthenticatedRequest(
   const { request, requestUrl, callbackProviderId, failureTarget } = context;
   try {
     const joinCapture = callbackProviderId
-      ? options.joiningProviderCallbacks?.preflight(request, callbackProviderId) ?? null : null;
+      ? (options.joiningProviderCallbacks?.preflight(request, callbackProviderId) ?? null)
+      : null;
     const capture: { error: unknown } = { error: null };
     const resetCapture: { sessionHandles: readonly string[] } = { sessionHandles: [] };
     const microsoftCapture = {

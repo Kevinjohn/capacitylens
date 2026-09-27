@@ -549,6 +549,8 @@ const registerStartupMigrationPlanningTest = () => {
       DROP TABLE microsoft_identity_proofs;
       DROP TABLE account_access_restrictions;
       DROP TABLE identity_email_proofs;
+      DROP TABLE account_joining_policies;
+      DROP TABLE company_join_intents;
       DELETE FROM capacitylens_schema_migrations WHERE version >= 20;
       PRAGMA user_version = 19;
     `);

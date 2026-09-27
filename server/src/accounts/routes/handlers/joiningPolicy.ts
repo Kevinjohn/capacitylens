@@ -21,9 +21,11 @@ export async function setJoiningPolicy(req: FastifyRequest, reply: FastifyReply,
   if (!context.authorize({ req, reply, accountId, action: "manageInvites", options: NO_REPROMPT })) return;
   if (context.authMode === "off") return context.fail(reply, context.validationFailed("Authentication is required."));
   const body = (req.body ?? {}) as { policy?: unknown; approvedDomains?: unknown };
-  if (!isJoiningPolicy(body.policy)) return context.fail(reply, context.validationFailed("Choose a valid joining policy."));
+  if (!isJoiningPolicy(body.policy))
+    return context.fail(reply, context.validationFailed("Choose a valid joining policy."));
   const domains = parseApprovedDomains(body.approvedDomains);
-  if (domains === null) return context.fail(reply, context.validationFailed("Approved domains must be valid DNS domains."));
+  if (domains === null)
+    return context.fail(reply, context.validationFailed("Approved domains must be valid DNS domains."));
   const settings: JoiningPolicySettings = { policy: body.policy, approvedDomains: domains };
   try {
     return await context.administration.setJoiningPolicy({
