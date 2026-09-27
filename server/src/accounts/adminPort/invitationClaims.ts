@@ -9,6 +9,7 @@ import {
   inviteIsExpired,
   listMembershipsForUser,
   markInviteUsed,
+  preauthInviteAllows,
   provenEmail,
   pruneInvites,
   settleInvitationPersonProposal,
@@ -43,6 +44,7 @@ type ClaimInvitationInput = {
 type AcceptInvitationInput = Parameters<SsoCutoverAccountAdminPort["acceptInvitation"]>[0];
 type PrincipalInvitationInput = Parameters<SsoCutoverAccountAdminPort["claimInvitationForPrincipal"]>[0];
 
+// eslint-disable-next-line complexity -- Invitation validity, addressed identity and domain-only proof are distinct gates.
 function getRedeemableInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput) {
   const live = getInvite(context.db, input.token);
   if (!live) throw createAccountFailure("NOT_FOUND", "Invite not found.", input.command.commandId);
@@ -55,7 +57,19 @@ function getRedeemableInvitation(context: InvitationRedemptionContext, input: Cl
   assertRedeemableInvitationRole(live.role, input.command.commandId);
   assertWorkspaceExists(context.db, live.accountId);
   const establishedProof = context.trustedLocal ? null : provenEmail(context.db, input.principalId);
-  if (!context.trustedLocal && (live.preauthEmail === null || establishedProof !== live.preauthEmail)) {
+  // Password invitation possession is the released mailbox ceremony. Provider identities still
+  // need current durable proof, and an unaddressed invitation never authorizes external admission.
+  const addressedPasswordClaim =
+    input.passwordMode &&
+    preauthInviteAllows({
+      preauthEmail: live.preauthEmail,
+      user: { email: input.principalEmail, emailVerified: input.emailVerified },
+      passwordMode: true,
+    });
+  if (
+    !context.trustedLocal &&
+    (live.preauthEmail === null || (establishedProof !== live.preauthEmail && !addressedPasswordClaim))
+  ) {
     throw createAccountFailure(
       "INVITATION_EMAIL_MISMATCH",
       "This invitation requires proof of its addressed mailbox.",
@@ -79,7 +93,6 @@ function getRedeemableInvitation(context: InvitationRedemptionContext, input: Cl
 }
 
 // Admission checks and the membership write share one invitation transaction.
-// eslint-disable-next-line complexity -- Legacy redemption must retain its denial and replay ordering.
 function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput): Membership {
   const live = getRedeemableInvitation(context, input);
   if (isAccessRestricted(context.db, live.accountId, input.principalId)) {
@@ -97,13 +110,6 @@ function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvit
     throw createAccountFailure(
       "FORBIDDEN",
       "This membership is no longer active. An Owner or Admin must restore it before you can rejoin.",
-      input.command.commandId,
-    );
-  }
-  if (!context.trustedLocal && existing?.status !== "active") {
-    throw createAccountFailure(
-      "AUTHENTICATION_REQUIRED",
-      "Start company joining to verify this invitation and your identity.",
       input.command.commandId,
     );
   }

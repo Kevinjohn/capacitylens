@@ -239,19 +239,18 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
   registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "identity" });
   if (authMode !== "off" && auth) {
     registerMicrosoftProofRoutes(app, auth, options.trustProxyHeaders === true);
-    if (options.joiningProof) registerJoiningProofRoutes(app, {
-      db,
-      identity: identityPort,
-      auth,
-      applicationId: application.applicationId,
-      authMode,
-      requireMfa: options.requireMfa === true,
-      trustProxyHeaders: options.trustProxyHeaders === true,
-      secret: options.joiningProof.secret,
-      publicUrl: options.joiningProof.publicUrl,
-      sendMail: options.joiningProof.sendMail,
-      fail: rootHelpers.accountFail,
-    });
+    if (options.joiningProof)
+      registerJoiningProofRoutes(app, {
+        db,
+        auth,
+        applicationId: application.applicationId,
+        authMode,
+        requireMfa: options.requireMfa === true,
+        trustProxyHeaders: options.trustProxyHeaders === true,
+        secret: options.joiningProof.secret,
+        publicUrl: options.joiningProof.publicUrl,
+        fail: rootHelpers.accountFail,
+      });
     registerFederatedIdentityRoutes(app, {
       auth,
       authMode,

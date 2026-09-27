@@ -113,7 +113,6 @@ async function fixture() {
       joiningProof: {
         secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
         publicUrl: new URL(origin),
-        sendMail: async () => {},
       },
     }),
   );
@@ -175,7 +174,7 @@ it("binds a new Google identity to one company intent and joins only after expli
   ).toEqual({ role: "viewer" });
 });
 
-it("replaces a provider journey with a password journey in the same browser", async () => {
+it("replaces a provider journey with another provider in the same browser", async () => {
   const { db, app } = await fixture();
   const provider = await app.inject({
     method: "POST",
@@ -183,18 +182,18 @@ it("replaces a provider journey with a password journey in the same browser", as
     payload: { providerId: "google", purpose: "policy", email: "diana@studio.example" },
   });
   expect(provider.statusCode).toBe(200);
-  const password = await app.inject({
+  const replacement = await app.inject({
     method: "POST",
-    url: "/api/accounts/a-studio/join/start",
+    url: "/api/accounts/a-studio/join/provider/start",
     headers: { cookie: readCookies(provider) },
-    payload: { purpose: "policy", email: "diana@studio.example" },
+    payload: { providerId: "github", purpose: "policy", email: "diana@studio.example" },
   });
-  expect(password.statusCode).toBe(200);
+  expect(replacement.statusCode).toBe(200);
   expect(db.prepare("SELECT state FROM company_join_intents WHERE providerId = 'google'").get()).toEqual({
     state: "cancelled",
   });
-  expect(db.prepare("SELECT state FROM company_join_intents WHERE providerId = 'password'").get()).toEqual({
-    state: "mail-sent",
+  expect(db.prepare("SELECT state FROM company_join_intents WHERE providerId = 'github'").get()).toEqual({
+    state: "started",
   });
 });
 

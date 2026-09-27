@@ -80,10 +80,9 @@ function isMasqueradeWriteExempt(method: string, path: string): boolean {
 function isPublicJoiningPath(method: string, path: string): boolean {
   return (
     (method === "GET" && /^\/api\/accounts\/[^/]+\/join\/metadata$/.test(path)) ||
-    (method === "POST" && /^\/api\/accounts\/[^/]+\/join\/start$/.test(path)) ||
     (method === "POST" && /^\/api\/accounts\/[^/]+\/join\/provider\/start$/.test(path)) ||
     (method === "GET" && path === "/api/company-join/status") ||
-    (method === "POST" && /^\/api\/company-join\/(resend|confirm|cancel|complete-password)$/.test(path))
+    (method === "POST" && path === "/api/company-join/cancel")
   );
 }
 

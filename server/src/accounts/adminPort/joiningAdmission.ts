@@ -15,6 +15,7 @@ import {
 import type { Invite } from "../../controlTables";
 import { readJoiningPolicy } from "../../controlTables";
 import type { Db } from "../../db";
+import { tx } from "../../txn";
 import { cancelJoinIntent, readJoinIntent, type JoinIntent } from "../../controlTables/joiningIntents";
 import { hashJoiningValue, joiningCookieNames, readJoiningCookie } from "./joiningIntentSecrets";
 import { getInviteTargetById } from "../../controlTables/invites";
@@ -41,12 +42,16 @@ type AdmissionTarget = Pick<AdmissionInput, "db" | "accountId" | "email" | "purp
 
 /** Keep an Owner's proven address from crossing a disabled-access boundary. */
 export function hasProofOwnerRestrictionConflict(db: Db, principalId: string, email: string): boolean {
-  return Boolean(db.prepare(`SELECT 1 FROM account_members AS member
+  return Boolean(
+    db
+      .prepare(
+        `SELECT 1 FROM account_members AS member
     JOIN account_access_restrictions AS restriction ON restriction.accountId = member.accountId
     WHERE member.userId = ? AND member.role = 'owner' AND member.status = 'active'
-      AND (restriction.principalId = ? OR restriction.verifiedEmail = ?) LIMIT 1`).get(
-    principalId, principalId, email,
-  ));
+      AND (restriction.principalId = ? OR restriction.verifiedEmail = ?) LIMIT 1`,
+      )
+      .get(principalId, principalId, email),
+  );
 }
 
 export function cancelCompanyJoinForBrowser(input: {
@@ -195,4 +200,35 @@ export function admitCompanyInTx(input: AdmissionInput): Membership {
     enqueueAudit(db, event, event.id);
   }
   return membership;
+}
+
+/** Existing password sessions may use only their current durable proof for policy admission. */
+export function completeExistingPolicyJoin(input: {
+  db: Db;
+  applicationId: string;
+  accountId: string;
+  principalId: string;
+  admissionId: string;
+}): { accountId: string; role: Membership["role"] } {
+  const { db, applicationId, accountId, principalId, admissionId } = input;
+  return tx(
+    db,
+    () => {
+      const email = provenEmail(db, principalId);
+      if (!email)
+        throw createAccountFailure("AUTHENTICATION_REQUIRED", "This identity needs current email proof to join.");
+      const membership = admitCompanyInTx({
+        db,
+        applicationId,
+        admissionId,
+        confirmedSignIn: true,
+        accountId,
+        principalId,
+        email,
+        purpose: "policy",
+      });
+      return { accountId, role: membership.role };
+    },
+    "immediate",
+  );
 }

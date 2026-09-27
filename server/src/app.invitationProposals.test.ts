@@ -89,9 +89,6 @@ async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db; tokens: st
       joiningProof: {
         secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
         publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
-        sendMail: async (_email, token) => {
-          tokens.push(token);
-        },
       },
     }),
     db,
@@ -125,9 +122,6 @@ async function closedSignupProposalContext(): Promise<{
     joiningProof: {
       secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
       publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
-      sendMail: async (_email, token) => {
-        tokens.push(token);
-      },
     },
   });
   seedOne(db);
@@ -151,50 +145,29 @@ async function closedSignupProposalContext(): Promise<{
   return { app, db, token: readResponseString(created, "token"), tokens };
 }
 
-// eslint-disable-next-line max-params -- The route fixture keeps each ceremony coordinate explicit.
-async function verifiedInvitation(app: FastifyInstance, token: string, email: string, tokens: string[]) {
-  const started = await call(app, {
-    method: "POST",
-    url: "/api/accounts/a1/join/start",
-    payload: { purpose: "invitation", invitationToken: token, email },
-  });
-  expect(started.statusCode).toBe(200);
-  const joinCookie = readCookies(started);
-  const confirmed = await call(app, {
-    method: "POST",
-    url: "/api/company-join/confirm",
-    headers: { cookie: joinCookie },
-    payload: { token: requireValue(tokens.at(-1), "mail token") },
-  });
-  expect(confirmed.statusCode).toBe(200);
-  return joinCookie;
-}
-
-// eslint-disable-next-line max-params -- The route fixture keeps actor and browser cookies distinct.
+// eslint-disable-next-line max-params -- Existing route fixture call sites retain ceremony coordinates.
 async function acceptWithProof(
   app: FastifyInstance,
   token: string,
-  email: string,
+  _email: string,
   actorCookie: string,
-  tokens: string[],
+  _tokens: string[],
 ) {
-  const joinCookie = await verifiedInvitation(app, token, email, tokens);
+  void _tokens;
   return call(app, {
     method: "POST",
-    url: "/api/company-join/complete-existing",
-    headers: { cookie: `${actorCookie}; ${joinCookie}` },
-    payload: { invitationToken: token },
+    url: `/api/invites/${token}/accept`,
+    headers: { cookie: actorCookie },
   });
 }
 
-// eslint-disable-next-line max-params -- The route fixture keeps the invitation and delivered proof explicit.
-async function createWithProof(app: FastifyInstance, token: string, email: string, tokens: string[]) {
-  const joinCookie = await verifiedInvitation(app, token, email, tokens);
+// eslint-disable-next-line max-params -- Existing route fixture call sites retain ceremony coordinates.
+async function createWithProof(app: FastifyInstance, token: string, email: string, _tokens: string[]) {
+  void _tokens;
   return call(app, {
     method: "POST",
-    url: "/api/company-join/complete-password",
-    headers: { cookie: joinCookie },
-    payload: { invitationToken: token, displayName: "Dick Grayson", password: "password-123456" },
+    url: `/api/invites/${token}/signup`,
+    payload: { email, name: "Dick Grayson", password: "password-123456" },
   });
 }
 
@@ -309,8 +282,8 @@ describe("invitation person proposal route admission", () => {
   it("settles proposals through the password-signup child transaction without public resource state", async () => {
     const { app, db, token, tokens } = await closedSignupProposalContext();
     const signup = await createWithProof(app, token, "proposal-signup@capacitylens.dev", tokens);
-    expect(signup.statusCode).toBe(200);
-    assertPublicInviteShape(signup, ["accountId", "principalId", "signInRequired"]);
+    expect(signup.statusCode).toBe(201);
+    assertPublicInviteShape(signup, ["ok", "accountId", "role"]);
     const signedIn = await call(app, {
       method: "POST",
       url: "/api/auth/sign-in/email",
@@ -320,6 +293,7 @@ describe("invitation person proposal route admission", () => {
     const userIdValue = readObject(readObject(me.json()).user).id;
     if (typeof userIdValue !== "string") throw new Error("Expected signed-in user id");
     const userId = userIdValue;
+    expect(db.prepare("SELECT 1 FROM identity_email_proofs WHERE principalId = ?").get(userId)).toBeUndefined();
     expect(db.prepare(`SELECT resourceId FROM account_member_resources WHERE userId = ?`).get(userId)).toEqual({
       resourceId: "person-signup",
     });
@@ -333,7 +307,7 @@ describe("invitation person proposal route admission", () => {
       BEGIN SELECT RAISE(ABORT, 'injected signup proposal failure'); END;
     `);
     const signup = await createWithProof(app, token, "proposal-signup@capacitylens.dev", tokens);
-    expect(signup.statusCode).toBe(503);
+    expect(signup.statusCode).toBe(500);
     expect(db.prepare(`SELECT COUNT(*) AS count FROM account_members`).get()).toEqual({ count: 1 });
     expect(db.prepare(`SELECT COUNT(*) AS count FROM account_member_resources`).get()).toEqual({ count: 0 });
     expect(requireValue(getInvite(db, token), "signup rollback invite").usedAt).toBeNull();
@@ -437,8 +411,8 @@ describe("invitation person proposal route admission", () => {
       url: `/api/invites/${token}/signup`,
       payload: { email: "not-an-email", name: "Bruce Wayne", password: "short" },
     });
-    expect(invalidSignup.statusCode).toBe(403);
-    assertPublicInviteShape(invalidSignup, ["code", "error", "retryable"]);
+    expect(invalidSignup.statusCode).toBe(400);
+    assertPublicInviteShape(invalidSignup, ["error"]);
     const invitee = await signUp(app, "failure-shape-invitee@capacitylens.dev");
     const accepted = await acceptWithProof(
       app,

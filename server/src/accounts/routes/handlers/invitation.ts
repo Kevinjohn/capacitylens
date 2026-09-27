@@ -6,6 +6,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import { NO_REPROMPT } from "../../../routes/routeShared";
 import { parseStrictIsoInstant } from "../isoInstant";
+import { parseSignupInvitationInput } from "./invitationSignupInput";
 import type { AccountRouteContext } from "../createReplyHelpers";
 import {
   createAuthenticationRequiredError,
@@ -248,17 +249,39 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
   }
 }
 
-export async function signupInvitation(_req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
-  if (!allowsPasswordSignIn(context.authMode) || !context.authenticationConfigured) {
+export async function signupInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
+  const { authMode, authenticationConfigured, flows, command, fail, auditUnlessReplayed } = context;
+  if (!allowsPasswordSignIn(authMode) || !authenticationConfigured) {
     return reply.code(404).send({ error: "Not found." });
   }
-  // Keep the old path as an actionable refusal; only the company-bound mailbox ceremony may
-  // create a new password principal after proving the addressed mailbox in the same browser.
-  return context.fail(reply, new AccountContractError({
-    code: "FORBIDDEN",
-    message: "Verify your email from the company joining page before creating a password.",
-    retryable: false,
-  }));
+  const { token } = req.params as { token: string };
+  const input = parseSignupInvitationInput(req);
+  if ("failure" in input) return reply.code(400).send({ error: input.failure });
+  try {
+    const result = await flows.acceptInviteWithPasswordSignup({
+      token,
+      email: input.value.email,
+      displayName: input.value.name,
+      password: input.value.password,
+      command: command(req),
+    });
+    auditUnlessReplayed({
+      reply,
+      result,
+      record: {
+        ts: new Date().toISOString(),
+        userId: result.principalId,
+        accountId: result.membership.workspaceId,
+        action: "inviteAccept",
+        entity: "member",
+        id: result.principalId,
+        changedFields: ["role", "status"],
+      },
+    });
+    return reply.code(201).send({ ok: true, accountId: result.membership.workspaceId, role: result.membership.role });
+  } catch (error) {
+    return fail(reply, error);
+  }
 }
 
 export async function listInvitations(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {

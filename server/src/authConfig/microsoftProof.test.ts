@@ -138,7 +138,6 @@ describe("Microsoft native callback proof", () => {
       joiningProof: {
         secret: "unit-test-secret-0123456789abcdef-0123",
         publicUrl: new URL(origin),
-        sendMail: async () => {},
       },
     });
     try {
@@ -306,7 +305,6 @@ describe("Microsoft native callback proof", () => {
       joiningProof: {
         secret: "unit-test-secret-0123456789abcdef-0123",
         publicUrl: new URL(origin),
-        sendMail: async () => {},
       },
     });
     try {
@@ -421,7 +419,7 @@ describe("Microsoft native callback proof", () => {
     }
   });
 
-  it("does not admit an established Microsoft principal through the retired direct invitation route", async () => {
+  it("accepts an addressed invitation for an established proven Microsoft principal", async () => {
     const { db, auth } = await configured();
     const app = createApp(db, { authMode: "sso-only", auth });
     try {
@@ -471,8 +469,11 @@ describe("Microsoft native callback proof", () => {
         headers: { cookie: cookieHeader(signedIn.headers.getSetCookie()) },
         payload: {},
       });
-      expect(accepted.statusCode).toBe(401);
-      expect(db.prepare("SELECT 1 FROM account_members WHERE accountId = 'a-loft'").get()).toBeUndefined();
+      expect(accepted.statusCode).toBe(200);
+      expect(accepted.json()).toEqual({ accountId: "a-loft", role: "editor" });
+      expect(db.prepare("SELECT role FROM account_members WHERE accountId = 'a-loft'").get()).toEqual({
+        role: "editor",
+      });
     } finally {
       await app.close();
       db.close();
@@ -480,7 +481,7 @@ describe("Microsoft native callback proof", () => {
   });
 
   // eslint-disable-next-line max-lines-per-function -- The new-principal case checks encrypted return storage and native membership acceptance.
-  it("does not admit a new Microsoft principal through the retired direct invitation route", async () => {
+  it("accepts an addressed invitation after a new Microsoft principal proves its mailbox", async () => {
     const { db, auth } = await configured();
     const app = createApp(db, { authMode: "sso-only", auth });
     try {
@@ -538,8 +539,11 @@ describe("Microsoft native callback proof", () => {
         headers: { cookie: cookieHeader(signedIn.headers.getSetCookie()) },
         payload: {},
       });
-      expect(accepted.statusCode).toBe(401);
-      expect(db.prepare("SELECT 1 FROM account_members WHERE accountId = 'a-studio'").get()).toBeUndefined();
+      expect(accepted.statusCode).toBe(200);
+      expect(accepted.json()).toEqual({ accountId: "a-studio", role: "editor" });
+      expect(db.prepare("SELECT role FROM account_members WHERE accountId = 'a-studio'").get()).toEqual({
+        role: "editor",
+      });
       expect(db.prepare("SELECT state FROM microsoft_identity_proofs").get()).toEqual({ state: "completed" });
     } finally {
       await app.close();

@@ -2,19 +2,19 @@ import { allowsPasswordSignIn, allowsProviderSignIn, type AccountMode } from "@c
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import type { Db } from "../db";
-import { createJoiningProof } from "../accounts/adminPort/joiningProof";
+import { createJoiningProviderLifecycle } from "../accounts/adminPort/joiningProviderLifecycle";
+import { completeExistingPolicyJoin } from "../accounts/adminPort/joiningAdmission";
+import { createAccountFailure } from "../accounts/adminPort/failures";
 import { createJoiningProviderIntent } from "../accounts/adminPort/joiningProviderIntent";
 import { createJoiningProviderCallbacks } from "../accounts/adminPort/joiningProviderCallbacks";
-import type { LocalIdentityPort } from "../accounts/identityPort/contracts";
 import type { Auth } from "../auth";
 import { resolveRequestClientIp } from "./appErrors";
 import { toWebHeaders } from "./appRequestAdapters";
 
-type Proof = ReturnType<typeof createJoiningProof>;
+type Lifecycle = ReturnType<typeof createJoiningProviderLifecycle>;
 
 interface Dependencies {
   db: Db;
-  identity: LocalIdentityPort;
   auth: Auth;
   applicationId: string;
   authMode: AccountMode;
@@ -22,7 +22,6 @@ interface Dependencies {
   trustProxyHeaders: boolean;
   secret: string;
   publicUrl: URL;
-  sendMail: (email: string, token: string, target: { accountId: string; invitationToken?: string }) => Promise<void>;
   fail: (reply: FastifyReply, error: unknown) => FastifyReply;
 }
 
@@ -70,47 +69,10 @@ function registerMetadata(app: FastifyInstance, input: Dependencies): void {
   });
 }
 
-function registerMailRoutes(app: FastifyInstance, input: Dependencies, proof: Proof): void {
-  app.post("/api/accounts/:accountId/join/start", (req: FastifyRequest, reply) =>
-    respond(reply, input.fail, async () => {
-      if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
-      const body = bodyObject(req.body);
-      if (typeof body.email !== "string" || (body.purpose !== "policy" && body.purpose !== "invitation")) invalid();
-      const { accountId } = req.params as { accountId: string };
-      const invitationToken = optionalInvitation(body);
-      const result = await proof.start({
-        accountId,
-        email: body.email,
-        purpose: body.purpose,
-        ...(invitationToken === undefined ? {} : { invitationToken }),
-        headers: toWebHeaders(req.headers),
-        sourceIp: resolveRequestClientIp({ request: req, trustProxyHeaders: input.trustProxyHeaders }),
-      });
-      reply.header("set-cookie", result.setCookies);
-      return {
-        emailHint: result.emailHint,
-        expiresAt: result.expiresAt,
-        deliveryUnavailable: result.deliveryUnavailable,
-      };
-    }),
-  );
-  app.get("/api/company-join/status", (req) => proof.status(toWebHeaders(req.headers)));
-  app.post("/api/company-join/resend", (req, reply) =>
-    respond(reply, input.fail, () => {
-      if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
-      return proof.resend(toWebHeaders(req.headers), optionalInvitation(bodyObject(req.body ?? {})));
-    }),
-  );
-  app.post("/api/company-join/confirm", (req, reply) =>
-    respond(reply, input.fail, () => {
-      if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
-      const body = bodyObject(req.body);
-      if (typeof body.token !== "string") invalid();
-      return proof.confirm(toWebHeaders(req.headers), body.token);
-    }),
-  );
+function registerLifecycleRoutes(app: FastifyInstance, lifecycle: Lifecycle): void {
+  app.get("/api/company-join/status", (req) => lifecycle.status(toWebHeaders(req.headers)));
   app.post("/api/company-join/cancel", (req, reply) => {
-    const result = proof.cancel(toWebHeaders(req.headers));
+    const result = lifecycle.cancel(toWebHeaders(req.headers));
     reply.header("set-cookie", result.setCookie);
     return { ok: true };
   });
@@ -189,31 +151,30 @@ function registerProviderRoutes(app: FastifyInstance, input: Dependencies): void
   );
 }
 
-function registerCompletionRoutes(app: FastifyInstance, input: Dependencies, proof: Proof): void {
-  app.post("/api/company-join/complete-password", (req, reply) =>
+function registerCompletionRoutes(app: FastifyInstance, input: Dependencies): void {
+  app.post("/api/accounts/:accountId/join/complete-existing", (req, reply) =>
     respond(reply, input.fail, () => {
       if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
+      if (
+        !req.accountActor ||
+        (req.accountActor.assurance !== "password" && req.accountActor.assurance !== "mfa") ||
+        (input.requireMfa && !req.accountActor.mfaSatisfied)
+      ) {
+        throw createAccountFailure(
+          "AUTHENTICATION_REQUIRED",
+          "Sign in with your password and complete MFA to continue.",
+        );
+      }
       const body = bodyObject(req.body);
-      if (typeof body.displayName !== "string" || typeof body.password !== "string") invalid();
-      const invitationToken = optionalInvitation(body);
-      return proof.completeNew({
-        headers: toWebHeaders(req.headers),
-        displayName: body.displayName,
-        password: body.password,
-        ...(invitationToken === undefined ? {} : { invitationToken }),
-      });
-    }),
-  );
-  app.post("/api/company-join/complete-existing", (req, reply) =>
-    respond(reply, input.fail, () => {
-      if (!allowsPasswordSignIn(input.authMode)) invalid("Password joining is unavailable.");
-      if (!req.accountActor) invalid("Sign in as the addressed identity to continue.");
-      const body = bodyObject(req.body);
-      const invitationToken = optionalInvitation(body);
-      return proof.completeExisting({
-        headers: toWebHeaders(req.headers),
-        actor: req.accountActor,
-        ...(invitationToken === undefined ? {} : { invitationToken }),
+      if (Object.keys(body).length !== 0) invalid();
+      const { accountId } = req.params as { accountId: string };
+      const principalId = req.accountActor.principalId;
+      return completeExistingPolicyJoin({
+        db: input.db,
+        applicationId: input.applicationId,
+        accountId,
+        principalId,
+        admissionId: req.id,
       });
     }),
   );
@@ -265,17 +226,13 @@ function registerMicrosoftCompletion(app: FastifyInstance, input: Dependencies):
 }
 
 export function registerJoiningProofRoutes(app: FastifyInstance, input: Dependencies): void {
-  const proof = createJoiningProof({
+  const lifecycle = createJoiningProviderLifecycle({
     db: input.db,
-    identity: input.identity,
     applicationId: input.applicationId,
-    secret: input.secret,
     secureCookies: input.publicUrl.protocol === "https:",
-    requireMfa: input.requireMfa,
-    sendMail: input.sendMail,
   });
   registerMetadata(app, input);
-  registerMailRoutes(app, input, proof);
+  registerLifecycleRoutes(app, lifecycle);
   registerProviderRoutes(app, input);
-  registerCompletionRoutes(app, input, proof);
+  registerCompletionRoutes(app, input);
 }

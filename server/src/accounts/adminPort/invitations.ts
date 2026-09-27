@@ -125,7 +125,13 @@ async function preparePasswordInvitationClaim(
   if (invite.preauthEmail !== null && normalizeEmail(normalizedEmail) !== invite.preauthEmail) {
     throw createAccountFailure("INVITATION_EMAIL_MISMATCH", "This invite is reserved for a different email address.");
   }
-  return { emailVerifiedByInvitation: invite.preauthEmail !== null, workspaceId: invite.accountId };
+  if (invite.preauthEmail === null) {
+    throw createAccountFailure("INVITATION_EMAIL_MISMATCH", "A password invitation must address an email.");
+  }
+  if (readJoiningPolicy(context.db, invite.accountId).policy === "approved_domains") {
+    throw createAccountFailure("FORBIDDEN", "Approved-domain joining requires a previously proven identity.");
+  }
+  return { emailVerifiedByInvitation: true, workspaceId: invite.accountId };
 }
 
 // eslint-disable-next-line complexity, max-lines-per-function
