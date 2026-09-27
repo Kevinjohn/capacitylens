@@ -26,6 +26,23 @@ BEGIN
               AND invitation.usedAt IS NULL
               AND CAST(strftime('%s', invitation.expiresAt) AS INTEGER) * 1000 > CAST(strftime('%s', 'now') AS INTEGER) * 1000
           ))
+        OR (proof.purpose = 'join'
+          AND EXISTS (SELECT 1 FROM accounts AS workspace WHERE workspace.id = proof.accountId)
+          AND NOT EXISTS (SELECT 1 FROM account_access_restrictions AS restriction
+            WHERE restriction.accountId = proof.accountId AND restriction.verifiedEmail = proof.targetEmail)
+          AND EXISTS (SELECT 1 FROM accounts AS workspace
+            LEFT JOIN account_joining_policies AS policy ON policy.accountId = workspace.id
+            WHERE workspace.id = proof.accountId AND (
+              (proof.inviteId IS NULL AND (policy.policy = 'open' OR
+                (policy.policy IN ('approved_domains', 'approved_domains_or_invitation') AND
+                  capacitylens_approved_domain_matches(proof.targetEmail, COALESCE(policy.approvedDomains, '[]')) = 1)))
+              OR (proof.inviteId IS NOT NULL AND
+                (COALESCE(policy.policy, 'invitation_only') <> 'approved_domains' OR
+                  capacitylens_approved_domain_matches(proof.targetEmail, COALESCE(policy.approvedDomains, '[]')) = 1)
+                AND EXISTS (SELECT 1 FROM invites AS invitation WHERE invitation.id = proof.inviteId
+                  AND invitation.accountId = proof.accountId AND invitation.preauthEmail = proof.targetEmail
+                  AND invitation.usedAt IS NULL AND unixepoch(invitation.expiresAt) > unixepoch('now')))
+            )))
         OR (proof.purpose = 'link'
           AND proof.principalId = NEW.userId
           AND principal.emailVerified = 1

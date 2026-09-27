@@ -22,6 +22,7 @@ interface HookOptions {
     emailVerified?: boolean;
     providerId: string | null;
   }) => boolean | Promise<boolean>;
+  onFederatedSession?: (principalId: string, providerId: string) => void;
   providerIdFromExternalContext: (
     context: { path?: string; params?: Record<string, unknown> } | null | undefined,
   ) => string | null;
@@ -139,6 +140,7 @@ function buildSessionAfter(options: HookOptions): SessionAfter {
     const assurance = resolveAssurance(options, context?.path);
     const providerId = resolveProviderId(options, assurance, context);
     const principalId = String(session.userId);
+    if (providerId) options.onFederatedSession?.(principalId, providerId);
     recordSessionAssurance({
       db: options.db,
       sessionId: buildApplicationSessionHandle(options.application.applicationId, String(session.token)),
@@ -178,6 +180,7 @@ export function buildDatabaseHooks({
   allowOpenSignup,
   requirePasswordMfa,
   externalIdentityAdmission,
+  onFederatedSession,
   providerIdFromExternalContext,
   countUsers,
   twoFactorEnabledLookupStatement,
@@ -192,6 +195,7 @@ export function buildDatabaseHooks({
     allowOpenSignup,
     requirePasswordMfa,
     ...(externalIdentityAdmission === undefined ? {} : { externalIdentityAdmission }),
+    ...(onFederatedSession === undefined ? {} : { onFederatedSession }),
     providerIdFromExternalContext,
     countUsers,
     twoFactorEnabledLookupStatement,

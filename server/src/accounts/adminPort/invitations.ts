@@ -1,6 +1,7 @@
 import type { CreatedInvitation } from "@capacitylens/shared/account/types";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { parseISOTimestamp } from "@capacitylens/shared/lib/integrity";
+import { isApprovedEmailDomain } from "@capacitylens/shared/account/approvedDomains";
 import { randomBytes } from "node:crypto";
 import {
   createInvite,
@@ -13,6 +14,7 @@ import {
   revokeInvite,
   createInvitationPersonProposal,
   isEligibleInvitationPerson,
+  readJoiningPolicy,
 } from "../../controlTables";
 import type { Db } from "../../db";
 import { createOperationReceipt } from "../accountFlowRuntime";
@@ -98,6 +100,7 @@ async function previewInvitation(context: InvitationsContext, { token }: Invitat
   assertRedeemableInvitationRole(invite.role);
   const workspace = assertWorkspaceExists(context.db, invite.accountId);
   return {
+    workspaceId: invite.accountId,
     workspaceName: workspace.name,
     role: invite.role,
     expiresAt: invite.expiresAt,
@@ -122,7 +125,13 @@ async function preparePasswordInvitationClaim(
   if (invite.preauthEmail !== null && normalizeEmail(normalizedEmail) !== invite.preauthEmail) {
     throw createAccountFailure("INVITATION_EMAIL_MISMATCH", "This invite is reserved for a different email address.");
   }
-  return { emailVerifiedByInvitation: invite.preauthEmail !== null, workspaceId: invite.accountId };
+  if (invite.preauthEmail === null) {
+    throw createAccountFailure("INVITATION_EMAIL_MISMATCH", "A password invitation must address an email.");
+  }
+  if (readJoiningPolicy(context.db, invite.accountId).policy === "approved_domains") {
+    throw createAccountFailure("FORBIDDEN", "Approved-domain joining requires a previously proven identity.");
+  }
+  return { emailVerifiedByInvitation: true, workspaceId: invite.accountId };
 }
 
 // eslint-disable-next-line complexity, max-lines-per-function
@@ -155,6 +164,19 @@ function executeInvitationCreation(
       "The preauthorized invitation email address is invalid.",
       command.commandId,
     );
+  }
+  if (!context.trustedLocal) {
+    if (normalized === null) {
+      throw createAccountFailure("VALIDATION_FAILED", "Invitations require an email address.", command.commandId);
+    }
+    const settings = readJoiningPolicy(db, workspaceId);
+    if (settings.policy === "approved_domains" && !isApprovedEmailDomain(normalized, settings.approvedDomains)) {
+      throw createAccountFailure(
+        "FORBIDDEN",
+        "This company's joining policy permits invitations only to approved email domains.",
+        command.commandId,
+      );
+    }
   }
   if (proposedResourceId !== undefined && !isEligibleInvitationPerson(db, workspaceId, proposedResourceId)) {
     throw createAccountFailure(

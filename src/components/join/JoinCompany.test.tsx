@@ -1,0 +1,225 @@
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { AuthContext, type AuthContextValue } from "../../auth/authContext";
+import { JoinCompany } from "./JoinCompany";
+
+const authClientMock = vi.hoisted(() => ({ signInEmail: vi.fn(), verifyTotp: vi.fn(), verifyBackupCode: vi.fn() }));
+const handoffMock = vi.hoisted(() => ({ replaceWithJoinedAccount: vi.fn() }));
+vi.mock("../../auth/authClient", () => ({
+  authClient: {
+    signIn: { email: authClientMock.signInEmail },
+    twoFactor: { verifyTotp: authClientMock.verifyTotp, verifyBackupCode: authClientMock.verifyBackupCode },
+  },
+}));
+vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
+vi.mock("../../lib/joinedAccountHandoff", () => ({ replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount }));
+
+const auth: AuthContextValue = {
+  authMode: "password-only",
+  user: null,
+  canCreateAccount: false,
+  multiAccount: true,
+  refreshAuth: vi.fn(async () => {}),
+  signOut: vi.fn(async () => {}),
+};
+
+function renderJoin(path = "/join/a-studio", context = auth) {
+  return render(
+    <AuthContext.Provider value={context}>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/join/:accountId" element={<JoinCompany />} />
+        </Routes>
+      </MemoryRouter>
+    </AuthContext.Provider>,
+  );
+}
+
+function stubJoin(
+  extra?: (url: string, init?: RequestInit) => Response,
+  providerAvailable = false,
+  status: () => Record<string, unknown> = () => ({ state: "expired" }),
+) {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith("/join/metadata"))
+      return Response.json({
+        accountId: "a-studio",
+        companyName: "Wayne Enterprises",
+        passwordAvailable: true,
+        providerAvailable,
+      });
+    if (url.endsWith("/api/company-join/status")) return Response.json(status());
+    if (url.endsWith("/api/account/microsoft/status")) return Response.json({ state: "expired" });
+    if (extra) return extra(url, init);
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+beforeEach(() => {
+  window.history.replaceState({}, "", "/join/a-studio");
+  vi.clearAllMocks();
+  authClientMock.signInEmail.mockResolvedValue({ error: null });
+  authClientMock.verifyTotp.mockResolvedValue({ error: null });
+  authClientMock.verifyBackupCode.mockResolvedValue({ error: null });
+});
+afterEach(() => vi.unstubAllGlobals());
+
+it("shows eligible providers above existing password and excludes GitHub in company-sign-in-only mode", async () => {
+  stubJoin(undefined, true);
+  renderJoin("/join/a-studio", {
+    ...auth,
+    authMode: "sso-only",
+    providers: [
+      { id: "google", label: "Google", kind: "social", experimental: false },
+      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
+      { id: "github", label: "GitHub", kind: "social", experimental: true },
+    ],
+  });
+  expect(await screen.findByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Continue with GitHub" })).not.toBeInTheDocument();
+  expect(screen.queryByText("Or sign in with your password")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
+});
+
+it("uses company-bound Microsoft start with the addressed invitation", async () => {
+  const fetchMock = stubJoin((url) => {
+    if (url.endsWith("/api/account/microsoft/start"))
+      return Response.json({ url: "https://login.microsoftonline.com/authorize" });
+    throw new Error(`Unexpected request: ${url}`);
+  }, true);
+  const user = userEvent.setup();
+  renderJoin("/join/a-studio?invite=invite-token", {
+    ...auth,
+    authMode: "sso-only",
+    providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
+  });
+  await user.type(await screen.findByLabelText("Email"), "diana@example.test");
+  await user.click(screen.getByRole("button", { name: "Sign in with Microsoft" }));
+  await vi.waitFor(() =>
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/api/account/microsoft/start"))).toBe(true),
+  );
+  const start = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/account/microsoft/start"));
+  expect(JSON.parse(String(start?.[1]?.body))).toMatchObject({
+    purpose: "join",
+    accountId: "a-studio",
+    email: "diana@example.test",
+    inviteToken: "invite-token",
+  });
+  window.dispatchEvent(new Event("pagehide"));
+});
+
+it("preserves a prior provider journey when switching providers is rejected", async () => {
+  let priorIntentLive = true;
+  let priorIntentState: "pending" | "approved" = "pending";
+  const fetchMock = stubJoin(
+    (url) => {
+      if (url.endsWith("/api/company-join/cancel") || url.endsWith("/api/account/microsoft/cancel")) {
+        priorIntentLive = false;
+        return Response.json({ ok: true });
+      }
+      if (url.endsWith("/api/account/microsoft/start"))
+        return Response.json({ error: "Provider start unavailable" }, { status: 503 });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    true,
+    () =>
+      priorIntentLive
+        ? {
+            state: priorIntentState,
+            accountId: "a-studio",
+            purpose: "policy",
+            providerId: "google",
+            email: "diana@example.test",
+          }
+        : { state: "expired" },
+  );
+  const context: AuthContextValue = {
+    ...auth,
+    providers: [
+      { id: "google", label: "Google", kind: "social", experimental: false },
+      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
+    ],
+  };
+  const user = userEvent.setup();
+  const view = renderJoin("/join/a-studio", context);
+  await user.click(await screen.findByRole("button", { name: "Sign in with Microsoft" }));
+  expect(await screen.findByText("Provider start unavailable")).toBeInTheDocument();
+  view.unmount();
+  priorIntentState = "approved";
+  renderJoin("/join/a-studio", context);
+  expect(
+    await screen.findByText("Your sign-in provider verified this address. Join this company to finish."),
+  ).toBeInTheDocument();
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/cancel"))).toBe(false);
+});
+
+it("signs in an existing password identity and joins only through the policy endpoint", async () => {
+  const fetchMock = stubJoin((url) => {
+    if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+      return Response.json({ accountId: "a-studio", role: "viewer" });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  const user = userEvent.setup();
+  renderJoin();
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
+  expect(authClientMock.signInEmail).toHaveBeenCalledWith({ email: "barbara@example.test", password: "password" });
+  const completion = fetchMock.mock.calls.find(([url]) =>
+    String(url).endsWith("/api/accounts/a-studio/join/complete-existing"),
+  );
+  expect(JSON.parse(String(completion?.[1]?.body))).toEqual({});
+  expect(screen.queryByRole("button", { name: "Create account and join" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Send verification email" })).not.toBeInTheDocument();
+});
+
+it("does not complete policy joining before the password second factor", async () => {
+  const fetchMock = stubJoin((url) => {
+    if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+      return Response.json({ accountId: "a-studio", role: "viewer" });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  authClientMock.signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+  const user = userEvent.setup();
+  renderJoin();
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  expect(await screen.findByLabelText("Authentication code")).toBeInTheDocument();
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/join/complete-existing"))).toBe(false);
+  await user.type(screen.getByLabelText("Authentication code"), "123456");
+  await user.click(screen.getByRole("button", { name: "Verify" }));
+  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
+  expect(authClientMock.verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
+});
+
+it("explains missing trusted proof and offers the addressed password invitation", async () => {
+  stubJoin((url) => {
+    if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+      return Response.json({ error: "proof unavailable" }, { status: 401 });
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  const user = userEvent.setup();
+  renderJoin();
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  expect(await screen.findByText(/no current trusted proof/i)).toBeInTheDocument();
+});
+
+it("routes an addressed password invitation to ordinary invitation acceptance", async () => {
+  stubJoin();
+  renderJoin("/join/a-studio?invite=invite-token");
+  expect(await screen.findByRole("link", { name: "Use this invitation with a password" })).toHaveAttribute(
+    "href",
+    "/invite/invite-token",
+  );
+  expect(screen.queryByRole("button", { name: "Join company" })).not.toBeInTheDocument();
+});

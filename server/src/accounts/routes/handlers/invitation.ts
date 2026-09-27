@@ -6,8 +6,8 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
 import { NO_REPROMPT } from "../../../routes/routeShared";
 import { parseStrictIsoInstant } from "../isoInstant";
-import type { AccountRouteContext } from "../createReplyHelpers";
 import { parseSignupInvitationInput } from "./invitationSignupInput";
+import type { AccountRouteContext } from "../createReplyHelpers";
 import {
   createAuthenticationRequiredError,
   requireAccountActor,
@@ -168,6 +168,7 @@ export async function previewInvitation(req: FastifyRequest, reply: FastifyReply
   try {
     const invite = await accountAdminPort.previewInvitation({ token });
     return {
+      accountId: invite.workspaceId,
       accountName: invite.workspaceName,
       role: invite.role,
       expiresAt: invite.expiresAt,
@@ -249,29 +250,20 @@ export async function acceptInvitation(req: FastifyRequest, reply: FastifyReply,
 }
 
 export async function signupInvitation(req: FastifyRequest, reply: FastifyReply, context: AccountRouteContext) {
-  const {
-    authMode,
-    authenticationConfigured,
-    flows: accountFlows,
-    command: accountCommand,
-    fail: accountFail,
-    auditUnlessReplayed,
-  } = context;
-
+  const { authMode, authenticationConfigured, flows, command, fail, auditUnlessReplayed } = context;
   if (!allowsPasswordSignIn(authMode) || !authenticationConfigured) {
     return reply.code(404).send({ error: "Not found." });
   }
   const { token } = req.params as { token: string };
   const input = parseSignupInvitationInput(req);
   if ("failure" in input) return reply.code(400).send({ error: input.failure });
-  const { value } = input;
   try {
-    const result = await accountFlows.acceptInviteWithPasswordSignup({
+    const result = await flows.acceptInviteWithPasswordSignup({
       token,
-      email: value.email,
-      displayName: value.name,
-      password: value.password,
-      command: accountCommand(req),
+      email: input.value.email,
+      displayName: input.value.name,
+      password: input.value.password,
+      command: command(req),
     });
     auditUnlessReplayed({
       reply,
@@ -286,13 +278,9 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
         changedFields: ["role", "status"],
       },
     });
-    return reply.code(201).send({
-      ok: true,
-      accountId: result.membership.workspaceId,
-      role: result.membership.role,
-    });
+    return reply.code(201).send({ ok: true, accountId: result.membership.workspaceId, role: result.membership.role });
   } catch (error) {
-    return accountFail(reply, error);
+    return fail(reply, error);
   }
 }
 

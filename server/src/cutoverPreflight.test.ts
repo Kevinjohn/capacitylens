@@ -100,6 +100,8 @@ const administration: SsoCutoverAccountAdminPort = {
   getMembership: unusedAsync,
   listMemberships: unusedAsync,
   listInvitations: unusedAsync,
+  readJoiningPolicy: unusedAsync,
+  setJoiningPolicy: unusedAsync,
   previewInvitation: unusedAsync,
   preparePasswordInvitationClaim: unusedAsync,
   createInvitation: unusedAsync,

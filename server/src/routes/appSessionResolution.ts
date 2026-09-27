@@ -77,8 +77,18 @@ function isMasqueradeWriteExempt(method: string, path: string): boolean {
   );
 }
 
+function isPublicJoiningPath(method: string, path: string): boolean {
+  return (
+    (method === "GET" && /^\/api\/accounts\/[^/]+\/join\/metadata$/.test(path)) ||
+    (method === "POST" && /^\/api\/accounts\/[^/]+\/join\/provider\/start$/.test(path)) ||
+    (method === "GET" && path === "/api/company-join/status") ||
+    (method === "POST" && path === "/api/company-join/cancel")
+  );
+}
+
 function isUnauthenticatedApplicationPath(method: string, path: string): boolean {
   return (
+    isPublicJoiningPath(method, path) ||
     ((method === "GET" || method === "POST") &&
       /^\/api\/account\/microsoft\/(start|status|confirm|resend|cancel)$/.test(path)) ||
     /^\/api\/invites\/[^/]+\/signup$/.test(path) ||

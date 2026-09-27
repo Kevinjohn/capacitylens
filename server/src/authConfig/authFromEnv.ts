@@ -32,6 +32,10 @@ import type { createAuthAdapterFactory } from "./authAdapter";
 import type { MicrosoftProof } from "./microsoftProof";
 import { createConfiguredMicrosoftProof } from "./microsoftProofSetup";
 import { parsePublicUrl } from "./publicUrlConfig";
+import {
+  currentJoiningProviderFacts,
+  type createJoiningProviderCallbacks,
+} from "../accounts/adminPort/joiningProviderCallbacks";
 
 type Env = Record<string, string | undefined>;
 type AuthFromEnvOptions = {
@@ -45,6 +49,7 @@ type AuthFromEnvOptions = {
     emailVerified?: boolean;
     providerId: string | null;
   }) => boolean | Promise<boolean>;
+  joiningProviderCallbacks?: Pick<ReturnType<typeof createJoiningProviderCallbacks>, "preflight" | "bindSession">;
 };
 type FactoryDependencies = {
   AuthConfigError: typeof AuthFacade.AuthConfigError;
@@ -243,7 +248,12 @@ function browserAuthErrorTarget(publicUrl: URL): URL {
   return target;
 }
 
-function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<typeof buildProviderPolicies>) {
+// eslint-disable-next-line max-lines-per-function -- All Better Auth policy hooks remain assembled at this existing boundary.
+function buildAuthPolicies(
+  context: EnabledAuthContext,
+  providers: ReturnType<typeof buildProviderPolicies>,
+  microsoftProof: MicrosoftProof | null,
+) {
   const { db, environment, runtimeEnvironment, mode, application, secret, baseURL, publicUrl, options, dependencies } =
     context;
   const passwordPolicy = buildPasswordPolicy({
@@ -279,9 +289,16 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
     permittedCompanyProviderIds: companyProviderIds(providers.providerConfig.configuredProviderInfo),
     allowOpenSignup: providers.allowOpenSignup,
     requirePasswordMfa: allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1",
-    ...(options.externalIdentityAdmission === undefined
-      ? {}
-      : { externalIdentityAdmission: options.externalIdentityAdmission }),
+    externalIdentityAdmission: async (candidate) =>
+      microsoftProof?.admitsNewJoiningIdentity(candidate) === true ||
+      (await options.externalIdentityAdmission?.(candidate)) === true,
+    onFederatedSession: (principalId: string, providerId: string) => {
+      if (providerId === "microsoft") microsoftProof?.bindJoiningSession(principalId);
+      options.joiningProviderCallbacks?.bindSession({
+        principalId,
+        facts: currentJoiningProviderFacts(providerId),
+      });
+    },
     providerIdFromExternalContext: dependencies.providerIdFromExternalContext,
     countUsers: dependencies.countUsers,
     twoFactorEnabledLookupStatement: createTwoFactorEnabledLookupStatement,
@@ -349,7 +366,7 @@ function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; aut
       })
     : null;
   const providers = buildProviderPolicies(context, microsoftProof);
-  const policies = buildAuthPolicies(context, providers);
+  const policies = buildAuthPolicies(context, providers, microsoftProof);
   const instance = createBetterAuthInstance(providers, policies, context.db);
   // betterAuth construction validates its resolved options but does not own this app-specific
   // table. Verify and expire its leases only after configuration and app migrations have succeeded.
@@ -367,6 +384,11 @@ function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; aut
     trustedOrigins: providers.providerConfig.trustedOrigins,
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
     microsoftProof,
+    ...(context.options.joiningProviderCallbacks === undefined
+      ? {}
+      : {
+          joiningProviderCallbacks: context.options.joiningProviderCallbacks,
+        }),
   });
   activeAuth = auth;
   if (!context.options.deferDatabaseSetup) auth.ensureProviderBindings();

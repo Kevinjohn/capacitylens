@@ -30,6 +30,7 @@ export type InviteAcceptState =
   | { kind: "local" };
 
 export interface InvitePreview {
+  accountId?: string | null;
   accountName: string;
   role: InvitationRole;
   expiresAt: string;

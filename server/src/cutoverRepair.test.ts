@@ -7,6 +7,7 @@ import { DATABASE_MIGRATION_TABLE, DB_SCHEMA_VERSION, openDb } from "./db";
 import { repairSsoCutover } from "./cutoverRepair";
 import { inspectSsoCutoverPreflight } from "./cutoverPreflight";
 import { mixedModeCutoverContext } from "./cutoverContext";
+import { MICROSOFT_PROOF_V46_SQL } from "./db/migrations/microsoftProofV46";
 import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 
 const env = {
@@ -64,8 +65,18 @@ function removePostV46ProofSchema(db: ReturnType<typeof openDb>): void {
     DROP TRIGGER IF EXISTS capacitylens_google_email_proof_after;
     DROP TRIGGER IF EXISTS capacitylens_federated_email_proof_before;
     DROP TRIGGER IF EXISTS capacitylens_federated_email_proof_after;
+    DROP TABLE IF EXISTS company_join_intents;
+    DROP TABLE IF EXISTS account_joining_policies;
     DROP TABLE IF EXISTS identity_email_proofs;
     DROP TABLE IF EXISTS account_access_restrictions;`);
+}
+
+function rewindJoiningMigrationsToV48(db: ReturnType<typeof openDb>): void {
+  db.exec(`DROP TABLE microsoft_identity_proofs;
+    DROP TABLE company_join_intents;
+    DROP TABLE account_joining_policies;`);
+  db.exec(MICROSOFT_PROOF_V46_SQL);
+  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 49; PRAGMA user_version = 48;`);
 }
 
 afterEach(() => {
@@ -348,6 +359,8 @@ function createPopulatedLegacyRepairTests(): void {
         DROP TRIGGER IF EXISTS capacitylens_google_email_proof_after;
         DROP TRIGGER IF EXISTS capacitylens_federated_email_proof_before;
         DROP TRIGGER IF EXISTS capacitylens_federated_email_proof_after;
+        DROP TABLE company_join_intents;
+        DROP TABLE account_joining_policies;
         DROP TABLE identity_email_proofs`);
     }
     prepared.db.prepare(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > ?`).run(version);
@@ -482,14 +495,9 @@ function createActiveMembershipRefusalTest(): void {
 }
 
 function createMigrationCompatibilityTests(): void {
-  it("allows the exact pending v42-v45 product-only migrations", async () => {
+  it("allows the exact pending v49-v51 joining migrations", async () => {
     const prepared = await database();
-    removePostV46ProofSchema(prepared.db);
-    prepared.db.exec(`
-      ALTER TABLE resources DROP COLUMN avatarUrl;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 42;
-      PRAGMA user_version = 41;
-    `);
+    rewindJoiningMigrationsToV48(prepared.db);
     prepared.db.close();
 
     await expect(

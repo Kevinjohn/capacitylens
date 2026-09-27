@@ -55,6 +55,14 @@ function createPrincipalRowEraser(db: Db, tables: ErasureTables): (principalId: 
     proofTableExists || schemaVersion >= 48
       ? db.prepare(`DELETE FROM identity_email_proofs WHERE principalId = ?`)
       : null;
+  const joiningIntentsTableExists = db
+    .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'company_join_intents'`)
+    .get();
+  const removeJoiningIntents =
+    joiningIntentsTableExists || schemaVersion >= 49
+      ? db.prepare(`DELETE FROM company_join_intents
+          WHERE principalId = ? OR lower(email) = lower((SELECT email FROM user WHERE id = ?))`)
+      : null;
   return (principalId) => {
     removeObservation?.run(principalId);
     removeCeremony?.run(principalId);
@@ -63,6 +71,7 @@ function createPrincipalRowEraser(db: Db, tables: ErasureTables): (principalId: 
     removeAccount?.run(principalId);
     removeTwoFactor?.run(principalId);
     removeEmailProof?.run(principalId);
+    removeJoiningIntents?.run(principalId, principalId);
     removeUser.run(principalId);
     removeSecurityRevision(db, principalId);
   };

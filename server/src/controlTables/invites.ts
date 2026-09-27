@@ -132,6 +132,18 @@ export function getInvite(db: Db, token: string): Invite | null {
   };
 }
 
+/** Read only the fields needed to recheck a callback-bound invitation without its bearer token. */
+export function getInviteTargetById(
+  db: Db,
+  id: string | null,
+): Pick<Invite, "accountId" | "preauthEmail" | "expiresAt" | "usedAt"> | null {
+  if (!id) return null;
+  return (
+    (db.prepare(`SELECT accountId, preauthEmail, expiresAt, usedAt FROM invites WHERE id = ?`).get(id) as
+      Pick<Invite, "accountId" | "preauthEmail" | "expiresAt" | "usedAt"> | undefined) ?? null
+  );
+}
+
 /**
  * Normalize an email for preauth comparison: trim + lowercase. Both the stored `preauthEmail`
  * (normalized once at create time) and the caller's verified email (normalized at accept time) pass

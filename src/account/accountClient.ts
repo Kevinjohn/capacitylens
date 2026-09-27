@@ -1,4 +1,5 @@
 import { getIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
+import { joiningPolicyClient } from "./joiningPolicyClient";
 import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
 import { apiFetch, API_BULK_TIMEOUT_MS } from "../data/requestTimeout";
@@ -160,6 +161,8 @@ export const accountClient = {
       credentials: "include",
     });
   },
+
+  ...joiningPolicyClient,
 
   startMasquerade(workspaceId: string, body: StartMasqueradePayload): Promise<Response> {
     return apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(workspaceId)}/masquerade`, {

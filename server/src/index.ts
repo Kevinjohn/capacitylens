@@ -27,6 +27,10 @@ import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort"
 import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 import { assertCompanyProviderCutoverReady } from "./accounts/companyProviderReadiness";
+import {
+  createJoiningProviderCallbacks,
+  currentJoiningProviderFacts,
+} from "./accounts/adminPort/joiningProviderCallbacks";
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
 import { startServerRuntime } from "./boot/serverRuntime";
@@ -127,6 +131,17 @@ try {
   restrictIdentifiedDatabasePermissions(db);
   // Resolve every auth/provider option while the database is still at its original version.
   // Auth-control verification and lease maintenance are deferred until app migration succeeds.
+  const joiningProviderCallbacks =
+    accountEnv.SMALLSASS_ACCOUNT_SECRET &&
+    accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL &&
+    URL.canParse(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL)
+      ? createJoiningProviderCallbacks({
+          db,
+          applicationId: ACCOUNT_APPLICATION.applicationId,
+          secret: accountEnv.SMALLSASS_ACCOUNT_SECRET,
+          secureCookies: new URL(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL).protocol === "https:",
+        })
+      : null;
   ({ mode: authMode, auth } = createAuthFromEnvironment(db, accountEnv, {
     trustedOrigins: corsOrigin
       .split(",")
@@ -134,13 +149,19 @@ try {
       .filter(Boolean),
     deferDatabaseSetup: true,
     application: ACCOUNT_APPLICATION,
+    ...(joiningProviderCallbacks ? { joiningProviderCallbacks } : {}),
     externalIdentityAdmission: (candidate) =>
       canAdmitLocalExternalIdentity({
         bootstrapEmails: accountEnv.SMALLSASS_ACCOUNT_PROVIDER_BOOTSTRAP_EMAILS,
         candidate,
         identityHasAnyPrincipal: () => countUsers(db) !== 0,
         hasLivePreauthorizedInvitation: (email) => hasLivePreauthorizedInvitation(db, email),
-      }),
+      }) ||
+      joiningProviderCallbacks?.admitsNewIdentity({
+        ...candidate,
+        facts: currentJoiningProviderFacts(candidate.providerId),
+        hasAnyPrincipal: countUsers(db) !== 0,
+      }) === true,
   }));
   const authMigrationPlan = auth ? await planAuthSchemaMigrations(auth) : { pending: false, tables: [] };
   const needsMigrationSnapshot = migrationPlan.migrations.length > 0 || authMigrationPlan.pending;
@@ -260,6 +281,14 @@ startServerRuntime({
     ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
     authMode,
     auth,
+    ...(authMode === "off" || !accountEnv.SMALLSASS_ACCOUNT_SECRET || !accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL
+      ? {}
+      : {
+          joiningProof: {
+            secret: accountEnv.SMALLSASS_ACCOUNT_SECRET,
+            publicUrl: new URL(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL),
+          },
+        }),
     requireMfa,
     allowOpenSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
   },

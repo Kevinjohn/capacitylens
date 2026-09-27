@@ -135,6 +135,10 @@ const createInviteReq = (
   headers: Record<string, string> = {},
 ) => call(app, { method: "POST", url: "/api/invites", payload, headers });
 
+const addressedInviter =
+  (app: FastifyInstance, accountId: string, cookie: string) => (role: "editor" | "viewer", preauthEmail: string) =>
+    createInviteReq(app, { accountId, role, preauthEmail }, { cookie });
+
 function parseCommandId(value: unknown): string {
   if (typeof value !== "object" || value === null || !("commandId" in value) || typeof value.commandId !== "string") {
     throw new Error("Expected response body to contain a string commandId");
@@ -209,17 +213,15 @@ function registerStaleOrdinaryMemberAdministrationTest(): void {
     const member = await signUp(app, "member-stale-ordinary@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
     upsertMember(db, { accountId: "a1", userId: member.userId, role: "editor", status: "active", createdAt: TS });
-
-    // Create the invitation that will be revoked BEFORE ageing the session, so the revoke below is
-    // the only invite operation whose freshness is under test alongside a second, stale creation.
-    const seeded = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: owner.cookie });
+    const invite = addressedInviter(app, "a1", owner.cookie);
+    const seeded = await invite("editor", "seeded@capacitylens.dev");
     expect(seeded.statusCode).toBe(201);
     const seededInvite = getInvite(db, (seeded.json() as { token: string }).token);
     if (!seededInvite) throw new Error("Expected the seeded invitation.");
 
     ageSession(db, owner.userId);
 
-    const created = await createInviteReq(app, { accountId: "a1", role: "viewer" }, { cookie: owner.cookie });
+    const created = await invite("viewer", "stale-session@capacitylens.dev");
     expect(created.statusCode, created.body).toBe(201);
 
     const revoked = await call(app, {
@@ -1096,7 +1098,8 @@ describe("GET /api/accounts/:id/invites — list omits the token", () => {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: owner.cookie });
+    const mintInvite = addressedInviter(app, "a1", owner.cookie);
+    const created = await mintInvite("editor", "listed@capacitylens.dev");
     const token = (created.json() as { token: string }).token;
 
     const res = await invitesReq(app, "a1", { cookie: owner.cookie });
@@ -1136,7 +1139,8 @@ describe("DELETE /api/accounts/:id/invites/:inviteId — revoke", () => {
       status: "active",
       createdAt: TS,
     });
-    const created = await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: owner.cookie });
+    const mintInvite = addressedInviter(app, "a1", owner.cookie);
+    const created = await mintInvite("editor", "revoked@capacitylens.dev");
     const token = (created.json() as { token: string }).token;
     const invite = getInvite(db, token);
     if (!invite) throw new Error("Expected the created invitation.");
@@ -1208,15 +1212,10 @@ describe("POST /api/invites — Owner is never invitational", () => {
       createdAt: TS,
     });
 
-    expect((await createInviteReq(app, { accountId: "a1", role: "owner" }, { cookie: admin.cookie })).statusCode).toBe(
-      400,
-    );
-    expect((await createInviteReq(app, { accountId: "a1", role: "owner" }, { cookie: owner.cookie })).statusCode).toBe(
-      400,
-    );
-    // An admin may still invite a non-owner role.
-    expect((await createInviteReq(app, { accountId: "a1", role: "editor" }, { cookie: admin.cookie })).statusCode).toBe(
-      201,
-    );
+    for (const cookie of [admin.cookie, owner.cookie]) {
+      expect((await createInviteReq(app, { accountId: "a1", role: "owner" }, { cookie })).statusCode).toBe(400);
+    }
+    const invite = addressedInviter(app, "a1", admin.cookie);
+    expect((await invite("editor", "invitee@capacitylens.dev")).statusCode).toBe(201);
   });
 });

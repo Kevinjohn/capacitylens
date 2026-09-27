@@ -1007,38 +1007,17 @@ previews the company name, proposed role, role summary and expiry before accepta
 `GET /api/invites/:token/preview`. Possession of the bearer link is required to read that limited
 metadata, including whether it is email-bound and a hint showing only the part before `@`,
 followed by `@…`. The domain, full address, company data, membership list and unrelated identity
-facts are never revealed. A bound invite explains that only the intended email address can accept it,
-while a generic link explains that it is transferable and single-use.
-An older preview without binding metadata makes neither claim. Merely
-opening or previewing the URL never changes membership. In a server deploy with auth on, an
-unauthenticated invitee gets the page's own onboarding form with equally prominent **Sign in** and
-**Create account** tabs. Only the selected journey's fields appear; **Name** and a new-password field
-belong to account creation, while sign-in uses Email and the current password. Permission and
-existing-role consequences wrap in full. Expiry uses the viewer's local date and time without seconds;
-the year appears when it differs from the current year. An existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, reviews the invitation
-under that identity, sees the signed-in email/name, then chooses **Accept invite**. **Use a different
-account** signs out without discarding the bearer URL. If a pre-authorised invite rejects the current
-identity, the page explains the mismatch and retains that same recovery action instead of suggesting
-a retry as the wrong identity. In SSO-only mode the accepting session must come from the required
-company provider. GitHub cannot enter a provider-required deployment, including through an
-older session. Google and Microsoft sign-in do not themselves claim the invitation: the signed-in
-person still explicitly accepts it, with its address and expiry checked again. A brand-new invitee chooses **Create account and
-accept** (POST `/invite/:token/signup`), which creates the identity and claims the invite atomically,
-then refreshes the authenticated company list, activates that company and enters it directly.
-A fresh authenticated boot is required because the pre-session invite page deliberately starts
-without tenant persistence attached; the signup handoff carries only the joined company id in a
-one-use query parameter, removes it from the URL, verifies it against the authenticated company
-list, and activates it. It never persists `activeAccountId` or trusts the URL as membership proof.
-If the signup response is lost, a successful credential sign-in reloads the same invite URL instead
-of guessing which company was joined: an unused token can then be explicitly accepted, while a used
-token directs the person to their authenticated company list.
-A **valid** accept binds the signed-in user to that company and shows the effective role returned by
-the mutation in a _"You've joined this company as `<role>`"_ success with a **Continue** link (which
-opens the joined company directly after refetching the account list so the brand-new membership is
-activatable). Leaving the invitation route while that refresh is pending does not later switch the
-active company; the refreshed company directory remains available for normal account selection. A
-single polite status announces checking, readiness, joining and completion; accepting moves focus
-to that status, and completed activation moves focus to **Continue**.
+facts are never revealed. An addressed invite explains that only the intended email can use it.
+Merely opening or previewing the URL never changes membership. Permission and existing-role
+consequences wrap in full. Expiry uses the viewer's local date and time without seconds; the year
+appears when it differs from the current year. An addressed invite can be accepted with an existing password sign-in, or used to create a
+password account where invitation signup is allowed. The invitation stays bound to its exact
+address and company. Eligible providers return to `/invite/:token` after sign-in, then explicitly accept the
+invitation under the current policy. A new or restored member receives
+the invitation role; an already-active member keeps the current role. The server rechecks the
+address, current policy, invitation, access restrictions and session at acceptance. Completion
+refreshes the authenticated company list and activates the joined company without persisting
+`activeAccountId` or treating the URL as membership proof.
 An accept is refused (403) while **Disable Access** applies, including after removal or identity
 recreation with the same proven email; the invitation remains unused. An archived member without
 the restriction can rejoin through a valid invitation at the invitation's role. A
@@ -1173,8 +1152,8 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button named **Copy invitation link** — the token is write-once and never
   shown again; closing the dialog clears it, so reopening shows an empty form. The panel explicitly says CapacityLens does not send invitation emails: the creator
-  copies and sends the link. The field has no explanatory helper copy; it is optional in password
-  mode and required in SSO-only mode. Creation confirmation stays beside the link, with instructions to
+  copies and sends the link. The field has no explanatory helper copy and is required in every
+  server-auth mode. Creation confirmation stays beside the link, with instructions to
   revoke and recreate it if lost, rather than overlaying the panel in a toast.
   If any membership, invite or reset-token mutation loses its response after dispatch,
   the section reloads memberships, invites and authentication before enabling a retry. A lost invite
@@ -1184,8 +1163,34 @@ presented before the member directory, matching the action-first pattern of the 
   execution to record its actual completed, compensated or repair-required outcome first. An
   unreadable or unrecognised conflict response also keeps the original browser command identity;
   only a successfully decoded terminal rejection permits a later retry to mint a new identity.
-  In SSO-only mode **Email** is required by both the UI and server because a
-  bearer-only invitation cannot admit a brand-new external identity.
+  **Email** is required by both the UI and server because a bearer-only invitation
+  cannot establish mailbox ownership for company joining.
+- **Joining policy (Team & access; Owner/Admin)** — **Who can join** (`data-testid="joining-policy-section"`)
+  shows the company's current **Invitation only**, **Open registration**, **Approved domains**, or
+  **Approved domains or invitation** policy and every approved domain. Policy-only joins always
+  receive Viewer. Under the combined policy, matching staff domains or an addressed invitation
+  can admit a person; the invitation can grant its specified role. Only the Owner can edit the
+  policy (`data-testid="joining-policy-select"`) and the one-domain-per-line **Approved domains**
+  field (`data-testid="joining-policy-domains"`) and select **Save joining policy**
+  (`data-testid="joining-policy-save"`). The Admin sees the same settings with guidance to speak
+  to the Owner, without edit controls. Invalid domains and a domain policy with no domains are
+  explained beside the field before a save is sent.
+  The section loads the current company’s policy before showing controls; a failed read shows
+  **Could not load the joining policy.** and a **Try again** action. Switching companies discards
+  the previous company’s draft and loads its new settings.
+  Owner and Admin can select the company-specific **Joining link**
+  (`data-testid="joining-policy-link"`) and choose **Copy joining link**
+  (`data-testid="joining-policy-copy-link"`) to share `/join/:accountId`.
+  `/join/:accountId` is a public company-bound entry outside the app's account picker. It shows
+  the company's name and available sign-in methods. Eligible Google, Microsoft and GitHub
+  choices appear above the existing-password option in mixed mode; GitHub remains unavailable
+  in company-sign-in-only mode. Microsoft uses its same-browser mailbox ceremony when needed.
+  A person with an existing password account signs in, completes any required second factor,
+  then chooses **Join company**. The server admits only a currently proven email that meets the
+  live policy. A password identity without trusted email proof gets recovery guidance to use an
+  eligible verified provider or an addressed invitation. Open/domain policy joining does not
+  create a new password account. On completion the normal authenticated company list verifies
+  the destination before activation.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the
   same five-column bordered table as Members, with a row per invite (`data-testid="invite-row"`).
   **Name** is an em dash, **Role** is the invited role, **Email** is the pre-authorised address or

@@ -1,10 +1,11 @@
 import { matchPath } from "react-router-dom";
 
-export type PublicAuthEntry = "password-reset" | "invitation" | null;
+export type PublicAuthEntry = "password-reset" | "invitation" | "company-join" | null;
 
 export const PUBLIC_AUTH_ENTRY_PATHS = {
   passwordReset: "/reset-password/:token",
   invitation: "/invite/:token",
+  companyJoin: "/join/:accountId",
 } as const;
 
 /** Classify the only routes allowed to render before authentication using the same patterns and
@@ -12,5 +13,6 @@ export const PUBLIC_AUTH_ENTRY_PATHS = {
 export function resolvePublicAuthEntry(pathname: string): PublicAuthEntry {
   if (matchPath(PUBLIC_AUTH_ENTRY_PATHS.passwordReset, pathname)) return "password-reset";
   if (matchPath(PUBLIC_AUTH_ENTRY_PATHS.invitation, pathname)) return "invitation";
+  if (matchPath(PUBLIC_AUTH_ENTRY_PATHS.companyJoin, pathname)) return "company-join";
   return null;
 }

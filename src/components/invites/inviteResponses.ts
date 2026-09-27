@@ -45,6 +45,7 @@ export function parsePreview(value: unknown): InvitePreview | null {
   const emailMetadata = parseEmailMetadata(row);
   if (!emailMetadata) return null;
   return {
+    accountId: typeof row.accountId === "string" && row.accountId.length > 0 ? row.accountId : null,
     accountName: row.accountName,
     role: row.role,
     expiresAt: row.expiresAt,

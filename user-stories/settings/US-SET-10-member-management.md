@@ -5,7 +5,7 @@
 ## Goal
 
 Let an Owner or Admin manage who can access their company from Team & access: see the member list, invite
-people (a link, optionally pre-authorised to one email), change a member's role, Disable or Enable
+people (a link addressed to one email), change a member's role, Disable or Enable
 Access, archive or remove a membership, and list/revoke outstanding invites. An Admin manages members but
 cannot do owner-only operations. Sign-in tracking remains a server capability, but its controls and
 status column are unavailable in this UI. Ownership transfer is not part of this story: it has no per-row control
@@ -105,7 +105,7 @@ the non-blocking product orientation if it is open.
    existing role only when a membership remains active; otherwise C needs an invitation or a separate
    membership restore. Archive or removal without Disable Access permits a later invitation.
 6. B selects the primary **Invite someone** button above the member table to open a centered dialog,
-   then picks a role (`data-testid="invite-role"`), fills **Email** when needed
+   then picks a role (`data-testid="invite-role"`), fills the required **Email**
    (`data-testid="invite-preauth"`), checks the selected role's visible
    capability summary, and clicks **Create invite**
    (`data-testid="invite-submit"`). The full link `<origin>/invite/<token>` appears **once**
@@ -115,7 +115,7 @@ the non-blocking product orientation if it is open.
    offers a dead bearer link. If the dialog closes before the create completes, the invite still
    exists, and a notice says its link was not shown and how to replace it.
 7. The outstanding invitations use the same five-column bordered table as Members: **Name** is an
-   em dash, **Role** is the invited role, **Email** is the pre-authorised address or **Invite link**,
+   em dash, **Role** is the invited role, **Email** is the addressed recipient,
    **Link to Resource** is the proposed resource or **None** with compact pending state, and
    **Actions** contains **Revoke** (`data-testid="invite-revoke"`) when allowed. Email cells retain
    the complete value in the DOM and `title` while CSS truncates the display. The table shows the new
@@ -168,10 +168,10 @@ the non-blocking product orientation if it is open.
   independently of what the UI renders. A non-active membership authorizes nothing: the member's own
   reads against the company return **403** until they are restored, while the administrative
   directory keeps listing them so the change is visible and reversible.
-- A non-active membership cannot be reversed by its holder. Redeeming an invite for a company where the
-  caller's membership is disabled or archived is **403**, leaves the membership untouched and leaves
-  the invite **unused** — only an Owner/Admin restores access, and the restore is audited as
-  `member.status_changed`.
+- A disabled membership cannot be reversed by its holder. Redeeming an invite while access is
+  disabled is **403** and leaves the invite unused; only an Owner/Admin can enable access.
+  An archived member without a Disable Access restriction may rejoin through an addressed,
+  valid invitation under the current joining policy, receiving the invitation role.
 - Disabling someone never costs an administrator the ability to act on them: **Reset password** and
   **Revoke sessions** stay available against a disabled or archived member (the compromised-account
   case is precisely why an admin disables first), and **Remove** works on a non-active row without
@@ -192,17 +192,19 @@ the non-blocking product orientation if it is open.
     demotion.
 - Invitation creation explains that CapacityLens sends no email: the administrator must copy and
   send the link. The field label is simply **Email**, with no explanatory helper copy; it remains
-  optional in password mode and required in SSO-only mode. Success and recovery instructions remain
+  required in every server-auth mode. Success and recovery instructions remain
   inline with the one-time link.
 - Recipients can choose **Sign in** or **Create account** with equally prominent controls. Only the
   selected journey's fields appear. Existing users review and explicitly accept as the signed-in
-  identity; changing identity preserves the invitation. New users create their sign-in and accept
-  atomically. The company, role consequences and expiry remain fully readable throughout. Addressed
+  identity; changing identity preserves the invitation. New password users create a credential and accept the addressed invitation atomically
+  where the current policy permits. The company,
+  role consequences and expiry remain fully readable throughout. Addressed
   invitations show a recipient hint containing only the part before `@` followed by `@…`; recipients
   enter the full email address themselves, and the domain stays hidden in the preview.
-- New Google or Microsoft identities require an unused invitation addressed to their verified
-  email. Microsoft may require a one-time mailbox proof in the same browser before onboarding;
-  returning sign-in does not repeat it. Provider sign-in does not silently accept an invitation.
+- New Google, GitHub or Microsoft identities can join only when the company's current policy admits
+  their verified email or an unused invitation addresses it. Microsoft may require a one-time mailbox
+  proof in the same browser before onboarding; returning identities with durable proof do not repeat it.
+  Provider sign-in does not silently accept an invitation.
   In company-sign-in-only mode, the recipient must use a configured company provider; password
   and GitHub sessions cannot accept it. Existing accounts connect providers explicitly without
   creating another person or changing their memberships.

@@ -7,25 +7,30 @@ next: false
 
 # Join your team
 
-![Invitation preview with the company, invited email and sign-in choices](../screenshots/flows/using_join_your_team_1.png)
-
 <span id="steps"></span>
 
-Open the invitation your agency sent you. Use the invited email address.
+Open the invitation or company joining link your agency sent you. Use the addressed
+email if you have an invitation; a company joining link asks you to enter your email.
 
-Choose Sign in if you already have an account, or Create account if you need one.
+For a company joining link, choose an available Google, Microsoft or GitHub
+provider, or sign in with an existing password account. Finish any second-factor
+challenge before choosing **Join company**. Your email must have current trusted
+proof and meet the company's joining policy. If the page says proof is unavailable,
+use a configured verified provider or ask for an invitation addressed to your email.
+A company joining link does not create a new password account.
 
-If your agency uses company login, choose its provider instead.
-
-If the preview shows the wrong signed-in identity, select Use a different account.
+On an invitation screen, review the company and proposed role. Use your existing
+password account or create one with the addressed invitation where password signup
+is allowed. If your agency uses company login, choose an available provider and
+finish its company-bound sign-in before joining.
 
 ## Accept your invitation
 
-![Signed-in invitation with the company and acceptance action](../screenshots/flows/using_join_your_team_2.png)
-
 Accept the invitation to open your company's Schedule.
 
-If the link has expired or was already used, ask the sender for a replacement.
+If an invitation has expired or was already used, ask the sender for a
+replacement. If your company restricts addresses
+or has disabled your access, ask an Owner or Admin for help.
 
 <span id="what-s-next"></span>
 

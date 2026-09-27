@@ -35,7 +35,7 @@ function registerSuiteScenario1() {
 
     const inviteRes = await request.post(`${API}/api/invites`, {
       headers: { cookie: ownerCookie },
-      data: { accountId, role: "editor" },
+      data: { accountId, role: "editor", preauthEmail: JOINER },
     });
     expect(inviteRes.status()).toBe(201);
     const token = (await inviteRes.json()).token as string;
@@ -124,7 +124,7 @@ function registerSuiteScenario2() {
     // the invite URL with the app route instead of dropping the user onto the company picker.
     const signupInvite = await request.post(`${API}/api/invites`, {
       headers: { cookie: ownerCookie },
-      data: { accountId, role: "viewer", preauthEmail: NEW_JOINER },
+      data: { accountId, role: "editor", preauthEmail: NEW_JOINER },
     });
     expect(signupInvite.status()).toBe(201);
     const signupToken = (await signupInvite.json()).token as string;
@@ -143,7 +143,7 @@ function registerSuiteScenario2() {
     // the sidebar. Team & access exposes the authoritative role projection.
     await expect(page.getByRole("heading", { name: "Choose a company" })).toHaveCount(0);
     await page.getByRole("link", { name: "Team & access" }).click();
-    await expect(page.getByTestId("current-access")).toContainText("Viewer");
+    await expect(page.getByTestId("current-access")).toContainText("Editor");
   });
 }
 

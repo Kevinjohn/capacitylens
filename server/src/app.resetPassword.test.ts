@@ -498,7 +498,7 @@ describe("POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)",
       method: "POST",
       url: "/api/invites",
       headers: { cookie: owner.cookie },
-      payload: { accountId: "a1", role: "admin" },
+      payload: { accountId: "a1", role: "admin", preauthEmail: "editor@capacitylens.dev" },
     });
     expect(inviteRes.statusCode).toBe(201);
     const inviteToken = (inviteRes.json() as { token: string }).token;

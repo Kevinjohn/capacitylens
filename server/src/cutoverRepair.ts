@@ -54,7 +54,7 @@ interface ResolvedRepair {
 }
 
 const REPAIR_COMPATIBLE_MIGRATIONS = new Set([
-  25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+  25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
 ]);
 
 function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
@@ -78,9 +78,13 @@ function assertRepairSchema(db: Db, operation: CutoverRepairOperation): void {
   // optional person avatar URL column; and v43 adds an empty member/resource association table.
   // v44 adds only optional invitation/person proposals; v45 adds an empty company-dismissal
   // table; v46 adds an empty, short-lived Microsoft mailbox-proof table; v47 adds retained access
-  // restrictions and v48 adds identity mailbox proofs. Stopped-server repair skips cleanup for
-  // these tables when they predate the database, but treats a missing table at its declared
-  // schema version as corruption.
+  // restrictions and v48 adds identity mailbox proofs. v49 adds empty joining-policy and short-lived
+  // intent tables; repair neither reads nor creates those records. v50 rebuilds the Microsoft proof
+  // table while copying its rows and preserving the columns used by repair; v51 adds only a nullable
+  // browser binding and its index. Repair runs with the server stopped and does not depend on the new
+  // joining-proof purpose or browser binding. Stopped-server repair skips cleanup for optional tables
+  // when they predate the database, but treats a missing table at its declared schema version as
+  // corruption.
   // These are safe to remain pending before this stopped-server repair. Keep this allowlist explicit
   // so a future migration requires review.
   if (plan.migrations.some(({ version }) => !REPAIR_COMPATIBLE_MIGRATIONS.has(version))) {

@@ -6,6 +6,7 @@ import {
   bootstrapOrg,
   signUpUser as signUp,
   signUpUserWithId,
+  seedFixtureMember,
 } from "./auth-helpers";
 import { waitForAppLanding, selectShadOption } from "./helpers";
 
@@ -13,7 +14,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.11 — Owner/Admin member management, against the auth-backed project's server
 // (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and
-// invites admin B + editor C (both accept via the API). Then, as B (admin), we drive the Team &
+// seeds admin B + editor C in the disposable test database. Then, as B (admin), we drive the Team &
 // access UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
 // revoke it. We assert the Owner option is ABSENT for B in the UI, and at the API layer that nobody
 // can assign Owner through PATCH (400), cannot touch owner A (→ 403), cannot nominate a next Owner
@@ -36,14 +37,7 @@ async function setupMembersApi(request: APIRequestContext) {
     [admin, "admin"],
     [editor, "editor"],
   ] as const) {
-    const inv = await request.post(`${API}/api/invites`, {
-      headers: { cookie: owner.cookie },
-      data: { accountId, role },
-    });
-    expect(inv.status()).toBe(201);
-    const token = (await inv.json()).token as string;
-    const accept = await request.post(`${API}/api/invites/${token}/accept`, { headers: { cookie: who.cookie } });
-    expect(accept.status()).toBe(200);
+    seedFixtureMember(accountId, who.email, role);
   }
   const grant = await request.patch(`${API}/api/accounts/${accountId}/members/${editor.userId}`, {
     headers: { cookie: admin.cookie },
@@ -77,6 +71,7 @@ async function createViewerInvite(page: Page): Promise<void> {
   await page.getByTestId("invite-open").click();
   const dialog = page.getByRole("dialog", { name: "Invite someone" });
   await selectShadOption(dialog.getByTestId("invite-role"), "viewer");
+  await dialog.getByTestId("invite-preauth").fill(`m-viewer-${STAMP}@capacitylens.dev`);
   await dialog.getByTestId("invite-submit").click();
   await expect(dialog.getByTestId("invite-link")).toContainText("/invite/");
   await dialog.getByRole("button", { name: "Cancel" }).click();
@@ -89,11 +84,11 @@ async function revokeViewerInvite(page: Page): Promise<void> {
   await expect(dialog.getByTestId("invite-link")).toHaveCount(0);
   await dialog.getByRole("button", { name: "Cancel" }).click();
   const inviteRows = page.getByTestId("invite-row");
-  await expect(inviteRows).toHaveCount(3);
+  await expect(inviteRows).toHaveCount(1);
   const viewerInvite = inviteRows.filter({ hasText: "Viewer" });
   await expect(viewerInvite).toContainText("expires");
   await viewerInvite.getByTestId("invite-revoke").click();
-  await expect(inviteRows).toHaveCount(2);
+  await expect(inviteRows).toHaveCount(0);
 }
 
 async function manageAdminMembers(

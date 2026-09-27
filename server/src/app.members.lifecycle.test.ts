@@ -490,13 +490,13 @@ async function ownerAndInactiveEditor(suffix: string, status: "disabled" | "arch
 function registerDisabledInviteRedemptionTest(): void {
   it("a disabled member cannot redeem an invite back into the account, and the invite stays unused", async () => {
     const { app, db, owner, ed } = await ownerAndInactiveEditor("invite-bypass");
-    // A link-only invite the disabled member holds (or is handed). Before this fix the accept path
+    // An addressed invite the disabled member holds. Before this fix the accept path
     // probed membership with an ACTIVE-only read, saw "not a member", and upserted them back to
     // active at the invite's role — reversing the administrator's decision with no audit record.
     const created = await call(app, {
       method: "POST",
       url: "/api/invites",
-      payload: { accountId: "a1", role: "admin" },
+      payload: { accountId: "a1", role: "admin", preauthEmail: "editor-invite-bypass@capacitylens.dev" },
       headers: { cookie: owner.cookie },
     });
     expect(created.statusCode).toBe(201);
@@ -532,7 +532,7 @@ function registerArchivedInviteRedemptionTest(): void {
         await call(app, {
           method: "POST",
           url: "/api/invites",
-          payload: { accountId: "a1", role: "editor" },
+          payload: { accountId: "a1", role: "editor", preauthEmail: "editor-invite-bypass-archived@capacitylens.dev" },
           headers: { cookie: owner.cookie },
         })
       ).json() as { token: string }
@@ -553,7 +553,7 @@ function registerRestoredInviteRedemptionTest(): void {
         await call(app, {
           method: "POST",
           url: "/api/invites",
-          payload: { accountId: "a1", role: "editor" },
+          payload: { accountId: "a1", role: "editor", preauthEmail: "editor-invite-after-restore@capacitylens.dev" },
           headers: { cookie: owner.cookie },
         })
       ).json() as { token: string }

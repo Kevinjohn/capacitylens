@@ -35,7 +35,7 @@ permissions](/getting-started/roles-and-permissions) for why.
 
 2. Select **Invite someone**, above the member table, to open the centered invite dialog. Choose a
    role in the dialog. The consequences of that role are spelled out in plain language underneath
-   it. **Email** is optional for password sign-in and required on company-login-only installs.
+   it. **Email** is required: every invitation belongs to the named mailbox.
 
 3. Optionally choose **Link to Resource**, or leave **No Resource linked** selected.
    This proposes an existing person Resource without reserving it. The recipient cannot see this
@@ -58,16 +58,14 @@ preview what they're joining before anything happens: your company name, the pro
 role, what that role can and can't do, and when the link expires. Just opening the link
 never changes [membership](/reference/glossary).
 
-![Accept invite screen showing complete permissions and separate Sign in and Create account choices](../screenshots/flows/invitation_accept.png)
-
 From there:
 
-- Already have a sign-in? Choose **Sign in**, enter your email and password, then check the
-  signed-in identity and select **Accept invite**. Choose **Use a different account** if needed;
-  the invitation stays open.
-- New to this install? Choose **Create account**, enter your name, email and a new password,
-  then select **Create account and accept**. Only this choice asks for your name.
-- Use company login? Choose your configured provider, then review and accept the invitation.
+- Already have a password sign-in? Enter the invited email and password, review the
+  invitation, then choose **Accept invite**. Complete any required second factor.
+- New to this install? Use the invitation's **Create account** option. Account
+  creation and invitation acceptance happen together.
+- Use company login? Choose an available provider, return to the invitation,
+  then select **Accept invite**.
 
 The role description is shown in full. Expiry uses your local date and time, without seconds.
 An email-bound invitation shows the part before `@`, followed by `@…` (for example,

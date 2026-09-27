@@ -9,6 +9,7 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Let each company's Owner choose invitation-only, open, approved-domain, or approved-domain-or-invitation joining in **Team & access**. Admins can review the policy. Existing identities with trusted address proof join as Viewers by policy; addressed invitations can grant another role. Google, Microsoft and eligible GitHub sign-in follow the same company-bound rules (#1291).
 - Let Owners and Admins Disable Access to one company and explicitly Enable it later. The
   restriction survives membership removal and verified-email re-registration; ordinary archive
   and removal still allow a later invitation. Verified GitHub addresses in mixed mode use the

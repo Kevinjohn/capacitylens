@@ -76,16 +76,34 @@ function seedControlProposal(db: Db, invitationId: string, resourceId = "person-
   createInvitationPersonProposal({ db, invitationId, accountId: "a1", resourceId, now: TS });
 }
 
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
+async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db; tokens: string[] }> {
   const db = openDb(":memory:");
+  const tokens: string[] = [];
   const { mode, auth } = createAuthFromEnvironment(db, PASSWORD_ENV);
   const requiredAuth = requireValue(auth, "password authentication");
   await runAuthMigrations(requiredAuth);
-  return { app: buildApp(db, { authMode: mode, auth: requiredAuth }), db };
+  return {
+    app: buildApp(db, {
+      authMode: mode,
+      auth: requiredAuth,
+      joiningProof: {
+        secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
+        publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+      },
+    }),
+    db,
+    tokens,
+  };
 }
 
-async function closedSignupProposalContext(): Promise<{ app: FastifyInstance; db: Db; token: string }> {
+async function closedSignupProposalContext(): Promise<{
+  app: FastifyInstance;
+  db: Db;
+  token: string;
+  tokens: string[];
+}> {
   const db = openDb(":memory:");
+  const tokens: string[] = [];
   const { mode, auth } = createAuthFromEnvironment(db, {
     ...PASSWORD_ENV,
     SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP: undefined,
@@ -98,7 +116,14 @@ async function closedSignupProposalContext(): Promise<{ app: FastifyInstance; db
     name: "Bruce Wayne",
     password: "password-123456",
   });
-  const app = buildApp(db, { authMode: mode, auth: requiredAuth });
+  const app = buildApp(db, {
+    authMode: mode,
+    auth: requiredAuth,
+    joiningProof: {
+      secret: PASSWORD_ENV.SMALLSASS_ACCOUNT_SECRET,
+      publicUrl: new URL(PASSWORD_ENV.SMALLSASS_ACCOUNT_PUBLIC_URL),
+    },
+  });
   seedOne(db);
   seedPerson(db, "person-signup");
   upsertMember(db, { accountId: "a1", userId: inviter.id, role: "owner", status: "active", createdAt: TS });
@@ -117,7 +142,33 @@ async function closedSignupProposalContext(): Promise<{ app: FastifyInstance; db
     },
     readCookies(signedIn),
   );
-  return { app, db, token: readResponseString(created, "token") };
+  return { app, db, token: readResponseString(created, "token"), tokens };
+}
+
+// eslint-disable-next-line max-params -- Existing route fixture call sites retain ceremony coordinates.
+async function acceptWithProof(
+  app: FastifyInstance,
+  token: string,
+  _email: string,
+  actorCookie: string,
+  _tokens: string[],
+) {
+  void _tokens;
+  return call(app, {
+    method: "POST",
+    url: `/api/invites/${token}/accept`,
+    headers: { cookie: actorCookie },
+  });
+}
+
+// eslint-disable-next-line max-params -- Existing route fixture call sites retain ceremony coordinates.
+async function createWithProof(app: FastifyInstance, token: string, email: string, _tokens: string[]) {
+  void _tokens;
+  return call(app, {
+    method: "POST",
+    url: `/api/invites/${token}/signup`,
+    payload: { email, name: "Dick Grayson", password: "password-123456" },
+  });
 }
 
 // eslint-disable-next-line max-params
@@ -142,12 +193,17 @@ async function createInvite(
 describe("invitation person proposal route admission", () => {
   // eslint-disable-next-line max-lines-per-function
   it("creates/replays proposals, retains labels, and settles through admission without public leakage", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db, tokens } = await appWithAuth();
     seedOne(db);
     seedPerson(db);
     const owner = await signUp(app, "proposal-owner@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
-    const payload = { accountId: "a1", role: "editor", proposedResourceId: "person-clark" };
+    const payload = {
+      accountId: "a1",
+      role: "editor",
+      preauthEmail: "proposal-invitee@capacitylens.dev",
+      proposedResourceId: "person-clark",
+    };
     const first = await createInvite(app, payload, owner.cookie, "proposal-route-command-01");
     expect(first.statusCode).toBe(201);
     expect(readObject(first.json())).toMatchObject({ proposedResourceId: "person-clark" });
@@ -184,12 +240,8 @@ describe("invitation person proposal route admission", () => {
     const invitee = await signUp(app, "proposal-invitee@capacitylens.dev");
     const preview = await call(app, { method: "GET", url: `/api/invites/${token}/preview` });
     expect(preview.statusCode).toBe(200);
-    assertPublicInviteShape(preview, ["accountName", "role", "expiresAt", "emailBound", "emailHint"]);
-    const accepted = await call(app, {
-      method: "POST",
-      url: `/api/invites/${token}/accept`,
-      headers: { cookie: invitee.cookie },
-    });
+    assertPublicInviteShape(preview, ["accountId", "accountName", "role", "expiresAt", "emailBound", "emailHint"]);
+    const accepted = await acceptWithProof(app, token, "proposal-invitee@capacitylens.dev", invitee.cookie, tokens);
     expect(accepted.statusCode).toBe(200);
     expect(accepted.json()).toEqual({ accountId: "a1", role: "editor" });
     assertPublicInviteShape(accepted, ["accountId", "role"]);
@@ -228,12 +280,8 @@ describe("invitation person proposal route admission", () => {
   });
 
   it("settles proposals through the password-signup child transaction without public resource state", async () => {
-    const { app, db, token } = await closedSignupProposalContext();
-    const signup = await call(app, {
-      method: "POST",
-      url: `/api/invites/${token}/signup`,
-      payload: { email: "proposal-signup@capacitylens.dev", name: "Dick Grayson", password: "password-123456" },
-    });
+    const { app, db, token, tokens } = await closedSignupProposalContext();
+    const signup = await createWithProof(app, token, "proposal-signup@capacitylens.dev", tokens);
     expect(signup.statusCode).toBe(201);
     assertPublicInviteShape(signup, ["ok", "accountId", "role"]);
     const signedIn = await call(app, {
@@ -245,23 +293,20 @@ describe("invitation person proposal route admission", () => {
     const userIdValue = readObject(readObject(me.json()).user).id;
     if (typeof userIdValue !== "string") throw new Error("Expected signed-in user id");
     const userId = userIdValue;
+    expect(db.prepare("SELECT 1 FROM identity_email_proofs WHERE principalId = ?").get(userId)).toBeUndefined();
     expect(db.prepare(`SELECT resourceId FROM account_member_resources WHERE userId = ?`).get(userId)).toEqual({
       resourceId: "person-signup",
     });
   });
 
   it("rolls back password-signup membership, invite use, and proposal on link failure", async () => {
-    const { app, db, token } = await closedSignupProposalContext();
+    const { app, db, token, tokens } = await closedSignupProposalContext();
     db.exec(`
       CREATE TRIGGER signup_proposal_writer_failure
       BEFORE INSERT ON account_member_resources
       BEGIN SELECT RAISE(ABORT, 'injected signup proposal failure'); END;
     `);
-    const signup = await call(app, {
-      method: "POST",
-      url: `/api/invites/${token}/signup`,
-      payload: { email: "proposal-signup@capacitylens.dev", name: "Dick Grayson", password: "password-123456" },
-    });
+    const signup = await createWithProof(app, token, "proposal-signup@capacitylens.dev", tokens);
     expect(signup.statusCode).toBe(500);
     expect(db.prepare(`SELECT COUNT(*) AS count FROM account_members`).get()).toEqual({ count: 1 });
     expect(db.prepare(`SELECT COUNT(*) AS count FROM account_member_resources`).get()).toEqual({ count: 0 });
@@ -306,24 +351,31 @@ describe("invitation person proposal route admission", () => {
   );
 
   it("rolls back account admission when settlement finds a cross-account proposal", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db, tokens } = await appWithAuth();
     seedOne(db);
     seedPerson(db, "person-corrupt");
     const owner = await signUp(app, "corrupt-proposal-owner@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
     const created = await createInvite(
       app,
-      { accountId: "a1", role: "editor", proposedResourceId: "person-corrupt" },
+      {
+        accountId: "a1",
+        role: "editor",
+        preauthEmail: "corrupt-proposal-invitee@capacitylens.dev",
+        proposedResourceId: "person-corrupt",
+      },
       owner.cookie,
     );
     const token = readResponseString(created, "token");
     db.prepare(`UPDATE invitation_person_proposals SET accountId = 'a2' WHERE resourceId = 'person-corrupt'`).run();
     const invitee = await signUp(app, "corrupt-proposal-invitee@capacitylens.dev");
-    const accepted = await call(app, {
-      method: "POST",
-      url: `/api/invites/${token}/accept`,
-      headers: { cookie: invitee.cookie },
-    });
+    const accepted = await acceptWithProof(
+      app,
+      token,
+      "corrupt-proposal-invitee@capacitylens.dev",
+      invitee.cookie,
+      tokens,
+    );
     expect(accepted.statusCode).toBe(500);
     expect(getMemberRole(db, "a1", invitee.userId)).toBeNull();
     expect(requireValue(getInvite(db, token), "corrupt proposal invite").usedAt).toBeNull();
@@ -335,14 +387,19 @@ describe("invitation person proposal route admission", () => {
   });
 
   it("keeps public preview, signup, and accept failures resource-free", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db, tokens } = await appWithAuth();
     seedOne(db);
     seedPerson(db, "person-failure");
     const owner = await signUp(app, "failure-shape-owner@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
     const created = await createInvite(
       app,
-      { accountId: "a1", role: "editor", proposedResourceId: "person-failure" },
+      {
+        accountId: "a1",
+        role: "editor",
+        preauthEmail: "failure-shape-invitee@capacitylens.dev",
+        proposedResourceId: "person-failure",
+      },
       owner.cookie,
     );
     const token = readResponseString(created, "token");
@@ -357,11 +414,13 @@ describe("invitation person proposal route admission", () => {
     expect(invalidSignup.statusCode).toBe(400);
     assertPublicInviteShape(invalidSignup, ["error"]);
     const invitee = await signUp(app, "failure-shape-invitee@capacitylens.dev");
-    const accepted = await call(app, {
-      method: "POST",
-      url: `/api/invites/${token}/accept`,
-      headers: { cookie: invitee.cookie },
-    });
+    const accepted = await acceptWithProof(
+      app,
+      token,
+      "failure-shape-invitee@capacitylens.dev",
+      invitee.cookie,
+      tokens,
+    );
     expect(accepted.statusCode).toBe(200);
     assertPublicInviteShape(accepted, ["accountId", "role"]);
     const repeated = await call(app, {
@@ -414,14 +473,19 @@ describe("invitation person proposal route admission", () => {
   });
 
   it("rolls back membership, invite use, and proposal on unknown association storage failure", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db, tokens } = await appWithAuth();
     seedOne(db);
     seedPerson(db);
     const owner = await signUp(app, "proposal-rollback-owner@capacitylens.dev");
     upsertMember(db, { accountId: "a1", userId: owner.userId, role: "owner", status: "active", createdAt: TS });
     const created = await createInvite(
       app,
-      { accountId: "a1", role: "editor", proposedResourceId: "person-clark" },
+      {
+        accountId: "a1",
+        role: "editor",
+        preauthEmail: "proposal-rollback-invitee@capacitylens.dev",
+        proposedResourceId: "person-clark",
+      },
       owner.cookie,
     );
     const token = readResponseString(created, "token");
@@ -431,11 +495,13 @@ describe("invitation person proposal route admission", () => {
       BEGIN SELECT RAISE(ABORT, 'injected proposal writer failure'); END;
     `);
     const invitee = await signUp(app, "proposal-rollback-invitee@capacitylens.dev");
-    const accepted = await call(app, {
-      method: "POST",
-      url: `/api/invites/${token}/accept`,
-      headers: { cookie: invitee.cookie },
-    });
+    const accepted = await acceptWithProof(
+      app,
+      token,
+      "proposal-rollback-invitee@capacitylens.dev",
+      invitee.cookie,
+      tokens,
+    );
     expect(accepted.statusCode).toBe(500);
     expect(getMemberRole(db, "a1", invitee.userId)).toBeNull();
     expect(requireValue(getInvite(db, token), "invite").usedAt).toBeNull();
@@ -444,7 +510,7 @@ describe("invitation person proposal route admission", () => {
   });
 
   it("rolls back admission when exception persistence hits an integrity failure", async () => {
-    const { app, db } = await appWithAuth();
+    const { app, db, tokens } = await appWithAuth();
     seedOne(db);
     seedPerson(db);
     const owner = await signUp(app, "proposal-exception-rollback-owner@capacitylens.dev");
@@ -455,7 +521,12 @@ describe("invitation person proposal route admission", () => {
     ).run(owner.userId, TS, TS);
     const created = await createInvite(
       app,
-      { accountId: "a1", role: "editor", proposedResourceId: "person-clark" },
+      {
+        accountId: "a1",
+        role: "editor",
+        preauthEmail: "proposal-exception-rollback-invitee@capacitylens.dev",
+        proposedResourceId: "person-clark",
+      },
       owner.cookie,
     );
     const token = readResponseString(created, "token");
@@ -465,11 +536,13 @@ describe("invitation person proposal route admission", () => {
       BEGIN SELECT RAISE(ABORT, 'injected exception persistence failure'); END;
     `);
     const invitee = await signUp(app, "proposal-exception-rollback-invitee@capacitylens.dev");
-    const accepted = await call(app, {
-      method: "POST",
-      url: `/api/invites/${token}/accept`,
-      headers: { cookie: invitee.cookie },
-    });
+    const accepted = await acceptWithProof(
+      app,
+      token,
+      "proposal-exception-rollback-invitee@capacitylens.dev",
+      invitee.cookie,
+      tokens,
+    );
     expect(accepted.statusCode).toBe(500);
     expect(getMemberRole(db, "a1", invitee.userId)).toBeNull();
     expect(requireValue(getInvite(db, token), "invite").usedAt).toBeNull();
@@ -482,7 +555,7 @@ describe("invitation person proposal route admission", () => {
     ["member already linked", "person-member-linked", "member_already_linked"],
     ["resource unavailable", "person-unavailable", "resource_unavailable"],
   ] as const)("admits a proposal with bounded %s outcome", async (_label, resourceId, reason) => {
-    const { app, db } = await appWithAuth();
+    const { app, db, tokens } = await appWithAuth();
     seedOne(db);
     seedPerson(db, resourceId);
     const owner = await signUp(app, `${resourceId}-owner@capacitylens.dev`);
@@ -504,17 +577,24 @@ describe("invitation person proposal route admission", () => {
     }
     const created = await createInvite(
       app,
-      { accountId: "a1", role: "editor", proposedResourceId: resourceId },
+      {
+        accountId: "a1",
+        role: "editor",
+        preauthEmail: `${resourceId}-${targetKind}@capacitylens.dev`,
+        proposedResourceId: resourceId,
+      },
       owner.cookie,
     );
     const token = readResponseString(created, "token");
     if (reason === "resource_unavailable")
       db.prepare(`UPDATE resources SET archivedAt = ? WHERE id = ?`).run(TS, resourceId);
-    const accepted = await call(app, {
-      method: "POST",
-      url: `/api/invites/${token}/accept`,
-      headers: { cookie: target.cookie },
-    });
+    const accepted = await acceptWithProof(
+      app,
+      token,
+      `${resourceId}-${targetKind}@capacitylens.dev`,
+      target.cookie,
+      tokens,
+    );
     expect(accepted.statusCode).toBe(200);
     expect(getMemberRole(db, "a1", targetUserId)).toBe("editor");
     expect(

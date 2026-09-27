@@ -8,6 +8,7 @@ import { readMemberSignInTrackingSnapshot, setMemberSignInTracking } from "../ac
 import { registerLifecycleRoutes } from "./lifecycleRoutes";
 import { registerAuthProxyRoutes } from "./authProxyRoutes";
 import { registerMicrosoftProofRoutes } from "./microsoftProofRoutes";
+import { registerJoiningProofRoutes } from "./joiningProofRoutes";
 import { registerBatchRoutes } from "./batchRoutes";
 import { registerEntityRoutes } from "./entityRoutes";
 import { registerImportRoutes } from "./importRoutes";
@@ -230,7 +231,7 @@ function buildPlatformRouteDependencies(input: RegisterApiRoutesInput) {
 }
 
 function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
-  const { childApp: app, runtime, config, options, rootHelpers, authorization } = input;
+  const { childApp: app, db, runtime, config, options, rootHelpers, authorization } = input;
   const dependencies = buildPlatformRouteDependencies(input);
   const { accountAdminPort, identityPort } = runtime;
   const { application, auth, authMode } = config;
@@ -238,6 +239,18 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
   registerAuthProxyRoutes(app, { ...dependencies.authProxy, section: "identity" });
   if (authMode !== "off" && auth) {
     registerMicrosoftProofRoutes(app, auth, options.trustProxyHeaders === true);
+    if (options.joiningProof)
+      registerJoiningProofRoutes(app, {
+        db,
+        auth,
+        applicationId: application.applicationId,
+        authMode,
+        requireMfa: options.requireMfa === true,
+        trustProxyHeaders: options.trustProxyHeaders === true,
+        secret: options.joiningProof.secret,
+        publicUrl: options.joiningProof.publicUrl,
+        fail: rootHelpers.accountFail,
+      });
     registerFederatedIdentityRoutes(app, {
       auth,
       authMode,

@@ -87,6 +87,11 @@ export interface AppOptions {
   authMode?: AccountMode;
   /** The Better Auth instance — required exactly when authMode ≠ 'off'. */
   auth?: Auth | null;
+  /** Company joining provider state, supplied by the entrypoint after auth configuration. */
+  joiningProof?: {
+    secret: string;
+    publicUrl: URL;
+  };
   /** Require an enrolled and completed TOTP second factor before password users may access tenant
    * data. Auth endpoints and /api/auth/me remain available so an existing user can enroll. */
   requireMfa?: boolean;

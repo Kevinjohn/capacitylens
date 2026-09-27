@@ -54,6 +54,10 @@
       "purpose": "Domain-separated SHA-256 application-local handles that prevent session bearer tokens crossing the account boundary"
     },
     {
+      "path": "server/src/accounts/adminPort/joiningIntentSecrets.ts",
+      "purpose": "Random 256-bit browser and mailbox secrets, domain-separated SHA-256 hashes, HMAC-SHA-256 source-IP rate-limit keys, and random non-secret intent identifiers for company-bound joining"
+    },
+    {
       "path": "server/src/auth.ts",
       "purpose": "Constant-time setup token comparison"
     },

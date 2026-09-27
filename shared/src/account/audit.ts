@@ -7,6 +7,7 @@ export type AccountAuditAction =
   | "invitation.created"
   | "invitation.accepted"
   | "invitation.revoked"
+  | "joining_policy.updated"
   | "member.role_changed"
   | "member.status_changed"
   | "member.access_disabled"

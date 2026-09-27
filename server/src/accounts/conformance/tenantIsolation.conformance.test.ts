@@ -1,3 +1,4 @@
+import { joiningModules, joiningExclusions } from "./joiningIsolation.testSupport";
 import { readFileSync, readdirSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { OwnershipTransferRequest } from "@capacitylens/shared/account/ownershipTransfer";
@@ -594,6 +595,7 @@ describe("account member/resource writes stay inside their account", () => {
  * and one module's decision must never silently classify another module's function.
  */
 const MODULES: Record<string, Record<string, unknown>> = {
+  ...joiningModules,
   accessRestrictions,
   accountMemberResources,
   invitationPersonProposals,
@@ -666,6 +668,8 @@ const COVERED = new Set([
 
 /** Why each remaining export cannot carry one company's rows out of its own account. */
 const EXCLUDED = new Map<string, string>([
+  ...joiningExclusions,
+  ["invites.getInviteTargetById", "read"],
   ["accessRestrictions.provenEmail", "identity-global proof read checked against current local email"],
   ["accessRestrictions.listAccessRestrictions", "account-scoped read"],
   ["accessRestrictions.getAccessRestriction", "account-scoped read"],

@@ -37,8 +37,10 @@ mailbox proof.
 
 CapacityLens never combines accounts just because their email addresses match.
 Explicitly connecting the provider preserves the existing person's memberships,
-role and scheduled work. New people still need an unused, addressed invitation;
-provider sign-in alone does not admit them to a company.
+role and scheduled work. A company may allow a verified new person to join as
+a Viewer through its [joining policy](/company-login/#invitations-and-the-first-owner),
+or grant another role through an addressed invitation. Provider sign-in alone
+does not admit anyone to a company.
 
 ## Require a company provider
 

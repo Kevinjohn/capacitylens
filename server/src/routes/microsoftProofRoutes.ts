@@ -8,6 +8,7 @@ type StartBody = {
   purpose?: unknown;
   email?: unknown;
   inviteToken?: unknown;
+  accountId?: unknown;
   callbackURL?: unknown;
   errorCallbackURL?: unknown;
 };
@@ -21,19 +22,24 @@ function sendError(reply: FastifyReply, error: unknown) {
 
 // eslint-disable-next-line complexity -- Validate all five untrusted wire fields before starting OAuth.
 function parseStart(body: unknown): {
-  purpose: "bootstrap" | "invite" | "link";
+  purpose: "bootstrap" | "invite" | "link" | "join";
   email?: string;
   inviteToken?: string;
+  accountId?: string;
   callbackURL: string;
   errorCallbackURL: string;
 } {
   const value = (body ?? {}) as StartBody;
   if (
-    (value.purpose !== "bootstrap" && value.purpose !== "invite" && value.purpose !== "link") ||
+    (value.purpose !== "bootstrap" &&
+      value.purpose !== "invite" &&
+      value.purpose !== "link" &&
+      value.purpose !== "join") ||
     typeof value.callbackURL !== "string" ||
     typeof value.errorCallbackURL !== "string" ||
     (value.email !== undefined && typeof value.email !== "string") ||
-    (value.inviteToken !== undefined && typeof value.inviteToken !== "string")
+    (value.inviteToken !== undefined && typeof value.inviteToken !== "string") ||
+    (value.accountId !== undefined && typeof value.accountId !== "string")
   ) {
     throw new MicrosoftProofError("MICROSOFT_PROOF_REQUEST_INVALID", 400);
   }
@@ -43,6 +49,7 @@ function parseStart(body: unknown): {
     errorCallbackURL: value.errorCallbackURL,
     ...(typeof value.email === "string" ? { email: value.email } : {}),
     ...(typeof value.inviteToken === "string" ? { inviteToken: value.inviteToken } : {}),
+    ...(typeof value.accountId === "string" ? { accountId: value.accountId } : {}),
   };
 }
 

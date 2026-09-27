@@ -272,7 +272,10 @@ const identitySqlOwners = new Set([
   resolve(serverRoot, "authConfig/bootstrapAdmin.ts"),
   resolve(serverRoot, "authConfig/federatedIdentitySchema.ts"),
   resolve(serverRoot, "authConfig/sessionActivity.ts"),
+  resolve(serverRoot, "authConfig/tableAccess.ts"),
   resolve(serverRoot, "authConfig/microsoftProof.ts"),
+  resolve(serverRoot, "authConfig/microsoftProofProfiles.ts"),
+  resolve(serverRoot, "authConfig/microsoftProofJoining.ts"),
   resolve(serverRoot, "authConfig/microsoftProofAuthorization.ts"),
   resolve(serverRoot, "authConfig/socialProviders.ts"),
   resolve(serverRoot, "authConfig/federatedEmailProof.ts"),
@@ -284,6 +287,9 @@ const identitySqlOwners = new Set([
   resolve(serverRoot, "accounts/identityPort/inspection.ts"),
   resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
   resolve(serverRoot, "accounts/identityPort/sessions.ts"),
+  resolve(serverRoot, "accounts/adminPort/joiningProviderLifecycle.ts"),
+  resolve(serverRoot, "accounts/adminPort/joiningProviderCallbacks.ts"),
+  resolve(serverRoot, "accounts/adminPort/joiningProviderIntent.ts"),
   resolve(serverRoot, "controlTables/accountMemberResources.ts"),
   resolve(serverRoot, "controlTables/accessRestrictions.ts"),
   resolve(serverRoot, "testHelpers/federatedAccount.ts"),
@@ -303,6 +309,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
       resolve(serverRoot, "db/migrations/invitationPersonProposalsV44.ts"),
       resolve(serverRoot, "db/migrations/accessRestrictionsV47.ts"),
+      resolve(serverRoot, "db/migrations/joiningPoliciesV49.ts"),
       resolve(serverRoot, "db/microsoftProofGateSql.ts"),
       resolve(serverRoot, "controlTables/assert.ts"),
       resolve(serverRoot, "controlTables/inviteRetention.ts"),
@@ -315,8 +322,11 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningAdmission.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningProviderLifecycle.ts"),
       resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
       resolve(serverRoot, "authConfig/federatedEmailProof.ts"),
+      resolve(serverRoot, "authConfig/microsoftProofJoining.ts"),
       resolve(serverRoot, "accounts/proofInvitationPort.ts"),
     ]);
     // Database bootstrap and the concrete account-admin adapter compose control-table operations.
@@ -325,6 +335,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "db/open.ts"),
       resolve(serverRoot, "db/lifecycle.ts"),
       resolve(serverRoot, "db/migrations/index.ts"),
+      resolve(serverRoot, "db/migrations/baselineV8.ts"),
       resolve(serverRoot, "db/migrations/accountMemberResourcesV43.ts"),
       resolve(serverRoot, "db/migrations/invitationPersonProposalsV44.ts"),
       resolve(serverRoot, "controlTables.ts"),
@@ -340,6 +351,11 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/cutover.ts"),
       resolve(serverRoot, "accounts/adminPort/invitationClaims.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningPolicy.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningAdmission.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningProviderLifecycle.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningProviderCallbacks.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningProviderIntent.ts"),
       resolve(serverRoot, "accounts/adminPort/memberReads.ts"),
       resolve(serverRoot, "accounts/proofInvitationPort.ts"),
       resolve(serverRoot, "accounts/adminPort/membership.ts"),
@@ -445,9 +461,19 @@ describe("account-boundary architecture", () => {
 
   it("centralizes executable browser account URLs in the account client", () => {
     const accountClient = resolve(browserRoot, "account/accountClient.ts");
+    // Company-specific proof and provider URLs have their own account client boundary.
+    const companyJoinClient = resolve(browserRoot, "account/companyJoinClient.ts");
+    // Policy settings delegate through accountClient while owning their request details here.
+    const joiningPolicyClient = resolve(browserRoot, "account/joiningPolicyClient.ts");
     const gettingStartedClient = resolve(browserRoot, "account/gettingStartedClient.ts");
     for (const file of sourceFiles(browserRoot)) {
-      if (file === accountClient || file === gettingStartedClient) continue;
+      if (
+        file === accountClient ||
+        file === companyJoinClient ||
+        file === joiningPolicyClient ||
+        file === gettingStartedClient
+      )
+        continue;
       const source = readFileSync(file, "utf8");
       expect(source, file).not.toMatch(/fetch\s*\([^\n]*(?:\/api\/(?:auth\/me|accounts|invites|orgs))/);
       expect(source, file).not.toMatch(/apiFetch(?:Reauth)?\s*\([^\n]*(?:\/api\/(?:accounts|invites|orgs))/);

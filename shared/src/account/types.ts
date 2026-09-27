@@ -33,6 +33,21 @@ export function isIsoInstant(value: unknown): value is IsoInstant {
  * options; the access policy separately determines who may join the company. */
 export type AccountMode = "off" | "password-only" | "sso-only" | "password-and-sso";
 
+export type JoiningPolicy = "invitation_only" | "open" | "approved_domains" | "approved_domains_or_invitation";
+export function isJoiningPolicy(value: unknown): value is JoiningPolicy {
+  return (
+    value === "invitation_only" ||
+    value === "open" ||
+    value === "approved_domains" ||
+    value === "approved_domains_or_invitation"
+  );
+}
+
+export interface JoiningPolicySettings {
+  policy: JoiningPolicy;
+  approvedDomains: readonly string[];
+}
+
 /** Whether the selected mode permits local password sign-in and password recovery. */
 export function allowsPasswordSignIn(mode: AccountMode): boolean {
   return mode === "password-only" || mode === "password-and-sso";
@@ -186,6 +201,7 @@ export interface InvitationSummary {
 /** Public bearer preview. Intentionally excludes the full address, domain, inviter, identity
  * existence, and token. `emailHint` contains only a bound address's local part plus `@…`. */
 export interface InvitationPreview {
+  workspaceId: WorkspaceId;
   workspaceName: string;
   role: InvitationRole;
   expiresAt: IsoInstant;

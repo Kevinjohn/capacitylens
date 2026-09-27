@@ -161,6 +161,19 @@ rollback boundary for both tables.
 Existing GitHub links are not backfilled from old email flags. A later GitHub callback records
 proof only when GitHub verifies the selected address and it still matches the local identity.
 
+Schema v49 removes outstanding invitations that were created without an intended email address.
+Their old links stop working after the upgrade. Before upgrading, tell an Owner or Admin to note
+who still needs access. After upgrading, use **Team & access → Invite someone** to create a new
+invitation for each person's exact email address, then send them the new one-time link. If someone
+opens an invalid old link, ask the inviter for a replacement; the old link cannot be repaired or
+reused. People who already belong to the company keep their existing access and role.
+
+Company joining now requires a proven address and a company-specific joining link or addressed
+invitation. Open and domain joining currently accepts existing identities with durable email proof;
+new password identities use addressed invitations where the policy permits. Schema v50 supports
+this joining journey for Microsoft sign-in; existing Microsoft sign-ins and their pending mailbox
+ceremonies remain intact.
+
 The release that adds Studio and Supplementary engagement advances the database through
 schema v29 (the required resource engagement column), v30 (the optional company-wide
 engagement-grouping preference), v31 (the company working-day selection), and v32 (the optional

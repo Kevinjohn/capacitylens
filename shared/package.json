@@ -9,6 +9,7 @@
   },
   "exports": {
     "./account/audit": "./src/account/audit.ts",
+    "./account/approvedDomains": "./src/account/approvedDomains.ts",
     "./account/conformance": "./src/account/conformance.ts",
     "./account/errors": "./src/account/errors.ts",
     "./account/ownershipTransfer": "./src/account/ownershipTransfer.ts",
@@ -48,7 +49,8 @@
     "./types/entities": "./src/types/entities.ts"
   },
   "dependencies": {
-    "date-fns": "^4.3.0"
+    "date-fns": "^4.3.0",
+    "tr46": "6.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.3",

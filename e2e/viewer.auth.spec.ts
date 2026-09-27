@@ -1,12 +1,18 @@
 import { test, expect, type APIRequestContext } from "./fixtures";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser as signUp } from "./auth-helpers";
+import {
+  AUTH_API as API,
+  AUTH_PASSWORD as PASSWORD,
+  bootstrapOrg,
+  seedFixtureMember,
+  signUpUser as signUp,
+} from "./auth-helpers";
 import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.12 — Viewer read-only mode, against the auth-backed project's server (SMALLSASS_ACCOUNT_MODE=password
-// on :8887 — see playwright.config.ts). Owner A bootstraps an org and invites a VIEWER V + an EDITOR
-// E (both accept via the API). Signed in as V (viewer) we assert the read-only UI: no "Add client",
+// on :8887 — see playwright.config.ts). Owner A bootstraps an org and the disposable fixture seeds
+// VIEWER V + EDITOR E. Signed in as V (viewer) we assert the read-only UI: no "Add client",
 // no row Edit/Delete, an allocation bar with no resize grips, a draw gesture creates nothing, and the
 // "View only" badge is shown. As E (editor) we assert the contrast — the affordances are present. At
 // the API layer a direct write as the viewer is 403 (the server is the authoritative backstop).
@@ -92,14 +98,7 @@ async function seedViewerScenario(request: APIRequestContext) {
     [viewer, "viewer"],
     [editor, "editor"],
   ] as const) {
-    const inv = await request.post(`${API}/api/invites`, {
-      headers: { cookie: owner.cookie },
-      data: { accountId, role },
-    });
-    expect(inv.status()).toBe(201);
-    const token = (await inv.json()).token as string;
-    const accept = await request.post(`${API}/api/invites/${token}/accept`, { headers: { cookie: who.cookie } });
-    expect(accept.status()).toBe(200);
+    seedFixtureMember(accountId, who.email, role);
   }
   await assertViewerWriteRejected(request, accountId, viewer.cookie);
   return { resourceId };

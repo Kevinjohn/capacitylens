@@ -11,8 +11,8 @@ The demo and trusted-local mode have no sign-in.
 
 With company sign-in, CapacityLens sends you to Google or Microsoft and receives
 you back after authentication. It never sees your provider password. An agency
-account alone does not grant access: new people also need an invitation, except
-for the explicitly allowed first person on an empty installation.
+account alone does not grant access. The first person on an empty installation
+needs explicit operator approval. After that, each company decides how people may join.
 
 ## Passwords and company sign-in
 
@@ -46,10 +46,22 @@ create the first Google or Microsoft identity. That person then follows **Set up
 your company** to become its Owner. The allowance closes when the first identity
 exists.
 
-After that, an Owner or Admin creates an invitation in **Team & access** and
-shares its link. A new provider identity needs an unused invitation addressed to
-its verified email. Signing in to the provider does not silently accept a company
-invitation: follow the invitation screen to complete admission.
+After that, a company's Owner chooses **Who can join** in **Team & access**. The default
+is **Invitation only**. They may allow open registration, approved email domains, or
+approved domains plus invitations. An Admin can see the policy and ask the Owner to
+change it. A person joining through a policy receives Viewer access; an addressed
+invitation can grant its chosen role. **Approved domains** matches only the exact
+listed domains, so `team.example.com` is different from `example.com`.
+
+Open the company-specific joining link and choose an available sign-in method.
+Google, Microsoft and, in mixed mode, experimental GitHub may be available together.
+An existing password user signs in and finishes any required second factor before
+**Join company**. The server admits only identities with current trusted email proof
+that meet the company's policy; password signup through an open or domain policy is
+not available. A person without that proof can use an eligible verified provider or
+an addressed invitation. Microsoft may use its same-browser mailbox check when the
+address is not already proven. An invitation must be addressed to the verified
+email, and a company can disable access even when its joining policy allows it.
 
 ## Connect an existing account
 

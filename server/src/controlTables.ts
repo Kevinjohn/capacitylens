@@ -93,6 +93,7 @@ export {
   matchingAccessRestrictions,
   removeAccessRestrictionsForAccount,
 } from "./controlTables/accessRestrictions";
+export { readJoiningPolicy, writeJoiningPolicy, removeJoiningPolicy } from "./controlTables/joiningPolicies";
 export type { AccessRestriction } from "./controlTables/accessRestrictions";
 
 export { inviteTokenHash, newInviteId } from "./controlTables/inviteTokens";

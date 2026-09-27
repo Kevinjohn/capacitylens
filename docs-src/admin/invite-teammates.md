@@ -52,7 +52,23 @@ original restriction from the inactive member list.
 An established Microsoft sign-in keeps its stable provider identity, but a returning sign-in alone
 does not add mailbox proof to an older identity that lacks it.
 
-Remove deletes the membership; they need another invitation to return.
+Remove deletes the membership; the person may return later if the company's joining policy permits it.
+
+## Review who can join
+
+**Who can join** in Team & access shows the current joining policy and every approved
+email domain. Only the Owner can change it. Ask them to review the policy if a
+teammate cannot join or if registration should be more restricted. A policy join
+grants Viewer access; send an addressed invitation when someone needs a different
+role. **Approved domains** accepts only the exact listed domains. Under **Approved
+domains or invitation**, an addressed invitation can also admit a freelancer from
+another domain. **Disable Access** still prevents that person from rejoining.
+
+Owner and Admin can copy the **Joining link** from this section and share it with people who
+need access. The link opens this company's joining page; the saved policy still decides who
+can join.
+
+[How company joining works](/company-login/#invitations-and-the-first-owner)
 
 [Invitation and access questions](/admin/faq)
 

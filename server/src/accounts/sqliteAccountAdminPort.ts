@@ -10,6 +10,7 @@ import type { AdminPortContext, SsoCutoverAccountAdminPort } from "./adminPort/c
 import { createCutover } from "./adminPort/cutover";
 import { createInvitationClaims } from "./adminPort/invitationClaims";
 import { createInvitations } from "./adminPort/invitations";
+import { createJoiningPolicyAdministration } from "./adminPort/joiningPolicy";
 import { createMembership } from "./adminPort/membership";
 import { createOwnershipTransferOperations } from "./adminPort/ownershipTransfer";
 import { beginCommand, completeCommand, markAccountCommandReplay, terminateCommand } from "./commands";
@@ -215,6 +216,7 @@ export function createSqliteAccountAdminPort(input: CreateSqliteAccountAdminPort
     ...createMembership(context),
     ...createOwnershipTransferOperations(context),
     ...createInvitations(context),
+    ...createJoiningPolicyAdministration(context),
     ...createInvitationClaims(context),
   };
 }
