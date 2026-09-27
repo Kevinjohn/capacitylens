@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
-import { waitForAppLanding } from "./helpers";
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./authTestSupport";
+import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -14,9 +14,9 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // the same token is 409). Browser-agnostic (no UA branching).
 
 // The auth-e2e server is SEEDED (Wayne Enterprises + Stark Industries), so a fresh sign-up is not a first-run
-// bootstrap and holds no membership — /api/orgs would 403; the BOOTSTRAP_TOKEN (from ./auth-helpers)
+// bootstrap and holds no membership — /api/orgs would 403; the BOOTSTRAP_TOKEN (from ./authTestSupport)
 // is the documented operator path to provision an org on an already-populated instance. Shared
-// plumbing (API/BOOTSTRAP_TOKEN/signUp) comes from ./auth-helpers.
+// plumbing (API/BOOTSTRAP_TOKEN/signUp) comes from ./authTestSupport.
 const STAMP = Date.now();
 const OWNER = `owner-${STAMP}@capacitylens.dev`;
 const JOINER = `joiner-${STAMP}@capacitylens.dev`;

@@ -31,7 +31,7 @@ export function spawnPnpmSync(args, options = {}) {
 }
 
 /** Distinguish a test failure from a runner that could not start or was terminated. */
-export function synchronousSpawnStatus(label, result, report = console.error) {
+export function reportSpawnFailureAndResolveExitStatus(label, result, report = console.error) {
   if (result.error) {
     report(`${label} could not start: ${result.error.message}`);
     return 2;

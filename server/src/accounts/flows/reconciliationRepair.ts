@@ -1,5 +1,5 @@
 import type { AccountFlows, ReconciliationRepairKind } from "@capacitylens/shared/account/ports";
-import { getAccountCommandByIdForReconciliation } from "../commands";
+import { readAccountCommandAndFlagStalePending } from "../commands";
 
 type RepairCoordinate = "workspaceId" | "targetPrincipalId" | "provisionalPrincipalId" | "ceremonyId";
 
@@ -75,7 +75,7 @@ export class CorruptAccountCommandStateError extends Error {
 }
 
 export function parseStoredReconciliationRepair(
-  row: NonNullable<ReturnType<typeof getAccountCommandByIdForReconciliation>>,
+  row: NonNullable<ReturnType<typeof readAccountCommandAndFlagStalePending>>,
   operation: Parameters<AccountFlows["reconcileCommand"]>[0]["operation"],
 ): Record<string, unknown> & { kind: ReconciliationRepairKind } {
   // Released legacy rows may have no structured repair metadata. Preserve their explicit generic

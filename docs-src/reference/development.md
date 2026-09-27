@@ -506,7 +506,7 @@ The enforced coverage floors:
 The build also enforces a raw and gzip byte budget on the main JavaScript entry chunk;
 route-level lazy chunks stay separate so authentication and settings code don't inflate
 first load unnoticed. The checked constants live beside the checker in
-`scripts/bundle-budget.mjs` — treat that file, not this page, as the authoritative size
+`scripts/bundleBudget.mjs` — treat that file, not this page, as the authoritative size
 limit. Vite's generic uncompressed chunk warning shares that raw boundary, while the
 post-build checker additionally enforces the gzip boundary. The checker requires exactly
 one JavaScript module entry in the built HTML and
@@ -589,7 +589,7 @@ needs to control, then prove all four parts of the recovery contract:
 4. Releasing the failure restores a usable interface and the expected durable state.
 
 Use two independent browser contexts for concurrent-edit coverage so the server produces
-the stale-write conflict naturally. Use `e2e/fault-helpers.ts` for transport and HTTP
+the stale-write conflict naturally. Use `e2e/failRequestsUntilReleased.ts` for transport and HTTP
 failures that cannot be scheduled reliably against the real server. Do not mock unrelated
 requests or replace the persistence adapter in these tests.
 

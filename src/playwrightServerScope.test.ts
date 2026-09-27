@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "../scripts/playwright-server-scope";
-import { E2E_RUN_PRESETS, resolvePlaywrightRunMode } from "../scripts/playwright-run-mode.mjs";
+import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "../scripts/playwrightServerScope";
+import { E2E_RUN_PRESETS, resolvePlaywrightRunMode } from "../scripts/playwrightRunMode.mjs";
 
 describe("Playwright server scope", () => {
   it.each(Object.entries(E2E_RUN_PRESETS))(

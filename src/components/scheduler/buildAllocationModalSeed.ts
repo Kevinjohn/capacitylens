@@ -7,7 +7,7 @@ import { FULL_DAY_HOURS } from "@capacitylens/shared/types/entities";
 import { resolveScheduledHoursOnDay } from "../../lib/capacity";
 
 import { resolveProjectSelection, hasWorkingSpan } from "./allocationModalSelection";
-import type { AllocationModalSnapshot } from "./allocationModalSnapshot";
+import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
 
 type SeedInput = Pick<AllocationModalSnapshot, "editing" | "create" | "data" | "mode"> & {
   resourceById: Map<string, Resource>;

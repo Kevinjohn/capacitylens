@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./helpers";
+import { openApp, resetSchedulerScroll, selectShadOption, setZoom, showScheduleFilters } from "./browserTestSupport";
 
 // Covers US-SET-07. External / 3rd parties are a PER-ACCOUNT view pref (`externalEnabled` on the
 // active Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is

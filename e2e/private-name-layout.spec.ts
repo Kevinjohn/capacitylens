@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "./fixtures";
-import { dismissLandscapeHint, openApp, selectShadOption } from "./helpers";
+import { dismissLandscapeHint, openApp, selectShadOption } from "./browserTestSupport";
 
 const OWNER_DESCRIPTION = "Only account owners can see real names. Everyone else sees the code name.";
 

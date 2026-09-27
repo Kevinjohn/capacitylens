@@ -175,7 +175,7 @@ function registerReadRoutes(app: FastifyInstance, dependencies: StateRouteDepend
     // via ?accountId= (the client picker
     // → GET /api/accounts → GET /api/state?accountId=). Returning the whole DB to any authed user
     // was a tenant-isolation leak; 400 it. OFF mode is trusted-local, so it RETAINS the whole read
-    // (db-helpers, the OFF db-backed e2e, and the OFF app.accounts tests all rely on it). The client
+    // (serverTestState, the OFF db-backed e2e, and the OFF app.accounts tests all rely on it). The client
     // adapter treats this 400 on the NO-ARG read as "hydrate empty, show the picker" (see
     // ServerSyncAdapter.loadAll), so a no-arg bootstrap in auth-on lands on the picker, not an error.
     // OFF retains its trusted-local whole read. This whole read does not redact the

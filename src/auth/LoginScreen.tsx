@@ -16,7 +16,7 @@ import {
   readExternalSignInErrorCode,
   resolveExternalSignInErrorMessage,
 } from "./externalSignInError";
-import { LoginForm } from "./LoginForms";
+import { LoginForm } from "./LoginForm";
 import { useOwnerSetup } from "./useOwnerSetup";
 import { usePasswordSignIn } from "./usePasswordSignIn";
 import { useSecondFactor } from "./useSecondFactor";

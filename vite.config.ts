@@ -6,11 +6,11 @@ import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import { copyFile, mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parsePort } from "./scripts/port.mjs";
+import { parsePort } from "./scripts/parsePort.mjs";
 import { ports, testShare } from "./scripts/ports.mjs";
 import { clientApiOrigin } from "./scripts/render-client-nginx.mjs";
-import { STATIC_SPA_ROUTES } from "./scripts/static-spa-routes.mjs";
-import { ENTRY_RAW_LIMIT_KB } from "./scripts/bundle-budget.mjs";
+import { STATIC_SPA_ROUTES } from "./scripts/staticSpaRoutes.mjs";
+import { ENTRY_RAW_LIMIT_KB } from "./scripts/bundleBudget.mjs";
 import { isAccountEmail } from "./shared/src/account/validation.ts";
 
 // Lane-derived ports (scripts/ports.mjs): lane 0 is the historical 5173/8787/4173, and a run
@@ -140,7 +140,7 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
     },
     test: {
-      // The CPU reservation this run holds (scripts/lane-claim.mjs). Unset means nothing else is
+      // The CPU reservation this run holds (scripts/laneClaims.mjs). Unset means nothing else is
       // running and Vitest keeps its historical "use the machine" default.
       maxWorkers: testShare(),
       environment: "jsdom",

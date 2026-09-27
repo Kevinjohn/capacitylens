@@ -7,7 +7,7 @@ import { resolveRejectionMessage, teamAccessClient, type TeamInvitation } from "
 import type { useAuth } from "../../auth/authContext";
 import type { FieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
-import type { MemberActionDependencies } from "./memberActionDependencies";
+import type { MemberActionDependencies } from "./MemberActionDependencies";
 import type { createMemberAccessReconciliation } from "./createMemberAccessReconciliation";
 
 interface MemberInviteDependencies extends MemberActionDependencies {

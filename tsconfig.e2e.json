@@ -7,5 +7,5 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["e2e/**/*.ts", "playwright.config.ts", "scripts/playwright-server-scope.ts"]
+  "include": ["e2e/**/*.ts", "playwright.config.ts", "scripts/playwrightServerScope.ts"]
 }

@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { gateCommands } from "./gate-commands.mjs";
+import { gateCommands } from "./gateCommands.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const cli = fileURLToPath(new URL("./run-gate.mjs", import.meta.url));

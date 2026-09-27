@@ -1,4 +1,4 @@
-export { writePreMigrationBackup, type PreMigrationBackupOptions } from "./backup/preMigration";
+export { writePreMigrationBackup, type PreMigrationBackupOptions } from "./backup/writePreMigrationBackup";
 export type { DurableSnapshotPublisher } from "./backup/publish";
 export { startBackups } from "./backup/scheduler";
 // Online DB snapshots (production plan P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: this

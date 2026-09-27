@@ -9,7 +9,7 @@ import {
   buildAccessLabData,
   resolveAccessLabDbPath,
 } from "../src/accessLab";
-import { buildAccessLabEnv } from "../../scripts/access-lab-env.mjs";
+import { buildAccessLabEnv } from "../../scripts/buildAccessLabEnv.mjs";
 
 process.umask(0o077);
 

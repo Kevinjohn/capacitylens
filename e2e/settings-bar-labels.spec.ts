@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 

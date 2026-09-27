@@ -13,9 +13,9 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { presetEnvironment, resolvePlaywrightRunMode, E2E_RUN_PRESETS } from "./playwright-run-mode.mjs";
-import { nonColourEnvironment } from "./pnpm-spawn.mjs";
-import { claimLane, laneDirectory, reapLane, releaseLane, releaseMutex, shareForClaims } from "./lane-claim.mjs";
+import { presetEnvironment, resolvePlaywrightRunMode, E2E_RUN_PRESETS } from "./playwrightRunMode.mjs";
+import { nonColourEnvironment } from "./pnpmSpawn.mjs";
+import { claimLane, laneDirectory, reapLane, releaseLane, releaseMutex, shareForClaims } from "./laneClaims.mjs";
 import { LANE_CEILING, portsForLane } from "./ports.mjs";
 
 function scratch() {
@@ -123,7 +123,7 @@ test(
           "--input-type=module",
           "-e",
           childCode,
-          new URL("./lane-claim.mjs", import.meta.url).href,
+          new URL("./laneClaims.mjs", import.meta.url).href,
           role,
           directory,
           environment.XDG_CACHE_HOME,

@@ -5,8 +5,8 @@ import {
   bootstrapOrg,
   seedFixtureMember,
   signUpUser as signUp,
-} from "./auth-helpers";
-import { waitForAppLanding } from "./helpers";
+} from "./authTestSupport";
+import { waitForAppLanding } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -18,7 +18,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // the API layer a direct write as the viewer is 403 (the server is the authoritative backstop).
 // Browser-agnostic (no UA branching); unique emails per run.
 
-// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp) comes from ./auth-helpers.
+// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp) comes from ./authTestSupport.
 const STAMP = Date.now();
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`;
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`;

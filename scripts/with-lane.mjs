@@ -8,8 +8,8 @@
 // only has to read CAPACITYLENS_PORT_LANE, which is already fixed by the time it is evaluated.
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { mirrorChildExit } from "./dev-processes.mjs";
-import { claimLane, reapLane } from "./lane-claim.mjs";
+import { mirrorChildExit } from "./devProcesses.mjs";
+import { claimLane, reapLane } from "./laneClaims.mjs";
 import { LANE_ENVIRONMENT_KEY, SHARE_ENVIRONMENT_KEY, portsForLane, resolveLane, testShare } from "./ports.mjs";
 
 const worktree = fileURLToPath(new URL("../", import.meta.url)).replace(/\/$/, "");

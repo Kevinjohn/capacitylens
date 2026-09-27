@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 
 test.describe("CRUD + demo lifecycle", () => {
   test("a project cannot be saved without a client", async ({ page }) => {

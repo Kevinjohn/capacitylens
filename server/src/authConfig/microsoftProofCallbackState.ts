@@ -31,7 +31,7 @@ export function createMicrosoftCallbackState(db: Db, fromHeaders: (headers: Head
     ).run(hashProofValue(state), Date.now(), intentId);
   }
 
-  function validate(request: Request): void {
+  function assertCallbackState(request: Request): void {
     const url = new URL(request.url);
     const state = url.searchParams.get("state");
     if (!state) {
@@ -58,5 +58,5 @@ export function createMicrosoftCallbackState(db: Db, fromHeaders: (headers: Head
     }
   }
 
-  return { store, validate };
+  return { store, assertCallbackState };
 }

@@ -3,7 +3,7 @@ import { emptyAppData } from "@capacitylens/shared/types/entities";
 import { makeAccount } from "../../test/fixtures";
 import { readOfflineStateSnapshot, resetOfflineState, setOfflineReadState } from "../offline/state";
 import { loadAll } from "./loadSlice";
-import { SyncState } from "./state";
+import { SyncState } from "./SyncState";
 
 afterEach(() => resetOfflineState());
 

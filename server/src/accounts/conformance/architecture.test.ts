@@ -3,8 +3,8 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { dirname, relative, resolve, sep } from "node:path";
 
-import { createDependencyParser, resolveDependency } from "../../../../scripts/dependency-scanner.mjs";
-import type { DependencyEdge } from "../../../../scripts/dependency-scanner.mjs";
+import { createDependencyParser, resolveDependency } from "../../../../scripts/dependencyScanner.mjs";
+import type { DependencyEdge } from "../../../../scripts/dependencyScanner.mjs";
 
 const serverRoot = resolve(import.meta.dirname, "../..");
 const sharedRoot = resolve(serverRoot, "../../shared/src");

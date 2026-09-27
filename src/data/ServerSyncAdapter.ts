@@ -6,7 +6,7 @@ import {
   KEEPALIVE_REQUEST_OVERHEAD_BUDGET,
   KeepaliveNotDispatchedError,
 } from "./sync/batchErrors";
-import { applyBatch, dispatchPreparedBatch, prepareBatchBody } from "./sync/batchWire";
+import { commitBatch, dispatchPreparedBatch, prepareBatchBody } from "./sync/batchWire";
 import {
   archiveLifecycleRow,
   listRememberedLifecycleRestoreOps,
@@ -22,7 +22,7 @@ import {
   publishAllocationRewrites,
   rememberRevisions,
 } from "./sync/snapshot";
-import { SyncState } from "./sync/state";
+import { SyncState } from "./sync/SyncState";
 import { diffOps, diffOpsFromPossibleBases, type Op } from "./syncOps";
 
 // diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
@@ -106,7 +106,7 @@ async function commitOrdinaryOps({
   if (ops.length === 0) return target;
   let receipt: BatchCommitReceipt;
   try {
-    receipt = await applyBatch(state, ops);
+    receipt = await commitBatch(state, ops);
   } catch (error) {
     state.dispatchedTarget = null;
     throw error;
@@ -202,7 +202,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       }
     }
     // Page-teardown flush: send the whole diff as ONE keepalive batch request so it
-    // survives the unload (a plain fetch would be cancelled mid-flight). See applyBatch.
+    // survives the unload (a plain fetch would be cancelled mid-flight). See commitBatch.
     if (options?.unload) {
       if (this.state.inFlight) {
         // drain() has already dispatched its current target. Do not merely park this newer
@@ -326,7 +326,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // policy), so any reparent/upsert the same diff carries (e.g. a child moved off the row being
       // deleted) lands first — mirroring the batch's own upserts-before-deletes invariant across the split.
       const { batchOps, lifecycleDeletes } = splitLifecycleDeletes(prepared.ops);
-      // An applyBatch throw MUST propagate before the snapshot advances so saveAll rejects and
+      // An commitBatch throw MUST propagate before the snapshot advances so saveAll rejects and
       // persist.ts either retries a transport failure or reloads after an uncertain receipt. The
       // narrow catch below clears only the no-longer-in-flight possible base and rethrows; swallowing
       // would advance past writes that never landed and permanently drop them from future diffs.

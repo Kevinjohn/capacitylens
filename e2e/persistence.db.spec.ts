@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
-import { openApp, selectShadOption } from "./helpers";
-import { resetServer, serverState, stateRows } from "./db-helpers";
+import { openApp, selectShadOption } from "./browserTestSupport";
+import { resetServer, serverState, stateRows } from "./serverTestState";
 
 // DB-backed E2E: this project's app is built with VITE_CAPACITYLENS_API, so persistence
 // runs through the entity-level ServerSyncAdapter against the real SQLite server.

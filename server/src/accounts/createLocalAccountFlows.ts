@@ -10,7 +10,7 @@ import type { Db } from "../db";
 import { tx } from "../txn";
 import { createAccountAuditWriter, type AccountAuditInput } from "./accountFlowRuntime";
 import type { LocalIdentityPort } from "./betterAuthIdentityPort";
-import { getAccountCommandById, getAccountCommandByIdForReconciliation, terminateCommand } from "./commands";
+import { getAccountCommandById, readAccountCommandAndFlagStalePending, terminateCommand } from "./commands";
 import type { DenyIdentityAdminCommandInput } from "./flows/context";
 import { createAuthorityDenial } from "./flows/failures";
 import { createInviteSignupFlows } from "./flows/inviteSignup";
@@ -76,7 +76,7 @@ export interface LocalAccountFlows extends AccountFlows {
 }
 
 type ReconcileInput = Parameters<AccountFlows["reconcileCommand"]>[0];
-type ReconciliationRow = NonNullable<ReturnType<typeof getAccountCommandByIdForReconciliation>>;
+type ReconciliationRow = NonNullable<ReturnType<typeof readAccountCommandAndFlagStalePending>>;
 
 function matchesReconciliationRequest(row: ReturnType<typeof getAccountCommandById>, input: ReconcileInput): boolean {
   return (
@@ -128,7 +128,7 @@ async function reconcileCommand(
     return null;
   }
   return lock.withKeys([buildCommandExecutionKey(input.command)], () => {
-    const row = getAccountCommandByIdForReconciliation({ db, applicationId, commandId: input.command.commandId });
+    const row = readAccountCommandAndFlagStalePending({ db, applicationId, commandId: input.command.commandId });
     if (row === null || !matchesReconciliationRequest(row, input)) return null;
     return buildReconciliationOutcome(row, input.operation);
   });

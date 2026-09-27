@@ -5,7 +5,7 @@ import { useStore } from "../../store/useStore";
 import { useCanEdit } from "../../auth/permissionContext";
 import { resolveResourceDisplayName } from "../../lib/metadata";
 import { resolveErrorMessage } from "../../lib/errorMessage";
-import { cn } from "../../lib/utils";
+import { cn } from "../../lib/cn";
 import { Button } from "../ui/button";
 
 export function FavouriteButton({ resource }: { resource: Resource }) {

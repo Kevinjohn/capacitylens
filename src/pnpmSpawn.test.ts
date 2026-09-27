@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { nonColourEnvironment, spawnPnpm, spawnPnpmSync, synchronousSpawnStatus } from "../scripts/pnpm-spawn.mjs";
+import {
+  nonColourEnvironment,
+  spawnPnpm,
+  spawnPnpmSync,
+  reportSpawnFailureAndResolveExitStatus,
+} from "../scripts/pnpmSpawn.mjs";
 
 describe("spawnPnpm", () => {
   it("preserves spaces and shell metacharacters as literal argument boundaries", async () => {
@@ -123,9 +128,9 @@ describe("nonColourEnvironment", () => {
   );
 });
 
-describe("synchronousSpawnStatus", () => {
+describe("reportSpawnFailureAndResolveExitStatus", () => {
   it("preserves ordinary test statuses", () => {
-    expect(synchronousSpawnStatus("phase", { status: 1 }, () => undefined)).toBe(1);
+    expect(reportSpawnFailureAndResolveExitStatus("phase", { status: 1 }, () => undefined)).toBe(1);
   });
 
   it.each([
@@ -134,7 +139,9 @@ describe("synchronousSpawnStatus", () => {
     [{ status: null }, /without an exit status/i],
   ])("distinguishes runner failures from red tests", (result, expectedMessage) => {
     const messages: string[] = [];
-    expect(synchronousSpawnStatus("browser phase", result, (message) => messages.push(message))).toBe(2);
+    expect(reportSpawnFailureAndResolveExitStatus("browser phase", result, (message) => messages.push(message))).toBe(
+      2,
+    );
     expect(messages).toEqual([expect.stringMatching(expectedMessage)]);
   });
 });

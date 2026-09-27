@@ -7,8 +7,8 @@ import {
   signUpUser as signUp,
   signUpUserWithId,
   seedFixtureMember,
-} from "./auth-helpers";
-import { waitForAppLanding, selectShadOption } from "./helpers";
+} from "./authTestSupport";
+import { waitForAppLanding, selectShadOption } from "./browserTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -24,7 +24,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // member row and no longer from the retired single-call endpoint (#175, #780) — the ceremony itself
 // is covered by e2e/ownership-transfer.auth.spec.ts. Browser-agnostic (no UA branching).
 
-// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp/signUpUserWithId) comes from ./auth-helpers.
+// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp/signUpUserWithId) comes from ./authTestSupport.
 const STAMP = Date.now();
 const OWNER = `m-owner-${STAMP}@capacitylens.dev`;
 const ADMIN = `m-admin-${STAMP}@capacitylens.dev`;

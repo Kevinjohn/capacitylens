@@ -1,7 +1,13 @@
 import { test, expect } from "./fixtures";
 import type { APIRequestContext } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_ADMIN, bootstrapOrg, signUpUser } from "./auth-helpers";
+import {
+  AUTH_API as API,
+  AUTH_PASSWORD as PASSWORD,
+  BOOTSTRAP_ADMIN,
+  bootstrapOrg,
+  signUpUser,
+} from "./authTestSupport";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
@@ -10,7 +16,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 // auth off, so this is the ONLY place the login screen exists; the rest of the suite
 // running unchanged in the other two projects is the off-guarantee.
 
-// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUpUser) comes from ./auth-helpers. P1.13: a fresh
+// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUpUser) comes from ./authTestSupport. P1.13: a fresh
 // user has NO membership, so GET /api/accounts is empty and the picker would have nothing to pick. The
 // org-bootstrap test provisions this login its own org via POST /api/orgs (BOOTSTRAP_TOKEN → Owner) so
 // the picker then lists it — account_members is a server-only control table excluded from the shared

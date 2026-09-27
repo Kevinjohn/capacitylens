@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { STATIC_SPA_ROUTES } from "./static-spa-routes.mjs";
+import { STATIC_SPA_ROUTES } from "./staticSpaRoutes.mjs";
 
 const shell = await readFile(resolve("dist/index.html"));
 

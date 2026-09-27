@@ -8,7 +8,7 @@ import {
   selectShadOption,
   setZoom,
   showPlaceholders,
-} from "./helpers";
+} from "./browserTestSupport";
 
 async function expectLabelControl(control: Locator) {
   const field = control.locator('xpath=ancestor::*[@data-product-layout="label-control"][1]');

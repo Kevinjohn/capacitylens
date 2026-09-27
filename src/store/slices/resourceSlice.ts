@@ -8,7 +8,7 @@ import {
   assertScopedRefs,
   validateResourceAvailabilityPair,
 } from "@capacitylens/shared/domain/mutations";
-import { domainError } from "@capacitylens/shared/domain/errors";
+import { throwDomainError } from "@capacitylens/shared/domain/errors";
 import {
   clampWorkingHoursPerDay,
   isPlaceholderResource,
@@ -79,7 +79,7 @@ export function createResourceSlice(
               preparedResource.lastAvailableDate,
             );
             if (!availability.ok) {
-              domainError(
+              throwDomainError(
                 availability.code,
                 availability.code === "date_reversed"
                   ? "End date cannot be before the start date."
@@ -144,7 +144,7 @@ function createResourceAddAction(internals: ResourceSliceInternals, get: StoreAp
       }
       const availability = validateResourceAvailabilityPair(entity.firstAvailableDate, entity.lastAvailableDate);
       if (!availability.ok) {
-        domainError(
+        throwDomainError(
           availability.code,
           availability.code === "date_reversed"
             ? "End date cannot be before the start date."
@@ -206,7 +206,7 @@ function createClosureActions(
     addClosure: createGuardedAddAction(
       (input: Draft<Closure>): Closure => ({ ...input, id: newId(), accountId: requireAccount(), ...stamp() }),
       (closure) => {
-        if (closure.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
+        if (closure.name.trim().length === 0) throwDomainError("closure_name_required", "Closure name is required.");
         assertDateRange(closure.startDate, closure.endDate);
         mutate((data) => ({ ...data, closures: [...data.closures, closure] }));
         return closure;
@@ -218,7 +218,7 @@ function createClosureActions(
         id: id,
         patch: patch,
         prepare: (merged) => {
-          if (merged.name.trim().length === 0) domainError("closure_name_required", "Closure name is required.");
+          if (merged.name.trim().length === 0) throwDomainError("closure_name_required", "Closure name is required.");
           assertDateRange(merged.startDate, merged.endDate);
           return patch;
         },

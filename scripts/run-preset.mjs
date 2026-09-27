@@ -1,5 +1,5 @@
-import { spawnPnpm } from "./pnpm-spawn.mjs";
-import { E2E_RUN_PRESETS, presetEnvironment } from "./playwright-run-mode.mjs";
+import { spawnPnpm } from "./pnpmSpawn.mjs";
+import { E2E_RUN_PRESETS, presetEnvironment } from "./playwrightRunMode.mjs";
 
 const [preset, ...forwardedArgs] = process.argv.slice(2);
 const presets = {

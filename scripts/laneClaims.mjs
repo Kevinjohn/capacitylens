@@ -24,7 +24,7 @@ import {
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { LANE_CEILING, portsForLane, reservationCeiling, soloShare } from "./ports.mjs";
-import { portInUse } from "./dev-processes.mjs";
+import { portInUse } from "./devProcesses.mjs";
 
 const MUTEX_STALE_MS = 30_000;
 // A legacy publisher wrote its owner microseconds after creating the file.
@@ -181,7 +181,7 @@ function claimPath(directory, lane) {
 }
 
 /** Live claims only; a claim whose pid has gone is deleted as it is found. */
-function liveClaims(directory) {
+function collectLiveClaimsAndPruneStaleFiles(directory) {
   const claims = new Map();
   for (const name of readdirSync(directory)) {
     const match = /^(\d+)\.json$/.exec(name);
@@ -275,7 +275,7 @@ export function claimLane({ worktree, environment = process.env, cores } = {}) {
   const directory = laneDirectory(environment);
   mkdirSync(directory, { recursive: true });
   return withMutex(directory, () => {
-    const claims = liveClaims(directory);
+    const claims = collectLiveClaimsAndPruneStaleFiles(directory);
     const lane = [...Array(LANE_CEILING).keys()].find((candidate) => !claims.has(candidate));
     if (lane === undefined) {
       const holders = [...claims.entries()]

@@ -316,7 +316,7 @@ success for the rebase never hides the independent loss.
 > instance would otherwise trip its own single-company cap on first boot). The two-company seed
 > described below happens only in: the demo build (`pnpm run dev:demo`, what these stories run
 > against), local dev tooling that opts in explicitly, and the db-backed E2E server's explicit
-> `POST /api/test/reset {seed:true}` (used by `e2e/db-helpers.ts`'s `resetServer()` — exempt from
+> `POST /api/test/reset {seed:true}` (used by `e2e/serverTestState.ts`'s `resetServer()` — exempt from
 > the single-company cap so tests can still exercise a two-company picker). The reset route exists
 > only in trusted-local/auth-off mode; an auth-enabled server refuses it even when the development
 > flag is set because a browser session carries no installation-wide erasure authority.
@@ -353,7 +353,7 @@ The canonical `seed()` fixture remains fixed to June 2026 for repeatable tests, 
 exact dates in these stories. Runtime demo, access-lab and opt-in server seeding shift the same
 relative scenario onto the current Monday: Bruce's overlap remains Wednesday–Thursday and his time
 off remains the following Wednesday–Friday, so a new session opens populated without a date jump.
-The Playwright suite freezes the browser clock to **2026-06-03** in `e2e/helpers.ts` `openApp()`, so
+The Playwright suite freezes the browser clock to **2026-06-03** in `e2e/browserTestSupport.ts` `openApp()`, so
 its runtime seed resolves to the canonical 1 June week and the literal story dates remain executable.
 
 **Allocation drag transactions.** A diagonal drag that changes both dates and assignee is one
@@ -990,7 +990,7 @@ by the app. On a populated server the
 flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
 zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential `admin@admin.admin`
 / `auth-e2e-password-2026` — PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since
-production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/auth-helpers.ts`),
+production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/authTestSupport.ts`),
 so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
 On a mixed deployment, every configured external provider remains available below

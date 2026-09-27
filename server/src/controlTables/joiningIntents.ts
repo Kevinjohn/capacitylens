@@ -1,5 +1,5 @@
 import type { Db } from "../db";
-import { AccountContractError, retryAfterSeconds } from "@capacitylens/shared/account/errors";
+import { AccountContractError, assertRetryAfterSeconds } from "@capacitylens/shared/account/errors";
 
 export type JoinIntentState = "started" | "mail-sent" | "approved" | "completed" | "cancelled";
 export interface JoinIntent {
@@ -32,7 +32,7 @@ function limited(): never {
     code: "RATE_LIMITED",
     message: "Too many verification messages. Try again later.",
     retryable: true,
-    retryAfterSeconds: retryAfterSeconds(60),
+    retryAfterSeconds: assertRetryAfterSeconds(60),
   });
 }
 

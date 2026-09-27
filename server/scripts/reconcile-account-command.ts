@@ -4,7 +4,7 @@ import { restrictIdentifiedDatabasePermissions } from "../src/db/filePermissions
 import {
   assertAccountBoundaryStateCurrent,
   closeAccountCommandReconciliation,
-  getAccountCommandByIdForReconciliation,
+  readAccountCommandAndFlagStalePending,
 } from "../src/accounts/state";
 import { buildSecretDigest } from "../src/accounts/commands";
 
@@ -31,7 +31,7 @@ if (!databasePath || !applicationId || !commandId || !operatorReference) {
       );
     }
     assertAccountBoundaryStateCurrent(db);
-    const record = getAccountCommandByIdForReconciliation({ db, applicationId, commandId });
+    const record = readAccountCommandAndFlagStalePending({ db, applicationId, commandId });
     if (!record) throw new Error("No matching account command exists.");
     if (record.status !== "reconciliation_required") {
       throw new Error(`Command is ${record.status}; only reconciliation_required commands can be closed.`);

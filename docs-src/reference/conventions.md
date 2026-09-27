@@ -76,7 +76,7 @@ Counterexamples that are now tracked debt:
   untrusted input and returns the typed value, so it is a `parse`, and its flag parameter is
   parameter debt too.
 - `validate*` functions return three shapes across the tree: `ValidationResult`, a boolean
-  (`validateHex`) and the typed value or `null`. The last group are parses; the audit decides
+  (`validatePresetColor`) and the typed value or `null`. The last group are parses; the audit decides
   the rest. `validateAllocationDraft` reports its first problem through a `fail` callback and
   returns a boolean, matching the validation convention.
 - `ensureBarColors(hex)` returns a colour pair. It derives a value, so it is a `resolve`.

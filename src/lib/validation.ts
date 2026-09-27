@@ -72,8 +72,8 @@ export function validateName(value: string, fail: Fail, field = "name"): string 
   return validateText(value, fail, { field, required: true });
 }
 
-/** Require a 6-digit hex colour. Returns true if valid, else calls fail() and returns false. */
-export function validateHex(value: string, fail: Fail, field = "color"): boolean {
+/** Require a preset colour. Returns true if valid, else calls fail() and returns false. */
+export function validatePresetColor(value: string, fail: Fail, field = "color"): boolean {
   if (!isPresetColor(value)) {
     fail(field, m.validation_hex_invalid());
     return false;

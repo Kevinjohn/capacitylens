@@ -9,7 +9,7 @@ import {
   finishAccountCommandIfPending,
   getAccountCommand,
   getAccountCommandById,
-  getAccountCommandByIdForReconciliation,
+  readAccountCommandAndFlagStalePending,
   reserveAccountCommand,
   type AccountCommandRecord,
 } from "./state";
@@ -20,7 +20,7 @@ export {
   correlatePendingAccountCommand,
   eraseWorkspaceCommandHistoryInTx,
   getAccountCommandById,
-  getAccountCommandByIdForReconciliation,
+  readAccountCommandAndFlagStalePending,
 };
 
 const replayedCommandResults = new WeakSet<object>();

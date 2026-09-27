@@ -45,7 +45,7 @@ type AcceptInvitationInput = Parameters<SsoCutoverAccountAdminPort["acceptInvita
 type PrincipalInvitationInput = Parameters<SsoCutoverAccountAdminPort["claimInvitationForPrincipal"]>[0];
 
 // eslint-disable-next-line complexity -- Invitation validity, addressed identity and domain-only proof are distinct gates.
-function getRedeemableInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput) {
+function requireRedeemableInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput) {
   const live = getInvite(context.db, input.token);
   if (!live) throw createAccountFailure("NOT_FOUND", "Invite not found.", input.command.commandId);
   if (live.usedAt !== null) {
@@ -91,7 +91,7 @@ function getRedeemableInvitation(context: InvitationRedemptionContext, input: Cl
 
 // Admission checks and the membership write share one invitation transaction.
 function claimInvitation(context: InvitationRedemptionContext, input: ClaimInvitationInput): Membership {
-  const live = getRedeemableInvitation(context, input);
+  const live = requireRedeemableInvitation(context, input);
   if (isAccessRestricted(context.db, live.accountId, input.principalId)) {
     throw createAccountFailure(
       "FORBIDDEN",

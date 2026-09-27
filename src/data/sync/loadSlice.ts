@@ -13,7 +13,7 @@ import { diffOps } from "../syncOps";
 import { parseAccountSliceWithRepairBase } from "../validateAccountSlice";
 import { listReferencedMissingTables } from "./fkGraph";
 import { seedSnapshot } from "./snapshot";
-import type { SyncState } from "./state";
+import type { SyncState } from "./SyncState";
 import { isRecord } from "@capacitylens/shared/lib/isRecord";
 
 interface LoadedState extends MigrationWithRepairBase {

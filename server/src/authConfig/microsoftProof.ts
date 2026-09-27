@@ -298,7 +298,7 @@ export function createMicrosoftProof(input: Input) {
     confirm,
     resend,
     cancel,
-    validateCallback: callbackState.validate,
+    validateCallback: callbackState.assertCallbackState,
     releaseBootstrapClaim,
     admitsNewJoiningIdentity,
     bindJoiningSession,

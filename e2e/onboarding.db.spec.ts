@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { API, resetServer, serverState, stateRows } from "./db-helpers";
+import { API, resetServer, serverState, stateRows } from "./serverTestState";
 
 // Server-backed half of the P1.14 onboarding-lock: a DIRECT API PATCH of a frozen account field
 // (language / weekStartsOn / timezone) is rejected with 409. This is the SECURITY backstop — the

@@ -1,5 +1,5 @@
 import { test, expect } from "./fixtures";
-import { openApp } from "./helpers";
+import { openApp } from "./browserTestSupport";
 import { MAX_IMPORT_RECORDS } from "@capacitylens/shared/data/transfer";
 import { EXPORT_SCHEMA_VERSION } from "@capacitylens/shared/types/entities";
 

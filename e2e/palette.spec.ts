@@ -1,6 +1,6 @@
 import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
-import { disableCssMotion, openApp, showScheduleFilters } from "./helpers";
+import { disableCssMotion, openApp, showScheduleFilters } from "./browserTestSupport";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 

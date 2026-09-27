@@ -8,7 +8,7 @@ import {
 } from "../../lib/capacity";
 import { buildRepeatingAllocationAdvisory } from "../../lib/repeatingAllocations";
 
-import type { AllocationModalSnapshot } from "./allocationModalSnapshot";
+import type { AllocationModalSnapshot } from "./AllocationModalSnapshot";
 import { buildRepeatProjection } from "./buildRepeatProjection";
 
 type AdvisoryInput = Pick<

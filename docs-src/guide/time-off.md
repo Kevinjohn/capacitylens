@@ -26,7 +26,7 @@ the same canvas as work, so capacity never has to be checked against a separate 
 
 ![The Add time off form previewing seven three-day holiday entries, with every generated date range expanded](../screenshots/flows/timeoff_repeat_form.jpg)
 
-![The schedule with draw mode switched to Time off: work allocations dim and a holiday block is highlighted](../screenshots/flows/timeoff-draw.jpg)
+![The schedule with draw mode switched to Time off: work allocations dim and a holiday block is highlighted](../screenshots/flows/timeoff_draw.jpg)
 
 ## Repeat personal time off
 

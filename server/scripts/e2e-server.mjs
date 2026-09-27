@@ -7,7 +7,7 @@
 import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { mirrorChildExit } from "../../scripts/dev-processes.mjs";
+import { mirrorChildExit } from "../../scripts/devProcesses.mjs";
 import { ports } from "../../scripts/ports.mjs";
 
 const flavour = process.argv[2];

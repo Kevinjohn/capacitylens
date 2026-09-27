@@ -3,7 +3,7 @@ import { effectiveWorkingWeek, effectiveWeekIncludes } from "../lib/effectiveWor
 import { isValidISODate } from "../lib/integrity";
 import { isExternalResource, isPlaceholderResource } from "../types/entities";
 import type { Allocation, ISODate, Resource, Weekday } from "../types/entities";
-import { domainError } from "./errors";
+import { throwDomainError } from "./errors";
 
 export interface ResourceAvailabilityInput {
   allocation: Pick<Allocation, "startDate" | "endDate" | "ignoreWeekends">;
@@ -29,13 +29,13 @@ export function assertAllocationWithinResourceAvailability({
   );
   for (const date of scheduledDates) {
     if (first !== undefined && date < first) {
-      domainError(
+      throwDomainError(
         "allocation_before_resource_availability",
         "Allocation includes a scheduled working day before this person is available.",
       );
     }
     if (last !== undefined && date > last) {
-      domainError(
+      throwDomainError(
         "allocation_after_resource_availability",
         "Allocation includes a scheduled working day after this person is available.",
       );

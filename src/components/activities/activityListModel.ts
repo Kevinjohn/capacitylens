@@ -35,7 +35,7 @@ function compareGroups<T extends NamedEntity & { unavailable: boolean }>(left: T
   return Number(left.unavailable) - Number(right.unavailable) || compareNamed(left, right);
 }
 
-function getClientGroup(
+function getOrCreateClientGroup(
   groupedClients: Map<string, ClientActivityGroup>,
   client: Client | undefined,
   unavailableClient: string,
@@ -49,7 +49,7 @@ function getClientGroup(
   return group;
 }
 
-function getProjectGroup(
+function getOrCreateProjectGroup(
   clientGroup: ClientActivityGroup,
   project: Project | undefined,
   unavailableProject: string,
@@ -86,8 +86,8 @@ export function buildActivityListModel({
 
     const project = activity.projectId ? projectsById.get(activity.projectId) : undefined;
     const client = project ? clientsById.get(project.clientId) : undefined;
-    const clientGroup = getClientGroup(groupedClients, client, unavailableClient);
-    const projectGroup = getProjectGroup(clientGroup, project, unavailableProject);
+    const clientGroup = getOrCreateClientGroup(groupedClients, client, unavailableClient);
+    const projectGroup = getOrCreateProjectGroup(clientGroup, project, unavailableProject);
     projectGroup.activities.push(activity);
   }
 
