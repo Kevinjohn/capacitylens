@@ -7,6 +7,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- A save made while someone else was signing up or joining with a company account could be
+  confirmed and then lost if that sign-in failed. The save is now refused with an error instead
+  of being tied to the other person's sign-in (#1305).
+
 ## [0.71.0-alpha.1] - 2026-09-27
 
 ### Added
