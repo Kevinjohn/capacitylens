@@ -7,6 +7,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.71.0-alpha.1] - 2026-09-27
+
 ### Added
 
 - Let each company's Owner choose invitation-only, open, approved-domain, or approved-domain-or-invitation joining in **Team & access**. Admins can review the policy. Existing identities with trusted address proof join as Viewers by policy; addressed invitations can grant another role. Google, Microsoft and eligible GitHub sign-in follow the same company-bound rules (#1291).
@@ -4662,7 +4664,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.1-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.71.0-alpha.1...HEAD
+[0.71.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.70.1-alpha.1...v0.71.0-alpha.1
 [0.70.1-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.70.1-alpha.1
 [0.70.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.69.0-alpha.1...v0.70.0-alpha.1
 [0.69.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/compare/v0.68.0-alpha.1...v0.69.0-alpha.1

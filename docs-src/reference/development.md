@@ -899,7 +899,7 @@ the old `password` and `sso` values fail startup with migration guidance. The sh
 field. Password-only ignores retained provider credentials and links; mixed mode needs at least
 one configured provider; SSO-only needs Google or tenant-specific Microsoft. The schema is
 selected from active authentication capabilities, and existing session assurance is checked
-against the current mode on every request. See [Upgrades](/self-hosting/upgrades#updating-sign-in-modes)
+against the current mode on every request. See [Upgrades](/self-hosting/upgrades#upgrading-to-0-71-0-alpha-1)
 for coordinated environment changes and rollback.
 
 App-owned control tables share the application migration stream. Better Auth stays pinned
