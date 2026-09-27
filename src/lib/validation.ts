@@ -36,7 +36,7 @@ interface TextOptions {
  * characters (via the shared denylist), and a length cap. Returns the trimmed value on
  * success ('' for an allowed-empty optional field), or null after calling fail().
  */
-export function validateText(value: string, fail: Fail, options: TextOptions = {}): string | null {
+export function parseText(value: string, fail: Fail, options: TextOptions = {}): string | null {
   const {
     field = "name",
     required = true,
@@ -68,8 +68,8 @@ export function validateText(value: string, fail: Fail, options: TextOptions = {
 }
 
 /** Require a non-empty, clean name. Returns the trimmed value, or null after fail(). */
-export function validateName(value: string, fail: Fail, field = "name"): string | null {
-  return validateText(value, fail, { field, required: true });
+export function parseName(value: string, fail: Fail, field = "name"): string | null {
+  return parseText(value, fail, { field, required: true });
 }
 
 /** Require a preset colour. Returns true if valid, else calls fail() and returns false. */

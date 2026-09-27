@@ -1,5 +1,5 @@
 import { memo, useMemo, useState, type KeyboardEventHandler, type PointerEventHandler } from "react";
-import { ensureBarColors } from "@capacitylens/shared/lib/color";
+import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
 import type { ID } from "@capacitylens/shared/types/entities";
 import { m } from "@/i18n";
 import { useCanEdit } from "../../auth/permissionContext";
@@ -167,7 +167,7 @@ export const AllocationBar = memo(function AllocationBar(props: AllocationBarPro
   const gesture = useAllocationGesture({ bar, geom: props.geom, indexAtClientX, ...(onEdit ? { onEdit } : {}) });
   const hideHours = gesture.isBlocks || bar.external;
   const [popoverOpen, setPopoverOpen] = useState(false);
-  const { bg: background, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color]);
+  const { bg: background, ink } = useMemo(() => resolveAccessibleBarColors(bar.color), [bar.color]);
   const { insetLeft, insetWidth } = buildAllocationBarInset(gesture.left, gesture.width);
   const { label: labelText, viewerLabel: viewerLabelText } = useBarLabelText(bar);
   const showTaskFieldInSchedule = useStore((state) => hasVisibleTaskFieldInSchedule(state.data, state.activeAccountId));

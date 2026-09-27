@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 
 const CONNECT_SOURCES_PLACEHOLDER = "__CAPACITYLENS_CONNECT_SOURCES__";
 
-export function clientApiOrigin(apiValue, demoValue) {
+export function parseClientApiOrigin(apiValue, demoValue) {
   if (demoValue === "1") return null;
   const raw = apiValue.trim().replace(/\/+$/, "");
   if (raw === "") return null;
@@ -37,7 +37,7 @@ export function renderClientNginx(template, env = process.env) {
       "The client-only image requires VITE_CAPACITYLENS_DEMO=1 or a remote VITE_CAPACITYLENS_API origin.",
     );
   }
-  const apiOrigin = clientApiOrigin(env.VITE_CAPACITYLENS_API ?? "", env.VITE_CAPACITYLENS_DEMO ?? "");
+  const apiOrigin = parseClientApiOrigin(env.VITE_CAPACITYLENS_API ?? "", env.VITE_CAPACITYLENS_DEMO ?? "");
   const connectSources = `'self'${apiOrigin === null ? "" : ` ${apiOrigin}`}`;
   return template.replace(CONNECT_SOURCES_PLACEHOLDER, JSON.stringify(connectSources));
 }

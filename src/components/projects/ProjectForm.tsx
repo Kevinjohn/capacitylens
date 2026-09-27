@@ -3,7 +3,7 @@ import { useStore } from "../../store/useStore";
 import { useActiveScopedData, useScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
-import { validatePresetColor, validateName } from "../../lib/validation";
+import { validatePresetColor, parseName } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { validateProjectClient } from "@capacitylens/shared/lib/integrity";
 import { DEFAULT_COLORS } from "../../lib/palette";
@@ -16,7 +16,7 @@ import { usePrivateNameFields } from "../common/usePrivateNameFields";
 import { FieldError } from "../ui/field";
 import type { Project } from "@capacitylens/shared/types/entities";
 
-type ProjectPrivacy = NonNullable<ReturnType<ReturnType<typeof usePrivateNameFields>["validatePrivacy"]>>;
+type ProjectPrivacy = NonNullable<ReturnType<ReturnType<typeof usePrivateNameFields>["parsePrivacyPatch"]>>;
 
 /** Add (no `project`) or edit a project: name, REQUIRED client, preset colour. `onClose` fires on
  *  save or cancel. */
@@ -135,9 +135,9 @@ function useProjectSubmit({
   onClose: () => void;
 }) {
   return () => {
-    const trimmed = validateName(name, fail);
+    const trimmed = parseName(name, fail);
     if (!trimmed) return;
-    const privacy = privateNameFields.validatePrivacy();
+    const privacy = privateNameFields.parsePrivacyPatch();
     if (!privacy) return;
     const check = validateProjectClient(clientId);
     if (!check.ok) {

@@ -5,6 +5,7 @@ import {
   contrastRatio,
   readableTextColor,
   ensureBarColors,
+  resolveAccessibleBarColors,
   isPresetColor,
   snapToPresetColor,
   FALLBACK_PRESET_COLOR,
@@ -249,7 +250,7 @@ describe("readableTextColor", () => {
   });
 });
 
-describe("ensureBarColors", () => {
+describe("resolveAccessibleBarColors", () => {
   it("darkens (multiplies channels down) when white ink is chosen", () => {
     // Exercises the darken branch body (r/g/b *= 0.92) and the toHex '#' prefix +
     // clamp + zero-pad; a b *= -> b /= slip alone changes the blue channel here.
@@ -260,29 +261,29 @@ describe("ensureBarColors", () => {
     // Real ink here is DARK_INK, so this must take the else/lighten branch. Forcing
     // `darken` true, or the inner `if (darken)` true, or flipping any of the +=/-=
     // or the (255 - c) to (255 + c) in that branch, all change this exact bg.
-    expect(ensureBarColors("#3b82f6")).toEqual({ bg: "#5391f7", ink: "#1c2230" });
+    expect(resolveAccessibleBarColors("#3b82f6")).toEqual({ bg: "#5391f7", ink: "#1c2230" });
   });
 
   it("falls back to the neutral colour when the hex has any unparseable channel", () => {
-    expect(ensureBarColors("#zz3456")).toEqual({ bg: "#9ca3af", ink: "#1c2230" });
+    expect(resolveAccessibleBarColors("#zz3456")).toEqual({ bg: "#9ca3af", ink: "#1c2230" });
   });
 
   it("falls back when each colour byte has a valid first nibble followed by junk", () => {
-    expect(ensureBarColors("#1z2z3z")).toEqual({ bg: "#9ca3af", ink: "#1c2230" });
+    expect(resolveAccessibleBarColors("#1z2z3z")).toEqual({ bg: "#9ca3af", ink: "#1c2230" });
   });
 
   it("zero-pads a single-hex-digit channel back to two digits", () => {
     // The adjusted red channel here rounds to 0, i.e. a single hex digit ("0")
     // that MUST be left-padded to "00" — dropping the padStart pad character
     // would shorten the whole hex string.
-    expect(ensureBarColors("#0070f8")).toEqual({ bg: "#0067e4", ink: "#ffffff" });
+    expect(resolveAccessibleBarColors("#0070f8")).toEqual({ bg: "#0067e4", ink: "#ffffff" });
   });
 
   it("passes an already-AA-compliant colour through verbatim, never entering the nudge loop", () => {
     // Pure black clears 4.5:1 against white ink on the very first contrastWithInk() check
     // (21:1), so the loop body never runs and `nudged` stays false — bg must equal the input
     // hex exactly (the caller's own string), not a toHex() round-trip of the same RGB.
-    expect(ensureBarColors("#000000")).toEqual({ bg: "#000000", ink: "#ffffff" });
+    expect(resolveAccessibleBarColors("#000000")).toEqual({ bg: "#000000", ink: "#ffffff" });
   });
 });
 

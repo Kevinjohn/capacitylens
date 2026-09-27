@@ -15,7 +15,7 @@ import {
   resolveBrowserTimeZone,
   resolveTimeZoneOptionLabel,
 } from "../../lib/timezones";
-import { validateName } from "../../lib/validation";
+import { parseName } from "../../lib/validation";
 import { useStore } from "../../store/useStore";
 import type { StoreState } from "../../store/types";
 
@@ -119,7 +119,7 @@ function createAccountSubmit(input: CreateAccountSubmitInput): () => void {
   return () => {
     if (input.submitting || input.createUnresolved) return;
     input.clear();
-    const trimmedName = validateName(input.name, input.fail);
+    const trimmedName = parseName(input.name, input.fail);
     if (!trimmedName) return;
     if (isServerConfigured()) {
       void createServerAccount({ ...input, trimmedName });

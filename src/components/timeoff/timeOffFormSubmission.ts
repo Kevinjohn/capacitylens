@@ -8,7 +8,7 @@ import { readActiveDateLocale, m } from "@/i18n";
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { buildRepeatedTimeOffDrafts } from "../../lib/repeatingTimeOff";
-import { validateText } from "../../lib/validation";
+import { parseText } from "../../lib/validation";
 import { useStore, type Draft } from "../../store/useStore";
 import type { TimeOffRepeatChoice } from "./useTimeOffRepeat";
 
@@ -33,7 +33,7 @@ export interface SaveTimeOffOptions {
   onClose: () => void;
 }
 
-function validateTimeOffDraft(options: SaveTimeOffOptions) {
+function parseTimeOffDraft(options: SaveTimeOffOptions) {
   const { resources, resourceId, startDate, endDate, type, note, canEditNote, fail } = options;
   const chosen = resources.find((resource) => resource.id === resourceId);
   if (!chosen || isExternalResource(chosen)) {
@@ -50,7 +50,7 @@ function validateTimeOffDraft(options: SaveTimeOffOptions) {
   }
   let cleanNote: string | undefined;
   if (canEditNote) {
-    const validatedNote = validateText(note, fail, { field: "note", required: false, multiline: true });
+    const validatedNote = parseText(note, fail, { field: "note", required: false, multiline: true });
     if (validatedNote === null) return null;
     cleanNote = validatedNote || undefined;
   }
@@ -125,7 +125,7 @@ function resolveRepeatFailure(startDate: ISODate, error: unknown, fail: Fail): n
 }
 
 export function saveTimeOff(options: SaveTimeOffOptions): void {
-  const draft = validateTimeOffDraft(options);
+  const draft = parseTimeOffDraft(options);
   if (!draft) return;
   const { basePatch, cleanNote } = draft;
   const patch = options.canEditNote ? { ...basePatch, note: cleanNote } : basePatch;

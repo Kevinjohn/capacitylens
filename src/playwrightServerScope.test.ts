@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "../scripts/playwrightServerScope";
+import { coreSpecPattern, parseReportPhaseName, selectsOnlyExplicitCoreSpecs } from "../scripts/playwrightServerScope";
 import { E2E_RUN_PRESETS, resolvePlaywrightRunMode } from "../scripts/playwrightRunMode.mjs";
 
 describe("Playwright server scope", () => {
@@ -28,11 +28,11 @@ describe("Playwright server scope", () => {
   });
 
   it("uses a non-empty report phase and rejects lossy or traversal-shaped aliases", () => {
-    expect(reportPhaseName(undefined)).toBe("default");
-    expect(reportPhaseName("")).toBe("default");
-    expect(reportPhaseName("chromium-server")).toBe("chromium-server");
-    expect(() => reportPhaseName("///")).toThrow(/letters, numbers, underscores and hyphens/);
-    expect(() => reportPhaseName("webkit/1")).toThrow(/letters, numbers, underscores and hyphens/);
+    expect(parseReportPhaseName(undefined)).toBe("default");
+    expect(parseReportPhaseName("")).toBe("default");
+    expect(parseReportPhaseName("chromium-server")).toBe("chromium-server");
+    expect(() => parseReportPhaseName("///")).toThrow(/letters, numbers, underscores and hyphens/);
+    expect(() => parseReportPhaseName("webkit/1")).toThrow(/letters, numbers, underscores and hyphens/);
   });
 
   it.each(["ts", "tsx", "mts", "cts"])("matches core .spec.%s files without matching server flavours", (extension) => {

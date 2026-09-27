@@ -58,7 +58,7 @@ export async function startMicrosoftConnection(input: StartInput, signal?: Abort
   return { data: { url: parseProviderUrl(response.url) } };
 }
 
-export async function getMicrosoftConnectionStatus(signal?: AbortSignal): Promise<MicrosoftConnectionStatus> {
+export async function readMicrosoftConnectionStatus(signal?: AbortSignal): Promise<MicrosoftConnectionStatus> {
   const response = await request("status", undefined, signal);
   if (!response || typeof response !== "object" || !("state" in response)) {
     throw new MicrosoftConnectionError(502);

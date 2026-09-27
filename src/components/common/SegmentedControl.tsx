@@ -95,7 +95,7 @@ const recessedSegmentClass = [
   "data-[state=on]:shadow-[0_1px_2px_rgba(20,22,26,0.10)]",
 ].join(" ");
 
-function getSegmentClass({
+function buildSegmentClass({
   size,
   density,
   geometry,
@@ -169,7 +169,7 @@ export function SegmentedControl<T extends string | number>({
           value={encodeValue(option.value)}
           title={option.title}
           data-form-dirty-managed
-          className={getSegmentClass({ size, density, geometry, fullWidth, variant })}
+          className={buildSegmentClass({ size, density, geometry, fullWidth, variant })}
         >
           {option.label}
         </ToggleGroupItem>

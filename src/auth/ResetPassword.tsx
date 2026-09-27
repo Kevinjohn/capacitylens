@@ -47,7 +47,7 @@ function useResetPasswordTitle() {
   }, []);
 }
 
-function validatePasswords(token: string | undefined, password: string, confirm: string) {
+function resolvePasswordValidationError(token: string | undefined, password: string, confirm: string) {
   if (!token) return m.reset_err_missing_token();
   const lengthFailure = passwordLengthFailure(password);
   if (lengthFailure === "too-short") return m.reset_err_short({ min: MIN_PASSWORD_LENGTH });
@@ -166,7 +166,7 @@ export function ResetPassword() {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    const validationError = validatePasswords(token, password, confirm);
+    const validationError = resolvePasswordValidationError(token, password, confirm);
     if (validationError) {
       setError(validationError);
       return;

@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { ensureBarColors } from "@capacitylens/shared/lib/color";
+import { resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
 import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 // CapacityLens colour and avatar compositions.
@@ -44,7 +44,7 @@ export const Avatar = memo(function Avatar({
         .join("")
         .toUpperCase() || "—";
   // Keep the initials legible (white-on-mid-tone often fails AA) by nudging the fill.
-  const { bg: background, ink } = ensureBarColors(color);
+  const { bg: background, ink } = resolveAccessibleBarColors(color);
   return (
     <ShadAvatar
       aria-hidden

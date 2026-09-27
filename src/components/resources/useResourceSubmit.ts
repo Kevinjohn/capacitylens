@@ -4,7 +4,7 @@ import { BatchReconciliationError, BatchValidationError } from "../../data/sync/
 import { resolveErrorMessage } from "../../lib/errorMessage";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { DEFAULT_COLORS } from "../../lib/palette";
-import { validateText, validateWorkingDays } from "../../lib/validation";
+import { parseText, validateWorkingDays } from "../../lib/validation";
 import type { StoreState } from "../../store/types";
 import { m } from "@/i18n";
 import {
@@ -66,13 +66,13 @@ function parseFormFields(input: {
   fail: Fail;
 }): ValidatedFields | null {
   const { name: rawName, role: rawRole, projectId, workingDays, isPlaceholder, fail } = input;
-  const name = validateText(rawName, fail, {
+  const name = parseText(rawName, fail, {
     field: "name",
     required: !isPlaceholder,
     requiredMessage: m.form_resource_err_name_required(),
   });
   if (name === null) return null;
-  const role = validateText(rawRole, fail, { field: "role", required: false });
+  const role = parseText(rawRole, fail, { field: "role", required: false });
   if (role === null) return null;
   if (isPlaceholder && !projectId) {
     fail("projectId", m.form_resource_err_placeholder_project());

@@ -1,10 +1,10 @@
 // APP-SIDE design-token guard. The colour MATH (resolveBarColor / readableTextColor /
-// contrastRatio / ensureBarColors) is canonical in shared and unit-tested there
+// contrastRatio / resolveAccessibleBarColors) is canonical in shared and unit-tested there
 // (shared/src/lib/color.test.ts) — this file does not re-test it. What lives here is the app's own
 // presentation layer: the `--c-*` tokens in src/index.css and the DEFAULT_COLORS palette, measured
 // through the shared `contrastRatio` so a token edit that drops below WCAG AA fails the gate.
 import { describe, it, expect } from "vitest";
-import { contrastRatio, ensureBarColors } from "@capacitylens/shared/lib/color";
+import { contrastRatio, resolveAccessibleBarColors } from "@capacitylens/shared/lib/color";
 import { DEFAULT_COLORS, SWATCHES } from "./palette";
 import indexCss from "../index.css?raw";
 
@@ -135,10 +135,10 @@ describe("chrome depth tokens", () => {
 
 describe("DEFAULT_COLORS bar legibility (WCAG 1.4.3 AA)", () => {
   it("guarantees the label clears 4.5:1 for every default colour", () => {
-    // An app-palette invariant, not a re-test of ensureBarColors: retuning a DEFAULT_COLORS entry
+    // An app-palette invariant, not a re-test of resolveAccessibleBarColors: retuning a DEFAULT_COLORS entry
     // must not produce a bar whose label the nudge loop cannot rescue to AA.
     for (const hex of Object.values(DEFAULT_COLORS)) {
-      const { bg, ink } = ensureBarColors(hex);
+      const { bg, ink } = resolveAccessibleBarColors(hex);
       expect(contrastRatio(bg, ink)).toBeGreaterThanOrEqual(4.5);
     }
   });

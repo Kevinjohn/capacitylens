@@ -104,7 +104,7 @@ function inspectSsoCutover(context: InspectionContext, providerId: string): SsoC
   };
 }
 
-async function getPrincipalSummaries(
+async function listPrincipalSummaries(
   context: InspectionContext,
   principalIds: readonly string[],
 ): Promise<readonly PrincipalSummary[]> {
@@ -137,7 +137,7 @@ export function createInspection(
       return inspectSsoCutover(context, providerId);
     },
     getPrincipalSummaries({ principalIds }) {
-      return getPrincipalSummaries(context, principalIds);
+      return listPrincipalSummaries(context, principalIds);
     },
   };
 }

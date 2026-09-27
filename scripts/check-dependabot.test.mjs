@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { parseDocument } from "yaml";
 import { gateCommands } from "./gateCommands.mjs";
-import { validateDependabot } from "./check-dependabot.mjs";
+import { verifyDependabotConfiguration } from "./check-dependabot.mjs";
 
 const entry = (changes = {}) => ({
   "package-ecosystem": "npm",
@@ -18,42 +18,54 @@ const entry = (changes = {}) => ({
 const config = (updates = [entry()]) => ({ version: 2, updates });
 
 test("accepts the checked-in YAML and the existing three schedule choices", () => {
-  assert.equal(validateDependabot(readFileSync(new URL("../.github/dependabot.yml", import.meta.url), "utf8")), 3);
+  assert.equal(
+    verifyDependabotConfiguration(readFileSync(new URL("../.github/dependabot.yml", import.meta.url), "utf8")),
+    3,
+  );
   for (const interval of ["daily", "weekly", "monthly"]) {
-    assert.equal(validateDependabot(JSON.stringify(config([entry({ schedule: { interval } })]))), 1);
+    assert.equal(verifyDependabotConfiguration(JSON.stringify(config([entry({ schedule: { interval } })]))), 1);
   }
-  assert.equal(validateDependabot(JSON.stringify(config([entry(), entry({ "package-ecosystem": "docker" })]))), 2);
-  assert.equal(validateDependabot(JSON.stringify(config([entry({ directory: "", "package-ecosystem": "" })]))), 1);
+  assert.equal(
+    verifyDependabotConfiguration(JSON.stringify(config([entry(), entry({ "package-ecosystem": "docker" })]))),
+    2,
+  );
+  assert.equal(
+    verifyDependabotConfiguration(JSON.stringify(config([entry({ directory: "", "package-ecosystem": "" })]))),
+    1,
+  );
 });
 
 test("rejects invalid version, updates, entry fields and schedules with a useful diagnostic", () => {
   for (const value of [null, [], {}, { version: "2" }, { version: 1 }]) {
-    assert.throws(() => validateDependabot(JSON.stringify(value)), /version must be 2/);
+    assert.throws(() => verifyDependabotConfiguration(JSON.stringify(value)), /version must be 2/);
   }
   for (const updates of [undefined, null, {}, "updates", []]) {
-    assert.throws(() => validateDependabot(JSON.stringify({ version: 2, updates })), /non-empty list/);
+    assert.throws(() => verifyDependabotConfiguration(JSON.stringify({ version: 2, updates })), /non-empty list/);
   }
   for (const value of [undefined, null, 1, true, [], {}]) {
     assert.throws(
-      () => validateDependabot(JSON.stringify(config([entry({ "package-ecosystem": value })]))),
+      () => verifyDependabotConfiguration(JSON.stringify(config([entry({ "package-ecosystem": value })]))),
       /package-ecosystem/,
     );
-    assert.throws(() => validateDependabot(JSON.stringify(config([entry({ directory: value })]))), /directory/);
+    assert.throws(
+      () => verifyDependabotConfiguration(JSON.stringify(config([entry({ directory: value })]))),
+      /directory/,
+    );
   }
   for (const schedule of [undefined, null, [], {}, 1, "monthly", { interval: "yearly" }, { interval: true }]) {
-    assert.throws(() => validateDependabot(JSON.stringify(config([entry({ schedule })]))), /schedule/);
+    assert.throws(() => verifyDependabotConfiguration(JSON.stringify(config([entry({ schedule })]))), /schedule/);
   }
   for (const invalid of [null, [], "entry", 1]) {
-    assert.throws(() => validateDependabot(JSON.stringify(config([entry(), invalid]))), /package-ecosystem/);
+    assert.throws(() => verifyDependabotConfiguration(JSON.stringify(config([entry(), invalid]))), /package-ecosystem/);
   }
 });
 
 test("retains YAML 1.1 scalar types and rejects aliases, unsafe tags and timestamps", () => {
   const valid =
     "version: 2\nupdates:\n  - package-ecosystem: npm\n    directory: /\n    schedule: {interval: monthly}\n";
-  assert.equal(validateDependabot(valid), 1);
+  assert.equal(verifyDependabotConfiguration(valid), 1);
   for (const value of ["yes", "off", "2026-09-05"]) {
-    assert.throws(() => validateDependabot(valid.replace("directory: /", `directory: ${value}`)));
+    assert.throws(() => verifyDependabotConfiguration(valid.replace("directory: /", `directory: ${value}`)));
   }
   for (const addition of [
     "extra: !unknown value\n",
@@ -61,9 +73,9 @@ test("retains YAML 1.1 scalar types and rejects aliases, unsafe tags and timesta
     "extra: 2026-09-05\n",
     "extra: &value hello\nother: *value\n",
   ]) {
-    assert.throws(() => validateDependabot(valid + addition));
+    assert.throws(() => verifyDependabotConfiguration(valid + addition));
   }
-  assert.equal(validateDependabot(valid + "extra: &unused hello\n"), 1);
+  assert.equal(verifyDependabotConfiguration(valid + "extra: &unused hello\n"), 1);
 });
 
 test("fails closed on syntax errors, duplicate keys and multiple YAML documents", () => {
@@ -72,7 +84,7 @@ test("fails closed on syntax errors, duplicate keys and multiple YAML documents"
     `version: 1\nversion: 2\nupdates: ${JSON.stringify([entry()])}`,
     `${JSON.stringify(config())}\n---\nversion: 1`,
   ]) {
-    assert.throws(() => validateDependabot(source));
+    assert.throws(() => verifyDependabotConfiguration(source));
   }
 });
 

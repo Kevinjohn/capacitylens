@@ -61,7 +61,7 @@ describe("browser account client", () => {
   });
 
   it("selects the same named provider for status and fresh linking", async () => {
-    await accountClient.getIdentityProvider("microsoft");
+    await accountClient.readIdentityProvider("microsoft");
     expect(mocks.apiFetch).toHaveBeenCalledWith("https://app.example/api/identity/provider?providerId=microsoft", {
       credentials: "include",
     });

@@ -10,7 +10,7 @@ import { m } from "@/i18n";
 import { readAccountFailure, resolveMessageForStatus } from "./inviteResponses";
 import { authClient } from "../../auth/authClient";
 import { reloadPage } from "../../lib/reloadPage";
-import { validateText } from "../../lib/validation";
+import { parseText } from "../../lib/validation";
 import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/account/validation";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import { isAccountRole } from "@capacitylens/shared/account/types";
@@ -53,11 +53,11 @@ function readSignupAccountId(signupBody: unknown): string | null {
   return signupBody.accountId;
 }
 
-function validateSignupCredentials(
+function parseSignupCredentials(
   { name, email, password }: Pick<Dependencies, "name" | "email" | "password">,
   report: (errorField: string | null, message: string) => void,
 ): SignupCredentials | null {
-  const cleanName = validateText(name, report, {
+  const cleanName = parseText(name, report, {
     field: "name",
     requiredMessage: m.identity_err_name(),
   });
@@ -144,7 +144,7 @@ export function createInviteSignupActions({
     const report = (errorField: string | null, message: string) => {
       setState({ kind: "auth", message, errorField });
     };
-    const credentials = validateSignupCredentials({ name, email, password }, report);
+    const credentials = parseSignupCredentials({ name, email, password }, report);
     if (credentials === null) {
       signupInFlight.current = false;
       return;

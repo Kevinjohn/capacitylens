@@ -5,7 +5,7 @@ import { isExternalResource } from "@capacitylens/shared/types/entities";
 import { useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import { resolveResourceDisplayName } from "../../lib/metadata";
-import { validateText } from "../../lib/validation";
+import { parseText } from "../../lib/validation";
 import type { useStore } from "../../store/useStore";
 import type { Option } from "../common/ui";
 import {
@@ -213,7 +213,7 @@ function useAddInlineActivity({
 }) {
   return () => {
     if (!canEdit) return;
-    const cleanActivityName = validateText(newActivityName, fail, {
+    const cleanActivityName = parseText(newActivityName, fail, {
       field: "newactivity",
       requiredMessage: m.form_allocation_err_new_activity_name(),
     });

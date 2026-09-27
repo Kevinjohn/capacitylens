@@ -3,6 +3,7 @@ import { migrate } from "./migrate";
 import { seed } from "./seed";
 import { serializeData, parseData } from "./transfer";
 import {
+  applyInternalClientRepairs,
   ensureInternalClients,
   internalClientFor,
   buildInternalClient,
@@ -31,7 +32,7 @@ function registerSeedTests(): void {
     }
   });
 
-  it("ensureInternalClients adds one Internal per account that lacks one, and is idempotent", () => {
+  it("applyInternalClientRepairs adds one Internal per account that lacks one, and is idempotent", () => {
     const base = {
       ...emptyAppData(),
       accounts: [
@@ -39,12 +40,12 @@ function registerSeedTests(): void {
         { id: "a2", createdAt: TS, updatedAt: TS, name: "A2", color: "#222222" },
       ],
     };
-    const once = ensureInternalClients(base, TS);
+    const once = applyInternalClientRepairs(base, TS);
     expect(once.clients.filter((c) => c.builtin)).toHaveLength(2);
     expect(internalClientFor(once.clients, "a1")).toBeDefined();
     expect(internalClientFor(once.clients, "a2")).toBeDefined();
     // Run again — no duplicate, and (no change) returns the SAME reference.
-    const twice = ensureInternalClients(once, TS);
+    const twice = applyInternalClientRepairs(once, TS);
     expect(twice).toBe(once);
     expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2);
   });
@@ -58,7 +59,7 @@ function registerCorruptInputTests(): void {
       accounts: [account, { ...account, name: "Duplicate A1" }],
     };
 
-    const once = ensureInternalClients(base, TS);
+    const once = applyInternalClientRepairs(base, TS);
     expect(once.clients.filter((client) => client.builtin && client.accountId === "a1")).toHaveLength(1);
     expect(once.clients[0]?.id).toBe("internal:a1");
     expect(ensureInternalClients(once, TS)).toBe(once);
@@ -79,13 +80,13 @@ function registerCorruptInputTests(): void {
       clients: [ordinary, { ...ordinary, id: "internal:a1:1", name: "Also ordinary" }],
     };
 
-    const repaired = ensureInternalClients(data, TS);
+    const repaired = applyInternalClientRepairs(data, TS);
 
     expect(repaired.clients).toHaveLength(3);
     expect(new Set(repaired.clients.map(({ id }) => id)).size).toBe(3);
     expect(internalClientFor(repaired.clients, "a1")?.id).toBe("internal:a1:2");
     expect(repaired.clients).toContain(ordinary);
-    expect(ensureInternalClients(repaired, TS)).toBe(repaired);
+    expect(applyInternalClientRepairs(repaired, TS)).toBe(repaired);
   });
 }
 
@@ -113,12 +114,12 @@ function registerDuplicateBuiltinTests(): void {
       ],
     };
 
-    const repaired = ensureInternalClients(data, TS);
+    const repaired = applyInternalClientRepairs(data, TS);
 
     expect(repaired.clients.filter((client) => client.builtin)).toEqual([generated]);
     expect(repaired.projects[0]?.clientId).toBe(generated.id);
     expect(repaired.projects[0]?.updatedAt).toBe("2026-01-01T00:00:00.001Z");
-    expect(ensureInternalClients(repaired, TS)).toBe(repaired);
+    expect(applyInternalClientRepairs(repaired, TS)).toBe(repaired);
   });
 }
 
@@ -143,11 +144,11 @@ function registerSameIdDuplicateTests(): void {
       ],
     };
 
-    const repaired = ensureInternalClients(data, TS);
+    const repaired = applyInternalClientRepairs(data, TS);
 
     expect(repaired.clients).toEqual([retained]);
     expect(repaired.projects).toBe(data.projects);
-    expect(ensureInternalClients(repaired, TS)).toBe(repaired);
+    expect(applyInternalClientRepairs(repaired, TS)).toBe(repaired);
   });
 }
 
@@ -166,7 +167,7 @@ function registerRepairRevisionTests(): void {
     };
     const untouched = { ...rewired, id: "p2", clientId: generated.id, name: "Untouched" };
 
-    const repaired = ensureInternalClients(
+    const repaired = applyInternalClientRepairs(
       {
         ...emptyAppData(),
         accounts: [{ id: "a1", createdAt: TS, updatedAt: TS, name: "A1", color: "#111111" }],
@@ -199,7 +200,7 @@ function registerRepairRevisionTests(): void {
         } as Client,
       ],
     };
-    const internal = requiredInternalClient(ensureInternalClients(data, NOW).clients, "a1");
+    const internal = requiredInternalClient(applyInternalClientRepairs(data, NOW).clients, "a1");
     expect(internal.name).toBe(INTERNAL_CLIENT_NAME);
     expect(internal.updatedAt).toBe(NOW);
   });
@@ -217,7 +218,7 @@ function registerReactivationTests(): void {
       clients: [internal],
     };
 
-    const repaired = ensureInternalClients(data, TS);
+    const repaired = applyInternalClientRepairs(data, TS);
     const retained = requiredInternalClient(repaired.clients, "a1");
 
     expect(repaired).not.toBe(data);
@@ -244,7 +245,7 @@ function registerReactivationTests(): void {
           } as Client,
         ],
       };
-      return requiredInternalClient(ensureInternalClients(data, now).clients, "a1").updatedAt;
+      return requiredInternalClient(applyInternalClientRepairs(data, now).clients, "a1").updatedAt;
     };
 
     expect(repair(TS, TS)).toBe("2026-01-01T00:00:00.001Z");
@@ -267,7 +268,7 @@ function registerRepairBoundaryTests(): void {
       ],
     };
 
-    expect(() => ensureInternalClients(data, TS)).toThrow(
+    expect(() => applyInternalClientRepairs(data, TS)).toThrow(
       new RangeError("Internal-client repair cannot advance beyond the supported four-digit ISO timestamp range."),
     );
     expect(data.clients[0]).toMatchObject({ name: "Damaged", updatedAt: maximum });
@@ -285,7 +286,7 @@ function registerRepairBoundaryTests(): void {
       ],
       clients: [buildInternalClient("a1", TS)],
     };
-    const repaired = ensureInternalClients(data, NOW);
+    const repaired = applyInternalClientRepairs(data, NOW);
     expect(internalClientFor(repaired.clients, "a2")).toBeDefined(); // the function DID run
     expect(requiredInternalClient(repaired.clients, "a1").updatedAt).toBe(TS); // canonical row NOT restamped
   });

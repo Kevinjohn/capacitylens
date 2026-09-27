@@ -1,4 +1,4 @@
-import { getIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
+import { readIdentityProvider, linkIdentityProvider } from "./identityProviderClient";
 import { joiningPolicyClient } from "./joiningPolicyClient";
 import { apiFetchReauth } from "../auth/apiFetchReauth";
 import { API_BASE } from "../data/apiConfig";
@@ -77,7 +77,7 @@ export const accountClient = {
     });
   },
 
-  getIdentityProvider,
+  readIdentityProvider,
   linkIdentityProvider,
 
   correctMemberEmail(workspaceId: string, principalId: string, email: string): Promise<Response> {

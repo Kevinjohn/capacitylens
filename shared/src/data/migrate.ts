@@ -1,5 +1,5 @@
 import { emptyAppData, EXPORT_SCHEMA_VERSION } from "../types/entities";
-import { ensureInternalClients } from "./internalClient";
+import { applyInternalClientRepairs } from "./internalClient";
 import type { AppData } from "../types/entities";
 import { importCandidate, normalize, parseSchemaVersion, UnsupportedSchemaVersionError } from "./migrate/detect";
 import { migrateV1toV2, migrateV3toV4, migrateV4toV5, migrateV5toV6 } from "./migrate/steps/v1-v6";
@@ -134,7 +134,7 @@ export function migrateWithRepairBase(raw: unknown): MigrationWithRepairBase {
   runSteps(POST_REPAIR_BASE_STEPS);
 
   return {
-    data: ensureInternalClients(normalize(data), "2026-01-01T00:00:00.000Z"),
+    data: applyInternalClientRepairs(normalize(data), "2026-01-01T00:00:00.000Z"),
     repairBase,
   };
 }
