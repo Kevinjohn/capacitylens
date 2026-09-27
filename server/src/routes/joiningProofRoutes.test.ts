@@ -3,7 +3,7 @@ import { createAuthFromEnvironment, runAuthMigrations } from "../auth";
 import { createApp } from "../app";
 import { writeJoiningPolicy } from "../controlTables/joiningPolicies";
 import { insertRow, openDb } from "../db";
-import { PASSWORD_ENV, registerServerFixtureCleanup } from "../testHelpers";
+import { PASSWORD_ENV, registerServerFixtureCleanup, signUp } from "../testHelpers";
 
 const { trackApp, trackDb } = registerServerFixtureCleanup();
 
@@ -32,6 +32,7 @@ function cookies(response: { headers: { "set-cookie"?: string | string[] | undef
   return values.map((value) => value.split(";", 1)[0]).join("; ");
 }
 
+// eslint-disable-next-line max-lines-per-function -- These cases share one mailbox-route fixture and exercise distinct proof boundaries.
 describe("company joining mailbox routes", () => {
   it("keeps the legacy invite signup from creating credentials before company-bound proof", async () => {
     const { app, db } = await fixture(async () => {});
@@ -69,6 +70,30 @@ describe("company joining mailbox routes", () => {
     expect((await app.inject({ method: "POST", url: "/api/company-join/complete-password",
       headers: { cookie }, payload: { displayName: "Diana Prince", password: "correct-horse-battery-staple" } })).statusCode)
       .toBe(410);
+  });
+
+  it("keeps development signup outside companies and requires proof plus the same principal before joining", async () => {
+    const deliveries: string[] = [];
+    const { app, db } = await fixture(async (_email, token) => { deliveries.push(token); });
+    const diana = await signUp(app, "diana@studio.example");
+    const barbara = await signUp(app, "barbara@studio.example");
+    expect(db.prepare("SELECT COUNT(*) AS count FROM account_members").get()).toEqual({ count: 0 });
+    const started = await app.inject({ method: "POST", url: "/api/accounts/a-studio/join/start",
+      payload: { purpose: "policy", email: "diana@studio.example" } });
+    const joinCookie = cookies(started);
+    expect(started.statusCode).toBe(200);
+    expect((await app.inject({ method: "POST", url: "/api/company-join/confirm",
+      headers: { cookie: joinCookie }, payload: { token: deliveries[0] } })).statusCode).toBe(200);
+    const mismatch = await app.inject({ method: "POST", url: "/api/company-join/complete-existing",
+      headers: { cookie: `${joinCookie}; ${barbara.cookie}` }, payload: {} });
+    expect(mismatch.statusCode).toBe(401);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM account_members").get()).toEqual({ count: 0 });
+    const completed = await app.inject({ method: "POST", url: "/api/company-join/complete-existing",
+      headers: { cookie: `${joinCookie}; ${diana.cookie}` }, payload: {} });
+    expect(completed.statusCode).toBe(200);
+    expect(db.prepare("SELECT userId, role FROM account_members").get()).toEqual({ userId: diana.userId, role: "viewer" });
+    expect(db.prepare("SELECT principalId, email, source FROM identity_email_proofs WHERE principalId = ?")
+      .get(diana.userId)).toEqual({ principalId: diana.userId, email: "diana@studio.example", source: "password" });
   });
 
   it("keeps the intent retryable after mail failure and rejects a replaced token", async () => {
