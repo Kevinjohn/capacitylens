@@ -3,12 +3,11 @@ import { isAccountEmail } from "@capacitylens/shared/account/validation";
 import { parseApprovedDomain } from "@capacitylens/shared/account/approvedDomains";
 import { companyJoinClient } from "../../account/companyJoinClient";
 import { authClient } from "../../auth/authClient";
-import { useAuth } from "../../auth/authContext";
+import { useAuth, type AuthProviderInfo } from "../../auth/authContext";
 import { isServerConfigured } from "../../data/apiConfig";
 import { readApiError } from "../../lib/readApiError";
 import { replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
 import { m } from "@/i18n";
-import type { AuthProviderInfo } from "../../auth/authContext";
 import { runExternalSignIn } from "../invites/externalSignIn";
 
 type Stage = "loading" | "entry" | "pending" | "approved" | "second-factor" | "joined" | "error" | "local";
@@ -35,7 +34,7 @@ function readMetadata(value: unknown): Metadata | null {
   };
 }
 
-// eslint-disable-next-line complexity -- The response fields are independent optional values from either proof endpoint.
+// eslint-disable-next-line complexity -- Provider status has independent optional fields from two endpoints.
 function readStatus(value: unknown): {
   state: "expired" | "pending" | "approved";
   accountId?: string;
@@ -63,7 +62,7 @@ async function responseError(response: Response): Promise<string> {
   return (await readApiError(response)) ?? m.joining_failed();
 }
 
-// eslint-disable-next-line max-lines-per-function -- One account-keyed browser journey owns the proof, retry and completion state.
+// eslint-disable-next-line max-lines-per-function -- The account-keyed journey coordinates provider, password MFA and completion state.
 export function useCompanyJoin(accountId: string | undefined, invitationToken: string | null) {
   const { user, refreshAuth, providers = [], authMode } = useAuth();
   const [stage, setStage] = useState<Stage>(isServerConfigured() ? "loading" : "local");
@@ -71,8 +70,6 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   const [email, setEmail] = useState("");
   const [emailHint, setEmailHint] = useState("");
   const [providerId, setProviderId] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState("");
-  const [password, setPassword] = useState("");
   const [existingPassword, setExistingPassword] = useState("");
   const [secondFactorCode, setSecondFactorCode] = useState("");
   const [useRecoveryCode, setUseRecoveryCode] = useState(false);
@@ -84,9 +81,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   useEffect(() => {
     if (!accountId || !isServerConfigured()) return;
     const request = { active: true };
-    const isCurrent = () => request.active;
-    const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
-    // eslint-disable-next-line complexity -- The load reconciles both proof endpoints before rendering one journey.
+    // eslint-disable-next-line complexity -- Reconcile the two provider proof states with the current account and purpose.
     void (async () => {
       try {
         const [metadataResponse, statusResponse, microsoftResponse] = await Promise.all([
@@ -94,45 +89,34 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
           companyJoinClient.status(),
           hasMicrosoft ? companyJoinClient.microsoftStatus() : Promise.resolve(Response.json({ state: "expired" })),
         ]);
-        if (!isCurrent()) return;
-        if (!metadataResponse.ok || !statusResponse.ok || !microsoftResponse.ok) throw new Error(m.joining_failed());
+        if (!request.active) return;
+        if (!metadataResponse.ok || !statusResponse.ok || !microsoftResponse.ok) throw new Error();
         const decodedMetadata = readMetadata(await metadataResponse.json());
         const localStatus = readStatus(await statusResponse.json());
         const microsoftStatus = readStatus(await microsoftResponse.json());
+        if (!decodedMetadata || !localStatus || !microsoftStatus) throw new Error();
+        setMetadata(decodedMetadata);
+        if (new URLSearchParams(window.location.search).has("externalSignInError"))
+          setError(m.joining_provider_failed());
+        const purpose = invitationToken ? "invitation" : "policy";
         const microsoftMatches =
-          microsoftStatus?.accountId === accountId &&
-          microsoftStatus.purpose === (invitationToken ? "invitation" : "policy") &&
+          microsoftStatus.accountId === accountId &&
+          microsoftStatus.purpose === purpose &&
           microsoftStatus.state !== "expired";
         const status = microsoftMatches ? microsoftStatus : localStatus;
-        if (!decodedMetadata || !status) throw new Error(m.joining_failed());
-        if (!isCurrent()) return;
-        setMetadata(decodedMetadata);
-        const externalError = new URLSearchParams(window.location.search).get("externalSignInError");
-        if (externalError) setError(m.joining_provider_failed());
-        const matches =
-          status.accountId === accountId && status.purpose === (invitationToken ? "invitation" : "policy");
-        if (!matches || status.state === "expired") {
-          if (token)
-            window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
-          return setStage("entry");
+        if (status.accountId !== accountId || status.purpose !== purpose || status.state === "expired") {
+          setStage("entry");
+          return;
         }
         setEmailHint(status.emailHint ?? "");
         if (status.email) setEmail(status.email);
         setProviderId(status.providerId ?? null);
-        if (token && (!status.providerId || status.providerId === "password")) {
-          window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
-          const confirmed = await companyJoinClient.confirm(token);
-          if (!isCurrent()) return;
-          if (!confirmed.ok) setError(await responseError(confirmed));
-          else return setStage("approved");
-        }
         if (status.state === "approved") setStage("approved");
-        else if (status.providerId && status.providerId !== "password" && status.providerId !== "microsoft")
-          setStage("entry");
-        else setStage("pending");
+        else if (status.providerId === "microsoft") setStage("pending");
+        else setStage("entry");
         if (status.deliveryUnavailable) setError(m.joining_mail_failed());
       } catch {
-        if (isCurrent()) {
+        if (request.active) {
           setError(m.joining_failed());
           setStage("error");
         }
@@ -143,38 +127,8 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     };
   }, [accountId, invitationToken, hasMicrosoft]);
 
-  // eslint-disable-next-line complexity -- This action distinguishes validation, delivery, and cancellation failures.
-  const start = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!accountId || busy) return;
-    if (!isAccountEmail(email) || parseApprovedDomain(email.slice(email.lastIndexOf("@") + 1)) === null) {
-      return setError(m.identity_err_email());
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      if (hasMicrosoft) {
-        const cancelled = await companyJoinClient.microsoftCancel();
-        if (!cancelled.ok) throw new Error(await responseError(cancelled));
-      }
-      const response = await companyJoinClient.start({ accountId, email, invitationToken });
-      if (!response.ok) throw new Error(await responseError(response));
-      const result: unknown = await response.json();
-      if (!result || typeof result !== "object") throw new Error(m.joining_failed());
-      const body = result as Record<string, unknown>;
-      setEmailHint(typeof body.emailHint === "string" ? body.emailHint : "");
-      setProviderId("password");
-      setStage("pending");
-      if (body.deliveryUnavailable === true) setError(m.joining_mail_failed());
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : m.joining_failed());
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const startProvider = async (provider: AuthProviderInfo) => {
-    const providerId = provider.id;
+    const selectedProviderId = provider.id;
     if (!accountId || busy) return;
     if (!isAccountEmail(email) || parseApprovedDomain(email.slice(email.lastIndexOf("@") + 1)) === null) {
       setError(m.identity_err_email());
@@ -185,19 +139,21 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     await runExternalSignIn({
       start: async (signal) => {
         let cancelled: Response | null = null;
-        if (providerId === "microsoft") cancelled = await companyJoinClient.cancel();
+        if (selectedProviderId === "microsoft") cancelled = await companyJoinClient.cancel();
         else if (hasMicrosoft) cancelled = await companyJoinClient.microsoftCancel();
         if (cancelled && !cancelled.ok) return { error: { message: await responseError(cancelled) } };
         const response =
-          providerId === "microsoft"
+          selectedProviderId === "microsoft"
             ? await companyJoinClient.startMicrosoft({ accountId, email, invitationToken }, signal)
-            : await companyJoinClient.startProvider({ accountId, email, invitationToken, providerId }, signal);
+            : await companyJoinClient.startProvider(
+                { accountId, email, invitationToken, providerId: selectedProviderId },
+                signal,
+              );
         if (!response.ok) return { error: { message: await responseError(response) } };
         const body: unknown = await response.json();
-        if (!body || typeof body !== "object" || !("url" in body) || typeof body.url !== "string") {
+        if (!body || typeof body !== "object" || !("url" in body) || typeof body.url !== "string")
           return { error: { message: m.joining_failed() } };
-        }
-        setProviderId(providerId);
+        setProviderId(selectedProviderId);
         return { data: { url: body.url } };
       },
       onFailure: (message) => {
@@ -216,13 +172,11 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   };
 
   const resend = async () => {
-    if (busy) return;
+    if (busy || providerId !== "microsoft") return;
     setBusy(true);
     setError(null);
     try {
-      const response = await (providerId === "microsoft"
-        ? companyJoinClient.microsoftResend()
-        : companyJoinClient.resend(invitationToken));
+      const response = await companyJoinClient.microsoftResend();
       if (!response.ok) throw new Error(await responseError(response));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : m.joining_failed());
@@ -235,7 +189,10 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     setBusy(true);
     setError(null);
     try {
-      const responses = await Promise.all([companyJoinClient.cancel(), ...(hasMicrosoft ? [companyJoinClient.microsoftCancel()] : [])]);
+      const responses = await Promise.all([
+        companyJoinClient.cancel(),
+        ...(hasMicrosoft ? [companyJoinClient.microsoftCancel()] : []),
+      ]);
       const failed = responses.find((response) => !response.ok);
       if (failed) throw new Error(await responseError(failed));
       setStage("entry");
@@ -254,27 +211,16 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     replaceWithJoinedAccount(accountId);
   };
 
-  const createAccount = async (event: FormEvent) => {
-    event.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const response = await companyJoinClient.completeNew({ displayName, password, invitationToken });
-      if (!response.ok) throw new Error(await responseError(response));
-      const signIn = await authClient.signIn.email({ email, password });
-      if (signIn.error) throw new Error(signIn.error.message ?? m.login_failed());
-      await finish(response);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : m.joining_failed());
-    } finally {
-      setBusy(false);
-    }
+  const completeExisting = async () => {
+    if (!accountId) return;
+    const response = await companyJoinClient.completeExisting(accountId);
+    if (response.status === 401) throw new Error(m.joining_trusted_proof_required());
+    await finish(response);
   };
 
   const signInAndJoin = async (event: FormEvent) => {
     event.preventDefault();
-    if (busy) return;
+    if (busy || invitationToken) return;
     setBusy(true);
     setError(null);
     try {
@@ -286,7 +232,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
           return;
         }
       }
-      await finish(await companyJoinClient.completeExisting(invitationToken));
+      await completeExisting();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : m.joining_failed());
     } finally {
@@ -307,7 +253,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
         if (result.error) throw new Error(result.error.message ?? m.login_failed());
         setSecondFactorVerified(true);
       }
-      await finish(await companyJoinClient.completeExisting(invitationToken));
+      await completeExisting();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : m.login_network_error());
     } finally {
@@ -335,7 +281,6 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   const eligibleProviders = metadata?.providerAvailable
     ? providers.filter((provider) => authMode !== "sso-only" || (provider.id !== "github" && !provider.experimental))
     : [];
-
   return {
     stage,
     metadata,
@@ -343,8 +288,6 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     emailHint,
     providerId,
     eligibleProviders,
-    displayName,
-    password,
     existingPassword,
     secondFactorCode,
     secondFactorVerified,
@@ -353,16 +296,12 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     busy,
     user,
     setEmail,
-    setDisplayName,
-    setPassword,
     setExistingPassword,
     setSecondFactorCode,
     setUseRecoveryCode,
-    start,
     startProvider,
     resend,
     restart,
-    createAccount,
     signInAndJoin,
     verifySecondFactor,
     completeProvider,

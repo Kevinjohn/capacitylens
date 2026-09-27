@@ -1,9 +1,7 @@
 import { expect, request as playwrightRequest, type APIRequestContext } from "@playwright/test";
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ports } from "../scripts/ports.mjs";
-import { readJoiningLinkFromMail } from "./joiningMail";
 
 // Shared plumbing for the auth-backed Playwright specs (*.auth.spec.ts), which all run against the
 // auth-e2e server (SMALLSASS_ACCOUNT_MODE=password on the lane auth API — see playwright.config.ts). Extracted here so
@@ -56,7 +54,7 @@ async function postSignUp(ctx: APIRequestContext, email: string): Promise<string
   return cookiesOf(res.headers()["set-cookie"] ?? "");
 }
 
-/** Seed only disposable auth-E2E role/access fixtures. Real invitation tests use the mailbox journey. */
+/** Seed only disposable auth-E2E role/access fixtures. Real invitation tests use the addressed invite path. */
 export function seedFixtureMember(accountId: string, email: string, role: "admin" | "editor" | "viewer"): void {
   const path = fileURLToPath(new URL("../server/.auth-e2e.db", import.meta.url));
   const db = new DatabaseSync(path);
@@ -72,23 +70,6 @@ export function seedFixtureMember(accountId: string, email: string, role: "admin
   } finally {
     db.close();
   }
-}
-
-/** Read only the local auth-E2E SMTP inbox; callers still complete the real browser proof flow. */
-export async function waitForJoiningMail(email: string, accountId: string): Promise<URL> {
-  const path = fileURLToPath(new URL("../server/.auth-e2e-mailbox.jsonl", import.meta.url));
-  const findLink = () => {
-    const records = readFileSync(path, "utf8").trim().split("\n").filter(Boolean);
-    for (const record of records.reverse()) {
-      const mail = JSON.parse(record) as { to: string; body: string };
-      if (mail.to !== email.toLowerCase()) continue;
-      const link = readJoiningLinkFromMail(mail.body, accountId);
-      if (link) return link.href;
-    }
-    return null;
-  };
-  await expect.poll(findLink, { timeout: 10_000 }).not.toBeNull();
-  return new URL(findLink() as string);
 }
 
 /**

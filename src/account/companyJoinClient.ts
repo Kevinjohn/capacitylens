@@ -14,12 +14,6 @@ export const companyJoinClient = {
   metadata: (accountId: string) =>
     apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/join/metadata`, { credentials: "include" }),
   status: () => apiFetch(`${API_BASE}/api/company-join/status`, { credentials: "include" }),
-  start: (input: { accountId: string; email: string; invitationToken: string | null }) =>
-    post(`/api/accounts/${encodeURIComponent(input.accountId)}/join/start`, {
-      purpose: input.invitationToken ? "invitation" : "policy",
-      email: input.email,
-      ...(input.invitationToken ? { invitationToken: input.invitationToken } : {}),
-    }),
   startProvider: (
     input: { accountId: string; email: string; invitationToken: string | null; providerId: "google" | "github" },
     signal?: AbortSignal,
@@ -58,18 +52,9 @@ export const companyJoinClient = {
   },
   microsoftResend: () => post("/api/account/microsoft/resend"),
   microsoftCancel: () => post("/api/account/microsoft/cancel"),
-  resend: (invitationToken: string | null) =>
-    post("/api/company-join/resend", invitationToken ? { invitationToken } : {}),
-  confirm: (token: string) => post("/api/company-join/confirm", { token }),
   cancel: () => post("/api/company-join/cancel"),
-  completeNew: (input: { displayName: string; password: string; invitationToken: string | null }) =>
-    post("/api/company-join/complete-password", {
-      displayName: input.displayName,
-      password: input.password,
-      ...(input.invitationToken ? { invitationToken: input.invitationToken } : {}),
-    }),
-  completeExisting: (invitationToken: string | null) =>
-    post("/api/company-join/complete-existing", invitationToken ? { invitationToken } : {}),
+  completeExisting: (accountId: string) =>
+    post(`/api/accounts/${encodeURIComponent(accountId)}/join/complete-existing`, {}),
   completeProvider: (invitationToken: string | null) =>
     post("/api/company-join/complete-provider", invitationToken ? { invitationToken } : {}),
   completeMicrosoft: (invitationToken: string | null) =>

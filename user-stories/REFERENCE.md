@@ -1010,18 +1010,13 @@ followed by `@…`. The domain, full address, company data, membership list and 
 facts are never revealed. An addressed invite explains that only the intended email can use it.
 Merely opening or previewing the URL never changes membership. Permission and existing-role
 consequences wrap in full. Expiry uses the viewer's local date and time without seconds; the year
-appears when it differs from the current year. The primary **Verify email to join** link opens
-`/join/:accountId?invite=:token` for both new and existing identities, preserving the exact
-invitation and its proposed role. No generic sign-in or old direct signup grants new membership.
-Password users open a 15-minute mailbox link in the same browser, then create credentials or sign
-in. Existing users with multi-factor authentication complete their authenticator or recovery-code
-challenge before the invitation can be claimed. If the final company request fails after that
-challenge, the page keeps the verified sign-in and offers **Join company** again without asking for
-another one-time code. Eligible providers complete their company-bound
-sign-in before the final **Join company** action. The server rechecks the addressed email, current
-policy, invitation, access restrictions and session at completion. A new or restored member receives
-the invitation role; an already-active member keeps their current role. Completion refreshes the
-authenticated company list, activates the joined company and enters it directly without persisting
+appears when it differs from the current year. An addressed invite can be accepted with an existing password sign-in, or used to create a
+password account where invitation signup is allowed. The invitation stays bound to its exact
+address and company. Eligible providers use the company-bound `/join/:accountId?invite=:token`
+journey and explicitly finish joining after verified sign-in. A new or restored member receives
+the invitation role; an already-active member keeps the current role. The server rechecks the
+address, current policy, invitation, access restrictions and session at acceptance. Completion
+refreshes the authenticated company list and activates the joined company without persisting
 `activeAccountId` or treating the URL as membership proof.
 An accept is refused (403) while **Disable Access** applies, including after removal or identity
 recreation with the same proven email; the invitation remains unused. An archived member without
@@ -1187,15 +1182,15 @@ presented before the member directory, matching the action-first pattern of the 
   (`data-testid="joining-policy-link"`) and choose **Copy joining link**
   (`data-testid="joining-policy-copy-link"`) to share `/join/:accountId`.
   `/join/:accountId` is a public company-bound entry outside the app's account picker. It shows
-  the company's name and available sign-in methods, then asks for an email. Eligible Google,
-  Microsoft and GitHub choices appear above the password option in mixed mode; GitHub remains
-  unavailable in company-sign-in-only mode. Microsoft uses its same-browser mailbox ceremony if
-  the signed-in identity has no durable address proof. In password mode,
-  **Send verification email** starts a 15-minute proof with no credential yet; the pending view
-  explains that the link must be opened in the same browser and offers **Resend email**. A verified
-  new person enters **Name** and **Password**, then **Create account and join** creates the credential
-  and membership together. Someone with an existing identity signs in and chooses **Join company**.
-  On completion the normal authenticated company list verifies the destination before activation.
+  the company's name and available sign-in methods. Eligible Google, Microsoft and GitHub
+  choices appear above the existing-password option in mixed mode; GitHub remains unavailable
+  in company-sign-in-only mode. Microsoft uses its same-browser mailbox ceremony when needed.
+  A person with an existing password account signs in, completes any required second factor,
+  then chooses **Join company**. The server admits only a currently proven email that meets the
+  live policy. A password identity without trusted email proof gets recovery guidance to use an
+  eligible verified provider or an addressed invitation. Open/domain policy joining does not
+  create a new password account. On completion the normal authenticated company list verifies
+  the destination before activation.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the
   same five-column bordered table as Members, with a row per invite (`data-testid="invite-row"`).
   **Name** is an em dash, **Role** is the invited role, **Email** is the pre-authorised address or

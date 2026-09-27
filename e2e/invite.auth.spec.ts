@@ -1,22 +1,16 @@
 import { test, expect } from "./fixtures";
-import {
-  AUTH_API as API,
-  AUTH_PASSWORD as PASSWORD,
-  bootstrapOrg,
-  signUpUser,
-  waitForJoiningMail,
-} from "./auth-helpers";
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
 import { waitForAppLanding } from "./helpers";
-import { totpCode } from "./totpCode";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.9 — invite accept, against the auth-backed project's server (SMALLSASS_ACCOUNT_MODE=password on
 // :8887 — see playwright.config.ts). Owner A signs up, bootstraps an org (via the operator bootstrap
 // token, since the auth-e2e DB is seeded so A is not first-run), and mints an editor invite token via
-// POST /api/invites. User B then opens /invite/<token> in the browser: the safe preview leads to
-// the company-bound mailbox proof. B opens the delivered link in that browser, signs in with an
-// existing account, and completes the admission. Finally we assert the API-layer single-use guarantee (re-POSTing
+// POST /api/invites. User B then opens /invite/<token> in the browser: the safe preview loads without
+// a session and the page shows its OWN inline onboarding form (the route is deliberately carved out
+// of the login wall — see InviteAccept.tsx). B signs in there, reviews the same invite as that
+// identity, and explicitly accepts. Finally we assert the API-layer single-use guarantee (re-POSTing
 // the same token is 409). Browser-agnostic (no UA branching).
 
 // The auth-e2e server is SEEDED (Wayne Enterprises + Stark Industries), so a fresh sign-up is not a first-run
@@ -32,7 +26,8 @@ function registerSuiteScenario1() {
   test("a signed-in user opens a valid invite link and joins; reusing the token is 409", async ({ page, request }) => {
     test.setTimeout(60_000);
     // Owner A: sign up (auto-signed-in → session cookie), bootstrap an org, mint an invite. The
-    // explicit `cookie` header (not the shared jar) carries A's session on each call.
+    // explicit `cookie` header (not the shared jar) carries A's session on each call. B's sign-up
+    // below is independent of this chain (it only needs its own email), so start it in parallel.
     const joinerPromise = signUpUser(JOINER);
     const ownerCookie = (await signUpUser(OWNER)).cookie;
 
@@ -47,12 +42,15 @@ function registerSuiteScenario1() {
     expect(token.length).toBeGreaterThan(0);
 
     // User B exists (sign-up is API-only; keep B's session cookie for the API reuse check below).
-    // Opening /invite/<token> in the browser has NO session. Preview is read-only and hands off
-    // to the bound joining journey before any membership write.
+    // Opening /invite/<token> in the browser has NO session. Preview is read-only and the invite page
+    // shows its OWN inline onboarding form (the route is carved out of the login wall so an invitee
+    // signs in — or creates an account — in place; see InviteAccept.tsx).
     const joinerCookie = (await joinerPromise).cookie;
     await page.goto(`/invite/${token}`);
 
-    // The invite page previews the safe acceptance context before asking B to prove the mailbox.
+    // The invite page previews the safe acceptance context BEFORE asking B to authenticate: company,
+    // proposed role, plain-language consequences and expiry. It then shows its own form (heading
+    // "Accept invite"), NOT the app login wall, so B signs in here without losing the bearer URL.
     await expect(page.getByRole("heading", { name: "Accept invite" })).toBeVisible();
     const preview = page.getByTestId("invite-preview");
     await expect(preview).toContainText(`Invite Studio ${STAMP}`);
@@ -74,18 +72,29 @@ function registerSuiteScenario1() {
           descriptions.every((description) => getComputedStyle(description).webkitLineClamp === "none"),
         ),
     ).toBe(true);
-    await page.getByRole("link", { name: "Verify email to join" }).click();
-    await expect(page).toHaveURL(new RegExp(`/join/${accountId}\\?invite=`));
     await page.getByLabel("Email", { exact: true }).fill(JOINER);
-    await page.getByRole("button", { name: "Send verification email" }).click();
-    const mailLink = await waitForJoiningMail(JOINER, accountId);
-    expect(mailLink.searchParams.get("invite")).toBe(token);
-    await page.goto(new URL(`${mailLink.pathname}${mailLink.search}${mailLink.hash}`, page.url()).toString());
-    await expect(page.getByText(/Email verified/i)).toBeVisible();
-    await page.getByLabel("Password", { exact: true }).last().fill(PASSWORD);
-    await page.getByRole("button", { name: "Join company", exact: true }).click();
+    await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+    await page.getByRole("button", { name: "Sign in" }).click();
 
-    // Completion must land inside the joined company, not on the picker.
+    // Sign-in reloads onto the same bearer URL. The membership must still be untouched until B has
+    // reviewed the invitation under the signed-in identity and activates the explicit accept action.
+    const accept = page.getByRole("button", { name: "Accept invite" });
+    await expect(accept).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/invite/${token}$`));
+    await expect(page.getByTestId("invite-preview")).toContainText("Editor");
+    await accept.click();
+
+    // The explicit POST binds B as an editor and the success state renders.
+    await expect(page.getByText(new RegExp(`You’ve joined Invite Studio ${STAMP} as Editor`))).toBeVisible();
+
+    // Continue must land INSIDE the joined company, not on the picker: the accept flow refetches
+    // the summaries list (this route mounts outside AppShell, so the hook never ran here) and
+    // activates the joined account before this link is used. Regression guard for the handoff that
+    // used to bounce to the picker with a "company not found" notice. A first visit on this device
+    // may hit the once-per-device intro page — click through it like helpers.openApp does.
+    await page.getByRole("link", { name: "Continue" }).click();
+    // Wait for the root navigation before checking the intro. The company name is no longer a safe
+    // pre-navigation sentinel because the invite preview deliberately shows it too.
     await expect(page).toHaveURL(/\/$/);
     await waitForAppLanding(page, page.locator("#main"));
     // In the app, the joined company is active. Its single-company context is intentionally hidden
@@ -110,7 +119,9 @@ function registerSuiteScenario2() {
     const ownerCookie = (await signUpUser(`${OWNER}.signup`)).cookie;
     const accountId = await bootstrapOrg(request, ownerCookie, `Signup Invite Studio ${STAMP}`);
 
-    // A new identity proves the addressed mailbox in this browser before any credential exists.
+    // A brand-new identity takes the atomic signup path. The consumed token cannot be re-opened, so
+    // the live route refreshes /me + /api/accounts, activates the exact joined company, and replaces
+    // the invite URL with the app route instead of dropping the user onto the company picker.
     const signupInvite = await request.post(`${API}/api/invites`, {
       headers: { cookie: ownerCookie },
       data: { accountId, role: "editor", preauthEmail: NEW_JOINER },
@@ -120,19 +131,11 @@ function registerSuiteScenario2() {
     await page.goto(`/invite/${signupToken}`);
     await expect(page.getByTestId("invite-preview")).toContainText(`${NEW_JOINER.split("@")[0]}@…`);
     await expect(page.getByTestId("invite-preview")).not.toContainText(NEW_JOINER);
-    await page.getByRole("link", { name: "Verify email to join" }).click();
-    await expect(page).toHaveURL(new RegExp(`/join/${accountId}\\?invite=`));
-    await page.getByLabel("Email", { exact: true }).fill(NEW_JOINER);
-    await page.getByRole("button", { name: "Send verification email" }).click();
-    await expect(page.getByText(/Open it in this same browser within 15 minutes/i)).toBeVisible();
-    const mailLink = await waitForJoiningMail(NEW_JOINER, accountId);
-    expect(mailLink.searchParams.get("invite")).toBe(signupToken);
-    // The E2E API and Vite are split origins; production serves both on one origin.
-    await page.goto(new URL(`${mailLink.pathname}${mailLink.search}${mailLink.hash}`, page.url()).toString());
-    await expect(page.getByText(/Email verified/i)).toBeVisible();
+    await page.getByRole("tab", { name: "Create account" }).click();
     await page.getByLabel("Name", { exact: true }).fill("New Joiner");
+    await page.getByLabel("Email", { exact: true }).fill(NEW_JOINER);
     await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
-    await page.getByRole("button", { name: "Create account and join" }).click();
+    await page.getByRole("button", { name: "Create account and accept" }).click();
 
     await expect(page).toHaveURL(/\/$/);
     await waitForAppLanding(page, page.locator("#main"));
@@ -144,59 +147,9 @@ function registerSuiteScenario2() {
   });
 }
 
-function registerSuiteScenarioMfa() {
-  test("an existing account completes TOTP before an addressed invitation grants access", async ({ page, request }) => {
-    test.setTimeout(60_000);
-    const email = `mfa-joiner-${STAMP}@capacitylens.dev`;
-    const joiner = await signUpUser(email);
-    const enabled = await request.post(`${API}/api/auth/two-factor/enable`, {
-      headers: { cookie: joiner.cookie },
-      data: { password: PASSWORD },
-    });
-    expect(enabled.status()).toBe(200);
-    const setup = (await enabled.json()) as { totpURI: string };
-    const secret = new URL(setup.totpURI).searchParams.get("secret");
-    expect(secret).toBeTruthy();
-    const enrolled = await request.post(`${API}/api/auth/two-factor/verify-totp`, {
-      headers: { cookie: joiner.cookie },
-      data: { code: await totpCode(secret!), trustDevice: false },
-    });
-    expect(enrolled.status()).toBe(200);
-
-    const ownerCookie = (await signUpUser(`${OWNER}.mfa`)).cookie;
-    const accountId = await bootstrapOrg(request, ownerCookie, `MFA Invite Studio ${STAMP}`);
-    const invite = await request.post(`${API}/api/invites`, {
-      headers: { cookie: ownerCookie },
-      data: { accountId, role: "editor", preauthEmail: email },
-    });
-    expect(invite.status()).toBe(201);
-    const token = (await invite.json()).token as string;
-
-    await page.goto(`/invite/${token}`);
-    await page.getByRole("link", { name: "Verify email to join" }).click();
-    await page.getByLabel("Email", { exact: true }).fill(email);
-    await page.getByRole("button", { name: "Send verification email" }).click();
-    const mailLink = await waitForJoiningMail(email, accountId);
-    expect(mailLink.searchParams.get("invite")).toBe(token);
-    await page.goto(new URL(`${mailLink.pathname}${mailLink.search}${mailLink.hash}`, page.url()).toString());
-    await expect(page.getByText(/Email verified/i)).toBeVisible();
-    await page.getByLabel("Password", { exact: true }).last().fill(PASSWORD);
-    await page.getByRole("button", { name: "Join company", exact: true }).click();
-    await expect(page.getByLabel("Authentication code")).toBeVisible();
-    await expect(page).toHaveURL(new RegExp(`/join/${accountId}\\?invite=`));
-    await page.getByLabel("Authentication code").fill(await totpCode(secret!));
-    await page.getByRole("button", { name: "Verify" }).click();
-    await expect(page).toHaveURL(/\/$/);
-    await waitForAppLanding(page, page.locator("#main"));
-    await page.getByRole("link", { name: "Team & access" }).click();
-    await expect(page.getByTestId("current-access")).toContainText("Editor");
-  });
-}
-
 test.describe("invite accept (SMALLSASS_ACCOUNT_MODE=password)", () => {
   registerSuiteScenario1();
   registerSuiteScenario2();
-  registerSuiteScenarioMfa();
 
   test("a maximum-length addressed hint wraps within a narrow invitation preview", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 1000 });

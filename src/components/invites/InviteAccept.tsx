@@ -9,7 +9,7 @@ import { useInviteAcceptController } from "./useInviteAcceptController";
 //
 // PRE-SESSION ONBOARDING: this route sits inside AuthProvider but outside AppShell's tenant gate.
 // Password mode deliberately carves it out of the login wall so a genuinely new invitee can create
-// a credential after company-bound mailbox proof; an existing user can sign in here and the
+// a credential through the token-scoped signup endpoint; an existing user can sign in here and the
 // page reloads the same token URL so they can review and explicitly accept as that identity.
 
 /**

@@ -31,10 +31,10 @@ establish company membership.
 2. As Admin, open the same page. Read the policy and approved domains, with guidance to speak to
    the Owner about changes. No editing controls appear. Either Owner or Admin can copy and share
    this company's **Joining link** from the section.
-3. Open `/join/:accountId` as a prospective member. The page names the company. Enter an email
-   and choose an eligible provider, or request password email verification where passwords are
-   available. A new password user opens the 15-minute link in the same browser, then creates their
-   credential and joins. A provider user completes provider sign-in, then chooses **Join company**.
+3. Open `/join/:accountId` as a prospective member. The page names the company. Choose
+   an eligible provider, or sign in with an existing password account and complete any required
+   second factor. Choose **Join company** to finish. An existing password identity without
+   current trusted email proof is guided to a verified provider or an addressed invitation.
 4. Check the company list after joining. The new membership is Viewer unless an addressed,
    unconsumed invitation grants another role. An existing active membership keeps its current role.
 
@@ -50,10 +50,10 @@ establish company membership.
 - All four policies work with eligible hosted company providers. Company-sign-in-only excludes
   passwords and experimental GitHub. A new credential or provider identity alone grants no company
   membership; joining requires the company-bound completion step.
-- A new password credential is created only after mailbox verification in the same browser. A
-  failed delivery can be retried; replacement and expired links cannot be reused. A returning
-  verified provider identity may use its durable address proof; an identity without that proof
-  must establish it before joining.
+- Open and domain policy joining accepts an existing identity with durable address proof;
+  it does not create a new password credential. An addressed invitation can still create a
+  password identity where the current policy permits. A returning verified provider identity
+  may use its durable address proof; an identity without proof must establish it before joining.
 - A policy change, revoked or consumed invitation, changed address, disabled access, or lost
   authentication before completion refuses admission without creating a membership. Concurrent
   completions grant at most one membership and consume an invitation at most once.

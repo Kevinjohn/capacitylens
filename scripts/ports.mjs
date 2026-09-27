@@ -26,7 +26,6 @@ const BASES = Object.freeze({
   authWeb: 5373, // auth-backed E2E web server (dev:auth)
   dbApi: 8787, // SQLite API, dev full-stack and db-backed E2E
   authApi: 8887, // password-mode API for the auth-backed E2E flavour
-  authMail: 8987, // local SMTP mailbox for auth-backed E2E proof journeys
   preview: 4173, // `vite preview` and scripts/serve-dist.mjs
   docsDev: 5900, // VitePress dev — pinned OFF 5173, which it would otherwise default to
   docsPreview: 5910, // VitePress preview — pinned OFF 4173, which it would otherwise default to

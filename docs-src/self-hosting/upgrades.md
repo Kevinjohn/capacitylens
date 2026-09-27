@@ -168,11 +168,11 @@ invitation for each person's exact email address, then send them the new one-tim
 opens an invalid old link, ask the inviter for a replacement; the old link cannot be repaired or
 reused. People who already belong to the company keep their existing access and role.
 
-Company joining now requires a verified address and a company-specific joining link or addressed
-invitation. The password verification email needs the configured account mail transport. Before
-sharing new joining links, verify the `SMALLSASS_ACCOUNT_MAIL_*` settings and send a test invitation.
-Schema v50 supports that joining journey for Microsoft sign-in; existing Microsoft sign-ins and
-their pending mailbox ceremonies remain intact.
+Company joining now requires a proven address and a company-specific joining link or addressed
+invitation. Open and domain joining currently accepts existing identities with durable email proof;
+new password identities use addressed invitations where the policy permits. Schema v50 supports
+this joining journey for Microsoft sign-in; existing Microsoft sign-ins and their pending mailbox
+ceremonies remain intact.
 
 The release that adds Studio and Supplementary engagement advances the database through
 schema v29 (the required resource engagement column), v30 (the optional company-wide

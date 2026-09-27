@@ -7,7 +7,6 @@ import { JoinCompany } from "./JoinCompany";
 
 const authClientMock = vi.hoisted(() => ({ signInEmail: vi.fn(), verifyTotp: vi.fn(), verifyBackupCode: vi.fn() }));
 const handoffMock = vi.hoisted(() => ({ replaceWithJoinedAccount: vi.fn() }));
-
 vi.mock("../../auth/authClient", () => ({
   authClient: {
     signIn: { email: authClientMock.signInEmail },
@@ -38,11 +37,7 @@ function renderJoin(path = "/join/a-studio", context = auth) {
   );
 }
 
-function stubJoin(
-  status: Record<string, unknown>,
-  extra?: (url: string, init?: RequestInit) => Response,
-  providerAvailable = false,
-) {
+function stubJoin(extra?: (url: string, init?: RequestInit) => Response, providerAvailable = false) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/join/metadata"))
@@ -52,7 +47,8 @@ function stubJoin(
         passwordAvailable: true,
         providerAvailable,
       });
-    if (url.endsWith("/api/company-join/status")) return Response.json(status);
+    if (url.endsWith("/api/company-join/status") || url.endsWith("/api/account/microsoft/status"))
+      return Response.json({ state: "expired" });
     if (extra) return extra(url, init);
     throw new Error(`Unexpected request: ${url}`);
   });
@@ -67,40 +63,32 @@ beforeEach(() => {
   authClientMock.verifyTotp.mockResolvedValue({ error: null });
   authClientMock.verifyBackupCode.mockResolvedValue({ error: null });
 });
+afterEach(() => vi.unstubAllGlobals());
 
-it("shows eligible providers above password and excludes GitHub from company-sign-in-only mode", async () => {
-  stubJoin(
-    { state: "expired" },
-    (url) => {
-      if (url.endsWith("/api/account/microsoft/status")) return Response.json({ state: "expired" });
-      throw new Error(`Unexpected request: ${url}`);
-    },
-    true,
-  );
-  const providers = [
-    { id: "google", label: "Google", kind: "social", experimental: false },
-    { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
-    { id: "github", label: "GitHub", kind: "social", experimental: true },
-  ] as const;
-  renderJoin("/join/a-studio", { ...auth, authMode: "sso-only", providers: [...providers] });
+it("shows eligible providers above existing password and excludes GitHub in company-sign-in-only mode", async () => {
+  stubJoin(undefined, true);
+  renderJoin("/join/a-studio", {
+    ...auth,
+    authMode: "sso-only",
+    providers: [
+      { id: "google", label: "Google", kind: "social", experimental: false },
+      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
+      { id: "github", label: "GitHub", kind: "social", experimental: true },
+    ],
+  });
   expect(await screen.findByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Continue with GitHub" })).not.toBeInTheDocument();
-  expect(screen.getByText("Or verify email to use a password")).toBeInTheDocument();
+  expect(screen.getByText("Or sign in with your password")).toBeInTheDocument();
 });
 
-it("uses an explicit company-bound Microsoft start from the provider choice", async () => {
-  const fetchMock = stubJoin(
-    { state: "expired" },
-    (url) => {
-      if (url.endsWith("/api/account/microsoft/status")) return Response.json({ state: "expired" });
-      if (url.endsWith("/api/company-join/cancel")) return Response.json({ ok: true });
-      if (url.endsWith("/api/account/microsoft/start"))
-        return Response.json({ url: "https://login.microsoftonline.com/authorize" });
-      throw new Error(`Unexpected request: ${url}`);
-    },
-    true,
-  );
+it("uses company-bound Microsoft start with the addressed invitation", async () => {
+  const fetchMock = stubJoin((url) => {
+    if (url.endsWith("/api/company-join/cancel")) return Response.json({ ok: true });
+    if (url.endsWith("/api/account/microsoft/start"))
+      return Response.json({ url: "https://login.microsoftonline.com/authorize" });
+    throw new Error(`Unexpected request: ${url}`);
+  }, true);
   const user = userEvent.setup();
   renderJoin("/join/a-studio?invite=invite-token", {
     ...auth,
@@ -122,199 +110,67 @@ it("uses an explicit company-bound Microsoft start from the provider choice", as
   window.dispatchEvent(new Event("pagehide"));
 });
 
-afterEach(() => vi.unstubAllGlobals());
-
-it("does not ask a new invitee for a password until the company-bound mailbox proof is complete", async () => {
-  const fetchMock = stubJoin({ state: "expired" }, (url) => {
-    if (url.endsWith("/join/start")) return Response.json({ emailHint: "b***@example.test", expiresAt: "2999-01-01" });
+it("signs in an existing password identity and joins only through the policy endpoint", async () => {
+  const fetchMock = stubJoin((url) => {
+    if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+      return Response.json({ accountId: "a-studio", role: "viewer" });
     throw new Error(`Unexpected request: ${url}`);
   });
   const user = userEvent.setup();
-  renderJoin("/join/a-studio?invite=invite-token");
-
-  expect(await screen.findByRole("heading", { name: "Join Wayne Enterprises" })).toBeInTheDocument();
-  expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
-  await user.type(screen.getByLabelText("Email"), "barbara@example.test");
-  await user.click(screen.getByRole("button", { name: "Send verification email" }));
-
-  expect(await screen.findByText(/Check b\*\*\*@example\.test/)).toBeInTheDocument();
-  expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
-  const start = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/join/start"));
-  expect(start).toBeDefined();
-  expect(JSON.parse(String(start?.[1]?.body))).toEqual({
-    purpose: "invitation",
-    email: "barbara@example.test",
-    invitationToken: "invite-token",
-  });
-});
-
-it("requires the same-browser mail token before showing password creation", async () => {
-  const fetchMock = stubJoin(
-    {
-      state: "pending",
-      accountId: "a-studio",
-      purpose: "policy",
-      email: "barbara@example.test",
-      emailHint: "b***@example.test",
-    },
-    (url) => {
-      if (url.endsWith("/api/company-join/confirm")) return Response.json({ state: "approved" });
-      throw new Error(`Unexpected request: ${url}`);
-    },
-  );
-  window.history.replaceState({}, "", "/join/a-studio#token=mail-secret");
   renderJoin();
-
-  expect(await screen.findByRole("button", { name: "Create account and join" })).toBeInTheDocument();
-  const confirm = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/company-join/confirm"));
-  expect(confirm).toBeDefined();
-  expect(JSON.parse(String(confirm?.[1]?.body))).toEqual({ token: "mail-secret" });
-  expect(window.location.hash).toBe("");
-});
-
-it("keeps a pending journey visible when restart cancellation fails", async () => {
-  stubJoin(
-    { state: "pending", accountId: "a-studio", purpose: "policy", emailHint: "b***@example.test" },
-    (url) => {
-      if (url.endsWith("/api/company-join/cancel"))
-        return Response.json({ error: "Could not cancel the joining request" }, { status: 503 });
-      throw new Error(`Unexpected request: ${url}`);
-    },
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
+  expect(authClientMock.signInEmail).toHaveBeenCalledWith({ email: "barbara@example.test", password: "password" });
+  const completion = fetchMock.mock.calls.find(([url]) =>
+    String(url).endsWith("/api/accounts/a-studio/join/complete-existing"),
   );
-  const user = userEvent.setup();
-  renderJoin();
-
-  await user.click(await screen.findByRole("button", { name: "Start again" }));
-  expect(await screen.findByText("Could not cancel the joining request")).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Start again" })).toBeInTheDocument();
+  expect(JSON.parse(String(completion?.[1]?.body))).toEqual({});
+  expect(screen.queryByRole("button", { name: "Create account and join" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Send verification email" })).not.toBeInTheDocument();
 });
 
-it("creates credentials only after an approved intent and activates the joined company", async () => {
-  const fetchMock = stubJoin(
-    {
-      state: "approved",
-      accountId: "a-studio",
-      purpose: "policy",
-      email: "barbara@example.test",
-    },
-    (url) => {
-      if (url.endsWith("/api/company-join/complete-password")) return Response.json({ accountId: "a-studio" });
-      throw new Error(`Unexpected request: ${url}`);
-    },
-  );
-  const user = userEvent.setup();
-  renderJoin();
-
-  await user.type(await screen.findByLabelText("Name"), "Barbara Gordon");
-  await user.type(
-    screen.getByLabelText("Password", { selector: "[autocomplete='new-password']" }),
-    "a-long-enough-password",
-  );
-  await user.click(screen.getByRole("button", { name: "Create account and join" }));
-
-  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
-  const complete = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/company-join/complete-password"));
-  expect(JSON.parse(String(complete?.[1]?.body))).toEqual({
-    displayName: "Barbara Gordon",
-    password: "a-long-enough-password",
+it("does not complete policy joining before the password second factor", async () => {
+  const fetchMock = stubJoin((url) => {
+    if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+      return Response.json({ accountId: "a-studio", role: "viewer" });
+    throw new Error(`Unexpected request: ${url}`);
   });
-  expect(authClientMock.signInEmail).toHaveBeenCalledWith({
-    email: "barbara@example.test",
-    password: "a-long-enough-password",
-  });
-});
-
-it("keeps the invited company intent through password sign-in and the second factor", async () => {
-  const fetchMock = stubJoin(
-    { state: "approved", accountId: "a-studio", purpose: "invitation", email: "barbara@example.test" },
-    (url) => {
-      if (url.endsWith("/api/company-join/complete-existing")) return Response.json({ accountId: "a-studio" });
-      throw new Error(`Unexpected request: ${url}`);
-    },
-  );
   authClientMock.signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
   const user = userEvent.setup();
-  renderJoin("/join/a-studio?invite=invite-token");
-
-  await user.type(
-    await screen.findByLabelText("Password", { selector: "[autocomplete='current-password']" }),
-    "password",
-  );
-  await user.click(screen.getByRole("button", { name: /^Join company$/ }));
+  renderJoin();
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
   expect(await screen.findByLabelText("Authentication code")).toBeInTheDocument();
-  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/api/company-join/complete-existing"))).toBe(false);
-
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/join/complete-existing"))).toBe(false);
   await user.type(screen.getByLabelText("Authentication code"), "123456");
   await user.click(screen.getByRole("button", { name: "Verify" }));
   await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
   expect(authClientMock.verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
-  const complete = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/company-join/complete-existing"));
-  expect(JSON.parse(String(complete?.[1]?.body))).toEqual({ invitationToken: "invite-token" });
 });
 
-it("keeps the join pending after a failed code and supports a recovery code", async () => {
-  const fetchMock = stubJoin(
-    { state: "approved", accountId: "a-studio", purpose: "policy", email: "barbara@example.test" },
-    (url) => {
-      if (url.endsWith("/api/company-join/complete-existing")) return Response.json({ accountId: "a-studio" });
-      throw new Error(`Unexpected request: ${url}`);
-    },
-  );
-  authClientMock.signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-  authClientMock.verifyTotp.mockResolvedValueOnce({ error: { message: "Incorrect code" } });
+it("explains missing trusted proof and offers the addressed password invitation", async () => {
+  stubJoin((url) => {
+    if (url.endsWith("/api/accounts/a-studio/join/complete-existing"))
+      return Response.json({ error: "proof unavailable" }, { status: 401 });
+    throw new Error(`Unexpected request: ${url}`);
+  });
   const user = userEvent.setup();
   renderJoin();
-
-  await user.type(
-    await screen.findByLabelText("Password", { selector: "[autocomplete='current-password']" }),
-    "password",
-  );
-  await user.click(screen.getByRole("button", { name: /^Join company$/ }));
-  await user.type(await screen.findByLabelText("Authentication code"), "000000");
-  await user.click(screen.getByRole("button", { name: "Verify" }));
-  expect(await screen.findByText("Incorrect code")).toBeInTheDocument();
-  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/api/company-join/complete-existing"))).toBe(false);
-
-  await user.click(screen.getByRole("button", { name: "Use a recovery code" }));
-  await user.type(screen.getByLabelText("Recovery code"), "unused-recovery-code");
-  await user.click(screen.getByRole("button", { name: "Verify" }));
-  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
-  expect(authClientMock.verifyBackupCode).toHaveBeenCalledWith({ code: "unused-recovery-code", trustDevice: false });
+  await user.type(await screen.findByLabelText("Email"), "barbara@example.test");
+  await user.type(screen.getByLabelText("Password"), "password");
+  await user.click(screen.getByRole("button", { name: "Join company" }));
+  expect(await screen.findByText(/no current trusted proof/i)).toBeInTheDocument();
 });
 
-it("retries completion after successful MFA without consuming another code", async () => {
-  let completions = 0;
-  const fetchMock = stubJoin(
-    { state: "approved", accountId: "a-studio", purpose: "policy", email: "barbara@example.test" },
-    (url) => {
-      if (url.endsWith("/api/company-join/complete-existing")) {
-        completions += 1;
-        return completions === 1
-          ? Response.json({ error: "Please retry" }, { status: 503 })
-          : Response.json({ accountId: "a-studio" });
-      }
-      throw new Error(`Unexpected request: ${url}`);
-    },
+it("routes an addressed password invitation to ordinary invitation acceptance", async () => {
+  stubJoin();
+  renderJoin("/join/a-studio?invite=invite-token");
+  expect(await screen.findByRole("link", { name: "Use this invitation with a password" })).toHaveAttribute(
+    "href",
+    "/invite/invite-token",
   );
-  authClientMock.signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
-  const user = userEvent.setup();
-  renderJoin();
-
-  await user.type(
-    await screen.findByLabelText("Password", { selector: "[autocomplete='current-password']" }),
-    "password",
-  );
-  await user.click(screen.getByRole("button", { name: /^Join company$/ }));
-  await user.type(await screen.findByLabelText("Authentication code"), "123456");
-  await user.click(screen.getByRole("button", { name: "Verify" }));
-  expect(await screen.findByText("Signed in. Finish joining this company.")).toBeInTheDocument();
-  expect(screen.getByText("Please retry")).toBeInTheDocument();
-  expect(screen.queryByLabelText("Authentication code")).not.toBeInTheDocument();
-  await user.click(screen.getByRole("button", { name: /^Join company$/ }));
-  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
-  expect(authClientMock.verifyTotp).toHaveBeenCalledTimes(1);
-  expect(
-    fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/api/company-join/complete-existing")),
-  ).toHaveLength(2);
+  expect(screen.queryByRole("button", { name: "Join company" })).not.toBeInTheDocument();
 });

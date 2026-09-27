@@ -53,15 +53,15 @@ change it. A person joining through a policy receives Viewer access; an addresse
 invitation can grant its chosen role. **Approved domains** matches only the exact
 listed domains, so `team.example.com` is different from `example.com`.
 
-Open the company-specific joining link, enter your email and choose an available
-sign-in method. Google, Microsoft and, in mixed mode, experimental GitHub may be
-available together. Password joining sends a verification link first; open it in
-the same browser within 15 minutes, then create a password or sign in to your
-existing identity. Microsoft may use the same-browser mailbox check when the
-address is not already proven. Provider sign-in and mailbox verification do not
-silently create membership: finish with **Join company**. An invitation must be
-addressed to the verified email, and a company can disable access even when its
-joining policy would otherwise allow that address.
+Open the company-specific joining link and choose an available sign-in method.
+Google, Microsoft and, in mixed mode, experimental GitHub may be available together.
+An existing password user signs in and finishes any required second factor before
+**Join company**. The server admits only identities with current trusted email proof
+that meet the company's policy; password signup through an open or domain policy is
+not available. A person without that proof can use an eligible verified provider or
+an addressed invitation. Microsoft may use its same-browser mailbox check when the
+address is not already proven. An invitation must be addressed to the verified
+email, and a company can disable access even when its joining policy allows it.
 
 ## Connect an existing account
 

@@ -196,8 +196,8 @@ the non-blocking product orientation if it is open.
   inline with the one-time link.
 - Recipients can choose **Sign in** or **Create account** with equally prominent controls. Only the
   selected journey's fields appear. Existing users review and explicitly accept as the signed-in
-  identity; changing identity preserves the invitation. New password users prove the addressed
-  mailbox in the same browser before creating a credential and accepting atomically. The company,
+  identity; changing identity preserves the invitation. New password users create a credential and accept the addressed invitation atomically
+  where the current policy permits. The company,
   role consequences and expiry remain fully readable throughout. Addressed
   invitations show a recipient hint containing only the part before `@` followed by `@…`; recipients
   enter the full email address themselves, and the domain stays hidden in the preview.

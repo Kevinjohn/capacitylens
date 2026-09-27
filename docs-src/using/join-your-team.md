@@ -13,26 +13,23 @@ Open the invitation or company joining link your agency sent you. Use the addres
 email if you have an invitation; a company joining link asks you to enter your email.
 
 For a company joining link, choose an available Google, Microsoft or GitHub
-provider, or select **Send verification email** if passwords are available.
-Open the email link in the browser where you started, within 15 minutes. If you
-need a new password account, choose **Create account and join** only after
-verification. If you already have an account, sign in as that same address and
-choose **Join company**. Provider sign-in also ends with **Join company**.
+provider, or sign in with an existing password account. Finish any second-factor
+challenge before choosing **Join company**. Your email must have current trusted
+proof and meet the company's joining policy. If the page says proof is unavailable,
+use a configured verified provider or ask for an invitation addressed to your email.
+A company joining link does not create a new password account.
 
-On an invitation screen, review the company and proposed role, then choose
-**Verify email to join**. The joining page keeps your invitation attached to the
-company-specific verification. If you have an existing password account, sign in
-after opening the verification link. Complete your authenticator or recovery-code
-challenge if prompted; the company will not be joined before that step. If your
-agency uses company login, choose its available provider on the joining page.
+On an invitation screen, review the company and proposed role. Use your existing
+password account or create one with the addressed invitation where password signup
+is allowed. If your agency uses company login, choose an available provider and
+finish its company-bound sign-in before joining.
 
 ## Accept your invitation
 
 Accept the invitation to open your company's Schedule.
 
 If an invitation has expired or was already used, ask the sender for a
-replacement. If verification email is late, use **Resend email**; an older link
-stops working when a replacement is sent. If your company restricts addresses
+replacement. If your company restricts addresses
 or has disabled your access, ask an Owner or Admin for help.
 
 <span id="what-s-next"></span>

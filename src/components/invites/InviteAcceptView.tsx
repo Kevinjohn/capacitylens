@@ -30,7 +30,7 @@ export type InviteAcceptState =
   | { kind: "local" };
 
 export interface InvitePreview {
-  accountId: string | null;
+  accountId?: string | null;
   accountName: string;
   role: InvitationRole;
   expiresAt: string;
@@ -41,22 +41,24 @@ export interface InvitePreview {
 interface InviteAcceptViewProps {
   state: InviteAcceptState;
   preview: InvitePreview | null;
-  joinPath: string | null;
   user: AuthUser | null;
   authMode: AccountMode;
   providers: readonly AuthProviderInfo[];
   busy: boolean;
   errorId: string;
+  name: string;
   email: string;
   password: string;
   flowStatusRef: RefCallback<HTMLParagraphElement>;
   continueRef: RefCallback<HTMLAnchorElement>;
+  onNameChange: (value: string) => void;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onAccept: () => void;
   onSignOut: () => void;
   onSignIn: (event: FormEvent) => void;
   onProviderSignIn: (provider: AuthProviderInfo) => void;
+  onCreateAccount: () => void;
   onClearAuthError: () => void;
   onRetryPreview: () => void;
 }
@@ -139,11 +141,6 @@ function resolveEmailBoundaryCopy(emailBound: boolean | null, emailHint: string 
 }
 
 function InviteStateContent(props: InviteAcceptViewProps) {
-  // Addressed invitations enter the company-bound proof journey. The direct accept endpoint is
-  // retained only for a legacy active-member path and is never offered for a new addressed invite.
-  if (isAddressedJoinHandoff(props)) {
-    return <AddressedInviteHandoff joinPath={props.joinPath} />;
-  }
   switch (props.state.kind) {
     case "ready":
       return <ReadyContent {...props} />;
@@ -161,23 +158,7 @@ function InviteStateContent(props: InviteAcceptViewProps) {
   }
 }
 
-function isAddressedJoinHandoff({ preview, state }: InviteAcceptViewProps): boolean {
-  return preview?.emailBound === true && (state.kind === "ready" || state.kind === "auth");
-}
-
-function AddressedInviteHandoff({ joinPath }: { joinPath: string | null }) {
-  if (!joinPath) return <FieldError>{m.joining_failed()}</FieldError>;
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">{m.joining_invite_guidance()}</p>
-      <Button asChild size="sm">
-        <Link to={joinPath}>{m.joining_invite_recovery()}</Link>
-      </Button>
-    </div>
-  );
-}
-
-function ReadyContent({ user, busy, onSignOut, onAccept, joinPath }: InviteAcceptViewProps) {
+function ReadyContent({ user, busy, onSignOut, onAccept }: InviteAcceptViewProps) {
   return (
     <>
       <p className="text-sm text-muted-foreground">
@@ -190,11 +171,6 @@ function ReadyContent({ user, busy, onSignOut, onAccept, joinPath }: InviteAccep
         <Button asChild size="sm">
           <Link to="/">{m.invite_go_to_app()}</Link>
         </Button>
-        {joinPath && (
-          <Button asChild size="sm" variant="outline">
-            <Link to={joinPath}>{m.joining_invite_recovery()}</Link>
-          </Button>
-        )}
         <Button size="sm" type="button" disabled={busy} onClick={onAccept}>
           {m.invite_accept_action()}
         </Button>
@@ -240,13 +216,15 @@ function PasswordContent(props: InviteAcceptViewProps) {
       errorId={props.errorId}
       errorMessage={state.message}
       errorField={state.errorField}
+      name={props.name}
       email={props.email}
       password={props.password}
+      onNameChange={props.onNameChange}
       onEmailChange={props.onEmailChange}
       onPasswordChange={props.onPasswordChange}
       onSignIn={props.onSignIn}
       onProviderSignIn={props.onProviderSignIn}
-      joinPath={props.joinPath}
+      onCreateAccount={props.onCreateAccount}
       onPathChange={props.onClearAuthError}
     />
   );

@@ -60,13 +60,12 @@ never changes [membership](/reference/glossary).
 
 From there:
 
-- Choose **Verify email to join** to continue with this company and invitation. The joining page
-  asks for the addressed email, so another person cannot take the invite's role.
-- Already have a password sign-in? Open the verification email in the same browser, then enter
-  your password. If prompted, finish the authenticator or recovery-code challenge before joining.
-- New to this install? Open the verification email in the same browser before choosing a password.
-  Account creation and invitation acceptance happen together after proof.
-- Use company login? Choose an available provider on the joining page, then select **Join company**.
+- Already have a password sign-in? Enter the invited email and password, review the
+  invitation, then choose **Accept invite**. Complete any required second factor.
+- New to this install? Use the invitation's **Create account** option. Account
+  creation and invitation acceptance happen together.
+- Use company login? Choose an available provider and finish its company-bound
+  sign-in, then select **Join company**.
 
 The role description is shown in full. Expiry uses your local date and time, without seconds.
 An email-bound invitation shows the part before `@`, followed by `@…` (for example,
