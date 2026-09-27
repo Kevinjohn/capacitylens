@@ -47,7 +47,14 @@ function createPrincipalRowEraser(db: Db, tables: ErasureTables): (principalId: 
   const removeAccount = tables.accountTableExists(db) ? db.prepare(`DELETE FROM account WHERE userId = ?`) : null;
   const removeTwoFactor = tables.twoFactorTableExists(db) ? db.prepare(`DELETE FROM twoFactor WHERE userId = ?`) : null;
   const removeUser = db.prepare(`DELETE FROM user WHERE id = ?`);
-  const removeEmailProof = db.prepare(`DELETE FROM identity_email_proofs WHERE principalId = ?`);
+  const proofTableExists = db
+    .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'identity_email_proofs'`)
+    .get();
+  const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+  const removeEmailProof =
+    proofTableExists || schemaVersion >= 48
+      ? db.prepare(`DELETE FROM identity_email_proofs WHERE principalId = ?`)
+      : null;
   return (principalId) => {
     removeObservation?.run(principalId);
     removeCeremony?.run(principalId);
@@ -55,7 +62,7 @@ function createPrincipalRowEraser(db: Db, tables: ErasureTables): (principalId: 
     removeSession?.run(principalId);
     removeAccount?.run(principalId);
     removeTwoFactor?.run(principalId);
-    removeEmailProof.run(principalId);
+    removeEmailProof?.run(principalId);
     removeUser.run(principalId);
     removeSecurityRevision(db, principalId);
   };

@@ -6,6 +6,8 @@ import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { DATABASE_MIGRATION_TABLE, DB_SCHEMA_VERSION, openDb } from "./db";
 import { repairSsoCutover } from "./cutoverRepair";
 import { inspectSsoCutoverPreflight } from "./cutoverPreflight";
+import { mixedModeCutoverContext } from "./cutoverContext";
+import { withVerifiedGoogleProfile } from "./testHelpers/googleAccount";
 
 const env = {
   SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-mixed",
@@ -45,10 +47,25 @@ interface InsertAccountInput {
 }
 
 function insertAccount({ db, id, providerId, subject, principalId }: InsertAccountInput) {
-  db.prepare(
-    `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+  const insert = () =>
+    db
+      .prepare(
+        `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
      VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run(id, providerId, subject, principalId, timestamp, timestamp);
+      )
+      .run(id, providerId, subject, principalId, timestamp, timestamp);
+  if (providerId !== "google") return insert();
+  const row = db.prepare("SELECT email FROM user WHERE id = ?").get(principalId) as { email: string };
+  return withVerifiedGoogleProfile(db, { subject, email: row.email }, insert);
+}
+
+function removePostV46ProofSchema(db: ReturnType<typeof openDb>): void {
+  db.exec(`DROP TRIGGER IF EXISTS capacitylens_google_email_proof_before;
+    DROP TRIGGER IF EXISTS capacitylens_google_email_proof_after;
+    DROP TABLE IF EXISTS company_join_intents;
+    DROP TABLE IF EXISTS account_joining_policies;
+    DROP TABLE IF EXISTS identity_email_proofs;
+    DROP TABLE IF EXISTS account_access_restrictions;`);
 }
 
 afterEach(() => {
@@ -76,6 +93,7 @@ async function prepareDuplicateSubjectState(): Promise<string> {
   });
   prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "wrong-credential");
   // Simulate the pre-v25 race state: v24 had no composite uniqueness backstop.
+  removePostV46ProofSchema(prepared.db);
   prepared.db.exec(`
     DROP INDEX idx_account_provider_subject_unique;
     DROP TRIGGER capacitylens_observe_federated_account;
@@ -221,6 +239,7 @@ function createLegacyMultiLinkRepairTest(): void {
       principalId: "principal-1",
     });
     prepared.db.prepare(`UPDATE account SET password = ? WHERE id = ?`).run("stored-password-hash", "credential-link");
+    removePostV46ProofSchema(prepared.db);
     prepared.db.exec(`
       DROP INDEX idx_account_principal_provider_unique;
       DROP TABLE microsoft_identity_proofs;
@@ -304,6 +323,56 @@ function createOwnerAssignmentRepairTest(): void {
   });
 }
 
+function createPopulatedLegacyRepairTests(): void {
+  it.each([46, 47])("inspects and repairs a populated v%s ownerless workspace", async (version) => {
+    const prepared = await database();
+    insertUser(prepared.db, "principal-1", "admin@example.com");
+    insertAccount({
+      db: prepared.db,
+      id: "credential-link",
+      providerId: "credential",
+      subject: "principal-1",
+      principalId: "principal-1",
+    });
+    prepared.db
+      .prepare("INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)")
+      .run("workspace-1", "Wayne Enterprises", "#3b82f6", timestamp, timestamp);
+    prepared.db
+      .prepare(
+        "INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, 'admin', 'active', ?)",
+      )
+      .run("workspace-1", "principal-1", timestamp);
+    if (version === 46) removePostV46ProofSchema(prepared.db);
+    else {
+      prepared.db.exec(`DROP TRIGGER IF EXISTS capacitylens_google_email_proof_before;
+        DROP TRIGGER IF EXISTS capacitylens_google_email_proof_after;
+        DROP TABLE company_join_intents;
+        DROP TABLE account_joining_policies;
+        DROP TABLE identity_email_proofs`);
+    }
+    prepared.db.prepare(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > ?`).run(version);
+    prepared.db.exec(`PRAGMA user_version = ${version}`);
+
+    const context = await mixedModeCutoverContext(prepared.db, env);
+    expect(context.administration.inspectSsoCutoverWorkspaces()).toEqual([
+      {
+        workspaceId: "workspace-1",
+        workspaceName: "Wayne Enterprises",
+        members: [{ principalId: "principal-1", role: "admin", status: "active" }],
+      },
+    ]);
+    prepared.db.close();
+    await expect(
+      repairSsoCutover({
+        databasePath: prepared.path,
+        confirmServerStopped: true,
+        operation: { kind: "assign-workspace-owner", workspaceId: "workspace-1", email: "admin@example.com" },
+        env,
+      }),
+    ).resolves.toMatchObject({ operation: "assign-workspace-owner", principalId: "principal-1" });
+  });
+}
+
 // eslint-disable-next-line max-lines-per-function
 function createEmptyWorkspaceRepairTest(): void {
   it("erases only a workspace with no active members", async () => {
@@ -334,6 +403,7 @@ function createEmptyWorkspaceRepairTest(): void {
 
   it("erases an empty workspace from a genuine pre-v43 database without the association tables", async () => {
     const prepared = await database();
+    removePostV46ProofSchema(prepared.db);
     prepared.db.exec(`
       DROP TABLE account_member_resources;
       DROP TABLE invitation_person_proposals;
@@ -357,6 +427,7 @@ function createEmptyWorkspaceRepairTest(): void {
 
   it("erases an empty workspace from v43 without touching absent v44 proposal tables", async () => {
     const prepared = await database();
+    removePostV46ProofSchema(prepared.db);
     prepared.db.exec(`
       DROP TABLE invitation_person_proposals;
       DROP TABLE member_resource_link_exceptions;
@@ -413,6 +484,7 @@ function createActiveMembershipRefusalTest(): void {
 function createMigrationCompatibilityTests(): void {
   it("allows the exact pending v42-v45 product-only migrations", async () => {
     const prepared = await database();
+    removePostV46ProofSchema(prepared.db);
     prepared.db.exec(`
       ALTER TABLE resources DROP COLUMN avatarUrl;
       DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 42;
@@ -455,6 +527,7 @@ describe("stopped-server SSO cutover repair", () => {
   createAlternativeProviderRepairTest();
   createLegacyMultiLinkRepairTest();
   createOwnerAssignmentRepairTest();
+  createPopulatedLegacyRepairTests();
   createEmptyWorkspaceRepairTest();
   createActiveMembershipRefusalTest();
   createMigrationCompatibilityTests();

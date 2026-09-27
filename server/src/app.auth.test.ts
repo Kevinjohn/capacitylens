@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb, type Db } from "./db";
+import { withVerifiedGoogleProfile } from "./testHelpers/googleAccount";
 import {
   createAuthFromEnvironment,
   parseAuthMode,
@@ -494,10 +495,14 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
       payload: { email: "linked@example.com", password: "password-123456", name: "Linked" },
     });
     const principal = db.prepare(`SELECT id FROM user WHERE email = ?`).get("linked@example.com") as { id: string };
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("strict-link", "google", "subject-1", principal.id, TS, TS);
+    withVerifiedGoogleProfile(db, { subject: "subject-1", email: "linked@example.com" }, () =>
+      db
+        .prepare(
+          `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run("strict-link", "google", "subject-1", principal.id, TS, TS),
+    );
 
     db.prepare("UPDATE user SET emailVerified = 1").run();
     const response = await call(app, {
