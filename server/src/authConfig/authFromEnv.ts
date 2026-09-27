@@ -313,6 +313,7 @@ function buildAuthPolicies(
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
     acquireBootstrapClaim: createBootstrapClaim(db, dependencies),
     assertAuthRequestPasswordLength: passwordPolicy.assertAuthRequestPasswordLength,
+    prepareSignUpPasswordHash: passwordPolicy.prepareSignUpPasswordHash,
     countUsers: dependencies.countUsers,
     enforceSessionActivity,
     secretTokenMatches: dependencies.secretTokenMatches,
