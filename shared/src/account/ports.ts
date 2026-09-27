@@ -190,6 +190,12 @@ export interface AccountAdminPort {
     nextStatus: MembershipStatus;
     command: CommandIdentity;
   }): Promise<Membership>;
+  enableMemberAccess(input: {
+    actor: ActorContext;
+    workspaceId: WorkspaceId;
+    targetPrincipalId: PrincipalId;
+    command: CommandIdentity;
+  }): Promise<Membership>;
   removeMember(input: {
     actor: ActorContext;
     workspaceId: WorkspaceId;

@@ -33,6 +33,7 @@ import {
   ensureAccountMemberResources,
 } from "./controlTables";
 import { ensureAccountBoundaryState } from "./accounts/state";
+import { ACCESS_RESTRICTIONS_V47_SQL } from "./db/migrations/accessRestrictionsV47";
 import type { Db } from "./db";
 
 // Unit tests for the membership server-CONTROL table (P1.1). The control rows are intentionally
@@ -44,6 +45,7 @@ const TS = "2026-01-01T00:00:00.000Z";
 const freshDb = (): Db => {
   const db = new DatabaseSync(":memory:");
   ensureControlTables(db);
+  db.exec(ACCESS_RESTRICTIONS_V47_SQL);
   // v43 installs a resource-owned cleanup trigger, so the focused control-plane fixture must
   // establish that owning table before installing the association table, matching openDb order.
   db.exec(

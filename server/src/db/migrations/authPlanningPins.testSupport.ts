@@ -51,4 +51,14 @@ export const CHECKSUM_PINNED_MIGRATIONS = [
   INVITATION_PERSON_PROPOSALS_V44_PIN,
   GETTING_STARTED_DISMISSALS_V45_PIN,
   MICROSOFT_PROOF_V46_PIN,
+  {
+    version: 47,
+    name: "separate-company-access-restrictions",
+    checksum: "51fc2a05e998e8977afa01763afef6ad268bfe8e6149dd724d3aeddf0993d725",
+  },
+  {
+    version: 48,
+    name: "record-identity-email-proof",
+    checksum: "b465756a0369755a3aca9f9e5c84c2ed165f32128ae75c4ecdfb50ad6974bcf4",
+  },
 ];

@@ -20,6 +20,14 @@ export const microsoftCallbackCapture = new AsyncLocalStorage<{
   pending: boolean;
 }>();
 
+/** Verified provider profile facts exist only during the callback that received them. */
+export const federatedCallbackCapture = new AsyncLocalStorage<{
+  active: boolean;
+  providerId: "google" | "github";
+  subject: string | null;
+  email: string | null;
+}>();
+
 function isObject(value: unknown): value is object {
   return typeof value === "object" && value !== null;
 }

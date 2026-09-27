@@ -4,6 +4,7 @@ import type { OwnershipTransferRequest } from "@capacitylens/shared/account/owne
 import { OWNERSHIP_TRANSFER_HISTORY_RETENTION_MS } from "@capacitylens/shared/account/ownershipTransferPolicy";
 import { openDb, type Db } from "../../db";
 import * as assertions from "../../controlTables/assert";
+import * as accessRestrictions from "../../controlTables/accessRestrictions";
 import * as accountMemberResources from "../../controlTables/accountMemberResources";
 import * as invitationPersonProposals from "../../controlTables/invitationPersonProposals";
 import * as inviteRetention from "../../controlTables/inviteRetention";
@@ -593,6 +594,7 @@ describe("account member/resource writes stay inside their account", () => {
  * and one module's decision must never silently classify another module's function.
  */
 const MODULES: Record<string, Record<string, unknown>> = {
+  accessRestrictions,
   accountMemberResources,
   invitationPersonProposals,
   assert: assertions,
@@ -617,6 +619,11 @@ const MODULES: Record<string, Record<string, unknown>> = {
 const CONTROL_TABLE_MODULES = Object.keys(MODULES).filter((name) => name !== "memberSignInTracking");
 
 const COVERED = new Set([
+  "accessRestrictions.disableAccess",
+  "accessRestrictions.captureRestrictionEmail",
+  "accessRestrictions.enableAccess",
+  "accessRestrictions.removeAccessRestrictionsForAccount",
+  "members.invalidateRestrictedPrincipal",
   "accountMemberResources.setAccountMemberResourceLink",
   "accountMemberResources.setAccountMemberResourceLinkWithResult",
   "accountMemberResources.setAccountMemberResourceLinkInTransaction",
@@ -659,6 +666,11 @@ const COVERED = new Set([
 
 /** Why each remaining export cannot carry one company's rows out of its own account. */
 const EXCLUDED = new Map<string, string>([
+  ["accessRestrictions.provenEmail", "identity-global proof read checked against current local email"],
+  ["accessRestrictions.listAccessRestrictions", "account-scoped read"],
+  ["accessRestrictions.getAccessRestriction", "account-scoped read"],
+  ["accessRestrictions.matchingAccessRestrictions", "account-scoped read"],
+  ["accessRestrictions.isAccessRestricted", "account-scoped read"],
   ["accountMemberResources.ACCOUNT_MEMBER_RESOURCE_KIND_CLEANUP_TRIGGER", "schema definition"],
   ["accountMemberResources.ACCOUNT_MEMBER_RESOURCES_SQL", "schema definition"],
   ["invitationPersonProposals.INVITATION_PERSON_PROPOSALS_SQL", "schema definition"],
@@ -768,7 +780,9 @@ describe("the isolation inventory", () => {
     // leaves the inventory certifying isolation that nothing tests any more — worse than no
     // inventory at all, because a reader who sees the name stops looking.
     const source = readFileSync(new URL(import.meta.url), "utf8");
-    const cases = source.slice(0, source.indexOf("const MODULES:"));
+    const cases =
+      source.slice(0, source.indexOf("const MODULES:")) +
+      readFileSync(new URL("./accessRestrictions.conformance.test.ts", import.meta.url), "utf8");
     const uncalled = [...COVERED].filter((key) => !cases.includes(`${key}(`));
 
     expect(uncalled).toEqual([]);

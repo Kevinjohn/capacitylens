@@ -34,6 +34,7 @@ export interface AuditRecord {
     | "purge"
     | "memberRole"
     | "memberStatus"
+    | "memberAccessEnabled"
     | "memberSignInTrackingChange"
     | "memberRemove"
     | "ownershipTransfer"

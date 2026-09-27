@@ -41,7 +41,8 @@ export function buildMemberDirectoryPresentation(members: Member[] | null) {
   // distinguishable without a table each. Presentation ordering is intentionally independent of the
   // server's join-date ordering so both active and inactive tables follow the same role-first contract.
   const grouped = { active: [] as Member[], inactive: [] as Member[] };
-  for (const member of members ?? []) grouped[member.status === "active" ? "active" : "inactive"].push(member);
+  for (const member of members ?? [])
+    grouped[member.status === "active" && !member.accessDisabled ? "active" : "inactive"].push(member);
   const activeMembers = members ? grouped.active.sort(compareMembers) : null;
   const inactiveMembers = grouped.inactive.sort(compareMembers);
   // Labels are resolved HERE, at render, not at module scope: a locale change must be reflected

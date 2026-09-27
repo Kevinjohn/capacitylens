@@ -1,9 +1,11 @@
 import type { SocialProviders } from "better-auth/social-providers";
+import { github as createGithubProvider } from "better-auth/social-providers";
 import type { AuthConfigError } from "../auth";
 import { persistLinkedExternalAvatar } from "./externalAvatar";
 import type { Db } from "../db";
 import type { MicrosoftProof } from "./microsoftProof";
 import { MicrosoftProofError } from "./microsoftProofPrimitives";
+import { captureGoogleEmailProof, captureVerifiedFederatedEmailProof } from "./federatedEmailProof";
 
 type Env = Record<string, string | undefined>;
 type AuthConfigErrorConstructor = typeof AuthConfigError;
@@ -99,6 +101,38 @@ function configuredMicrosoftProvider({
   };
 }
 
+function configuredGithubProvider(db: Db, pair: [string, string]): NonNullable<SocialProviders["github"]> {
+  const options: NonNullable<SocialProviders["github"]> = {
+    clientId: pair[0],
+    clientSecret: pair[1],
+    mapProfileToUser: (profile) =>
+      persistLinkedExternalAvatar({
+        db,
+        providerId: "github",
+        subject: String(profile.id),
+        value: profile.avatar_url,
+      }),
+  };
+  // Delegate address selection and verification to the installed provider. Its mapper receives
+  // the raw profile, while getUserInfo returns the exact selected address and verification result.
+  const official = createGithubProvider(options);
+  return {
+    ...options,
+    getUserInfo: async (tokens) => {
+      const result = await official.getUserInfo(tokens);
+      if (result?.user.emailVerified === true) {
+        captureVerifiedFederatedEmailProof(db, {
+          providerId: "github",
+          subject: String(result.data.id),
+          email: result.user.email,
+          verified: true,
+        });
+      }
+      return result;
+    },
+  };
+}
+
 function parseCredentialPair(input: {
   environment: Env;
   idKey: string;
@@ -134,8 +168,10 @@ export function parseSocialProvidersFromEnvironment({
     providers.google = {
       clientId: google[0],
       clientSecret: google[1],
-      mapProfileToUser: (profile) =>
-        persistLinkedExternalAvatar({ db, providerId: "google", subject: profile.sub, value: profile.picture }),
+      mapProfileToUser: (profile) => {
+        captureGoogleEmailProof(db, profile);
+        return persistLinkedExternalAvatar({ db, providerId: "google", subject: profile.sub, value: profile.picture });
+      },
     };
   const microsoft = pair(
     "SMALLSASS_ACCOUNT_MICROSOFT_CLIENT_ID",
@@ -147,17 +183,6 @@ export function parseSocialProvidersFromEnvironment({
     providers.microsoft = configuredMicrosoftProvider({ pair: microsoft, tenantId, db, proof: microsoftProof });
   }
   const github = pair("SMALLSASS_ACCOUNT_GITHUB_CLIENT_ID", "SMALLSASS_ACCOUNT_GITHUB_CLIENT_SECRET", "GitHub sign-in");
-  if (github)
-    providers.github = {
-      clientId: github[0],
-      clientSecret: github[1],
-      mapProfileToUser: (profile) =>
-        persistLinkedExternalAvatar({
-          db,
-          providerId: "github",
-          subject: String(profile.id),
-          value: profile.avatar_url,
-        }),
-    };
+  if (github) providers.github = configuredGithubProvider(db, github);
   return providers;
 }

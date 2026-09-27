@@ -4,6 +4,7 @@ import {
   passwordResetSessionCapture,
   isFederatedAccountCoordinateConstraint,
   microsoftCallbackCapture,
+  federatedCallbackCapture,
 } from "./captureContexts";
 import { MicrosoftProofError, type MicrosoftProof } from "./microsoftProof";
 
@@ -114,18 +115,31 @@ async function runCapturedHandler(
       bootstrapClaimToken: string | null;
       pending: boolean;
     };
+    federatedCapture: {
+      active: boolean;
+      providerId: "google" | "github";
+      subject: string | null;
+      email: string | null;
+    };
   },
 ): Promise<Response> {
-  const { request, callbackProviderId, capture, resetCapture, microsoftCapture } = context;
+  const { request, callbackProviderId, capture, resetCapture, microsoftCapture, federatedCapture } = context;
+  const raw = () => options.rawHandler(request);
+  const providerScoped = () => {
+    if (callbackProviderId === "microsoft" && options.microsoftProof)
+      return microsoftCallbackCapture.run(microsoftCapture, raw);
+    if (callbackProviderId === "google" || callbackProviderId === "github")
+      return federatedCallbackCapture.run(federatedCapture, raw);
+    return raw();
+  };
   try {
     return await authHandlerErrorCapture.run(capture, () =>
-      passwordResetSessionCapture.run(resetCapture, () =>
-        callbackProviderId === "microsoft" && options.microsoftProof
-          ? microsoftCallbackCapture.run(microsoftCapture, () => options.rawHandler(request))
-          : options.rawHandler(request),
-      ),
+      passwordResetSessionCapture.run(resetCapture, providerScoped),
     );
   } finally {
+    federatedCapture.active = false;
+    federatedCapture.email = null;
+    federatedCapture.subject = null;
     if (microsoftCapture.bootstrapClaimToken)
       options.microsoftProof?.releaseBootstrapClaim(microsoftCapture.bootstrapClaimToken);
   }
@@ -150,6 +164,8 @@ function microsoftErrorRedirect(
   return redirectWithError(target, error.code);
 }
 
+// The callback response, captured failures, and proof-context cleanup share one request boundary.
+// eslint-disable-next-line max-lines-per-function
 async function runAuthenticatedRequest(
   options: CreateAuthRequestHandlerOptions,
   context: {
@@ -169,12 +185,19 @@ async function runAuthenticatedRequest(
       bootstrapClaimToken: null as string | null,
       pending: false,
     };
+    const federatedCapture = {
+      active: true,
+      providerId: callbackProviderId === "github" ? ("github" as const) : ("google" as const),
+      subject: null as string | null,
+      email: null as string | null,
+    };
     const response = await runCapturedHandler(options, {
       request,
       callbackProviderId,
       capture,
       resetCapture,
       microsoftCapture,
+      federatedCapture,
     });
     if (microsoftCapture.pending) {
       return Response.redirect(new URL("/verify-microsoft?state=check-email", requestUrl.origin), 302);

@@ -31,6 +31,27 @@ function importPayload(resources: unknown[]) {
 }
 
 describe("POST /api/import member resource associations", () => {
+  it("preserves a company access restriction while replacing scheduling data", async () => {
+    const { app, db } = freshApp();
+    await post(app, "accounts", account("a1"));
+    db.prepare(
+      `INSERT INTO account_access_restrictions
+      (accountId, principalId, verifiedEmail, role, createdAt) VALUES (?, ?, ?, ?, ?)`,
+    ).run("a1", "removed-principal", "selina.kyle@example.invalid", "editor", now);
+
+    const response = await call(app, {
+      method: "POST",
+      url: "/api/import",
+      payload: importPayload([namedPerson("replacement")]),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(
+      db
+        .prepare(`SELECT principalId, verifiedEmail, role FROM account_access_restrictions WHERE accountId = 'a1'`)
+        .get(),
+    ).toEqual({ principalId: "removed-principal", verifiedEmail: "selina.kyle@example.invalid", role: "editor" });
+  });
+
   it("clears all person links only after a successful destructive replacement", async () => {
     const { app, db } = freshApp();
     await post(app, "accounts", account("a1"));

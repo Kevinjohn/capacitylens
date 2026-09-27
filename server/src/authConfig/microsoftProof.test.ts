@@ -50,6 +50,10 @@ describe("Microsoft native callback proof", () => {
         providerId: "microsoft",
       });
       expect(db.prepare("SELECT state FROM microsoft_identity_proofs").get()).toEqual({ state: "completed" });
+      expect(db.prepare("SELECT email, source FROM identity_email_proofs").get()).toEqual({
+        email: "bruce@example.com",
+        source: "microsoft",
+      });
       const auditedConnections = db
         .prepare(
           `SELECT observation.providerId, observation.subject

@@ -98,7 +98,7 @@ the native hover label.
 - The **pencil** changes that person's role, with the consequences spelled out before you
   save.
 - **More actions** opens a centered dialog with the remaining permitted actions: reset their
-  password, sign them out everywhere, disable or archive them, or remove them from the company.
+  password, sign them out everywhere, Disable Access, archive their membership, or remove them from the company.
 
 The **Link to Resource** column shows the member's association. Select the member's link icon
 to open the centered Resource selector directly. Choosing a person saves immediately. If a link
@@ -107,11 +107,17 @@ reverses a completed change. See [Link a person to a member](/guide/people-and-p
 
 ![Resource link dialog for a linked member, with Remove link to resource available](../screenshots/flows/remove_resource_link.png)
 
-**Disable** and **archive** both stop someone opening the company immediately while
-keeping their role and history — use them when someone leaves, goes on long-term leave, or
-you need access shut off right now. They stay in the list with a badge, and **Restore
-access** in the same dialog puts them back exactly as they were. Removing someone, by
-contrast, is permanent: they'd need a fresh invitation to return.
+**Disable Access** stops this person opening the company immediately, including through an
+existing session or a later invitation. It also survives removal and recreation with the same
+verified email. **Enable Access** removes that restriction. A retained active member then keeps
+their existing role; an archived or removed person still needs the ordinary restore or invitation
+process. Only an Owner or Admin can enable access, including for a removed person listed under
+**No longer active**.
+
+**Archive user** stops current membership access and retains the inactive record. **Restore
+membership** reactivates that record, but does not clear Disable Access. **Remove** ends the
+membership. Archive or removal alone permits a later invitation; a returning person receives the
+invitation's role. Other company memberships remain usable throughout.
 
 ## Common questions
 

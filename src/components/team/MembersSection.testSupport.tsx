@@ -18,6 +18,8 @@ export interface RawMember {
   userId: string;
   role: "owner" | "admin" | "editor" | "viewer";
   status?: string;
+  accessDisabled?: boolean;
+  membershipPresent?: boolean;
   createdAt?: string;
   signInConfirmed?: boolean | null;
   name?: string | null;
@@ -264,7 +266,7 @@ export async function expectAccessibleMemberControls({
   for (const action of [
     `Reset password for ${member}`,
     `Revoke sessions for ${member}`,
-    `Disable ${member}`,
+    `Disable Access for ${member}`,
     `Archive ${member}`,
     `Remove ${member}`,
   ]) {

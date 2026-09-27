@@ -108,6 +108,9 @@ function createConfirmationActions(
       case "restore":
         void actions.changeStatus(pending.member, STATUS_FOR_ACTION[pending.kind]);
         return;
+      case "enable":
+        void actions.enableAccess(pending.member);
+        return;
     }
   };
   return { chooseMemberAction, confirmMemberAction };

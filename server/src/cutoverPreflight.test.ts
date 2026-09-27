@@ -108,6 +108,7 @@ const administration: SsoCutoverAccountAdminPort = {
   revokeInvitation: unusedAsync,
   changeMemberRole: unusedAsync,
   changeMemberStatus: unusedAsync,
+  enableMemberAccess: unusedAsync,
   removeMember: unusedAsync,
   readOwnershipTransfer: unusedAsync,
   initiateOwnershipTransfer: unusedAsync,

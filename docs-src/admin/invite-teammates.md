@@ -42,7 +42,15 @@ Use Link to Resource to connect their sign-in to an existing scheduled person. S
 
 ## Stop access
 
-Open Member settings beside the member. Disable user or Archive user stops access while keeping their history. Restore access reverses either choice.
+Open Member settings beside the member. **Disable Access** stops access to this company and prevents rejoining until an Owner or Admin selects **Enable Access**. The restriction remains visible even after removal. **Archive user** keeps an inactive membership that can later be restored; archiving or removal alone does not prevent a new invitation. Restoring a membership does not clear an explicit Disable Access restriction.
+
+If the person later creates a new sign-in identity with the same address, the restriction follows
+that address only when the original and new identities have proven mailbox ownership through
+verified company sign-in or a completed mailbox ceremony. An addressed invitation or an older
+"email verified" flag alone does not establish that link. Owners and Admins can still manage the
+original restriction from the inactive member list.
+An established Microsoft sign-in keeps its stable provider identity, but a returning sign-in alone
+does not add mailbox proof to an older identity that lacks it.
 
 Remove deletes the membership; they need another invitation to return.
 

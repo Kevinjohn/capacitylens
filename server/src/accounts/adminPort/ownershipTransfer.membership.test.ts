@@ -110,6 +110,8 @@ afterEach(() => {
   db = null;
 });
 
+// The parameterized membership mutations and alias proof setup share a single seeded port.
+// eslint-disable-next-line max-lines-per-function
 describe("ownership transfer membership binding", () => {
   it.each([
     [
@@ -158,6 +160,66 @@ describe("ownership transfer membership binding", () => {
     expect(auditEvents.find(({ action }) => action === "ownership_transfer.invalidated")?.id).toContain(
       `:${requestId}`,
     );
+  });
+
+  it.each([false, true])("invalidates a proven alias when Disable %s a restriction", async (widenExisting) => {
+    const auditEvents: AccountAuditEvent[] = [];
+    const port = seed(auditEvents);
+    const handle = seeded();
+    const aliasId = "james-rhodes";
+    handle.exec(`CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT UNIQUE);
+      INSERT INTO user VALUES ('pepper-potts', 'Pepper@stark.test');
+      INSERT INTO user VALUES ('james-rhodes', 'pepper@stark.test');`);
+    upsertMember(handle, {
+      accountId: workspaceId,
+      userId: aliasId,
+      role: "editor",
+      status: "active",
+      createdAt: "2026-09-01T09:00:00.000Z",
+    });
+    const disableAlias = (suffix: string) =>
+      port.changeMemberStatus({
+        actor: owner,
+        workspaceId,
+        targetPrincipalId: aliasId,
+        nextStatus: "disabled",
+        command: { commandId: `alias-${suffix}`, idempotencyKey: `alias-${suffix}-key` },
+      });
+    if (widenExisting) await disableAlias("principal-only");
+    handle
+      .prepare(
+        `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+      VALUES (?, 'pepper@stark.test', 'google', ?)`,
+      )
+      .run(target.principalId, "2026-09-01T09:00:00.000Z");
+    handle
+      .prepare(
+        `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+      VALUES (?, 'pepper@stark.test', 'google', ?)`,
+      )
+      .run(aliasId, "2026-09-01T09:00:00.000Z");
+    const requestId = await initiate(port);
+    const revisionBefore = (
+      handle
+        .prepare(`SELECT revision FROM account_security_revisions WHERE principalId = ?`)
+        .get(target.principalId) as { revision: number }
+    ).revision;
+    await disableAlias("proven");
+    expect(readRequestById(handle, workspaceId, requestId)).toMatchObject({
+      state: "invalidated",
+      terminalReason: "participant_membership_changed",
+    });
+    expect(auditEvents.filter(({ action }) => action === "ownership_transfer.invalidated")).toHaveLength(1);
+    expect(
+      handle.prepare(`SELECT revision FROM account_security_revisions WHERE principalId = ?`).get(target.principalId),
+    ).toMatchObject({ revision: revisionBefore + 1 });
+    await port.enableMemberAccess({
+      actor: owner,
+      workspaceId,
+      targetPrincipalId: aliasId,
+      command: { commandId: "enable-alias", idempotencyKey: "enable-alias-key" },
+    });
+    expect(readRequestById(handle, workspaceId, requestId)).toMatchObject({ state: "invalidated" });
   });
 });
 

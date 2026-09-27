@@ -46,6 +46,19 @@ END;
 CREATE TRIGGER IF NOT EXISTS capacitylens_microsoft_account_proof_after
 AFTER INSERT ON account WHEN NEW.providerId = 'microsoft'
 BEGIN
+  SELECT CASE WHEN EXISTS (SELECT 1 FROM account_members AS member
+    JOIN account_access_restrictions AS restriction ON restriction.accountId = member.accountId
+    JOIN microsoft_identity_proofs AS proof ON proof.id = capacitylens_current_microsoft_proof_id()
+    WHERE member.userId = NEW.userId AND member.role = 'owner' AND member.status = 'active'
+      AND (restriction.principalId = NEW.userId OR restriction.verifiedEmail = proof.targetEmail))
+    THEN RAISE(ABORT, 'microsoft_email_proof_owner_conflict') END;
+  INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
+    SELECT NEW.userId, proof.targetEmail, 'microsoft', strftime('%Y-%m-%dT%H:%M:%fZ','now')
+    FROM microsoft_identity_proofs AS proof
+    WHERE proof.id = capacitylens_current_microsoft_proof_id() AND proof.state = 'approved'
+      AND proof.oid = NEW.accountId
+    ON CONFLICT(principalId) DO UPDATE SET email = excluded.email,
+      source = excluded.source, provenAt = excluded.provenAt;
   UPDATE microsoft_identity_proofs
      SET state = 'completed', tokenHash = NULL,
          updatedAt = CAST(strftime('%s', 'now') AS INTEGER) * 1000

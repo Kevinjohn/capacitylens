@@ -182,6 +182,7 @@ type MembershipAdministrationMethods = Pick<
   | "revokeInvitation"
   | "changeMemberRole"
   | "changeMemberStatus"
+  | "enableMemberAccess"
   | "removeMember"
   | "readOwnershipTransfer"
   | "initiateOwnershipTransfer"
@@ -255,6 +256,7 @@ function membershipAdministrationMethods(): MembershipAdministrationMethods {
       ...member,
       status: nextStatus,
     })),
+    enableMemberAccess: vi.fn(async () => ({ ...member, accessDisabled: false })),
     removeMember: vi.fn<LocalAccountAdminPort["removeMember"]>(async ({ command: value }) => ({
       commandId: value.commandId,
       completedAt: "2026-01-01T00:00:00.000Z",

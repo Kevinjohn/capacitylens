@@ -63,7 +63,12 @@ export function MemberResourceLink({
     Boolean(member.resourceLink && !currentPerson) ||
     member.resourceLink?.resourceStatus === "archived" ||
     member.resourceLink?.resourceStatus === "disabled";
-  const canEdit = member.status === "active" && !currentPersonInactive && people.length > 0;
+  const canEdit =
+    member.status === "active" &&
+    !member.accessDisabled &&
+    member.membershipPresent !== false &&
+    !currentPersonInactive &&
+    people.length > 0;
   const change = (resourceId: string) => {
     if (!workspaceId) return;
     const generation = ++requestGeneration.current;
@@ -268,7 +273,7 @@ export function MemberResourceDialog({
     if (wasOpen.current && !open) requestAnimationFrame(() => triggerRef.current?.focus());
     wasOpen.current = open;
   }, [open]);
-  if (myRole !== "owner" && myRole !== "admin") return null;
+  if (member.membershipPresent === false || (myRole !== "owner" && myRole !== "admin")) return null;
   const memberLabel = member.name ?? member.email ?? member.userId;
   return (
     <>

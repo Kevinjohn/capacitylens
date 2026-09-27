@@ -49,11 +49,6 @@
       "reason": "test-size ratchet baseline; split when touched"
     },
     {
-      "path": "server/src/app.members.lifecycle.test.ts",
-      "baseline": 838,
-      "reason": "retained head of the #827 auth split, pinned"
-    },
-    {
       "path": "server/src/app.members.test.ts",
       "baseline": 1222,
       "reason": "test-size ratchet baseline; split when touched"

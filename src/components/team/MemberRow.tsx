@@ -22,6 +22,8 @@ import { MemberActionsDialog } from "./MemberActionsDialog";
  * collapsed inactive group can never end up offering a different set of actions from the main one.
  * The CLIENT gate is courtesy only — the server refuses each of these regardless.
  */
+// These predicates mirror the distinct server actions presented in one row.
+// eslint-disable-next-line complexity
 function buildMemberAffordances(
   myRole: Role | undefined,
   member: TeamMember,
@@ -33,24 +35,22 @@ function buildMemberAffordances(
   mayReset: boolean;
   hasMenu: boolean;
 } {
-  // The role editor is ACTIVE-only, matching the server: changeMemberRole resolves its target
-  // through getActiveMemberRole, so offering the pencil on a non-active row could only ever
-  // produce a 404. Restore the member first, then change the role — a role change must not be a
-  // back door that quietly reinstates access.
-  const mayTouch = member.status === "active" && !!myRole && canEditAnyMemberRole(myRole, member.role);
+  // Role editing requires an active, unrestricted membership on both client and server.
+  const mayTouch =
+    member.status === "active" &&
+    !member.accessDisabled &&
+    member.membershipPresent !== false &&
+    !!myRole &&
+    canEditAnyMemberRole(myRole, member.role);
   // Remove, by contrast, is status-agnostic on both sides: deleting a non-active membership is a
   // normal administrative act and must not require reinstating it first.
-  const mayRemove = !!myRole && canRemoveMember(myRole, member.role);
+  const mayRemove = member.membershipPresent !== false && !!myRole && canRemoveMember(myRole, member.role);
   const mayChangeStatus = !!myRole && canChangeMemberStatus(myRole, member.role, member.isSelf);
-  // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP;
-  // the server 400s there regardless) and never for a target an admin can't touch
-  // (e.g. an owner, or a member who owns another account — a reset link is an
-  // account-takeover capability). We trust the SERVER-computed `mayResetPassword`:
-  // it already folds in the cross-account + self-exemption checks the per-account
-  // pure guard cannot see AND returns `false` in SSO mode.
+  // The server decision includes auth mode, cross-account and self protections.
   const mayReset = member.mayResetPassword;
   return {
-    mayMasquerade: member.status === "active" && !member.isSelf && !!myRole && can(myRole, "masquerade"),
+    mayMasquerade:
+      member.status === "active" && !member.accessDisabled && !member.isSelf && !!myRole && can(myRole, "masquerade"),
     mayTouch,
     mayRemove,
     mayChangeStatus,
@@ -101,9 +101,11 @@ function MemberIdentity({ member }: { member: TeamMember }) {
   let name = member.userId;
   if (trimmedName) name = trimmedName;
 
-  let statusLabel: string | null = null;
-  if (member.status === "disabled") statusLabel = m.settings_member_status_disabled();
-  if (member.status === "archived") statusLabel = m.settings_member_status_archived();
+  const statusLabels = [
+    ...(member.membershipPresent === false ? [m.settings_member_status_removed()] : []),
+    ...(member.status === "archived" ? [m.settings_member_status_archived()] : []),
+    ...(member.accessDisabled ? [m.settings_member_status_disabled()] : []),
+  ];
 
   return (
     <td className="py-2 px-4">
@@ -113,11 +115,11 @@ function MemberIdentity({ member }: { member: TeamMember }) {
           {member.isSelf && <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>}
         </span>
         <div className="flex items-center gap-2">
-          {statusLabel && (
-            <Badge variant="outline" data-testid="member-status">
-              {statusLabel}
+          {statusLabels.map((label) => (
+            <Badge key={label} variant="outline" data-testid="member-status">
+              {label}
             </Badge>
-          )}
+          ))}
         </div>
       </div>
     </td>
@@ -187,30 +189,43 @@ function MemberStatusMenuItems({
   memberLabel: string;
   chooseMemberAction(action: MemberConfirmationAction, member: TeamMember): void;
 }) {
-  if (member.status !== "active") {
-    return (
-      <MemberMenuItem
-        testId="member-restore"
-        label={m.settings_member_restore()}
-        ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
-        onSelect={() => chooseMemberAction("restore", member)}
-      />
-    );
+  if (member.membershipPresent === false) {
+    if (!member.accessDisabled) return null;
   }
+  const restricted = member.accessDisabled;
   return (
     <>
-      <MemberMenuItem
-        testId="member-disable"
-        label={m.settings_member_disable()}
-        ariaLabel={m.settings_member_disable_aria({ member: memberLabel })}
-        onSelect={() => chooseMemberAction("disable", member)}
-      />
-      <MemberMenuItem
-        testId="member-archive"
-        label={m.settings_member_archive()}
-        ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
-        onSelect={() => chooseMemberAction("archive", member)}
-      />
+      {restricted ? (
+        <MemberMenuItem
+          testId="member-enable"
+          label={m.settings_member_enable()}
+          ariaLabel={m.settings_member_enable_aria({ member: memberLabel })}
+          onSelect={() => chooseMemberAction("enable", member)}
+        />
+      ) : (
+        <MemberMenuItem
+          testId="member-disable"
+          label={m.settings_member_disable()}
+          ariaLabel={m.settings_member_disable_aria({ member: memberLabel })}
+          onSelect={() => chooseMemberAction("disable", member)}
+        />
+      )}
+      {member.membershipPresent !== false &&
+        (member.status === "active" ? (
+          <MemberMenuItem
+            testId="member-archive"
+            label={m.settings_member_archive()}
+            ariaLabel={m.settings_member_archive_aria({ member: memberLabel })}
+            onSelect={() => chooseMemberAction("archive", member)}
+          />
+        ) : (
+          <MemberMenuItem
+            testId="member-restore"
+            label={m.settings_member_restore()}
+            ariaLabel={m.settings_member_restore_aria({ member: memberLabel })}
+            onSelect={() => chooseMemberAction("restore", member)}
+          />
+        ))}
     </>
   );
 }

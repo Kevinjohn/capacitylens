@@ -137,6 +137,7 @@ function remapAccountCoordinates(db: DatabaseSync): void {
       { table: "timeOff", column: "accountId" },
       { table: "closures", column: "accountId" },
       { table: "account_members", column: "accountId" },
+      { table: "account_access_restrictions", column: "accountId" },
       { table: "account_member_resources", column: "accountId" },
       { table: "invitation_person_proposals", column: "accountId" },
       { table: "member_resource_link_exceptions", column: "accountId" },
@@ -228,6 +229,8 @@ function remapPrincipalCoordinates(db: DatabaseSync): void {
       { table: "session", column: "userId" },
       { table: "twoFactor", column: "userId" },
       { table: "account_members", column: "userId" },
+      { table: "account_access_restrictions", column: "principalId" },
+      { table: "identity_email_proofs", column: "principalId" },
       { table: "account_member_resources", column: "userId" },
       { table: "member_resource_link_exceptions", column: "userId" },
       { table: "account_ownership_transfers", column: "initiatorUserId" },
@@ -292,6 +295,7 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
     parentColumn: "id",
     references: [
       { table: "account_members", column: "accountId" },
+      { table: "account_access_restrictions", column: "accountId" },
       { table: "account_member_resources", column: "accountId" },
       { table: "invitation_person_proposals", column: "accountId" },
       { table: "member_resource_link_exceptions", column: "accountId" },
@@ -310,6 +314,8 @@ function scrubIdentityCoordinates(db: DatabaseSync): void {
     references: [
       { table: "account", column: "userId" },
       { table: "account_members", column: "userId" },
+      { table: "account_access_restrictions", column: "principalId" },
+      { table: "identity_email_proofs", column: "principalId" },
       { table: "account_member_resources", column: "userId" },
       { table: "member_resource_link_exceptions", column: "userId" },
       { table: "account_security_revisions", column: "principalId" },
