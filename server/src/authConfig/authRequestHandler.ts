@@ -7,6 +7,8 @@ import {
   googleCallbackCapture,
 } from "./captureContexts";
 import { MicrosoftProofError, type MicrosoftProof } from "./microsoftProof";
+import { joiningProviderCallbackCapture, JoiningProviderCallbackError,
+  type createJoiningProviderCallbacks } from "../accounts/adminPort/joiningProviderCallbacks";
 
 type CreateAuthRequestHandlerOptions = {
   rawHandler: Auth["handler"];
@@ -16,6 +18,7 @@ type CreateAuthRequestHandlerOptions = {
   commitResetSessions: (sessionHandles: readonly string[]) => void;
   reconcileFederatedLinks: () => void;
   microsoftProof: MicrosoftProof | null;
+  joiningProviderCallbacks?: Pick<ReturnType<typeof createJoiningProviderCallbacks>, "preflight">;
 };
 
 function redirectWithError(target: URL, error: string): Response {
@@ -33,6 +36,9 @@ function redirectCapturedCallbackError(options: {
   const target = options.failureTarget ?? new URL(options.browserAuthErrorUrl);
   if (isFederatedAccountCoordinateConstraint(options.capturedError)) {
     return redirectWithError(target, "account_already_linked_to_different_user");
+  }
+  if (options.capturedError instanceof JoiningProviderCallbackError) {
+    return redirectWithError(target, options.capturedError.code);
   }
   return null;
 }
@@ -116,15 +122,17 @@ async function runCapturedHandler(
       pending: boolean;
     };
     googleCapture: { active: boolean; subject: string | null; email: string | null };
+    joinCapture: ReturnType<NonNullable<CreateAuthRequestHandlerOptions["joiningProviderCallbacks"]>["preflight"]>;
   },
 ): Promise<Response> {
-  const { request, callbackProviderId, capture, resetCapture, microsoftCapture, googleCapture } = context;
+  const { request, callbackProviderId, capture, resetCapture, microsoftCapture, googleCapture, joinCapture } = context;
   const raw = () => options.rawHandler(request);
+  const joined = () => joinCapture ? joiningProviderCallbackCapture.run(joinCapture, raw) : raw();
   const providerScoped = () => {
     if (callbackProviderId === "microsoft" && options.microsoftProof)
       return microsoftCallbackCapture.run(microsoftCapture, raw);
-    if (callbackProviderId === "google") return googleCallbackCapture.run(googleCapture, raw);
-    return raw();
+    if (callbackProviderId === "google") return googleCallbackCapture.run(googleCapture, joined);
+    return joined();
   };
   try {
     return await authHandlerErrorCapture.run(capture, () =>
@@ -159,7 +167,7 @@ function microsoftErrorRedirect(
 }
 
 // The callback response, captured failures, and proof-context cleanup share one request boundary.
-// eslint-disable-next-line max-lines-per-function
+// eslint-disable-next-line max-lines-per-function, complexity -- Provider callback outcomes share one response and cleanup boundary.
 async function runAuthenticatedRequest(
   options: CreateAuthRequestHandlerOptions,
   context: {
@@ -171,6 +179,8 @@ async function runAuthenticatedRequest(
 ): Promise<Response> {
   const { request, requestUrl, callbackProviderId, failureTarget } = context;
   try {
+    const joinCapture = callbackProviderId
+      ? options.joiningProviderCallbacks?.preflight(request, callbackProviderId) ?? null : null;
     const capture: { error: unknown } = { error: null };
     const resetCapture: { sessionHandles: readonly string[] } = { sessionHandles: [] };
     const microsoftCapture = {
@@ -187,6 +197,7 @@ async function runAuthenticatedRequest(
       resetCapture,
       microsoftCapture,
       googleCapture,
+      joinCapture,
     });
     if (microsoftCapture.pending) {
       return Response.redirect(new URL("/verify-microsoft?state=check-email", requestUrl.origin), 302);
@@ -211,6 +222,9 @@ async function runAuthenticatedRequest(
     reconcileCallback(options, callbackProviderId);
     return resolveProviderRedirect(options, { request, providerId: callbackProviderId, response });
   } catch (error) {
+    if (error instanceof JoiningProviderCallbackError) {
+      return redirectWithError(failureTarget ?? new URL(options.browserAuthErrorUrl), error.code);
+    }
     const microsoftFailure = microsoftErrorRedirect(options, { request, providerId: callbackProviderId, error });
     if (microsoftFailure) return microsoftFailure;
     if (!isFederatedAccountCoordinateConstraint(error)) throw error;

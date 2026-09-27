@@ -20,6 +20,7 @@ import { verifiedUnauditedFederatedLinks, sqliteTableExists } from "./federatedI
 import { createCredentialUserWith } from "./bootstrapAdmin";
 import { createAuthRequestHandler } from "./authRequestHandler";
 import type { MicrosoftProof } from "./microsoftProof";
+import type { createJoiningProviderCallbacks } from "../accounts/adminPort/joiningProviderCallbacks";
 
 type AdapterFactoryDependencies = {
   revokeFederatedLinkStateInTx: typeof AuthFacade.revokeFederatedLinkStateInTx;
@@ -44,6 +45,7 @@ type AdapterOptions = {
   trustedOrigins: string[] | undefined;
   sessionDeletionLifecycleRef: LifecycleRef;
   microsoftProof: MicrosoftProof | null;
+  joiningProviderCallbacks?: Pick<ReturnType<typeof createJoiningProviderCallbacks>, "preflight">;
 };
 type RawAuth = {
   handler: Auth["handler"];
@@ -314,6 +316,9 @@ function createAuthAdapter(options: AdapterOptions, dependencies: AdapterFactory
     commitResetSessions: (handles) => options.sessionDeletionLifecycleRef.current?.commit(handles),
     reconcileFederatedLinks: reconcile,
     microsoftProof: options.microsoftProof,
+    ...(options.joiningProviderCallbacks === undefined ? {} : {
+      joiningProviderCallbacks: options.joiningProviderCallbacks,
+    }),
   });
   return {
     handler,

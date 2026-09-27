@@ -2,7 +2,6 @@ import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/acco
 import { parseApprovedDomain } from "@capacitylens/shared/account/approvedDomains";
 import type { ActorContext } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
-import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import type { Db } from "../../db";
 import { tx } from "../../txn";
 import {
@@ -19,9 +18,12 @@ import {
 import { admitCompanyInTx, prepareCompanyAdmissionIntent } from "./joiningAdmission";
 import { createAccountFailure } from "./failures";
 import type { LocalIdentityPort } from "../identityPort/contracts";
+import {
+  hashJoiningSourceIp, hashJoiningValue, isJoiningSecret, joiningCookie, joiningCookieNames, joiningEmailHint,
+  newJoiningIntentId, newJoiningSecret, readJoiningCookie,
+} from "./joiningIntentSecrets";
 
 const TTL_MS = 15 * 60_000;
-const SECRET_RE = /^[A-Za-z0-9_-]{43}$/;
 
 interface JoiningProofInput {
   db: Db;
@@ -40,35 +42,6 @@ interface StartInput {
   email: string;
   headers: Headers;
   sourceIp: string;
-}
-
-function newSecret(): string {
-  return randomBytes(32).toString("base64url");
-}
-
-function hash(kind: string, value: string): string {
-  return createHash("sha256").update(`company-join-${kind}\0`).update(value).digest("hex");
-}
-
-function readCookie(headers: Headers, name: string): string | null {
-  const prefix = `${name}=`;
-  for (const entry of (headers.get("cookie") ?? "").split(";")) {
-    const value = entry.trim();
-    if (value.startsWith(prefix)) {
-      const secret = value.slice(prefix.length);
-      return SECRET_RE.test(secret) ? secret : null;
-    }
-  }
-  return null;
-}
-
-function cookie(input: { name: string; value: string; secure: boolean; maxAge: number }): string {
-  const { name, value, secure, maxAge } = input;
-  return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
-}
-
-function hint(email: string): string {
-  return `${email.slice(0, 1)}***${email.slice(email.indexOf("@"))}`;
 }
 
 function assertStartEmail(raw: string): string {
@@ -122,24 +95,21 @@ function assertTargetStillMatches(db: Db, intent: JoinIntent, invitationToken?: 
 // eslint-disable-next-line max-lines-per-function -- One factory keeps browser-cookie, quota and admission transitions bound to one database.
 export function createJoiningProof(input: JoiningProofInput) {
   const { db, identity, applicationId, secret, secureCookies, requireMfa, sendMail } = input;
-  const prefix = `${secureCookies ? "__Host-" : ""}${applicationId}-join`;
-  const browserCookie = `${prefix}-browser`;
-  const intentCookie = `${prefix}-intent`;
-  const ipHash = (sourceIp: string) => createHmac("sha256", secret).update("company-join-ip\0").update(sourceIp).digest("hex");
+  const { browser: browserCookie, intent: intentCookie } = joiningCookieNames(applicationId, secureCookies);
   const fromHeaders = (headers: Headers) => {
-    const nonce = readCookie(headers, intentCookie);
-    const browser = readCookie(headers, browserCookie);
+    const nonce = readJoiningCookie(headers, intentCookie);
+    const browser = readJoiningCookie(headers, browserCookie);
     if (!nonce || !browser) return null;
-    const intent = readJoinIntent(db, hash("nonce", nonce));
-    return intent?.browserHash === hash("browser", browser) ? intent : null;
+    const intent = readJoinIntent(db, hashJoiningValue("nonce", nonce));
+    return intent?.browserHash === hashJoiningValue("browser", browser) ? intent : null;
   };
-  const clearIntentCookie = () => cookie({ name: intentCookie, value: "", secure: secureCookies, maxAge: 0 });
+  const clearIntentCookie = () => joiningCookie({ name: intentCookie, value: "", secure: secureCookies, maxAge: 0 });
 
   async function deliver(intent: JoinIntent, token: string, generation: number): Promise<void> {
     try {
       await sendMail(intent.email, token, intent.accountId);
     } catch {
-      clearFailedJoinDelivery({ db, id: intent.id, generation, tokenHash: hash("mail", token) });
+      clearFailedJoinDelivery({ db, id: intent.id, generation, tokenHash: hashJoiningValue("mail", token) });
       throw new AccountContractError({
         code: "DEPENDENCY_UNAVAILABLE",
         message: "Verification email could not be sent. Try again shortly.",
@@ -151,9 +121,9 @@ export function createJoiningProof(input: JoiningProofInput) {
   async function start(value: StartInput) {
     const email = assertStartEmail(value.email);
     const now = Date.now();
-    const browser = readCookie(value.headers, browserCookie) ?? newSecret();
-    const nonce = newSecret();
-    const token = newSecret();
+    const browser = readJoiningCookie(value.headers, browserCookie) ?? newJoiningSecret();
+    const nonce = newJoiningSecret();
+    const token = newJoiningSecret();
     const previous = fromHeaders(value.headers);
     const intent = tx(db, () => {
       pruneJoinIntents(db, now);
@@ -170,16 +140,16 @@ export function createJoiningProof(input: JoiningProofInput) {
       );
       if (restriction) throw createAccountFailure("FORBIDDEN", "Access to this company is disabled.");
       const created: JoinIntent = {
-        id: randomUUID(), nonceHash: hash("nonce", nonce), browserHash: hash("browser", browser),
+        id: newJoiningIntentId(), nonceHash: hashJoiningValue("nonce", nonce), browserHash: hashJoiningValue("browser", browser),
         purpose: value.purpose, accountId: value.accountId, invitationId: invite?.id ?? null,
         email, principalId: principal?.id ?? null, providerId: "password", state: "started",
         tokenHash: null, deliveryGeneration: 0, expiresAt: now + TTL_MS,
-        sentCount: 0, lastSentAt: null, sourceIpHash: ipHash(value.sourceIp),
+        sentCount: 0, lastSentAt: null, sourceIpHash: hashJoiningSourceIp(secret, value.sourceIp),
         providerStateHash: null, createdAt: now, updatedAt: now,
       };
       // Quota and replacement are one transaction. A denied start leaves the previous journey intact.
       insertJoinIntent(db, created);
-      const generation = reserveJoinDelivery({ db, intent: created, tokenHash: hash("mail", token), now });
+      const generation = reserveJoinDelivery({ db, intent: created, tokenHash: hashJoiningValue("mail", token), now });
       if (previous) cancelJoinIntent(db, previous.nonceHash, now);
       return { ...created, generation };
     }, "immediate");
@@ -191,11 +161,11 @@ export function createJoiningProof(input: JoiningProofInput) {
       deliveryUnavailable = true;
     }
     return {
-      emailHint: hint(email), expiresAt: new Date(intent.expiresAt).toISOString(),
+      emailHint: joiningEmailHint(email), expiresAt: new Date(intent.expiresAt).toISOString(),
       deliveryUnavailable,
       setCookies: [
-        cookie({ name: browserCookie, value: browser, secure: secureCookies, maxAge: 3600 }),
-        cookie({ name: intentCookie, value: nonce, secure: secureCookies, maxAge: 900 }),
+        joiningCookie({ name: browserCookie, value: browser, secure: secureCookies, maxAge: 3600 }),
+        joiningCookie({ name: intentCookie, value: nonce, secure: secureCookies, maxAge: 900 }),
       ],
     };
   }
@@ -207,29 +177,29 @@ export function createJoiningProof(input: JoiningProofInput) {
     }
     return { state: intent.state === "approved" ? "approved" as const : "pending" as const,
       accountId: intent.accountId, purpose: intent.purpose,
-      email: intent.email, emailHint: hint(intent.email),
+      email: intent.email, emailHint: joiningEmailHint(intent.email),
       deliveryUnavailable: intent.state === "started" && intent.sentCount > 0 };
   }
 
   async function resend(headers: Headers) {
     const intent = fromHeaders(headers);
     if (!intent) throw createAccountFailure("INVITATION_EXPIRED", "Restart company joining.");
-    const token = newSecret();
+    const token = newJoiningSecret();
     const generation = tx(db, () => {
       const current = readJoinIntent(db, intent.nonceHash);
       if (!current) throw createAccountFailure("INVITATION_EXPIRED", "Restart company joining.");
-      return reserveJoinDelivery({ db, intent: current, tokenHash: hash("mail", token), now: Date.now() });
+      return reserveJoinDelivery({ db, intent: current, tokenHash: hashJoiningValue("mail", token), now: Date.now() });
     }, "immediate");
     await deliver(intent, token, generation);
     return { ok: true };
   }
 
   function confirm(headers: Headers, token: string) {
-    if (!SECRET_RE.test(token)) throw createAccountFailure("FORBIDDEN", "The verification link is invalid.");
+    if (!isJoiningSecret(token)) throw createAccountFailure("FORBIDDEN", "The verification link is invalid.");
     const intent = fromHeaders(headers);
     if (!intent) throw createAccountFailure("INVITATION_EXPIRED", "Open the link in the browser where you started.");
     const approved = tx(db, () => approveJoinToken({
-      db, nonceHash: intent.nonceHash, tokenHash: hash("mail", token), now: Date.now(),
+      db, nonceHash: intent.nonceHash, tokenHash: hashJoiningValue("mail", token), now: Date.now(),
     }), "immediate");
     if (!approved) throw createAccountFailure("FORBIDDEN", "The verification link is invalid or expired.");
     return { state: "approved" as const };

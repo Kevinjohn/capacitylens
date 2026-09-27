@@ -242,6 +242,7 @@ function registerPlatformRoutes(input: RegisterRouteGroupInput): void {
     if (options.joiningProof) registerJoiningProofRoutes(app, {
       db,
       identity: identityPort,
+      auth,
       applicationId: application.applicationId,
       authMode,
       requireMfa: options.requireMfa === true,

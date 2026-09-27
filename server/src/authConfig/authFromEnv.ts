@@ -32,6 +32,8 @@ import type { createAuthAdapterFactory } from "./authAdapter";
 import type { MicrosoftProof } from "./microsoftProof";
 import { createConfiguredMicrosoftProof } from "./microsoftProofSetup";
 import { parsePublicUrl } from "./publicUrlConfig";
+import { currentJoiningProviderFacts, type createJoiningProviderCallbacks } from
+  "../accounts/adminPort/joiningProviderCallbacks";
 
 type Env = Record<string, string | undefined>;
 type AuthFromEnvOptions = {
@@ -45,6 +47,7 @@ type AuthFromEnvOptions = {
     emailVerified?: boolean;
     providerId: string | null;
   }) => boolean | Promise<boolean>;
+  joiningProviderCallbacks?: Pick<ReturnType<typeof createJoiningProviderCallbacks>, "preflight" | "bindSession">;
 };
 type FactoryDependencies = {
   AuthConfigError: typeof AuthFacade.AuthConfigError;
@@ -243,6 +246,7 @@ function browserAuthErrorTarget(publicUrl: URL): URL {
   return target;
 }
 
+// eslint-disable-next-line max-lines-per-function -- All Better Auth policy hooks remain assembled at this existing boundary.
 function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<typeof buildProviderPolicies>) {
   const { db, environment, runtimeEnvironment, mode, application, secret, baseURL, publicUrl, options, dependencies } =
     context;
@@ -282,6 +286,11 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
     ...(options.externalIdentityAdmission === undefined
       ? {}
       : { externalIdentityAdmission: options.externalIdentityAdmission }),
+    ...(options.joiningProviderCallbacks === undefined ? {} : {
+      onFederatedSession: (principalId: string, providerId: string) => options.joiningProviderCallbacks?.bindSession({
+        principalId, facts: currentJoiningProviderFacts(providerId),
+      }),
+    }),
     providerIdFromExternalContext: dependencies.providerIdFromExternalContext,
     countUsers: dependencies.countUsers,
     twoFactorEnabledLookupStatement: createTwoFactorEnabledLookupStatement,
@@ -367,6 +376,9 @@ function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; aut
     trustedOrigins: providers.providerConfig.trustedOrigins,
     sessionDeletionLifecycleRef: context.sessionDeletionLifecycleRef,
     microsoftProof,
+    ...(context.options.joiningProviderCallbacks === undefined ? {} : {
+      joiningProviderCallbacks: context.options.joiningProviderCallbacks,
+    }),
   });
   activeAuth = auth;
   if (!context.options.deferDatabaseSetup) auth.ensureProviderBindings();
