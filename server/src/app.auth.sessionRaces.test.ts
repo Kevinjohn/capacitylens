@@ -11,6 +11,7 @@ import {
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
 import { call, PASSWORD_ENV } from "./testHelpers";
 import { tx } from "./txn";
+import { authTransactionGateFor, type GateSlot } from "./authTransactionGate";
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
 function headerValues(value: string | string[] | undefined): string[] {
@@ -486,5 +487,89 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
     expect(acknowledged).toBeGreaterThan(0);
     expect(db.prepare("SELECT COUNT(*) AS count FROM user").get()).toEqual({ count: 1 });
     expect(db.prepare("SELECT COUNT(*) AS count FROM concurrent_writes").get()).toEqual({ count: acknowledged });
+  });
+});
+
+async function gatedWriteFixture() {
+  const db = openDb(":memory:");
+  const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+  await runAuthMigrations(parseConfiguredAuth(configured.auth));
+  const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
+  db.exec("CREATE TABLE concurrent_writes (name TEXT NOT NULL) STRICT");
+  app.post("/api/test-concurrent-write", async (request) => {
+    const { name } = request.body as { name: string };
+    tx(db, () => db.prepare("INSERT INTO concurrent_writes (name) VALUES (?)").run(name));
+    return { ok: true };
+  });
+  const writer = await call(app, {
+    method: "POST",
+    url: "/api/auth/sign-up/email",
+    payload: { email: "selina@capacitylens.dev", password: "password-123456", name: "Selina Kyle" },
+  });
+  const write = (name: string) =>
+    app.inject({
+      method: "POST",
+      url: "/api/test-concurrent-write",
+      headers: { cookie: cookiesOf(writer) },
+      payload: { name },
+    });
+  const names = () =>
+    db
+      .prepare("SELECT name FROM concurrent_writes")
+      .all()
+      .map((row) => row.name);
+  return { db, app, write, names, gate: authTransactionGateFor(db) };
+}
+
+async function turns(count: number) {
+  for (let index = 0; index < count; index++) await new Promise((resolve) => setImmediate(resolve));
+}
+
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
+  it("holds an API write until a library transaction finishes, then commits it on its own", async () => {
+    const { db, write, names, gate } = await gatedWriteFixture();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const library = gate.runExclusive(async () => {
+      db.exec("BEGIN");
+      db.prepare("INSERT INTO concurrent_writes (name) VALUES ('library')").run();
+      await held;
+      db.exec("ROLLBACK");
+    });
+
+    let responded = false;
+    const pending = write("api").finally(() => (responded = true));
+    await turns(20);
+    expect(responded).toBe(false);
+    release();
+    await library;
+
+    expect((await pending).statusCode).toBe(200);
+    expect(names()).toEqual(["api"]);
+  });
+});
+
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
+  it("opens Better Auth's sign-up transaction only after in-flight writers finish", async () => {
+    const { app, db, gate } = await gatedWriteFixture();
+    const writer: GateSlot = { held: false, closed: false };
+    await gate.enter(writer);
+
+    let responded = false;
+    const signUp = call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "barbara@capacitylens.dev", password: "password-123456", name: "Barbara Gordon" },
+    }).finally(() => (responded = true));
+    // An ungated sign-up finishes well inside this window; a gated one waits for the writer.
+    const deadline = Date.now() + 500;
+    while (Date.now() < deadline) {
+      await turns(1);
+      expect(db.isTransaction).toBe(false);
+    }
+    expect(responded).toBe(false);
+    gate.release(writer);
+
+    expect((await signUp).statusCode).toBe(200);
   });
 });

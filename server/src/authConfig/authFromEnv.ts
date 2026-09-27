@@ -5,6 +5,7 @@ import { APIError } from "better-auth/api";
 import { allowsProviderSignIn, type BoundApplication } from "@capacitylens/shared/account/types";
 import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
+import { gateLibraryTransactions } from "./gateLibraryTransactions";
 import type * as AuthFacade from "../auth";
 import { resolveAccountEnvironment } from "../accountConfig";
 import { buildProviders, companyProviderIds } from "./providers";
@@ -349,6 +350,7 @@ function createBetterAuthInstance(
     session: sessionPolicy.session,
     telemetry: sessionPolicy.telemetry,
   });
+  gateLibraryTransactions(instance, db);
   return instance;
 }
 

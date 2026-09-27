@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import { authTransactionGateFor, type GateSlot } from "../authTransactionGate";
 import { AccountContractError, statusForAccountFailure } from "@capacitylens/shared/account/errors";
 import { CSP_REPORT_BODY_LIMIT } from "./systemRoutes";
 import { runWithRequestAbortSignal } from "../requestAbort";
@@ -160,12 +161,28 @@ function installConnectionHooks(
   });
 }
 
+/** Hold the authentication transaction gate for each API request, from arrival until the response
+ * closes, so the request's writes never meet a library transaction left open across an await. */
+function installAuthTransactionGate(app: FastifyInstance, db: Db): void {
+  const gate = authTransactionGateFor(db);
+  app.addHook("onRequest", function holdAuthTransactionGate(request, reply, done) {
+    if (!(request.url.split("?", 1)[0] ?? request.url).startsWith("/api/")) {
+      done();
+      return;
+    }
+    const slot: GateSlot = { held: false, closed: false };
+    reply.raw.once("close", () => gate.release(slot));
+    void gate.enter(slot).then(() => gate.runInSlot(slot, done));
+  });
+}
+
 export function installRootHooks({ app, db, runtime, config, options }: InstallRootHooksInput) {
   const { auditDrainer, repliesWithAuditDrain } = runtime;
   const { logOn, rateLimitMax } = config;
   app.addHook("onClose", () => auditDrainer.stop());
   const securityEvent = createSecurityEvent(app, options, logOn);
   installConnectionHooks(app, options, securityEvent);
+  installAuthTransactionGate(app, db);
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
   const corsOrigin = options.corsOrigin ?? DEFAULT_CORS;
   const corsOrigins = resolveCorsOrigins(corsOrigin);

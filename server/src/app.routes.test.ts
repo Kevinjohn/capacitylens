@@ -190,7 +190,7 @@ const EXPECTED_AUTH_ROUTES = [
 ];
 
 const EXPECTED_ROOT_HOOKS = {
-  onRequest: ["abortOnClientDisconnect", "helmetConfigureReply", "helmetApplyHeaders", "enforceOriginPolicy"],
+  onRequest: ["abortOnClientDisconnect", "holdAuthTransactionGate", "helmetConfigureReply", "helmetApplyHeaders", "enforceOriginPolicy"],
   preHandler: [""],
   onSend: [""],
   onResponse: [""],
