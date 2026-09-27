@@ -153,7 +153,7 @@ function registerAdminInviteLinkTests(members: RawMember[]): void {
                 {
                   id: "invite-1",
                   role: "editor",
-                  preauthEmail: null,
+                  preauthEmail: "diana@example.com",
                   expiresAt: "2026-12-01T00:00:00.000Z",
                   usedAt: null,
                   createdAt: "2026-07-29T00:00:00.000Z",
@@ -166,7 +166,8 @@ function registerAdminInviteLinkTests(members: RawMember[]): void {
     renderSection();
     await openInviteDialog();
 
-    await user.click(await screen.findByTestId("invite-submit"));
+    await user.type(await screen.findByTestId("invite-preauth"), "diana@example.com");
+    await user.click(screen.getByTestId("invite-submit"));
     const link = await screen.findByTestId("invite-link");
     expect(link).toHaveTextContent("/invite/WRITE_ONCE_TOKEN");
 

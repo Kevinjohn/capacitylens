@@ -10,7 +10,10 @@ describe("useMemberInvites schedule-person proposal", () => {
     const createInvitation = vi.spyOn(teamAccessClient, "createInvitation");
     const fail = vi.fn();
     const { result } = renderHook(() => useMemberInvites());
-    act(() => result.current.setInvitationResourceId("person-stale"));
+    act(() => {
+      result.current.setInvitationResourceId("person-stale");
+      result.current.setInvitationPreauthorizedEmail("diana@example.com");
+    });
     const submit = result.current.createActions({
       authMode: "password-only",
       clear: vi.fn(),
