@@ -170,7 +170,7 @@ export function createMicrosoftReturnUrlCipher(secret: string) {
   };
 }
 
-export function createMicrosoftProofMailer(environment: Record<string, string | undefined>, publicUrl: URL) {
+export function createMailboxProofTransport(environment: Record<string, string | undefined>) {
   const host = environment.SMALLSASS_ACCOUNT_MAIL_HOST?.trim();
   const from = environment.SMALLSASS_ACCOUNT_MAIL_FROM?.trim();
   const user = environment.SMALLSASS_ACCOUNT_MAIL_USER?.trim();
@@ -187,7 +187,7 @@ export function createMicrosoftProofMailer(environment: Record<string, string | 
     port > 65535
   ) {
     throw new Error(
-      "Microsoft sign-in requires complete SMALLSASS_ACCOUNT_MAIL_HOST, PORT, USER, PASSWORD and FROM settings.",
+      "Mailbox verification requires complete SMALLSASS_ACCOUNT_MAIL_HOST, PORT, USER, PASSWORD and FROM settings.",
     );
   }
   const transport = nodemailer.createTransport({
@@ -198,6 +198,11 @@ export function createMicrosoftProofMailer(environment: Record<string, string | 
     auth: { user, pass: password },
     tls: { rejectUnauthorized: true },
   });
+  return { transport, from };
+}
+
+export function createMicrosoftProofMailer(environment: Record<string, string | undefined>, publicUrl: URL) {
+  const { transport, from } = createMailboxProofTransport(environment);
   return async (targetEmail: string, token: string) => {
     const target = new URL("/verify-microsoft", publicUrl);
     target.hash = `token=${encodeURIComponent(token)}`;

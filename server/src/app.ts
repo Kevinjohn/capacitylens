@@ -87,6 +87,12 @@ export interface AppOptions {
   authMode?: AccountMode;
   /** The Better Auth instance — required exactly when authMode ≠ 'off'. */
   auth?: Auth | null;
+  /** Company-bound mailbox verification, supplied by the entrypoint after auth configuration. */
+  joiningProof?: {
+    secret: string;
+    publicUrl: URL;
+    sendMail: (email: string, token: string, accountId: string) => Promise<void>;
+  };
   /** Require an enrolled and completed TOTP second factor before password users may access tenant
    * data. Auth endpoints and /api/auth/me remain available so an existing user can enroll. */
   requireMfa?: boolean;

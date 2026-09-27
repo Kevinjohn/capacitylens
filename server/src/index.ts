@@ -27,6 +27,7 @@ import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort"
 import { createSqliteAccountAdminPort } from "./accounts/sqliteAccountAdminPort";
 import { KeyedOperationLock } from "./accounts/KeyedOperationLock";
 import { assertCompanyProviderCutoverReady } from "./accounts/companyProviderReadiness";
+import { createJoiningProofMailer } from "./authConfig/joiningProofMailer";
 
 import { refuseToStart, tryOrRefuse, closeDbSafely, parsePort } from "./boot/refusals";
 import { startServerRuntime } from "./boot/serverRuntime";
@@ -260,6 +261,15 @@ startServerRuntime({
     ...(bootstrapToken === undefined ? {} : { bootstrapToken }),
     authMode,
     auth,
+    ...(authMode === "off" || !accountEnv.SMALLSASS_ACCOUNT_SECRET || !accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL
+      ? {}
+      : {
+          joiningProof: {
+            secret: accountEnv.SMALLSASS_ACCOUNT_SECRET,
+            publicUrl: new URL(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL),
+            sendMail: createJoiningProofMailer(accountEnv, new URL(accountEnv.SMALLSASS_ACCOUNT_PUBLIC_URL)),
+          },
+        }),
     requireMfa,
     allowOpenSignup: accountEnv.SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP === "1",
   },

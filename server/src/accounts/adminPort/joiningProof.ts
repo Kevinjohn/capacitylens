@@ -29,6 +29,7 @@ interface JoiningProofInput {
   applicationId: string;
   secret: string;
   secureCookies: boolean;
+  requireMfa: boolean;
   sendMail: (email: string, token: string, accountId: string) => Promise<void>;
 }
 
@@ -120,7 +121,7 @@ function assertTargetStillMatches(db: Db, intent: JoinIntent, invitationToken?: 
 
 // eslint-disable-next-line max-lines-per-function -- One factory keeps browser-cookie, quota and admission transitions bound to one database.
 export function createJoiningProof(input: JoiningProofInput) {
-  const { db, identity, applicationId, secret, secureCookies, sendMail } = input;
+  const { db, identity, applicationId, secret, secureCookies, requireMfa, sendMail } = input;
   const prefix = `${secureCookies ? "__Host-" : ""}${applicationId}-join`;
   const browserCookie = `${prefix}-browser`;
   const intentCookie = `${prefix}-intent`;
@@ -267,7 +268,7 @@ export function createJoiningProof(input: JoiningProofInput) {
     const intent = fromHeaders(value.headers);
     const now = Date.now();
     assertApproved(intent, now);
-    if (intent.principalId !== value.actor.principalId || !value.actor.mfaSatisfied) {
+    if (intent.principalId !== value.actor.principalId || (requireMfa && !value.actor.mfaSatisfied)) {
       throw createAccountFailure("AUTHENTICATION_REQUIRED", "Sign in as the addressed identity to continue.");
     }
     return tx(db, () => {
