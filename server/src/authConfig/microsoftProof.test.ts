@@ -417,14 +417,17 @@ describe("Microsoft native callback proof", () => {
     }
   });
 
-  it("accepts an addressed invitation for an established proven Microsoft principal", async () => {
+  // eslint-disable-next-line max-lines-per-function -- One callback carries the same invitation through domain-only denial and permitted acceptance.
+  it("accepts a returning Microsoft identity's addressed invitation without minting durable proof", async () => {
     const { db, auth } = await configured();
     const app = createApp(db, { authMode: "sso-only", auth });
     try {
       const initial = await begin(auth);
       mockMicrosoftToken(claims("bruce@example.com"));
       await callback(auth, initial.state, initial.cookies);
+      db.prepare("DELETE FROM identity_email_proofs WHERE email = 'bruce@example.com'").run();
       insertProofAccount(db, "a-loft");
+      writeJoiningPolicy(db, "a-loft", { policy: "approved_domains", approvedDomains: ["example.com"] });
       const inviteToken = "second-workspace-invite";
       db.prepare(
         `INSERT INTO invites (tokenHash,id,accountId,role,preauthEmail,expiresAt,usedAt,createdAt)
@@ -461,10 +464,20 @@ describe("Microsoft native callback proof", () => {
       expect(db.prepare("SELECT COUNT(*) AS count FROM account WHERE providerId = 'microsoft'").get()).toEqual({
         count: 1,
       });
+      const headers = { cookie: cookieHeader(signedIn.headers.getSetCookie()) };
+      const domainOnly = await app.inject({
+        method: "POST",
+        url: `/api/invites/${inviteToken}/accept`,
+        headers,
+        payload: {},
+      });
+      expect(domainOnly.statusCode).toBe(403);
+      expect(db.prepare("SELECT 1 FROM account_members WHERE accountId = 'a-loft'").get()).toBeUndefined();
+      writeJoiningPolicy(db, "a-loft", { policy: "invitation_only", approvedDomains: [] });
       const accepted = await app.inject({
         method: "POST",
         url: `/api/invites/${inviteToken}/accept`,
-        headers: { cookie: cookieHeader(signedIn.headers.getSetCookie()) },
+        headers,
         payload: {},
       });
       expect(accepted.statusCode).toBe(200);
@@ -472,6 +485,7 @@ describe("Microsoft native callback proof", () => {
       expect(db.prepare("SELECT role FROM account_members WHERE accountId = 'a-loft'").get()).toEqual({
         role: "editor",
       });
+      expect(db.prepare("SELECT 1 FROM identity_email_proofs WHERE email = 'bruce@example.com'").get()).toBeUndefined();
     } finally {
       await app.close();
       db.close();

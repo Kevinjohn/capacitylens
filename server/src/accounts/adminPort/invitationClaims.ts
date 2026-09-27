@@ -57,19 +57,14 @@ function getRedeemableInvitation(context: InvitationRedemptionContext, input: Cl
   assertRedeemableInvitationRole(live.role, input.command.commandId);
   assertWorkspaceExists(context.db, live.accountId);
   const establishedProof = context.trustedLocal ? null : provenEmail(context.db, input.principalId);
-  // Password invitation possession is the released mailbox ceremony. Provider identities still
-  // need current durable proof, and an unaddressed invitation never authorizes external admission.
-  const addressedPasswordClaim =
-    input.passwordMode &&
-    preauthInviteAllows({
-      preauthEmail: live.preauthEmail,
-      user: { email: input.principalEmail, emailVerified: input.emailVerified },
-      passwordMode: true,
-    });
-  if (
-    !context.trustedLocal &&
-    (live.preauthEmail === null || (establishedProof !== live.preauthEmail && !addressedPasswordClaim))
-  ) {
+  // The released invitation ceremony binds an addressed bearer token to an authenticated
+  // password identity or a provider-verified email. It does not create durable email proof.
+  const addressedIdentity = preauthInviteAllows({
+    preauthEmail: live.preauthEmail,
+    user: { email: input.principalEmail, emailVerified: input.emailVerified },
+    passwordMode: input.passwordMode,
+  });
+  if (!context.trustedLocal && (live.preauthEmail === null || !addressedIdentity)) {
     throw createAccountFailure(
       "INVITATION_EMAIL_MISMATCH",
       "This invitation requires proof of its addressed mailbox.",
@@ -80,7 +75,9 @@ function getRedeemableInvitation(context: InvitationRedemptionContext, input: Cl
     const settings = readJoiningPolicy(context.db, live.accountId);
     if (
       settings.policy === "approved_domains" &&
-      (establishedProof === null || !isApprovedEmailDomain(establishedProof, settings.approvedDomains))
+      (establishedProof !== live.preauthEmail ||
+        establishedProof === null ||
+        !isApprovedEmailDomain(establishedProof, settings.approvedDomains))
     ) {
       throw createAccountFailure(
         "FORBIDDEN",
