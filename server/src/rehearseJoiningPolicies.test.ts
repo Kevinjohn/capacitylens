@@ -71,8 +71,12 @@ describe("joining policy rehearsal redaction", () => {
       expect(JSON.stringify({ approvedDomains, users, proofs, restriction, invitation })).not.toMatch(
         /bücher|xn--bcher-kva|corp\.example|third\.example/i,
       );
-      expect(users[0]?.email.toLowerCase()).toBe(users[1]?.email.toLowerCase());
-      expect(new Set(memberEmails.map((email) => email?.toLowerCase())).size).toBe(1);
+      expect(users[0]?.email.toLowerCase()).not.toBe(users[1]?.email.toLowerCase());
+      expect(users[0]?.email.toLowerCase()).toBe(proofs[1]?.email.toLowerCase());
+      expect(users[0]?.email.toLowerCase()).toBe(restriction.verifiedEmail.toLowerCase());
+      expect(users[1]?.email.toLowerCase()).toBe(proofs[0]?.email.toLowerCase());
+      expect(users[1]?.email.toLowerCase()).toBe(invitation.preauthEmail.toLowerCase());
+      expect(new Set(memberEmails.map((email) => email?.toLowerCase())).size).toBe(2);
       for (const email of [
         users[0]?.email,
         users[1]?.email,

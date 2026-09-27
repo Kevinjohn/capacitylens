@@ -117,11 +117,13 @@ function updateFederatedObservations(db: DatabaseSync, hasProviderCoordinates: b
 }
 
 function canonicalAddress(value: string): string {
-  const normalized = value.trim().toLowerCase();
+  return value.trim().toLowerCase();
+}
+
+function canonicalDomainForAddress(value: string): string | null {
+  const normalized = canonicalAddress(value);
   const separator = normalized.lastIndexOf("@");
-  if (separator < 0) return normalized;
-  const domain = parseApprovedDomain(normalized.slice(separator + 1));
-  return domain === null ? normalized : `${normalized.slice(0, separator)}@${domain}`;
+  return separator < 0 ? null : parseApprovedDomain(normalized.slice(separator + 1));
 }
 
 function uniqueUserAliasFor(addressAliases: ReadonlyMap<string, string>): (value: string) => string | null {
@@ -211,8 +213,7 @@ function parseSourceApprovedDomains(policies: IdentityAddressRows["policies"]): 
 function buildDomainAliases(emails: readonly string[], approvedDomains: readonly string[]): Map<string, string> {
   const domains = new Set(approvedDomains);
   for (const email of emails) {
-    const separator = email.lastIndexOf("@");
-    const domain = separator < 0 ? null : parseApprovedDomain(email.slice(separator + 1));
+    const domain = canonicalDomainForAddress(email);
     if (domain !== null) domains.add(domain);
   }
   return new Map([...domains].sort().map((domain, index) => [domain, `rehearsal-domain-${index + 1}.example.invalid`]));
@@ -226,8 +227,7 @@ function buildAddressAliases(
   for (const [index, value] of emails.entries()) {
     const normalized = canonicalAddress(value);
     if (!addressAliases.has(normalized)) {
-      const separator = normalized.lastIndexOf("@");
-      const domain = separator < 0 ? null : parseApprovedDomain(normalized.slice(separator + 1));
+      const domain = canonicalDomainForAddress(normalized);
       const domainAlias = domain === null ? "example.invalid" : domainAliases.get(domain);
       if (!domainAlias) throw new Error("Missing rehearsal email domain alias.");
       addressAliases.set(normalized, `rehearsal-proof-${index + 1}@${domainAlias}`);
