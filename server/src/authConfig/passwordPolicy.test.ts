@@ -17,7 +17,7 @@ function policyWithHashSpy() {
     verifyPasswordWithBackpressure: async () => true,
     resetLinkTtlSeconds: 60,
   });
-  const hash = policy.emailAndPassword.password?.hash;
+  const hash = policy.emailAndPassword?.password?.hash;
   if (!hash) throw new Error("Expected a configured password hash.");
   return { policy, hash, hashPasswordWithBackpressure };
 }
