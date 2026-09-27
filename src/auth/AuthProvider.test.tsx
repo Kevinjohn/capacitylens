@@ -132,7 +132,7 @@ function registerServerModeTest01() {
     await act(async () => {
       auth.resolve(
         me(200, {
-          authMode: "password",
+          authMode: "password-only",
           user: {
             id: "authenticated-user",
             name: "Authenticated user",
@@ -154,11 +154,11 @@ function registerServerModeTest02() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "u1", email: "a@b.test" },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password", providers: [] }));
+      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore } = await freshProvider();
     render(
@@ -187,11 +187,11 @@ function registerServerModeTest02() {
 
 function registerServerModeTest03() {
   it.each([
-    ["signed-out", me(401, { authMode: "password", providers: [] }), "Sign in"],
+    ["signed-out", me(401, { authMode: "password-only", providers: [] }), "Sign in"],
     [
       "mandatory MFA",
       me(200, {
-        authMode: "password",
+        authMode: "password-only",
         user: { id: "mfa-user", name: "MFA user", email: "mfa@example.test" },
         mfaRequired: true,
       }),
@@ -232,7 +232,7 @@ function registerServerModeTest04() {
         "fetch",
         vi.fn(async () =>
           me(200, {
-            authMode: "password",
+            authMode: "password-only",
             user: {
               id: "mfa-user",
               name: "MFA user",
@@ -328,7 +328,7 @@ function registerServerModeTest07() {
         "fetch",
         vi.fn(async () =>
           me(200, {
-            authMode: "sso",
+            authMode: "sso-only",
             user: { id: "owner", name: "Owner", email: "owner@example.com" },
             providers: [
               {
@@ -389,7 +389,7 @@ function registerServerModeTest09() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(401, { authMode: "password", providers: [] })),
+      vi.fn(async () => me(401, { authMode: "password-only", providers: [] })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -413,7 +413,7 @@ function registerServerModeTest10() {
       "fetch",
       vi.fn(async () =>
         me(401, {
-          authMode: "sso",
+          authMode: "sso-only",
           providers: [
             {
               id: "google",
@@ -447,7 +447,7 @@ function registerServerModeTest11() {
       "fetch",
       vi.fn(async () =>
         me(401, {
-          authMode: "sso",
+          authMode: "sso-only",
           providers: [
             {
               id: "microsoft",
@@ -486,7 +486,7 @@ function registerServerModeTest12() {
       "fetch",
       vi.fn(async () =>
         me(401, {
-          authMode: "sso",
+          authMode: "sso-only",
           providers: [
             {
               id: "mastodon",
@@ -527,7 +527,7 @@ function registerServerModeTest13() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(401, { authMode: "password" })),
+      vi.fn(async () => me(401, { authMode: "password-only" })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -636,7 +636,7 @@ function registerServerModeTest18() {
       vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
       vi.stubGlobal(
         "fetch",
-        vi.fn(async () => me(401, { authMode: "password", providers: [] })),
+        vi.fn(async () => me(401, { authMode: "password-only", providers: [] })),
       );
       const { AuthProvider } = await freshProvider();
       render(
@@ -661,7 +661,7 @@ function registerServerModeTest19() {
         "fetch",
         vi.fn(async () =>
           me(401, {
-            authMode: "sso",
+            authMode: "sso-only",
             providers: [
               {
                 id: "microsoft",
@@ -692,7 +692,7 @@ function registerServerModeTest20() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(401, { authMode: "password", needsSetup: true, providers: [] })),
+      vi.fn(async () => me(401, { authMode: "password-only", needsSetup: true, providers: [] })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -713,7 +713,7 @@ function registerServerModeTest21() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(401, { authMode: "password", needsSetup: "yes", providers: [] })),
+      vi.fn(async () => me(401, { authMode: "password-only", needsSetup: "yes", providers: [] })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -781,7 +781,7 @@ function registerServerModeTest23() {
     const savedAt = Date.parse("2026-07-20T12:00:00.000Z");
     vi.spyOn(Date, "now").mockReturnValue(savedAt);
     await cacheAuthSnapshot({
-      authMode: "password",
+      authMode: "password-only",
       user: {
         id: "offline-user",
         email: "offline@example.test",
@@ -797,7 +797,7 @@ function registerServerModeTest23() {
       </AuthProvider>,
     );
 
-    expect(await screen.findByText("authMode:password user:offline-user")).toBeInTheDocument();
+    expect(await screen.findByText("authMode:password-only user:offline-user")).toBeInTheDocument();
     expect(readOfflineStateSnapshot()).toEqual({
       readOnly: true,
       lastUpdated: savedAt,
@@ -839,7 +839,7 @@ function registerServerModeTest25() {
     vi.stubEnv("VITE_CAPACITYLENS_API", "http://api.test");
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => me(200, { authMode: "password", user })),
+      vi.fn(async () => me(200, { authMode: "password-only", user })),
     );
     const { AuthProvider } = await freshProvider();
     render(
@@ -885,11 +885,11 @@ function registerServerModeTest27() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "u1", email: "a@b.test" },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password", providers: [] }));
+      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore } = await freshProvider();
     render(
@@ -911,11 +911,11 @@ function registerServerModeTest28() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "u1", email: "a@b.test" },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password", providers: [] }));
+      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore, requestReauth, isReauthPending } = await freshProvider();
     render(
@@ -946,11 +946,11 @@ function registerServerModeTest29() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "u1", email: "a@b.test" },
         }),
       )
-      .mockResolvedValue(me(401, { authMode: "password", providers: [] }));
+      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] }));
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore, attachPersistence, resetStoreWithAccount } = await freshProvider();
     render(
@@ -994,7 +994,7 @@ function registerServerModeTest30() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "u1", email: "a@b.test" },
         }),
       )
@@ -1006,13 +1006,13 @@ function registerServerModeTest30() {
         <SessionProbe useAuth={useAuth} />
       </AuthProvider>,
     );
-    expect(await screen.findByText("authMode:password user:u1")).toBeInTheDocument();
+    expect(await screen.findByText("authMode:password-only user:u1")).toBeInTheDocument();
     act(() => useStore.getState().setPersistError(true));
     await waitFor(() =>
       expect(warn).toHaveBeenCalledWith(expect.stringContaining("refresh failed; keeping the previous auth snapshot")),
     );
     // Still the LIVE session — not passOpen('off', null).
-    expect(screen.getByText("authMode:password user:u1")).toBeInTheDocument();
+    expect(screen.getByText("authMode:password-only user:u1")).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 }
@@ -1029,12 +1029,12 @@ function registerServerModeTest31() {
       .fn()
       .mockResolvedValueOnce(
         me(200, {
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "u1", email: "a@b.test" },
         }),
       )
       .mockImplementationOnce(() => slow.promise) // the refreshAuth click — held open by the test
-      .mockResolvedValue(me(401, { authMode: "password", providers: [] })); // the persistError re-check
+      .mockResolvedValue(me(401, { authMode: "password-only", providers: [] })); // the persistError re-check
     vi.stubGlobal("fetch", fetchSpy);
     const { AuthProvider, useStore, useAuth } = await freshProvider();
     render(
@@ -1050,7 +1050,7 @@ function registerServerModeTest31() {
     await act(async () => {
       slow.resolve(
         me(200, {
-          authMode: "password",
+          authMode: "password-only",
           user: { id: "u1", email: "a@b.test" },
         }),
       );

@@ -226,7 +226,7 @@ bottom keeps the logo + collapse toggle as the first item in both the open menu 
 its identity row, the avatar has its own unlabeled visible column, followed by Name, Email and
 Actions. The row scrolls horizontally on narrow screens. Long email
 addresses truncate like Team & access rows and reveal in full on pointer hover or keyboard focus.
-In password mode it offers password change in a dialog for local-password identities and shows MFA
+In password-capable modes it offers password change in a dialog for local-password identities and shows MFA
 status only when the operator requires it; in SSO mode it shows the provider identity without password controls.
 The page hides active-session details. Demo and auth-off modes
 never invent credential controls. Company Settings contains
@@ -876,11 +876,11 @@ identifiers, paths, hostnames, secrets, invite or session values, raw errors or 
 fields. The button reports a generic success or clipboard failure message.
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
-server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password` or
-`sso`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
+server mode (same-origin `/api` by default, or `VITE_CAPACITYLENS_API` for a different origin) **and** that server runs with `SMALLSASS_ACCOUNT_MODE=password-only`, `password-and-sso` or
+`sso-only`: the app checks `GET /api/auth/me` at boot, showing **Checking your session…** as an
 accessible status while the request is pending; a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
-and a `Sign in` button in password mode; configured company-provider buttons in sso mode; failures
+and a `Sign in` button in password-capable modes; configured company-provider buttons in sso-only mode; failures
 show an inline alert. Starting an external sign-in clears an earlier provider error, announces
 **Redirecting to _provider_…** as a neutral status, and keeps the provider controls disabled while
 the browser hands off to the provider). If a mid-session 401 arrives while server writes are still unsaved, the
@@ -909,7 +909,7 @@ recognisable Google mark on the sign-in wall, the invite acceptance sign-in form
 reauthentication dialog. The action stays visibly busy/disabled during hand-off. Other external
 providers use their branded accessible action, including **Sign in with Microsoft**.
 Provider presentation is server-owned and is never inferred from a user-editable provider label.
-On a password-mode installation with Google
+On a password-and-sso installation with Google
 configured, the sign-in wall puts that Google action
 first, rendered sharply on high-density displays without an outer wrapper shadow and with breathing
 room from helper copy above and the explicit **or use your password** separator below. The password
@@ -960,8 +960,8 @@ are shown honestly; **Resend verification email**, retry and cancellation provid
 returning sign-in uses the established identity and does not repeat this mailbox check. See
 [Set up company login](../docs-src/company-login/set-up-company-login.md).
 
-**First-run Owner setup (password mode, zero users).** When the server reports `needsSetup: true`
-on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
+**First-run Owner setup (password-capable mode, zero users).** When the server reports `needsSetup: true`
+on the 401 (password-only or password-and-sso with an **empty** user table — sign-up is open for exactly one
 bootstrap account and closes the moment it exists), the login wall shows **Setup the account Owner**
 instead of sign-in. Fields are **name** (`data-testid="owner-setup-name"`), **email**
 (`data-testid="owner-setup-email"`), **Create a password** (`data-testid="owner-setup-password"`)
@@ -1144,7 +1144,7 @@ presented before the member directory, matching the action-first pattern of the 
   reload into sign-in. Disable and archive are offered only where the target is neither the Owner nor
   yourself; a disabled or archived membership keeps its role and history but authorizes nothing, and
   the member stays listed under **No longer active** so the change is visible and reversible. No row
-  carries an ownership-transfer control for anyone. In **password mode only**, the menu's **Reset password** mints a
+  carries an ownership-transfer control for anyone. In **password-capable modes only**, the menu's **Reset password** mints a
   **single-use, 24-hour** reset link
   shown **once** (`data-testid="reset-link"`, `<origin>/reset-password/<token>`) with a **Copy**
   button named **Copy reset link for _member_** and a note naming the member and the expiry date — nothing is emailed; the admin hands the
@@ -1218,7 +1218,7 @@ while the administrative directory keeps listing them),
 `DELETE /api/accounts/:accountId/invites/:id` (204, idempotent, cross-tenant-safe),
 `POST /api/invites` rejects `owner` for
 every caller — ownership is transferred, never invited — and
-`POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password mode
+`POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password-capable mode
 only — sso/OFF → 400; admin resetting an owner → 403; 404 non-member; 201 `{token, expiresAt}`,
 write-once) mints the reset link. The management UI is
 `src/components/team/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;

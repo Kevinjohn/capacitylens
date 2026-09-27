@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { Role } from "@capacitylens/shared/account/types";
 import { normalizeAccountEmail } from "@capacitylens/shared/account/validation";
@@ -75,7 +76,7 @@ function parseCreateInvitationAuthorizationInput({
 
   const emailResult = parsePreauthorizedEmail(body.preauthEmail, createValidationFailure);
   if ("failure" in emailResult) return { failure: emailResult.failure };
-  if (authMode === "sso" && emailResult.value === null) {
+  if (authMode === "sso-only" && emailResult.value === null) {
     return { failure: createValidationFailure("SSO-only onboarding requires an email-preauthorized invitation.") };
   }
 
@@ -179,7 +180,7 @@ export async function previewInvitation(req: FastifyRequest, reply: FastifyReply
 }
 
 function permitsInvitationProvider(req: FastifyRequest, context: AccountRouteContext): boolean {
-  if (context.authMode !== "sso") return true;
+  if (context.authMode !== "sso-only") return true;
   const providerId = req.authenticationProviderId;
   return (
     providerId !== null &&
@@ -257,7 +258,7 @@ export async function signupInvitation(req: FastifyRequest, reply: FastifyReply,
     auditUnlessReplayed,
   } = context;
 
-  if (authMode !== "password" || !authenticationConfigured) {
+  if (!allowsPasswordSignIn(authMode) || !authenticationConfigured) {
     return reply.code(404).send({ error: "Not found." });
   }
   const { token } = req.params as { token: string };

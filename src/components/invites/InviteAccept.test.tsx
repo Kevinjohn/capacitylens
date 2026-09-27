@@ -75,7 +75,7 @@ const previewResponse = (role = "editor"): Response =>
   }) as Response;
 
 const signedInAuth: AuthContextValue = {
-  authMode: "password",
+  authMode: "password-only",
   user: { id: "user-1", name: "Alex", email: "alex@example.com" },
   canCreateAccount: true,
   multiAccount: true,
@@ -400,7 +400,7 @@ registerInviteAcceptTest(() =>
     renderInvite(
       {
         ...signedInAuth,
-        authMode: "sso",
+        authMode: "sso-only",
         user: null,
         providers: [{ id: "microsoft", label: "Microsoft", kind: "social", experimental: false }],
       },
@@ -508,7 +508,7 @@ registerInviteAcceptTest(() =>
     const user = userEvent.setup();
     renderInvite({
       ...signedInAuth,
-      authMode: "sso",
+      authMode: "sso-only",
       user: null,
       providers: [{ id: "google", label: "Google", kind: "social", brand: "google", experimental: false }],
     });
@@ -1009,7 +1009,7 @@ registerInviteAcceptTest(() =>
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     renderInvite({
       ...signedInAuth,
-      authMode: "sso",
+      authMode: "sso-only",
       user: null,
       providers: [{ id: "google", label: "Google", kind: "social", experimental: false }],
     });

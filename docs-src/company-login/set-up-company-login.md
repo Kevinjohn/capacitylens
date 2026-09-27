@@ -187,11 +187,11 @@ the invited person can continue.
 
 ## Choose the sign-in mode
 
-On a self-hosted installation, `SMALLSASS_ACCOUNT_MODE=password` keeps password
+On a self-hosted installation, `SMALLSASS_ACCOUNT_MODE=password-and-sso` keeps password
 sign-in alongside configured providers. Google and Microsoft appear above the
 password form. GitHub remains an experimental additional option in this mode.
 
-`SMALLSASS_ACCOUNT_MODE=sso` requires a configured company provider and removes
+`SMALLSASS_ACCOUNT_MODE=sso-only` requires a configured company provider and removes
 password sign-in. GitHub cannot satisfy this requirement, including through an
 older GitHub session. Keep the Google or Microsoft credentials configured.
 Connect existing accounts and test the replacement before changing modes; see

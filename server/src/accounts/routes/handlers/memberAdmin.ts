@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { isMembershipStatus } from "@capacitylens/shared/account/types";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { INVALID_ROLE_MESSAGE } from "../accountRouteDependencies";
@@ -62,7 +63,7 @@ export async function listMembers(req: FastifyRequest, reply: FastifyReply, cont
         signInConfirmed: tracking.enabled ? (tracking.confirmations.get(member.principalId) ?? false) : null,
         isSelf: member.principalId === projection.principalId,
         mayResetPassword:
-          authMode === "password" &&
+          allowsPasswordSignIn(authMode) &&
           projection.decisions.get(member.principalId)?.get("issue-password-reset")?.allowed === true,
         mayRevokeSessions: projection.decisions.get(member.principalId)?.get("revoke-sessions")?.allowed === true,
         resourceLink: projectMemberResourceLink(link),

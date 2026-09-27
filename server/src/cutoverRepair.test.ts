@@ -9,7 +9,7 @@ import { inspectSsoCutoverPreflight } from "./cutoverPreflight";
 
 const env = {
   SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-mixed",
-  SMALLSASS_ACCOUNT_MODE: "password",
+  SMALLSASS_ACCOUNT_MODE: "password-and-sso",
   SMALLSASS_ACCOUNT_SECRET: "cutover-repair-secret-0123456789abcdef",
   SMALLSASS_ACCOUNT_PUBLIC_URL: "http://localhost:8787",
   SMALLSASS_ACCOUNT_GOOGLE_CLIENT_ID: "google-client",

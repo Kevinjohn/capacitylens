@@ -134,7 +134,7 @@ jobs:
       # http:// is permitted for the public URL because localhost is a loopback origin;
       # production account configuration refuses plaintext for non-loopback origins.
       SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: self-hosted-password
-      SMALLSASS_ACCOUNT_MODE: password
+      SMALLSASS_ACCOUNT_MODE: password-only
       SMALLSASS_ACCOUNT_REQUIRE_MFA: "1"
       SMALLSASS_ACCOUNT_PUBLIC_URL: http://localhost:8080
       CAPACITYLENS_BACKUP_INTERVAL_MIN: "60"

@@ -342,7 +342,7 @@ async function betterAuthHarness(): Promise<Harness> {
     port: createBetterAuthIdentityPort({
       applicationId: APPLICATION_ID,
       auth,
-      authMode: "password",
+      authMode: "password-only",
       db,
     }),
     session,
@@ -532,7 +532,7 @@ describe("revocation window race", () => {
     const port = createBetterAuthIdentityPort({
       applicationId: APPLICATION_ID,
       auth: realAuth,
-      authMode: "password",
+      authMode: "password-only",
       db,
     });
     const operation = command("principal-sessions-race");

@@ -1,7 +1,8 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { randomBytes } from "node:crypto";
 import { betterAuth } from "better-auth";
 import { APIError } from "better-auth/api";
-import type { BoundApplication } from "@capacitylens/shared/account/types";
+import { allowsProviderSignIn, type BoundApplication } from "@capacitylens/shared/account/types";
 import { boundApplicationFailure } from "@capacitylens/shared/account/validation";
 import type { Db } from "../db";
 import type * as AuthFacade from "../auth";
@@ -132,7 +133,7 @@ function requireSetupToken(
 ) {
   const configuredSetupToken = environment.SMALLSASS_ACCOUNT_SETUP_TOKEN;
   const setupToken = configuredSetupToken === "" ? undefined : configuredSetupToken;
-  if (mode === "password" && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
+  if (allowsPasswordSignIn(mode) && setupToken && Buffer.byteLength(setupToken, "utf8") < 32) {
     throw new AuthConfigError("SMALLSASS_ACCOUNT_SETUP_TOKEN must be at least 32 bytes.");
   }
   return setupToken;
@@ -217,11 +218,22 @@ function buildProviderPolicies(context: EnabledAuthContext, microsoftProof: Micr
   const setupToken = requireSetupToken(environment, mode, dependencies.AuthConfigError);
   const providerConfig = buildProviders({
     env: environment,
+    enabled: allowsProviderSignIn(mode),
     trustedOrigins: options.trustedOrigins,
     AuthConfigError: dependencies.AuthConfigError,
     db,
     microsoftProof,
   });
+  if (allowsProviderSignIn(mode) && providerConfig.configuredProviderInfo.length === 0) {
+    throw new dependencies.AuthConfigError(
+      `SMALLSASS_ACCOUNT_MODE=${mode} requires at least one configured sign-in provider.`,
+    );
+  }
+  if (mode === "sso-only" && companyProviderIds(providerConfig.configuredProviderInfo).size === 0) {
+    throw new dependencies.AuthConfigError(
+      "SMALLSASS_ACCOUNT_MODE=sso-only requires Google or tenant-specific Microsoft; GitHub is experimental.",
+    );
+  }
   return { pluginOptions, allowOpenSignup, setupToken, providerConfig };
 }
 
@@ -266,7 +278,7 @@ function buildAuthPolicies(context: EnabledAuthContext, providers: ReturnType<ty
     configuredFederatedIssuers: providers.providerConfig.configuredFederatedIssuers,
     permittedCompanyProviderIds: companyProviderIds(providers.providerConfig.configuredProviderInfo),
     allowOpenSignup: providers.allowOpenSignup,
-    requirePasswordMfa: mode === "password" && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1",
+    requirePasswordMfa: allowsPasswordSignIn(mode) && environment.SMALLSASS_ACCOUNT_REQUIRE_MFA === "1",
     ...(options.externalIdentityAdmission === undefined
       ? {}
       : { externalIdentityAdmission: options.externalIdentityAdmission }),
@@ -324,16 +336,18 @@ function createBetterAuthInstance(
 
 function buildEnabledAuth(context: EnabledAuthContext): { mode: AccountMode; auth: Auth } {
   let activeAuth: Auth | null = null;
-  const microsoftProof = createConfiguredMicrosoftProof({
-    db: context.db,
-    environment: context.environment,
-    secret: context.secret,
-    publicUrl: context.publicUrl,
-    applicationId: context.application.applicationId,
-    trustedOrigins: context.options.trustedOrigins ?? [],
-    AuthConfigError: context.dependencies.AuthConfigError,
-    getAuth: () => activeAuth,
-  });
+  const microsoftProof = allowsProviderSignIn(context.mode)
+    ? createConfiguredMicrosoftProof({
+        db: context.db,
+        environment: context.environment,
+        secret: context.secret,
+        publicUrl: context.publicUrl,
+        applicationId: context.application.applicationId,
+        trustedOrigins: context.options.trustedOrigins ?? [],
+        AuthConfigError: context.dependencies.AuthConfigError,
+        getAuth: () => activeAuth,
+      })
+    : null;
   const providers = buildProviderPolicies(context, microsoftProof);
   const policies = buildAuthPolicies(context, providers);
   const instance = createBetterAuthInstance(providers, policies, context.db);

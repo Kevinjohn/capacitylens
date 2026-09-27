@@ -1,3 +1,4 @@
+import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { m } from "@/i18n";
 import { MAX_PASSWORD_INPUT_CODE_UNITS, MIN_PASSWORD_LENGTH } from "@capacitylens/shared/domain/password";
 import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
@@ -16,7 +17,7 @@ type LoginIds = {
 };
 
 type LoginFormProps = {
-  authMode: "password" | "sso";
+  authMode: "password-only" | "sso-only" | "password-and-sso";
   setup: boolean;
   microsoftBootstrap?: boolean;
   passwordAutoFocus: boolean;
@@ -71,7 +72,7 @@ export function LoginForm(props: LoginFormProps) {
       />
     );
   }
-  if (props.authMode === "password") {
+  if (allowsPasswordSignIn(props.authMode)) {
     return (
       <PasswordForm
         autoFocus={props.passwordAutoFocus}

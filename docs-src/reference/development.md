@@ -884,6 +884,17 @@ and SSO activation-state tables, an atomic observation trigger, and Better Auth
 Its migration and released database fixtures are historical records; preserve their exact
 definitions and use the checked-in fixture ledger when rehearsing a later schema version.
 
+Sign-in mode controls the authentication methods people may use. Enabled providers determine
+which SSO options are available. The access policy determines who may join the company.
+`SMALLSASS_ACCOUNT_MODE` accepts `off`, `password-only`, `sso-only` and `password-and-sso`;
+the old `password` and `sso` values fail startup with migration guidance. The shared
+`AccountMode` contract owns these values, while the server keeps the existing `authMode` wire
+field. Password-only ignores retained provider credentials and links; mixed mode needs at least
+one configured provider; SSO-only needs Google or tenant-specific Microsoft. The schema is
+selected from active authentication capabilities, and existing session assurance is checked
+against the current mode on every request. See [Upgrades](/self-hosting/upgrades#updating-sign-in-modes)
+for coordinated environment changes and rollback.
+
 App-owned control tables share the application migration stream. Better Auth stays pinned
 and owns its own tables; startup reruns its introspection migration and then verifies that
 no table or column work remains before accepting traffic. Every Better Auth upgrade needs
