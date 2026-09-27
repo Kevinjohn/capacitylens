@@ -7,7 +7,7 @@ import { DATABASE_MIGRATION_TABLE, DB_SCHEMA_VERSION, openDb } from "./db";
 import { repairSsoCutover } from "./cutoverRepair";
 import { inspectSsoCutoverPreflight } from "./cutoverPreflight";
 import { mixedModeCutoverContext } from "./cutoverContext";
-import { withVerifiedGoogleProfile } from "./testHelpers/googleAccount";
+import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 
 const env = {
   SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE: "self-hosted-mixed",
@@ -54,14 +54,16 @@ function insertAccount({ db, id, providerId, subject, principalId }: InsertAccou
      VALUES (?, ?, ?, ?, ?, ?)`,
       )
       .run(id, providerId, subject, principalId, timestamp, timestamp);
-  if (providerId !== "google") return insert();
+  if (providerId !== "google" && providerId !== "github") return insert();
   const row = db.prepare("SELECT email FROM user WHERE id = ?").get(principalId) as { email: string };
-  return withVerifiedGoogleProfile(db, { subject, email: row.email }, insert);
+  return withVerifiedFederatedProfile(db, { providerId, subject, email: row.email }, insert);
 }
 
 function removePostV46ProofSchema(db: ReturnType<typeof openDb>): void {
   db.exec(`DROP TRIGGER IF EXISTS capacitylens_google_email_proof_before;
     DROP TRIGGER IF EXISTS capacitylens_google_email_proof_after;
+    DROP TRIGGER IF EXISTS capacitylens_federated_email_proof_before;
+    DROP TRIGGER IF EXISTS capacitylens_federated_email_proof_after;
     DROP TABLE IF EXISTS identity_email_proofs;
     DROP TABLE IF EXISTS account_access_restrictions;`);
 }
@@ -344,6 +346,8 @@ function createPopulatedLegacyRepairTests(): void {
     else {
       prepared.db.exec(`DROP TRIGGER IF EXISTS capacitylens_google_email_proof_before;
         DROP TRIGGER IF EXISTS capacitylens_google_email_proof_after;
+        DROP TRIGGER IF EXISTS capacitylens_federated_email_proof_before;
+        DROP TRIGGER IF EXISTS capacitylens_federated_email_proof_after;
         DROP TABLE identity_email_proofs`);
     }
     prepared.db.prepare(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > ?`).run(version);

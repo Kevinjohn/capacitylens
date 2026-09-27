@@ -29,7 +29,7 @@ const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
 });
 import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from "./tenantIndexes";
 import { registerServerFixtureCleanup } from "./testHelpers";
-import { withVerifiedGoogleProfile } from "./testHelpers/googleAccount";
+import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 
 // P1.16 — session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
 // betterAuth options (auth.options is the exact object we passed; same robust point P1.7 uses for
@@ -105,7 +105,7 @@ const createCompletedFederatedLinkFixture = (db: ReturnType<typeof openDbRaw>) =
     `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
      VALUES (?, ?, ?, 1, ?, ?)`,
   ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
-  withVerifiedGoogleProfile(db, { subject: "subject-1", email: "member@example.com" }, () =>
+  withVerifiedFederatedProfile(db, { providerId: "google", subject: "subject-1", email: "member@example.com" }, () =>
     db
       .prepare(
         `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
@@ -361,7 +361,7 @@ const registerFederatedSubjectConflictTests = () => {
        VALUES (?, ?, ?, 1, ?, ?)`,
     ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
     createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "google" });
-    withVerifiedGoogleProfile(db, { subject: "subject-1", email: "member@example.com" }, () =>
+    withVerifiedFederatedProfile(db, { providerId: "google", subject: "subject-1", email: "member@example.com" }, () =>
       db
         .prepare(
           `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
@@ -371,13 +371,16 @@ const registerFederatedSubjectConflictTests = () => {
     );
 
     expect(() =>
-      withVerifiedGoogleProfile(db, { subject: "subject-2", email: "member@example.com" }, () =>
-        db
-          .prepare(
-            `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+      withVerifiedFederatedProfile(
+        db,
+        { providerId: "google", subject: "subject-2", email: "member@example.com" },
+        () =>
+          db
+            .prepare(
+              `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
              VALUES (?, ?, ?, ?, ?, ?)`,
-          )
-          .run("link-2", "google", "subject-2", "principal-1", timestamp, timestamp),
+            )
+            .run("link-2", "google", "subject-2", "principal-1", timestamp, timestamp),
       ),
     ).toThrow(/unique constraint/i);
     reconcileFederatedLinks();

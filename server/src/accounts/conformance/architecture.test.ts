@@ -275,7 +275,7 @@ const identitySqlOwners = new Set([
   resolve(serverRoot, "authConfig/microsoftProof.ts"),
   resolve(serverRoot, "authConfig/microsoftProofAuthorization.ts"),
   resolve(serverRoot, "authConfig/socialProviders.ts"),
-  resolve(serverRoot, "authConfig/googleEmailProof.ts"),
+  resolve(serverRoot, "authConfig/federatedEmailProof.ts"),
   resolve(serverRoot, "db/microsoftProofGateSql.ts"),
   resolve(serverRoot, "accounts/identityPort/credentials.ts"),
   resolve(serverRoot, "accounts/identityPort/cutover.ts"),
@@ -286,6 +286,7 @@ const identitySqlOwners = new Set([
   resolve(serverRoot, "accounts/identityPort/sessions.ts"),
   resolve(serverRoot, "controlTables/accountMemberResources.ts"),
   resolve(serverRoot, "controlTables/accessRestrictions.ts"),
+  resolve(serverRoot, "testHelpers/federatedAccount.ts"),
 ]);
 
 // eslint-disable-next-line max-lines-per-function
@@ -315,7 +316,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
       resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
-      resolve(serverRoot, "authConfig/googleEmailProof.ts"),
+      resolve(serverRoot, "authConfig/federatedEmailProof.ts"),
       resolve(serverRoot, "accounts/proofInvitationPort.ts"),
     ]);
     // Database bootstrap and the concrete account-admin adapter compose control-table operations.

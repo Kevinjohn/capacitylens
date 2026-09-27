@@ -4,7 +4,7 @@ export const IDENTITY_EMAIL_PROOF_V48_SQL = `
 CREATE TABLE identity_email_proofs (
   principalId TEXT PRIMARY KEY,
   email TEXT NOT NULL,
-  source TEXT NOT NULL CHECK (source IN ('google', 'microsoft', 'password')),
+  source TEXT NOT NULL CHECK (source IN ('google', 'github', 'microsoft', 'password')),
   provenAt TEXT NOT NULL
 );
 CREATE INDEX idx_identity_email_proofs_email ON identity_email_proofs(email);

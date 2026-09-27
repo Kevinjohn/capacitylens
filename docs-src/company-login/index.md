@@ -95,6 +95,9 @@ CapacityLens membership in **Team & access**. Provider disablement alone does no
 immediately revoke existing CapacityLens sessions. Use **Revoke sessions** when
 all of the person's CapacityLens sessions must end; that action applies across
 their accounts and requires the corresponding authority.
+In mixed mode, a verified GitHub sign-in also binds the selected address to a
+**Disable Access** restriction. GitHub remains experimental and cannot satisfy
+company-provider-only sign-in.
 
 ## Next steps
 

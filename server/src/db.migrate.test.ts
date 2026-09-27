@@ -174,7 +174,7 @@ const V47_MIGRATION = {
 const V48_MIGRATION = {
   version: 48,
   name: "record-identity-email-proof",
-  checksum: "530f6689c704800abcd0a38a115154dc398a20b3012ee7a2f852c959c22c4938",
+  checksum: "b465756a0369755a3aca9f9e5c84c2ed165f32128ae75c4ecdfb50ad6974bcf4",
 } as const;
 
 describe("v47 company access restriction upgrade", () => {

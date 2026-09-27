@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb, type Db } from "./db";
-import { withVerifiedGoogleProfile } from "./testHelpers/googleAccount";
+import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 import {
   createAuthFromEnvironment,
   parseAuthMode,
@@ -495,7 +495,7 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
       payload: { email: "linked@example.com", password: "password-123456", name: "Linked" },
     });
     const principal = db.prepare(`SELECT id FROM user WHERE email = ?`).get("linked@example.com") as { id: string };
-    withVerifiedGoogleProfile(db, { subject: "subject-1", email: "linked@example.com" }, () =>
+    withVerifiedFederatedProfile(db, { providerId: "google", subject: "subject-1", email: "linked@example.com" }, () =>
       db
         .prepare(
           `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
