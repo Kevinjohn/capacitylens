@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import type { AuthProviderInfo } from "../../auth/authContext";
-import { MAX_EMAIL_LENGTH, MAX_NAME_INPUT_CODE_UNITS } from "@capacitylens/shared/lib/strings";
+import { MAX_EMAIL_LENGTH } from "@capacitylens/shared/lib/strings";
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_INPUT_CODE_UNITS } from "@capacitylens/shared/domain/password";
 import { m } from "@/i18n";
 import { TextField } from "../common/ui";
@@ -14,19 +15,17 @@ interface InvitePasswordContentProps {
   errorId: string;
   errorMessage: string | undefined;
   errorField: string | null | undefined;
-  name: string;
   email: string;
   password: string;
-  onNameChange: (value: string) => void;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onSignIn: (event: FormEvent) => void;
   onProviderSignIn: (provider: AuthProviderInfo) => void;
-  onCreateAccount: () => void;
+  joinPath: string | null;
   onPathChange: () => void;
 }
 
-/** Presents separate existing-account and atomic account-creation paths for a password invite. */
+/** Presents sign-in and the company-bound mailbox proof handoff for a password invite. */
 export function InvitePasswordContent(props: InvitePasswordContentProps) {
   const [path, setPath] = useState<"sign-in" | "create-account">("sign-in");
   const signInTabId = useId();
@@ -146,29 +145,12 @@ function SignInForm(props: InvitePasswordContentProps) {
 
 function SignupForm(props: InvitePasswordContentProps) {
   return (
-    <form
-      className="flex flex-col gap-3"
-      noValidate
-      onSubmit={(event) => {
-        event.preventDefault();
-        props.onCreateAccount();
-      }}
-    >
-      <TextField
-        label={m.invite_name()}
-        autoComplete="name"
-        value={props.name}
-        maxLength={MAX_NAME_INPUT_CODE_UNITS}
-        onChange={props.onNameChange}
-        invalid={props.errorField === "name"}
-        describedById={props.errorId}
-      />
-      <EmailPasswordFields {...props} passwordAutoComplete="new-password" />
-      <FieldError id={props.errorId}>{props.errorMessage}</FieldError>
-      <Button className="w-full" size="sm" type="submit" disabled={props.busy}>
-        {m.invite_create_account()}
-      </Button>
-    </form>
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">{m.joining_invite_guidance()}</p>
+      {props.joinPath ? <Button asChild className="w-full" size="sm">
+        <Link to={props.joinPath}>{m.joining_invite_continue()}</Link>
+      </Button> : <FieldError>{m.joining_failed()}</FieldError>}
+    </div>
   );
 }
 

@@ -1021,9 +1021,12 @@ identity, the page explains the mismatch and retains that same recovery action i
 a retry as the wrong identity. In SSO-only mode the accepting session must come from the required
 company provider. GitHub cannot enter a provider-required deployment, including through an
 older session. Google and Microsoft sign-in do not themselves claim the invitation: the signed-in
-person still explicitly accepts it, with its address and expiry checked again. A brand-new invitee chooses **Create account and
-accept** (POST `/invite/:token/signup`), which creates the identity and claims the invite atomically,
-then refreshes the authenticated company list, activates that company and enters it directly.
+person still explicitly accepts it, with its address and expiry checked again. A brand-new invitee
+chooses **Create account**, then **Verify email and create account** to enter the company-bound
+`/join/:accountId?invite=:token` journey. The old direct signup endpoint refuses credential
+creation. After same-browser mailbox proof, **Create account and join** creates the identity and
+claims the invite atomically, then refreshes the authenticated company list, activates that company
+and enters it directly.
 A fresh authenticated boot is required because the pre-session invite page deliberately starts
 without tenant persistence attached; the signup handoff carries only the joined company id in a
 one-use query parameter, removes it from the URL, verifies it against the authenticated company
@@ -1198,6 +1201,13 @@ field (`data-testid="joining-policy-domains"`) and select **Save joining policy*
   The section loads the current company’s policy before showing controls; a failed read shows
   **Could not load the joining policy.** and a **Try again** action. Switching companies discards
   the previous company’s draft and loads its new settings.
+  `/join/:accountId` is a public company-bound entry outside the app's account picker. It shows
+  the company's name and available sign-in methods, then asks for an email. In password mode,
+  **Send verification email** starts a 15-minute proof with no credential yet; the pending view
+  explains that the link must be opened in the same browser and offers **Resend email**. A verified
+  new person enters **Name** and **Password**, then **Create account and join** creates the credential
+  and membership together. Someone with an existing identity signs in and chooses **Join company**.
+  On completion the normal authenticated company list verifies the destination before activation.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the
   same five-column bordered table as Members, with a row per invite (`data-testid="invite-row"`).
   **Name** is an em dash, **Role** is the invited role, **Email** is the pre-authorised address or

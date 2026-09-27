@@ -30,6 +30,7 @@ export type InviteAcceptState =
   | { kind: "local" };
 
 export interface InvitePreview {
+  accountId: string | null;
   accountName: string;
   role: InvitationRole;
   expiresAt: string;
@@ -40,24 +41,22 @@ export interface InvitePreview {
 interface InviteAcceptViewProps {
   state: InviteAcceptState;
   preview: InvitePreview | null;
+  joinPath: string | null;
   user: AuthUser | null;
   authMode: AccountMode;
   providers: readonly AuthProviderInfo[];
   busy: boolean;
   errorId: string;
-  name: string;
   email: string;
   password: string;
   flowStatusRef: RefCallback<HTMLParagraphElement>;
   continueRef: RefCallback<HTMLAnchorElement>;
-  onNameChange: (value: string) => void;
   onEmailChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
   onAccept: () => void;
   onSignOut: () => void;
   onSignIn: (event: FormEvent) => void;
   onProviderSignIn: (provider: AuthProviderInfo) => void;
-  onCreateAccount: () => void;
   onClearAuthError: () => void;
   onRetryPreview: () => void;
 }
@@ -157,7 +156,7 @@ function InviteStateContent(props: InviteAcceptViewProps) {
   }
 }
 
-function ReadyContent({ user, busy, onSignOut, onAccept }: InviteAcceptViewProps) {
+function ReadyContent({ user, busy, onSignOut, onAccept, joinPath }: InviteAcceptViewProps) {
   return (
     <>
       <p className="text-sm text-muted-foreground">
@@ -170,6 +169,9 @@ function ReadyContent({ user, busy, onSignOut, onAccept }: InviteAcceptViewProps
         <Button asChild size="sm">
           <Link to="/">{m.invite_go_to_app()}</Link>
         </Button>
+        {joinPath && <Button asChild size="sm" variant="outline">
+          <Link to={joinPath}>{m.joining_invite_recovery()}</Link>
+        </Button>}
         <Button size="sm" type="button" disabled={busy} onClick={onAccept}>
           {m.invite_accept_action()}
         </Button>
@@ -215,15 +217,13 @@ function PasswordContent(props: InviteAcceptViewProps) {
       errorId={props.errorId}
       errorMessage={state.message}
       errorField={state.errorField}
-      name={props.name}
       email={props.email}
       password={props.password}
-      onNameChange={props.onNameChange}
       onEmailChange={props.onEmailChange}
       onPasswordChange={props.onPasswordChange}
       onSignIn={props.onSignIn}
       onProviderSignIn={props.onProviderSignIn}
-      onCreateAccount={props.onCreateAccount}
+      joinPath={props.joinPath}
       onPathChange={props.onClearAuthError}
     />
   );

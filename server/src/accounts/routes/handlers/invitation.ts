@@ -167,6 +167,7 @@ export async function previewInvitation(req: FastifyRequest, reply: FastifyReply
   try {
     const invite = await accountAdminPort.previewInvitation({ token });
     return {
+      accountId: invite.workspaceId,
       accountName: invite.workspaceName,
       role: invite.role,
       expiresAt: invite.expiresAt,

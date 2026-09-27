@@ -229,6 +229,7 @@ function membershipAdministrationMethods(): MembershipAdministrationMethods {
     readJoiningPolicy: vi.fn(async () => ({ policy: "invitation_only" as const, approvedDomains: [] })),
     setJoiningPolicy: vi.fn(async ({ settings }) => settings),
     previewInvitation: vi.fn(async () => ({
+      workspaceId: "a-studio",
       workspaceName: "Workspace",
       role: "editor" as const,
       expiresAt: "2099-01-01T00:00:00.000Z",

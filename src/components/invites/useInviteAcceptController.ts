@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type FormEvent, type RefObject } from "react";
 import { isServerConfigured } from "../../data/apiConfig";
-import { createBrowserAccountCommand, type BrowserAccountCommand } from "../../account/accountClient";
+import type { BrowserAccountCommand } from "../../account/accountClient";
 import { APP_NAME } from "@capacitylens/shared/brand";
 import { m } from "@/i18n";
 import { useAuth, type AuthProviderInfo } from "../../auth/authContext";
@@ -9,7 +9,6 @@ import type { InviteAcceptState, InvitePreview } from "./InviteAcceptView";
 import { createInvitePreviewAction } from "./invitePreviewActions";
 import { createInviteAcceptanceActions } from "./inviteAcceptanceActions";
 import { createInviteSignInActions } from "./inviteSignInActions";
-import { createInviteSignupActions } from "./inviteSignupActions";
 
 function useCurrentUserRef(user: ReturnType<typeof useAuth>["user"]) {
   const currentUser = useRef(user);
@@ -50,7 +49,6 @@ function useInviteRefs(user: ReturnType<typeof useAuth>["user"], state: InviteAc
     currentUser,
     routeActive,
     accepting: useRef(false),
-    signupInFlight: useRef(false),
     acceptCommand: useRef<BrowserAccountCommand | null>(null),
     ...focusRefs,
   };
@@ -76,7 +74,6 @@ function useInviteState(token: string | undefined) {
     if (!token) return { kind: "error", message: m.invite_err_missing_token() };
     return { kind: "previewing" };
   });
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [preview, setPreview] = useState<InvitePreview | null>(null);
@@ -85,8 +82,6 @@ function useInviteState(token: string | undefined) {
   return {
     state,
     setState,
-    name,
-    setName,
     email,
     setEmail,
     password,
@@ -98,20 +93,6 @@ function useInviteState(token: string | undefined) {
     busy,
     setBusy,
   };
-}
-
-// Preserve the command across a true retry, but replace its idempotency identity after payload edits.
-function useSignupCommand({
-  token,
-  name,
-  email,
-  password,
-}: Pick<InviteActionOptions, "token" | "name" | "email" | "password">) {
-  const signupCommand = useRef<BrowserAccountCommand | null>(null);
-  useEffect(() => {
-    signupCommand.current = createBrowserAccountCommand();
-  }, [token, name, email, password]);
-  return signupCommand;
 }
 
 function useInvitePreview(options: Parameters<typeof createInvitePreviewAction>[0], previewAttempt: number) {
@@ -145,31 +126,23 @@ interface InviteActionOptions {
   accepting: RefObject<boolean>;
   acceptCommand: RefObject<BrowserAccountCommand | null>;
   routeActive: ReturnType<typeof useRouteActiveRef>;
-  signupCommand: RefObject<BrowserAccountCommand | null>;
-  signupInFlight: RefObject<boolean>;
-  name: string;
   email: string;
   password: string;
-  refreshAuth: ReturnType<typeof useAuth>["refreshAuth"];
   setState: ReturnType<typeof useInviteState>["setState"];
   setBusy: ReturnType<typeof useInviteState>["setBusy"];
 }
 
 function createInviteControllerActions(options: InviteActionOptions) {
-  const { signIn, signInWithProvider, enterJoinedCompany } = createInviteSignInActions(options);
+  const { signIn, signInWithProvider } = createInviteSignInActions(options);
   const acceptInvite = async (): Promise<void> => {
     await createInviteAcceptanceActions(options).acceptInvite();
   };
-  const createAccount = async () => {
-    await createInviteSignupActions({ ...options, enterJoinedCompany }).createAccount();
-  };
-  return { acceptInvite, signIn, signInWithProvider, createAccount };
+  return { acceptInvite, signIn, signInWithProvider };
 }
 
 function useInviteFlow(
   token: string | undefined,
   user: ReturnType<typeof useAuth>["user"],
-  refreshAuth: ReturnType<typeof useAuth>["refreshAuth"],
 ) {
   const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href));
   const inviteState = useInviteState(token);
@@ -179,7 +152,6 @@ function useInviteFlow(
   // suppress the replacement request and strand the page on “Checking invite…”.
   const refs = useInviteRefs(user, inviteState.state);
   useExternalErrorCleanup(returnedWithExternalError);
-  const signupCommand = useSignupCommand({ token, ...inviteState });
 
   useDocumentTitle();
 
@@ -195,18 +167,14 @@ function useInviteFlow(
     inviteState.previewAttempt,
   );
 
-  const { acceptInvite, signIn, signInWithProvider, createAccount } = createInviteControllerActions({
+  const { acceptInvite, signIn, signInWithProvider } = createInviteControllerActions({
     token,
     previewed: refs.previewed,
     accepting: refs.accepting,
     acceptCommand: refs.acceptCommand,
     routeActive: refs.routeActive,
-    signupCommand,
-    signupInFlight: refs.signupInFlight,
-    name: inviteState.name,
     email: inviteState.email,
     password: inviteState.password,
-    refreshAuth,
     setState: inviteState.setState,
     setBusy: inviteState.setBusy,
   });
@@ -217,18 +185,15 @@ function useInviteFlow(
     preview: inviteState.preview,
     busy: inviteState.busy,
     errorId,
-    name: inviteState.name,
     email: inviteState.email,
     password: inviteState.password,
     flowStatusRef: flowStatusCallback,
     continueRef: continueCallback,
-    setName: inviteState.setName,
     setEmail: inviteState.setEmail,
     setPassword: inviteState.setPassword,
     acceptInvite,
     signIn,
     signInWithProvider,
-    createAccount,
     setState: inviteState.setState,
     setPreviewAttempt: inviteState.setPreviewAttempt,
   };
@@ -236,30 +201,30 @@ function useInviteFlow(
 
 // One owner for the invite flow, shared credentials, live refs and idempotency tokens.
 export function useInviteAcceptController(token: string | undefined) {
-  const { authMode, user, providers: configuredProviders, refreshAuth, signOut } = useAuth();
+  const { authMode, user, providers: configuredProviders, signOut } = useAuth();
   const providers = configuredProviders ?? [];
-  const flow = useInviteFlow(token, user, refreshAuth);
+  const flow = useInviteFlow(token, user);
   return {
     state: flow.state,
     preview: flow.preview,
+    joinPath: token && flow.preview?.accountId
+      ? `/join/${encodeURIComponent(flow.preview.accountId)}?invite=${encodeURIComponent(token)}`
+      : null,
     user,
     authMode,
     providers,
     busy: flow.busy,
     errorId: flow.errorId,
-    name: flow.name,
     email: flow.email,
     password: flow.password,
     flowStatusRef: flow.flowStatusRef,
     continueRef: flow.continueRef,
-    onNameChange: flow.setName,
     onEmailChange: flow.setEmail,
     onPasswordChange: flow.setPassword,
     onAccept: () => void flow.acceptInvite(),
     onSignOut: () => void signOut(),
     onSignIn: (event: FormEvent) => void flow.signIn(event),
     onProviderSignIn: (provider: AuthProviderInfo) => void flow.signInWithProvider(provider),
-    onCreateAccount: () => void flow.createAccount(),
     onClearAuthError: () => flow.setState({ kind: "auth" }),
     onRetryPreview: () => {
       flow.setState({ kind: "previewing" });

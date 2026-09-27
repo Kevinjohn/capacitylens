@@ -138,7 +138,7 @@ function LoginBoundary({
 }) {
   const publicEntry = resolvePublicAuthEntry(window.location.pathname);
   if (publicEntry === "password-reset") return <>{children}</>;
-  if (publicEntry === "invitation") {
+  if (publicEntry === "invitation" || publicEntry === "company-join") {
     return <AuthContext.Provider value={authContextValue}>{children}</AuthContext.Provider>;
   }
   return (

@@ -201,6 +201,7 @@ export interface InvitationSummary {
 /** Public bearer preview. Intentionally excludes the full address, domain, inviter, identity
  * existence, and token. `emailHint` contains only a bound address's local part plus `@…`. */
 export interface InvitationPreview {
+  workspaceId: WorkspaceId;
   workspaceName: string;
   role: InvitationRole;
   expiresAt: IsoInstant;

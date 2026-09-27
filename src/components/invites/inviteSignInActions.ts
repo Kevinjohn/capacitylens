@@ -5,9 +5,6 @@ import type { AuthProviderInfo } from "../../auth/authContext";
 import { startMicrosoftConnection } from "../../auth/microsoftConnectionClient";
 import { authClient } from "../../auth/authClient";
 import { reloadPage } from "../../lib/reloadPage";
-import { refreshAccountSummaries } from "../../auth/useAccountSummaries";
-import { useStore } from "../../store/useStore";
-import { replaceWithAccountPicker, replaceWithJoinedAccount } from "../../lib/joinedAccountHandoff";
 import { buildExternalSignInErrorUrl } from "../../auth/externalSignInError";
 import { runExternalSignIn } from "./externalSignIn";
 import type { FormEvent } from "react";
@@ -16,16 +13,8 @@ interface Dependencies {
   token: string | undefined;
   email: string;
   password: string;
-  refreshAuth: () => Promise<void>;
   setState: Dispatch<SetStateAction<InviteAcceptState>>;
   setBusy: Dispatch<SetStateAction<boolean>>;
-}
-
-function resolveJoinedAccount(list: Awaited<ReturnType<typeof refreshAccountSummaries>>, accountId?: string) {
-  if (list === null) return undefined;
-  if (accountId) return list.find((account) => account.id === accountId);
-  if (list.length === 1) return list[0];
-  return undefined;
 }
 
 function startProviderSignIn(provider: AuthProviderInfo, token: string | undefined, signal: AbortSignal) {
@@ -50,34 +39,11 @@ function startProviderSignIn(provider: AuthProviderInfo, token: string | undefin
   return authClient.signIn.social({ ...options, provider: provider.id });
 }
 
-export function createInviteSignInActions({ token, email, password, refreshAuth, setState, setBusy }: Dependencies) {
+export function createInviteSignInActions({ token, email, password, setState, setBusy }: Dependencies) {
   const signInAndReload = async (): Promise<void> => {
     const { error } = await authClient.signIn.email({ email, password });
     if (error) throw new Error(error.message ?? m.login_failed());
     reloadPage();
-  };
-
-  /** Recheck the new cookie and authoritative companies before entering AppShell. The invite page
-   * booted without a session, so its initial persistence bootstrap is deliberately unattached after
-   * the 401. A fresh boot is required for safe saving; its one-use query value is verified against
-   * `/api/accounts` by AppShell before activation and then removed from the URL. */
-  const enterJoinedCompany = async (accountId?: string): Promise<void> => {
-    await refreshAuth();
-    const list = await refreshAccountSummaries({
-      signal: AbortSignal.timeout(5000),
-      allowCachedFallback: false,
-    });
-    const target = resolveJoinedAccount(list, accountId);
-    if (target) {
-      // This route precedes the authenticated persistence lifecycle. The destination boot
-      // re-verifies and hydrates the selected company from this already-authoritative directory.
-      useStore.getState().setActiveAccount(target.id);
-      replaceWithJoinedAccount(target.id);
-      return;
-    }
-    // A failed authoritative list read cannot safely activate a caller-supplied id. Reboot into the
-    // ordinary authenticated picker, which retries the list without trusting the invite response.
-    replaceWithAccountPicker();
   };
 
   const signIn = async (event: FormEvent) => {
@@ -118,5 +84,5 @@ export function createInviteSignInActions({ token, email, password, refreshAuth,
     });
   };
 
-  return { signIn, signInWithProvider, enterJoinedCompany };
+  return { signIn, signInWithProvider };
 }

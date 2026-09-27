@@ -206,7 +206,9 @@ export function createJoiningProof(input: JoiningProofInput) {
       return { state: "expired" as const };
     }
     return { state: intent.state === "approved" ? "approved" as const : "pending" as const,
-      emailHint: hint(intent.email), deliveryUnavailable: intent.state === "started" && intent.sentCount > 0 };
+      accountId: intent.accountId, purpose: intent.purpose,
+      email: intent.email, emailHint: hint(intent.email),
+      deliveryUnavailable: intent.state === "started" && intent.sentCount > 0 };
   }
 
   async function resend(headers: Headers) {

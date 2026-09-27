@@ -100,6 +100,7 @@ async function previewInvitation(context: InvitationsContext, { token }: Invitat
   assertRedeemableInvitationRole(invite.role);
   const workspace = assertWorkspaceExists(context.db, invite.accountId);
   return {
+    workspaceId: invite.accountId,
     workspaceName: workspace.name,
     role: invite.role,
     expiresAt: invite.expiresAt,
