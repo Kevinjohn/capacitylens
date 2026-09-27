@@ -20,9 +20,10 @@ export const microsoftCallbackCapture = new AsyncLocalStorage<{
   pending: boolean;
 }>();
 
-/** Verified Google profile facts exist only during the callback that received them. */
-export const googleCallbackCapture = new AsyncLocalStorage<{
+/** Verified provider profile facts exist only during the callback that received them. */
+export const federatedCallbackCapture = new AsyncLocalStorage<{
   active: boolean;
+  providerId: "google" | "github";
   subject: string | null;
   email: string | null;
 }>();

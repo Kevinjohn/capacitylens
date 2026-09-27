@@ -8,7 +8,7 @@ import { admitCompanyInTx, assertJoinIntentTargetLive } from "./joiningAdmission
 import { createAccountFailure } from "./failures";
 import { hashJoiningValue } from "./joiningIntentSecrets";
 import { createJoiningProviderIntent } from "./joiningProviderIntent";
-import { googleCallbackCapture } from "../../authConfig/captureContexts";
+import { federatedCallbackCapture } from "../../authConfig/captureContexts";
 
 export interface JoiningProviderFacts {
   providerId: "google" | "github";
@@ -26,10 +26,10 @@ export const joiningProviderCallbackCapture = new AsyncLocalStorage<CallbackCont
 
 /** Only request-local provider mapper facts from the current callback are admission evidence. */
 export function currentJoiningProviderFacts(providerId: string | null): JoiningProviderFacts | null {
-  if (providerId === "google") {
-    const capture = googleCallbackCapture.getStore();
-    if (capture?.active && capture.subject && capture.email) {
-      return { providerId: "google", subject: capture.subject, email: capture.email };
+  if (providerId === "google" || providerId === "github") {
+    const capture = federatedCallbackCapture.getStore();
+    if (capture?.active && capture.providerId === providerId && capture.subject && capture.email) {
+      return { providerId, subject: capture.subject, email: capture.email };
     }
   }
   return null;

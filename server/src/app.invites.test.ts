@@ -12,7 +12,7 @@ import {
 } from "./controlTables";
 import { createAuthFromEnvironment, runAuthMigrations, DEMO_USER } from "./auth";
 import { PASSWORD_ENV, call, readCookies, signUp, registerServerFixtureCleanup } from "./testHelpers";
-import { withVerifiedGoogleProfile } from "./testHelpers/googleAccount";
+import { insertVerifiedFederatedAccount } from "./testHelpers/federatedAccount";
 import { recordSessionAssurance } from "./accounts/state";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
@@ -1066,11 +1066,13 @@ async function createSsoProviderInviteContext() {
   const joiner = await signUp(passwordApp, "social-only@capacitylens.dev");
   verifyUserEmail(db, "social-only@capacitylens.dev");
   await passwordApp.close();
-  const timestamp = new Date().toISOString();
-  db.prepare(
-    `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run("github-link", "github", "github-subject", joiner.userId, timestamp, timestamp);
+  insertVerifiedFederatedAccount(db, {
+    id: "github-link",
+    providerId: "github",
+    subject: "github-subject",
+    principalId: joiner.userId,
+    email: "social-only@capacitylens.dev",
+  });
   const session = db.prepare(`SELECT token FROM session WHERE userId = ?`).get(joiner.userId) as { token: string };
   const sessionHandle = buildApplicationSessionHandle("capacitylens", session.token);
   recordSessionAssurance({
@@ -1091,23 +1093,19 @@ async function createSsoProviderInviteContext() {
     payload: { id: "founded", name: "Founded", color: "#3b82f6" },
   });
   expect(socialProvision.statusCode).toBe(401);
-  return { db, joiner, sessionHandle, ssoApp, timestamp };
-}
-
-function linkWorkforceGoogle(db: Db, principalId: string, timestamp: string): void {
-  const insert = db.prepare(
-    "INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)",
-  );
-  withVerifiedGoogleProfile(db, { subject: "workforce-subject", email: "social-only@capacitylens.dev" }, () =>
-    insert.run("workforce-link", "google", "workforce-subject", principalId, timestamp, timestamp),
-  );
+  return { db, joiner, sessionHandle, ssoApp };
 }
 
 function registerSsoProviderInviteTest(): void {
   it("requires the strict provider before an SSO-only session can create a membership", async () => {
-    const { db, joiner, sessionHandle, ssoApp, timestamp } = await createSsoProviderInviteContext();
-
-    linkWorkforceGoogle(db, joiner.userId, timestamp);
+    const { db, joiner, sessionHandle, ssoApp } = await createSsoProviderInviteContext();
+    insertVerifiedFederatedAccount(db, {
+      id: "workforce-link",
+      providerId: "google",
+      subject: "workforce-subject",
+      principalId: joiner.userId,
+      email: "social-only@capacitylens.dev",
+    });
     recordSessionAssurance({
       db,
       sessionId: sessionHandle,
@@ -1146,7 +1144,6 @@ function registerSsoProviderInviteTest(): void {
     expect(readResponseObject(refused).error).toMatch(/sign in/i);
     expect(getMemberRole(db, "a1", joiner.userId)).toBeNull();
     expect(readInvite(db, "sso-provider-invite").usedAt).toBeNull();
-
     recordSessionAssurance({
       db,
       sessionId: sessionHandle,

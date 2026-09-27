@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import type { FastifyInstance, LightMyRequestResponse } from "fastify";
 import { createApp } from "./app";
 import { openDb } from "./db";
-import { withVerifiedGoogleProfile } from "./testHelpers/googleAccount";
+import { withVerifiedFederatedProfile } from "./testHelpers/federatedAccount";
 import {
   createAuthFromEnvironment,
   enforceSessionActivity,
@@ -375,13 +375,16 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
       `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
        VALUES (?, ?, ?, 1, ?, ?)`,
     ).run(principalId, "Federated Member", "federated@example.com", TS, TS);
-    withVerifiedGoogleProfile(db, { subject: "subject-1", email: "federated@example.com" }, () =>
-      db
-        .prepare(
-          `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+    withVerifiedFederatedProfile(
+      db,
+      { providerId: "google", subject: "subject-1", email: "federated@example.com" },
+      () =>
+        db
+          .prepare(
+            `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        )
-        .run("federated-link", "google", "subject-1", principalId, TS, TS),
+          )
+          .run("federated-link", "google", "subject-1", principalId, TS, TS),
     );
     recordSessionAssurance({
       db,

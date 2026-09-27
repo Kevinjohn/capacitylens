@@ -158,6 +158,8 @@ member becomes a principal-specific restriction; the upgrade does not infer mail
 from an older verified flag or invitation. New verified company sign-ins can establish durable
 mailbox proof for later identity recreation. The automatic pre-migration snapshot remains the
 rollback boundary for both tables.
+Existing GitHub links are not backfilled from old email flags. A later GitHub callback records
+proof only when GitHub verifies the selected address and it still matches the local identity.
 
 The release that adds Studio and Supplementary engagement advances the database through
 schema v29 (the required resource engagement column), v30 (the optional company-wide

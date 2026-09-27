@@ -4,7 +4,7 @@ import {
   passwordResetSessionCapture,
   isFederatedAccountCoordinateConstraint,
   microsoftCallbackCapture,
-  googleCallbackCapture,
+  federatedCallbackCapture,
 } from "./captureContexts";
 import { MicrosoftProofError, type MicrosoftProof } from "./microsoftProof";
 import { joiningProviderCallbackCapture, JoiningProviderCallbackError,
@@ -121,17 +121,23 @@ async function runCapturedHandler(
       bootstrapClaimToken: string | null;
       pending: boolean;
     };
-    googleCapture: { active: boolean; subject: string | null; email: string | null };
+    federatedCapture: {
+      active: boolean;
+      providerId: "google" | "github";
+      subject: string | null;
+      email: string | null;
+    };
     joinCapture: ReturnType<NonNullable<CreateAuthRequestHandlerOptions["joiningProviderCallbacks"]>["preflight"]>;
   },
 ): Promise<Response> {
-  const { request, callbackProviderId, capture, resetCapture, microsoftCapture, googleCapture, joinCapture } = context;
+  const { request, callbackProviderId, capture, resetCapture, microsoftCapture, federatedCapture, joinCapture } = context;
   const raw = () => options.rawHandler(request);
   const joined = () => joinCapture ? joiningProviderCallbackCapture.run(joinCapture, raw) : raw();
   const providerScoped = () => {
     if (callbackProviderId === "microsoft" && options.microsoftProof)
       return microsoftCallbackCapture.run(microsoftCapture, raw);
-    if (callbackProviderId === "google") return googleCallbackCapture.run(googleCapture, joined);
+    if (callbackProviderId === "google" || callbackProviderId === "github")
+      return federatedCallbackCapture.run(federatedCapture, joined);
     return joined();
   };
   try {
@@ -139,9 +145,9 @@ async function runCapturedHandler(
       passwordResetSessionCapture.run(resetCapture, providerScoped),
     );
   } finally {
-    googleCapture.active = false;
-    googleCapture.email = null;
-    googleCapture.subject = null;
+    federatedCapture.active = false;
+    federatedCapture.email = null;
+    federatedCapture.subject = null;
     if (microsoftCapture.bootstrapClaimToken)
       options.microsoftProof?.releaseBootstrapClaim(microsoftCapture.bootstrapClaimToken);
   }
@@ -189,14 +195,19 @@ async function runAuthenticatedRequest(
       bootstrapClaimToken: null as string | null,
       pending: false,
     };
-    const googleCapture = { active: true, subject: null as string | null, email: null as string | null };
+    const federatedCapture = {
+      active: true,
+      providerId: callbackProviderId === "github" ? ("github" as const) : ("google" as const),
+      subject: null as string | null,
+      email: null as string | null,
+    };
     const response = await runCapturedHandler(options, {
       request,
       callbackProviderId,
       capture,
       resetCapture,
       microsoftCapture,
-      googleCapture,
+      federatedCapture,
       joinCapture,
     });
     if (microsoftCapture.pending) {

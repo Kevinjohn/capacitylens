@@ -10,7 +10,7 @@ import type { Auth, AccountMode, CreateCredentialUserInput } from "./authTypes";
 import type * as AuthFacade from "../auth";
 import { ensureFederatedIdentitySchema, assertFederatedIdentitySchemaCurrent } from "./federatedIdentitySchema";
 import { ensureMicrosoftProofGate } from "./microsoftProofGate";
-import { ensureGoogleEmailProofGate } from "./googleEmailProof";
+import { ensureFederatedEmailProofGate } from "./federatedEmailProof";
 
 /** The subset of Better Auth's `$context` {@link createCredentialUserWith} needs. Better Auth still
  * owns password hashing; CapacityLens owns the explicit same-file transaction needed to include
@@ -89,7 +89,8 @@ export async function runAuthMigrations(auth: Auth): Promise<void> {
     ensureFederatedIdentitySchema(database);
     assertFederatedIdentitySchemaCurrent(database);
     if (auth.microsoftProof) ensureMicrosoftProofGate(database, auth.microsoftProof.applicationId);
-    if (auth.options.socialProviders?.google) ensureGoogleEmailProofGate(database);
+    if (auth.options.socialProviders?.google || auth.options.socialProviders?.github)
+      ensureFederatedEmailProofGate(database);
   }
 }
 
