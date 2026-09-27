@@ -6,6 +6,8 @@ import { resolveAccessLabel, resolveAccessSummary } from "../../lib/accessCopy";
 import { resolveAccessExperience } from "../../lib/resolveAccessExperience";
 import { useOfflineState } from "../../data/useOfflineState";
 import { MembersSection } from "./MembersSection";
+import { JoiningPolicyPanel } from "./JoiningPolicyPanel";
+import { useStore } from "../../store/useStore";
 import { OwnershipTransferCard } from "./OwnershipTransferCard";
 import { Badge } from "../ui/badge";
 import { Check, ChevronDown, ChevronRight, X } from "lucide-react";
@@ -142,7 +144,13 @@ function AccessManagement({ authenticated, mayManage, offlineReadOnly, permissio
   );
 }
 
+function PolicyManagement({ accountId, role, enabled }: { accountId: string | null; role: Role | null; enabled: boolean }) {
+  if (!enabled || !accountId || (role !== "owner" && role !== "admin")) return null;
+  return <JoiningPolicyPanel key={accountId} accountId={accountId} role={role} />;
+}
+
 export function TeamAccessView() {
+  const activeAccountId = useStore((state) => state.activeAccountId);
   const role = useRole();
   const permissionStatus = usePermissionStatus();
   const { authMode } = useAuth();
@@ -189,6 +197,8 @@ export function TeamAccessView() {
         offlineReadOnly={offline.readOnly}
         permissionStatus={permissionStatus}
       />
+
+      <PolicyManagement accountId={activeAccountId} role={resolvedRole} enabled={authenticated && mayManage} />
 
       {/* Below member management, because a transfer is a consequence of who administers the
           company rather than a way to administer it. The modal entry point renders nothing for

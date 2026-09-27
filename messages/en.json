@@ -1441,6 +1441,8 @@
   "joining_policy_domain_required": "Enter at least one approved domain for this joining policy.",
   "joining_policy_domain_invalid": "Enter a valid domain on each line, without a scheme, path, wildcard, port or trailing dot.",
   "joining_policy_save_failed": "Could not save the joining policy. Check the current settings and try again.",
+  "joining_policy_load_failed": "Could not load the joining policy.",
+  "joining_policy_retry": "Try again",
   "ownership_transfer_heading": "Company ownership",
   "ownership_transfer_intro": "Ownership moves in three steps: you nominate an Admin, they agree, then you confirm. Nothing changes until all three have happened.",
   "ownership_transfer_open": "Manage ownership",

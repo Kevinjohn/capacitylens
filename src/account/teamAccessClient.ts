@@ -1,5 +1,6 @@
-import type { InvitationRole, MembershipStatus } from "@capacitylens/shared/account/types";
-import { isAccountRole, isMembershipStatus } from "@capacitylens/shared/account/types";
+import type { InvitationRole, JoiningPolicySettings, MembershipStatus } from "@capacitylens/shared/account/types";
+import { isAccountRole, isJoiningPolicy, isMembershipStatus } from "@capacitylens/shared/account/types";
+import { parseApprovedDomains } from "@capacitylens/shared/account/approvedDomains";
 import type { Role } from "@capacitylens/shared/domain/access";
 import { accountClient } from "./accountClient";
 import { hasDuplicateIdentity } from "../lib/hasDuplicateIdentity";
@@ -283,6 +284,13 @@ function parseToken(value: unknown): OneTimeToken | null {
  *  response itself is the whole answer. */
 const noContent = (): true => true;
 
+function parseJoiningPolicy(value: unknown): JoiningPolicySettings | null {
+  if (!isRecord(value) || !isJoiningPolicy(value.policy)) return null;
+  const approvedDomains = parseApprovedDomains(value.approvedDomains);
+  if (approvedDomains === null) return null;
+  return { policy: value.policy, approvedDomains };
+}
+
 /** Typed account-administration boundary. Raw Response handling and untrusted payload codecs stay
  * here; the Team & access controller consumes semantic outcomes only. */
 export const teamAccessClient = {
@@ -300,6 +308,17 @@ export const teamAccessClient = {
 
   async listInvitations(workspaceId: string): Promise<TeamAccessResult<TeamInvitation[]>> {
     return readResult(await accountClient.listInvitations(workspaceId), parseInvitations);
+  },
+
+  async readJoiningPolicy(workspaceId: string): Promise<TeamAccessResult<JoiningPolicySettings>> {
+    return readResult(await accountClient.readJoiningPolicy(workspaceId), parseJoiningPolicy);
+  },
+
+  async setJoiningPolicy(
+    workspaceId: string,
+    settings: JoiningPolicySettings,
+  ): Promise<TeamAccessResult<JoiningPolicySettings>> {
+    return readCommandResult(await accountClient.setJoiningPolicy(workspaceId, settings), parseJoiningPolicy);
   },
 
   async changeMemberRole(workspaceId: string, principalId: string, role: Role): Promise<TeamAccessResult<true>> {

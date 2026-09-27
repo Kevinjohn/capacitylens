@@ -1195,6 +1195,9 @@ field (`data-testid="joining-policy-domains"`) and select **Save joining policy*
 (`data-testid="joining-policy-save"). The Admin sees the same settings with guidance to speak
   to the Owner, without edit controls. Invalid domains and a domain policy with no domains are
   explained beside the field before a save is sent.
+  The section loads the current company’s policy before showing controls; a failed read shows
+  **Could not load the joining policy.** and a **Try again** action. Switching companies discards
+  the previous company’s draft and loads its new settings.
 - **Outstanding invites** — its own bordered section (`data-testid="outstanding-invites"`) using the
   same five-column bordered table as Members, with a row per invite (`data-testid="invite-row"`).
   **Name** is an em dash, **Role** is the invited role, **Email** is the pre-authorised address or
