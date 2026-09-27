@@ -122,7 +122,13 @@ function createCutoverAdministration(
       deleteRequestsForAccount(db, workspaceId);
       const principalIds = [...new Set(listMembersForAccount(db, workspaceId).map((row) => row.userId))];
       removeAllMembersForAccount(db, workspaceId);
-      db.prepare(`DELETE FROM account_access_restrictions WHERE accountId = ?`).run(workspaceId);
+      const accessRestrictionTableExists = db
+        .prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'account_access_restrictions'`)
+        .get();
+      const schemaVersion = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+      if (accessRestrictionTableExists || schemaVersion >= 47) {
+        db.prepare(`DELETE FROM account_access_restrictions WHERE accountId = ?`).run(workspaceId);
+      }
       removeAllInvitesForAccount(db, workspaceId);
       return principalIds.filter(
         (principalId) =>

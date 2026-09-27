@@ -22,13 +22,14 @@ import { createBetterAuthIdentityPort } from "./accounts/betterAuthIdentityPort"
 import { assertCompanyProviderCutoverReady } from "./accounts/companyProviderReadiness";
 import { createFederatedLinkCeremony, reconcileObservedFederatedLinks } from "./federatedLinkLifecycle";
 import { readVerifiedMicrosoftProfile } from "./authConfig/socialProviders";
-import { CHECKSUM_PINNED_MIGRATIONS, MICROSOFT_PROOF_V46_PIN } from "./db/migrations/authPlanningPins.testSupport";
+import { CHECKSUM_PINNED_MIGRATIONS } from "./db/migrations/authPlanningPins.testSupport";
 const admissionDependencies = (db: ReturnType<typeof openDbRaw>) => ({
   identityHasAnyPrincipal: () => countUsers(db) !== 0,
   hasLivePreauthorizedInvitation: (email: string) => hasLivePreauthorizedInvitation(db, email),
 });
 import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from "./tenantIndexes";
 import { registerServerFixtureCleanup } from "./testHelpers";
+import { withVerifiedGoogleProfile } from "./testHelpers/googleAccount";
 
 // P1.16 — session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
 // betterAuth options (auth.options is the exact object we passed; same robust point P1.7 uses for
@@ -104,10 +105,14 @@ const createCompletedFederatedLinkFixture = (db: ReturnType<typeof openDbRaw>) =
     `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt)
      VALUES (?, ?, ?, 1, ?, ?)`,
   ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
-  db.prepare(
-    `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-  ).run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp);
+  withVerifiedGoogleProfile(db, { subject: "subject-1", email: "member@example.com" }, () =>
+    db
+      .prepare(
+        `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      )
+      .run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp),
+  );
   db.prepare(
     `INSERT INTO capacitylens_federated_link_ceremonies
       (id, principalId, providerId, createdAt, expiresAt, completedAt)
@@ -356,18 +361,24 @@ const registerFederatedSubjectConflictTests = () => {
        VALUES (?, ?, ?, 1, ?, ?)`,
     ).run("principal-1", "Member", "member@example.com", timestamp, timestamp);
     createFederatedLinkCeremony({ db, principalId: "principal-1", providerId: "google" });
-    db.prepare(
-      `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp);
-
-    expect(() =>
+    withVerifiedGoogleProfile(db, { subject: "subject-1", email: "member@example.com" }, () =>
       db
         .prepare(
           `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?)`,
         )
-        .run("link-2", "google", "subject-2", "principal-1", timestamp, timestamp),
+        .run("link-1", "google", "subject-1", "principal-1", timestamp, timestamp),
+    );
+
+    expect(() =>
+      withVerifiedGoogleProfile(db, { subject: "subject-2", email: "member@example.com" }, () =>
+        db
+          .prepare(
+            `INSERT INTO account (id, providerId, accountId, userId, createdAt, updatedAt)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+          )
+          .run("link-2", "google", "subject-2", "principal-1", timestamp, timestamp),
+      ),
     ).toThrow(/unique constraint/i);
     reconcileFederatedLinks();
 
@@ -396,7 +407,9 @@ const registerStartupControlTests = () => {
     expect(configured.auth).not.toBeNull();
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([]);
     expect(() => ensureAuthControlTables(db, PASSWORD_ENV)).toThrow(/does not match the current application schema/i);
-    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(expect.objectContaining(MICROSOFT_PROOF_V46_PIN));
+    expect(planDatabaseMigrations(db).migrations.at(-1)).toEqual(
+      expect.objectContaining(CHECKSUM_PINNED_MIGRATIONS.at(-1)),
+    );
     initializeOpenDb(db, ":memory:");
     ensureAuthControlTables(db, PASSWORD_ENV);
     expect(() => assertBootstrapClaimCurrent(db)).not.toThrow();
@@ -522,6 +535,8 @@ const registerStartupMigrationPlanningTest = () => {
     db.exec(`
       DROP TABLE capacitylens_bootstrap_claim;
       DROP TABLE microsoft_identity_proofs;
+      DROP TABLE account_access_restrictions;
+      DROP TABLE identity_email_proofs;
       DELETE FROM capacitylens_schema_migrations WHERE version >= 20;
       PRAGMA user_version = 19;
     `);
