@@ -150,7 +150,7 @@ describe("durable company access restriction", () => {
     const created = await call(app, {
       method: "POST",
       url: "/api/invites",
-      payload: { accountId: "a1", role: "viewer" },
+      payload: { accountId: "a1", role: "viewer", preauthEmail: "editor-removed-restriction@capacitylens.dev" },
       headers: { cookie: owner.cookie },
     });
     const token = (created.json() as { token: string }).token;
@@ -318,7 +318,7 @@ describe("durable company access restriction", () => {
     const created = await call(app, {
       method: "POST",
       url: "/api/invites",
-      payload: { accountId: "a1", role: "viewer" },
+      payload: { accountId: "a1", role: "viewer", preauthEmail: "editor-claim-race@capacitylens.dev" },
       headers: { cookie: owner.cookie },
     });
     const token = (created.json() as { token: string }).token;

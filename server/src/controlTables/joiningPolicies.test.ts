@@ -2,15 +2,20 @@ import { describe, expect, it } from "vitest";
 import { DATABASE_MIGRATION_TABLE, initializeOpenDb, openDb } from "../db";
 import { createInvite, getInvite } from "../controlTables";
 import { readJoiningPolicy, writeJoiningPolicy } from "./joiningPolicies";
+import { MICROSOFT_PROOF_V46_SQL } from "../db/migrations/microsoftProofV46";
 
-// eslint-disable-next-line max-lines-per-function
+function rewindJoiningMigrationsToV48(db: ReturnType<typeof openDb>): void {
+  db.exec(`DROP TABLE microsoft_identity_proofs;
+    DROP TABLE company_join_intents;
+    DROP TABLE account_joining_policies;`);
+  db.exec(MICROSOFT_PROOF_V46_SQL);
+  db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 49; PRAGMA user_version = 48;`);
+}
+
 describe("company joining policy storage", () => {
   it("upgrades with invitation-only default and revokes unaddressed unused links and proposals", () => {
     const db = openDb(":memory:");
-    db.exec(`DROP TABLE company_join_intents;
-      DROP TABLE account_joining_policies;
-      DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 49;
-      PRAGMA user_version = 48;`);
+    rewindJoiningMigrationsToV48(db);
     for (const [token, email] of [
       ["unaddressed", null],
       ["addressed", "diana@example.org"],
