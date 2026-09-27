@@ -3,7 +3,7 @@ import { useStore } from "../../store/useStore";
 import { useActiveScopedData } from "../../store/useScopedData";
 import { useFieldError } from "../../hooks/useFieldError";
 import { resolveErrorMessage } from "../../lib/errorMessage";
-import { validatePresetColor, validateName } from "../../lib/validation";
+import { validatePresetColor, parseName } from "../../lib/validation";
 import { isStaleEdit } from "../../lib/isStaleEdit";
 import { m } from "@/i18n";
 import { ColorField, FormActions, Modal, RequiredLegend, TextField } from "../common/ui";
@@ -28,7 +28,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
   const { error, errorField, errorId, fail } = useFieldError();
 
   const submit = () => {
-    const trimmed = validateName(name, fail);
+    const trimmed = parseName(name, fail);
     if (!trimmed) return;
     if (!validatePresetColor(color, fail)) return;
     // Surface a store-side rejection as a form error rather than an uncaught React error — see the

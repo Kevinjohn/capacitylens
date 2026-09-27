@@ -3,10 +3,10 @@ import { isAccountEmail, normalizeAccountEmail } from "@capacitylens/shared/acco
 import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH, passwordLengthFailure } from "@capacitylens/shared/domain/password";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { validateText } from "../lib/validation";
+import { parseText } from "../lib/validation";
 import { authClient } from "./authClient";
 
-function validateOwnerInput({
+function parseOwnerInput({
   name,
   email,
   password,
@@ -17,7 +17,7 @@ function validateOwnerInput({
   password: string;
   setError: (error: string | null) => void;
 }) {
-  const cleanName = validateText(name, (_field, message) => setError(message), {
+  const cleanName = parseText(name, (_field, message) => setError(message), {
     field: "name",
     requiredMessage: m.identity_err_name(),
   });
@@ -84,7 +84,7 @@ export function useOwnerSetup({
   const [setupClosed, setSetupClosed] = useState(false);
   const createOwner = async (e: FormEvent) => {
     e.preventDefault();
-    const input = validateOwnerInput({ name, email, password, setError });
+    const input = parseOwnerInput({ name, email, password, setError });
     if (!input) return;
     const cleanSetupToken = normalizeSetupToken(setupToken);
     if (cleanSetupToken === null) {

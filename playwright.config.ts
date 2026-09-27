@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { coreSpecPattern, reportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwrightServerScope";
+import { coreSpecPattern, parseReportPhaseName, selectsOnlyExplicitCoreSpecs } from "./scripts/playwrightServerScope";
 import { resolvePlaywrightRunMode } from "./scripts/playwrightRunMode.mjs";
 import { ports, testShare } from "./scripts/ports.mjs";
 
@@ -37,7 +37,7 @@ const flavourSpec = (flavour: "db" | "auth") => new RegExp(String.raw`\.${flavou
 // project exist; CAPACITYLENS_VITE_ONLY (or either *_ONLY) trims the webServer list to Vite-only.
 const runMode = resolvePlaywrightRunMode(process.env, process.argv, selectsOnlyExplicitCoreSpecs);
 const projectEnabled = (name: (typeof runMode.projects)[number]) => runMode.projects.includes(name);
-const reportPhase = reportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
+const reportPhase = parseReportPhaseName(process.env.CAPACITYLENS_E2E_PHASE);
 
 // The base app under Vite on the lane web port — the only server the core (and WebKit/Firefox) specs need.
 // Runs the in-memory DEMO build so the core specs stay backend-free now that server is the

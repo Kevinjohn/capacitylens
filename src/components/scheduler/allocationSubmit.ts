@@ -5,7 +5,7 @@ import { generateRepeatingStartDates } from "@capacitylens/shared/lib/repeatingD
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from "@capacitylens/shared/lib/strings";
 import { resolveDomainErrorMessage, resolveErrorMessage } from "../../lib/errorMessage";
 import { buildRepeatedAllocationDrafts, resolveRepeatPattern } from "../../lib/repeatingAllocations";
-import { validateText } from "../../lib/validation";
+import { parseText } from "../../lib/validation";
 import type { useStore } from "../../store/useStore";
 import { resolveEndDate, validateAllocationDraft } from "./allocationDraft";
 import { resolveEffectiveWeekCreationBlockReason } from "./creationAvailability";
@@ -53,8 +53,8 @@ function resolveDraftEndDate(input: CommandInput) {
   });
 }
 
-function validateOptionalTask(input: CommandInput): string | undefined | null {
-  const task = validateText(input.task, input.fail, {
+function parseOptionalTask(input: CommandInput): string | undefined | null {
+  const task = parseText(input.task, input.fail, {
     field: "task",
     required: false,
     multiline: false,
@@ -64,7 +64,7 @@ function validateOptionalTask(input: CommandInput): string | undefined | null {
   return task === "" ? undefined : task;
 }
 
-function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
+function parseAllocationCommandDraft(input: CommandInput): ValidatedDraft | null {
   const repeat =
     input.create && input.repeat !== "none"
       ? {
@@ -97,14 +97,14 @@ function validateCommandDraft(input: CommandInput): ValidatedDraft | null {
     input.fail,
   );
   if (!valid) return null;
-  const cleanNote = validateText(input.note, input.fail, {
+  const cleanNote = parseText(input.note, input.fail, {
     field: "note",
     required: false,
     multiline: !input.noteEdited,
     maxLength: MAX_NOTE_LENGTH,
   });
   if (cleanNote === null) return null;
-  const cleanTask = validateOptionalTask(input);
+  const cleanTask = parseOptionalTask(input);
   if (cleanTask === null) return null;
   const assignmentError = resolveAssignmentError(input);
   if (assignmentError) {
@@ -184,7 +184,7 @@ function reportSaveError(input: CommandInput, error: unknown): void {
 }
 
 export function createAllocationCommands(input: CommandInput) {
-  const validateDraft = () => validateCommandDraft(input);
+  const validateDraft = () => parseAllocationCommandDraft(input);
   const submit = () => {
     if (!input.canEdit) return;
     const draft = validateDraft();

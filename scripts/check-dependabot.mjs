@@ -21,7 +21,7 @@ function parseConfiguration(source) {
 }
 
 /** Validate the existing Dependabot field policy without executing configuration; return its entry count. */
-export function validateDependabot(source) {
+export function verifyDependabotConfiguration(source) {
   const document = parseConfiguration(source);
   if (document?.version !== 2) throw new Error("Dependabot version must be 2");
   const updates = document.updates;
@@ -40,7 +40,7 @@ function main() {
     const [path = fileURLToPath(new URL("../.github/dependabot.yml", import.meta.url)), ...extra] =
       process.argv.slice(2);
     if (extra.length) throw new Error("Expected one optional configuration path.");
-    const count = validateDependabot(readFileSync(path, "utf8"));
+    const count = verifyDependabotConfiguration(readFileSync(path, "utf8"));
     console.log(`Dependabot configuration: ${count} update entries verified.`);
   } catch (error) {
     console.error(`Dependabot configuration failed: ${error.message}`);

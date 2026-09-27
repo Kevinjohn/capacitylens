@@ -5,7 +5,7 @@ vi.mock("../data/apiConfig", () => ({ API_BASE: "http://api.test" }));
 import {
   cancelMicrosoftConnection,
   confirmMicrosoftConnection,
-  getMicrosoftConnectionStatus,
+  readMicrosoftConnectionStatus,
   resendMicrosoftConnection,
   startMicrosoftConnection,
 } from "./microsoftConnectionClient";
@@ -81,7 +81,7 @@ describe("Microsoft connection client", () => {
         ),
     );
 
-    await expect(getMicrosoftConnectionStatus()).rejects.toMatchObject({ status: 502 });
+    await expect(readMicrosoftConnectionStatus()).rejects.toMatchObject({ status: 502 });
     await expect(resendMicrosoftConnection()).rejects.toMatchObject({ status: 502 });
   });
 
@@ -118,7 +118,7 @@ describe("Microsoft connection client", () => {
         .mockResolvedValueOnce(Response.json({ state: "pending", deliveryUnavailable: true }))
         .mockResolvedValueOnce(Response.json({ state: "pending", deliveryUnavailable: "yes" })),
     );
-    await expect(getMicrosoftConnectionStatus()).resolves.toEqual({ state: "pending", deliveryUnavailable: true });
-    await expect(getMicrosoftConnectionStatus()).rejects.toMatchObject({ status: 502 });
+    await expect(readMicrosoftConnectionStatus()).resolves.toEqual({ state: "pending", deliveryUnavailable: true });
+    await expect(readMicrosoftConnectionStatus()).rejects.toMatchObject({ status: 502 });
   });
 });

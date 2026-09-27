@@ -46,9 +46,9 @@ function createUntrackedCapacitySource(): CapacitySource {
   return {
     tracked: false,
     listTimeOffOn: () => NO_TIME_OFF,
-    getCapacityOnDay: buildEmptyDayCapacity,
-    getAllocationCountOn: () => 0,
-    getTimeOffCountOn: () => 0,
+    resolveCapacityOnDay: buildEmptyDayCapacity,
+    countAllocationsOn: () => 0,
+    countTimeOffOn: () => 0,
     resolveUtilizationOver: () => 0,
     isOverOn: () => false,
   };
@@ -61,7 +61,7 @@ function createTrackedCapacitySource(input: ResourceCapacitySourceInput, context
   const allocationsByDate = bucketByCoveredDate(capacityAllocations, capacityDates);
   const personalTimeOffByDate = bucketByCoveredDate(resourceTimeOff, capacityDates);
   const capacityByDate = new Map<ISODate, DayCapacity>();
-  const getCapacityOnDay = (date: ISODate): DayCapacity => {
+  const resolveCapacityOnDay = (date: ISODate): DayCapacity => {
     const cached = capacityByDate.get(date);
     if (cached) return cached;
     const computed = buildDayCapacity({
@@ -77,7 +77,7 @@ function createTrackedCapacitySource(input: ResourceCapacitySourceInput, context
   };
   const listTimeOffOn = (date: ISODate) =>
     capacityDateSet.has(date) ? (personalTimeOffByDate.get(date) ?? NO_TIME_OFF) : resourceTimeOff;
-  const getTimeOffCountOn = (date: ISODate) => {
+  const countTimeOffOn = (date: ISODate) => {
     const closureCount = capacityDateSet.has(date)
       ? (closuresByDate.get(date)?.length ?? 0)
       : closures.filter((closure) => closure.startDate <= date && closure.endDate >= date).length;
@@ -86,11 +86,11 @@ function createTrackedCapacitySource(input: ResourceCapacitySourceInput, context
   return {
     tracked: true,
     listTimeOffOn,
-    getCapacityOnDay,
-    getAllocationCountOn: (date) => allocationsByDate.get(date)?.length ?? 0,
-    getTimeOffCountOn,
-    resolveUtilizationOver: (dates) => resolveUtilizationFromCapacity(dates.map(getCapacityOnDay)),
-    isOverOn: (dates) => dates.some((date) => getCapacityOnDay(date).over),
+    resolveCapacityOnDay,
+    countAllocationsOn: (date) => allocationsByDate.get(date)?.length ?? 0,
+    countTimeOffOn,
+    resolveUtilizationOver: (dates) => resolveUtilizationFromCapacity(dates.map(resolveCapacityOnDay)),
+    isOverOn: (dates) => dates.some((date) => resolveCapacityOnDay(date).over),
   };
 }
 

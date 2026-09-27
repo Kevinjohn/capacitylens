@@ -55,7 +55,7 @@ export function useProviderConnection(
     const url = new URL(window.location.href);
     const { isProviderReturn, linkFailed } = readIdentityCallbackStatus(url, provider.id, failedCallbackProvider);
     void accountClient
-      .getIdentityProvider(provider.id)
+      .readIdentityProvider(provider.id)
       .then(async (response) => {
         if (!response.ok) throw new Error("Identity-provider status request failed.");
         const status = readIdentityProviderStatus(await response.json().catch(() => null));

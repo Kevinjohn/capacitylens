@@ -3,7 +3,7 @@ const serverBackedSpec = /\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$/i;
 export const coreSpecPattern = /^(?!.*\.(?:db|auth)\.spec\.(?:ts|tsx|mts|cts)$).*\.spec\.(?:ts|tsx|mts|cts)$/i;
 
 /** Keep report paths non-empty and reject lossy aliases instead of merging nominally distinct runs. */
-export function reportPhaseName(value: string | undefined): string {
+export function parseReportPhaseName(value: string | undefined): string {
   if (!value) return "default";
   if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
     throw new Error("CAPACITYLENS_E2E_PHASE may contain only letters, numbers, underscores and hyphens.");

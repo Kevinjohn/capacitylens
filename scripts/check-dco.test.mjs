@@ -5,7 +5,7 @@ import {
   evaluateDcoRatification,
   isDcoExemptPullRequestAuthor,
   isMergeCommit,
-  validateDcoRatifications,
+  parseDcoRatifications,
 } from "./check-dco.mjs";
 
 const commit = (message, overrides = {}) => ({
@@ -122,6 +122,6 @@ test("rejects malformed DCO ratification ledgers", () => {
     { ["0".repeat(40)]: { ratifierEmail: "not-an-email", attestationCommit: "a".repeat(40) } },
     { ["0".repeat(40)]: { ratifierEmail: "author@example.com", attestationCommit: "shortsha" } },
   ]) {
-    assert.throws(() => validateDcoRatifications(ratifications), TypeError);
+    assert.throws(() => parseDcoRatifications(ratifications), TypeError);
   }
 });

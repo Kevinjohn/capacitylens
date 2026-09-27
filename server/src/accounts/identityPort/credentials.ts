@@ -2,7 +2,7 @@ import { allowsPasswordSignIn } from "@capacitylens/shared/account/types";
 import { AccountContractError } from "@capacitylens/shared/account/errors";
 import type { IdentityPort } from "@capacitylens/shared/account/ports";
 import type { OperationReceipt, ProvisionalPrincipal } from "@capacitylens/shared/account/types";
-import { validateCredentialInput } from "@capacitylens/shared/account/validation";
+import { inspectCredentialInput } from "@capacitylens/shared/account/validation";
 import { createHash } from "node:crypto";
 import { RESET_LINK_TTL_SECONDS, mintPasswordResetToken, revokeResetTokensForUser } from "../../auth";
 import { tx } from "../../txn";
@@ -26,7 +26,7 @@ type CredentialsPort = Pick<
 type CredentialPrincipalInput = Parameters<IdentityPort["createProvisionalCredentialPrincipal"]>[0];
 
 function resolveCredentialValidationMessage(
-  validation: NonNullable<ReturnType<typeof validateCredentialInput>>,
+  validation: NonNullable<ReturnType<typeof inspectCredentialInput>>,
 ): string {
   switch (validation) {
     case "password-length":
@@ -50,7 +50,7 @@ function assertCredentialInput(
       commandId: input.command.commandId,
     });
   }
-  const validation = validateCredentialInput(input);
+  const validation = inspectCredentialInput(input);
   if (validation) {
     throw new AccountContractError({
       code: "VALIDATION_FAILED",

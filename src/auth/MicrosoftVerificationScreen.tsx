@@ -7,7 +7,7 @@ import { FieldError } from "../components/ui/field";
 import {
   cancelMicrosoftConnection,
   confirmMicrosoftConnection,
-  getMicrosoftConnectionStatus,
+  readMicrosoftConnectionStatus,
   resendMicrosoftConnection,
   type MicrosoftConnectionStatus,
 } from "./microsoftConnectionClient";
@@ -45,7 +45,7 @@ function useMicrosoftVerification(): VerificationViewState {
     setError(null);
     setNotice(null);
     try {
-      const nextStatus = await getMicrosoftConnectionStatus(signal);
+      const nextStatus = await readMicrosoftConnectionStatus(signal);
       if (!signal?.aborted) setStatus(nextStatus);
     } catch {
       if (!signal?.aborted) {

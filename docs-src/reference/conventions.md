@@ -69,17 +69,21 @@ families are already in consistent use:
 
 Counterexamples that are now tracked debt:
 
-- `ensureInternalClients` exists twice with different contracts: the shared one in
-  `shared/src/data/internalClient.ts` returns a new `AppData`, the server one in
-  `server/src/db/repairs.ts` returns nothing. Under this table the shared one is an `apply`.
+- The shared `ensureInternalClients` export in `shared/src/data/internalClient.ts` is
+  a compatibility alias for `applyInternalClientRepairs`, which returns repaired `AppData`
+  or the same reference when no repair is needed. The separate server
+  `ensureInternalClients` in `server/src/db/repairs.ts` writes to SQLite.
 - `validateAuthUser(value: unknown, requireEmail = false)` returns `AuthUser | null`. It takes
   untrusted input and returns the typed value, so it is a `parse`, and its flag parameter is
   parameter debt too.
-- `validate*` functions return three shapes across the tree: `ValidationResult`, a boolean
-  (`validatePresetColor`) and the typed value or `null`. The last group are parses; the audit decides
-  the rest. `validateAllocationDraft` reports its first problem through a `fail` callback and
-  returns a boolean, matching the validation convention.
-- `ensureBarColors(hex)` returns a colour pair. It derives a value, so it is a `resolve`.
+- `validate*` functions still have several result shapes: `ValidationResult`, a boolean
+  (`validatePresetColor`) and typed values or `null`. The last group are parses; the audit
+  decides the rest. `validateAllocationDraft` reports its first problem through a `fail`
+  callback and returns a boolean, matching the validation convention.
+- The shared `ensureBarColors` export is a compatibility alias for
+  `resolveAccessibleBarColors`, which returns a colour pair.
+- The shared `validateCredentialInput` export is a compatibility alias for
+  `inspectCredentialInput`, which returns a failure category or `null`.
 
 ## Variables
 

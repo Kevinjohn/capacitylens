@@ -11,7 +11,7 @@ import { openApp, resetSchedulerScroll, setZoom } from "./browserTestSupport";
 // unchanged under e2e:browsers / e2e:webkit / e2e:firefox.
 
 // "Blue dark" — flat index 47 in the 13×4 SWATCHES grid (swatchLabel(47) === 'Blue dark').
-// Chosen because it ALREADY clears WCAG AA against its ink, so ensureBarColors() (the
+// Chosen because it ALREADY clears WCAG AA against its ink, so resolveAccessibleBarColors() (the
 // contrast-nudge applied to bars + avatars) returns it UNCHANGED — the rendered background is
 // the picked hex exactly, which lets us assert the hex rather than an approximation. It also
 // differs from every seeded entity colour, so the change is genuinely observable.

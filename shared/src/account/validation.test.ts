@@ -10,6 +10,7 @@ import {
   isAccountSessionId,
   isBrowserSyncSessionId,
   normalizeAccountEmail,
+  inspectCredentialInput,
   validateCredentialInput,
 } from "./validation";
 
@@ -167,7 +168,7 @@ describe("boundApplicationFailure Unicode names", () => {
       }),
     ).toBeNull();
     expect(
-      validateCredentialInput({
+      inspectCredentialInput({
         email: "person@example.com",
         displayName: astralLetter.repeat(MAX_NAME_LENGTH),
         password: "a-valid-length-password",
@@ -320,7 +321,7 @@ describe("identity input validation", () => {
       null,
     ],
   ] as const)("classifies credential input %#", (input, expected) => {
-    expect(validateCredentialInput(input)).toBe(expected);
+    expect(inspectCredentialInput(input)).toBe(expected);
   });
 });
 
@@ -357,7 +358,7 @@ describe("identity input validation boundaries", () => {
     "rejects a disallowed credential display name in %j",
     (displayName) => {
       expect(
-        validateCredentialInput({
+        inspectCredentialInput({
           email: "person@example.com",
           displayName,
           password: "a-valid-length-password",
@@ -368,14 +369,14 @@ describe("identity input validation boundaries", () => {
 
   it("accepts the exact display-name limit and rejects the next code unit", () => {
     expect(
-      validateCredentialInput({
+      inspectCredentialInput({
         email: "person@example.com",
         displayName: "a".repeat(MAX_NAME_LENGTH),
         password: "a-valid-length-password",
       }),
     ).toBeNull();
     expect(
-      validateCredentialInput({
+      inspectCredentialInput({
         email: "person@example.com",
         displayName: "a".repeat(MAX_NAME_LENGTH + 1),
         password: "a-valid-length-password",

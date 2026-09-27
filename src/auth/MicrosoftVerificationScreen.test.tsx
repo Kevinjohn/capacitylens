@@ -10,7 +10,7 @@ const client = vi.hoisted(() => ({
 }));
 
 vi.mock("./microsoftConnectionClient", () => ({
-  getMicrosoftConnectionStatus: client.getStatus,
+  readMicrosoftConnectionStatus: client.getStatus,
   confirmMicrosoftConnection: client.confirm,
   resendMicrosoftConnection: client.resend,
   cancelMicrosoftConnection: client.cancel,

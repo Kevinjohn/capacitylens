@@ -273,7 +273,7 @@ function nudgeChannels(channels: RgbChannels, darken: boolean): void {
  * chosen hue but nudge its lightness — darker under white ink, lighter under dark
  * ink — until the label clears WCAG AA. Returns the adjusted background + its ink.
  */
-export function ensureBarColors(hex: string): { bg: string; ink: string } {
+export function resolveAccessibleBarColors(hex: string): { bg: string; ink: string } {
   const channels = parseRgb(hex);
   const ink = readableTextColor(hex);
   if (!channels) return { bg: NEUTRAL_COLOR, ink: readableTextColor(NEUTRAL_COLOR) };
@@ -297,3 +297,6 @@ export function ensureBarColors(hex: string): { bg: string; ink: string } {
     ink,
   };
 }
+
+/** Compatibility alias for the published shared contract. */
+export { resolveAccessibleBarColors as ensureBarColors };

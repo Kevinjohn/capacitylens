@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const reviewPath = resolve(repositoryRoot, "docs-src/screenshots/publication-review.json");
 
-export function validateReviewedScreenshots(root, entries) {
+export function verifyReviewedScreenshots(root, entries) {
   const failures = [];
   for (const entry of entries) {
     const imagePath = resolve(root, entry.path);
@@ -26,7 +26,7 @@ export function validateReviewedScreenshots(root, entries) {
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const entries = JSON.parse(readFileSync(reviewPath, "utf8"));
-  const failures = validateReviewedScreenshots(repositoryRoot, entries);
+  const failures = verifyReviewedScreenshots(repositoryRoot, entries);
   if (failures.length > 0) {
     console.error(`Screenshot publication review failed:\n  ${failures.join("\n  ")}`);
     process.exit(1);

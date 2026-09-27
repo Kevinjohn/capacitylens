@@ -3,7 +3,7 @@ import { API_BASE } from "../data/apiConfig";
 import { apiFetch } from "../data/requestTimeout";
 import type { ReauthAction } from "../auth/reauthCoordinator";
 
-export function getIdentityProvider(providerId?: string): Promise<Response> {
+export function readIdentityProvider(providerId?: string): Promise<Response> {
   const query = providerId ? `?providerId=${encodeURIComponent(providerId)}` : "";
   return apiFetch(`${API_BASE}/api/identity/provider${query}`, { credentials: "include" });
 }

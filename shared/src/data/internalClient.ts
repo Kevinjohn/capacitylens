@@ -19,7 +19,7 @@ import type { AppData, Client, ID, ISOTimestamp } from "../types/entities";
 //   2. IMPORT FOLD — bulk replace (remapAndValidateImport in shared/src/domain/mutations.ts). Import
 //      REPLACES the whole account slice, so there is no surviving "existing" to reject against — it
 //      reconciles instead: keep the FIRST imported builtin (re-stamping its active canonical fields)
-//      and remap every OTHER builtin's id onto it so their dependents re-point. `ensureInternalClients` then
+//      and remap every OTHER builtin's id onto it so their dependents re-point. `applyInternalClientRepairs` then
 //      synthesises one if the file carried none.
 //   3. SERVER REJECT — direct API (server/src/validate.ts validateWrite). The API is the integrity
 //      boundary and is the ONLY path that CAN set `builtin: true` against live, persisted state, so
@@ -118,7 +118,7 @@ export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID):
 
 /**
  * Does the retained Internal row still differ from its canonical form? ONE copy of the predicate,
- * because {@link ensureInternalClients} must decide two things with EXACTLY the same test: whether
+ * because {@link applyInternalClientRepairs} must decide two things with EXACTLY the same test: whether
  * any repair is needed at all, and whether an individual row's `updatedAt` must be bumped. The two
  * must stay in lockstep — see the comment at the bump site.
  */
@@ -242,7 +242,7 @@ function rewireDuplicateProjects(
  *
  * @param now timestamp stamped on newly-created rows and used as the floor for repair revisions.
  */
-export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData {
+export function applyInternalClientRepairs(data: AppData, now: ISOTimestamp): AppData {
   const added: Client[] = [];
   const usedIds = collectUsedClientIds(data.clients);
   const duplicateIds = new Map<ID, ID>();
@@ -277,3 +277,6 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
   const projects = rewireDuplicateProjects(data, duplicateIds, now);
   return { ...data, clients: [...clients, ...added], projects };
 }
+
+/** Compatibility alias for the published shared contract. */
+export { applyInternalClientRepairs as ensureInternalClients };

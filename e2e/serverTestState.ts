@@ -40,7 +40,10 @@ export async function serverState(request: APIRequestContext): Promise<
   return res.json();
 }
 
-export function stateRows<T extends Awaited<ReturnType<typeof serverState>>>(state: T, table: keyof T): T[keyof T] {
+export function requireStateRows<T extends Awaited<ReturnType<typeof serverState>>>(
+  state: T,
+  table: keyof T,
+): T[keyof T] {
   const rows = state[table];
   if (rows === undefined) throw new Error(`Server state must include the ${String(table)} table`);
   return rows;

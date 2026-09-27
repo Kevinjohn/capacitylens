@@ -41,7 +41,7 @@ interface RecoveryContext {
   env: Record<string, string | undefined> & { SMALLSASS_ACCOUNT_PUBLIC_URL: string };
 }
 
-function validateRecoveryInput(input: OwnerRecoveryInput): RecoveryContext {
+function prepareRecoveryContext(input: OwnerRecoveryInput): RecoveryContext {
   if (!input.confirmServerStopped) {
     throw new Error(
       "Refusing without --confirm-server-stopped. Stop the CapacityLens server first; the exclusive " +
@@ -157,7 +157,7 @@ function recordRecovery({ db, context, target, token }: RecordRecoveryInput): Ow
 export async function resetOwnerPassword(input: OwnerRecoveryInput): Promise<OwnerRecoveryResult> {
   // Resolve the canonical family configuration exactly the way server startup does, so refusals
   // name canonical keys and the compatibility aliases keep working.
-  const context = validateRecoveryInput(input);
+  const context = prepareRecoveryContext(input);
 
   // Not openDb(): a stale database must refuse below rather than silently migrate outside the
   // production pre-migration backup ceremony.
