@@ -6,6 +6,7 @@ import { createAuthFromEnvironment, runAuthMigrations } from "./auth";
 import { DATABASE_MIGRATION_TABLE, DB_SCHEMA_VERSION, openDb } from "./db";
 import { repairSsoCutover } from "./cutoverRepair";
 import { inspectSsoCutoverPreflight } from "./cutoverPreflight";
+import { mixedModeCutoverContext } from "./cutoverContext";
 import { withVerifiedGoogleProfile } from "./testHelpers/googleAccount";
 
 const env = {
@@ -320,6 +321,54 @@ function createOwnerAssignmentRepairTest(): void {
   });
 }
 
+function createPopulatedLegacyRepairTests(): void {
+  it.each([46, 47])("inspects and repairs a populated v%s ownerless workspace", async (version) => {
+    const prepared = await database();
+    insertUser(prepared.db, "principal-1", "admin@example.com");
+    insertAccount({
+      db: prepared.db,
+      id: "credential-link",
+      providerId: "credential",
+      subject: "principal-1",
+      principalId: "principal-1",
+    });
+    prepared.db
+      .prepare("INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)")
+      .run("workspace-1", "Wayne Enterprises", "#3b82f6", timestamp, timestamp);
+    prepared.db
+      .prepare(
+        "INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, 'admin', 'active', ?)",
+      )
+      .run("workspace-1", "principal-1", timestamp);
+    if (version === 46) removePostV46ProofSchema(prepared.db);
+    else {
+      prepared.db.exec(`DROP TRIGGER IF EXISTS capacitylens_google_email_proof_before;
+        DROP TRIGGER IF EXISTS capacitylens_google_email_proof_after;
+        DROP TABLE identity_email_proofs`);
+    }
+    prepared.db.prepare(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > ?`).run(version);
+    prepared.db.exec(`PRAGMA user_version = ${version}`);
+
+    const context = await mixedModeCutoverContext(prepared.db, env);
+    expect(context.administration.inspectSsoCutoverWorkspaces()).toEqual([
+      {
+        workspaceId: "workspace-1",
+        workspaceName: "Wayne Enterprises",
+        members: [{ principalId: "principal-1", role: "admin", status: "active" }],
+      },
+    ]);
+    prepared.db.close();
+    await expect(
+      repairSsoCutover({
+        databasePath: prepared.path,
+        confirmServerStopped: true,
+        operation: { kind: "assign-workspace-owner", workspaceId: "workspace-1", email: "admin@example.com" },
+        env,
+      }),
+    ).resolves.toMatchObject({ operation: "assign-workspace-owner", principalId: "principal-1" });
+  });
+}
+
 // eslint-disable-next-line max-lines-per-function
 function createEmptyWorkspaceRepairTest(): void {
   it("erases only a workspace with no active members", async () => {
@@ -474,6 +523,7 @@ describe("stopped-server SSO cutover repair", () => {
   createAlternativeProviderRepairTest();
   createLegacyMultiLinkRepairTest();
   createOwnerAssignmentRepairTest();
+  createPopulatedLegacyRepairTests();
   createEmptyWorkspaceRepairTest();
   createActiveMembershipRefusalTest();
   createMigrationCompatibilityTests();

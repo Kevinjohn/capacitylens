@@ -9,8 +9,20 @@ export interface AccessRestriction {
   createdAt: string;
 }
 
+/** Stopped-server repair may read an older schema; a missing table at its declared version is corruption. */
+function tableAvailable(
+  db: Db,
+  table: "account_access_restrictions" | "identity_email_proofs",
+  introduced: number,
+): boolean {
+  if (db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table)) return true;
+  const version = (db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version;
+  return version >= introduced;
+}
+
 export function provenEmail(db: Db, principalId: string): string | null {
   if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user'").get()) return null;
+  if (!tableAvailable(db, "identity_email_proofs", 48)) return null;
   const row = db
     .prepare(
       `SELECT proof.email FROM identity_email_proofs AS proof
@@ -22,6 +34,7 @@ export function provenEmail(db: Db, principalId: string): string | null {
 }
 
 export function listAccessRestrictions(db: Db, accountId: string): AccessRestriction[] {
+  if (!tableAvailable(db, "account_access_restrictions", 47)) return [];
   return db
     .prepare(
       `SELECT accountId, principalId, verifiedEmail, role, createdAt
@@ -31,6 +44,7 @@ export function listAccessRestrictions(db: Db, accountId: string): AccessRestric
 }
 
 export function getAccessRestriction(db: Db, accountId: string, principalId: string): AccessRestriction | null {
+  if (!tableAvailable(db, "account_access_restrictions", 47)) return null;
   return (
     (db
       .prepare(
@@ -42,6 +56,7 @@ export function getAccessRestriction(db: Db, accountId: string, principalId: str
 }
 
 export function matchingAccessRestrictions(db: Db, accountId: string, principalId: string): AccessRestriction[] {
+  if (!tableAvailable(db, "account_access_restrictions", 47)) return [];
   const email = provenEmail(db, principalId);
   return db
     .prepare(

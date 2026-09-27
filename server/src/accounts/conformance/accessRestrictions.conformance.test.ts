@@ -17,12 +17,35 @@ afterEach(() => {
   db.close();
 });
 
-describe("access restrictions stay inside their company", () => {
+describe("access restriction schema compatibility", () => {
   it("surfaces a missing proof table on an identity-enabled database", () => {
     db.exec("CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL); DROP TABLE identity_email_proofs");
     expect(() => accessRestrictions.provenEmail(db, PRINCIPAL)).toThrow(/identity_email_proofs/);
   });
 
+  it("reads only tables introduced by a populated legacy schema", () => {
+    db.exec(`CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL);
+      DROP TABLE identity_email_proofs; PRAGMA user_version = 47`);
+    accessRestrictions.disableAccess(db, { accountId: WAYNE, principalId: PRINCIPAL, role: "admin" });
+    expect(accessRestrictions.provenEmail(db, PRINCIPAL)).toBeNull();
+    expect(accessRestrictions.isAccessRestricted(db, WAYNE, PRINCIPAL)).toBe(true);
+    db.exec("DROP TABLE account_access_restrictions; PRAGMA user_version = 46");
+    expect(accessRestrictions.listAccessRestrictions(db, WAYNE)).toEqual([]);
+    expect(accessRestrictions.getAccessRestriction(db, WAYNE, PRINCIPAL)).toBeNull();
+    expect(accessRestrictions.isAccessRestricted(db, WAYNE, PRINCIPAL)).toBe(false);
+    db.prepare(
+      "INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, 'admin', 'disabled', ?)",
+    ).run(WAYNE, PRINCIPAL, NOW);
+    expect(members.getActiveMemberRole(db, WAYNE, PRINCIPAL)).toBeNull();
+  });
+
+  it("surfaces a missing restriction table on a current database", () => {
+    db.exec("DROP TABLE account_access_restrictions");
+    expect(() => accessRestrictions.isAccessRestricted(db, WAYNE, PRINCIPAL)).toThrow(/account_access_restrictions/);
+  });
+});
+
+describe("access restrictions stay inside their company", () => {
   it("scopes restriction writes and transfer invalidation", () => {
     db.exec("CREATE TABLE user (id TEXT PRIMARY KEY, email TEXT NOT NULL)");
     db.prepare("INSERT INTO user (id, email) VALUES (?, ?)").run(PRINCIPAL, "bruce@example.test");
@@ -46,15 +69,16 @@ describe("access restrictions stay inside their company", () => {
       });
     }
     accessRestrictions.disableAccess(db, { accountId: WAYNE, principalId: PRINCIPAL, role: "admin" });
-    expect(accessRestrictions.getAccessRestriction(db, STARK, PRINCIPAL)).toBeNull();
+    accessRestrictions.disableAccess(db, { accountId: STARK, principalId: PRINCIPAL, role: "admin" });
     expect(accessRestrictions.getAccessRestriction(db, WAYNE, PRINCIPAL)?.verifiedEmail).toBe("bruce@example.test");
     expect(members.invalidateRestrictedPrincipal(db, WAYNE, PRINCIPAL)).toEqual([`ot-${WAYNE}`]);
     expect(ownershipTransfers.readLiveRequest(db, STARK)?.id).toBe(`ot-${STARK}`);
     accessRestrictions.enableAccess(db, WAYNE, PRINCIPAL);
     expect(accessRestrictions.listAccessRestrictions(db, WAYNE)).toEqual([]);
+    expect(accessRestrictions.getAccessRestriction(db, STARK, PRINCIPAL)?.principalId).toBe(PRINCIPAL);
     accessRestrictions.disableAccess(db, { accountId: WAYNE, principalId: PRINCIPAL, role: "admin" });
     accessRestrictions.removeAccessRestrictionsForAccount(db, WAYNE);
-    expect(accessRestrictions.listAccessRestrictions(db, STARK)).toEqual([]);
+    expect(accessRestrictions.getAccessRestriction(db, STARK, PRINCIPAL)?.principalId).toBe(PRINCIPAL);
   });
 
   it("captures new proof only on the selected company's principal-only restriction", () => {
