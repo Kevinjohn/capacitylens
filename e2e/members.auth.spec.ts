@@ -84,11 +84,11 @@ async function revokeViewerInvite(page: Page): Promise<void> {
   await expect(dialog.getByTestId("invite-link")).toHaveCount(0);
   await dialog.getByRole("button", { name: "Cancel" }).click();
   const inviteRows = page.getByTestId("invite-row");
-  await expect(inviteRows).toHaveCount(3);
+  await expect(inviteRows).toHaveCount(1);
   const viewerInvite = inviteRows.filter({ hasText: "Viewer" });
   await expect(viewerInvite).toContainText("expires");
   await viewerInvite.getByTestId("invite-revoke").click();
-  await expect(inviteRows).toHaveCount(2);
+  await expect(inviteRows).toHaveCount(0);
 }
 
 async function manageAdminMembers(
