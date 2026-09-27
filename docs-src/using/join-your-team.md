@@ -19,13 +19,12 @@ need a new password account, choose **Create account and join** only after
 verification. If you already have an account, sign in as that same address and
 choose **Join company**. Provider sign-in also ends with **Join company**.
 
-On an invitation screen, choose Sign in if you already have an account, or
-Create account if you need one. It continues through the same company-bound
-verification before creating a new password account.
-
-If your agency uses company login, choose its provider instead.
-
-If the preview shows the wrong signed-in identity, select Use a different account.
+On an invitation screen, review the company and proposed role, then choose
+**Verify email to join**. The joining page keeps your invitation attached to the
+company-specific verification. If you have an existing password account, sign in
+after opening the verification link. Complete your authenticator or recovery-code
+challenge if prompted; the company will not be joined before that step. If your
+agency uses company login, choose its available provider on the joining page.
 
 ## Accept your invitation
 

@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./auth-helpers";
 import {
   computedStyles,
   disableCssMotion,
@@ -84,16 +84,7 @@ async function seedClosureAccount(request: APIRequestContext) {
     color: "#64748b",
   });
 
-  const invitation = await request.post(`${AUTH_API}/api/invites`, {
-    headers: { cookie: owner.cookie },
-    data: { accountId, role: "editor", preauthEmail: editor.email },
-  });
-  expect(invitation.status()).toBe(201);
-  const invitationToken = ((await invitation.json()) as { token: string }).token;
-  const accepted = await request.post(`${AUTH_API}/api/invites/${invitationToken}/accept`, {
-    headers: { cookie: editor.cookie },
-  });
-  expect(accepted.status()).toBe(200);
+  seedFixtureMember(accountId, editor.email, "editor");
   return { accountId, editorCookie: editor.cookie };
 }
 

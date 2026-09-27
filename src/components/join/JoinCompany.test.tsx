@@ -5,10 +5,15 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AuthContext, type AuthContextValue } from "../../auth/authContext";
 import { JoinCompany } from "./JoinCompany";
 
-const authClientMock = vi.hoisted(() => ({ signInEmail: vi.fn() }));
+const authClientMock = vi.hoisted(() => ({ signInEmail: vi.fn(), verifyTotp: vi.fn(), verifyBackupCode: vi.fn() }));
 const handoffMock = vi.hoisted(() => ({ replaceWithJoinedAccount: vi.fn() }));
 
-vi.mock("../../auth/authClient", () => ({ authClient: { signIn: { email: authClientMock.signInEmail } } }));
+vi.mock("../../auth/authClient", () => ({
+  authClient: {
+    signIn: { email: authClientMock.signInEmail },
+    twoFactor: { verifyTotp: authClientMock.verifyTotp, verifyBackupCode: authClientMock.verifyBackupCode },
+  },
+}));
 vi.mock("../../data/apiConfig", () => ({ API_BASE: "http://api.test", isServerConfigured: () => true }));
 vi.mock("../../lib/joinedAccountHandoff", () => ({ replaceWithJoinedAccount: handoffMock.replaceWithJoinedAccount }));
 
@@ -59,6 +64,8 @@ beforeEach(() => {
   window.history.replaceState({}, "", "/join/a-studio");
   vi.clearAllMocks();
   authClientMock.signInEmail.mockResolvedValue({ error: null });
+  authClientMock.verifyTotp.mockResolvedValue({ error: null });
+  authClientMock.verifyBackupCode.mockResolvedValue({ error: null });
 });
 
 it("shows eligible providers above password and excludes GitHub from company-sign-in-only mode", async () => {
@@ -165,6 +172,24 @@ it("requires the same-browser mail token before showing password creation", asyn
   expect(window.location.hash).toBe("");
 });
 
+it("keeps a pending journey visible when restart cancellation fails", async () => {
+  stubJoin(
+    { state: "pending", accountId: "a-studio", purpose: "policy", emailHint: "b***@example.test" },
+    (url) => {
+      if (url.endsWith("/api/company-join/cancel"))
+        return Response.json({ error: "Could not cancel the joining request" }, { status: 503 });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+  );
+  const user = userEvent.setup();
+  renderJoin();
+
+  await user.click(await screen.findByRole("button", { name: "Start again" }));
+  expect(await screen.findByText("Could not cancel the joining request")).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Start again" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Send verification email" })).not.toBeInTheDocument();
+});
+
 it("creates credentials only after an approved intent and activates the joined company", async () => {
   const fetchMock = stubJoin(
     {
@@ -198,4 +223,98 @@ it("creates credentials only after an approved intent and activates the joined c
     email: "barbara@example.test",
     password: "a-long-enough-password",
   });
+});
+
+it("keeps the invited company intent through password sign-in and the second factor", async () => {
+  const fetchMock = stubJoin(
+    { state: "approved", accountId: "a-studio", purpose: "invitation", email: "barbara@example.test" },
+    (url) => {
+      if (url.endsWith("/api/company-join/complete-existing")) return Response.json({ accountId: "a-studio" });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+  );
+  authClientMock.signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+  const user = userEvent.setup();
+  renderJoin("/join/a-studio?invite=invite-token");
+
+  await user.type(
+    await screen.findByLabelText("Password", { selector: "[autocomplete='current-password']" }),
+    "password",
+  );
+  await user.click(screen.getByRole("button", { name: /^Join company$/ }));
+  expect(await screen.findByLabelText("Authentication code")).toBeInTheDocument();
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/api/company-join/complete-existing"))).toBe(false);
+
+  await user.type(screen.getByLabelText("Authentication code"), "123456");
+  await user.click(screen.getByRole("button", { name: "Verify" }));
+  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
+  expect(authClientMock.verifyTotp).toHaveBeenCalledWith({ code: "123456", trustDevice: false });
+  const complete = fetchMock.mock.calls.find(([url]) => String(url).endsWith("/api/company-join/complete-existing"));
+  expect(JSON.parse(String(complete?.[1]?.body))).toEqual({ invitationToken: "invite-token" });
+});
+
+it("keeps the join pending after a failed code and supports a recovery code", async () => {
+  const fetchMock = stubJoin(
+    { state: "approved", accountId: "a-studio", purpose: "policy", email: "barbara@example.test" },
+    (url) => {
+      if (url.endsWith("/api/company-join/complete-existing")) return Response.json({ accountId: "a-studio" });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+  );
+  authClientMock.signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+  authClientMock.verifyTotp.mockResolvedValueOnce({ error: { message: "Incorrect code" } });
+  const user = userEvent.setup();
+  renderJoin();
+
+  await user.type(
+    await screen.findByLabelText("Password", { selector: "[autocomplete='current-password']" }),
+    "password",
+  );
+  await user.click(screen.getByRole("button", { name: /^Join company$/ }));
+  await user.type(await screen.findByLabelText("Authentication code"), "000000");
+  await user.click(screen.getByRole("button", { name: "Verify" }));
+  expect(await screen.findByText("Incorrect code")).toBeInTheDocument();
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/api/company-join/complete-existing"))).toBe(false);
+
+  await user.click(screen.getByRole("button", { name: "Use a recovery code" }));
+  await user.type(screen.getByLabelText("Recovery code"), "unused-recovery-code");
+  await user.click(screen.getByRole("button", { name: "Verify" }));
+  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
+  expect(authClientMock.verifyBackupCode).toHaveBeenCalledWith({ code: "unused-recovery-code", trustDevice: false });
+});
+
+it("retries completion after successful MFA without consuming another code", async () => {
+  let completions = 0;
+  const fetchMock = stubJoin(
+    { state: "approved", accountId: "a-studio", purpose: "policy", email: "barbara@example.test" },
+    (url) => {
+      if (url.endsWith("/api/company-join/complete-existing")) {
+        completions += 1;
+        return completions === 1
+          ? Response.json({ error: "Please retry" }, { status: 503 })
+          : Response.json({ accountId: "a-studio" });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    },
+  );
+  authClientMock.signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null });
+  const user = userEvent.setup();
+  renderJoin();
+
+  await user.type(
+    await screen.findByLabelText("Password", { selector: "[autocomplete='current-password']" }),
+    "password",
+  );
+  await user.click(screen.getByRole("button", { name: /^Join company$/ }));
+  await user.type(await screen.findByLabelText("Authentication code"), "123456");
+  await user.click(screen.getByRole("button", { name: "Verify" }));
+  expect(await screen.findByText("Signed in. Finish joining this company.")).toBeInTheDocument();
+  expect(screen.getByText("Please retry")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Authentication code")).not.toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: /^Join company$/ }));
+  await vi.waitFor(() => expect(handoffMock.replaceWithJoinedAccount).toHaveBeenCalledWith("a-studio"));
+  expect(authClientMock.verifyTotp).toHaveBeenCalledTimes(1);
+  expect(
+    fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/api/company-join/complete-existing")),
+  ).toHaveLength(2);
 });

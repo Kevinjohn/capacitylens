@@ -139,6 +139,11 @@ function resolveEmailBoundaryCopy(emailBound: boolean | null, emailHint: string 
 }
 
 function InviteStateContent(props: InviteAcceptViewProps) {
+  // Addressed invitations enter the company-bound proof journey. The direct accept endpoint is
+  // retained only for a legacy active-member path and is never offered for a new addressed invite.
+  if (isAddressedJoinHandoff(props)) {
+    return <AddressedInviteHandoff joinPath={props.joinPath} />;
+  }
   switch (props.state.kind) {
     case "ready":
       return <ReadyContent {...props} />;
@@ -156,6 +161,22 @@ function InviteStateContent(props: InviteAcceptViewProps) {
   }
 }
 
+function isAddressedJoinHandoff({ preview, state }: InviteAcceptViewProps): boolean {
+  return preview?.emailBound === true && (state.kind === "ready" || state.kind === "auth");
+}
+
+function AddressedInviteHandoff({ joinPath }: { joinPath: string | null }) {
+  if (!joinPath) return <FieldError>{m.joining_failed()}</FieldError>;
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-muted-foreground">{m.joining_invite_guidance()}</p>
+      <Button asChild size="sm">
+        <Link to={joinPath}>{m.joining_invite_recovery()}</Link>
+      </Button>
+    </div>
+  );
+}
+
 function ReadyContent({ user, busy, onSignOut, onAccept, joinPath }: InviteAcceptViewProps) {
   return (
     <>
@@ -169,9 +190,11 @@ function ReadyContent({ user, busy, onSignOut, onAccept, joinPath }: InviteAccep
         <Button asChild size="sm">
           <Link to="/">{m.invite_go_to_app()}</Link>
         </Button>
-        {joinPath && <Button asChild size="sm" variant="outline">
-          <Link to={joinPath}>{m.joining_invite_recovery()}</Link>
-        </Button>}
+        {joinPath && (
+          <Button asChild size="sm" variant="outline">
+            <Link to={joinPath}>{m.joining_invite_recovery()}</Link>
+          </Button>
+        )}
         <Button size="sm" type="button" disabled={busy} onClick={onAccept}>
           {m.invite_accept_action()}
         </Button>

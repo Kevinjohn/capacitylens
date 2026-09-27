@@ -410,6 +410,13 @@ never apply a sorting fix that changes initialization behavior.
 | `server/src/routes`, `server/src/accounts/routes` | HTTP parsing, authorization and response mapping | Owned use cases and storage boundaries; UI visibility never authorizes an operation. |
 | `server/src/tenantStore.ts`, `server/src/tables` | Scoped product storage and column specifications | Explicit storage operations and immutable versioned migrations. |
 
+The company-joining client in `src/account/companyJoinClient.ts` owns its browser URLs alongside
+`accountClient.ts`. On the server, `accounts/adminPort/joiningProviderIntent.ts` checks the local
+identity and access restrictions when starting a provider journey.
+`accounts/adminPort/joiningProviderCallbacks.ts` reads the exact provider account, local identity
+and durable email proof at the callback boundary, then updates the company-bound intent. Invitation
+storage stays in `controlTables/invites.ts`; HTTP routes do not read these tables directly.
+
 `src/store/useStore.ts`, `server/src/app.ts` and the auth configuration entry points compose
 their owned capabilities. Their ability to connect implementations is an explicit composition
 responsibility, not permission for neighboring helpers to import those implementations.

@@ -11,7 +11,7 @@ import { m } from "@/i18n";
 import type { AuthProviderInfo } from "../../auth/authContext";
 import { runExternalSignIn } from "../invites/externalSignIn";
 
-type Stage = "loading" | "entry" | "pending" | "approved" | "joined" | "error" | "local";
+type Stage = "loading" | "entry" | "pending" | "approved" | "second-factor" | "joined" | "error" | "local";
 interface Metadata {
   companyName: string;
   passwordAvailable: boolean;
@@ -74,6 +74,9 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [existingPassword, setExistingPassword] = useState("");
+  const [secondFactorCode, setSecondFactorCode] = useState("");
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false);
+  const [secondFactorVerified, setSecondFactorVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const hasMicrosoft = providers.some((provider) => provider.id === "microsoft");
@@ -230,11 +233,15 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
 
   const restart = async () => {
     setBusy(true);
+    setError(null);
     try {
-      await Promise.all([companyJoinClient.cancel(), ...(hasMicrosoft ? [companyJoinClient.microsoftCancel()] : [])]);
-    } finally {
+      const responses = await Promise.all([companyJoinClient.cancel(), ...(hasMicrosoft ? [companyJoinClient.microsoftCancel()] : [])]);
+      const failed = responses.find((response) => !response.ok);
+      if (failed) throw new Error(await responseError(failed));
       setStage("entry");
-      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : m.joining_failed());
+    } finally {
       setBusy(false);
     }
   };
@@ -274,10 +281,35 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
       if (!user) {
         const signIn = await authClient.signIn.email({ email, password: existingPassword });
         if (signIn.error) throw new Error(signIn.error.message ?? m.login_failed());
+        if ((signIn.data as { twoFactorRedirect?: unknown } | null)?.twoFactorRedirect === true) {
+          setStage("second-factor");
+          return;
+        }
       }
       await finish(await companyJoinClient.completeExisting(invitationToken));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : m.joining_failed());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const verifySecondFactor = async (event: FormEvent) => {
+    event.preventDefault();
+    if (busy || (!secondFactorVerified && !secondFactorCode)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      if (!secondFactorVerified) {
+        const result = useRecoveryCode
+          ? await authClient.twoFactor.verifyBackupCode({ code: secondFactorCode, trustDevice: false })
+          : await authClient.twoFactor.verifyTotp({ code: secondFactorCode, trustDevice: false });
+        if (result.error) throw new Error(result.error.message ?? m.login_failed());
+        setSecondFactorVerified(true);
+      }
+      await finish(await companyJoinClient.completeExisting(invitationToken));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : m.login_network_error());
     } finally {
       setBusy(false);
     }
@@ -314,6 +346,9 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     displayName,
     password,
     existingPassword,
+    secondFactorCode,
+    secondFactorVerified,
+    useRecoveryCode,
     error,
     busy,
     user,
@@ -321,12 +356,15 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     setDisplayName,
     setPassword,
     setExistingPassword,
+    setSecondFactorCode,
+    setUseRecoveryCode,
     start,
     startProvider,
     resend,
     restart,
     createAccount,
     signInAndJoin,
+    verifySecondFactor,
     completeProvider,
   };
 }

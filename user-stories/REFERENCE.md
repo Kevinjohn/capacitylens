@@ -1007,41 +1007,22 @@ previews the company name, proposed role, role summary and expiry before accepta
 `GET /api/invites/:token/preview`. Possession of the bearer link is required to read that limited
 metadata, including whether it is email-bound and a hint showing only the part before `@`,
 followed by `@…`. The domain, full address, company data, membership list and unrelated identity
-facts are never revealed. A bound invite explains that only the intended email address can accept it,
-while a generic link explains that it is transferable and single-use.
-An older preview without binding metadata makes neither claim. Merely
-opening or previewing the URL never changes membership. In a server deploy with auth on, an
-unauthenticated invitee gets the page's own onboarding form with equally prominent **Sign in** and
-**Create account** tabs. Only the selected journey's fields appear; **Name** and a new-password field
-belong to account creation, while sign-in uses Email and the current password. Permission and
-existing-role consequences wrap in full. Expiry uses the viewer's local date and time without seconds;
-the year appears when it differs from the current year. An existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, reviews the invitation
-under that identity, sees the signed-in email/name, then chooses **Accept invite**. **Use a different
-account** signs out without discarding the bearer URL. If a pre-authorised invite rejects the current
-identity, the page explains the mismatch and retains that same recovery action instead of suggesting
-a retry as the wrong identity. In SSO-only mode the accepting session must come from the required
-company provider. GitHub cannot enter a provider-required deployment, including through an
-older session. Google and Microsoft sign-in do not themselves claim the invitation: the signed-in
-person still explicitly accepts it, with its address and expiry checked again. A brand-new invitee
-chooses **Create account**, then **Verify email and create account** to enter the company-bound
-`/join/:accountId?invite=:token` journey. The old direct signup endpoint refuses credential
-creation. After same-browser mailbox proof, **Create account and join** creates the identity and
-claims the invite atomically, then refreshes the authenticated company list, activates that company
-and enters it directly.
-A fresh authenticated boot is required because the pre-session invite page deliberately starts
-without tenant persistence attached; the signup handoff carries only the joined company id in a
-one-use query parameter, removes it from the URL, verifies it against the authenticated company
-list, and activates it. It never persists `activeAccountId` or trusts the URL as membership proof.
-If the signup response is lost, a successful credential sign-in reloads the same invite URL instead
-of guessing which company was joined: an unused token can then be explicitly accepted, while a used
-token directs the person to their authenticated company list.
-A **valid** accept binds the signed-in user to that company and shows the effective role returned by
-the mutation in a _"You've joined this company as `<role>`"_ success with a **Continue** link (which
-opens the joined company directly after refetching the account list so the brand-new membership is
-activatable). Leaving the invitation route while that refresh is pending does not later switch the
-active company; the refreshed company directory remains available for normal account selection. A
-single polite status announces checking, readiness, joining and completion; accepting moves focus
-to that status, and completed activation moves focus to **Continue**.
+facts are never revealed. An addressed invite explains that only the intended email can use it.
+Merely opening or previewing the URL never changes membership. Permission and existing-role
+consequences wrap in full. Expiry uses the viewer's local date and time without seconds; the year
+appears when it differs from the current year. The primary **Verify email to join** link opens
+`/join/:accountId?invite=:token` for both new and existing identities, preserving the exact
+invitation and its proposed role. No generic sign-in or old direct signup grants new membership.
+Password users open a 15-minute mailbox link in the same browser, then create credentials or sign
+in. Existing users with multi-factor authentication complete their authenticator or recovery-code
+challenge before the invitation can be claimed. If the final company request fails after that
+challenge, the page keeps the verified sign-in and offers **Join company** again without asking for
+another one-time code. Eligible providers complete their company-bound
+sign-in before the final **Join company** action. The server rechecks the addressed email, current
+policy, invitation, access restrictions and session at completion. A new or restored member receives
+the invitation role; an already-active member keeps their current role. Completion refreshes the
+authenticated company list, activates the joined company and enters it directly without persisting
+`activeAccountId` or treating the URL as membership proof.
 An accept is refused (403) while **Disable Access** applies, including after removal or identity
 recreation with the same proven email; the invitation remains unused. An archived member without
 the restriction can rejoin through a valid invitation at the invitation's role. A

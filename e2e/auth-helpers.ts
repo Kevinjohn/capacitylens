@@ -3,6 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ports } from "../scripts/ports.mjs";
+import { readJoiningLinkFromMail } from "./joiningMail";
 
 // Shared plumbing for the auth-backed Playwright specs (*.auth.spec.ts), which all run against the
 // auth-e2e server (SMALLSASS_ACCOUNT_MODE=password on the lane auth API — see playwright.config.ts). Extracted here so
@@ -52,14 +53,11 @@ async function postSignUp(ctx: APIRequestContext, email: string): Promise<string
     data: { email, password: AUTH_PASSWORD, name: email.split("@")[0] },
   });
   expect(res.ok(), `sign-up ${email}`).toBeTruthy();
-  seedFixtureMailboxProof(email);
   return cookiesOf(res.headers()["set-cookie"] ?? "");
 }
 
-/** Existing role/access suites use disposable auth-e2e identities as fixtures, not as proof-flow coverage.
- * Give those fixture identities durable address proof so invitation acceptance exercises its
- * ordinary membership path. The real mailbox journey has its own browser scenario. */
-function seedFixtureMailboxProof(email: string): void {
+/** Seed only disposable auth-E2E role/access fixtures. Real invitation tests use the mailbox journey. */
+export function seedFixtureMember(accountId: string, email: string, role: "admin" | "editor" | "viewer"): void {
   const path = fileURLToPath(new URL("../server/.auth-e2e.db", import.meta.url));
   const db = new DatabaseSync(path);
   try {
@@ -68,9 +66,9 @@ function seedFixtureMailboxProof(email: string): void {
       { id: string } | undefined;
     if (!principal) throw new Error(`Missing E2E fixture identity for ${email}`);
     db.prepare(
-      `INSERT INTO identity_email_proofs (principalId, email, source, provenAt)
-       VALUES (?, ?, 'password', ?)`,
-    ).run(principal.id, email.toLowerCase(), new Date().toISOString());
+      `INSERT INTO account_members (accountId, userId, role, status, createdAt)
+       VALUES (?, ?, ?, 'active', ?)`,
+    ).run(accountId, principal.id, role, new Date().toISOString());
   } finally {
     db.close();
   }
@@ -84,8 +82,8 @@ export async function waitForJoiningMail(email: string, accountId: string): Prom
     for (const record of records.reverse()) {
       const mail = JSON.parse(record) as { to: string; body: string };
       if (mail.to !== email.toLowerCase()) continue;
-      const link = mail.body.match(/http:\/\/localhost:\d+\/join\/[^\s#]+#token=[A-Za-z0-9_-]+/)?.[0];
-      if (link && new URL(link).pathname === `/join/${encodeURIComponent(accountId)}`) return link;
+      const link = readJoiningLinkFromMail(mail.body, accountId);
+      if (link) return link.href;
     }
     return null;
   };

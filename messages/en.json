@@ -1467,6 +1467,7 @@
   "joining_continue_provider": "Continue with {provider}",
   "joining_provider_approved": "Your sign-in provider verified this address. Join this company to finish.",
   "joining_provider_failed": "Provider sign-in did not complete. Choose the provider again to restart company joining.",
+  "joining_mfa_complete": "Signed in. Finish joining this company.",
   "joining_password_choice": "Or verify email to use a password",
   "ownership_transfer_heading": "Company ownership",
   "ownership_transfer_intro": "Ownership moves in three steps: you nominate an Admin, they agree, then you confirm. Nothing changes until all three have happened.",

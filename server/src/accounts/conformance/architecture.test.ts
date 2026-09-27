@@ -285,6 +285,8 @@ const identitySqlOwners = new Set([
   resolve(serverRoot, "accounts/identityPort/sessionRevocation.ts"),
   resolve(serverRoot, "accounts/identityPort/sessions.ts"),
   resolve(serverRoot, "accounts/adminPort/joiningProof.ts"),
+  resolve(serverRoot, "accounts/adminPort/joiningProviderCallbacks.ts"),
+  resolve(serverRoot, "accounts/adminPort/joiningProviderIntent.ts"),
   resolve(serverRoot, "controlTables/accountMemberResources.ts"),
   resolve(serverRoot, "controlTables/accessRestrictions.ts"),
   resolve(serverRoot, "testHelpers/federatedAccount.ts"),
@@ -317,6 +319,7 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "controlTables/retentionV24.ts"),
       resolve(serverRoot, "accounts/memberSignInTracking.ts"),
       resolve(serverRoot, "accounts/adminPort/invitations.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningAdmission.ts"),
       resolve(serverRoot, "accounts/adminPort/joiningProof.ts"),
       resolve(serverRoot, "accounts/identityPort/federatedLinks.ts"),
       resolve(serverRoot, "authConfig/federatedEmailProof.ts"),
@@ -346,6 +349,8 @@ describe("account-boundary architecture", () => {
       resolve(serverRoot, "accounts/adminPort/joiningPolicy.ts"),
       resolve(serverRoot, "accounts/adminPort/joiningAdmission.ts"),
       resolve(serverRoot, "accounts/adminPort/joiningProof.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningProviderCallbacks.ts"),
+      resolve(serverRoot, "accounts/adminPort/joiningProviderIntent.ts"),
       resolve(serverRoot, "accounts/adminPort/memberReads.ts"),
       resolve(serverRoot, "accounts/proofInvitationPort.ts"),
       resolve(serverRoot, "accounts/adminPort/membership.ts"),
@@ -451,9 +456,11 @@ describe("account-boundary architecture", () => {
 
   it("centralizes executable browser account URLs in the account client", () => {
     const accountClient = resolve(browserRoot, "account/accountClient.ts");
+    // Company-specific proof and provider URLs have their own account client boundary.
+    const companyJoinClient = resolve(browserRoot, "account/companyJoinClient.ts");
     const gettingStartedClient = resolve(browserRoot, "account/gettingStartedClient.ts");
     for (const file of sourceFiles(browserRoot)) {
-      if (file === accountClient || file === gettingStartedClient) continue;
+      if (file === accountClient || file === companyJoinClient || file === gettingStartedClient) continue;
       const source = readFileSync(file, "utf8");
       expect(source, file).not.toMatch(/fetch\s*\([^\n]*(?:\/api\/(?:auth\/me|accounts|invites|orgs))/);
       expect(source, file).not.toMatch(/apiFetch(?:Reauth)?\s*\([^\n]*(?:\/api\/(?:accounts|invites|orgs))/);

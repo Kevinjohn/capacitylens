@@ -58,17 +58,15 @@ preview what they're joining before anything happens: your company name, the pro
 role, what that role can and can't do, and when the link expires. Just opening the link
 never changes [membership](/reference/glossary).
 
-![Accept invite screen showing complete permissions and separate Sign in and Create account choices](../screenshots/flows/invitation_accept.png)
-
 From there:
 
-- Already have a sign-in? Choose **Sign in**, enter your email and password, then check the
-  signed-in identity and select **Accept invite**. Choose **Use a different account** if needed;
-  the invitation stays open.
-- New to this install? Choose **Create account**, then **Verify email and create account**.
-  Open the verification email in the same browser before choosing a password. Creating the
-  account and accepting the invitation happen together after proof.
-- Use company login? Choose your configured provider, then review and accept the invitation.
+- Choose **Verify email to join** to continue with this company and invitation. The joining page
+  asks for the addressed email, so another person cannot take the invite's role.
+- Already have a password sign-in? Open the verification email in the same browser, then enter
+  your password. If prompted, finish the authenticator or recovery-code challenge before joining.
+- New to this install? Open the verification email in the same browser before choosing a password.
+  Account creation and invitation acceptance happen together after proof.
+- Use company login? Choose an available provider on the joining page, then select **Join company**.
 
 The role description is shown in full. Expiry uses your local date and time, without seconds.
 An email-bound invitation shows the part before `@`, followed by `@…` (for example,

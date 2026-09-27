@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
+import { AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./auth-helpers";
 import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -14,16 +14,7 @@ test.describe("member masquerade", () => {
     const owner = await signUpUser(OWNER_EMAIL);
     const viewer = await signUpUser(VIEWER_EMAIL);
     const accountId = await bootstrapOrg(request, owner.cookie, COMPANY);
-    const invitation = await request.post(`${AUTH_API}/api/invites`, {
-      headers: { cookie: owner.cookie },
-      data: { accountId, role: "viewer", preauthEmail: viewer.email },
-    });
-    expect(invitation.status()).toBe(201);
-    const token = ((await invitation.json()) as { token: string }).token;
-    const accepted = await request.post(`${AUTH_API}/api/invites/${token}/accept`, {
-      headers: { cookie: viewer.cookie },
-    });
-    expect(accepted.status()).toBe(200);
+    seedFixtureMember(accountId, viewer.email, "viewer");
 
     await page.goto("/");
     await page.getByRole("heading", { name: "Sign in" }).waitFor();

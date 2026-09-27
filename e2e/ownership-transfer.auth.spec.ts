@@ -1,13 +1,19 @@
 import { test, expect, type APIRequestContext, type Page } from "./fixtures";
 import type { BrowserContext } from "@playwright/test";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUserWithId } from "./auth-helpers";
+import {
+  AUTH_API as API,
+  AUTH_PASSWORD as PASSWORD,
+  bootstrapOrg,
+  seedFixtureMember,
+  signUpUserWithId,
+} from "./auth-helpers";
 import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // #780 — the ownership transfer ceremony, end to end in the browser, against the auth-backed
-// project's server (see playwright.config.ts). Owner A bootstraps an org and invites Admin B, who
-// accepts through the API. Then both people drive the real UI: A nominates B, B agrees, A confirms,
+// project's server (see playwright.config.ts). Owner A bootstraps an org and the disposable fixture
+// seeds Admin B. Then both people drive the real UI: A nominates B, B agrees, A confirms,
 // and the two roles swap. We also assert the two things the ceremony exists for — that nobody else
 // can see the request, and that nobody but B can give B's consent. Browser-agnostic (no UA branching).
 
@@ -32,14 +38,7 @@ async function setupCeremony(request: APIRequestContext) {
     [admin, "admin"],
     [editor, "editor"],
   ] as const) {
-    const invite = await request.post(`${API}/api/invites`, {
-      headers: { cookie: owner.cookie },
-      data: { accountId, role, preauthEmail: who.email },
-    });
-    expect(invite.status()).toBe(201);
-    const token = (await invite.json()).token as string;
-    const accept = await request.post(`${API}/api/invites/${token}/accept`, { headers: { cookie: who.cookie } });
-    expect(accept.status()).toBe(200);
+    seedFixtureMember(accountId, who.email, role);
   }
   return { owner, admin, editor, accountId };
 }

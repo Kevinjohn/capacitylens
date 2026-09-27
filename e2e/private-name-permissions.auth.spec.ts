@@ -1,5 +1,5 @@
 import { expect, test } from "./fixtures";
-import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
+import { AUTH_API, AUTH_PASSWORD, bootstrapOrg, seedFixtureMember, signUpUser } from "./auth-helpers";
 import { waitForAppLanding } from "./helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -70,26 +70,15 @@ async function assertPrivateNamesForMember(
   }
 }
 
-async function inviteMembers(
-  request: import("@playwright/test").APIRequestContext,
+function seedMembers(
   accountId: string,
-  ownerCookie: string,
   members: ReadonlyArray<{
     role: "admin" | "editor" | "viewer";
     user: { cookie: string; email: string };
   }>,
 ) {
   for (const { role, user } of members) {
-    const invitation = await request.post(`${AUTH_API}/api/invites`, {
-      headers: { cookie: ownerCookie },
-      data: { accountId, role, preauthEmail: user.email },
-    });
-    expect(invitation.status()).toBe(201);
-    const token = (await invitation.json()).token as string;
-    const accepted = await request.post(`${AUTH_API}/api/invites/${token}/accept`, {
-      headers: { cookie: user.cookie },
-    });
-    expect(accepted.status()).toBe(200);
+    seedFixtureMember(accountId, user.email, role);
   }
 }
 
@@ -150,7 +139,7 @@ test("non-owners see protected code names without owner controls or real-name le
   ] as const;
 
   const accountId = await bootstrapOrg(request, owner.cookie, ACCOUNT);
-  await inviteMembers(request, accountId, owner.cookie, members);
+  seedMembers(accountId, members);
   await seedPrivateNames(request, accountId, owner.cookie);
 
   for (const { role, user } of members) {

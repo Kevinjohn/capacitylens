@@ -6,6 +6,7 @@ import {
   bootstrapOrg,
   signUpUser as signUp,
   signUpUserWithId,
+  seedFixtureMember,
 } from "./auth-helpers";
 import { waitForAppLanding, selectShadOption } from "./helpers";
 
@@ -13,7 +14,7 @@ test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.11 — Owner/Admin member management, against the auth-backed project's server
 // (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and
-// invites admin B + editor C (both accept via the API). Then, as B (admin), we drive the Team &
+// seeds admin B + editor C in the disposable test database. Then, as B (admin), we drive the Team &
 // access UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
 // revoke it. We assert the Owner option is ABSENT for B in the UI, and at the API layer that nobody
 // can assign Owner through PATCH (400), cannot touch owner A (→ 403), cannot nominate a next Owner
@@ -36,14 +37,7 @@ async function setupMembersApi(request: APIRequestContext) {
     [admin, "admin"],
     [editor, "editor"],
   ] as const) {
-    const inv = await request.post(`${API}/api/invites`, {
-      headers: { cookie: owner.cookie },
-      data: { accountId, role, preauthEmail: who.email },
-    });
-    expect(inv.status()).toBe(201);
-    const token = (await inv.json()).token as string;
-    const accept = await request.post(`${API}/api/invites/${token}/accept`, { headers: { cookie: who.cookie } });
-    expect(accept.status()).toBe(200);
+    seedFixtureMember(accountId, who.email, role);
   }
   const grant = await request.patch(`${API}/api/accounts/${accountId}/members/${editor.userId}`, {
     headers: { cookie: admin.cookie },

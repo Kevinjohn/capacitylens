@@ -112,6 +112,32 @@ function registerInviteAcceptTest(register: () => void) {
 }
 
 registerInviteAcceptTest(() =>
+  it.each([null, signedInAuth])("hands an addressed invitation to the company-bound journey", async (auth) => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ...previewResponse(),
+      json: async () => ({
+        accountName: "Wayne Enterprises",
+        accountId: "a-studio",
+        role: "editor",
+        expiresAt: "2999-01-01T00:00:00.000Z",
+        emailBound: true,
+        emailHint: "b***@…",
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderInvite(auth ?? undefined);
+
+    expect(await screen.findByRole("link", { name: m.joining_invite_recovery() })).toHaveAttribute(
+      "href",
+      "/join/a-studio?invite=secret-token",
+    );
+    expect(screen.queryByRole("button", { name: m.invite_accept_action() })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: m.invite_sign_in_accept() })).not.toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => (init as RequestInit | undefined)?.method === "POST")).toBe(false);
+  }),
+);
+
+registerInviteAcceptTest(() =>
   it("identifies the signed-in account and offers to switch without losing the invite route", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(previewResponse()));
     const signOut = vi.fn(async () => {});
@@ -223,7 +249,8 @@ registerInviteAcceptTest(() =>
     expect(screen.queryByLabelText("Name")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: m.joining_invite_continue() })).toHaveAttribute(
-      "href", "/join/a-studio?invite=secret-token",
+      "href",
+      "/join/a-studio?invite=secret-token",
     );
   }),
 );

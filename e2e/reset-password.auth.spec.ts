@@ -1,11 +1,17 @@
 import { test, expect, type APIRequestContext } from "./fixtures";
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, bootstrapOrg, signUpUser } from "./auth-helpers";
+import {
+  AUTH_API as API,
+  AUTH_PASSWORD as PASSWORD,
+  bootstrapOrg,
+  seedFixtureMember,
+  signUpUser,
+} from "./auth-helpers";
 
 test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.18 — admin-issued password-reset links, against the auth-backed project's server
 // (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A signs up, bootstraps an
-// org, invites member B (editor), then mints B a reset link from Team & access in the BROWSER
+// org, seeds member B (editor) in the disposable fixture, then mints B a reset link from Team & access in the BROWSER
 // (the write-once reset-link block). B — signed OUT, which is the whole point of a reset — opens the
 // link, sets a new password, and signs in with it; the old password is asserted dead at the API
 // layer. Browser-agnostic (no UA branching). Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp)
@@ -21,15 +27,8 @@ async function setupResetScenario(request: APIRequestContext) {
   const memberPromise = signUpUser(MEMBER);
   const ownerCookie = (await signUpUser(OWNER)).cookie;
   const accountId = await bootstrapOrg(request, ownerCookie, `Reset Studio ${STAMP}`);
-  const inviteRes = await request.post(`${API}/api/invites`, {
-    headers: { cookie: ownerCookie },
-    data: { accountId, role: "editor", preauthEmail: MEMBER },
-  });
-  expect(inviteRes.status()).toBe(201);
-  const inviteToken = (await inviteRes.json()).token as string;
-  const memberCookie = (await memberPromise).cookie;
-  const joined = await request.post(`${API}/api/invites/${inviteToken}/accept`, { headers: { cookie: memberCookie } });
-  expect(joined.status()).toBe(200);
+  await memberPromise;
+  seedFixtureMember(accountId, MEMBER, "editor");
 }
 
 test("admin mints a reset link in Team & access; the locked-out member sets a new password with it", async ({
