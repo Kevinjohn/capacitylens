@@ -37,7 +37,11 @@ function renderJoin(path = "/join/a-studio", context = auth) {
   );
 }
 
-function stubJoin(extra?: (url: string, init?: RequestInit) => Response, providerAvailable = false) {
+function stubJoin(
+  extra?: (url: string, init?: RequestInit) => Response,
+  providerAvailable = false,
+  status: () => Record<string, unknown> = () => ({ state: "expired" }),
+) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/join/metadata"))
@@ -47,8 +51,8 @@ function stubJoin(extra?: (url: string, init?: RequestInit) => Response, provide
         passwordAvailable: true,
         providerAvailable,
       });
-    if (url.endsWith("/api/company-join/status") || url.endsWith("/api/account/microsoft/status"))
-      return Response.json({ state: "expired" });
+    if (url.endsWith("/api/company-join/status")) return Response.json(status());
+    if (url.endsWith("/api/account/microsoft/status")) return Response.json({ state: "expired" });
     if (extra) return extra(url, init);
     throw new Error(`Unexpected request: ${url}`);
   });
@@ -79,12 +83,12 @@ it("shows eligible providers above existing password and excludes GitHub in comp
   expect(await screen.findByRole("button", { name: "Sign in with Google" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Sign in with Microsoft" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Continue with GitHub" })).not.toBeInTheDocument();
-  expect(screen.getByText("Or sign in with your password")).toBeInTheDocument();
+  expect(screen.queryByText("Or sign in with your password")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
 });
 
 it("uses company-bound Microsoft start with the addressed invitation", async () => {
   const fetchMock = stubJoin((url) => {
-    if (url.endsWith("/api/company-join/cancel")) return Response.json({ ok: true });
     if (url.endsWith("/api/account/microsoft/start"))
       return Response.json({ url: "https://login.microsoftonline.com/authorize" });
     throw new Error(`Unexpected request: ${url}`);
@@ -108,6 +112,51 @@ it("uses company-bound Microsoft start with the addressed invitation", async () 
     inviteToken: "invite-token",
   });
   window.dispatchEvent(new Event("pagehide"));
+});
+
+it("preserves a prior provider journey when switching providers is rejected", async () => {
+  let priorIntentLive = true;
+  let priorIntentState: "pending" | "approved" = "pending";
+  const fetchMock = stubJoin(
+    (url) => {
+      if (url.endsWith("/api/company-join/cancel") || url.endsWith("/api/account/microsoft/cancel")) {
+        priorIntentLive = false;
+        return Response.json({ ok: true });
+      }
+      if (url.endsWith("/api/account/microsoft/start"))
+        return Response.json({ error: "Provider start unavailable" }, { status: 503 });
+      throw new Error(`Unexpected request: ${url}`);
+    },
+    true,
+    () =>
+      priorIntentLive
+        ? {
+            state: priorIntentState,
+            accountId: "a-studio",
+            purpose: "policy",
+            providerId: "google",
+            email: "diana@example.test",
+          }
+        : { state: "expired" },
+  );
+  const context: AuthContextValue = {
+    ...auth,
+    providers: [
+      { id: "google", label: "Google", kind: "social", experimental: false },
+      { id: "microsoft", label: "Microsoft", kind: "social", experimental: false },
+    ],
+  };
+  const user = userEvent.setup();
+  const view = renderJoin("/join/a-studio", context);
+  await user.click(await screen.findByRole("button", { name: "Sign in with Microsoft" }));
+  expect(await screen.findByText("Provider start unavailable")).toBeInTheDocument();
+  view.unmount();
+  priorIntentState = "approved";
+  renderJoin("/join/a-studio", context);
+  expect(
+    await screen.findByText("Your sign-in provider verified this address. Join this company to finish."),
+  ).toBeInTheDocument();
+  expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith("/cancel"))).toBe(false);
 });
 
 it("signs in an existing password identity and joins only through the policy endpoint", async () => {

@@ -1012,8 +1012,8 @@ Merely opening or previewing the URL never changes membership. Permission and ex
 consequences wrap in full. Expiry uses the viewer's local date and time without seconds; the year
 appears when it differs from the current year. An addressed invite can be accepted with an existing password sign-in, or used to create a
 password account where invitation signup is allowed. The invitation stays bound to its exact
-address and company. Eligible providers use the company-bound `/join/:accountId?invite=:token`
-journey and explicitly finish joining after verified sign-in. A new or restored member receives
+address and company. Eligible providers return to `/invite/:token` after sign-in, then explicitly accept the
+invitation under the current policy. A new or restored member receives
 the invitation role; an already-active member keeps the current role. The server rechecks the
 address, current policy, invitation, access restrictions and session at acceptance. Completion
 refreshes the authenticated company list and activates the joined company without persisting

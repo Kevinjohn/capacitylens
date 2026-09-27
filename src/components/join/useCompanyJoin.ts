@@ -138,10 +138,6 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
     setError(null);
     await runExternalSignIn({
       start: async (signal) => {
-        let cancelled: Response | null = null;
-        if (selectedProviderId === "microsoft") cancelled = await companyJoinClient.cancel();
-        else if (hasMicrosoft) cancelled = await companyJoinClient.microsoftCancel();
-        if (cancelled && !cancelled.ok) return { error: { message: await responseError(cancelled) } };
         const response =
           selectedProviderId === "microsoft"
             ? await companyJoinClient.startMicrosoft({ accountId, email, invitationToken }, signal)
@@ -284,6 +280,7 @@ export function useCompanyJoin(accountId: string | undefined, invitationToken: s
   return {
     stage,
     metadata,
+    passwordAvailable: metadata?.passwordAvailable === true && authMode !== "sso-only",
     email,
     emailHint,
     providerId,

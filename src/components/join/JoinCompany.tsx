@@ -12,7 +12,7 @@ import { ExternalProviderButton } from "../common/ExternalProviderButton";
 type Flow = ReturnType<typeof useCompanyJoin>;
 
 function Entry({ flow, invitationToken }: { flow: Flow; invitationToken: string | null }) {
-  if (!flow.metadata?.passwordAvailable && flow.eligibleProviders.length === 0) return <p>{m.joining_failed()}</p>;
+  if (!flow.passwordAvailable && flow.eligibleProviders.length === 0) return <p>{m.joining_failed()}</p>;
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-muted-foreground">{m.joining_email_intro()}</p>
@@ -39,7 +39,7 @@ function Entry({ flow, invitationToken }: { flow: Flow; invitationToken: string 
           ))}
         </div>
       )}
-      {flow.metadata?.passwordAvailable &&
+      {flow.passwordAvailable &&
         (invitationToken ? (
           <a className="text-sm text-brand underline" href={`/invite/${encodeURIComponent(invitationToken)}`}>
             {m.joining_use_invitation()}

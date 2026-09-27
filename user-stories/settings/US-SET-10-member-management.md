@@ -168,10 +168,10 @@ the non-blocking product orientation if it is open.
   independently of what the UI renders. A non-active membership authorizes nothing: the member's own
   reads against the company return **403** until they are restored, while the administrative
   directory keeps listing them so the change is visible and reversible.
-- A non-active membership cannot be reversed by its holder. Redeeming an invite for a company where the
-  caller's membership is disabled or archived is **403**, leaves the membership untouched and leaves
-  the invite **unused** — only an Owner/Admin restores access, and the restore is audited as
-  `member.status_changed`.
+- A disabled membership cannot be reversed by its holder. Redeeming an invite while access is
+  disabled is **403** and leaves the invite unused; only an Owner/Admin can enable access.
+  An archived member without a Disable Access restriction may rejoin through an addressed,
+  valid invitation under the current joining policy, receiving the invitation role.
 - Disabling someone never costs an administrator the ability to act on them: **Reset password** and
   **Revoke sessions** stay available against a disabled or archived member (the compromised-account
   case is precisely why an admin disables first), and **Remove** works on a non-active row without

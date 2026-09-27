@@ -64,8 +64,8 @@ From there:
   invitation, then choose **Accept invite**. Complete any required second factor.
 - New to this install? Use the invitation's **Create account** option. Account
   creation and invitation acceptance happen together.
-- Use company login? Choose an available provider and finish its company-bound
-  sign-in, then select **Join company**.
+- Use company login? Choose an available provider, return to the invitation,
+  then select **Accept invite**.
 
 The role description is shown in full. Expiry uses your local date and time, without seconds.
 An email-bound invitation shows the part before `@`, followed by `@…` (for example,
