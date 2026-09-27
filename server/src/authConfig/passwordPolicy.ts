@@ -16,6 +16,7 @@ import {
   createScryptPasswordHasher,
   type PasswordHasher,
 } from "../passwordSecurity";
+import { preparedPasswordHashCapture } from "./captureContexts";
 
 type SessionDeletionLifecycleRef = {
   current: {
@@ -79,6 +80,8 @@ function createPasswordHash({
   assertCredentialPasswordLength: (password: unknown) => void;
 }): (password: string) => Promise<string> {
   return async (password) => {
+    const prepared = preparedPasswordHashCapture.getStore();
+    if (prepared?.hash && prepared.password === password) return prepared.hash;
     assertCredentialPasswordLength(password);
     try {
       assertNoContextSpecificPassword(password, input.passwordContextWords);
@@ -114,6 +117,7 @@ function passwordResetOptions(input: BuildPasswordPolicyInput): Partial<BetterAu
 
 export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<BetterAuthOptions, "emailAndPassword"> & {
   assertAuthRequestPasswordLength: (path: string, body: unknown) => void;
+  prepareSignUpPasswordHash: (path: string, body: unknown) => Promise<void>;
 } {
   const { env, mode, runtimeEnvironment, verifyPasswordWithBackpressure } = input;
   const testRuntime = runtimeEnvironment === "test";
@@ -156,5 +160,13 @@ export function buildPasswordPolicy(input: BuildPasswordPolicyInput): Pick<Bette
       ...passwordResetOptions(input),
     },
     assertAuthRequestPasswordLength,
+    async prepareSignUpPasswordHash(path, body) {
+      const store = preparedPasswordHashCapture.getStore();
+      if (path !== "/sign-up/email" || !store || typeof body !== "object" || body === null) return;
+      const { password } = body as { password?: unknown };
+      if (typeof password !== "string") return;
+      store.hash = await passwordHash(password);
+      store.password = password;
+    },
   };
 }

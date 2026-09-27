@@ -10,6 +10,7 @@ import {
 } from "./auth";
 import { buildApplicationSessionHandle } from "./accounts/buildApplicationSessionHandle";
 import { call, PASSWORD_ENV } from "./testHelpers";
+import { tx } from "./txn";
 
 /** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
 function headerValues(value: string | string[] | undefined): string[] {
@@ -451,5 +452,39 @@ describe("SMALLSASS_ACCOUNT_MODE password", () => {
         })
       ).statusCode,
     ).toBe(401);
+  });
+});
+
+describe("SMALLSASS_ACCOUNT_MODE password", () => {
+  it("never nests a concurrent write in an in-flight sign-up", async () => {
+    const db = openDb(":memory:");
+    const configured = createAuthFromEnvironment(db, PASSWORD_ENV);
+    await runAuthMigrations(parseConfiguredAuth(configured.auth));
+    const app = createApp(db, { authMode: configured.mode, auth: configured.auth });
+    db.exec("CREATE TABLE concurrent_writes (turn INTEGER NOT NULL) STRICT");
+
+    const signUpState = { settled: false };
+    const signUp = call(app, {
+      method: "POST",
+      url: "/api/auth/sign-up/email",
+      payload: { email: "diana@capacitylens.dev", password: "password-123456", name: "Diana Prince" },
+    }).finally(() => (signUpState.settled = true));
+    // Write on every turn the sign-up yields. A write that finds the sign-up's transaction open is
+    // refused; every acknowledged write must survive whatever the sign-up does.
+    let acknowledged = 0;
+    for (let turn = 0; !signUpState.settled; turn++) {
+      const write = () => tx(db, () => db.prepare("INSERT INTO concurrent_writes (turn) VALUES (?)").run(turn));
+      if (db.isTransaction) expect(write).toThrow(/did not open/);
+      else {
+        write();
+        acknowledged++;
+      }
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    expect((await signUp).statusCode).toBe(200);
+    expect(acknowledged).toBeGreaterThan(0);
+    expect(db.prepare("SELECT COUNT(*) AS count FROM user").get()).toEqual({ count: 1 });
+    expect(db.prepare("SELECT COUNT(*) AS count FROM concurrent_writes").get()).toEqual({ count: acknowledged });
   });
 });

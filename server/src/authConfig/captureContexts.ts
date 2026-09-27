@@ -13,6 +13,11 @@ export const passwordResetSessionCapture = new AsyncLocalStorage<{ sessionHandle
  * two federated-account uniqueness races from unrelated provider or network failures. */
 export const authHandlerErrorCapture = new AsyncLocalStorage<{ error: unknown }>();
 
+/** A sign-up password hashed by the before hook. Better Auth hashes inside its sign-up transaction,
+ * which stays open on the shared handle across that await; hashing first keeps other requests'
+ * writes from running while the transaction is open. */
+export const preparedPasswordHashCapture = new AsyncLocalStorage<{ password: string | null; hash: string | null }>();
+
 export const microsoftCallbackCapture = new AsyncLocalStorage<{
   request: Request;
   proofId: string | null;

@@ -151,6 +151,10 @@ function runTopLevelTransaction<Result>(db: Db, callback: () => Result, options:
  * without attempting an invalid nested BEGIN. A nested `immediate` requirement is accepted only
  * when the enclosing transaction was itself opened as immediate by this helper; otherwise it
  * throws instead of silently weakening the caller's requested reservation.
+ *
+ * A transaction this helper did not open is refused, never joined. The authentication library
+ * holds its own transactions open on the shared handle across awaits; a concurrent request's write
+ * nested there would be acknowledged yet commit or roll back with that unrelated work.
  */
 export function tx<Result>(
   db: Db,
@@ -161,6 +165,9 @@ export function tx<Result>(
     throw new Error(
       "This database handle is quarantined: an earlier ROLLBACK failed while the transaction stayed active, so no further writes can be acknowledged on it.",
     );
+  }
+  if (db.isTransaction && !activeTransactionModes.has(db)) {
+    throw new Error("Another transaction is open on this database handle; tx() does not join one it did not open.");
   }
   const resolvedOptions = resolveTransactionOptions(configuration);
   return db.isTransaction

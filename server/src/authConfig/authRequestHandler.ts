@@ -2,6 +2,7 @@ import type { Auth } from "./authTypes";
 import {
   authHandlerErrorCapture,
   passwordResetSessionCapture,
+  preparedPasswordHashCapture,
   isFederatedAccountCoordinateConstraint,
   microsoftCallbackCapture,
   federatedCallbackCapture,
@@ -146,7 +147,9 @@ async function runCapturedHandler(
   };
   try {
     return await authHandlerErrorCapture.run(capture, () =>
-      passwordResetSessionCapture.run(resetCapture, providerScoped),
+      preparedPasswordHashCapture.run({ password: null, hash: null }, () =>
+        passwordResetSessionCapture.run(resetCapture, providerScoped),
+      ),
     );
   } finally {
     federatedCapture.active = false;
