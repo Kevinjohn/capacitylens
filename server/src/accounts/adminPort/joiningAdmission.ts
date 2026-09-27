@@ -1,8 +1,7 @@
 import { isApprovedEmailDomain } from "@capacitylens/shared/account/approvedDomains";
-import type { JoiningPolicySettings } from "@capacitylens/shared/account/types";
-import type { Membership } from "@capacitylens/shared/account/types";
+import type { JoiningPolicySettings, Membership } from "@capacitylens/shared/account/types";
 import { getInvite, markInviteUsed, getInviteTargetById, type Invite } from "../../controlTables/invites";
-import { getMembershipRow, listMembershipsForUser, upsertMember } from "../../controlTables/members";
+import { getMembershipRow, upsertMember } from "../../controlTables/members";
 import { isAccessRestricted, provenEmail } from "../../controlTables/accessRestrictions";
 import { inviteIsExpired } from "../../controlTables/inviteRetention";
 import { settleInvitationPersonProposal } from "../../controlTables/invitationPersonProposals";
@@ -63,18 +62,26 @@ export function cancelCompanyJoinForBrowser(input: {
   if (current?.browserHash === hashJoiningValue("browser", browser)) cancelJoinIntent(db, nonceHash, now);
 }
 
-function resolveLiveInvite(input: AdmissionTarget, now: number): Invite | null {
-  if (input.purpose !== "invitation") return null;
-  const invite = input.invitationToken ? getInvite(input.db, input.invitationToken) : null;
+function assertInviteLive<T extends Pick<Invite, "accountId" | "preauthEmail" | "usedAt" | "expiresAt">>(
+  invite: T | null,
+  target: { accountId: string; email: string },
+  now: number,
+): asserts invite is T {
   if (
     !invite ||
-    invite.accountId !== input.accountId ||
-    invite.preauthEmail !== input.email ||
+    invite.accountId !== target.accountId ||
+    invite.preauthEmail !== target.email ||
     invite.usedAt !== null ||
     inviteIsExpired(invite.expiresAt, now)
   ) {
     throw createAccountFailure("INVITATION_EXPIRED", "This invitation is no longer available.");
   }
+}
+
+function resolveLiveInvite(input: AdmissionTarget, now: number): Invite | null {
+  if (input.purpose !== "invitation") return null;
+  const invite = input.invitationToken ? getInvite(input.db, input.invitationToken) : null;
+  assertInviteLive(invite, input, now);
   return invite;
 }
 
@@ -100,16 +107,7 @@ export function assertJoinIntentTargetLive(
   }
   assertPolicyAllows(readJoiningPolicy(db, intent.accountId), intent.purpose, intent.email);
   if (intent.purpose === "invitation") {
-    const invite = getInviteTargetById(db, intent.invitationId);
-    if (
-      !invite ||
-      invite.accountId !== intent.accountId ||
-      invite.preauthEmail !== intent.email ||
-      invite.usedAt !== null ||
-      inviteIsExpired(invite.expiresAt, now)
-    ) {
-      throw createAccountFailure("INVITATION_EXPIRED", "This invitation is no longer available.");
-    }
+    assertInviteLive(getInviteTargetById(db, intent.invitationId), intent, now);
   }
 }
 
@@ -150,7 +148,7 @@ function applyMembership(input: AdmissionInput, invite: Invite | null, now: numb
       createdAt: new Date(now).toISOString(),
     });
   }
-  const row = listMembershipsForUser(db, principalId).find((candidate) => candidate.accountId === accountId);
+  const row = getMembershipRow(db, accountId, principalId);
   if (!row) throw new Error("Company admission committed without a membership row.");
   return readMembership(db, row);
 }

@@ -40,10 +40,6 @@ export function joiningCookie(input: { name: string; value: string; secure: bool
   return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure ? "; Secure" : ""}`;
 }
 
-export function isJoiningSecret(value: string): boolean {
-  return SECRET_RE.test(value);
-}
-
 export function joiningEmailHint(email: string): string {
   return `${email.slice(0, 1)}***${email.slice(email.indexOf("@"))}`;
 }

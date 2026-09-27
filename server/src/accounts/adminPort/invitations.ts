@@ -14,9 +14,9 @@ import {
   revokeInvite,
   createInvitationPersonProposal,
   isEligibleInvitationPerson,
+  readJoiningPolicy,
 } from "../../controlTables";
 import type { Db } from "../../db";
-import { readJoiningPolicy } from "../../controlTables";
 import { createOperationReceipt } from "../accountFlowRuntime";
 import {
   assertAccountAuthority,

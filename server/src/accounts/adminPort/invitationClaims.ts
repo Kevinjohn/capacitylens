@@ -14,8 +14,8 @@ import {
   pruneInvites,
   settleInvitationPersonProposal,
   upsertMember,
+  readJoiningPolicy,
 } from "../../controlTables";
-import { readJoiningPolicy } from "../../controlTables";
 import { markAccountCommandReplay, resumeExistingCommand } from "../commands";
 import { confirmTrackedMemberSignIn } from "../memberSignInTracking";
 import { assertWorkspaceExists } from "./authority";
